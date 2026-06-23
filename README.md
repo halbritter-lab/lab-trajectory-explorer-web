@@ -30,14 +30,6 @@ This regenerates `web/tests/goldens/*.json`, which the `tests/parity/*` suites
 assert against within float tolerance (`fitOls`) or exact equality (`parseWert`).
 Regenerate after changing any ported Python kernel, then re-run `pnpm test`.
 
-## Status
-
-Phase 1 (foundation) complete: project skeleton, Wert parser, OLS slope,
-workbook reader, lab-row loader, parity harness. Later phases add the
-single-patient view, eGFR, annotations, cohort view, AKI, and exports — see
-`docs/superpowers/specs/2026-06-11-browser-typescript-port-design.md` and the
-phase plans under `docs/superpowers/plans/`.
-
 ## License
 
 MIT © 2026 Jan-Paul Lerch
