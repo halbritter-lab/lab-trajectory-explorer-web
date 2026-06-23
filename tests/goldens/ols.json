@@ -1,0 +1,100 @@
+[
+  {
+    "xYears": [
+      0.0,
+      1.0,
+      2.0,
+      3.0
+    ],
+    "values": [
+      1.0,
+      3.0,
+      5.0,
+      7.0
+    ],
+    "slope": 2.0,
+    "intercept": 1.0,
+    "r2": 1.0,
+    "ciLow": 2.0,
+    "ciHigh": 2.0,
+    "reason": null
+  },
+  {
+    "xYears": [
+      0.0,
+      1.0,
+      2.0,
+      3.0,
+      4.0
+    ],
+    "values": [
+      1.0,
+      2.0,
+      1.3,
+      3.75,
+      2.25
+    ],
+    "slope": 0.42500000000000004,
+    "intercept": 1.21,
+    "r2": 0.39291929519251684,
+    "ciLow": -0.545646123025,
+    "ciHigh": 1.395646123025,
+    "reason": null
+  },
+  {
+    "xYears": [
+      0.0,
+      0.5,
+      1.5,
+      2.0,
+      3.1
+    ],
+    "values": [
+      2.1,
+      1.9,
+      1.2,
+      0.8,
+      0.3
+    ],
+    "slope": -0.608161911081619,
+    "intercept": 2.1235899137358993,
+    "r2": 0.9900184573824224,
+    "ciLow": -0.7203629456618458,
+    "ciHigh": -0.4959608765013924,
+    "reason": null
+  },
+  {
+    "xYears": [
+      0.0,
+      1.0
+    ],
+    "values": [
+      1.0,
+      2.0
+    ],
+    "slope": null,
+    "intercept": null,
+    "r2": null,
+    "ciLow": null,
+    "ciHigh": null,
+    "reason": "n_below_threshold"
+  },
+  {
+    "xYears": [
+      2.0,
+      2.0,
+      2.0
+    ],
+    "values": [
+      1.0,
+      2.0,
+      3.0
+    ],
+    "slope": null,
+    "intercept": null,
+    "r2": null,
+    "ciLow": null,
+    "ciHigh": null,
+    "reason": "identical_timestamps"
+  }
+]

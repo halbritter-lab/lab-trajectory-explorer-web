@@ -1,0 +1,642 @@
+{
+  "formulas": [
+    {
+      "scrMgdl": 1.0,
+      "ageYears": 50,
+      "sex": "m",
+      "ckdepi": 91.6914786098333,
+      "mdrd": 79.09465531827084,
+      "ekfc": 86.12994871613724
+    },
+    {
+      "scrMgdl": 1.0,
+      "ageYears": 50,
+      "sex": "w",
+      "ckdepi": 68.63349665880087,
+      "mdrd": 58.68823424615696,
+      "ekfc": 64.80412472933932
+    },
+    {
+      "scrMgdl": 1.0,
+      "ageYears": 50,
+      "sex": "d",
+      "ckdepi": 91.6914786098333,
+      "mdrd": 79.09465531827084,
+      "ekfc": 86.12994871613724
+    },
+    {
+      "scrMgdl": 0.6,
+      "ageYears": 25,
+      "sex": "w",
+      "ckdepi": 127.6667619627766,
+      "mdrd": 121.80737645701717,
+      "ekfc": 113.08286615727447
+    },
+    {
+      "scrMgdl": 2.5,
+      "ageYears": 70,
+      "sex": "m",
+      "ckdepi": 26.963782417509208,
+      "mdrd": 25.660220061545715,
+      "ekfc": 24.968358464576987
+    },
+    {
+      "scrMgdl": 1.2,
+      "ageYears": 80,
+      "sex": "w",
+      "ckdepi": 45.760251470305754,
+      "mdrd": 43.22545054345554,
+      "ekfc": 38.99647185056162
+    },
+    {
+      "scrMgdl": 1.0,
+      "ageYears": 17,
+      "sex": "m",
+      "ckdepi": null,
+      "mdrd": null,
+      "ekfc": null
+    },
+    {
+      "scrMgdl": 0.0,
+      "ageYears": 50,
+      "sex": "m",
+      "ckdepi": null,
+      "mdrd": null,
+      "ekfc": null
+    },
+    {
+      "scrMgdl": 1.0,
+      "ageYears": 50,
+      "sex": null,
+      "ckdepi": null,
+      "mdrd": null,
+      "ekfc": null
+    }
+  ],
+  "appended": [
+    {
+      "patientId": 1,
+      "date": "2022-01-15T00:00:00Z",
+      "wertNum": 70.4,
+      "operator": "="
+    },
+    {
+      "patientId": 1,
+      "date": "2022-04-15T00:00:00Z",
+      "wertNum": 70.4,
+      "operator": "="
+    },
+    {
+      "patientId": 1,
+      "date": "2022-07-14T00:00:00Z",
+      "wertNum": 70.4,
+      "operator": "="
+    },
+    {
+      "patientId": 1,
+      "date": "2022-10-12T00:00:00Z",
+      "wertNum": 69.5,
+      "operator": "="
+    },
+    {
+      "patientId": 1,
+      "date": "2023-01-10T00:00:00Z",
+      "wertNum": 69.5,
+      "operator": "="
+    },
+    {
+      "patientId": 1,
+      "date": "2023-04-10T00:00:00Z",
+      "wertNum": 69.5,
+      "operator": "="
+    },
+    {
+      "patientId": 1,
+      "date": "2023-07-09T00:00:00Z",
+      "wertNum": 69.5,
+      "operator": "="
+    },
+    {
+      "patientId": 1,
+      "date": "2023-10-07T00:00:00Z",
+      "wertNum": 68.7,
+      "operator": "="
+    },
+    {
+      "patientId": 1,
+      "date": "2024-01-05T00:00:00Z",
+      "wertNum": 68.7,
+      "operator": "="
+    },
+    {
+      "patientId": 1,
+      "date": "2024-04-04T00:00:00Z",
+      "wertNum": 68.7,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2021-06-01T00:00:00Z",
+      "wertNum": 75.9,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2021-08-15T00:00:00Z",
+      "wertNum": 72.0,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2021-10-29T00:00:00Z",
+      "wertNum": 68.4,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2022-01-12T00:00:00Z",
+      "wertNum": 65.1,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2022-03-28T00:00:00Z",
+      "wertNum": 61.5,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2022-06-11T00:00:00Z",
+      "wertNum": 58.8,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2022-08-25T00:00:00Z",
+      "wertNum": 56.3,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2022-11-08T00:00:00Z",
+      "wertNum": 54.0,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2023-01-22T00:00:00Z",
+      "wertNum": 51.9,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2023-04-07T00:00:00Z",
+      "wertNum": 49.9,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2023-06-21T00:00:00Z",
+      "wertNum": 48.1,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2023-09-04T00:00:00Z",
+      "wertNum": 46.3,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2023-11-18T00:00:00Z",
+      "wertNum": 44.4,
+      "operator": "="
+    },
+    {
+      "patientId": 2,
+      "date": "2024-02-01T00:00:00Z",
+      "wertNum": 42.9,
+      "operator": "="
+    },
+    {
+      "patientId": 3,
+      "date": "2022-01-01T00:00:00Z",
+      "wertNum": 74.1,
+      "operator": "="
+    },
+    {
+      "patientId": 3,
+      "date": "2024-01-01T00:00:00Z",
+      "wertNum": 43.6,
+      "operator": "="
+    },
+    {
+      "patientId": 4,
+      "date": "2022-01-01T00:00:00Z",
+      "wertNum": 91.7,
+      "operator": "="
+    },
+    {
+      "patientId": 4,
+      "date": "2022-04-01T00:00:00Z",
+      "wertNum": 86.5,
+      "operator": "="
+    },
+    {
+      "patientId": 4,
+      "date": "2022-06-30T00:00:00Z",
+      "wertNum": 81.8,
+      "operator": "="
+    },
+    {
+      "patientId": 4,
+      "date": "2022-09-28T00:00:00Z",
+      "wertNum": 80.0,
+      "operator": "="
+    },
+    {
+      "patientId": 4,
+      "date": "2022-12-27T00:00:00Z",
+      "wertNum": 73.7,
+      "operator": "="
+    },
+    {
+      "patientId": 4,
+      "date": "2023-03-27T00:00:00Z",
+      "wertNum": 69.7,
+      "operator": "="
+    },
+    {
+      "patientId": 4,
+      "date": "2023-06-25T00:00:00Z",
+      "wertNum": 66.5,
+      "operator": "="
+    },
+    {
+      "patientId": 4,
+      "date": "2023-09-23T00:00:00Z",
+      "wertNum": 63.6,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2022-01-10T00:00:00Z",
+      "wertNum": 65.5,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2022-04-10T00:00:00Z",
+      "wertNum": 62.3,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2022-07-10T00:00:00Z",
+      "wertNum": 59.5,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2022-09-05T00:00:00Z",
+      "wertNum": 59.5,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2022-09-08T00:00:00Z",
+      "wertNum": 22.7,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2022-09-16T00:00:00Z",
+      "wertNum": 35.5,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2022-09-28T00:00:00Z",
+      "wertNum": 50.1,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2022-12-10T00:00:00Z",
+      "wertNum": 56.8,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2023-03-10T00:00:00Z",
+      "wertNum": 54.4,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2023-06-10T00:00:00Z",
+      "wertNum": 52.2,
+      "operator": "="
+    },
+    {
+      "patientId": 6,
+      "date": "2023-09-10T00:00:00Z",
+      "wertNum": 50.1,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2021-01-01T00:00:00Z",
+      "wertNum": 80.0,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2021-03-01T00:00:00Z",
+      "wertNum": 75.4,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2021-06-01T00:00:00Z",
+      "wertNum": 71.3,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2021-06-03T00:00:00Z",
+      "wertNum": 47.3,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2021-06-12T00:00:00Z",
+      "wertNum": 64.3,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2021-09-01T00:00:00Z",
+      "wertNum": 71.3,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2022-01-01T00:00:00Z",
+      "wertNum": 67.6,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2022-01-04T00:00:00Z",
+      "wertNum": 28.7,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2022-01-20T00:00:00Z",
+      "wertNum": 55.8,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2022-06-01T00:00:00Z",
+      "wertNum": 64.3,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2022-10-01T00:00:00Z",
+      "wertNum": 61.2,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2022-10-03T00:00:00Z",
+      "wertNum": 14.3,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2022-10-18T00:00:00Z",
+      "wertNum": 34.8,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2023-01-01T00:00:00Z",
+      "wertNum": 55.8,
+      "operator": "="
+    },
+    {
+      "patientId": 7,
+      "date": "2023-06-01T00:00:00Z",
+      "wertNum": 53.4,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2020-02-01T00:00:00Z",
+      "wertNum": 69.9,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2020-08-01T00:00:00Z",
+      "wertNum": 68.2,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2021-02-01T00:00:00Z",
+      "wertNum": 68.6,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2021-08-01T00:00:00Z",
+      "wertNum": 66.9,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2022-02-01T00:00:00Z",
+      "wertNum": 65.7,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2022-08-01T00:00:00Z",
+      "wertNum": 67.3,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2023-02-01T00:00:00Z",
+      "wertNum": 66.1,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2023-08-01T00:00:00Z",
+      "wertNum": 64.5,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2024-02-01T00:00:00Z",
+      "wertNum": 64.9,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2024-08-01T00:00:00Z",
+      "wertNum": 63.4,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2025-02-01T00:00:00Z",
+      "wertNum": 63.7,
+      "operator": "="
+    },
+    {
+      "patientId": 8,
+      "date": "2025-08-01T00:00:00Z",
+      "wertNum": 62.2,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2019-02-01T00:00:00Z",
+      "wertNum": 68.2,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2019-10-01T00:00:00Z",
+      "wertNum": 61.7,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2020-06-01T00:00:00Z",
+      "wertNum": 56.0,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2021-02-01T00:00:00Z",
+      "wertNum": 50.3,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2021-10-01T00:00:00Z",
+      "wertNum": 43.7,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2022-06-01T00:00:00Z",
+      "wertNum": 38.1,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2023-02-01T00:00:00Z",
+      "wertNum": 33.2,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2023-10-01T00:00:00Z",
+      "wertNum": 29.5,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2024-06-01T00:00:00Z",
+      "wertNum": 25.9,
+      "operator": "="
+    },
+    {
+      "patientId": 9,
+      "date": "2025-02-01T00:00:00Z",
+      "wertNum": 22.9,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2022-01-10T00:00:00Z",
+      "wertNum": 79.3,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2022-04-10T00:00:00Z",
+      "wertNum": 76.6,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2022-07-10T00:00:00Z",
+      "wertNum": 75.0,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2022-07-12T00:00:00Z",
+      "wertNum": 41.5,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2022-07-20T00:00:00Z",
+      "wertNum": 49.4,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2022-08-15T00:00:00Z",
+      "wertNum": 68.5,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2022-11-15T00:00:00Z",
+      "wertNum": 70.6,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2023-02-15T00:00:00Z",
+      "wertNum": 68.5,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2023-05-15T00:00:00Z",
+      "wertNum": 65.4,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2023-08-15T00:00:00Z",
+      "wertNum": 63.5,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2023-11-15T00:00:00Z",
+      "wertNum": 61.7,
+      "operator": "="
+    },
+    {
+      "patientId": 11,
+      "date": "2024-02-15T00:00:00Z",
+      "wertNum": 59.5,
+      "operator": "="
+    }
+  ]
+}

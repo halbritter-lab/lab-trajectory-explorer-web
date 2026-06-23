@@ -1,0 +1,80 @@
+[
+  {
+    "points": [
+      {
+        "date": "2020-01-01T00:00:00Z",
+        "value": 1.0
+      },
+      {
+        "date": "2020-01-02T00:00:00Z",
+        "value": 1.5
+      },
+      {
+        "date": "2020-02-01T00:00:00Z",
+        "value": 1.0
+      }
+    ],
+    "episodes": [
+      {
+        "date": "2020-01-02T00:00:00Z",
+        "stage": 1,
+        "criterion": "absolute_0_3_mg_dl_48h"
+      }
+    ]
+  },
+  {
+    "points": [
+      {
+        "date": "2020-01-01T00:00:00Z",
+        "value": 1.0
+      },
+      {
+        "date": "2020-01-05T00:00:00Z",
+        "value": 1.6
+      }
+    ],
+    "episodes": [
+      {
+        "date": "2020-01-05T00:00:00Z",
+        "stage": 1,
+        "criterion": "relative_1_5x_7d"
+      }
+    ]
+  },
+  {
+    "points": [
+      {
+        "date": "2020-01-01T00:00:00Z",
+        "value": 3.5
+      },
+      {
+        "date": "2020-01-02T00:00:00Z",
+        "value": 4.1
+      }
+    ],
+    "episodes": [
+      {
+        "date": "2020-01-02T00:00:00Z",
+        "stage": 3,
+        "criterion": "absolute_0_3_mg_dl_48h"
+      }
+    ]
+  },
+  {
+    "points": [
+      {
+        "date": "2020-01-01T00:00:00Z",
+        "value": 1.0
+      },
+      {
+        "date": "2020-02-01T00:00:00Z",
+        "value": 1.05
+      },
+      {
+        "date": "2020-03-01T00:00:00Z",
+        "value": 1.0
+      }
+    ],
+    "episodes": []
+  }
+]

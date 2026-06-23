@@ -1,0 +1,128 @@
+[
+  {
+    "patientId": 101,
+    "mode": "global",
+    "rows": [
+      {
+        "bezeichnung": "Kreatinin",
+        "einheit": "mg/dl",
+        "nNumeric": 10,
+        "spanDays": 1476,
+        "slope": 0.551770992954361,
+        "reason": null
+      }
+    ]
+  },
+  {
+    "patientId": 101,
+    "mode": "gap-split",
+    "rows": [
+      {
+        "bezeichnung": "Kreatinin",
+        "einheit": "mg/dl",
+        "nNumeric": 10,
+        "spanDays": 1476,
+        "slope": 0.551770992954361,
+        "reason": null
+      }
+    ]
+  },
+  {
+    "patientId": 101,
+    "mode": "rolling",
+    "rows": [
+      {
+        "bezeichnung": "Kreatinin",
+        "einheit": "mg/dl",
+        "nNumeric": 10,
+        "spanDays": 1476,
+        "slope": 0.551770992954361,
+        "reason": null
+      }
+    ]
+  },
+  {
+    "patientId": 102,
+    "mode": "global",
+    "rows": [
+      {
+        "bezeichnung": "eGFR",
+        "einheit": "ml/min",
+        "nNumeric": 83,
+        "spanDays": 2495,
+        "slope": -3.834676299031054,
+        "reason": null
+      }
+    ]
+  },
+  {
+    "patientId": 102,
+    "mode": "gap-split",
+    "rows": [
+      {
+        "bezeichnung": "eGFR",
+        "einheit": "ml/min",
+        "nNumeric": 83,
+        "spanDays": 2495,
+        "slope": -3.834676299031054,
+        "reason": null
+      }
+    ]
+  },
+  {
+    "patientId": 102,
+    "mode": "rolling",
+    "rows": [
+      {
+        "bezeichnung": "eGFR",
+        "einheit": "ml/min",
+        "nNumeric": 83,
+        "spanDays": 2495,
+        "slope": -3.834676299031054,
+        "reason": null
+      }
+    ]
+  },
+  {
+    "patientId": 103,
+    "mode": "global",
+    "rows": [
+      {
+        "bezeichnung": "Kreatinin",
+        "einheit": "mg/dl",
+        "nNumeric": 2,
+        "spanDays": 162,
+        "slope": null,
+        "reason": "n_below_threshold"
+      }
+    ]
+  },
+  {
+    "patientId": 103,
+    "mode": "gap-split",
+    "rows": [
+      {
+        "bezeichnung": "Kreatinin",
+        "einheit": "mg/dl",
+        "nNumeric": 2,
+        "spanDays": 162,
+        "slope": null,
+        "reason": "n_below_threshold"
+      }
+    ]
+  },
+  {
+    "patientId": 103,
+    "mode": "rolling",
+    "rows": [
+      {
+        "bezeichnung": "Kreatinin",
+        "einheit": "mg/dl",
+        "nNumeric": 2,
+        "spanDays": 162,
+        "slope": null,
+        "reason": "n_below_threshold"
+      }
+    ]
+  }
+]

@@ -1,0 +1,92 @@
+[
+  {
+    "raw": "42",
+    "value": 42.0,
+    "operator": "="
+  },
+  {
+    "raw": "3.5",
+    "value": 3.5,
+    "operator": "="
+  },
+  {
+    "raw": "3,5",
+    "value": 3.5,
+    "operator": "="
+  },
+  {
+    "raw": "<30",
+    "value": 30.0,
+    "operator": "<"
+  },
+  {
+    "raw": ">200",
+    "value": 200.0,
+    "operator": ">"
+  },
+  {
+    "raw": "\u226430",
+    "value": 30.0,
+    "operator": "<"
+  },
+  {
+    "raw": "\u2265200",
+    "value": 200.0,
+    "operator": ">"
+  },
+  {
+    "raw": "10-20",
+    "value": null,
+    "operator": "range"
+  },
+  {
+    "raw": "10\u201320",
+    "value": null,
+    "operator": "range"
+  },
+  {
+    "raw": "1.234",
+    "value": null,
+    "operator": "unparseable"
+  },
+  {
+    "raw": "1.234,5",
+    "value": null,
+    "operator": "unparseable"
+  },
+  {
+    "raw": "positiv",
+    "value": null,
+    "operator": "unparseable"
+  },
+  {
+    "raw": "1e3",
+    "value": 1000.0,
+    "operator": "="
+  },
+  {
+    "raw": "",
+    "value": null,
+    "operator": "unparseable"
+  },
+  {
+    "raw": "   ",
+    "value": null,
+    "operator": "unparseable"
+  },
+  {
+    "raw": "<  5",
+    "value": 5.0,
+    "operator": "<"
+  },
+  {
+    "raw": "0,0",
+    "value": 0.0,
+    "operator": "="
+  },
+  {
+    "raw": "-2.5",
+    "value": -2.5,
+    "operator": "="
+  }
+]
