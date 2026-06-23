@@ -41,5 +41,8 @@ describe('exports + methodology', () => {
     expect(screen.getByText('chronic-ckd')).toBeInTheDocument()
     expect(screen.getByText('event-driven')).toBeInTheDocument()
     expect(screen.getByText(/KDIGO 2012 creatinine criteria/i)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /medical sources/i })).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /national kidney foundation formula page/i })).toHaveAttribute('href', expect.stringContaining('kidney.org'))
+    expect(screen.getByRole('link', { name: /kdigo 2012 clinical practice guideline/i })).toHaveAttribute('href', expect.stringContaining('KDIGO-2012-AKI-Guideline-English.pdf'))
   })
 })

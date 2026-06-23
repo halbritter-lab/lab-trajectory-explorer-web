@@ -1,3 +1,23 @@
+import type { ReactNode } from 'react'
+
+const SOURCES = {
+  ckdEpi2021: 'https://www.kidney.org/professionals/ckd-epi-creatinine-equation-2021',
+  niddkAdults: 'https://www.niddk.nih.gov/research-funding/research-programs/kidney-clinical-research-epidemiology/laboratory/glomerular-filtration-rate-equations/adults',
+  niddkPrevious: 'https://www.niddk.nih.gov/research-funding/research-programs/kidney-clinical-research-epidemiology/laboratory/glomerular-filtration-rate-equations/adults/previous',
+  ekfc2021: 'https://mayoclinic.elsevierpure.com/en/publications/development-and-validation-of-a-modified-full-age-spectrum-creati/',
+  kdigoAki2012: 'https://kdigo.org/wp-content/uploads/2016/10/KDIGO-2012-AKI-Guideline-English.pdf',
+  kdigoAkiUpdate: 'https://kdigo.org/guidelines/acute-kidney-injury/',
+  kdigoCkdProgression: 'https://www.kidney.org/sites/default/files/docs/inker_et_al_ajkd_ckd_commentary_epub.pdf',
+}
+
+function ExternalSource({ href, children }: { href: string; children: ReactNode }) {
+  return (
+    <a href={href} target="_blank" rel="noreferrer">
+      {children}
+    </a>
+  )
+}
+
 /** Static reference panel describing analytical methods used in Lab Trajectory Explorer. */
 export function Methodology() {
   return (
@@ -91,17 +111,21 @@ export function Methodology() {
       <ul>
         <li>
           <strong>CKD-EPI 2021</strong> (default) — race-free equation published by Inker et al.
-          (NEJM 2021). Used when the formula selector is set to <em>CKD-EPI 2021</em>.
+          (NEJM 2021). The National Kidney Foundation lists it as the recommended adult
+          creatinine-based GFR-estimating equation and notes that it requires standardized
+          creatinine assays. Used when the formula selector is set to <em>CKD-EPI 2021</em>.
         </li>
         <li>
           <strong>MDRD-4</strong> — four-variable (IDMS-traceable) Modification of Diet in Renal
-          Disease equation. Used when the formula selector is set to <em>MDRD-4</em>. The original
-          Black-race correction factor is <strong>not applied</strong> (race-free, consistent with
-          current guidance).
+          Disease equation, using the re-expressed 175-coefficient form for standardized
+          creatinine. Used when the formula selector is set to <em>MDRD-4</em>. The published race
+          multiplier is <strong>not applied</strong> here (race-free, consistent with the app's
+          explicit no-race design).
         </li>
         <li>
           <strong>EKFC 2021</strong> — creatinine-based European Kidney Function Consortium equation
-          published by Pottel et al. It rescales creatinine by sex- and age-specific Q values
+          published by Pottel et al. in Annals of Internal Medicine. It rescales creatinine by sex-
+          and age-specific Q values
           (age-specific for 18-25 years, then 0.90 mg/dl for male and 0.70 mg/dl for female).
           The NIDDK notes that EKFC creatinine was developed mainly in White European populations,
           uses population-specific Q scaling, and does not meet US race-free equation
@@ -133,7 +157,8 @@ export function Methodology() {
       <h3>AKI Detection (KDIGO Criteria)</h3>
       <p>
         Acute Kidney Injury episodes are detected automatically on serum creatinine series (unit
-        mg/dl) using the KDIGO 2012 creatinine criteria:
+        mg/dl) using the KDIGO 2012 creatinine criteria. Only creatinine-based criteria are
+        implemented:
       </p>
       <ul>
         <li>
@@ -185,8 +210,8 @@ export function Methodology() {
         </li>
         <li>
           The implemented thresholds are based on the KDIGO 2012 guideline. KDIGO has a newer AKI
-          guideline draft under public review, so this reference should be rechecked before any
-          regulated or clinical use.
+          / AKD guideline draft under public review in 2026, so this reference should be rechecked
+          before any regulated or clinical use.
         </li>
       </ul>
 
@@ -199,12 +224,55 @@ export function Methodology() {
         For eGFR series it also applies a single, explicit clinical flag:{' '}
         <strong>rapid eGFR decline</strong>. An eGFR series whose fitted slope falls faster than the
         configured threshold (default <strong>5 mL/min/1.73m² per year</strong>, matching the KDIGO
-        definition of rapid CKD progression) is marked <span className="rapid-badge rapid-badge-inline">rapid ↓</span>{' '}
+        definition of rapid CKD progression as a sustained decline faster than 5 mL/min/1.73m²/yr)
+        is marked <span className="rapid-badge rapid-badge-inline">rapid ↓</span>{' '}
         in the table and carries a <code>rapid_progression</code> column in the export. The
         threshold is adjustable in the sidebar (set it to 0 to disable the flag). No other clinical
         cut-offs are applied; all other interpretation of the ranking is left to the user, and the
         flag itself is a screening signal, not a diagnosis.
       </p>
+
+      <h3>Medical Sources</h3>
+      <ul>
+        <li>
+          CKD-EPI 2021 creatinine equation:{' '}
+          <ExternalSource href={SOURCES.ckdEpi2021}>
+            National Kidney Foundation formula page
+          </ExternalSource>{' '}
+          and{' '}
+          <ExternalSource href={SOURCES.niddkAdults}>
+            NIDDK adult eGFR equations reference
+          </ExternalSource>.
+        </li>
+        <li>
+          MDRD-4 175-coefficient equation:{' '}
+          <ExternalSource href={SOURCES.niddkPrevious}>
+            NIDDK previous adult eGFR equations reference
+          </ExternalSource>.
+        </li>
+        <li>
+          EKFC 2021 creatinine equation:{' '}
+          <ExternalSource href={SOURCES.ekfc2021}>
+            Pottel et al., Annals of Internal Medicine 2021
+          </ExternalSource>.
+        </li>
+        <li>
+          AKI detection and staging thresholds:{' '}
+          <ExternalSource href={SOURCES.kdigoAki2012}>
+            KDIGO 2012 Clinical Practice Guideline for Acute Kidney Injury
+          </ExternalSource>{' '}
+          and the{' '}
+          <ExternalSource href={SOURCES.kdigoAkiUpdate}>
+            KDIGO AKI / AKD guideline update page
+          </ExternalSource>.
+        </li>
+        <li>
+          Rapid CKD progression threshold:{' '}
+          <ExternalSource href={SOURCES.kdigoCkdProgression}>
+            KDOQI US Commentary on the 2012 KDIGO CKD guideline
+          </ExternalSource>.
+        </li>
+      </ul>
 
       <h3>Intended Use</h3>
       <p>
