@@ -1,13 +1,15 @@
 import { useMemo } from 'react'
 import { useAppStore } from '../state/store'
-import { buildCohortRows, cohortExportRecords, slopeUnit, isRapidEgfrDecline, EXPORT_DISCLAIMER_ROWS, type CohortSeriesSpec } from '../../core/cohort/screening'
+import { buildCohortRows, cohortExportRecords, slopeUnit, EXPORT_DISCLAIMER_ROWS, type CohortSeriesSpec } from '../../core/cohort/screening'
+import { rapidEgfrDeclineFlagForCell } from '../../core/analysis/rapidEgfrDeclineModule'
 import { MiniSparkline } from '../charts/MiniSparkline'
 import { sheetsToXlsxBytes, downloadBlob, fileStamp } from '../../io/export'
 
 type CohortSortKey = 'id' | 'slope' | 'absSlope' | 'n' | 'duration'
 
 export function CohortView() {
-  const displayRows = useAppStore((s) => s.displayRows())
+  const analysisResult = useAppStore((s) => s.analysisResult())
+  const displayRows = analysisResult.rows
   const configs = useAppStore((s) => s.seriesConfigs)
   const annotations = useAppStore((s) => s.annotations)
   const cohortPatientMode = useAppStore((s) => s.cohortPatientMode)
@@ -20,7 +22,7 @@ export function CohortView() {
   const selectPatient = useAppStore((s) => s.selectPatient)
   const setView = useAppStore((s) => s.setView)
   const setReturnToCohort = useAppStore((s) => s.setReturnToCohort)
-  const rapidThreshold = useAppStore((s) => s.rapidEgfrThreshold)
+  const rapidThreshold = useAppStore((s) => s.analysisSettings.rapidEgfrDecline.threshold)
 
   const specs: CohortSeriesSpec[] = useMemo(
     () => configs.filter((c) => c.bezeichnung).map((c) => ({
@@ -32,12 +34,13 @@ export function CohortView() {
       stepDays: c.stepDays,
       cutoffDays: c.cutoffDays,
       exclusionDays: c.exclusionDays,
+      fitInputs: analysisResult.fitInputs,
       eventDatesByPatient: Object.fromEntries(
         [...new Set(annotations.map((a) => a.patientId))]
           .map((pid) => [pid, annotations.filter((a) => a.patientId === pid && a.referenceDate).map((a) => a.referenceDate as Date)]),
       ),
     })),
-    [configs, annotations],
+    [configs, annotations, analysisResult.fitInputs],
   )
   const patientIds = useMemo(() => {
     const all = [...new Set(displayRows.map((r) => r.patientId))].sort((a, b) => a - b)
@@ -171,7 +174,13 @@ export function CohortView() {
                   >
                     {Number.isNaN(c.slope) ? '—' : `${c.slope.toFixed(2)}/yr`}
                   </span>
-                  {isRapidEgfrDecline(c.einheit, c.slope, rapidThreshold) && (
+                  {rapidEgfrDeclineFlagForCell({
+                    patientId: r.patientId,
+                    bezeichnung: c.bezeichnung,
+                    einheit: c.einheit,
+                    slope: c.slope,
+                    threshold: rapidThreshold,
+                  }) && (
                     <span className="rapid-badge" title={`Rapid eGFR decline: faster than ${rapidThreshold} mL/min/1.73m²/yr (KDIGO rapid progression)`}>rapid ↓</span>
                   )}
                   {showAki && c.akiChip && <span className="aki-badge" title={c.akiSummary}>{c.akiChip}</span>}

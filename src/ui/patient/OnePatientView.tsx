@@ -5,7 +5,7 @@ import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../../core/egfr/series'
 import { svgElementToString, downloadBlob, svgStringToPngBlob, sheetsToXlsxBytes, zipBytes, fileStamp } from '../../io/export'
 import type { LabRow } from '../../core/types'
 import type { PlotModeConfig } from '../../core/stats/slopeLines'
-import { episodesForSeries } from '../../core/aki/akiAware'
+import { fitInputForSeries } from '../../core/analysis/types'
 import type { AkiEpisode } from '../../core/aki/kdigo'
 import type { CohortSeriesSpec } from '../../core/cohort/screening'
 import { patientWorkbookSheets } from '../../core/patient/patientExport'
@@ -77,7 +77,8 @@ function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, annot
 }
 
 export function OnePatientView() {
-  const displayRows = useAppStore((s) => s.displayRows())
+  const analysisResult = useAppStore((s) => s.analysisResult())
+  const displayRows = analysisResult.rows
   const patientId = useAppStore((s) => s.selectedPatientId)
   const configs = useAppStore((s) => s.seriesConfigs)
   const annotations = useAppStore((s) => s.annotations)
@@ -91,8 +92,8 @@ export function OnePatientView() {
   const specs: CohortSeriesSpec[] = useMemo(
     () => configs
       .filter((c) => c.bezeichnung)
-      .map((c) => ({ bezeichnung: c.bezeichnung as string, einheit: c.einheit, mode: c.mode, gapDays: c.gapDays, windowDays: c.windowDays, stepDays: c.stepDays, cutoffDays: c.cutoffDays, exclusionDays: c.exclusionDays })),
-    [configs],
+      .map((c) => ({ bezeichnung: c.bezeichnung as string, einheit: c.einheit, mode: c.mode, gapDays: c.gapDays, windowDays: c.windowDays, stepDays: c.stepDays, cutoffDays: c.cutoffDays, exclusionDays: c.exclusionDays, fitInputs: analysisResult.fitInputs })),
+    [configs, analysisResult.fitInputs],
   )
 
   const svgGetters = useRef<SvgRegistry>(new Map())
@@ -149,8 +150,8 @@ export function OnePatientView() {
               .map((a) => ({ date: a.referenceDate as Date, label: a.label }))
           : []
         const plotCfg = { ...cfg, eventDates: anns.map((a) => a.date) }
-        const detectedEpisodes = episodesForSeries(displayRows, patientId, cfg.bezeichnung, cfg.einheit ?? null)
-        const episodes = detectedEpisodes.length > 0 ? detectedEpisodes : undefined
+        const fitInput = fitInputForSeries(analysisResult.fitInputs, patientId, { bezeichnung: cfg.bezeichnung, einheit: cfg.einheit ?? null })
+        const episodes = fitInput?.episodes.length ? fitInput.episodes : undefined
         return (
           <PlotCard
             key={i}

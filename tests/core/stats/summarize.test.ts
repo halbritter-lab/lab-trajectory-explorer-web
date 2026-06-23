@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { summarizeByBezeichnung } from '../../../src/core/stats/summarize'
+import { episodesForSeries } from '../../../src/core/aki/akiAware'
 import type { LabRow } from '../../../src/core/types'
+import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 
 function akiRow(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -102,6 +104,19 @@ describe('summarizeByBezeichnung aki-aware mode', () => {
     // With a 0-day window only the episode-day points drop out.
     const zero = summarizeByBezeichnung(rows, 1, 'aki-aware', { exclusionDays: 0 })[0]
     const thirty = summarizeByBezeichnung(rows, 1, 'aki-aware', { exclusionDays: 30 })[0]
+    expect(zero.slope).not.toBeCloseTo(thirty.slope, 6)
+  })
+  it('honours the exclusionDays parameter when AKI fit inputs are supplied', () => {
+    const fitInputs: AnalysisFitInputContribution[] = [{
+      id: 'aki-aware:1:Kreatinin:mg/dl',
+      patientId: 1,
+      seriesKey: { bezeichnung: 'Kreatinin', einheit: 'mg/dl' },
+      kind: 'aki-aware',
+      exclusionDays: 30,
+      episodes: episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl'),
+    }]
+    const zero = summarizeByBezeichnung(rows, 1, 'aki-aware', { exclusionDays: 0, fitInputs })[0]
+    const thirty = summarizeByBezeichnung(rows, 1, 'aki-aware', { exclusionDays: 30, fitInputs })[0]
     expect(zero.slope).not.toBeCloseTo(thirty.slope, 6)
   })
 })

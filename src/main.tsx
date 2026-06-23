@@ -14,7 +14,7 @@ async function boot() {
       if (settings) {
         useAppStore.setState({ cohortZoom: settings.cohortZoom })
         if (typeof settings.rapidEgfrThreshold === 'number') {
-          useAppStore.setState({ rapidEgfrThreshold: settings.rapidEgfrThreshold })
+          useAppStore.getState().setRapidEgfrThreshold(settings.rapidEgfrThreshold)
         }
       }
     }

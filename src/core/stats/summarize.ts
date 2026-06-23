@@ -4,6 +4,8 @@ import { fitGlobal, fitTheilSen } from './series'
 import { fitSegments } from './segments'
 import { rollingSlopes } from './rolling'
 import { fitAkiAware, episodesForSeries } from '../aki/akiAware'
+import { fitInputForSeries } from '../analysis/types'
+import type { AnalysisFitInputContribution } from '../analysis/types'
 
 export type SlopeMode = 'global' | 'gap-split' | 'rolling' | 'global-robust' | 'chronic-ckd' | 'aki-aware' | 'event-driven'
 
@@ -37,6 +39,7 @@ export interface SummarizeParams {
   exclusionDays?: number
   cutoffDays?: number
   eventDates?: Date[]
+  fitInputs?: AnalysisFitInputContribution[]
 }
 
 const NAN = Number.NaN
@@ -55,7 +58,7 @@ export function summarizeByBezeichnung(
   mode: SlopeMode = 'global',
   params: SummarizeParams = {},
 ): SeriesSummary[] {
-  const { gapDays = 180, windowDays = 730, stepDays = 180, minNPerWindow = 3, minNPerSegment = 3, exclusionDays = 30, cutoffDays = 90, eventDates = [] } = params
+  const { gapDays = 180, windowDays = 730, stepDays = 180, minNPerWindow = 3, minNPerSegment = 3, exclusionDays = 30, cutoffDays = 90, eventDates = [], fitInputs = [] } = params
   const sub = rows.filter((r) => r.patientId === patientId)
 
   const order: string[] = []
@@ -116,7 +119,8 @@ export function summarizeByBezeichnung(
       }
     } else if (mode === 'aki-aware') {
       const points: SeriesPoint[] = numericRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
-      const episodes = episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
+      const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
+      const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
       const r = fitAkiAware(points, exclusionDays, episodes)
       summary = {
         ...base,

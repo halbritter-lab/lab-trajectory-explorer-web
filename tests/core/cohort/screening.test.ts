@@ -1,6 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { formatAkiChip, formatAkiEpisodeSummary, buildCohortRows, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
+import { episodesForSeries } from '../../../src/core/aki/akiAware'
 import type { LabRow } from '../../../src/core/types'
+import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -103,6 +105,19 @@ describe('buildCohortRows cell overlays', () => {
     expect(a.excludedIdx).toEqual([4, 5])
     expect(a.slope).toBeLessThan(g.slope)
     expect(a.fitLines).toHaveLength(1)
+  })
+  it('aki-aware mode honours spec exclusionDays when fit inputs are supplied', () => {
+    const fitInputs: AnalysisFitInputContribution[] = [{
+      id: 'aki-aware:1:Kreatinin:mg/dl',
+      patientId: 1,
+      seriesKey: { bezeichnung: 'Kreatinin', einheit: 'mg/dl' },
+      kind: 'aki-aware',
+      exclusionDays: 30,
+      episodes: episodesForSeries(spiky, 1, 'Kreatinin', 'mg/dl'),
+    }]
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'aki-aware', exclusionDays: 0, fitInputs }
+    const cell = buildCohortRows(spiky, [1], [spec])[0].cells[0]
+    expect(cell.excludedIdx).toEqual([4])
   })
   it('non-creatinine cell in aki-aware mode gets cross-series bands from creatinine', () => {
     const egfr = spiky.map((r) => ({ ...r, bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²', wertNum: 60 - (r.wertNum! - 1) * 20 }))

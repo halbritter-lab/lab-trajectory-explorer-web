@@ -7,9 +7,10 @@ export function Sidebar() {
   const [open, setOpen] = useState(true)
   const [showAllEgfrSources, setShowAllEgfrSources] = useState(false)
   const [demoDraft, setDemoDraft] = useState<{ patientId: number; sex: Sex | ''; age: string } | null>(null)
-  const egfrFormula = useAppStore((s) => s.egfrFormula)
+  const analysisSettings = useAppStore((s) => s.analysisSettings)
+  const egfrFormula = analysisSettings.egfr.formula
   const setEgfrFormula = useAppStore((s) => s.setEgfrFormula)
-  const egfrSource = useAppStore((s) => s.egfrSource)
+  const egfrSource = analysisSettings.egfr.source
   const setEgfrSource = useAppStore((s) => s.setEgfrSource)
   const manualDemographics = useAppStore((s) => s.manualDemographics)
   const setManualDemographics = useAppStore((s) => s.setManualDemographics)
@@ -25,7 +26,7 @@ export function Sidebar() {
   const setShowAki = useAppStore((s) => s.setShowAki)
   const connectPoints = useAppStore((s) => s.connectPoints)
   const setConnectPoints = useAppStore((s) => s.setConnectPoints)
-  const rapidEgfrThreshold = useAppStore((s) => s.rapidEgfrThreshold)
+  const rapidEgfrThreshold = useAppStore((s) => s.analysisSettings.rapidEgfrDecline.threshold)
   const setRapidEgfrThreshold = useAppStore((s) => s.setRapidEgfrThreshold)
   const [annNote, setAnnNote] = useState('')
   const patientIds = [...new Set(rows.map((r) => r.patientId))].sort((a, b) => a - b)

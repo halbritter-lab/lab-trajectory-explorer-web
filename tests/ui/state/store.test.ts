@@ -78,3 +78,72 @@ describe('cohort zoom + exclusion days', () => {
     expect(useAppStore.getState().seriesConfigs[0].exclusionDays).toBe(14)
   })
 })
+
+describe('analysis settings', () => {
+  beforeEach(() => useAppStore.getState().reset())
+
+  function expectEgfrCompatibilityFieldsToMatch() {
+    const state = useAppStore.getState()
+    expect(state.egfrFormula).toBe(state.analysisSettings.egfr.formula)
+    expect(state.egfrSource).toBe(state.analysisSettings.egfr.source)
+  }
+
+  it('stores eGFR settings under analysisSettings and displayRows uses the analysis pipeline', () => {
+    useAppStore.getState().setDataset([
+      row({ patientSex: 'm', patientAgeAtLab: 50, wertNum: 1.0 }),
+    ])
+    useAppStore.getState().setEgfrFormula('ckd-epi-2021')
+
+    const state = useAppStore.getState()
+    expect(state.analysisSettings.egfr.formula).toBe('ckd-epi-2021')
+    expect(state.egfrFormula).toBe('ckd-epi-2021')
+    expect(state.displayRows().some((r) => r.bezeichnung?.includes('eGFR (CKD-EPI 2021, computed)'))).toBe(true)
+  })
+
+  it('keeps eGFR compatibility fields aligned with analysis settings', () => {
+    expectEgfrCompatibilityFieldsToMatch()
+
+    useAppStore.getState().setEgfrFormula('ckd-epi-2021')
+    expectEgfrCompatibilityFieldsToMatch()
+
+    useAppStore.getState().setEgfrSource(['Kreatinin', 'mg/dl'])
+    expectEgfrCompatibilityFieldsToMatch()
+
+    useAppStore.getState().setDataset([row({ patientSex: 'm', patientAgeAtLab: 50, wertNum: 1.0 })])
+    expectEgfrCompatibilityFieldsToMatch()
+    expect(useAppStore.getState().analysisSettings.egfr.source).toBeNull()
+  })
+})
+
+describe('analysis settings compatibility setters', () => {
+  beforeEach(() => useAppStore.getState().reset())
+
+  it('keeps showAki and rapid threshold compatibility fields in sync with analysisSettings', () => {
+    useAppStore.getState().setShowAki(true)
+    useAppStore.getState().setRapidEgfrThreshold(7)
+
+    let state = useAppStore.getState()
+    expect(state.showAki).toBe(true)
+    expect(state.analysisSettings.aki.showOverlays).toBe(true)
+    expect(state.rapidEgfrThreshold).toBe(7)
+    expect(state.analysisSettings.rapidEgfrDecline.threshold).toBe(7)
+
+    useAppStore.getState().setShowAki(false)
+    state = useAppStore.getState()
+    expect(state.showAki).toBe(false)
+    expect(state.analysisSettings.aki.showOverlays).toBe(false)
+  })
+
+  it('keeps reset defaults aligned between compatibility fields and analysisSettings', () => {
+    useAppStore.getState().setShowAki(true)
+    useAppStore.getState().setRapidEgfrThreshold(7)
+
+    useAppStore.getState().reset()
+
+    const state = useAppStore.getState()
+    expect(state.showAki).toBe(state.analysisSettings.aki.showOverlays)
+    expect(state.showAki).toBe(false)
+    expect(state.rapidEgfrThreshold).toBe(state.analysisSettings.rapidEgfrDecline.threshold)
+    expect(state.rapidEgfrThreshold).toBe(5)
+  })
+})

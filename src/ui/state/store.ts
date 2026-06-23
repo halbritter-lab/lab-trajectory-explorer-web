@@ -1,11 +1,12 @@
 import { create } from 'zustand'
-import type { LabRow, Sex } from '../../core/types'
+import type { LabRow } from '../../core/types'
 import type { SlopeMode } from '../../core/stats/summarize'
-import { appendComputedEgfr, type FormulaName, type Source } from '../../core/egfr/series'
+import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analysis/registry'
+import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
+import type { FormulaName, Source } from '../../core/egfr/series'
 import type { ValidAnnotation } from '../../core/annotations/annotations'
 import { saveDataset, clearDataset, saveSettings } from '../../io/persistence'
 import { datasetFromArrayBuffer, loadBundledFixture } from '../data/loadDataset'
-import { RAPID_EGFR_DECLINE_DEFAULT } from '../../core/cohort/screening'
 
 export type ZoomLevel = 's' | 'm' | 'l'
 
@@ -28,11 +29,6 @@ export interface SeriesConfig {
 export type View = 'one' | 'cohort'
 export type CohortPatientMode = 'all' | 'selected'
 
-export interface ManualDemographics {
-  sex?: Sex
-  age?: number
-}
-
 export interface AppState {
   rows: LabRow[]
   fileName: string | null
@@ -42,6 +38,7 @@ export interface AppState {
   returnToCohort: boolean
   cohortPatientMode: CohortPatientMode
   seriesConfigs: SeriesConfig[]
+  analysisSettings: AnalysisSettings
   egfrFormula: FormulaName | 'off'
   egfrSource: Source | null
   manualDemographics: Record<number, ManualDemographics>
@@ -75,6 +72,7 @@ export interface AppState {
   setManualDemographics: (patientId: number, demo: ManualDemographics) => void
   setAnnotations: (a: ValidAnnotation[]) => void
   setShowAnnotations: (v: boolean) => void
+  analysisResult: () => AnalysisResult
   displayRows: () => LabRow[]
   setCohortSort: (s: AppState['cohortSort']) => void
   setShowAki: (v: boolean) => void
@@ -95,55 +93,70 @@ const defaultSeries = (): SeriesConfig => ({
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'selectedPatientId' | 'selectedPatientIds' | 'view' | 'returnToCohort' | 'cohortPatientMode' | 'seriesConfigs' | 'egfrFormula'
-  | 'egfrSource' | 'manualDemographics' | 'annotations' | 'showAnnotations' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
+  | 'analysisSettings' | 'egfrSource' | 'manualDemographics' | 'annotations' | 'showAnnotations' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
   | 'connectPoints' | 'rapidEgfrThreshold' | 'busy' | 'notice'>
 
-const initialState = (): AppData => ({
-  rows: [],
-  fileName: null,
-  selectedPatientId: null,
-  selectedPatientIds: [],
-  view: 'one',
-  returnToCohort: false,
-  cohortPatientMode: 'all',
-  seriesConfigs: [defaultSeries()],
-  egfrFormula: 'off',
-  egfrSource: null,
-  manualDemographics: {},
-  annotations: [],
-  showAnnotations: true,
-  cohortSort: { key: 'id', dir: 'asc' },
-  showAki: false,
-  showMethodology: false,
-  persist: false,
-  cohortZoom: 'm',
-  connectPoints: true,
-  rapidEgfrThreshold: RAPID_EGFR_DECLINE_DEFAULT,
-  busy: false,
-  notice: null,
-})
-
-// Memoise the eGFR-appended rows so displayRows() is O(1) on repeated calls and
-// returns a stable reference (selectors reading it won't see a new array every
-// render). Recomputes only when the rows array or formula changes.
-let egfrCache: { rows: LabRow[]; formula: FormulaName | 'off'; source: Source | null; manual: Record<number, ManualDemographics>; result: LabRow[] } | null = null
-function rowsWithManualDemographics(rows: LabRow[], manual: Record<number, ManualDemographics>): LabRow[] {
-  if (Object.keys(manual).length === 0) return rows
-  return rows.map((r) => {
-    const demo = manual[r.patientId]
-    return demo ? { ...r, patientSex: demo.sex ?? r.patientSex, patientAgeAtLab: demo.age ?? r.patientAgeAtLab } : r
-  })
+function analysisSettingsState(analysisSettings: AnalysisSettings) {
+  return {
+    analysisSettings,
+    egfrFormula: analysisSettings.egfr.formula,
+    egfrSource: analysisSettings.egfr.source,
+    showAki: analysisSettings.aki.showOverlays,
+    rapidEgfrThreshold: analysisSettings.rapidEgfrDecline.threshold,
+  }
 }
 
-function sameSource(a: Source | null, b: Source | null): boolean {
-  return a === b || (a !== null && b !== null && a[0] === b[0] && a[1] === b[1])
+const initialState = (): AppData => {
+  const analysisSettings = defaultAnalysisSettings()
+  return {
+    rows: [],
+    fileName: null,
+    selectedPatientId: null,
+    selectedPatientIds: [],
+    view: 'one',
+    returnToCohort: false,
+    cohortPatientMode: 'all',
+    seriesConfigs: [defaultSeries()],
+    ...analysisSettingsState(analysisSettings),
+    manualDemographics: {},
+    annotations: [],
+    showAnnotations: true,
+    cohortSort: { key: 'id', dir: 'asc' },
+    showMethodology: false,
+    persist: false,
+    cohortZoom: 'm',
+    connectPoints: true,
+    busy: false,
+    notice: null,
+  }
 }
 
-function computeDisplayRows(rows: LabRow[], formula: FormulaName | 'off', source: Source | null, manual: Record<number, ManualDemographics>): LabRow[] {
-  if (egfrCache && egfrCache.rows === rows && egfrCache.formula === formula && sameSource(egfrCache.source, source) && egfrCache.manual === manual) return egfrCache.result
-  const withManual = rowsWithManualDemographics(rows, manual)
-  const result = formula === 'off' ? withManual : appendComputedEgfr(withManual, { formula, source })
-  egfrCache = { rows, formula, source, manual, result }
+// Memoise analysis results so displayRows() remains stable across repeated
+// selector reads until one of the pipeline inputs changes by reference.
+let analysisCache: {
+  rows: LabRow[]
+  settings: AnalysisSettings
+  manual: Record<number, ManualDemographics>
+  annotations: ValidAnnotation[]
+  result: AnalysisResult
+} | null = null
+
+function computeStoreAnalysisResult(
+  rows: LabRow[],
+  settings: AnalysisSettings,
+  manual: Record<number, ManualDemographics>,
+  annotations: ValidAnnotation[],
+): AnalysisResult {
+  if (
+    analysisCache &&
+    analysisCache.rows === rows &&
+    analysisCache.settings === settings &&
+    analysisCache.manual === manual &&
+    analysisCache.annotations === annotations
+  ) return analysisCache.result
+
+  const result = computeAnalysisResult({ rows, settings, manualDemographics: manual, annotations })
+  analysisCache = { rows, settings, manual, annotations, result }
   return result
 }
 
@@ -177,7 +190,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
   setDataset: (rows, fileName) => {
     const ids = [...new Set(rows.map((r) => r.patientId))].sort((a, b) => a - b)
-    set({ rows, fileName: fileName ?? null, selectedPatientId: ids[0] ?? null, selectedPatientIds: ids, view: 'cohort', returnToCohort: false, egfrSource: null })
+    set((s) => ({
+      rows,
+      fileName: fileName ?? null,
+      selectedPatientId: ids[0] ?? null,
+      selectedPatientIds: ids,
+      view: 'cohort',
+      returnToCohort: false,
+      ...analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: null } }),
+    }))
     if (get().persist) void saveDataset(rows, fileName ?? null)
   },
   selectPatient: (id) => set({ selectedPatientId: id }),
@@ -191,14 +212,21 @@ export const useAppStore = create<AppState>((set, get) => ({
   removeSeries: (index) =>
     set((s) => (s.seriesConfigs.length <= 1 ? s : { seriesConfigs: s.seriesConfigs.filter((_, i) => i !== index) })),
   patientIds: () => [...new Set(get().rows.map((r) => r.patientId))].sort((a, b) => a - b),
-  setEgfrFormula: (f) => set({ egfrFormula: f }),
-  setEgfrSource: (s) => set({ egfrSource: s }),
+  setEgfrFormula: (f) => set((s) => analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, formula: f } })),
+  setEgfrSource: (src) => set((s) => analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: src } })),
   setManualDemographics: (patientId, demo) => set((s) => ({ manualDemographics: { ...s.manualDemographics, [patientId]: demo } })),
   setAnnotations: (a) => set({ annotations: a }),
   setShowAnnotations: (v) => set({ showAnnotations: v }),
-  displayRows: () => { const s = get(); return computeDisplayRows(s.rows, s.egfrFormula, s.egfrSource, s.manualDemographics) },
+  analysisResult: () => {
+    const s = get()
+    return computeStoreAnalysisResult(s.rows, s.analysisSettings, s.manualDemographics, s.annotations)
+  },
+  displayRows: () => get().analysisResult().rows,
   setCohortSort: (s) => set({ cohortSort: s }),
-  setShowAki: (v) => set({ showAki: v }),
+  setShowAki: (v) => set((s) => analysisSettingsState({
+    ...s.analysisSettings,
+    aki: { ...s.analysisSettings.aki, showOverlays: v },
+  })),
   setShowMethodology: (v) => set({ showMethodology: v }),
   setCohortZoom: (z) => {
     set({ cohortZoom: z })
@@ -215,7 +243,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   setConnectPoints: (v) => set({ connectPoints: v }),
   setRapidEgfrThreshold: (n) => {
     const threshold = Number.isFinite(n) ? Math.max(0, n) : 0
-    set({ rapidEgfrThreshold: threshold })
+    set((s) => ({
+      rapidEgfrThreshold: threshold,
+      analysisSettings: {
+        ...s.analysisSettings,
+        rapidEgfrDecline: { ...s.analysisSettings.rapidEgfrDecline, threshold },
+      },
+    }))
     if (get().persist) void saveSettings({ cohortZoom: get().cohortZoom, rapidEgfrThreshold: threshold })
   },
   clearSaved: async () => { await clearDataset(); set({ persist: false }) },

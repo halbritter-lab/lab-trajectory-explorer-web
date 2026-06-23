@@ -3,11 +3,15 @@ import type { SeriesPoint } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { summarizeByBezeichnung } from '../stats/summarize'
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
+import { fitInputForSeries } from '../analysis/types'
+import type { AnalysisFitInputContribution } from '../analysis/types'
 import type { AkiEpisode } from '../aki/kdigo'
 import { akiExclusionBands, episodesForSeries, fitAkiAware, type DateBand } from '../aki/akiAware'
 import { formatAkiChip, formatAkiEpisodeSummary } from '../aki/summary'
+import { rapidEgfrDeclineFlagForCell } from '../analysis/rapidEgfrDeclineModule'
 
 export { formatAkiChip, formatAkiEpisodeSummary }
+export { isEgfrUnit, isRapidEgfrDecline, RAPID_EGFR_DECLINE_DEFAULT } from '../analysis/rapidEgfrDeclineModule'
 
 export interface CohortSeriesSpec {
   bezeichnung: string
@@ -20,6 +24,7 @@ export interface CohortSeriesSpec {
   exclusionDays?: number
   eventDates?: Date[]
   eventDatesByPatient?: Record<number, Date[]>
+  fitInputs?: AnalysisFitInputContribution[]
 }
 
 export interface CohortCell {
@@ -71,16 +76,18 @@ export function buildCohortRows(rows: LabRow[], patientIds: number[], specs: Coh
         cutoffDays: spec.cutoffDays,
         exclusionDays: spec.exclusionDays,
         eventDates: spec.eventDatesByPatient?.[pid] ?? spec.eventDates,
+        fitInputs: spec.fitInputs,
       })
       const match = summaries.find((s) => s.bezeichnung === spec.bezeichnung && s.einheit === (spec.einheit ?? '(no unit)'))
       const seriesRows = prows
         .filter((r) => r.bezeichnung === spec.bezeichnung && (r.einheit ?? null) === (spec.einheit ?? null) && r.wertNum !== null && r.labDatum !== null)
         .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
       const points: SeriesPoint[] = seriesRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
-      const exclusionDays = spec.exclusionDays ?? 30
+      const fitInput = fitInputForSeries(spec.fitInputs ?? [], pid, { bezeichnung: spec.bezeichnung, einheit: spec.einheit ?? null })
+      const exclusionDays = spec.exclusionDays ?? fitInput?.exclusionDays ?? 30
       let episodes: AkiEpisode[] = []
       if (points.length > 0) {
-        episodes = episodesForSeries(prows, pid, spec.bezeichnung, spec.einheit ?? null)
+        episodes = fitInput?.episodes ?? episodesForSeries(prows, pid, spec.bezeichnung, spec.einheit ?? null)
       }
       let excludedIdx: number[] = []
       if (spec.mode === 'aki-aware' && points.length > 0) {
@@ -154,23 +161,6 @@ export function slopeUnit(einheit: string | null): string {
   return `${einheit ?? '(no unit)'}/yr`
 }
 
-/** KDIGO defines rapid CKD progression as an eGFR decline faster than this many
- * mL/min/1.73m² per year. Used as the default flag threshold (configurable). */
-export const RAPID_EGFR_DECLINE_DEFAULT = 5
-
-/** True when the unit is an eGFR unit (mL/min/1.73m²). Matches measured and
- * computed eGFR regardless of spacing/decimal style. */
-export function isEgfrUnit(einheit: string | null): boolean {
-  return einheit != null && einheit.toLowerCase().includes('ml/min')
-}
-
-/** Flag an eGFR series whose per-year slope declines faster than `threshold`
- * (mL/min/1.73m²/yr), i.e. slope < -threshold. threshold <= 0 disables the flag.
- * Only eGFR-unit series qualify; the criterion does not apply to other analytes. */
-export function isRapidEgfrDecline(einheit: string | null, slope: number, threshold: number): boolean {
-  return threshold > 0 && isEgfrUnit(einheit) && Number.isFinite(slope) && slope < -threshold
-}
-
 /** Disclaimer rows embedded as an "about" sheet in every export, so the
  * research-use caveat travels with the data. */
 export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
@@ -204,7 +194,13 @@ export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): Coho
         ci_high: numOrBlank(c.ciHigh),
         reason: c.reason ?? '',
         aki: c.akiChip,
-        rapid_progression: isRapidEgfrDecline(c.einheit, c.slope, rapidThreshold) ? 'yes' : '',
+        rapid_progression: rapidEgfrDeclineFlagForCell({
+          patientId: r.patientId,
+          bezeichnung: c.bezeichnung,
+          einheit: c.einheit,
+          slope: c.slope,
+          threshold: rapidThreshold,
+        }) ? 'yes' : '',
       })
     }
   }
