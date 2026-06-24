@@ -6,6 +6,10 @@ import { rollingSlopes } from './rolling'
 import { fitAkiAware, episodesForSeries } from '../aki/akiAware'
 import { fitInputForSeries } from '../analysis/types'
 import type { AnalysisFitInputContribution } from '../analysis/types'
+import type { ClinicalEvent } from '../events/events'
+import { filterFitPointsByClinicalEvents } from '../events/fitExclusions'
+import type { FitConfig } from '../fitPipeline/types'
+import { balanceSeriesPoints } from './timeBalancing'
 
 export type SlopeMode = 'global' | 'gap-split' | 'rolling' | 'global-robust' | 'chronic-ckd' | 'aki-aware' | 'event-driven'
 
@@ -39,6 +43,11 @@ export interface SummarizeParams {
   exclusionDays?: number
   cutoffDays?: number
   eventDates?: Date[]
+  clinicalEvents?: ClinicalEvent[]
+  clinicalEventCensoring?: FitConfig['censoring']
+  excludeAkiWindows?: boolean
+  fitModel?: FitConfig['fitModel']
+  timeBalancing?: FitConfig['timeBalancing']
   fitInputs?: AnalysisFitInputContribution[]
 }
 
@@ -58,7 +67,7 @@ export function summarizeByBezeichnung(
   mode: SlopeMode = 'global',
   params: SummarizeParams = {},
 ): SeriesSummary[] {
-  const { gapDays = 180, windowDays = 730, stepDays = 180, minNPerWindow = 3, minNPerSegment = 3, exclusionDays = 30, cutoffDays = 90, eventDates = [], fitInputs = [] } = params
+  const { gapDays = 180, windowDays = 730, stepDays = 180, minNPerWindow = 3, minNPerSegment = 3, exclusionDays = 30, cutoffDays = 90, eventDates = [], clinicalEvents = [], clinicalEventCensoring, excludeAkiWindows = false, fitModel = 'ols', timeBalancing = 'raw', fitInputs = [] } = params
   const sub = rows.filter((r) => r.patientId === patientId)
 
   const order: string[] = []
@@ -85,6 +94,8 @@ export function summarizeByBezeichnung(
           )
         : 0
     const first = group[0]
+    const allPoints: SeriesPoint[] = numericRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
+    let fitPoints = filterFitPointsByClinicalEvents(allPoints, clinicalEvents, clinicalEventCensoring).points
     const base = {
       bezeichnung: first.bezeichnung ?? '(unnamed)',
       einheit: first.einheit ?? '(no unit)',
@@ -97,19 +108,33 @@ export function summarizeByBezeichnung(
       summary = { ...base, ...emptyFit, reason: 'no_numeric_values' }
     } else if (nNumeric < 3) {
       summary = { ...base, ...emptyFit, reason: 'n_below_threshold' }
+    } else if (fitModel === 'none') {
+      summary = { ...base, ...emptyFit, reason: 'n_below_threshold' }
     } else if (mode === 'global-robust') {
-      const points: SeriesPoint[] = numericRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
-      const fit = fitTheilSen(points)
+      if (excludeAkiWindows) {
+        const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
+        const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
+        const r = fitAkiAware(fitPoints, exclusionDays, episodes)
+        fitPoints = r.keptIdx.map((i) => fitPoints[i])
+      }
+      fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
+      const fit = fitTheilSen(fitPoints)
       summary = {
         ...base,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
-        reason: spanDays < 365 ? 'span_too_short' : null,
+        reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }
     } else if (mode === 'chronic-ckd') {
-      const firstDate = numericRows[0].labDatum!
+      if (excludeAkiWindows) {
+        const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
+        const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
+        const r = fitAkiAware(fitPoints, exclusionDays, episodes)
+        fitPoints = r.keptIdx.map((i) => fitPoints[i])
+      }
+      fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
+      const firstDate = fitPoints[0]?.date ?? numericRows[0].labDatum!
       const cutoffMs = firstDate.getTime() + cutoffDays * MS_PER_DAY
-      const chronicRows = numericRows.filter((r) => r.labDatum!.getTime() > cutoffMs)
-      const points: SeriesPoint[] = chronicRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
+      const points = fitPoints.filter((p) => p.date.getTime() > cutoffMs)
       const fit = fitGlobal(points)
       summary = {
         ...base,
@@ -118,29 +143,36 @@ export function summarizeByBezeichnung(
         nSegments: points.length > 0 ? 1 : 0,
       }
     } else if (mode === 'aki-aware') {
-      const points: SeriesPoint[] = numericRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
       const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
       const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
-      const r = fitAkiAware(points, exclusionDays, episodes)
+      const r = fitAkiAware(fitPoints, exclusionDays, episodes)
+      fitPoints = balanceSeriesPoints(r.keptIdx.map((i) => fitPoints[i]), timeBalancing)
+      const fit = fitGlobal(fitPoints)
       summary = {
         ...base,
-        slope: r.fit.slope, intercept: r.fit.intercept, r2: r.fit.r2, ciLow: r.fit.ciLow, ciHigh: r.fit.ciHigh,
-        reason: r.fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
+        slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
+        reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }
     } else if (mode === 'event-driven') {
-      const points: SeriesPoint[] = numericRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
+      if (excludeAkiWindows) {
+        const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
+        const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
+        const r = fitAkiAware(fitPoints, exclusionDays, episodes)
+        fitPoints = r.keptIdx.map((i) => fitPoints[i])
+      }
+      fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
       const events = eventDates.map((x) => x.getTime()).sort((a, b) => a - b)
       const ranges: Array<[number, number]> = []
       let start = 0
       for (const event of events) {
-        const idx = points.findIndex((p, i) => i >= start && p.date.getTime() >= event)
+        const idx = fitPoints.findIndex((p, i) => i >= start && p.date.getTime() >= event)
         if (idx > start) { ranges.push([start, idx]); start = idx }
       }
-      if (start < points.length) ranges.push([start, points.length])
-      if (ranges.length === 0 && points.length > 0) ranges.push([0, points.length])
+      if (start < fitPoints.length) ranges.push([start, fitPoints.length])
+      if (ranges.length === 0 && fitPoints.length > 0) ranges.push([0, fitPoints.length])
       const fits = ranges
         .map(([a, b]) => {
-          const seg = points.slice(a, b)
+          const seg = fitPoints.slice(a, b)
           return { range: [a, b] as [number, number], fit: fitGlobal(seg), n: seg.length }
         })
       const fittable = fits.filter((f) => f.fit.reason === null)
@@ -154,18 +186,23 @@ export function summarizeByBezeichnung(
           }
         : { ...base, ...emptyFit, reason: 'n_below_threshold', nSegments: ranges.length }
     } else {
-      const points: SeriesPoint[] = numericRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
-      const fit = fitGlobal(points)
+      if (excludeAkiWindows) {
+        const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
+        const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
+        const r = fitAkiAware(fitPoints, exclusionDays, episodes)
+        fitPoints = r.keptIdx.map((i) => fitPoints[i])
+      }
+      fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
+      const fit = fitGlobal(fitPoints)
       summary = {
         ...base,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
-        reason: spanDays < 365 ? 'span_too_short' : null,
+        reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }
     }
 
-    const points: SeriesPoint[] = numericRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
     if (mode === 'gap-split') {
-      const segs = fitSegments(points, gapDays, minNPerSegment)
+      const segs = fitSegments(fitPoints, gapDays, minNPerSegment)
       const slopes = segs.filter((s) => s.fittable).map((s) => s.slope)
       summary.nSegments = segs.length
       if (slopes.length > 0) {
@@ -176,7 +213,7 @@ export function summarizeByBezeichnung(
         summary.slopeMin = NAN; summary.slopeMax = NAN; summary.slopeRange = NAN
       }
     } else if (mode === 'rolling') {
-      const rolls = rollingSlopes(points, windowDays, stepDays, minNPerWindow)
+      const rolls = rollingSlopes(fitPoints, windowDays, stepDays, minNPerWindow)
       summary.nWindows = rolls.length
       if (rolls.length > 0) {
         const s = rolls.map((r) => r.slope)

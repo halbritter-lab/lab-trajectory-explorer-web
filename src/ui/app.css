@@ -128,6 +128,19 @@ select, input[type='number'], input[type='file'] {
 .sidebar-field input[type='file']::file-selector-button:hover { border-color: var(--faint); color: var(--text); }
 .sidebar-note { font-size: 0.75rem; line-height: 1.45; color: var(--muted); margin: 0.6rem 0 0; }
 .sidebar-status { color: var(--text-2); font-weight: 500; }
+.event-table-scroll {
+  max-width: 100%; overflow-x: auto; margin-top: 0.6rem;
+}
+.event-table {
+  width: max-content; min-width: 100%; border-collapse: collapse;
+  font-size: 0.72rem; color: var(--text-2); background: var(--surface);
+}
+.event-table th, .event-table td {
+  padding: 0.25rem 0.3rem; border-bottom: 1px solid var(--border-soft);
+  text-align: left; vertical-align: top;
+}
+.event-table th { font-size: 0.68rem; color: var(--muted); font-weight: 600; }
+.event-table td:last-child { word-break: break-word; }
 .manual-demo-row {
   display: flex; align-items: center; justify-content: space-between; gap: 0.5rem;
   margin-top: 0.5rem; font-size: 0.8rem; color: var(--text-2);
@@ -185,7 +198,30 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .plot-aki-summary { margin: 0.2rem 0 0; font-size: 11px; color: var(--danger); }
 
 /* --- cohort table ------------------------------------------------------ */
+.cohort-view-controls {
+  display: flex; align-items: center; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem;
+}
 .cohort-exports { margin-bottom: 0.75rem; display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+.cohort-overlay {
+  background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
+  box-shadow: var(--shadow); padding: 0.75rem 1rem;
+}
+.cohort-overlay-toolbar {
+  display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;
+}
+.cohort-overlay-field {
+  display: inline-flex; align-items: center; gap: 0.4rem; font-size: 13px; color: var(--text-2);
+}
+.cohort-overlay-stat {
+  font-size: 12px; color: var(--text-2); background: var(--bg);
+  border: 1px solid var(--border); border-radius: var(--radius); padding: 2px 8px;
+}
+.cohort-overlay-body {
+  width: 100%; overflow-x: auto;
+}
+.cohort-overlay-patients {
+  display: flex; flex-wrap: wrap; gap: 0.5rem 0.75rem; margin-top: 0.6rem;
+}
 .cohort-card {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   box-shadow: var(--shadow); overflow: auto; display: inline-block; max-width: 100%; max-height: 75vh;
@@ -216,6 +252,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .cohort-table tbody tr:last-child td { border-bottom: none; }
 .cohort-table tbody tr:hover { background: var(--bg); }
 .cell-cluster { display: flex; align-items: center; gap: 8px; }
+.cell-badges { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px; }
+.cell-cluster-m .cell-badges,
+.cell-cluster-l .cell-badges { flex-direction: column; align-items: flex-start; align-self: center; }
+.cell-cluster-s .cell-badges { max-width: 12rem; overflow: hidden; }
 .cell-slope { color: var(--text-2); font-variant-numeric: tabular-nums; }
 .patient-link { background: none; border: none; box-shadow: none; color: var(--accent); cursor: pointer; padding: 0; font-weight: 500; }
 .patient-link:hover { text-decoration: underline; border: none; }
@@ -225,6 +265,14 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 }
 .rapid-badge {
   font-size: 11px; background: #fff7ed; color: #c2410c; border: 1px solid #fed7aa;
+  border-radius: 999px; padding: 1px 8px; white-space: nowrap; font-weight: 600;
+}
+.endpoint-badge {
+  font-size: 11px; background: #eef2ff; color: #3730a3; border: 1px solid #c7d2fe;
+  border-radius: 999px; padding: 1px 8px; white-space: nowrap; font-weight: 600;
+}
+.more-badge {
+  font-size: 11px; background: var(--bg); color: var(--text-2); border: 1px solid var(--border);
   border-radius: 999px; padding: 1px 8px; white-space: nowrap; font-weight: 600;
 }
 .rapid-badge-inline { padding: 0 6px; font-weight: 600; }

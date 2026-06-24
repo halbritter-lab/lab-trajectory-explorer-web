@@ -3,6 +3,7 @@ import { summarizeByBezeichnung } from '../../../src/core/stats/summarize'
 import { episodesForSeries } from '../../../src/core/aki/akiAware'
 import type { LabRow } from '../../../src/core/types'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
+import type { ClinicalEvent } from '../../../src/core/events/events'
 
 function akiRow(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -164,5 +165,35 @@ describe('summarizeByBezeichnung extended preset modes', () => {
     const out = summarizeByBezeichnung(rows, 1, 'event-driven', { eventDates: [d('2020-06-01')] })[0]
     expect(out.nSegments).toBe(2)
     expect(out.slope).toBeGreaterThan(10)
+  })
+
+  it('excludes post-transplant values from fit summaries while preserving display counts', () => {
+    const rows = [
+      row({ bezeichnung: 'A', wertNum: 8, labDatum: d('2018-01-01') }),
+      row({ bezeichnung: 'A', wertNum: 9, labDatum: d('2019-01-01') }),
+      row({ bezeichnung: 'A', wertNum: 10, labDatum: d('2020-01-01') }),
+      row({ bezeichnung: 'A', wertNum: 11, labDatum: d('2021-01-01') }),
+      row({ bezeichnung: 'A', wertNum: 200, labDatum: d('2022-01-01') }),
+      row({ bezeichnung: 'A', wertNum: 220, labDatum: d('2023-01-01') }),
+    ]
+    const transplant: ClinicalEvent = {
+      patientId: 1,
+      type: 'kidney_transplant',
+      date: d('2022-01-01'),
+      title: 'Kidney transplant',
+      description: null,
+      endDate: null,
+      intent: null,
+      warning: '',
+    }
+
+    const unfiltered = summarizeByBezeichnung(rows, 1, 'global')[0]
+    const filtered = summarizeByBezeichnung(rows, 1, 'global', { clinicalEvents: [transplant] })[0]
+
+    expect(filtered.nNumeric).toBe(6)
+    expect(filtered.reason).toBeNull()
+    expect(filtered.slope).toBeGreaterThan(0.9)
+    expect(filtered.slope).toBeLessThan(1.1)
+    expect(filtered.slope).toBeLessThan(unfiltered.slope)
   })
 })

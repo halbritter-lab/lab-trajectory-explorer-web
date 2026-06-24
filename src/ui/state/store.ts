@@ -4,9 +4,16 @@ import type { SlopeMode } from '../../core/stats/summarize'
 import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analysis/registry'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
 import type { FormulaName, Source } from '../../core/egfr/series'
-import type { ValidAnnotation } from '../../core/annotations/annotations'
+import type { ClinicalEvent } from '../../core/events/events'
+import {
+  acuteReviewConfig,
+  ckdProgressionConfig,
+  generalExplorationConfig,
+  type FitConfig,
+  type FitPreset,
+} from '../../core/fitPipeline/types'
 import { saveDataset, clearDataset, saveSettings } from '../../io/persistence'
-import { datasetFromArrayBuffer, loadBundledFixture } from '../data/loadDataset'
+import { datasetFromArrayBuffer, loadBundledFixtureData } from '../data/loadDataset'
 
 export type ZoomLevel = 's' | 'm' | 'l'
 
@@ -24,10 +31,22 @@ export interface SeriesConfig {
   stepDays: number
   cutoffDays: number
   exclusionDays: number
+  fitConfig: FitConfig
+}
+
+export type FitConfigPatch = {
+  xAxis?: FitConfig['xAxis']
+  censoring?: Partial<FitConfig['censoring']>
+  exclusions?: Partial<FitConfig['exclusions']>
+  timeBalancing?: FitConfig['timeBalancing']
+  fitModel?: FitConfig['fitModel']
+  endpoints?: Partial<FitConfig['endpoints']>
 }
 
 export type View = 'one' | 'cohort'
 export type CohortPatientMode = 'all' | 'selected'
+export type CohortDisplayMode = 'table' | 'overlay'
+export type CohortOverlayXAxis = 'age' | 'calendar_time' | 'time_since_baseline'
 
 export interface AppState {
   rows: LabRow[]
@@ -37,13 +56,15 @@ export interface AppState {
   view: View
   returnToCohort: boolean
   cohortPatientMode: CohortPatientMode
+  cohortDisplayMode: CohortDisplayMode
+  cohortOverlayXAxis: CohortOverlayXAxis
   seriesConfigs: SeriesConfig[]
   analysisSettings: AnalysisSettings
   egfrFormula: FormulaName | 'off'
   egfrSource: Source | null
   manualDemographics: Record<number, ManualDemographics>
-  annotations: ValidAnnotation[]
-  showAnnotations: boolean
+  events: ClinicalEvent[]
+  showEvents: boolean
   cohortSort: { key: 'id' | 'slope' | 'absSlope' | 'n' | 'duration'; dir: 'asc' | 'desc'; seriesIndex?: number }
   showAki: boolean
   showMethodology: boolean
@@ -63,6 +84,8 @@ export interface AppState {
   setView: (v: View) => void
   setReturnToCohort: (v: boolean) => void
   setCohortPatientMode: (v: CohortPatientMode) => void
+  setCohortDisplayMode: (v: CohortDisplayMode) => void
+  setCohortOverlayXAxis: (v: CohortOverlayXAxis) => void
   setSeriesConfig: (index: number, cfg: Partial<SeriesConfig>) => void
   addSeries: () => void
   removeSeries: (index: number) => void
@@ -70,8 +93,10 @@ export interface AppState {
   setEgfrFormula: (f: FormulaName | 'off') => void
   setEgfrSource: (s: Source | null) => void
   setManualDemographics: (patientId: number, demo: ManualDemographics) => void
-  setAnnotations: (a: ValidAnnotation[]) => void
-  setShowAnnotations: (v: boolean) => void
+  setEvents: (events: ClinicalEvent[]) => void
+  setShowEvents: (value: boolean) => void
+  setSeriesFitPreset: (index: number, preset: FitPreset) => void
+  setSeriesFitConfig: (index: number, patch: FitConfigPatch) => void
   analysisResult: () => AnalysisResult
   displayRows: () => LabRow[]
   setCohortSort: (s: AppState['cohortSort']) => void
@@ -86,15 +111,23 @@ export interface AppState {
 }
 
 const defaultSeries = (): SeriesConfig => ({
-  bezeichnung: null, einheit: null, mode: 'global', gapDays: 180, windowDays: 730, stepDays: 180, cutoffDays: 90, exclusionDays: 30,
+  bezeichnung: null,
+  einheit: null,
+  mode: 'global',
+  gapDays: 180,
+  windowDays: 730,
+  stepDays: 180,
+  cutoffDays: 90,
+  exclusionDays: 30,
+  fitConfig: generalExplorationConfig({ bezeichnung: '(unselected)', einheit: null }),
 })
 
 /** Resettable data fields (no actions). Single source of truth for both the
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'selectedPatientId' | 'selectedPatientIds' | 'view' | 'returnToCohort' | 'cohortPatientMode' | 'seriesConfigs' | 'egfrFormula'
-  | 'analysisSettings' | 'egfrSource' | 'manualDemographics' | 'annotations' | 'showAnnotations' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
-  | 'connectPoints' | 'rapidEgfrThreshold' | 'busy' | 'notice'>
+  | 'analysisSettings' | 'egfrSource' | 'manualDemographics' | 'events' | 'showEvents' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
+  | 'cohortDisplayMode' | 'cohortOverlayXAxis' | 'connectPoints' | 'rapidEgfrThreshold' | 'busy' | 'notice'>
 
 function analysisSettingsState(analysisSettings: AnalysisSettings) {
   return {
@@ -116,11 +149,13 @@ const initialState = (): AppData => {
     view: 'one',
     returnToCohort: false,
     cohortPatientMode: 'all',
+    cohortDisplayMode: 'table',
+    cohortOverlayXAxis: 'age',
     seriesConfigs: [defaultSeries()],
     ...analysisSettingsState(analysisSettings),
     manualDemographics: {},
-    annotations: [],
-    showAnnotations: true,
+    events: [],
+    showEvents: true,
     cohortSort: { key: 'id', dir: 'asc' },
     showMethodology: false,
     persist: false,
@@ -137,7 +172,7 @@ let analysisCache: {
   rows: LabRow[]
   settings: AnalysisSettings
   manual: Record<number, ManualDemographics>
-  annotations: ValidAnnotation[]
+  events: ClinicalEvent[]
   result: AnalysisResult
 } | null = null
 
@@ -145,19 +180,53 @@ function computeStoreAnalysisResult(
   rows: LabRow[],
   settings: AnalysisSettings,
   manual: Record<number, ManualDemographics>,
-  annotations: ValidAnnotation[],
+  events: ClinicalEvent[],
 ): AnalysisResult {
   if (
     analysisCache &&
     analysisCache.rows === rows &&
     analysisCache.settings === settings &&
     analysisCache.manual === manual &&
-    analysisCache.annotations === annotations
+    analysisCache.events === events
   ) return analysisCache.result
 
-  const result = computeAnalysisResult({ rows, settings, manualDemographics: manual, annotations })
-  analysisCache = { rows, settings, manual, annotations, result }
+  const result = computeAnalysisResult({ rows, settings, manualDemographics: manual, events })
+  analysisCache = { rows, settings, manual, events, result }
   return result
+}
+
+function parameterForSeries(config: SeriesConfig): FitConfig['parameter'] {
+  return {
+    bezeichnung: config.bezeichnung ?? '(unselected)',
+    einheit: config.einheit ?? null,
+  }
+}
+
+function fitConfigForPreset(preset: FitPreset, parameter: FitConfig['parameter']): FitConfig {
+  if (preset === 'ckd_progression') return ckdProgressionConfig(parameter)
+  if (preset === 'acute_review') return acuteReviewConfig(parameter)
+  if (preset === 'custom') return { ...generalExplorationConfig(parameter), preset: 'custom' }
+  return generalExplorationConfig(parameter)
+}
+
+function modeForFitModel(fitModel: FitConfig['fitModel']): SlopeMode {
+  if (fitModel === 'theil-sen') return 'global-robust'
+  if (fitModel === 'rolling-ols') return 'rolling'
+  if (fitModel === 'segmented-ols') return 'gap-split'
+  return 'global'
+}
+
+function patchedFitConfig(config: FitConfig, patch: FitConfigPatch): FitConfig {
+  return {
+    ...config,
+    preset: 'custom',
+    xAxis: patch.xAxis ?? config.xAxis,
+    censoring: { ...config.censoring, ...(patch.censoring ?? {}) },
+    exclusions: { ...config.exclusions, ...(patch.exclusions ?? {}) },
+    timeBalancing: patch.timeBalancing ?? config.timeBalancing,
+    fitModel: patch.fitModel ?? config.fitModel,
+    endpoints: { ...config.endpoints, ...(patch.endpoints ?? {}) },
+  }
 }
 
 export const useAppStore = create<AppState>((set, get) => ({
@@ -179,9 +248,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadSynthetic: async () => {
     set({ busy: true, notice: null })
     try {
-      const rows = await loadBundledFixture()
+      const { rows, events } = await loadBundledFixtureData()
       get().setDataset(rows, 'test_labs.xlsx (synthetic)')
-      set({ notice: { kind: 'info', text: `Loaded ${rows.length} rows from the synthetic dataset.` } })
+      set({
+        events,
+        notice: {
+          kind: 'info',
+          text: `Loaded ${rows.length} rows and ${events.length} events from the synthetic dataset.`,
+        },
+      })
     } catch (err) {
       set({ notice: { kind: 'error', text: err instanceof Error ? err.message : String(err) } })
     } finally {
@@ -197,6 +272,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       selectedPatientIds: ids,
       view: 'cohort',
       returnToCohort: false,
+      events: [],
       ...analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: null } }),
     }))
     if (get().persist) void saveDataset(rows, fileName ?? null)
@@ -206,8 +282,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   setView: (v) => set({ view: v }),
   setReturnToCohort: (v) => set({ returnToCohort: v }),
   setCohortPatientMode: (v) => set({ cohortPatientMode: v }),
+  setCohortDisplayMode: (v) => set({ cohortDisplayMode: v }),
+  setCohortOverlayXAxis: (v) => set({ cohortOverlayXAxis: v }),
   setSeriesConfig: (index, cfg) =>
-    set((s) => ({ seriesConfigs: s.seriesConfigs.map((c, i) => (i === index ? { ...c, ...cfg } : c)) })),
+    set((s) => ({
+      seriesConfigs: s.seriesConfigs.map((c, i) => {
+        if (i !== index) return c
+        const next = { ...c, ...cfg }
+        if ('bezeichnung' in cfg || 'einheit' in cfg) {
+          next.fitConfig = { ...next.fitConfig, parameter: parameterForSeries(next) }
+        }
+        return next
+      }),
+    })),
   addSeries: () => set((s) => (s.seriesConfigs.length >= 3 ? s : { seriesConfigs: [...s.seriesConfigs, defaultSeries()] })),
   removeSeries: (index) =>
     set((s) => (s.seriesConfigs.length <= 1 ? s : { seriesConfigs: s.seriesConfigs.filter((_, i) => i !== index) })),
@@ -215,11 +302,37 @@ export const useAppStore = create<AppState>((set, get) => ({
   setEgfrFormula: (f) => set((s) => analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, formula: f } })),
   setEgfrSource: (src) => set((s) => analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: src } })),
   setManualDemographics: (patientId, demo) => set((s) => ({ manualDemographics: { ...s.manualDemographics, [patientId]: demo } })),
-  setAnnotations: (a) => set({ annotations: a }),
-  setShowAnnotations: (v) => set({ showAnnotations: v }),
+  setEvents: (events) => set({ events }),
+  setShowEvents: (value) => set({ showEvents: value }),
+  setSeriesFitPreset: (index, preset) =>
+    set((s) => ({
+      seriesConfigs: s.seriesConfigs.map((c, i) => {
+        if (i !== index) return c
+        const fitConfig = fitConfigForPreset(preset, parameterForSeries(c))
+        return {
+          ...c,
+          fitConfig,
+          mode: modeForFitModel(fitConfig.fitModel),
+          exclusionDays: fitConfig.exclusions.akiExclusionDays,
+        }
+      }),
+    })),
+  setSeriesFitConfig: (index, patch) =>
+    set((s) => ({
+      seriesConfigs: s.seriesConfigs.map((c, i) => {
+        if (i !== index) return c
+        const fitConfig = patchedFitConfig(c.fitConfig, patch)
+        return {
+          ...c,
+          fitConfig,
+          mode: patch.fitModel ? modeForFitModel(patch.fitModel) : c.mode,
+          exclusionDays: fitConfig.exclusions.akiExclusionDays,
+        }
+      }),
+    })),
   analysisResult: () => {
     const s = get()
-    return computeStoreAnalysisResult(s.rows, s.analysisSettings, s.manualDemographics, s.annotations)
+    return computeStoreAnalysisResult(s.rows, s.analysisSettings, s.manualDemographics, s.events)
   },
   displayRows: () => get().analysisResult().rows,
   setCohortSort: (s) => set({ cohortSort: s }),

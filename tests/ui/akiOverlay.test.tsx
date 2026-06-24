@@ -12,6 +12,66 @@ function kreat(date: string, value: number): LabRow {
 }
 
 describe('SeriesPlot AKI overlay', () => {
+  it('marks clinical-event excluded detail measurements in red only when censoring is enabled', () => {
+    const rows = [
+      kreat('2020-01-01T00:00:00Z', 60),
+      kreat('2020-09-01T00:00:00Z', 52),
+      kreat('2021-01-01T00:00:00Z', 45),
+    ]
+    const transplant = {
+      patientId: 1,
+      type: 'kidney_transplant' as const,
+      date: new Date('2020-09-01T00:00:00Z'),
+      title: 'Kidney transplant',
+      description: '',
+      endDate: null,
+      intent: null,
+      warning: '' as const,
+    }
+    const enabled = render(
+      <SeriesPlot
+        title="eGFR"
+        rows={rows}
+        cfg={{
+          mode: 'global',
+          gapDays: 180,
+          windowDays: 730,
+          stepDays: 180,
+          clinicalEvents: [transplant],
+          clinicalEventCensoring: {
+            censorAfterKidneyTransplant: true,
+            censorAfterChronicDialysis: false,
+            excludeAcuteDialysisPeriods: false,
+            unknownDialysisPolicy: 'flag-only',
+          },
+        }}
+      />,
+    )
+    expect(enabled.container.querySelectorAll('[data-testid="detail-excluded-point"]')).toHaveLength(2)
+    enabled.unmount()
+
+    const disabled = render(
+      <SeriesPlot
+        title="eGFR"
+        rows={rows}
+        cfg={{
+          mode: 'global',
+          gapDays: 180,
+          windowDays: 730,
+          stepDays: 180,
+          clinicalEvents: [transplant],
+          clinicalEventCensoring: {
+            censorAfterKidneyTransplant: false,
+            censorAfterChronicDialysis: false,
+            excludeAcuteDialysisPeriods: false,
+            unknownDialysisPolicy: 'flag-only',
+          },
+        }}
+      />,
+    )
+    expect(disabled.container.querySelector('[data-testid="detail-excluded-point"]')).toBeNull()
+  })
+
   it('renders without crashing when showAki is on for a creatinine series with an episode', () => {
     const rows = [kreat('2020-01-01T00:00:00Z', 1.0), kreat('2020-01-02T00:00:00Z', 1.6), kreat('2020-02-01T00:00:00Z', 1.0)]
     const { container } = render(
@@ -76,6 +136,90 @@ describe('SeriesPlot AKI overlay', () => {
     const svg = container.querySelector('[data-testid="series-plot"] svg')!
     expect(svg.innerHTML).toContain('#ef4444')
     expect(svg.innerHTML).toContain('AKI I')
+    expect(container.querySelector('[data-testid="detail-aki-excluded-point"]')).toBeNull()
+  })
+
+  it('marks AKI-window detail measurements in red only when AKI exclusion is active', () => {
+    const rows = [
+      { ...kreat('2020-01-01T00:00:00Z', 80), bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²' },
+      { ...kreat('2020-01-02T00:00:00Z', 60), bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²' },
+      { ...kreat('2020-02-01T00:00:00Z', 82), bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²' },
+    ]
+    const episodeDate = new Date('2020-01-02T00:00:00Z')
+    const { container } = render(
+      <SeriesPlot
+        title="eGFR (CKD-EPI 2021, computed)"
+        rows={rows}
+        cfg={{ mode: 'global', gapDays: 180, windowDays: 730, stepDays: 180, exclusionDays: 30, excludeAkiWindows: true }}
+        showAki
+        episodes={[{
+          date: episodeDate,
+          baselineDate: new Date('2020-01-01T00:00:00Z'),
+          baselineValue: 1.0,
+          peakValue: 1.6,
+          peakDate: episodeDate,
+          criterion: 'relative_1_5x_7d',
+          stage: 1,
+        }]}
+      />,
+    )
+
+    expect(container.querySelectorAll('[data-testid="detail-aki-excluded-point"]')).toHaveLength(2)
+  })
+
+  it('marks AKI-window detail measurements in red when excluded even if AKI episode display is off', () => {
+    const rows = [
+      { ...kreat('2020-01-01T00:00:00Z', 80), bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²' },
+      { ...kreat('2020-01-02T00:00:00Z', 60), bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²' },
+      { ...kreat('2020-02-01T00:00:00Z', 82), bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²' },
+    ]
+    const episodeDate = new Date('2020-01-02T00:00:00Z')
+    const { container } = render(
+      <SeriesPlot
+        title="eGFR (CKD-EPI 2021, computed)"
+        rows={rows}
+        cfg={{ mode: 'global', gapDays: 180, windowDays: 730, stepDays: 180, exclusionDays: 30, excludeAkiWindows: true }}
+        showAki={false}
+        episodes={[{
+          date: episodeDate,
+          baselineDate: new Date('2020-01-01T00:00:00Z'),
+          baselineValue: 1.0,
+          peakValue: 1.6,
+          peakDate: episodeDate,
+          criterion: 'relative_1_5x_7d',
+          stage: 1,
+        }]}
+      />,
+    )
+
+    expect(container.querySelectorAll('[data-testid="detail-aki-excluded-point"]')).toHaveLength(2)
+    expect(container.querySelector('[data-testid="series-plot"]')?.textContent).not.toContain('AKI I')
+  })
+
+  it('labels the trend legend by the active fit model and hides it when no fit is configured', () => {
+    const rows = [
+      kreat('2020-01-01T00:00:00Z', 1.0),
+      kreat('2021-01-01T00:00:00Z', 1.4),
+      kreat('2022-01-01T00:00:00Z', 2.0),
+    ]
+    const noFit = render(
+      <SeriesPlot
+        title="Kreatinin"
+        rows={rows}
+        cfg={{ mode: 'global', gapDays: 180, windowDays: 730, stepDays: 180, fitModel: 'none' }}
+      />,
+    )
+    expect(screen.queryByText(/Trend/)).not.toBeInTheDocument()
+    noFit.unmount()
+
+    render(
+      <SeriesPlot
+        title="Kreatinin"
+        rows={rows}
+        cfg={{ mode: 'global-robust', gapDays: 180, windowDays: 730, stepDays: 180, fitModel: 'theil-sen' }}
+      />,
+    )
+    expect(screen.getByText('Trend (Theil-Sen fit)')).toBeInTheDocument()
   })
 
   it('summarises detected AKI episode counts by stage in the plot legend', () => {
@@ -137,14 +281,14 @@ describe('SeriesPlot AKI overlay', () => {
       useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
     })
 
-    it('aki-aware mode does not draw AKI episode visuals when showAki is off', () => {
+    it('aki-aware mode keeps excluded AKI-window points visible when showAki is off', () => {
       useAppStore.getState().setSeriesConfig(0, { mode: 'aki-aware' })
       useAppStore.getState().setShowAki(false)
       const { container } = render(<OnePatientView />)
       const svg = container.querySelector('[data-testid="series-plot"] svg')!
       expect(svg.innerHTML).not.toContain('#ef4444')
-      expect(svg.innerHTML).not.toContain('#dc2626')
       expect(svg.innerHTML).not.toContain('AKI II')
+      expect(container.querySelectorAll('[data-testid="detail-aki-excluded-point"]')).toHaveLength(2)
     })
 
     it('showAki draws the AKI window, excluded points, and stage label', () => {

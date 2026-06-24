@@ -25,7 +25,7 @@ describe('computeAnalysisResult', () => {
     const result = computeAnalysisResult({
       rows,
       manualDemographics: {},
-      annotations: [],
+      events: [],
       settings: {
         egfr: { formula: 'off', source: null },
         aki: { showOverlays: false, exclusionDays: 30 },
@@ -64,7 +64,7 @@ describe('computeAnalysisResult', () => {
     const result = computeAnalysisResult({
       rows,
       manualDemographics: {},
-      annotations: [],
+      events: [],
       settings: {
         egfr: { formula: 'off', source: null },
         aki: { showOverlays: false, exclusionDays: 30 },
@@ -113,7 +113,7 @@ describe('computeAnalysisResult', () => {
     const result = computeAnalysisResult({
       rows,
       manualDemographics: {},
-      annotations: [],
+      events: [],
       settings: {
         egfr: { formula: 'off', source: null },
         aki: { showOverlays: false, exclusionDays: 30 },

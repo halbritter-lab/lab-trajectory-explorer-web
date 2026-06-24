@@ -1,7 +1,7 @@
-import type { ValidAnnotation } from '../annotations/annotations'
 import type { AkiEpisode } from '../aki/kdigo'
 import type { DateBand } from '../aki/akiAware'
 import type { Source, FormulaName } from '../egfr/series'
+import type { ClinicalEvent } from '../events/events'
 import type { LabRow } from '../types'
 
 export interface ManualDemographics {
@@ -37,7 +37,7 @@ export interface AnalysisSettings {
 export interface AnalysisContext {
   rows: LabRow[]
   manualDemographics: Record<number, ManualDemographics>
-  annotations: ValidAnnotation[]
+  events: ClinicalEvent[]
 }
 
 export interface AnalysisMessage {

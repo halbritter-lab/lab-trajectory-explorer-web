@@ -2,11 +2,15 @@ import { useState } from 'react'
 import { useAppStore } from '../state/store'
 import { allSourceOptions, creatinineSourceOptions, defaultCreatinineSource, isSerumCreatinineSource, type FormulaName } from '../../core/egfr/series'
 import type { Sex } from '../../core/types'
+import { effectForEvent, normalizeClinicalEvents, validateClinicalEvents, type ClinicalEvent, type RejectedClinicalEvent } from '../../core/events/events'
+import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
+import { readWorkbook } from '../../io/readWorkbook'
 
 export function Sidebar() {
   const [open, setOpen] = useState(true)
   const [showAllEgfrSources, setShowAllEgfrSources] = useState(false)
   const [demoDraft, setDemoDraft] = useState<{ patientId: number; sex: Sex | ''; age: string } | null>(null)
+  const [fitSeriesIndex, setFitSeriesIndex] = useState(0)
   const analysisSettings = useAppStore((s) => s.analysisSettings)
   const egfrFormula = analysisSettings.egfr.formula
   const setEgfrFormula = useAppStore((s) => s.setEgfrFormula)
@@ -19,17 +23,24 @@ export function Sidebar() {
   const setCohortPatientMode = useAppStore((s) => s.setCohortPatientMode)
   const selectedPatientIds = useAppStore((s) => s.selectedPatientIds)
   const setSelectedPatientIds = useAppStore((s) => s.setSelectedPatientIds)
-  const setAnnotations = useAppStore((s) => s.setAnnotations)
-  const showAnnotations = useAppStore((s) => s.showAnnotations)
-  const setShowAnnotations = useAppStore((s) => s.setShowAnnotations)
+  const events = useAppStore((s) => s.events)
+  const setEvents = useAppStore((s) => s.setEvents)
+  const showEvents = useAppStore((s) => s.showEvents)
+  const setShowEvents = useAppStore((s) => s.setShowEvents)
   const showAki = useAppStore((s) => s.showAki)
   const setShowAki = useAppStore((s) => s.setShowAki)
+  const seriesConfigs = useAppStore((s) => s.seriesConfigs)
+  const setSeriesFitPreset = useAppStore((s) => s.setSeriesFitPreset)
+  const setSeriesFitConfig = useAppStore((s) => s.setSeriesFitConfig)
   const connectPoints = useAppStore((s) => s.connectPoints)
   const setConnectPoints = useAppStore((s) => s.setConnectPoints)
   const rapidEgfrThreshold = useAppStore((s) => s.analysisSettings.rapidEgfrDecline.threshold)
   const setRapidEgfrThreshold = useAppStore((s) => s.setRapidEgfrThreshold)
-  const [annNote, setAnnNote] = useState('')
+  const [eventNote, setEventNote] = useState('')
+  const [rejectedEvents, setRejectedEvents] = useState<RejectedClinicalEvent[]>([])
   const patientIds = [...new Set(rows.map((r) => r.patientId))].sort((a, b) => a - b)
+  const activeFitSeriesIndex = Math.min(fitSeriesIndex, seriesConfigs.length - 1)
+  const primaryFitConfig = seriesConfigs[activeFitSeriesIndex].fitConfig
 
   const autoSourceOptions = creatinineSourceOptions(rows)
   const sourceOptions = showAllEgfrSources ? allSourceOptions(rows) : autoSourceOptions
@@ -90,19 +101,28 @@ export function Sidebar() {
     setDemoDraft(null)
   }
 
-  async function onAnnFile(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0]
+  async function onEventFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget
+    const file = input.files?.[0]
     if (!file) return
-    const buf = await file.arrayBuffer()
     try {
-      const { normalizeAnnotations, validateAnnotations } = await import('../../core/annotations/annotations')
-      const { readWorkbook } = await import('../../io/readWorkbook')
-      const anns = normalizeAnnotations(readWorkbook(buf))
-      const { valid, rejects } = validateAnnotations(anns, rows)
-      setAnnotations(valid)
-      setAnnNote(`${valid.length} loaded${rejects.length ? `, ${rejects.length} rejected` : ''}`)
+      const buf = await file.arrayBuffer()
+      const rawEvents = normalizeClinicalEvents(readWorkbook(buf))
+      const { valid, rejected } = validateClinicalEvents(rawEvents, rows)
+      const warnings = valid.filter((event) => event.warning).length
+      setEvents(valid)
+      setRejectedEvents(rejected)
+      setEventNote(
+        `Loaded ${valid.length} ${pluralize(valid.length, 'event')}` +
+        `${rejected.length ? `; rejected ${rejected.length} ${pluralize(rejected.length, 'row')}` : ''}` +
+        `${warnings ? `; ${warnings} ${pluralize(warnings, 'warning')}` : ''}.`,
+      )
     } catch (err) {
-      setAnnNote(`Error: ${(err as Error).message}`)
+      setEvents([])
+      setRejectedEvents([])
+      setEventNote(err instanceof Error ? err.message : String(err))
+    } finally {
+      input.value = ''
     }
   }
 
@@ -196,10 +216,6 @@ export function Sidebar() {
                 )}
               </div>
             )}
-            <label className="sidebar-check">
-              <input type="checkbox" checked={showAki} onChange={(e) => setShowAki(e.target.checked)} />
-              Show AKI episodes
-            </label>
             <p className="sidebar-note">eGFR (ƒ) is computed from serum creatinine and demographics; AKI episodes use KDIGO criteria. Both are added as overlays, not measured data.</p>
             <label className="sidebar-field" title="KDIGO rapid CKD progression: eGFR decline faster than this many mL/min/1.73m² per year. Set 0 to disable.">
               Rapid eGFR decline ≥ (mL/min/1.73m²/yr)
@@ -213,6 +229,135 @@ export function Sidebar() {
               />
             </label>
             <p className="sidebar-note">Cohort eGFR series declining faster than this are flagged <span className="rapid-badge rapid-badge-inline">rapid ↓</span>. KDIGO defines rapid progression as &gt; 5/yr. Set 0 to disable.</p>
+          </section>
+
+          <section className="sidebar-group">
+            <h3 className="sidebar-group-title">Nephro / CKD progression</h3>
+            <label className="sidebar-field">Series
+              <select
+                aria-label="Fit settings series"
+                value={activeFitSeriesIndex}
+                onChange={(e) => setFitSeriesIndex(Number(e.target.value))}
+              >
+                {seriesConfigs.map((cfg, index) => (
+                  <option key={index} value={index}>
+                    {`Series ${index + 1}${cfg.bezeichnung ? `: ${cfg.bezeichnung}` : ''}`}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="sidebar-field">Preset
+              <select aria-label="Fit preset" value={primaryFitConfig.preset} onChange={(e) => setSeriesFitPreset(activeFitSeriesIndex, e.target.value as FitPreset)}>
+                <option value="general_exploration">General exploration</option>
+                <option value="ckd_progression">CKD progression</option>
+                <option value="acute_review">Acute review</option>
+                <option value="custom">Custom</option>
+              </select>
+            </label>
+            <div className="sidebar-subgroup-title">Data filter</div>
+            <label className="sidebar-check">
+              <input
+                type="checkbox"
+                aria-label="Censor after kidney transplant"
+                checked={primaryFitConfig.censoring.censorAfterKidneyTransplant}
+                onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { censoring: { censorAfterKidneyTransplant: e.target.checked } })}
+              />
+              Censor after kidney transplant
+            </label>
+            <label className="sidebar-check">
+              <input
+                type="checkbox"
+                aria-label="Censor after chronic dialysis"
+                checked={primaryFitConfig.censoring.censorAfterChronicDialysis}
+                onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { censoring: { censorAfterChronicDialysis: e.target.checked } })}
+              />
+              Censor after chronic dialysis
+            </label>
+            <label className="sidebar-check">
+              <input
+                type="checkbox"
+                aria-label="Exclude acute dialysis intervals"
+                checked={primaryFitConfig.censoring.excludeAcuteDialysisPeriods}
+                onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { censoring: { excludeAcuteDialysisPeriods: e.target.checked } })}
+              />
+              Exclude acute dialysis intervals
+            </label>
+            <label className="sidebar-field">Unknown dialysis
+              <select
+                aria-label="Unknown dialysis policy"
+                value={primaryFitConfig.censoring.unknownDialysisPolicy}
+                onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { censoring: { unknownDialysisPolicy: e.target.value as UnknownDialysisPolicy } })}
+              >
+                <option value="flag-only">Flag only</option>
+                <option value="exclude-dated-interval">Exclude dated interval</option>
+                <option value="censor-from-start">Censor from start</option>
+              </select>
+            </label>
+            <div className="sidebar-subgroup-title">Detected events</div>
+            <label className="sidebar-check">
+              <input type="checkbox" checked={showAki} onChange={(e) => setShowAki(e.target.checked)} />
+              Show AKI episodes
+            </label>
+            <label className="sidebar-check">
+              <input
+                type="checkbox"
+                aria-label="Exclude AKI windows from trend fits"
+                checked={primaryFitConfig.exclusions.excludeAkiWindows}
+                onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { exclusions: { excludeAkiWindows: e.target.checked } })}
+              />
+              Exclude AKI windows from trend fits
+            </label>
+            <label className="sidebar-field">AKI exclusion window
+              <input
+                type="number"
+                min={0}
+                aria-label="AKI exclusion window days"
+                value={primaryFitConfig.exclusions.akiExclusionDays}
+                onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { exclusions: { akiExclusionDays: Math.max(0, Number(e.target.value) || 0) } })}
+              />
+            </label>
+            <div className="sidebar-subgroup-title">Aggregation</div>
+            <label className="sidebar-field">Time balancing
+              <select
+                aria-label="Time balancing"
+                value={primaryFitConfig.timeBalancing}
+                onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { timeBalancing: e.target.value as TimeBalancing })}
+              >
+                <option value="raw">Raw</option>
+                <option value="monthly-median">Monthly median</option>
+                <option value="quarterly-median">Quarterly median</option>
+              </select>
+            </label>
+            <div className="sidebar-subgroup-title">Fit model</div>
+            <label className="sidebar-field">Model
+              <select
+                aria-label="Fit model"
+                value={primaryFitConfig.fitModel}
+                onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { fitModel: e.target.value as FitModel })}
+              >
+                <option value="none">None</option>
+                <option value="ols">OLS</option>
+                <option value="theil-sen">Theil-Sen</option>
+                <option value="rolling-ols">Rolling OLS</option>
+                <option value="segmented-ols">Segmented OLS</option>
+              </select>
+            </label>
+            <div className="sidebar-subgroup-title">Endpoints</div>
+            {([
+              ['percentDecline', 'Percent eGFR decline'],
+              ['observedCkdG5', 'Observed CKD G5'],
+              ['projectedAgeToCkdG5', 'Projected age to CKD G5'],
+            ] as Array<[keyof FitConfig['endpoints'], string]>).map(([key, label]) => (
+              <label className="sidebar-check" key={key}>
+                <input
+                  type="checkbox"
+                  aria-label={label}
+                  checked={primaryFitConfig.endpoints[key]}
+                  onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { endpoints: { [key]: e.target.checked } })}
+                />
+                {label}
+              </label>
+            ))}
           </section>
 
           {patientIds.length > 0 && (
@@ -271,18 +416,109 @@ export function Sidebar() {
           </section>
 
           <section className="sidebar-group">
-            <h3 className="sidebar-group-title">Annotations</h3>
+            <h3 className="sidebar-group-title">Events</h3>
             <label className="sidebar-check">
-              <input type="checkbox" aria-label="Show annotations on plot" checked={showAnnotations} onChange={(e) => setShowAnnotations(e.target.checked)} />
+              <input type="checkbox" aria-label="Show events on plot" checked={showEvents} onChange={(e) => setShowEvents(e.target.checked)} />
               Show on plot
             </label>
-            <label className="sidebar-field">Upload event markers
-              <input type="file" aria-label="Annotations" accept=".xlsx,.csv" onChange={onAnnFile} />
+            <label className="sidebar-field">Events
+              <input type="file" aria-label="Events" accept=".xlsx,.csv" onChange={onEventFile} />
             </label>
-            {annNote && <p className="sidebar-note sidebar-status" role="status" aria-live="polite">{annNote}</p>}
+            {eventNote && <p className="sidebar-note sidebar-status" role="status" aria-live="polite">{eventNote}</p>}
+            {events.length > 0 && <EventTable events={events} fitConfig={primaryFitConfig} />}
+            {rejectedEvents.length > 0 && <RejectedEventTable rejected={rejectedEvents} />}
           </section>
         </div>
       )}
     </aside>
+  )
+}
+
+function pluralize(count: number, singular: string): string {
+  return count === 1 ? singular : `${singular}s`
+}
+
+function EventTable({ events, fitConfig }: { events: ClinicalEvent[]; fitConfig: FitConfig }) {
+  const sorted = [...events].sort((a, b) => a.patientId - b.patientId || a.date.getTime() - b.date.getTime())
+  const placeholder = '-'
+  return (
+    <div className="event-table-scroll">
+      <table className="event-table" aria-label="Loaded events">
+        <thead>
+          <tr>
+            <th>Patient</th>
+            <th>Date</th>
+            <th>Type</th>
+            <th>Title</th>
+            <th>Intent</th>
+            <th>End</th>
+            <th>Effect</th>
+            <th>Warning</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sorted.map((event, index) => (
+            <tr key={`${event.patientId}-${event.date.getTime()}-${index}`}>
+              <td>{event.patientId}</td>
+              <td>{event.date.toISOString().slice(0, 10)}</td>
+              <td>{event.type}</td>
+              <td>{event.title}</td>
+              <td>{event.intent ?? placeholder}</td>
+              <td>{event.endDate?.toISOString().slice(0, 10) ?? placeholder}</td>
+              <td>{configuredEventEffectLabel(event, fitConfig)}</td>
+              <td>{event.warning || placeholder}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  )
+}
+
+function configuredEventEffectLabel(event: ClinicalEvent, fitConfig: FitConfig): string {
+  const effect = effectForEvent(event)
+  if (event.type === 'other') return effect.label
+  if (eventEffectActive(event, fitConfig.censoring)) return effect.label
+  if (effect.effect === 'warning_no_exclusion') return effect.label
+  return 'display only for selected series'
+}
+
+function eventEffectActive(event: ClinicalEvent, censoring: FitConfig['censoring']): boolean {
+  if (event.type === 'kidney_transplant') return censoring.censorAfterKidneyTransplant
+  if (event.type !== 'dialysis') return false
+  if (event.intent === 'chronic') return censoring.censorAfterChronicDialysis
+  if (event.intent === 'acute') return censoring.excludeAcuteDialysisPeriods && event.endDate !== null
+  if (event.intent === 'unknown') {
+    if (censoring.unknownDialysisPolicy === 'censor-from-start') return true
+    return censoring.unknownDialysisPolicy === 'exclude-dated-interval' && event.endDate !== null
+  }
+  return false
+}
+
+function RejectedEventTable({ rejected }: { rejected: RejectedClinicalEvent[] }) {
+  const placeholder = '-'
+  return (
+    <table className="event-table" aria-label="Rejected events">
+      <thead>
+        <tr>
+          <th>Patient</th>
+          <th>Date</th>
+          <th>Type</th>
+          <th>Title</th>
+          <th>Reason</th>
+        </tr>
+      </thead>
+      <tbody>
+        {rejected.map(({ event, reason }, index) => (
+          <tr key={`${event.patientId ?? 'unknown'}-${event.date?.getTime() ?? 'nodate'}-${index}`}>
+            <td>{event.patientId ?? placeholder}</td>
+            <td>{event.date?.toISOString().slice(0, 10) ?? placeholder}</td>
+            <td>{event.type || placeholder}</td>
+            <td>{event.title || placeholder}</td>
+            <td>{reason}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
   )
 }

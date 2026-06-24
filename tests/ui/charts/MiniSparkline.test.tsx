@@ -65,4 +65,27 @@ describe('MiniSparkline', () => {
     const m = render(<MiniSparkline points={pts} zoom="m" />)
     expect(m.container.querySelectorAll('[data-testid="axis"]').length).toBe(0)
   })
+  it('renders in-range events as vertical markers with hover titles', () => {
+    const { container } = render(
+      <MiniSparkline
+        points={pts}
+        zoom="m"
+        events={[{ date: d('2020-06-01'), label: 'Dialysis start' }]}
+      />,
+    )
+    const marker = container.querySelector('[data-testid="event-marker"]')!
+    expect(marker).not.toBeNull()
+    expect(marker.querySelector('title')?.textContent).toBe('Dialysis start · 2020-06-01')
+  })
+  it('renders event labels inline only when the mini graph is large enough', () => {
+    const small = render(
+      <MiniSparkline points={pts} zoom="m" events={[{ date: d('2020-06-01'), label: 'Kidney transplant' }]} />,
+    )
+    expect(small.container.querySelector('[data-testid="event-label"]')).toBeNull()
+
+    const large = render(
+      <MiniSparkline points={pts} zoom="l" events={[{ date: d('2020-06-01'), label: 'Kidney transplant' }]} />,
+    )
+    expect(large.container.querySelector('[data-testid="event-label"]')?.textContent).toBe('Kidney transplant')
+  })
 })

@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import 'fake-indexeddb/auto'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Toolbar } from '../../src/ui/shell/Toolbar'
 import { useAppStore } from '../../src/ui/state/store'
@@ -31,7 +31,7 @@ describe('persistence UI', () => {
     expect(await hasSavedDataset()).toBe(true)
     render(<Toolbar />)
     await userEvent.click(screen.getByRole('button', { name: /clear saved data/i }))
+    await waitFor(() => expect(useAppStore.getState().persist).toBe(false))
     expect(await hasSavedDataset()).toBe(false)
-    expect(useAppStore.getState().persist).toBe(false)
   })
 })

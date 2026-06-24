@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildCohortRows, cohortExportRecords, isRapidEgfrDecline, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { LabRow } from '../../../src/core/types'
+import { ckdProgressionConfig } from '../../../src/core/fitPipeline/types'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2019-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -56,6 +57,26 @@ describe('cohortExportRecords', () => {
     expect(cohortExportRecords(cohort, 5)[0].rapid_progression).toBe('yes')
     expect(cohortExportRecords(cohort, 0)[0].rapid_progression).toBe('') // disabled
     expect(cohortExportRecords(cohort, 50)[0].rapid_progression).toBe('') // not steep enough
+  })
+
+  it('exports CKD endpoint values for eGFR cohort records', () => {
+    const spec: CohortSeriesSpec = {
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1,73m²',
+      mode: 'global',
+      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+    }
+    const rows = [
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2021-01-01'), wertNum: 45, patientAgeAtLab: 61 }),
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2022-01-01'), wertNum: 30, patientAgeAtLab: 62 }),
+    ]
+
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+
+    expect(rec.endpoint_percent_decline).toBeCloseTo(50)
+    expect(rec.endpoint_observed_ckd_g5).toBe('')
+    expect(rec.endpoint_projected_age_to_ckd_g5).toBeCloseTo(63, 1)
   })
 })
 

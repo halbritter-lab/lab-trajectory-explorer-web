@@ -33,13 +33,14 @@ describe('exports + methodology', () => {
     expect(create).toHaveBeenCalled()
   })
 
-  it('Methodology renders the slope-mode reference', () => {
+  it('Methodology renders the fit-pipeline reference', () => {
     render(<Methodology />)
-    expect(screen.getByText('global')).toBeInTheDocument()
-    expect(screen.getByText('rolling')).toBeInTheDocument()
-    expect(screen.getByText('global-robust')).toBeInTheDocument()
-    expect(screen.getByText('chronic-ckd')).toBeInTheDocument()
-    expect(screen.getByText('event-driven')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Fit Pipeline' })).toBeInTheDocument()
+    expect(screen.getByText(/Data filter/)).toBeInTheDocument()
+    expect(screen.getByText(/Time balancing/)).toBeInTheDocument()
+    expect(screen.getByText(/Fit model/)).toBeInTheDocument()
+    expect(screen.queryByText('chronic-ckd')).not.toBeInTheDocument()
+    expect(screen.queryByText('event-driven')).not.toBeInTheDocument()
     expect(screen.getByText(/KDIGO 2012 creatinine criteria/i)).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: /medical sources/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /national kidney foundation formula page/i })).toHaveAttribute('href', expect.stringContaining('kidney.org'))

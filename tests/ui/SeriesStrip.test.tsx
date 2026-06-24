@@ -1,6 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
-import userEvent from '@testing-library/user-event'
 import { SeriesStrip } from '../../src/ui/seriesStrip/SeriesStrip'
 import { useAppStore } from '../../src/ui/state/store'
 import type { LabRow } from '../../src/core/types'
@@ -21,7 +20,7 @@ function row(p: Partial<LabRow>): LabRow {
   }
 }
 
-describe('SeriesStrip preset controls', () => {
+describe('SeriesStrip series controls', () => {
   beforeEach(() => {
     useAppStore.getState().reset()
     useAppStore.getState().setDataset([
@@ -32,23 +31,26 @@ describe('SeriesStrip preset controls', () => {
     useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
   })
 
-  it('offers the Python-parity presets', () => {
+  it('shows parameter controls without the legacy fit mode selector', () => {
     render(<SeriesStrip />)
-    const mode = screen.getByLabelText('Series 1 mode')
-    expect(mode).toHaveTextContent('Robust')
-    expect(mode).toHaveTextContent('Chronic CKD')
-    expect(mode).toHaveTextContent('Event-driven')
+    expect(screen.getByLabelText('Series 1 parameter')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Series 1 mode')).not.toBeInTheDocument()
   })
 
-  it('shows mode-specific parameter inputs', async () => {
+  it('keeps add/remove series controls in the strip', () => {
     render(<SeriesStrip />)
-    const mode = screen.getByLabelText('Series 1 mode')
-    await userEvent.selectOptions(mode, 'gap-split')
-    expect(screen.getByLabelText('Series 1 gap days')).toBeInTheDocument()
-    await userEvent.selectOptions(mode, 'rolling')
-    expect(screen.getByLabelText('Series 1 window days')).toBeInTheDocument()
-    expect(screen.getByLabelText('Series 1 step days')).toBeInTheDocument()
-    await userEvent.selectOptions(mode, 'chronic-ckd')
-    expect(screen.getByLabelText('Series 1 cutoff days')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: '+ Add series' })).toBeInTheDocument()
+  })
+
+  it('offers cohort parameters even when the selected toolbar patient lacks them', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, bezeichnung: 'Kreatinin', einheit: 'mg/dl' }),
+      row({ patientId: 2, bezeichnung: 'HbA1c', einheit: '%' }),
+    ])
+    useAppStore.getState().selectPatient(1)
+
+    render(<SeriesStrip />)
+
+    expect(screen.getByRole('option', { name: 'HbA1c (%)' })).toBeInTheDocument()
   })
 })

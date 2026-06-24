@@ -10,7 +10,7 @@ function kreat(p: Partial<LabRow>): LabRow {
     ...p }
 }
 
-describe('eGFR + annotations wiring', () => {
+describe('eGFR + events wiring', () => {
   beforeEach(() => {
     useAppStore.getState().reset()
     useAppStore.getState().setDataset([

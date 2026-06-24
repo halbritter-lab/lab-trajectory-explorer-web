@@ -9,6 +9,8 @@ import { fitInputForSeries } from '../../core/analysis/types'
 import type { AkiEpisode } from '../../core/aki/kdigo'
 import type { CohortSeriesSpec } from '../../core/cohort/screening'
 import { patientWorkbookSheets } from '../../core/patient/patientExport'
+import { eventTooltip } from '../../core/events/events'
+import { clinicalEventAffectsFit } from '../../core/events/fitExclusions'
 
 /** Title -> live SVG accessor. Lets the parent collect chart SVGs for the ZIP
  * export from React-registered nodes instead of scraping the DOM by CSS class. */
@@ -23,13 +25,13 @@ interface PlotCardProps {
   computed: boolean
   creatinine: boolean
   showAki: boolean
-  annotations: { date: Date; label: string }[]
+  events: { date: Date; label: string; tooltip?: string }[]
   episodes?: AkiEpisode[]
   connect: boolean
   register: (title: string, getter: (() => SVGSVGElement | null) | null) => void
 }
 
-function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, annotations, episodes, connect, register }: PlotCardProps) {
+function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, events, episodes, connect, register }: PlotCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   const svgEl = useCallback((): SVGSVGElement | null => {
@@ -62,7 +64,7 @@ function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, annot
         rows={seriesRows}
         cfg={cfg}
         computed={computed}
-        annotations={annotations}
+        events={events}
         showAki={showAki}
         creatinine={creatinine}
         episodes={episodes}
@@ -81,20 +83,13 @@ export function OnePatientView() {
   const displayRows = analysisResult.rows
   const patientId = useAppStore((s) => s.selectedPatientId)
   const configs = useAppStore((s) => s.seriesConfigs)
-  const annotations = useAppStore((s) => s.annotations)
-  const showAnnotations = useAppStore((s) => s.showAnnotations)
+  const events = useAppStore((s) => s.events)
+  const showEvents = useAppStore((s) => s.showEvents)
   const showAki = useAppStore((s) => s.showAki)
   const connectPoints = useAppStore((s) => s.connectPoints)
   const returnToCohort = useAppStore((s) => s.returnToCohort)
   const setReturnToCohort = useAppStore((s) => s.setReturnToCohort)
   const setView = useAppStore((s) => s.setView)
-
-  const specs: CohortSeriesSpec[] = useMemo(
-    () => configs
-      .filter((c) => c.bezeichnung)
-      .map((c) => ({ bezeichnung: c.bezeichnung as string, einheit: c.einheit, mode: c.mode, gapDays: c.gapDays, windowDays: c.windowDays, stepDays: c.stepDays, cutoffDays: c.cutoffDays, exclusionDays: c.exclusionDays, fitInputs: analysisResult.fitInputs })),
-    [configs, analysisResult.fitInputs],
-  )
 
   const svgGetters = useRef<SvgRegistry>(new Map())
   const register = useCallback<PlotCardProps['register']>((title, getter) => {
@@ -102,10 +97,35 @@ export function OnePatientView() {
     else svgGetters.current.delete(title)
   }, [])
 
+  const patientClinicalEvents = useMemo(
+    () => patientId === null ? [] : events.filter((event) => event.patientId === patientId),
+    [events, patientId],
+  )
+  const specs: CohortSeriesSpec[] = useMemo(
+    () => configs
+      .filter((c) => c.bezeichnung)
+      .map((c) => ({
+        bezeichnung: c.bezeichnung as string,
+        einheit: c.einheit,
+        mode: c.mode,
+        gapDays: c.gapDays,
+        windowDays: c.windowDays,
+        stepDays: c.stepDays,
+        cutoffDays: c.cutoffDays,
+        exclusionDays: c.exclusionDays,
+        fitConfig: c.fitConfig,
+        fitInputs: analysisResult.fitInputs,
+        eventDates: patientClinicalEvents
+          .filter((event) => clinicalEventAffectsFit(event, c.fitConfig.censoring))
+          .map((event) => event.date),
+        clinicalEvents: patientClinicalEvents,
+      })),
+    [configs, analysisResult.fitInputs, patientClinicalEvents],
+  )
   const canExport = specs.length > 0
 
   function buildWorkbook(): Uint8Array {
-    return sheetsToXlsxBytes(patientWorkbookSheets(displayRows, patientId as number, specs))
+    return sheetsToXlsxBytes(patientWorkbookSheets(displayRows, patientId as number, specs, patientClinicalEvents))
   }
 
   function exportXlsx() {
@@ -144,12 +164,21 @@ export function OnePatientView() {
         const title = cfg.einheit ? `${cfg.bezeichnung} (${cfg.einheit})` : cfg.bezeichnung
         const computed = cfg.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX) ?? false
         const creatinine = /(kreatinin|creatinin)/i.test(cfg.bezeichnung ?? '') && (cfg.einheit ?? '').toLowerCase() === 'mg/dl'
-        const anns = showAnnotations
-          ? annotations
-              .filter((a) => a.patientId === patientId && a.referenceDate)
-              .map((a) => ({ date: a.referenceDate as Date, label: a.label }))
+        const patientEventDates = patientClinicalEvents
+          .filter((event) => clinicalEventAffectsFit(event, cfg.fitConfig.censoring))
+          .map((event) => event.date)
+        const patientEvents = showEvents
+          ? patientClinicalEvents.map((event) => ({ date: event.date, label: event.title, tooltip: eventTooltip(event) }))
           : []
-        const plotCfg = { ...cfg, eventDates: anns.map((a) => a.date) }
+        const plotCfg = {
+          ...cfg,
+          eventDates: patientEventDates,
+          clinicalEvents: patientClinicalEvents,
+          clinicalEventCensoring: cfg.fitConfig.censoring,
+          excludeAkiWindows: cfg.fitConfig.exclusions.excludeAkiWindows,
+          fitModel: cfg.fitConfig.fitModel,
+          timeBalancing: cfg.fitConfig.timeBalancing,
+        }
         const fitInput = fitInputForSeries(analysisResult.fitInputs, patientId, { bezeichnung: cfg.bezeichnung, einheit: cfg.einheit ?? null })
         const episodes = fitInput?.episodes.length ? fitInput.episodes : undefined
         return (
@@ -161,7 +190,7 @@ export function OnePatientView() {
             computed={computed}
             creatinine={creatinine}
             showAki={showAki}
-            annotations={anns}
+            events={patientEvents}
             episodes={episodes}
             connect={connectPoints}
             register={register}

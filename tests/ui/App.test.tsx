@@ -42,4 +42,21 @@ describe('App', () => {
     expect(link).toHaveAttribute('download', 'test_labs.xlsx')
     expect(link).toHaveAttribute('title', 'Download test data')
   })
+
+  it('hides mini-graph zoom controls while cohort overlay mode is active', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2019-01-01'), wertNum: 1 }),
+      row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 2 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01'), wertNum: 3 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+    useAppStore.getState().setView('cohort')
+    useAppStore.getState().setCohortDisplayMode('overlay')
+
+    render(<App />)
+
+    expect(screen.queryByRole('button', { name: 'S' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'M' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'L' })).not.toBeInTheDocument()
+  })
 })

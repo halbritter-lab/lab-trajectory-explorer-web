@@ -22,10 +22,12 @@ export interface MiniSparklineProps {
   fitLines?: LinePoint[][]
   akiBands?: DateBand[]
   excludedIdx?: number[]
+  events?: { date: Date; label: string }[]
   connect?: boolean
 }
 
 const fmtMonth = (d: Date) => `${String(d.getMonth() + 1).padStart(2, '0')}/${d.getFullYear()}`
+const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
 
 function fmtVal(v: number): string {
   const a = Math.abs(v)
@@ -35,7 +37,7 @@ function fmtVal(v: number): string {
 /** Cohort-cell mini graph. Pure presentation: fit lines, AKI bands, and
  * excluded indices are precomputed in buildCohortRows. The red band marks only
  * the AKI exclusion window — the trajectory line itself stays blue. */
-function MiniSparklineImpl({ points, zoom, fitLines = [], akiBands = [], excludedIdx = [], connect = true }: MiniSparklineProps) {
+function MiniSparklineImpl({ points, zoom, fitLines = [], akiBands = [], excludedIdx = [], events = [], connect = true }: MiniSparklineProps) {
   const L = LAYOUTS[zoom]
   if (points.length < 2) {
     return <svg width={L.width} height={L.height} data-testid="mini-sparkline" data-zoom={zoom} role="img" aria-label="Trajectory sparkline: too few points to plot" />
@@ -57,7 +59,12 @@ function MiniSparklineImpl({ points, zoom, fitLines = [], akiBands = [], exclude
   const bands = akiBands
     .map((b) => ({ x1: Math.max(b.start.getTime(), minX), x2: Math.min(b.end.getTime(), maxX) }))
     .filter((b) => b.x2 > b.x1)
+  const visibleEvents = events
+    .map((event) => ({ ...event, time: event.date.getTime() }))
+    .filter((event) => event.time >= minX && event.time <= maxX)
+    .sort((a, b) => a.time - b.time)
   const last = points[points.length - 1]
+  const showEventLabels = L.width >= 260
 
   return (
     <svg width={L.width} height={L.height} data-testid="mini-sparkline" data-zoom={zoom} className="mini-sparkline" role="img" aria-label={ariaLabel}><title>{ariaLabel}</title>
@@ -73,6 +80,30 @@ function MiniSparklineImpl({ points, zoom, fitLines = [], akiBands = [], exclude
         return excluded.has(i)
           ? <circle key={`p${i}`} data-testid="pt-excluded" cx={sx(p.date.getTime())} cy={sy(p.value)} r={r} fill="#fff" stroke="#dc2626" strokeWidth={1} />
           : <circle key={`p${i}`} data-testid="pt" cx={sx(p.date.getTime())} cy={sy(p.value)} r={r} fill="#2563eb" />
+      })}
+      {visibleEvents.map((event, i) => {
+        const x = sx(event.time)
+        const labelX = Math.min(x + 4, L.padL + plotW - 2)
+        const labelAnchor = labelX === x + 4 ? 'start' : 'end'
+        return (
+          <g key={`e${i}`} data-testid="event-marker" className="sparkline-event-marker">
+            <title>{`${event.label || 'Event'} · ${fmtDate(event.date)}`}</title>
+            <line x1={x} y1={L.padT} x2={x} y2={L.padT + plotH} stroke="#7c3aed" strokeWidth={1.2} strokeDasharray="2 2" />
+            {showEventLabels && event.label && (
+              <text
+                data-testid="event-label"
+                x={labelX}
+                y={L.padT + 10 + (i % 2) * 12}
+                fontSize={9}
+                fontWeight={600}
+                fill="#5b21b6"
+                textAnchor={labelAnchor}
+              >
+                {event.label}
+              </text>
+            )}
+          </g>
+        )
       })}
       {L.labels && (
         <>

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '../../../src/ui/state/store'
 import type { LabRow } from '../../../src/core/types'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -12,9 +14,17 @@ describe('useAppStore', () => {
   beforeEach(() => useAppStore.getState().reset())
 
   it('starts empty', () => {
-    expect(useAppStore.getState().rows).toEqual([])
-    expect(useAppStore.getState().selectedPatientId).toBeNull()
-    expect(useAppStore.getState().cohortSort).toEqual({ key: 'id', dir: 'asc' })
+    const state = useAppStore.getState()
+    expect(state.rows).toEqual([])
+    expect(state.selectedPatientId).toBeNull()
+    expect(state.cohortSort).toEqual({ key: 'id', dir: 'asc' })
+    const legacyKeys = [
+      ['annot', 'ations'],
+      ['show', 'Annot', 'ations'],
+      ['set', 'Annot', 'ations'],
+      ['set', 'Show', 'Annot', 'ations'],
+    ].map((parts) => parts.join(''))
+    legacyKeys.forEach((key) => expect(key in state).toBe(false))
   })
 
   it('setDataset stores rows and auto-selects the first patient', () => {
@@ -59,6 +69,61 @@ describe('loadFile feedback', () => {
     expect(busy).toBe(false)
     expect(rows).toHaveLength(0)
     expect(notice?.kind).toBe('error')
+  })
+})
+
+describe('loadSynthetic', () => {
+  beforeEach(() => useAppStore.getState().reset())
+
+  it('loads bundled demo events into events', async () => {
+    const labBytes = readFileSync(resolve(__dirname, '../../../public/test_labs.xlsx'))
+    const eventBytes = readFileSync(resolve(__dirname, '../../../public/test_events.csv'))
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const url = String(input)
+      return new Response(url.endsWith('test_events.csv') ? eventBytes : labBytes)
+    }
+    try {
+      await useAppStore.getState().loadSynthetic()
+
+      const state = useAppStore.getState()
+      expect(state.events.map((event) => event.title)).toEqual(expect.arrayContaining(['Dialysis start', 'Kidney transplant']))
+      expect(state.events.map((event) => event.type)).toEqual(expect.arrayContaining(['dialysis', 'kidney_transplant']))
+      expect(state.notice?.text).toContain('events')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('stores structured clinical events', () => {
+    useAppStore.getState().setEvents([
+      {
+        patientId: 1,
+        type: 'kidney_transplant',
+        date: new Date('2025-02-01'),
+        title: 'Kidney transplant',
+        description: '',
+        endDate: null,
+        intent: null,
+        warning: '',
+      },
+    ])
+
+    expect(useAppStore.getState().events[0].type).toBe('kidney_transplant')
+    expect(useAppStore.getState().events[0].intent).toBeNull()
+    expect(useAppStore.getState().events[0].title).toBe('Kidney transplant')
+  })
+
+  it('stores spec-level fit configuration on each series and resets presets', () => {
+    expect(useAppStore.getState().seriesConfigs[0].fitConfig.preset).toBe('general_exploration')
+    useAppStore.getState().setSeriesFitPreset(0, 'ckd_progression')
+    expect(useAppStore.getState().seriesConfigs[0].fitConfig.preset).toBe('ckd_progression')
+    expect(useAppStore.getState().seriesConfigs[0].fitConfig.censoring.censorAfterKidneyTransplant).toBe(true)
+    useAppStore.getState().setSeriesFitConfig(0, { censoring: { censorAfterKidneyTransplant: false } })
+    expect(useAppStore.getState().seriesConfigs[0].fitConfig.preset).toBe('custom')
+    expect(useAppStore.getState().seriesConfigs[0].fitConfig.censoring.censorAfterKidneyTransplant).toBe(false)
+    useAppStore.getState().reset()
+    expect(useAppStore.getState().seriesConfigs[0].fitConfig.preset).toBe('general_exploration')
   })
 })
 

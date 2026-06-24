@@ -1,0 +1,9 @@
+patientId,type,date,title,description,endDate,intent
+9,dialysis,2024-04-15,Dialysis start,,,chronic
+7,dialysis,2020-08-01,Temporary dialysis during AKI,Short acute dialysis interval in an AKI-heavy demo patient,2020-08-14,acute
+9,dialysis,2023-03-01,Unknown dialysis interval,Intent intentionally unknown for exclusion-policy demo,2023-03-21,unknown
+10,kidney_transplant,2025-02-01,Kidney transplant,,,
+13,kidney_transplant,2022-07-01,Kidney transplant,Clear pre/post transplant trajectory demo,,
+14,kidney_transplant,2021-03-15,Kidney transplant,Same-month pre/post transplant balancing demo,,
+12,dialysis,2024-09-20,Dialysis start,,,chronic
+11,other,2022-05-15,Study medication,Display-only contextual event,,

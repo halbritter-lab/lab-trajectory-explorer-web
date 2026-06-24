@@ -8,9 +8,18 @@ export interface SeriesOption {
 
 /** Distinct (bezeichnung, einheit) pairs for a patient, sorted by name then unit. */
 export function seriesOptions(rows: LabRow[], patientId: number): SeriesOption[] {
+  return distinctSeriesOptions(rows.filter((r) => r.patientId === patientId))
+}
+
+/** Distinct (bezeichnung, einheit) pairs across the loaded cohort. */
+export function cohortSeriesOptions(rows: LabRow[]): SeriesOption[] {
+  return distinctSeriesOptions(rows)
+}
+
+function distinctSeriesOptions(rows: LabRow[]): SeriesOption[] {
   const seen = new Map<string, SeriesOption>()
   for (const r of rows) {
-    if (r.patientId !== patientId || r.bezeichnung === null) continue
+    if (r.bezeichnung === null) continue
     const key = `${r.bezeichnung}|${r.einheit ?? ''}`
     if (!seen.has(key)) seen.set(key, { bezeichnung: r.bezeichnung, einheit: r.einheit })
   }

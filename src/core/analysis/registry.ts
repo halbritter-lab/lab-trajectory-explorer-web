@@ -8,7 +8,7 @@ import type {
   AnalysisSettings,
   ManualDemographics,
 } from './types'
-import type { ValidAnnotation } from '../annotations/annotations'
+import type { ClinicalEvent } from '../events/events'
 import type { LabRow } from '../types'
 
 export const defaultAnalysisSettings = (): AnalysisSettings => ({
@@ -20,7 +20,7 @@ export const defaultAnalysisSettings = (): AnalysisSettings => ({
 export interface ComputeAnalysisResultOptions {
   rows: LabRow[]
   manualDemographics: Record<number, ManualDemographics>
-  annotations: ValidAnnotation[]
+  events: ClinicalEvent[]
   settings: AnalysisSettings
   modules?: readonly RegisteredAnalysisModule[]
 }
@@ -47,7 +47,7 @@ export const analysisModules: readonly RegisteredAnalysisModule[] = [
 export function computeAnalysisResult({
   rows,
   manualDemographics,
-  annotations,
+  events,
   settings,
   modules = analysisModules,
 }: ComputeAnalysisResultOptions): AnalysisResult {
@@ -61,7 +61,7 @@ export function computeAnalysisResult({
   }
 
   for (const module of modules) {
-    const contribution = module.apply({ rows: currentRows, manualDemographics, annotations }, settings)
+    const contribution = module.apply({ rows: currentRows, manualDemographics, events }, settings)
     if (contribution.rows) {
       currentRows = contribution.rows
       result.rows = contribution.rows

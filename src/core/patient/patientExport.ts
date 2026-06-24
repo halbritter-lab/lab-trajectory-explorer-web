@@ -2,6 +2,8 @@ import type { LabRow } from '../types'
 import { buildCohortRows, slopeUnit, EXPORT_DISCLAIMER_ROWS, type CohortSeriesSpec } from '../cohort/screening'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../egfr/series'
 import type { SlopeMode } from '../stats/summarize'
+import type { ClinicalEvent } from '../events/events'
+import { clinicalEventAffectsFit } from '../events/fitExclusions'
 
 /** One row per measurement for a single patient. Includes synthesised eGFR rows
  * when the caller passes display rows with computed eGFR appended. */
@@ -30,6 +32,9 @@ export interface PatientSlopeRecord {
   ci_high: number | ''
   reason: string
   aki: string
+  endpoint_percent_decline: number | ''
+  endpoint_observed_ckd_g5: string
+  endpoint_projected_age_to_ckd_g5: number | ''
 }
 
 function isoDate(d: Date): string {
@@ -107,6 +112,9 @@ export function patientSlopeRecords(rows: LabRow[], patientId: number, specs: Co
     ci_high: numOrBlank(c.ciHigh),
     reason: c.reason ?? '',
     aki: c.akiChip,
+    endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
+    endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',
+    endpoint_projected_age_to_ckd_g5: c.endpoints.projectedAgeToCkdG5.value ?? '',
   }))
 }
 
@@ -118,9 +126,19 @@ export function patientWorkbookSheets(
   displayRows: LabRow[],
   patientId: number,
   specs: CohortSeriesSpec[],
+  clinicalEvents: ClinicalEvent[] = [],
 ): { name: string; rows: readonly object[] }[] {
   const measurements = patientMeasurementRecords(displayRows, patientId)
+  const patientEvents = clinicalEvents.filter((event) => event.patientId === patientId)
   const slopeSpecs = slopeSpecsWithComputedEgfr(specs, displayRows, patientId)
+    .map((spec) => {
+      const fitEvents = patientEvents.filter((event) => clinicalEventAffectsFit(event, spec.fitConfig?.censoring))
+      return {
+        ...spec,
+        clinicalEvents: spec.clinicalEvents ?? patientEvents,
+        eventDates: spec.eventDates ?? fitEvents.map((event) => event.date),
+      }
+    })
   const slopes = patientSlopeRecords(displayRows, patientId, slopeSpecs)
   return [
     { name: 'measurements', rows: measurements },

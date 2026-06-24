@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { patientMeasurementRecords, patientSlopeRecords, computedEgfrSpecs, slopeSpecsWithComputedEgfr } from '../../../src/core/patient/patientExport'
+import { patientMeasurementRecords, patientSlopeRecords, computedEgfrSpecs, slopeSpecsWithComputedEgfr, patientWorkbookSheets } from '../../../src/core/patient/patientExport'
 import type { CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { LabRow } from '../../../src/core/types'
+import { ckdProgressionConfig } from '../../../src/core/fitPipeline/types'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -52,6 +53,57 @@ describe('patientSlopeRecords', () => {
 
   it('returns an empty array when no series are configured', () => {
     expect(patientSlopeRecords([row({})], 1, [])).toEqual([])
+  })
+
+  it('includes CKD endpoint columns for eGFR slope rows', () => {
+    const spec: CohortSeriesSpec = {
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1,73m²',
+      mode: 'global',
+      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+    }
+    const rows = [
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2021-01-01'), wertNum: 45, patientAgeAtLab: 61 }),
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2022-01-01'), wertNum: 30, patientAgeAtLab: 62 }),
+    ]
+
+    const [rec] = patientSlopeRecords(rows, 1, [spec])
+
+    expect(rec.endpoint_percent_decline).toBeCloseTo(50)
+    expect(rec.endpoint_observed_ckd_g5).toBe('')
+    expect(rec.endpoint_projected_age_to_ckd_g5).toBeCloseTo(63, 1)
+  })
+
+  it('uses clinical event censoring for workbook slope rows', () => {
+    const rows = [
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2021-01-01'), wertNum: 50, patientAgeAtLab: 61 }),
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2021-07-01'), wertNum: 45, patientAgeAtLab: 61.5 }),
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2022-01-01'), wertNum: 5, patientAgeAtLab: 62 }),
+    ]
+    const spec: CohortSeriesSpec = {
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1,73m²',
+      mode: 'global',
+      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+    }
+    const transplant = {
+      patientId: 1,
+      type: 'kidney_transplant' as const,
+      date: d('2022-01-01'),
+      title: 'Kidney transplant',
+      description: '',
+      endDate: null,
+      intent: null,
+      warning: '' as const,
+    }
+
+    const sheets = patientWorkbookSheets(rows, 1, [spec], [transplant])
+    const slopes = sheets.find((sheet) => sheet.name === 'slopes')!.rows as Array<{ slope: number | ''; n: number }>
+
+    expect(slopes[0].n).toBe(4)
+    expect(slopes[0].slope).toBeCloseTo(-10, 1)
   })
 })
 

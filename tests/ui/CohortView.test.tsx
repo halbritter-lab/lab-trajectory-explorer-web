@@ -4,11 +4,25 @@ import userEvent from '@testing-library/user-event'
 import { CohortView } from '../../src/ui/cohort/CohortView'
 import { useAppStore } from '../../src/ui/state/store'
 import type { LabRow } from '../../src/core/types'
+import { ckdProgressionConfig } from '../../src/core/fitPipeline/types'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2019-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
-    wert: '1', wertNum: 1, wertOperator: '=', loinc: null, patientSex: null, patientAgeAtLab: null,
+    wert: '1', wertNum: 1, wertOperator: '=', loinc: null, patientSex: null, patientAgeAtLab: 60,
     ...p }
+}
+
+function event(patientId: number, type: 'dialysis' | 'kidney_transplant', date: string, title: string) {
+  return {
+    patientId,
+    type,
+    date: new Date(date),
+    title,
+    description: null,
+    endDate: null,
+    intent: type === 'dialysis' ? ('unknown' as const) : null,
+    warning: type === 'dialysis' ? ('unknown_dialysis_intent' as const) : ('' as const),
+  }
 }
 
 describe('CohortView', () => {
@@ -101,5 +115,102 @@ describe('CohortView', () => {
     expect(screen.getByText('AKI I')).toBeInTheDocument()
     expect(screen.getByText('AKI I')).toHaveAttribute('title', '1 AKI episode: 1× stage I')
     expect(container.querySelector('[data-testid="aki-band"]')).toBeTruthy()
+  })
+
+  it('passes patient events into the cohort mini graphs', () => {
+    useAppStore.setState({ cohortZoom: 'l' })
+    useAppStore.getState().setEvents([
+      event(1, 'dialysis', '2020-06-01', 'Dialysis start'),
+      event(2, 'kidney_transplant', '2020-07-01', 'Kidney transplant'),
+    ])
+
+    const { container } = render(<CohortView />)
+
+    expect(container.querySelectorAll('[data-testid="event-marker"]')).toHaveLength(2)
+    expect(screen.getByText('Dialysis start')).toBeInTheDocument()
+    expect(screen.getByText('Kidney transplant')).toBeInTheDocument()
+  })
+
+  it('shows CKD endpoint badges for eGFR cohort cells', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2021-01-01'), wertNum: 45, patientAgeAtLab: 61 }),
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2022-01-01'), wertNum: 30, patientAgeAtLab: 62 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, {
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1,73m²',
+      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+    })
+
+    render(<CohortView />)
+
+    expect(screen.getByText('-50% · G5 @ 63.0y')).toBeInTheDocument()
+    expect(screen.getByText('-50% · G5 @ 63.0y')).toHaveAttribute('title', 'total eGFR change -50.0% from baseline (not per year) · projected age to CKD G5 63.0 years')
+  })
+
+  it('stacks cohort pills in a badge column for medium and large mini graph sizes', () => {
+    useAppStore.setState({ cohortZoom: 'l' })
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2021-01-01'), wertNum: 45, patientAgeAtLab: 61 }),
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2022-01-01'), wertNum: 30, patientAgeAtLab: 62 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, {
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1,73m²',
+      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+    })
+
+    const { container } = render(<CohortView />)
+
+    expect(container.querySelector('.cell-cluster-l .cell-badges')).toBeTruthy()
+    expect(container.querySelector('.cell-badges')?.children).toHaveLength(2)
+  })
+
+  it('does not show percent decline badges when the cohort cell has no fitted slope', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 3, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2020-01-01'), wertNum: 70, patientAgeAtLab: 60 }),
+      row({ patientId: 3, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2021-01-01'), wertNum: 43, patientAgeAtLab: 61 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, {
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1,73m²',
+      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+    })
+
+    render(<CohortView />)
+
+    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(screen.queryByText('-39%')).not.toBeInTheDocument()
+  })
+
+  it('hides cohort mini graph event markers when event display is disabled', () => {
+    useAppStore.setState({ cohortZoom: 'l' })
+    useAppStore.getState().setEvents([
+      event(1, 'dialysis', '2020-06-01', 'Dialysis start'),
+      event(2, 'kidney_transplant', '2020-07-01', 'Kidney transplant'),
+    ])
+    useAppStore.getState().setShowEvents(false)
+
+    const { container } = render(<CohortView />)
+
+    expect(container.querySelector('[data-testid="event-marker"]')).toBeNull()
+    expect(screen.queryByText('Dialysis start')).not.toBeInTheDocument()
+    expect(screen.queryByText('Kidney transplant')).not.toBeInTheDocument()
+  })
+
+  it('switches between the cohort table and overlay plot', async () => {
+    render(<CohortView />)
+
+    expect(screen.getByRole('table')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Overlay Plot' }))
+
+    expect(screen.queryByRole('table')).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /Kreatinin .* across 2 patient/ })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Table' }))
+
+    expect(screen.getByRole('table')).toBeInTheDocument()
   })
 })

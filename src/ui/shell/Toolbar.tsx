@@ -13,6 +13,7 @@ export function Toolbar() {
   const patientIds = useMemo(() => [...new Set(rows.map((r) => r.patientId))].sort((a, b) => a - b), [rows])
   const selected = useAppStore((s) => s.selectedPatientId)
   const view = useAppStore((s) => s.view)
+  const cohortDisplayMode = useAppStore((s) => s.cohortDisplayMode)
   const selectPatient = useAppStore((s) => s.selectPatient)
   const setView = useAppStore((s) => s.setView)
   const showMethodology = useAppStore((s) => s.showMethodology)
@@ -71,7 +72,7 @@ export function Toolbar() {
           <button aria-pressed={view === 'cohort'} onClick={() => setView('cohort')}>Cohort</button>
         </span>
       )}
-      {hasData && view === 'cohort' && (
+      {hasData && view === 'cohort' && cohortDisplayMode === 'table' && (
         <span className="zoom-switch segmented" role="group" aria-label="Mini-graph size">
           {(['s', 'm', 'l'] as const).map((z) => (
             <button key={z} title={`Mini-graph size: ${{ s: 'small', m: 'medium', l: 'large' }[z]}`} aria-pressed={cohortZoom === z} onClick={() => setCohortZoom(z)}>{z.toUpperCase()}</button>

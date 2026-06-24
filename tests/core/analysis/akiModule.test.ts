@@ -26,7 +26,7 @@ describe('akiModule', () => {
   ]
 
   it('always contributes aki-aware fit inputs for eligible series', () => {
-    const out = akiModule.apply({ rows: spiky, manualDemographics: {}, annotations: [] }, { showOverlays: false, exclusionDays: 30 })
+    const out = akiModule.apply({ rows: spiky, manualDemographics: {}, events: [] }, { showOverlays: false, exclusionDays: 30 })
     expect(out.fitInputs).toHaveLength(1)
     expect(out.fitInputs?.[0]).toMatchObject({
       patientId: 1,
@@ -39,7 +39,7 @@ describe('akiModule', () => {
   })
 
   it('contributes event and band overlays only when showOverlays is true', () => {
-    const out = akiModule.apply({ rows: spiky, manualDemographics: {}, annotations: [] }, { showOverlays: true, exclusionDays: 30 })
+    const out = akiModule.apply({ rows: spiky, manualDemographics: {}, events: [] }, { showOverlays: true, exclusionDays: 30 })
     expect(out.fitInputs?.[0].episodes).toHaveLength(1)
     expect(out.overlays?.some((o) => o.kind === 'event')).toBe(true)
     expect(out.overlays?.some((o) => o.kind === 'band')).toBe(true)
@@ -52,7 +52,7 @@ describe('akiModule', () => {
       einheit: 'ml/min/1,73m²',
       wertNum: 80 - (r.wertNum ?? 0),
     }))
-    const out = akiModule.apply({ rows: [...spiky, ...egfrRows], manualDemographics: {}, annotations: [] }, { showOverlays: false, exclusionDays: 30 })
+    const out = akiModule.apply({ rows: [...spiky, ...egfrRows], manualDemographics: {}, events: [] }, { showOverlays: false, exclusionDays: 30 })
     const egfrInput = out.fitInputs?.find((i) => i.seriesKey.bezeichnung.includes('eGFR'))
     expect(egfrInput?.episodes).toHaveLength(1)
   })
@@ -71,7 +71,7 @@ describe('akiModule', () => {
       wertNum: 1.5 + (r.wertNum ?? 0),
     }))
 
-    const out = akiModule.apply({ rows: [...spiky, ...egfrRows, ...cystatinRows], manualDemographics: {}, annotations: [] }, { showOverlays: false, exclusionDays: 30 })
+    const out = akiModule.apply({ rows: [...spiky, ...egfrRows, ...cystatinRows], manualDemographics: {}, events: [] }, { showOverlays: false, exclusionDays: 30 })
     const egfrInput = out.fitInputs?.find((i) => i.seriesKey.bezeichnung.includes('eGFR'))
     const cystatinInput = out.fitInputs?.find((i) => i.seriesKey.bezeichnung === 'Cystatin C')
 

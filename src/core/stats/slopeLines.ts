@@ -3,6 +3,10 @@ import { fitGlobal, fitTheilSen } from './series'
 import { fitSegments } from './segments'
 import { fitAkiAware } from '../aki/akiAware'
 import type { AkiEpisode } from '../aki/kdigo'
+import type { ClinicalEvent } from '../events/events'
+import { filterFitPointsByClinicalEvents } from '../events/fitExclusions'
+import type { FitConfig } from '../fitPipeline/types'
+import { balanceSeriesPoints } from './timeBalancing'
 import type { SlopeMode } from './summarize'
 
 export interface PlotModeConfig {
@@ -13,6 +17,11 @@ export interface PlotModeConfig {
   exclusionDays?: number
   cutoffDays?: number
   eventDates?: Date[]
+  clinicalEvents?: ClinicalEvent[]
+  clinicalEventCensoring?: FitConfig['censoring']
+  excludeAkiWindows?: boolean
+  fitModel?: FitConfig['fitModel']
+  timeBalancing?: FitConfig['timeBalancing']
 }
 
 export interface LinePoint {
@@ -39,7 +48,17 @@ function lineFor(seg: SeriesPoint[], slope: number, intercept: number): LinePoin
  * (episodes optionally precomputed for cross-series detection). Returns []
  * when nothing is fittable. */
 export function buildSlopeLines(points: SeriesPoint[], cfg: PlotModeConfig, episodes?: AkiEpisode[]): LinePoint[][] {
-  const numeric = [...points].sort((a, b) => a.date.getTime() - b.date.getTime())
+  if (cfg.fitModel === 'none') return []
+  let numeric = filterFitPointsByClinicalEvents(
+    [...points].sort((a, b) => a.date.getTime() - b.date.getTime()),
+    cfg.clinicalEvents,
+    cfg.clinicalEventCensoring,
+  ).points
+  if (cfg.excludeAkiWindows && episodes && numeric.length > 0) {
+    const r = fitAkiAware(numeric, cfg.exclusionDays ?? 30, episodes)
+    numeric = r.keptIdx.map((i) => numeric[i])
+  }
+  numeric = balanceSeriesPoints(numeric, cfg.timeBalancing)
   if (cfg.mode === 'global-robust') {
     const fit = fitTheilSen(numeric)
     if (fit.reason !== null) return []

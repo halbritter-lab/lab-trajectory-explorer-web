@@ -22,14 +22,14 @@ function row(p: Partial<LabRow> = {}): LabRow {
 describe('egfrModule', () => {
   it('returns the original row reference when off and no manual demographics are applied', () => {
     const rows = [row()]
-    const out = egfrModule.apply({ rows, manualDemographics: {}, annotations: [] }, { formula: 'off', source: null })
+    const out = egfrModule.apply({ rows, manualDemographics: {}, events: [] }, { formula: 'off', source: null })
     expect(out.rows).toBe(rows)
   })
 
   it('returns the original row reference when off and manual demographics do not match any row', () => {
     const rows = [row({ patientId: 1 })]
     const out = egfrModule.apply(
-      { rows, manualDemographics: { 2: { sex: 'w', age: 64 } }, annotations: [] },
+      { rows, manualDemographics: { 2: { sex: 'w', age: 64 } }, events: [] },
       { formula: 'off', source: null },
     )
     expect(out.rows).toBe(rows)
@@ -38,7 +38,7 @@ describe('egfrModule', () => {
   it('returns the original row reference when off and matching manual demographics are empty', () => {
     const rows = [row({ patientId: 1 })]
     const out = egfrModule.apply(
-      { rows, manualDemographics: { 1: {} }, annotations: [] },
+      { rows, manualDemographics: { 1: {} }, events: [] },
       { formula: 'off', source: null },
     )
     expect(out.rows).toBe(rows)
@@ -47,7 +47,7 @@ describe('egfrModule', () => {
   it('returns the original row reference when off and matching manual sex is null', () => {
     const rows = [row({ patientId: 1 })]
     const out = egfrModule.apply(
-      { rows, manualDemographics: { 1: { sex: null } }, annotations: [] },
+      { rows, manualDemographics: { 1: { sex: null } }, events: [] },
       { formula: 'off', source: null },
     )
     expect(out.rows).toBe(rows)
@@ -56,7 +56,7 @@ describe('egfrModule', () => {
   it('matches appendComputedEgfr for enabled CKD-EPI 2021', () => {
     const rows = [row({ wertNum: 1.1 })]
     const expected = appendComputedEgfr(rows, { formula: 'ckd-epi-2021', source: null })
-    const out = egfrModule.apply({ rows, manualDemographics: {}, annotations: [] }, { formula: 'ckd-epi-2021', source: null })
+    const out = egfrModule.apply({ rows, manualDemographics: {}, events: [] }, { formula: 'ckd-epi-2021', source: null })
     expect(out.rows).toEqual(expected)
     expect(out.rows?.some((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))).toBe(true)
   })
@@ -64,7 +64,7 @@ describe('egfrModule', () => {
   it('applies manual demographics before computing eGFR', () => {
     const rows = [row({ patientSex: null, patientAgeAtLab: null })]
     const out = egfrModule.apply(
-      { rows, manualDemographics: { 1: { sex: 'w', age: 64 } }, annotations: [] },
+      { rows, manualDemographics: { 1: { sex: 'w', age: 64 } }, events: [] },
       { formula: 'ckd-epi-2021', source: null },
     )
     const computed = out.rows?.filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX)) ?? []

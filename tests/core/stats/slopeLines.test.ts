@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildSlopeLines } from '../../../src/core/stats/slopeLines'
 import type { SeriesPoint } from '../../../src/core/stats/series'
+import type { ClinicalEvent } from '../../../src/core/events/events'
 
 const d = (s: string) => new Date(s)
 const pts: SeriesPoint[] = [
@@ -41,6 +42,59 @@ describe('buildSlopeLines', () => {
     ]
     const lines = buildSlopeLines(eventPts, { mode: 'event-driven', gapDays: 180, windowDays: 730, stepDays: 180, eventDates: [d('2021-06-01')] })
     expect(lines).toHaveLength(2)
+  })
+
+  it('uses clinical event exclusions for the fitted overlay without removing plotted points', () => {
+    const transplantPts = [
+      { date: d('2018-01-01'), value: 8 },
+      { date: d('2019-01-01'), value: 9 },
+      { date: d('2020-01-01'), value: 10 },
+      { date: d('2021-01-01'), value: 11 },
+      { date: d('2022-01-01'), value: 200 },
+      { date: d('2023-01-01'), value: 220 },
+    ]
+    const transplant: ClinicalEvent = {
+      patientId: 1,
+      type: 'kidney_transplant',
+      date: d('2022-01-01'),
+      title: 'Kidney transplant',
+      description: null,
+      endDate: null,
+      intent: null,
+      warning: '',
+    }
+
+    const lines = buildSlopeLines(transplantPts, {
+      mode: 'global',
+      gapDays: 180,
+      windowDays: 730,
+      stepDays: 180,
+      clinicalEvents: [transplant],
+    })
+
+    expect(lines).toHaveLength(1)
+    expect(lines[0][0].date.toISOString().slice(0, 10)).toBe('2018-01-01')
+    expect(lines[0][1].date.toISOString().slice(0, 10)).toBe('2021-01-01')
+    expect(lines[0][1].value - lines[0][0].value).toBeLessThan(4)
+  })
+
+  it('applies quarterly median time balancing before building the fit line', () => {
+    const clustered = [
+      { date: d('2020-01-01'), value: 10 },
+      { date: d('2020-01-10'), value: 100 },
+      { date: d('2020-01-20'), value: 100 },
+      { date: d('2020-04-01'), value: 20 },
+      { date: d('2020-07-01'), value: 30 },
+    ]
+
+    const raw = buildSlopeLines(clustered, { mode: 'global', gapDays: 180, windowDays: 730, stepDays: 180, timeBalancing: 'raw' })
+    const quarterly = buildSlopeLines(clustered, { mode: 'global', gapDays: 180, windowDays: 730, stepDays: 180, timeBalancing: 'quarterly-median' })
+
+    expect(raw).toHaveLength(1)
+    expect(quarterly).toHaveLength(1)
+    expect(quarterly[0][0].date.toISOString().slice(0, 10)).toBe('2020-01-10')
+    expect(quarterly[0][0].value).toBeGreaterThan(raw[0][0].value)
+    expect(quarterly[0][1].value).toBeLessThan(raw[0][1].value)
   })
 })
 

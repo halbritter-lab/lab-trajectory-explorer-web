@@ -8,13 +8,13 @@
 6. Assert: at least one `[data-testid="series-plot"]` renders an `<svg>`.
 7. Switch the Series 1 mode to gap-split and rolling; assert the plot re-renders without console errors (favicon 404 is allowed).
 
-## Phase 3 E2E smoke (eGFR + annotations)
+## Phase 3 E2E smoke (eGFR + events)
 
 1. Load synthetic data; set the sidebar "Compute eGFR" select to "CKD-EPI 2021".
 2. Pick patient 4 (the fixture patient with demographics).
 3. Assert the Series 1 parameter dropdown lists an "ƒ eGFR (CKD-EPI 2021, computed) …" option.
 4. Select it; assert `[data-testid="series-plot"]` renders an `<svg>` with data points and a caption "Computed from creatinine × demographics — not for clinical decision-making."
-5. (Annotations) Upload an annotations file in the sidebar; assert the loaded/rejected count note appears and dashed event rules render on the plot. No console errors beyond favicon.
+5. (Events) Upload an events file in the sidebar; assert the loaded/rejected count note appears and dashed event rules render on the plot. No console errors beyond favicon.
 
 Verified 2026-06-11: eGFR path renders 8 computed points + disclaimer for patient 4; only the favicon 404 in console.
 

@@ -29,55 +29,76 @@ export function Methodology() {
         <strong>not for clinical decision-making</strong>.
       </p>
 
-      <h3>Slope Modes</h3>
+      <h3>Fit Pipeline</h3>
       <p>
-        Each configured series can be summarised with one of seven slope modes. The mode is applied
-        per patient and per series (parameter name + unit pair). All slopes are expressed{' '}
+        Each configured series has its own fit configuration. Presets such as general exploration,
+        CKD progression, and acute review are named defaults over the same explicit pipeline:
+        filtering, optional event and AKI exclusions, time balancing, model fitting, endpoint
+        derivation, and export. All slopes are expressed{' '}
         <strong>per year</strong> (the regression x-axis is time in fractional years), so a
         creatinine slope is in mg/dl per year and an eGFR slope is in mL/min/1.73m² per year — the
         usual convention for reporting renal function decline.
       </p>
       <ul>
         <li>
-          <strong>global</strong> — single OLS fit over the whole series. One slope value is
-          produced spanning the full observation window.
+          <strong>Data filter</strong> — kidney transplant, chronic dialysis, acute dialysis
+          intervals, unknown-dialysis intervals, and AKI windows can be included or excluded
+          according to the active series configuration. Display-only events remain visible context
+          and do not alter fits. Unknown dialysis can be handled as display-only, as a dated
+          interval exclusion when an end date exists, or as censoring from the start date.
         </li>
         <li>
-          <strong>gap-split</strong> — split at day-gaps larger than the configured threshold, then
-          fit each segment independently with OLS. Useful when a series has a long interruption that
-          would otherwise distort a single fit.
+          <strong>Time balancing</strong> — raw values, monthly medians, or quarterly medians can
+          be used for the fit after exclusions are applied, so post-event values are not merged into
+          pre-event aggregates.
         </li>
         <li>
-          <strong>rolling</strong> — sliding 730-day window stepped 180 days. Each window must
-          contain at least three numeric values to produce a slope; windows outside the data range
-          are skipped. The cohort-table slope shown for a rolling series is the overall (global) OLS
-          slope; the rolling windows additionally yield the minimum, maximum, and variance of the
-          per-window slopes as a measure of trend stability.
+          <strong>Fit model</strong> — no fit, OLS, Theil-Sen, rolling OLS, and segmented OLS are
+          available. The trend legend names the active model, and no trend legend is shown when the
+          model is off.
         </li>
         <li>
-          <strong>global-robust</strong> — Theil-Sen median pairwise slope over the whole series.
-          It is less sensitive to isolated outliers than OLS and reports a non-parametric slope
-          interval.
+          <strong>Endpoints</strong> — eGFR series can report total percent decline from baseline,
+          observed CKD G5 after persistent eGFR &lt; 15 for at least 90 days, and projected age to
+          CKD G5 when a declining fit and sufficient age data exist.
         </li>
         <li>
-          <strong>chronic-ckd</strong> — excludes the configured number of days after the first
-          observed value in that series, then fits OLS on the remaining points. This approximates a
-          chronic-slope view only when the first observation is a meaningful anchor; it is not a
-          treatment-anchored trial endpoint unless the loaded data are aligned that way.
-        </li>
-        <li>
-          <strong>aki-aware</strong> — KDIGO AKI episodes are detected on the patient's serum
-          creatinine (mg/dl) series; for other analytes (such as computed eGFR) the creatinine
-          series of the same patient is used as the episode source. All observations falling within
-          the window [episode date, episode date + exclusion days] (default 30 days) are excluded,
-          and a single OLS line is fitted over the remaining points.
-        </li>
-        <li>
-          <strong>event-driven</strong> — splits the series at loaded annotation dates and fits OLS
-          per segment. Cohort summaries surface the fittable segment with the largest absolute
-          slope.
+          <strong>Exports</strong> — patient and cohort slope exports use the same event and AKI
+          filtering inputs as the visible plots. Measurement rows remain visible even when they are
+          excluded from the configured fit.
         </li>
       </ul>
+
+      <h3>Clinical Events and Exclusion Display</h3>
+      <p>
+        Clinical events are patient-level annotations with a date, title, optional end date, and
+        optional description. Kidney transplant, dialysis, and other events can be loaded from the
+        dataset. Kidney transplant and chronic dialysis can censor values from the event date;
+        acute dialysis and unknown dialysis can exclude a dated interval when an end date is
+        available. Events that are not configured to affect the fit remain display-only context.
+      </p>
+      <p>
+        The UI separates <strong>context display</strong> from <strong>fit exclusion</strong>.
+        Event and AKI labels can be hidden while excluded measurement points still remain marked in
+        red, because red points mean “excluded from the active fit,” not merely “episode label
+        visible.” When point-connecting is disabled, connector lines and red exclusion segments are
+        hidden, but the underlying measurements and excluded-point markers remain visible.
+      </p>
+
+      <h3>Cohort Overlay Plot</h3>
+      <p>
+        The cohort overlay is a spaghetti plot for one configured series across the selected
+        patient scope. It can use age, calendar date, or years since each patient's baseline as the
+        x-axis. A single click highlights a trajectory, hover temporarily activates it, and double
+        click opens the patient detail view. Event and AKI labels are drawn only for the active
+        trajectory to keep the cohort view readable.
+      </p>
+      <p>
+        The <em>Connect data points</em> setting applies to the overlay as well as the detail and
+        mini-graph views. Turning it off removes normal trajectory connectors and red excluded
+        trajectory segments, while preserving all measured points and any red excluded-point
+        markers.
+      </p>
 
       <h3>Quality Flags</h3>
       <p>
@@ -189,8 +210,10 @@ export function Methodology() {
       </p>
       <p>
         AKI chips in the cohort table summarise detected stages as Roman numerals (e.g.{' '}
-        <em>AKI I, II</em>). Individual episode markers appear on the single-patient plot when the
-        AKI overlay is enabled.
+        <em>AKI I, II</em>). Individual episode markers can appear in single-patient plots and in
+        the cohort overlay when AKI display is enabled. Red measurement points indicate values
+        excluded from the active fit, so they can remain visible even when AKI episode labels are
+        hidden.
       </p>
       <p><strong>Important limitations of AKI detection:</strong></p>
       <ul>
