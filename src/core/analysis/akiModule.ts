@@ -1,10 +1,10 @@
 import { akiExclusionBands, episodesForSeries, isCreatinineMgdl } from '../aki/akiAware'
 import type { AkiEpisode } from '../aki/kdigo'
-import type { LabRow } from '../types'
+import type { LabRow, PatientId } from '../types'
 import type { AkiModuleSettings, AnalysisModule, AnalysisOverlayContribution, SeriesKey } from './types'
 
-function distinctNumericSeries(rows: LabRow[]): Array<{ patientId: number; seriesKey: SeriesKey }> {
-  const seen = new Map<string, { patientId: number; seriesKey: SeriesKey }>()
+function distinctNumericSeries(rows: LabRow[]): Array<{ patientId: PatientId; seriesKey: SeriesKey }> {
+  const seen = new Map<string, { patientId: PatientId; seriesKey: SeriesKey }>()
   for (const r of rows) {
     if (r.bezeichnung === null || r.labDatum === null || r.wertNum === null) continue
     const seriesKey = { bezeichnung: r.bezeichnung, einheit: r.einheit ?? null }
@@ -15,7 +15,7 @@ function distinctNumericSeries(rows: LabRow[]): Array<{ patientId: number; serie
 }
 
 function overlaysForEpisodes(
-  patientId: number,
+  patientId: PatientId,
   seriesKey: SeriesKey,
   episodes: AkiEpisode[],
   exclusionDays: number,
@@ -51,7 +51,7 @@ export const akiModule: AnalysisModule<AkiModuleSettings> = {
     const overlays: AnalysisOverlayContribution[] = []
     const episodeCache = new Map<string, AkiEpisode[]>()
 
-    function episodesForCachedSeries(patientId: number, seriesKey: SeriesKey): AkiEpisode[] {
+    function episodesForCachedSeries(patientId: PatientId, seriesKey: SeriesKey): AkiEpisode[] {
       const cacheKey = isCreatinineMgdl(seriesKey.bezeichnung, seriesKey.einheit)
         ? `${patientId}|${seriesKey.bezeichnung}|${seriesKey.einheit ?? ''}`
         : `${patientId}|creatinine-source`

@@ -19,7 +19,7 @@ export const defaultAnalysisSettings = (): AnalysisSettings => ({
 
 export interface ComputeAnalysisResultOptions {
   rows: LabRow[]
-  manualDemographics: Record<number, ManualDemographics>
+  manualDemographics: Record<string, ManualDemographics>
   events: ClinicalEvent[]
   settings: AnalysisSettings
   modules?: readonly RegisteredAnalysisModule[]

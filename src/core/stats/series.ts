@@ -13,6 +13,21 @@ export interface SeriesPoint {
 export function fitGlobal(points: SeriesPoint[]): OlsFit {
   const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime())
   const years = datesToYears(sorted.map((p) => p.date))
+  if (sorted.length === 2) {
+    const dx = years[1] - years[0]
+    if (dx === 0) {
+      return { slope: Number.NaN, intercept: Number.NaN, r2: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN, reason: 'identical_timestamps' }
+    }
+    const slope = (sorted[1].value - sorted[0].value) / dx
+    return {
+      slope,
+      intercept: sorted[0].value - slope * years[0],
+      r2: 1,
+      ciLow: Number.NaN,
+      ciHigh: Number.NaN,
+      reason: null,
+    }
+  }
   return fitOls(years, sorted.map((p) => p.value))
 }
 
@@ -30,7 +45,7 @@ export function fitTheilSen(points: SeriesPoint[]): OlsFit {
   const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime())
   const years = datesToYears(sorted.map((p) => p.date))
   const values = sorted.map((p) => p.value)
-  if (sorted.length < 3) {
+  if (sorted.length < 2) {
     return { slope: Number.NaN, intercept: Number.NaN, r2: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN, reason: 'n_below_threshold' }
   }
   const slopes: number[] = []

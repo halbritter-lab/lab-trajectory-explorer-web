@@ -2,7 +2,7 @@ import type { AkiEpisode } from '../aki/kdigo'
 import type { DateBand } from '../aki/akiAware'
 import type { Source, FormulaName } from '../egfr/series'
 import type { ClinicalEvent } from '../events/events'
-import type { LabRow } from '../types'
+import type { LabRow, PatientId } from '../types'
 
 export interface ManualDemographics {
   sex?: LabRow['patientSex']
@@ -36,7 +36,7 @@ export interface AnalysisSettings {
 
 export interface AnalysisContext {
   rows: LabRow[]
-  manualDemographics: Record<number, ManualDemographics>
+  manualDemographics: Record<string, ManualDemographics>
   events: ClinicalEvent[]
 }
 
@@ -48,7 +48,7 @@ export interface AnalysisMessage {
 
 export interface CohortFlagContribution {
   id: string
-  patientId: number
+  patientId: PatientId
   seriesKey?: SeriesKey
   label: string
   severity?: 'info' | 'warning'
@@ -56,7 +56,7 @@ export interface CohortFlagContribution {
 
 export interface AnalysisOverlayContribution {
   id: string
-  patientId: number
+  patientId: PatientId
   seriesKey?: SeriesKey
   kind: 'event' | 'band'
   label: string
@@ -68,7 +68,7 @@ export interface AnalysisOverlayContribution {
 
 export interface AnalysisFitInputContribution {
   id: string
-  patientId: number
+  patientId: PatientId
   seriesKey: SeriesKey
   kind: 'aki-aware'
   exclusionDays: number
@@ -104,7 +104,7 @@ export function seriesKeyEquals(a: SeriesKey, b: SeriesKey): boolean {
 
 export function fitInputForSeries(
   fitInputs: readonly AnalysisFitInputContribution[],
-  patientId: number,
+  patientId: PatientId,
   seriesKey: SeriesKey,
 ): AnalysisFitInputContribution | undefined {
   return fitInputs.find((input) => input.patientId === patientId && seriesKeyEquals(input.seriesKey, seriesKey))

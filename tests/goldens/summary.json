@@ -92,8 +92,8 @@
         "einheit": "mg/dl",
         "nNumeric": 2,
         "spanDays": 162,
-        "slope": null,
-        "reason": "n_below_threshold"
+        "slope": 0.22546296296296298,
+        "reason": "span_too_short"
       }
     ]
   },
@@ -106,8 +106,8 @@
         "einheit": "mg/dl",
         "nNumeric": 2,
         "spanDays": 162,
-        "slope": null,
-        "reason": "n_below_threshold"
+        "slope": 0.22546296296296298,
+        "reason": "span_too_short"
       }
     ]
   },
@@ -120,8 +120,8 @@
         "einheit": "mg/dl",
         "nNumeric": 2,
         "spanDays": 162,
-        "slope": null,
-        "reason": "n_below_threshold"
+        "slope": 0.22546296296296298,
+        "reason": "span_too_short"
       }
     ]
   }

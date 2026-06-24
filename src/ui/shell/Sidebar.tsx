@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { useAppStore } from '../state/store'
 import { allSourceOptions, creatinineSourceOptions, defaultCreatinineSource, isSerumCreatinineSource, type FormulaName } from '../../core/egfr/series'
-import type { Sex } from '../../core/types'
+import { comparePatientIds, patientIdKey, type PatientId, type Sex } from '../../core/types'
 import { effectForEvent, normalizeClinicalEvents, validateClinicalEvents, type ClinicalEvent, type RejectedClinicalEvent } from '../../core/events/events'
 import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
 import { readWorkbook } from '../../io/readWorkbook'
@@ -9,7 +9,8 @@ import { readWorkbook } from '../../io/readWorkbook'
 export function Sidebar() {
   const [open, setOpen] = useState(true)
   const [showAllEgfrSources, setShowAllEgfrSources] = useState(false)
-  const [demoDraft, setDemoDraft] = useState<{ patientId: number; sex: Sex | ''; age: string } | null>(null)
+  const [showMissingDemographics, setShowMissingDemographics] = useState(false)
+  const [demoDraft, setDemoDraft] = useState<{ patientId: PatientId; sex: Sex | ''; age: string } | null>(null)
   const [fitSeriesIndex, setFitSeriesIndex] = useState(0)
   const analysisSettings = useAppStore((s) => s.analysisSettings)
   const egfrFormula = analysisSettings.egfr.formula
@@ -38,7 +39,7 @@ export function Sidebar() {
   const setRapidEgfrThreshold = useAppStore((s) => s.setRapidEgfrThreshold)
   const [eventNote, setEventNote] = useState('')
   const [rejectedEvents, setRejectedEvents] = useState<RejectedClinicalEvent[]>([])
-  const patientIds = [...new Set(rows.map((r) => r.patientId))].sort((a, b) => a - b)
+  const patientIds = [...new Set(rows.map((r) => r.patientId))].sort(comparePatientIds)
   const activeFitSeriesIndex = Math.min(fitSeriesIndex, seriesConfigs.length - 1)
   const primaryFitConfig = seriesConfigs[activeFitSeriesIndex].fitConfig
 
@@ -51,21 +52,21 @@ export function Sidebar() {
     ? [...new Set(rows
         .filter((r) => r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
         .map((r) => r.patientId))]
-        .sort((a, b) => a - b)
+        .sort(comparePatientIds)
     : []
   const missingDemoPatientIds = selectedSource && selectedSourceIsEligible
     ? [...new Set(rows
         .filter((r) => r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
         .filter((r) => {
-          const manual = manualDemographics[r.patientId]
+          const manual = manualDemographics[patientIdKey(r.patientId)]
           const age = manual?.age ?? r.patientAgeAtLab
           return (manual?.sex ?? r.patientSex) == null || age == null || age < 18
         })
         .map((r) => r.patientId))]
-        .sort((a, b) => a - b)
+        .sort(comparePatientIds)
     : []
-  const manualDemoPatientIds = sourcePatientIds.filter((pid) => manualDemographics[pid])
-  const demoPanelPatientIds = [...new Set([...missingDemoPatientIds, ...manualDemoPatientIds])].sort((a, b) => a - b)
+  const manualDemoPatientIds = sourcePatientIds.filter((pid) => manualDemographics[patientIdKey(pid)])
+  const demoPanelPatientIds = [...new Set([...(showMissingDemographics ? missingDemoPatientIds : []), ...manualDemoPatientIds])].sort(comparePatientIds)
 
   function setSourceFromKey(key: string) {
     const src = sourceOptions.find((s) => `${s[0]}|${s[1]}` === key) ?? null
@@ -79,8 +80,8 @@ export function Sidebar() {
     }
   }
 
-  function openDemographicsDialog(patientId: number) {
-    const current = manualDemographics[patientId]
+  function openDemographicsDialog(patientId: PatientId) {
+    const current = manualDemographics[patientIdKey(patientId)]
     const sourceRows = selectedSource
       ? rows.filter((r) => r.patientId === patientId && r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
       : []
@@ -170,17 +171,28 @@ export function Sidebar() {
                 )}
               </>
             )}
+            {egfrFormula !== 'off' && selectedSource && selectedSourceIsEligible && missingDemoPatientIds.length > 0 && (
+              <label className="sidebar-check">
+                <input
+                  type="checkbox"
+                  aria-label="Show missing demographics"
+                  checked={showMissingDemographics}
+                  onChange={(e) => setShowMissingDemographics(e.target.checked)}
+                />
+                Show missing demographics
+              </label>
+            )}
             {egfrFormula !== 'off' && demoPanelPatientIds.length > 0 && (
               <div className="manual-demo">
-                {missingDemoPatientIds.length > 0 && (
+                {showMissingDemographics && missingDemoPatientIds.length > 0 && (
                   <p className="sidebar-note">{missingDemoPatientIds.length} patient(s) missing demographics for computed eGFR.</p>
                 )}
                 <p className="sidebar-note">Manual age is applied to all lab dates for that patient.</p>
                 {demoPanelPatientIds.map((pid) => (
                   <div className="manual-demo-row" key={pid}>
-                    <span>{manualDemographics[pid] ? `Patient ${pid}: ${manualDemographics[pid].sex}, age ${manualDemographics[pid].age}` : `Patient ${pid}: missing`}</span>
-                    <button type="button" aria-label={`${manualDemographics[pid] ? 'Edit' : 'Enter'} demographics for patient ${pid}`} onClick={() => openDemographicsDialog(pid)}>
-                      {manualDemographics[pid] ? 'Edit' : 'Enter demographics'}
+                    <span>{manualDemographics[patientIdKey(pid)] ? `Patient ${pid}: ${manualDemographics[patientIdKey(pid)].sex}, age ${manualDemographics[patientIdKey(pid)].age}` : `Patient ${pid}: missing`}</span>
+                    <button type="button" aria-label={`${manualDemographics[patientIdKey(pid)] ? 'Edit' : 'Enter'} demographics for patient ${pid}`} onClick={() => openDemographicsDialog(pid)}>
+                      {manualDemographics[patientIdKey(pid)] ? 'Edit' : 'Enter demographics'}
                     </button>
                   </div>
                 ))}
@@ -439,7 +451,7 @@ function pluralize(count: number, singular: string): string {
 }
 
 function EventTable({ events, fitConfig }: { events: ClinicalEvent[]; fitConfig: FitConfig }) {
-  const sorted = [...events].sort((a, b) => a.patientId - b.patientId || a.date.getTime() - b.date.getTime())
+  const sorted = [...events].sort((a, b) => comparePatientIds(a.patientId, b.patientId) || a.date.getTime() - b.date.getTime())
   const placeholder = '-'
   return (
     <div className="event-table-scroll">

@@ -29,10 +29,20 @@ describe('summarizeByBezeichnung', () => {
     expect(out[0].nNumeric).toBe(0)
   })
 
-  it('flags n_below_threshold for fewer than 3 numeric', () => {
+  it('computes a slope for exactly 2 numeric values', () => {
     const rows = [
       row({ bezeichnung: 'A', wertNum: 1, labDatum: d('2020-01-01') }),
-      row({ bezeichnung: 'A', wertNum: 2, labDatum: d('2020-06-01') }),
+      row({ bezeichnung: 'A', wertNum: 2, labDatum: d('2021-01-01') }),
+    ]
+    const out = summarizeByBezeichnung(rows, 1, 'global')
+    expect(out[0].reason).toBeNull()
+    expect(out[0].slope).toBeGreaterThan(0.9)
+    expect(out[0].slope).toBeLessThan(1.1)
+  })
+
+  it('flags n_below_threshold for one numeric value', () => {
+    const rows = [
+      row({ bezeichnung: 'A', wertNum: 1, labDatum: d('2020-01-01') }),
     ]
     const out = summarizeByBezeichnung(rows, 1, 'global')
     expect(out[0].reason).toBe('n_below_threshold')

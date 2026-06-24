@@ -1,5 +1,5 @@
 import type { RawRow } from '../../io/readWorkbook'
-import type { LabRow } from '../types'
+import type { LabRow, PatientId } from '../types'
 
 export type ClinicalEventType = 'kidney_transplant' | 'dialysis' | 'other'
 export type DialysisIntent = 'acute' | 'chronic' | 'unknown'
@@ -17,7 +17,7 @@ export type RejectedClinicalEventReason =
   | 'unsupported_legacy_schema'
 
 export interface RawClinicalEvent {
-  patientId: number | null
+  patientId: PatientId | null
   type: string
   date: Date | null
   title: string
@@ -27,7 +27,7 @@ export interface RawClinicalEvent {
 }
 
 export interface ClinicalEvent {
-  patientId: number
+  patientId: PatientId
   type: ClinicalEventType
   date: Date
   title: string
@@ -195,11 +195,12 @@ export function eventTooltip(event: ClinicalEvent): string {
   return parts.filter((part): part is string => part !== null && part !== '').join(' · ')
 }
 
-function parsePatientId(value: unknown): number | null {
+function parsePatientId(value: unknown): PatientId | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value)
-    return Number.isFinite(parsed) ? parsed : null
+    const text = value.trim()
+    const numeric = Number(text)
+    return Number.isFinite(numeric) && String(numeric) === text ? numeric : text
   }
   return null
 }
@@ -269,8 +270,8 @@ function normalizeIntent(intent: string): string {
 }
 
 function warningForEvent(
-  patientId: number,
-  knownPatientIds: Set<number>,
+  patientId: PatientId,
+  knownPatientIds: Set<PatientId>,
   type: ClinicalEventType,
   intent: string,
   endDate: Date | null,

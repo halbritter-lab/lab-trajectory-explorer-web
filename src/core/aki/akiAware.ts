@@ -1,4 +1,4 @@
-import type { LabRow, OlsFit } from '../types'
+import type { LabRow, OlsFit, PatientId } from '../types'
 import type { SeriesPoint } from '../stats/series'
 import { fitOls } from '../stats/ols'
 import { datesToYears } from '../stats/time'
@@ -71,7 +71,7 @@ export function isCreatinineMgdl(bez: string, einheit: string | null): boolean {
  * any other analyte (e.g. computed eGFR) uses the same patient's creatinine
  * mg/dl series with the most rows (cross-series, mirrors the Python
  * aki_creatinine_source). Returns [] when no creatinine mg/dl data exists. */
-export function episodesForSeries(rows: LabRow[], patientId: number, bezeichnung: string | null, einheit: string | null): AkiEpisode[] {
+export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null): AkiEpisode[] {
   const sub = rows.filter((r) => r.patientId === patientId)
   let source: LabRow[]
   if (bezeichnung !== null && isCreatinineMgdl(bezeichnung, einheit)) {

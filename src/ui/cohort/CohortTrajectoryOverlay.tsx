@@ -6,7 +6,7 @@ import { akiExclusionBands, episodesForSeries } from '../../core/aki/akiAware'
 import { effectForEvent, eventTooltip } from '../../core/events/events'
 import type { ClinicalEvent } from '../../core/events/events'
 import type { FitConfig } from '../../core/fitPipeline/types'
-import type { LabRow } from '../../core/types'
+import { comparePatientIds, type LabRow, type PatientId } from '../../core/types'
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000
 
@@ -35,8 +35,8 @@ export function CohortTrajectoryOverlay() {
   const plotRef = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(760)
   const [activeSeriesIndex, setActiveSeriesIndex] = useState(0)
-  const [hoveredPatientId, setHoveredPatientId] = useState<number | null>(null)
-  const [selectedOverlayPatientId, setSelectedOverlayPatientId] = useState<number | null>(null)
+  const [hoveredPatientId, setHoveredPatientId] = useState<PatientId | null>(null)
+  const [selectedOverlayPatientId, setSelectedOverlayPatientId] = useState<PatientId | null>(null)
 
   const configuredSeries = useMemo(
     () => configs
@@ -52,7 +52,7 @@ export function CohortTrajectoryOverlay() {
   }, [activeSeriesIndex, configuredSeries.length])
 
   const scopedPatientIds = useMemo(() => {
-    const all = [...new Set(rows.map((r) => r.patientId))].sort((a, b) => a - b)
+    const all = [...new Set(rows.map((r) => r.patientId))].sort(comparePatientIds)
     return patientMode === 'selected' ? all.filter((id) => selectedPatientIds.includes(id)) : all
   }, [rows, patientMode, selectedPatientIds])
 
@@ -68,7 +68,7 @@ export function CohortTrajectoryOverlay() {
     })
   }, [rows, activeConfig?.bezeichnung, activeConfig?.einheit, scopedPatientIds, axis, patientMode, selectedPatientIds])
 
-  const patientIds = useMemo(() => [...new Set(points.map((p) => p.patientId))].sort((a, b) => a - b), [points])
+  const patientIds = useMemo(() => [...new Set(points.map((p) => p.patientId))].sort(comparePatientIds), [points])
   const title = activeConfig?.einheit ? `${activeConfig.bezeichnung} (${activeConfig.einheit})` : activeConfig?.bezeichnung ?? ''
   const egfr = activeConfig?.bezeichnung ? isEgfrLike(activeConfig.bezeichnung, activeConfig.einheit ?? null) : false
   const activeOverlayPatientId = hoveredPatientId ?? selectedOverlayPatientId
@@ -282,13 +282,13 @@ export function CohortTrajectoryOverlay() {
     return () => fig.remove()
   }, [activeConfig?.bezeichnung, title, points, patientIds, axis, width, egfr, connectPoints, hoveredPatientId, selectedOverlayPatientId, overlayEvents, exclusionSegments, excludedPoints])
 
-  function openPatient(patientId: number) {
+  function openPatient(patientId: PatientId) {
     selectPatient(patientId)
     setReturnToCohort(true)
     setView('one')
   }
 
-  function handlePatientKey(event: KeyboardEvent, patientId: number) {
+  function handlePatientKey(event: KeyboardEvent, patientId: PatientId) {
     if (event.key === 'Enter') {
       event.preventDefault()
       openPatient(patientId)
@@ -342,7 +342,7 @@ export function CohortTrajectoryOverlay() {
 }
 
 interface OverlayEvent {
-  patientId: number
+  patientId: PatientId
   x: number | Date
   y: number
   date: Date
@@ -352,7 +352,7 @@ interface OverlayEvent {
 }
 
 interface OverlaySegmentPoint {
-  patientId: number
+  patientId: PatientId
   x: number | Date
   value: number
   segmentId: string
@@ -366,10 +366,10 @@ function cohortOverlayEventsForAxis(
   events: readonly ClinicalEvent[],
   points: readonly CohortOverlayPoint[],
   axis: CohortOverlayXAxis,
-  scopedPatientIds: readonly number[],
+  scopedPatientIds: readonly PatientId[],
 ): OverlayEvent[] {
   const scoped = new Set(scopedPatientIds)
-  const pointsByPatient = new Map<number, CohortOverlayPoint[]>()
+  const pointsByPatient = new Map<PatientId, CohortOverlayPoint[]>()
   for (const point of points) {
     const patientPoints = pointsByPatient.get(point.patientId) ?? []
     patientPoints.push(point)
@@ -408,7 +408,7 @@ function cohortOverlayAkiEventsForAxis(
   einheit: string | null,
   points: readonly CohortOverlayPoint[],
   axis: CohortOverlayXAxis,
-  scopedPatientIds: readonly number[],
+  scopedPatientIds: readonly PatientId[],
 ): OverlayEvent[] {
   const scoped = new Set(scopedPatientIds)
   const pointsByPatient = pointsByPatientId(points)
@@ -443,14 +443,14 @@ function cohortOverlayExcludedPoints(
   bezeichnung: string,
   einheit: string | null,
   points: readonly CohortOverlayPoint[],
-  scopedPatientIds: readonly number[],
+  scopedPatientIds: readonly PatientId[],
   fitConfig: FitConfig,
 ): OverlayExcludedPoint[] {
   const scoped = new Set(scopedPatientIds)
   const activeEvents = events.filter((event) => scoped.has(event.patientId) && eventExclusionActive(event, fitConfig.censoring))
   const akiRanges = fitConfig.exclusions.excludeAkiWindows
     ? akiRangesByPatient(rows, bezeichnung, einheit, points, scoped, fitConfig.exclusions.akiExclusionDays)
-    : new Map<number, Array<{ start: Date; end: Date }>>()
+    : new Map<PatientId, Array<{ start: Date; end: Date }>>()
   if (activeEvents.length === 0 && akiRanges.size === 0) return []
   return points.filter((point) => {
     if (!scoped.has(point.patientId)) return false
@@ -470,7 +470,7 @@ function cohortOverlayExclusionSegments(
   einheit: string | null,
   points: readonly CohortOverlayPoint[],
   axis: CohortOverlayXAxis,
-  scopedPatientIds: readonly number[],
+  scopedPatientIds: readonly PatientId[],
   fitConfig: FitConfig,
 ): OverlaySegmentPoint[] {
   const scoped = new Set(scopedPatientIds)
@@ -509,8 +509,8 @@ function cohortOverlayExclusionSegments(
   return out
 }
 
-function pointsByPatientId(points: readonly CohortOverlayPoint[]): Map<number, CohortOverlayPoint[]> {
-  const pointsByPatient = new Map<number, CohortOverlayPoint[]>()
+function pointsByPatientId(points: readonly CohortOverlayPoint[]): Map<PatientId, CohortOverlayPoint[]> {
+  const pointsByPatient = new Map<PatientId, CohortOverlayPoint[]>()
   for (const point of points) {
     const patientPoints = pointsByPatient.get(point.patientId) ?? []
     patientPoints.push(point)
@@ -527,10 +527,10 @@ function akiRangesByPatient(
   bezeichnung: string,
   einheit: string | null,
   points: readonly CohortOverlayPoint[],
-  scoped: ReadonlySet<number>,
+  scoped: ReadonlySet<PatientId>,
   exclusionDays: number,
-): Map<number, Array<{ start: Date; end: Date }>> {
-  const ranges = new Map<number, Array<{ start: Date; end: Date }>>()
+): Map<PatientId, Array<{ start: Date; end: Date }>> {
+  const ranges = new Map<PatientId, Array<{ start: Date; end: Date }>>()
   for (const patientId of scoped) {
     if (!points.some((point) => point.patientId === patientId)) continue
     const episodes = episodesForSeries([...rows], patientId, bezeichnung, einheit)

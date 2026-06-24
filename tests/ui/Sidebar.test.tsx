@@ -35,6 +35,7 @@ describe('Sidebar eGFR controls', () => {
   it('opens a demographics dialog and applies values explicitly', async () => {
     render(<Sidebar />)
     expect(screen.getByLabelText('Creatinine source')).toBeInTheDocument()
+    await userEvent.click(screen.getByLabelText('Show missing demographics'))
     await userEvent.click(screen.getByRole('button', { name: 'Enter demographics for patient 1' }))
     expect(screen.getByRole('dialog', { name: 'Manual demographics for patient 1' })).toBeInTheDocument()
     await userEvent.selectOptions(screen.getByLabelText('Manual sex for patient 1'), 'm')
@@ -43,6 +44,17 @@ describe('Sidebar eGFR controls', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Apply demographics' }))
     expect(useAppStore.getState().manualDemographics[1]).toEqual({ sex: 'm', age: 50 })
     expect(screen.getByText('Patient 1: m, age 50')).toBeInTheDocument()
+  })
+
+  it('hides missing demographics until toggled on', async () => {
+    render(<Sidebar />)
+
+    expect(screen.queryByText('Patient 1: missing')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Show missing demographics')).not.toBeChecked()
+
+    await userEvent.click(screen.getByLabelText('Show missing demographics'))
+
+    expect(screen.getByText('Patient 1: missing')).toBeInTheDocument()
   })
 
   it('offers EKFC 2021 as an eGFR formula option', () => {

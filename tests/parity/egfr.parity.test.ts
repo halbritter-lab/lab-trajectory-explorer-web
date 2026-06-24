@@ -3,6 +3,7 @@ import { ckdEpi2021, ekfc2021, mdrd4 } from '../../src/core/egfr/formulas'
 import { appendComputedEgfr, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../src/core/egfr/series'
 import { loadLabRows } from '../../src/core/parse/loader'
 import { readWorkbook } from '../../src/io/readWorkbook'
+import { comparePatientIds } from '../../src/core/types'
 import goldens from '../goldens/egfr.json'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
@@ -33,7 +34,7 @@ describe('appendComputedEgfr parity', () => {
     const computed = out
       .filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))
       .map((r) => ({ patientId: r.patientId, t: r.labDatum!.getTime(), wertNum: r.wertNum, operator: r.wertOperator }))
-      .sort((a, b) => a.patientId - b.patientId || a.t - b.t)
+      .sort((a, b) => comparePatientIds(a.patientId, b.patientId) || a.t - b.t)
     const expected = g.appended
       .map((r) => ({ patientId: r.patientId, t: new Date(r.date).getTime(), wertNum: r.wertNum, operator: r.operator }))
       .sort((a, b) => a.patientId - b.patientId || a.t - b.t)

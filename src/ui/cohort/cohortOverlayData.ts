@@ -1,10 +1,10 @@
-import type { LabRow } from '../../core/types'
+import type { LabRow, PatientId } from '../../core/types'
 import type { CohortOverlayXAxis } from '../state/store'
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000
 
 export type CohortOverlayPoint = {
-  patientId: number
+  patientId: PatientId
   x: number | Date
   value: number
   date: Date
@@ -16,9 +16,9 @@ interface CohortOverlayPointsParams {
   rows: LabRow[]
   bezeichnung: string
   einheit: string | null
-  patientIds: number[]
+  patientIds: PatientId[]
   axis: CohortOverlayXAxis
-  highlightedPatientIds: number[]
+  highlightedPatientIds: PatientId[]
 }
 
 function yearsBetween(start: Date, end: Date): number {
@@ -45,8 +45,8 @@ export function cohortOverlayPointsForSeries({
     )
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
 
-  const baselineDateByPatient = new Map<number, Date>()
-  const ageAnchorByPatient = new Map<number, { date: Date; age: number }>()
+  const baselineDateByPatient = new Map<PatientId, Date>()
+  const ageAnchorByPatient = new Map<PatientId, { date: Date; age: number }>()
   for (const r of seriesRows) {
     const date = r.labDatum as Date
     if (!baselineDateByPatient.has(r.patientId)) baselineDateByPatient.set(r.patientId, date)
@@ -88,7 +88,7 @@ export function isEgfrLike(bezeichnung: string, einheit: string | null): boolean
 export function patientIdFromPlotDatum(
   datum: unknown,
   points: readonly Pick<CohortOverlayPoint, 'patientId'>[],
-): number | null {
+): PatientId | null {
   const index = Array.isArray(datum) ? datum[0] : datum
   if (typeof index !== 'number') return null
   return points[index]?.patientId ?? null

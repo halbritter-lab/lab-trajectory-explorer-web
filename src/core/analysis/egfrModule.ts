@@ -1,12 +1,12 @@
 import { appendComputedEgfr } from '../egfr/series'
-import type { LabRow } from '../types'
+import { patientIdKey, type LabRow } from '../types'
 import type { AnalysisModule, EgfrModuleSettings, ManualDemographics } from './types'
 
-function rowsWithManualDemographics(rows: LabRow[], manual: Record<number, ManualDemographics>): LabRow[] {
+function rowsWithManualDemographics(rows: LabRow[], manual: Record<string, ManualDemographics>): LabRow[] {
   if (Object.keys(manual).length === 0) return rows
   let changed = false
   const mapped = rows.map((r) => {
-    const demo = manual[r.patientId]
+    const demo = manual[patientIdKey(r.patientId)]
     if (!demo) return r
     if (demo.sex == null && demo.age === undefined) return r
     changed = true

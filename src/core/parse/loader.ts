@@ -1,4 +1,4 @@
-import type { LabRow, WertOperator } from '../types'
+import type { LabRow, PatientId, WertOperator } from '../types'
 import type { RawRow } from '../../io/readWorkbook'
 import { parseWert } from './wert'
 import { normaliseSex } from '../egfr/formulas'
@@ -40,6 +40,13 @@ function toDate(v: unknown): Date | null {
   return Number.isNaN(d.getTime()) ? null : d
 }
 
+function toPatientId(v: unknown): PatientId | null {
+  const id = toStr(v)
+  if (id === null) return null
+  const numeric = Number(id)
+  return Number.isFinite(numeric) && String(numeric) === id ? numeric : id
+}
+
 /** Completed calendar years between birth and a reference date. */
 function completedYears(birth: Date, ref: Date): number | null {
   if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime())) return null
@@ -76,13 +83,8 @@ export function loadLabRows(rawRows: RawRow[]): LabRow[] {
 
   const out: LabRow[] = []
   for (const r of rawRows) {
-    // A missing/non-numeric PatientID would become NaN (or, via Number(null),
-    // silently collapse to patient 0), and NaN !== NaN breaks every grouping /
-    // equality downstream, so drop such rows rather than poison the dataset.
-    const idRaw = r.PatientID
-    if (idRaw === null || idRaw === undefined || idRaw === '') continue
-    const patientId = Number(idRaw)
-    if (!Number.isFinite(patientId)) continue
+    const patientId = toPatientId(r.PatientID)
+    if (patientId === null) continue
 
     const labDatum = toDate(r.LabDatum)
     const rawWert = toStr(r.Wert)

@@ -78,11 +78,11 @@ describe('loadLabRows', () => {
     expect(row.labDatum?.getUTCHours()).toBe(0)
   })
 
-  it('drops rows whose PatientID is not a finite number', () => {
-    const rows = loadLabRows([{ ...base, PatientID: 1 }, { ...base, PatientID: 'abc' }, { ...base, PatientID: null }])
-    expect(rows).toHaveLength(1)
+  it('keeps string PatientID values and still drops blank ids', () => {
+    const rows = loadLabRows([{ ...base, PatientID: 1 }, { ...base, PatientID: 'abc-123' }, { ...base, PatientID: null }])
+    expect(rows).toHaveLength(2)
     expect(rows[0].patientId).toBe(1)
-    expect(rows.some((r) => Number.isNaN(r.patientId))).toBe(false)
+    expect(rows[1].patientId).toBe('abc-123')
   })
 
   it('rejects unrecognised PatientSex values as null', () => {

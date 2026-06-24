@@ -1,4 +1,4 @@
-import type { LabRow } from '../types'
+import type { LabRow, PatientId } from '../types'
 import { buildCohortRows, slopeUnit, EXPORT_DISCLAIMER_ROWS, type CohortSeriesSpec } from '../cohort/screening'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../egfr/series'
 import type { SlopeMode } from '../stats/summarize'
@@ -8,7 +8,7 @@ import { clinicalEventAffectsFit } from '../events/fitExclusions'
 /** One row per measurement for a single patient. Includes synthesised eGFR rows
  * when the caller passes display rows with computed eGFR appended. */
 export interface PatientMeasurementRecord {
-  PatientID: number
+  PatientID: PatientId
   Datum: string
   Bezeichnung: string
   Einheit: string
@@ -19,7 +19,7 @@ export interface PatientMeasurementRecord {
 
 /** One row per configured series, carrying its fitted slope and quality flag. */
 export interface PatientSlopeRecord {
-  PatientID: number
+  PatientID: PatientId
   Bezeichnung: string
   Einheit: string
   Mode: string
@@ -47,7 +47,7 @@ function isoDate(d: Date): string {
 
 /** Long-format measurement table for one patient, sorted by date then name.
  * Rows without a name are skipped; rows without a date sort last. */
-export function patientMeasurementRecords(rows: LabRow[], patientId: number): PatientMeasurementRecord[] {
+export function patientMeasurementRecords(rows: LabRow[], patientId: PatientId): PatientMeasurementRecord[] {
   return rows
     .filter((r) => r.patientId === patientId && r.bezeichnung !== null)
     .slice()
@@ -70,7 +70,7 @@ export function patientMeasurementRecords(rows: LabRow[], patientId: number): Pa
 /** Distinct computed-eGFR (ƒ) series present for a patient, as slope specs.
  * Empty unless display rows carry synthesised eGFR (i.e. eGFR computation is on
  * and the data has the inputs). Default mode 'global' for a single summary slope. */
-export function computedEgfrSpecs(rows: LabRow[], patientId: number, mode: SlopeMode = 'global'): CohortSeriesSpec[] {
+export function computedEgfrSpecs(rows: LabRow[], patientId: PatientId, mode: SlopeMode = 'global'): CohortSeriesSpec[] {
   const seen = new Map<string, CohortSeriesSpec>()
   for (const r of rows) {
     if (r.patientId !== patientId || r.bezeichnung == null) continue
@@ -83,7 +83,7 @@ export function computedEgfrSpecs(rows: LabRow[], patientId: number, mode: Slope
 
 /** Configured specs plus any computed-eGFR series not already among them, so the
  * eGFR slope is exported automatically whenever eGFR computation is active. */
-export function slopeSpecsWithComputedEgfr(specs: CohortSeriesSpec[], rows: LabRow[], patientId: number): CohortSeriesSpec[] {
+export function slopeSpecsWithComputedEgfr(specs: CohortSeriesSpec[], rows: LabRow[], patientId: PatientId): CohortSeriesSpec[] {
   const out = [...specs]
   for (const e of computedEgfrSpecs(rows, patientId)) {
     if (!out.some((s) => s.bezeichnung === e.bezeichnung && (s.einheit ?? null) === (e.einheit ?? null))) out.push(e)
@@ -93,7 +93,7 @@ export function slopeSpecsWithComputedEgfr(specs: CohortSeriesSpec[], rows: LabR
 
 /** Slope summary table for one patient, one row per configured series spec.
  * Reuses buildCohortRows so the slope/reason/AKI logic stays in one place. */
-export function patientSlopeRecords(rows: LabRow[], patientId: number, specs: CohortSeriesSpec[]): PatientSlopeRecord[] {
+export function patientSlopeRecords(rows: LabRow[], patientId: PatientId, specs: CohortSeriesSpec[]): PatientSlopeRecord[] {
   if (specs.length === 0) return []
   const cohortRow = buildCohortRows(rows, [patientId], specs)[0]
   if (!cohortRow) return []
@@ -124,7 +124,7 @@ export function patientSlopeRecords(rows: LabRow[], patientId: number, specs: Co
  * Pure — pass to sheetsToXlsxBytes to serialise. */
 export function patientWorkbookSheets(
   displayRows: LabRow[],
-  patientId: number,
+  patientId: PatientId,
   specs: CohortSeriesSpec[],
   clinicalEvents: ClinicalEvent[] = [],
 ): { name: string; rows: readonly object[] }[] {

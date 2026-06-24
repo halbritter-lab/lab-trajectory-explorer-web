@@ -1,5 +1,5 @@
 import { create } from 'zustand'
-import type { LabRow } from '../../core/types'
+import { comparePatientIds, type LabRow, type PatientId } from '../../core/types'
 import type { SlopeMode } from '../../core/stats/summarize'
 import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analysis/registry'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
@@ -51,8 +51,8 @@ export type CohortOverlayXAxis = 'age' | 'calendar_time' | 'time_since_baseline'
 export interface AppState {
   rows: LabRow[]
   fileName: string | null
-  selectedPatientId: number | null
-  selectedPatientIds: number[]
+  selectedPatientId: PatientId | null
+  selectedPatientIds: PatientId[]
   view: View
   returnToCohort: boolean
   cohortPatientMode: CohortPatientMode
@@ -62,7 +62,7 @@ export interface AppState {
   analysisSettings: AnalysisSettings
   egfrFormula: FormulaName | 'off'
   egfrSource: Source | null
-  manualDemographics: Record<number, ManualDemographics>
+  manualDemographics: Record<string, ManualDemographics>
   events: ClinicalEvent[]
   showEvents: boolean
   cohortSort: { key: 'id' | 'slope' | 'absSlope' | 'n' | 'duration'; dir: 'asc' | 'desc'; seriesIndex?: number }
@@ -79,8 +79,8 @@ export interface AppState {
   loadFile: (file: File) => Promise<void>
   loadSynthetic: () => Promise<void>
   setDataset: (rows: LabRow[], fileName?: string) => void
-  selectPatient: (id: number) => void
-  setSelectedPatientIds: (ids: number[]) => void
+  selectPatient: (id: PatientId) => void
+  setSelectedPatientIds: (ids: PatientId[]) => void
   setView: (v: View) => void
   setReturnToCohort: (v: boolean) => void
   setCohortPatientMode: (v: CohortPatientMode) => void
@@ -89,10 +89,10 @@ export interface AppState {
   setSeriesConfig: (index: number, cfg: Partial<SeriesConfig>) => void
   addSeries: () => void
   removeSeries: (index: number) => void
-  patientIds: () => number[]
+  patientIds: () => PatientId[]
   setEgfrFormula: (f: FormulaName | 'off') => void
   setEgfrSource: (s: Source | null) => void
-  setManualDemographics: (patientId: number, demo: ManualDemographics) => void
+  setManualDemographics: (patientId: PatientId, demo: ManualDemographics) => void
   setEvents: (events: ClinicalEvent[]) => void
   setShowEvents: (value: boolean) => void
   setSeriesFitPreset: (index: number, preset: FitPreset) => void
@@ -171,7 +171,7 @@ const initialState = (): AppData => {
 let analysisCache: {
   rows: LabRow[]
   settings: AnalysisSettings
-  manual: Record<number, ManualDemographics>
+  manual: Record<string, ManualDemographics>
   events: ClinicalEvent[]
   result: AnalysisResult
 } | null = null
@@ -179,7 +179,7 @@ let analysisCache: {
 function computeStoreAnalysisResult(
   rows: LabRow[],
   settings: AnalysisSettings,
-  manual: Record<number, ManualDemographics>,
+  manual: Record<string, ManualDemographics>,
   events: ClinicalEvent[],
 ): AnalysisResult {
   if (
@@ -264,7 +264,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     }
   },
   setDataset: (rows, fileName) => {
-    const ids = [...new Set(rows.map((r) => r.patientId))].sort((a, b) => a - b)
+    const ids = [...new Set(rows.map((r) => r.patientId))].sort(comparePatientIds)
     set((s) => ({
       rows,
       fileName: fileName ?? null,
@@ -278,7 +278,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     if (get().persist) void saveDataset(rows, fileName ?? null)
   },
   selectPatient: (id) => set({ selectedPatientId: id }),
-  setSelectedPatientIds: (ids) => set({ selectedPatientIds: [...new Set(ids)].sort((a, b) => a - b) }),
+  setSelectedPatientIds: (ids) => set({ selectedPatientIds: [...new Set(ids)].sort(comparePatientIds) }),
   setView: (v) => set({ view: v }),
   setReturnToCohort: (v) => set({ returnToCohort: v }),
   setCohortPatientMode: (v) => set({ cohortPatientMode: v }),
@@ -298,7 +298,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   addSeries: () => set((s) => (s.seriesConfigs.length >= 3 ? s : { seriesConfigs: [...s.seriesConfigs, defaultSeries()] })),
   removeSeries: (index) =>
     set((s) => (s.seriesConfigs.length <= 1 ? s : { seriesConfigs: s.seriesConfigs.filter((_, i) => i !== index) })),
-  patientIds: () => [...new Set(get().rows.map((r) => r.patientId))].sort((a, b) => a - b),
+  patientIds: () => [...new Set(get().rows.map((r) => r.patientId))].sort(comparePatientIds),
   setEgfrFormula: (f) => set((s) => analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, formula: f } })),
   setEgfrSource: (src) => set((s) => analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: src } })),
   setManualDemographics: (patientId, demo) => set((s) => ({ manualDemographics: { ...s.manualDemographics, [patientId]: demo } })),

@@ -1,4 +1,4 @@
-import type { LabRow } from '../core/types'
+import type { LabRow, PatientId } from '../core/types'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../core/egfr/series'
 
 export interface SeriesOption {
@@ -7,7 +7,7 @@ export interface SeriesOption {
 }
 
 /** Distinct (bezeichnung, einheit) pairs for a patient, sorted by name then unit. */
-export function seriesOptions(rows: LabRow[], patientId: number): SeriesOption[] {
+export function seriesOptions(rows: LabRow[], patientId: PatientId): SeriesOption[] {
   return distinctSeriesOptions(rows.filter((r) => r.patientId === patientId))
 }
 
@@ -36,6 +36,6 @@ export function seriesDisplayLabel(opt: SeriesOption): string {
 
 /** Patient identifier label. Names are intentionally not stored or displayed
  * (no PHI names enter the app), so this is just the patient id. */
-export function patientLabel(_rows: LabRow[], patientId: number): string {
+export function patientLabel(_rows: LabRow[], patientId: PatientId): string {
   return String(patientId)
 }

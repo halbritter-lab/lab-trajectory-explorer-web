@@ -6,6 +6,7 @@ import { MiniSparkline } from '../charts/MiniSparkline'
 import { CohortTrajectoryOverlay } from './CohortTrajectoryOverlay'
 import { sheetsToXlsxBytes, downloadBlob, fileStamp } from '../../io/export'
 import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
+import { comparePatientIds, patientIdKey } from '../../core/types'
 
 type CohortSortKey = 'id' | 'slope' | 'absSlope' | 'n' | 'duration'
 type CohortBadge = { className: string; label: string; title: string }
@@ -45,6 +46,18 @@ function visibleBadges(badges: CohortBadge[]): CohortBadge[] {
   ]
 }
 
+function slopeTitle(c: { slope: number; r2: number; ciLow: number; ciHigh: number; einheit: string | null }): string | undefined {
+  if (Number.isNaN(c.slope)) return undefined
+  const parts = [
+    `Slope ${c.slope.toFixed(3)} ${slopeUnit(c.einheit)}`,
+    Number.isFinite(c.r2) ? `R²=${c.r2.toFixed(2)}` : null,
+    Number.isFinite(c.ciLow) && Number.isFinite(c.ciHigh)
+      ? `95% CI [${c.ciLow.toFixed(3)}, ${c.ciHigh.toFixed(3)}]`
+      : null,
+  ]
+  return parts.filter((part): part is string => part !== null).join(' · ')
+}
+
 export function CohortView() {
   const analysisResult = useAppStore((s) => s.analysisResult())
   const displayRows = analysisResult.rows
@@ -66,9 +79,10 @@ export function CohortView() {
   const rapidThreshold = useAppStore((s) => s.analysisSettings.rapidEgfrDecline.threshold)
 
   const clinicalEventsByPatient = useMemo(() => {
-    const grouped: Record<number, typeof events> = {}
+    const grouped: Record<string, typeof events> = {}
     for (const event of events) {
-      grouped[event.patientId] = [...(grouped[event.patientId] ?? []), event]
+      const key = patientIdKey(event.patientId)
+      grouped[key] = [...(grouped[key] ?? []), event]
     }
     return grouped
   }, [events])
@@ -90,16 +104,21 @@ export function CohortView() {
     [configs, clinicalEventsByPatient, analysisResult.fitInputs],
   )
   const patientIds = useMemo(() => {
-    const all = [...new Set(displayRows.map((r) => r.patientId))].sort((a, b) => a - b)
+    const all = [...new Set(displayRows.map((r) => r.patientId))].sort(comparePatientIds)
     return cohortPatientMode === 'selected' ? all.filter((id) => selectedPatientIds.includes(id)) : all
   }, [displayRows, cohortPatientMode, selectedPatientIds])
-  const cohortRows = useMemo(() => buildCohortRows(displayRows, patientIds, specs), [displayRows, patientIds, specs])
+  const cohortRows = useMemo(
+    () => buildCohortRows(displayRows, patientIds, specs)
+      .filter((row) => row.cells.some((cell) => cell.points.length >= 2)),
+    [displayRows, patientIds, specs],
+  )
   const eventsByPatient = useMemo(() => {
-    const grouped = new Map<number, { date: Date; label: string }[]>()
+    const grouped = new Map<string, { date: Date; label: string }[]>()
     for (const event of events) {
-      const patientEvents = grouped.get(event.patientId) ?? []
+      const key = patientIdKey(event.patientId)
+      const patientEvents = grouped.get(key) ?? []
       patientEvents.push({ date: event.date, label: event.title })
-      grouped.set(event.patientId, patientEvents)
+      grouped.set(key, patientEvents)
     }
     for (const patientEvents of grouped.values()) patientEvents.sort((a, b) => a.date.getTime() - b.date.getTime())
     return grouped
@@ -107,7 +126,7 @@ export function CohortView() {
 
   const sorted = useMemo(() => {
     const metric = (r: (typeof cohortRows)[number]): number => {
-      if (sort.key === 'id') return r.patientId
+      if (sort.key === 'id') return 0
       const c = r.cells[sort.seriesIndex ?? 0]
       if (!c) return Number.NEGATIVE_INFINITY
       switch (sort.key) {
@@ -120,6 +139,7 @@ export function CohortView() {
     const out = [...cohortRows]
     out.sort((a, b) => {
       const va = metric(a), vb = metric(b)
+      if (sort.key === 'id') return sort.dir === 'desc' ? comparePatientIds(b.patientId, a.patientId) : comparePatientIds(a.patientId, b.patientId)
       const na = Number.isNaN(va), nb = Number.isNaN(vb)
       if (na && nb) return 0
       if (na) return 1
@@ -258,12 +278,12 @@ export function CohortView() {
                               fitLines={c.fitLines}
                               akiBands={showAki ? c.akiBands : []}
                               excludedIdx={c.excludedIdx}
-                              events={showEvents ? eventsByPatient.get(r.patientId) ?? [] : []}
+                              events={showEvents ? eventsByPatient.get(patientIdKey(r.patientId)) ?? [] : []}
                               connect={connectPoints}
                             />
                             <span
                               className="cell-slope"
-                              title={Number.isNaN(c.slope) ? undefined : `Slope ${c.slope.toFixed(3)} ${slopeUnit(c.einheit)} · R²=${c.r2.toFixed(2)} · 95% CI [${c.ciLow.toFixed(3)}, ${c.ciHigh.toFixed(3)}]`}
+                              title={slopeTitle(c)}
                             >
                               {Number.isNaN(c.slope) ? '—' : `${c.slope.toFixed(2)}/yr`}
                             </span>

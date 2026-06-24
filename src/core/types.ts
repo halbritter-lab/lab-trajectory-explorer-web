@@ -8,8 +8,19 @@ export interface ParsedWert {
 
 export type Sex = 'm' | 'w' | 'd'
 
+export type PatientId = number | string
+
+export function patientIdKey(patientId: PatientId): string {
+  return String(patientId)
+}
+
+export function comparePatientIds(a: PatientId, b: PatientId): number {
+  if (typeof a === 'number' && typeof b === 'number') return a - b
+  return String(a).localeCompare(String(b), undefined, { numeric: true, sensitivity: 'base' })
+}
+
 export interface LabRow {
-  patientId: number
+  patientId: PatientId
   labDatum: Date | null
   bezeichnung: string | null
   einheit: string | null

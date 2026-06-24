@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react'
 import { useAppStore } from '../state/store'
 import { patientLabel } from '../options'
+import { comparePatientIds, patientIdKey } from '../../core/types'
 
 const TEST_DATA_HREF = `${import.meta.env.BASE_URL}test_labs.xlsx`
 
@@ -10,7 +11,7 @@ export function Toolbar() {
   // Derive patient ids from rows via useMemo. Calling a store method that builds
   // a fresh array inside the selector returns a new reference every render and
   // sends Zustand into an infinite re-render loop (React error #185).
-  const patientIds = useMemo(() => [...new Set(rows.map((r) => r.patientId))].sort((a, b) => a - b), [rows])
+  const patientIds = useMemo(() => [...new Set(rows.map((r) => r.patientId))].sort(comparePatientIds), [rows])
   const selected = useAppStore((s) => s.selectedPatientId)
   const view = useAppStore((s) => s.view)
   const cohortDisplayMode = useAppStore((s) => s.cohortDisplayMode)
@@ -61,8 +62,15 @@ export function Toolbar() {
       {hasData && (
         <label className="patient-picker">
           Patient
-          <select aria-label="Patient" value={selected ?? ''} onChange={(e) => selectPatient(Number(e.target.value))}>
-            {patientIds.map((id) => <option key={id} value={id}>{patientLabel(rows, id)}</option>)}
+          <select
+            aria-label="Patient"
+            value={selected ?? ''}
+            onChange={(e) => {
+              const id = patientIds.find((pid) => patientIdKey(pid) === e.target.value)
+              if (id !== undefined) selectPatient(id)
+            }}
+          >
+            {patientIds.map((id) => <option key={patientIdKey(id)} value={patientIdKey(id)}>{patientLabel(rows, id)}</option>)}
           </select>
         </label>
       )}

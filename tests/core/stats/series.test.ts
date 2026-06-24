@@ -25,7 +25,20 @@ describe('fitGlobal', () => {
     expect(fit.slope).toBeLessThan(1.1)
   })
 
-  it('returns n_below_threshold for under 3 points', () => {
+  it('computes an exact two-point slope without confidence interval', () => {
+    const fit = fitGlobal([
+      { date: d('2000-01-01'), value: 1 },
+      { date: d('2001-01-01'), value: 2 },
+    ])
+    expect(fit.reason).toBeNull()
+    expect(fit.slope).toBeGreaterThan(0.9)
+    expect(fit.slope).toBeLessThan(1.1)
+    expect(fit.r2).toBe(1)
+    expect(Number.isNaN(fit.ciLow)).toBe(true)
+    expect(Number.isNaN(fit.ciHigh)).toBe(true)
+  })
+
+  it('returns n_below_threshold for one point', () => {
     const fit = fitGlobal([{ date: d('2000-01-01'), value: 1 }])
     expect(fit.reason).toBe('n_below_threshold')
   })

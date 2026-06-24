@@ -1,4 +1,4 @@
-import type { LabRow } from '../types'
+import { comparePatientIds, type LabRow, type PatientId } from '../types'
 import type { SeriesPoint } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { summarizeByBezeichnung } from '../stats/summarize'
@@ -29,9 +29,9 @@ export interface CohortSeriesSpec {
   cutoffDays?: number
   exclusionDays?: number
   eventDates?: Date[]
-  eventDatesByPatient?: Record<number, Date[]>
+  eventDatesByPatient?: Record<string, Date[]>
   clinicalEvents?: ClinicalEvent[]
-  clinicalEventsByPatient?: Record<number, ClinicalEvent[]>
+  clinicalEventsByPatient?: Record<string, ClinicalEvent[]>
   fitConfig?: FitConfig
   fitInputs?: AnalysisFitInputContribution[]
 }
@@ -57,20 +57,20 @@ export interface CohortCell {
 }
 
 export interface CohortRow {
-  patientId: number
+  patientId: PatientId
   cells: CohortCell[]
 }
 
 /** One CohortRow per patient; one CohortCell per series spec. The slope cell
  * reuses summarizeByBezeichnung (parity-tested); creatinine mg/dl columns also
  * carry an AKI chip from KDIGO detection. */
-export function buildCohortRows(rows: LabRow[], patientIds: number[], specs: CohortSeriesSpec[]): CohortRow[] {
-  const ids = [...new Set(patientIds)].sort((a, b) => a - b)
+export function buildCohortRows(rows: LabRow[], patientIds: PatientId[], specs: CohortSeriesSpec[]): CohortRow[] {
+  const ids = [...new Set(patientIds)].sort(comparePatientIds)
   // Bucket rows by patient once. Otherwise every (patient × series) cell would
   // re-scan the full table (summarize + per-cell filter + episode source),
   // making the whole cohort build O(patients × rows). Each helper still filters
   // by patientId internally, but now over the small per-patient slice.
-  const byPatient = new Map<number, LabRow[]>()
+  const byPatient = new Map<PatientId, LabRow[]>()
   for (const r of rows) {
     const bucket = byPatient.get(r.patientId)
     if (bucket) bucket.push(r)
@@ -227,7 +227,7 @@ function ageAtDate(date: Date, rows: LabRow[]): number | null {
 }
 
 export interface CohortExportRecord {
-  PatientID: number
+  PatientID: PatientId
   Bezeichnung: string
   Einheit: string
   slope_mode: string

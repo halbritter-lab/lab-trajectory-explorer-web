@@ -68,6 +68,34 @@ describe('CohortView', () => {
     expect(screen.getByRole('button', { name: '2' })).toBeInTheDocument()
   })
 
+  it('hides patients with no points in any selected cohort series', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 'P-A', bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2019-01-01'), wertNum: 1.0 }),
+      row({ patientId: 'P-A', bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2020-01-01'), wertNum: 1.1 }),
+      row({ patientId: 'P-B', bezeichnung: 'HbA1c', einheit: '%', labDatum: new Date('2019-01-01'), wertNum: 6.0 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+
+    render(<CohortView />)
+
+    expect(screen.getByRole('button', { name: 'P-A' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'P-B' })).not.toBeInTheDocument()
+  })
+
+  it('hides patients with only one point in the selected cohort series', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 'P-A', bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2019-01-01'), wertNum: 1.0 }),
+      row({ patientId: 'P-A', bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2020-01-01'), wertNum: 1.1 }),
+      row({ patientId: 'P-B', bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2019-01-01'), wertNum: 1.2 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+
+    render(<CohortView />)
+
+    expect(screen.getByRole('button', { name: 'P-A' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'P-B' })).not.toBeInTheDocument()
+  })
+
   it('keeps sort controls in column headers and sorts by the selected series', async () => {
     useAppStore.getState().setDataset([
       row({ patientId: 1, bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2019-01-01'), wertNum: 1.0 }),
@@ -168,10 +196,9 @@ describe('CohortView', () => {
     expect(container.querySelector('.cell-badges')?.children).toHaveLength(2)
   })
 
-  it('does not show percent decline badges when the cohort cell has no fitted slope', () => {
+  it('does not show percent decline badges for a single-point patient hidden from the cohort table', () => {
     useAppStore.getState().setDataset([
       row({ patientId: 3, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2020-01-01'), wertNum: 70, patientAgeAtLab: 60 }),
-      row({ patientId: 3, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2021-01-01'), wertNum: 43, patientAgeAtLab: 61 }),
     ])
     useAppStore.getState().setSeriesConfig(0, {
       bezeichnung: 'eGFR',
@@ -181,7 +208,7 @@ describe('CohortView', () => {
 
     render(<CohortView />)
 
-    expect(screen.getByText('—')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: '3' })).not.toBeInTheDocument()
     expect(screen.queryByText('-39%')).not.toBeInTheDocument()
   })
 

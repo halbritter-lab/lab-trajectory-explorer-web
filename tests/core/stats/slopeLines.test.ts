@@ -22,9 +22,9 @@ describe('buildSlopeLines', () => {
     expect(lines.length).toBeGreaterThanOrEqual(1)
   })
 
-  it('returns no lines when fewer than 3 points (global)', () => {
+  it('returns a global fit line with exactly 2 points', () => {
     const lines = buildSlopeLines(pts.slice(0, 2), { mode: 'global', gapDays: 180, windowDays: 730, stepDays: 180 })
-    expect(lines).toEqual([])
+    expect(lines).toEqual([pts.slice(0, 2)])
   })
 
   it('chronic-ckd starts the trend after the cutoff period', () => {

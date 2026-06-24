@@ -1,4 +1,5 @@
 import type { AnalysisModule, CohortFlagContribution, RapidEgfrDeclineModuleSettings } from './types'
+import type { PatientId } from '../types'
 
 export const RAPID_EGFR_DECLINE_DEFAULT = 5
 
@@ -18,7 +19,7 @@ export const rapidEgfrDeclineModule: AnalysisModule<RapidEgfrDeclineModuleSettin
 }
 
 export interface RapidEgfrDeclineFlagInput {
-  patientId: number
+  patientId: PatientId
   bezeichnung: string
   einheit: string | null
   slope: number

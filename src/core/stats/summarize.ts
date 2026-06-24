@@ -1,4 +1,4 @@
-import type { LabRow } from '../types'
+import type { LabRow, PatientId } from '../types'
 import type { SeriesPoint } from './series'
 import { fitGlobal, fitTheilSen } from './series'
 import { fitSegments } from './segments'
@@ -63,7 +63,7 @@ function groupKey(bez: string | null, einheit: string | null): string {
  * and mode-specific extra columns. */
 export function summarizeByBezeichnung(
   rows: LabRow[],
-  patientId: number,
+  patientId: PatientId,
   mode: SlopeMode = 'global',
   params: SummarizeParams = {},
 ): SeriesSummary[] {
@@ -106,7 +106,7 @@ export function summarizeByBezeichnung(
     let summary: SeriesSummary
     if (nNumeric === 0) {
       summary = { ...base, ...emptyFit, reason: 'no_numeric_values' }
-    } else if (nNumeric < 3) {
+    } else if (nNumeric < 2) {
       summary = { ...base, ...emptyFit, reason: 'n_below_threshold' }
     } else if (fitModel === 'none') {
       summary = { ...base, ...emptyFit, reason: 'n_below_threshold' }
