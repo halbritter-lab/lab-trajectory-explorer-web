@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { useAppStore } from '../../../src/ui/state/store'
 import type { LabRow } from '../../../src/core/types'
+import type { MixedModelResult } from '../../../src/core/mixedModel/types'
+import type { MixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -12,6 +14,47 @@ function row(p: Partial<LabRow>): LabRow {
 
 describe('useAppStore', () => {
   beforeEach(() => useAppStore.getState().reset())
+
+  const mixedModelIdentity: MixedModelResultIdentity = {
+    seriesIndex: 0,
+    seriesKey: 'eGFR|ml/min/1.73m2',
+    patientIdsHash: 'patients',
+    datasetHash: 'dataset',
+    fitConfigHash: 'fit',
+    nPatients: 3,
+    nMeasurements: 6,
+  }
+
+  const mixedModelResult: MixedModelResult = {
+    status: 'success',
+    metadata: {
+      engine: 'webr-lme4',
+      formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+      runtimeVersion: '4.6.0',
+      packageVersions: {},
+      browserUserAgent: 'test',
+      wasmAssetSource: 'cdn',
+      optimizer: 'nloptwrap',
+      reml: true,
+      tolerance: 0.000001,
+      datasetId: 'cohort',
+      datasetHash: 'dataset',
+      randomSeed: null,
+      fitConfigHash: 'fit',
+    },
+    converged: true,
+    warnings: [],
+    nPatients: 3,
+    nMeasurements: 6,
+    fixedEffects: { intercept: 60, timeSinceBaseline: -3 },
+    randomEffects: { interceptSd: null, slopeSd: null, interceptSlopeCorrelation: null },
+    residualSd: null,
+  }
+
+  function storeMixedModelResult() {
+    useAppStore.getState().setMixedModelResult({ result: mixedModelResult, identity: mixedModelIdentity })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+  }
 
   it('starts empty', () => {
     const state = useAppStore.getState()
@@ -50,6 +93,94 @@ describe('useAppStore', () => {
     useAppStore.getState().setView('cohort')
     expect(useAppStore.getState().selectedPatientId).toBe(7)
     expect(useAppStore.getState().view).toBe('cohort')
+  })
+
+  it('stores and clears the current mixed model result', () => {
+    useAppStore.getState().setMixedModelResult({ result: mixedModelResult, identity: mixedModelIdentity })
+
+    expect(useAppStore.getState().mixedModelResult?.result).toBe(mixedModelResult)
+    expect(useAppStore.getState().mixedModelResult?.identity).toEqual(mixedModelIdentity)
+
+    useAppStore.getState().clearMixedModelResult()
+
+    expect(useAppStore.getState().mixedModelResult).toBeNull()
+  })
+
+  it('toggles the cohort mixed model overlay line', () => {
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(true)
+  })
+
+  it('opens and closes the cohort mixed model dialog', () => {
+    expect(useAppStore.getState().mixedModelDialogOpen).toBe(false)
+    useAppStore.getState().setMixedModelDialogOpen(true)
+    expect(useAppStore.getState().mixedModelDialogOpen).toBe(true)
+    useAppStore.getState().setMixedModelDialogOpen(false)
+    expect(useAppStore.getState().mixedModelDialogOpen).toBe(false)
+  })
+
+  it('clears mixed model result state when selected patients change', () => {
+    storeMixedModelResult()
+
+    useAppStore.getState().setSelectedPatientIds([1])
+
+    expect(useAppStore.getState().mixedModelResult).toBeNull()
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
+  })
+
+  it('clears mixed model result state when cohort patient mode changes', () => {
+    storeMixedModelResult()
+
+    useAppStore.getState().setCohortPatientMode('selected')
+
+    expect(useAppStore.getState().mixedModelResult).toBeNull()
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
+  })
+
+  it('keeps mixed model result state when showAki changes', () => {
+    storeMixedModelResult()
+
+    useAppStore.getState().setShowAki(true)
+
+    expect(useAppStore.getState().mixedModelResult?.result).toBe(mixedModelResult)
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(true)
+  })
+
+  it('keeps mixed model result state when only series fit endpoints change', () => {
+    storeMixedModelResult()
+
+    useAppStore.getState().setSeriesFitConfig(0, { endpoints: { percentDecline: true } })
+
+    expect(useAppStore.getState().mixedModelResult?.result).toBe(mixedModelResult)
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(true)
+  })
+
+  it('clears mixed model result state when series fit model data policy changes', () => {
+    storeMixedModelResult()
+
+    useAppStore.getState().setSeriesFitConfig(0, { timeBalancing: 'monthly-median' })
+
+    expect(useAppStore.getState().mixedModelResult).toBeNull()
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
+  })
+
+  it('stores mixed model config and invalidates current result', () => {
+    storeMixedModelResult()
+
+    useAppStore.getState().setMixedModelConfig({
+      timeAxis: 'time_since_baseline',
+      covariates: [],
+      randomEffects: 'intercept',
+    })
+
+    expect(useAppStore.getState().mixedModelConfig).toEqual({
+      timeAxis: 'time_since_baseline',
+      covariates: [],
+      randomEffects: 'intercept',
+    })
+    expect(useAppStore.getState().mixedModelResult).toBeNull()
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
   })
 })
 

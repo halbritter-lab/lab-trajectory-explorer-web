@@ -4,6 +4,7 @@ import { allSourceOptions, creatinineSourceOptions, defaultCreatinineSource, isS
 import { comparePatientIds, patientIdKey, type PatientId, type Sex } from '../../core/types'
 import { effectForEvent, normalizeClinicalEvents, validateClinicalEvents, type ClinicalEvent, type RejectedClinicalEvent } from '../../core/events/events'
 import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
+import { isEgfrUnit } from '../../core/analysis/rapidEgfrDeclineModule'
 import { readWorkbook } from '../../io/readWorkbook'
 
 export function Sidebar() {
@@ -37,11 +38,19 @@ export function Sidebar() {
   const setConnectPoints = useAppStore((s) => s.setConnectPoints)
   const rapidEgfrThreshold = useAppStore((s) => s.analysisSettings.rapidEgfrDecline.threshold)
   const setRapidEgfrThreshold = useAppStore((s) => s.setRapidEgfrThreshold)
+  const mixedModelResult = useAppStore((s) => s.mixedModelResult)
+  const showCohortMixedModelLine = useAppStore((s) => s.showCohortMixedModelLine)
+  const setMixedModelDialogOpen = useAppStore((s) => s.setMixedModelDialogOpen)
+  const setShowCohortMixedModelLine = useAppStore((s) => s.setShowCohortMixedModelLine)
   const [eventNote, setEventNote] = useState('')
   const [rejectedEvents, setRejectedEvents] = useState<RejectedClinicalEvent[]>([])
   const patientIds = [...new Set(rows.map((r) => r.patientId))].sort(comparePatientIds)
   const activeFitSeriesIndex = Math.min(fitSeriesIndex, seriesConfigs.length - 1)
   const primaryFitConfig = seriesConfigs[activeFitSeriesIndex].fitConfig
+  const hasCohortMixedModelResult = mixedModelResult?.result.status === 'success'
+  const hasActiveEgfrCohortSeries = seriesConfigs.some((cfg) =>
+    Boolean(cfg.bezeichnung?.toLowerCase().includes('egfr') || isEgfrUnit(cfg.einheit)),
+  )
 
   const autoSourceOptions = creatinineSourceOptions(rows)
   const sourceOptions = showAllEgfrSources ? allSourceOptions(rows) : autoSourceOptions
@@ -354,6 +363,33 @@ export function Sidebar() {
                 <option value="segmented-ols">Segmented OLS</option>
               </select>
             </label>
+            <div className="sidebar-control-frame" role="group" aria-label="Cohort mixed model">
+              <div className="sidebar-control-frame-title">
+                <span>Cohort mixed model</span>
+                <span className="experimental-badge">Experimental</span>
+              </div>
+              <button
+                type="button"
+                className="sidebar-action"
+                disabled={!hasActiveEgfrCohortSeries}
+                onClick={() => setMixedModelDialogOpen(true)}
+              >
+                Open eGFR cohort model
+              </button>
+              {!hasActiveEgfrCohortSeries && (
+                <p className="sidebar-note">Select an eGFR cohort series to enable the experimental model.</p>
+              )}
+              <label className="sidebar-check">
+                <input
+                  type="checkbox"
+                  aria-label="Cohort model line"
+                  checked={hasCohortMixedModelResult && showCohortMixedModelLine}
+                  disabled={!hasCohortMixedModelResult}
+                  onChange={(e) => setShowCohortMixedModelLine(e.currentTarget.checked)}
+                />
+                Cohort model line
+              </label>
+            </div>
             <div className="sidebar-subgroup-title">Endpoints</div>
             {([
               ['percentDecline', 'Percent eGFR decline'],

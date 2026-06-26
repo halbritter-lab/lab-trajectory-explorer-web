@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CohortView } from '../../src/ui/cohort/CohortView'
@@ -25,9 +25,22 @@ function event(patientId: number, type: 'dialysis' | 'kidney_transplant', date: 
   }
 }
 
+function seedValidEgfrCohort() {
+  useAppStore.getState().setDataset([
+    row({ patientId: '1', bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', wert: '60', wertNum: 60, wertOperator: '=', loinc: null, patientSex: null, labDatum: new Date('2020-01-01'), patientAgeAtLab: 50 }),
+    row({ patientId: '1', bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', wert: '58', wertNum: 58, wertOperator: '=', loinc: null, patientSex: null, labDatum: new Date('2021-01-01'), patientAgeAtLab: 51 }),
+    row({ patientId: '2', bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', wert: '62', wertNum: 62, wertOperator: '=', loinc: null, patientSex: null, labDatum: new Date('2020-01-01'), patientAgeAtLab: 52 }),
+    row({ patientId: '2', bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', wert: '59', wertNum: 59, wertOperator: '=', loinc: null, patientSex: null, labDatum: new Date('2021-01-01'), patientAgeAtLab: 53 }),
+    row({ patientId: '3', bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', wert: '55', wertNum: 55, wertOperator: '=', loinc: null, patientSex: null, labDatum: new Date('2020-01-01'), patientAgeAtLab: 54 }),
+    row({ patientId: '3', bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', wert: '51', wertNum: 51, wertOperator: '=', loinc: null, patientSex: null, labDatum: new Date('2021-01-01'), patientAgeAtLab: 55 }),
+  ])
+  useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+}
+
 describe('CohortView', () => {
   beforeEach(() => {
     useAppStore.getState().reset()
+    vi.unstubAllEnvs()
     useAppStore.getState().setDataset([
       row({ patientId: 1, labDatum: new Date('2019-01-01'), wertNum: 1.0 }),
       row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.5 }),
@@ -37,6 +50,10 @@ describe('CohortView', () => {
       row({ patientId: 2, labDatum: new Date('2021-01-01'), wertNum: 0.9 }),
     ])
     useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+  })
+
+  afterEach(() => {
+    vi.unstubAllEnvs()
   })
 
   it('renders one row per patient', () => {
@@ -175,6 +192,56 @@ describe('CohortView', () => {
 
     expect(screen.getByText('-50% · G5 @ 63.0y')).toBeInTheDocument()
     expect(screen.getByText('-50% · G5 @ 63.0y')).toHaveAttribute('title', 'total eGFR change -50.0% from baseline (not per year) · projected age to CKD G5 63.0 years')
+  })
+
+  it('renders the cohort mixed model panel only inside the model dialog', async () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2021-01-01'), wertNum: 56, patientAgeAtLab: 61 }),
+      row({ patientId: 2, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2020-01-01'), wertNum: 70, patientAgeAtLab: 62 }),
+      row({ patientId: 2, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2021-01-01'), wertNum: 67, patientAgeAtLab: 63 }),
+      row({ patientId: 3, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2020-01-01'), wertNum: 50, patientAgeAtLab: 64 }),
+      row({ patientId: 3, bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: new Date('2021-01-01'), wertNum: 47, patientAgeAtLab: 65 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' })
+
+    render(<CohortView />)
+
+    expect(screen.queryByRole('region', { name: 'Cohort mixed model' })).not.toBeInTheDocument()
+
+    act(() => useAppStore.getState().setMixedModelDialogOpen(true))
+
+    expect(await screen.findByRole('dialog', { name: 'eGFR cohort model' })).toBeInTheDocument()
+    expect(screen.getByText('Experimental')).toBeInTheDocument()
+    expect(screen.getByText(/experimental browser-based mixed model/i)).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Cohort mixed model' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Fit model' })).toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Close eGFR cohort model' }))
+
+    expect(screen.queryByRole('dialog', { name: 'eGFR cohort model' })).not.toBeInTheDocument()
+    expect(useAppStore.getState().mixedModelDialogOpen).toBe(false)
+  })
+
+  it('opens the cohort mixed model dialog without requiring an environment flag', async () => {
+    seedValidEgfrCohort()
+    useAppStore.getState().setMixedModelDialogOpen(true)
+
+    render(<CohortView />)
+
+    expect(await screen.findByRole('dialog', { name: 'eGFR cohort model' })).toBeInTheDocument()
+    expect(await screen.findByRole('region', { name: 'Cohort mixed model' })).toBeInTheDocument()
+  })
+
+  it('shows mixed model configuration directly inside the cohort model dialog', async () => {
+    seedValidEgfrCohort()
+    useAppStore.getState().setMixedModelDialogOpen(true)
+    render(<CohortView />)
+
+    expect(await screen.findByRole('dialog', { name: /egfr cohort model/i })).toBeInTheDocument()
+    expect(screen.getByLabelText(/baseline age/i)).toBeInTheDocument()
+    expect(screen.getByLabelText(/patient intercept\/slope/i)).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: /configure cohort mixed model/i })).not.toBeInTheDocument()
   })
 
   it('stacks cohort pills in a badge column for medium and large mini graph sizes', () => {

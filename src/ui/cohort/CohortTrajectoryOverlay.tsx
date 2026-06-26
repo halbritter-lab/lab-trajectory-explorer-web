@@ -3,12 +3,21 @@ import * as Plot from '@observablehq/plot'
 import { useAppStore, type CohortOverlayXAxis } from '../state/store'
 import { cohortOverlayPointsForSeries, isEgfrLike, patientIdFromPlotDatum, type CohortOverlayPoint } from './cohortOverlayData'
 import { akiExclusionBands, episodesForSeries } from '../../core/aki/akiAware'
+import type { CohortSeriesSpec } from '../../core/cohort/screening'
 import { effectForEvent, eventTooltip } from '../../core/events/events'
 import type { ClinicalEvent } from '../../core/events/events'
 import type { FitConfig } from '../../core/fitPipeline/types'
-import { comparePatientIds, type LabRow, type PatientId } from '../../core/types'
+import {
+  buildMixedModelResultIdentity,
+  mixedModelFitConfigHash,
+  mixedModelIdentityEquals,
+  mixedModelMeanLinePoints,
+} from '../../core/mixedModel/resultIdentity'
+import { mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
+import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../../core/types'
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000
+const MIXED_MODEL_LABEL_OFFSET = 10
 
 function axisLabel(axis: CohortOverlayXAxis): string {
   if (axis === 'age') return 'Age'
@@ -27,6 +36,9 @@ export function CohortTrajectoryOverlay() {
   const showEvents = useAppStore((s) => s.showEvents)
   const showAki = useAppStore((s) => s.showAki)
   const connectPoints = useAppStore((s) => s.connectPoints)
+  const mixedModelConfig = useAppStore((s) => s.mixedModelConfig)
+  const mixedModelResult = useAppStore((s) => s.mixedModelResult)
+  const showCohortMixedModelLine = useAppStore((s) => s.showCohortMixedModelLine)
   const setAxis = useAppStore((s) => s.setCohortOverlayXAxis)
   const selectPatient = useAppStore((s) => s.selectPatient)
   const setView = useAppStore((s) => s.setView)
@@ -46,6 +58,44 @@ export function CohortTrajectoryOverlay() {
   )
   const activeEntry = configuredSeries[Math.min(activeSeriesIndex, Math.max(0, configuredSeries.length - 1))]
   const activeConfig = activeEntry?.config
+
+  const clinicalEventsByPatient = useMemo(() => {
+    const grouped: Record<string, ClinicalEvent[]> = {}
+    for (const event of events) {
+      const key = patientIdKey(event.patientId)
+      grouped[key] = [...(grouped[key] ?? []), event]
+    }
+    return grouped
+  }, [events])
+
+  const activeSpec = useMemo<CohortSeriesSpec | null>(() => {
+    if (!activeConfig?.bezeichnung) return null
+    return {
+      bezeichnung: activeConfig.bezeichnung,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient,
+    }
+  }, [
+    activeConfig?.bezeichnung,
+    activeConfig?.einheit,
+    activeConfig?.mode,
+    activeConfig?.gapDays,
+    activeConfig?.windowDays,
+    activeConfig?.stepDays,
+    activeConfig?.cutoffDays,
+    activeConfig?.exclusionDays,
+    activeConfig?.fitConfig,
+    analysisResult.fitInputs,
+    clinicalEventsByPatient,
+  ])
 
   useEffect(() => {
     if (activeSeriesIndex >= configuredSeries.length) setActiveSeriesIndex(0)
@@ -67,6 +117,64 @@ export function CohortTrajectoryOverlay() {
       highlightedPatientIds: patientMode === 'selected' ? selectedPatientIds : [],
     })
   }, [rows, activeConfig?.bezeichnung, activeConfig?.einheit, scopedPatientIds, axis, patientMode, selectedPatientIds])
+
+  const activeMixedModelRows = useMemo(
+    () => activeSpec
+      ? mixedModelRowsFromCohortInputs(rows, scopedPatientIds, activeSpec)
+      : [],
+    [rows, scopedPatientIds, activeSpec],
+  )
+  const activeMixedModelFitConfigHash = useMemo(
+    () => activeSpec ? mixedModelFitConfigHash(activeSpec, mixedModelConfig) : '',
+    [activeSpec, mixedModelConfig],
+  )
+  const meanBaselineAge = useMemo(() => {
+    const byPatient = new Map<string, number>()
+    for (const row of activeMixedModelRows) {
+      if (Number.isFinite(row.baseline_age) && !byPatient.has(row.patient_id)) {
+        byPatient.set(row.patient_id, row.baseline_age as number)
+      }
+    }
+    if (byPatient.size === 0) return null
+    return [...byPatient.values()].reduce((sum, value) => sum + value, 0) / byPatient.size
+  }, [activeMixedModelRows])
+  const activeMixedModelIdentity = useMemo(() => {
+    if (!activeSpec) return null
+    return buildMixedModelResultIdentity({
+      seriesIndex: activeSeriesIndex,
+      seriesKey: `${activeSpec.bezeichnung}|${activeSpec.einheit ?? ''}`,
+      patientIds: scopedPatientIds.map(String),
+      rows: activeMixedModelRows,
+      fitConfigHash: activeMixedModelFitConfigHash,
+    })
+  }, [activeSeriesIndex, activeSpec, scopedPatientIds, activeMixedModelRows, activeMixedModelFitConfigHash])
+  const mixedModelLine = useMemo(
+    () => (
+      showCohortMixedModelLine
+      && (axis === 'time_since_baseline' || axis === 'age')
+      && mixedModelResult?.result.status === 'success'
+      && mixedModelIdentityEquals(mixedModelResult.identity, activeMixedModelIdentity)
+    )
+      ? mixedModelMeanLinePoints(mixedModelResult.result, activeMixedModelRows, {
+        baselineAgeCentered: 0,
+        ageAxisBaselineAge: axis === 'age' ? meanBaselineAge : null,
+      })
+        .filter((point) => axis !== 'age' || point.age !== undefined)
+        .map((point) => ({
+          x: axis === 'age' ? point.age as number : point.time_since_baseline,
+          value: point.eGFR,
+        }))
+      : [],
+    [showCohortMixedModelLine, axis, mixedModelResult, activeMixedModelIdentity, activeMixedModelRows, meanBaselineAge],
+  )
+  const mixedModelLineLabel = axis === 'age' ? 'Mixed model mean at mean baseline age' : 'Mixed model mean'
+  const mixedModelLineStatus = useMemo(() => {
+    if (!showCohortMixedModelLine) return null
+    if (mixedModelLine.length > 0) return axis === 'age' ? 'Model line: mean baseline age projection' : 'Model line: follow-up time'
+    if (axis === 'calendar_time') return 'Model line: available on Age or Years since baseline'
+    if (mixedModelResult?.result.status === 'success') return 'Model line: fit active series/settings first'
+    return null
+  }, [showCohortMixedModelLine, mixedModelLine.length, axis, mixedModelResult])
 
   const patientIds = useMemo(() => [...new Set(points.map((p) => p.patientId))].sort(comparePatientIds), [points])
   const title = activeConfig?.einheit ? `${activeConfig.bezeichnung} (${activeConfig.einheit})` : activeConfig?.bezeichnung ?? ''
@@ -162,6 +270,38 @@ export function CohortTrajectoryOverlay() {
         strokeWidth: 2.4,
       }))
     }
+    if (mixedModelLine.length > 0) {
+      const mixedModelLineEndpoint = mixedModelLine[mixedModelLine.length - 1]
+      const mixedModelLineStart = mixedModelLine[0]
+      const mixedModelLabelDy = mixedModelLineEndpoint.value <= mixedModelLineStart.value
+        ? -MIXED_MODEL_LABEL_OFFSET
+        : MIXED_MODEL_LABEL_OFFSET
+      marks.push(Plot.line(mixedModelLine, {
+        x: 'x',
+        y: 'value',
+        z: null,
+        className: 'cohort-mixed-model-line-mark',
+        stroke: '#111827',
+        strokeDasharray: '6 4',
+        strokeOpacity: 0.95,
+        strokeWidth: 2.8,
+        pointerEvents: 'none',
+      }))
+      marks.push(Plot.text([mixedModelLineEndpoint], {
+        x: 'x',
+        y: 'value',
+        text: () => mixedModelLineLabel,
+        ariaLabel: `${mixedModelLineLabel} label`,
+        className: 'cohort-mixed-model-label-mark',
+        fill: '#111827',
+        fontSize: 11,
+        fontWeight: 700,
+        dx: 8,
+        dy: mixedModelLabelDy,
+        textAnchor: 'start',
+        pointerEvents: 'none',
+      }))
+    }
     marks.push(Plot.dot(points, {
       x: 'x',
       y: 'value',
@@ -201,7 +341,25 @@ export function CohortTrajectoryOverlay() {
       marks,
     })
     el.replaceChildren(fig)
-    const linePaths = [...fig.querySelectorAll<SVGPathElement>('g[aria-label="line"] path')]
+    const mixedModelLinePath = fig.querySelector<SVGPathElement>('g.cohort-mixed-model-line-mark path')
+    if (mixedModelLinePath) {
+      mixedModelLinePath.dataset.testid = 'cohort-mixed-model-line'
+      mixedModelLinePath.setAttribute('aria-label', 'Mixed model mean line')
+      mixedModelLinePath.style.pointerEvents = 'none'
+    }
+    const mixedModelLabel = [...fig.querySelectorAll<SVGTextElement>('text')]
+      .find((text) => text.textContent === mixedModelLineLabel)
+    if (mixedModelLabel && mixedModelLine.length > 0) {
+      const endpoint = mixedModelLine[mixedModelLine.length - 1]
+      const start = mixedModelLine[0]
+      const labelDy = endpoint.value <= start.value ? -MIXED_MODEL_LABEL_OFFSET : MIXED_MODEL_LABEL_OFFSET
+      mixedModelLabel.dataset.testid = 'cohort-mixed-model-line-label'
+      mixedModelLabel.setAttribute('dx', '-8')
+      mixedModelLabel.setAttribute('dy', String(labelDy))
+      mixedModelLabel.setAttribute('text-anchor', 'end')
+      mixedModelLabel.setAttribute('dominant-baseline', labelDy < 0 ? 'auto' : 'hanging')
+    }
+    const linePaths = [...fig.querySelectorAll<SVGPathElement>('g[aria-label="line"]:not(.cohort-mixed-model-line-mark) path')]
     const nExclusionSegments = new Set(exclusionSegments.map((segment) => segment.segmentId)).size
     const trajectoryPaths = nExclusionSegments > 0 ? linePaths.slice(0, -nExclusionSegments) : linePaths
     const exclusionPaths = nExclusionSegments > 0 ? linePaths.slice(-nExclusionSegments) : []
@@ -280,7 +438,7 @@ export function CohortTrajectoryOverlay() {
       renderEventLabels(fig, eventRules, overlayEvents)
     }
     return () => fig.remove()
-  }, [activeConfig?.bezeichnung, title, points, patientIds, axis, width, egfr, connectPoints, hoveredPatientId, selectedOverlayPatientId, overlayEvents, exclusionSegments, excludedPoints])
+  }, [activeConfig?.bezeichnung, title, points, patientIds, axis, width, egfr, connectPoints, hoveredPatientId, selectedOverlayPatientId, overlayEvents, exclusionSegments, excludedPoints, mixedModelLine, mixedModelLineLabel])
 
   function openPatient(patientId: PatientId) {
     selectPatient(patientId)
@@ -326,6 +484,7 @@ export function CohortTrajectoryOverlay() {
         <span className="cohort-overlay-stat">Axis: {axisLabel(axis)}</span>
         <span className="cohort-overlay-stat">{patientLabel}</span>
         <span className="cohort-overlay-stat">{pointLabel}</span>
+        {mixedModelLineStatus && <span className="cohort-overlay-stat">{mixedModelLineStatus}</span>}
         {selectedOverlayPatientId !== null && <span className="cohort-overlay-stat">Selected: Patient {selectedOverlayPatientId}</span>}
         {hoveredPatientId !== null && <span className="cohort-overlay-stat">Hover: Patient {hoveredPatientId}</span>}
       </div>

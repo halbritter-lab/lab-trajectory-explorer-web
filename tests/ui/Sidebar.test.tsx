@@ -1,9 +1,11 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Sidebar } from '../../src/ui/shell/Sidebar'
 import { useAppStore } from '../../src/ui/state/store'
 import type { LabRow } from '../../src/core/types'
+import type { MixedModelResult } from '../../src/core/mixedModel/types'
+import type { MixedModelResultIdentity } from '../../src/core/mixedModel/resultIdentity'
 
 function row(p: Partial<LabRow>): LabRow {
   return {
@@ -19,6 +21,42 @@ function row(p: Partial<LabRow>): LabRow {
     patientAgeAtLab: null,
     ...p,
   }
+}
+
+const mixedModelIdentity: MixedModelResultIdentity = {
+  seriesIndex: 0,
+  seriesKey: 'eGFR|ml/min/1.73m2',
+  patientIdsHash: 'patients',
+  datasetHash: 'dataset',
+  fitConfigHash: 'fit',
+  nPatients: 3,
+  nMeasurements: 6,
+}
+
+const mixedModelSuccess: MixedModelResult = {
+  status: 'success',
+  metadata: {
+    engine: 'webr-lme4',
+    formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+    runtimeVersion: '4.6.0',
+    packageVersions: {},
+    browserUserAgent: 'test',
+    wasmAssetSource: 'cdn',
+    optimizer: 'nloptwrap',
+    reml: true,
+    tolerance: 0.000001,
+    datasetId: 'cohort',
+    datasetHash: 'dataset',
+    randomSeed: null,
+    fitConfigHash: 'fit',
+  },
+  converged: true,
+  warnings: [],
+  nPatients: 3,
+  nMeasurements: 6,
+  fixedEffects: { intercept: 60, timeSinceBaseline: -3 },
+  randomEffects: { interceptSd: null, slopeSd: null, interceptSlopeCorrelation: null },
+  residualSd: null,
 }
 
 describe('Sidebar eGFR controls', () => {
@@ -245,7 +283,46 @@ describe('Sidebar nephro fit configuration', () => {
     expect(screen.getByLabelText('Exclude AKI windows from trend fits')).toBeInTheDocument()
     expect(screen.getByLabelText('Time balancing')).toBeInTheDocument()
     expect(screen.getByLabelText('Fit model')).toBeInTheDocument()
+    const mixedModelGroup = screen.getByRole('group', { name: 'Cohort mixed model' })
+    expect(mixedModelGroup).toHaveClass('sidebar-control-frame')
+    expect(within(mixedModelGroup).getByText('Experimental')).toBeInTheDocument()
+    expect(within(mixedModelGroup).getByRole('button', { name: 'Open eGFR cohort model' })).toBeInTheDocument()
+    expect(within(mixedModelGroup).getByLabelText('Cohort model line')).toBeDisabled()
     expect(screen.queryByLabelText('Fit x-axis')).not.toBeInTheDocument()
+  })
+
+  it('disables the eGFR cohort model dialog button until an eGFR series is active', () => {
+    render(<Sidebar />)
+
+    const mixedModelGroup = screen.getByRole('group', { name: 'Cohort mixed model' })
+    expect(within(mixedModelGroup).getByRole('button', { name: 'Open eGFR cohort model' })).toBeDisabled()
+    expect(within(mixedModelGroup).getByText('Select an eGFR cohort series to enable the experimental model.')).toBeInTheDocument()
+  })
+
+  it('opens the eGFR cohort model dialog from the nephro controls', async () => {
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    render(<Sidebar />)
+
+    expect(useAppStore.getState().mixedModelDialogOpen).toBe(false)
+    const button = screen.getByRole('button', { name: 'Open eGFR cohort model' })
+    expect(button).toBeEnabled()
+    await userEvent.click(button)
+    expect(useAppStore.getState().mixedModelDialogOpen).toBe(true)
+  })
+
+  it('enables the cohort model line toggle after a model result is available', async () => {
+    render(<Sidebar />)
+
+    const toggle = screen.getByLabelText('Cohort model line')
+    expect(toggle).toBeDisabled()
+
+    act(() => {
+      useAppStore.getState().setMixedModelResult({ identity: mixedModelIdentity, result: mixedModelSuccess })
+    })
+
+    expect(screen.getByLabelText('Cohort model line')).toBeEnabled()
+    await userEvent.click(screen.getByLabelText('Cohort model line'))
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(true)
   })
 
   it('switches presets to CKD progression defaults and marks manual edits as custom', async () => {

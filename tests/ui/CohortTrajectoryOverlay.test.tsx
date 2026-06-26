@@ -5,6 +5,14 @@ import { CohortTrajectoryOverlay } from '../../src/ui/cohort/CohortTrajectoryOve
 import { useAppStore } from '../../src/ui/state/store'
 import type { LabRow } from '../../src/core/types'
 import { ckdProgressionConfig, generalExplorationConfig } from '../../src/core/fitPipeline/types'
+import { buildMixedModelResultIdentity, mixedModelFitConfigHash } from '../../src/core/mixedModel/resultIdentity'
+import { mixedModelRowsFromCohortInputs } from '../../src/core/mixedModel/cohortDataset'
+import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula, type MixedModelConfig } from '../../src/core/mixedModel/config'
+import {
+  MIXED_MODEL_FORMULA,
+  MIXED_MODEL_TOLERANCE,
+  type MixedModelSuccess,
+} from '../../src/core/mixedModel/types'
 
 function row(p: Partial<LabRow>): LabRow {
   return {
@@ -27,6 +35,42 @@ function rectsOverlap(
   b: { x1: number; x2: number; y1: number; y2: number },
 ): boolean {
   return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1
+}
+
+function mixedModelSuccess(overrides: Partial<MixedModelSuccess> = {}): MixedModelSuccess {
+  return {
+    status: 'success',
+    metadata: {
+      engine: 'webr-lme4',
+      formula: MIXED_MODEL_FORMULA,
+      runtimeVersion: '4.6.0',
+      packageVersions: { lme4: '1.1-35' },
+      browserUserAgent: 'vitest',
+      wasmAssetSource: 'cdn',
+      optimizer: 'nloptwrap',
+      reml: true,
+      tolerance: MIXED_MODEL_TOLERANCE,
+      datasetId: 'cohort',
+      datasetHash: 'abc12345',
+      randomSeed: null,
+      fitConfigHash: 'fit-policy',
+    },
+    converged: true,
+    warnings: [],
+    nPatients: 3,
+    nMeasurements: 6,
+    fixedEffects: {
+      intercept: 60,
+      timeSinceBaseline: -3,
+    },
+    randomEffects: {
+      interceptSd: 4.2,
+      slopeSd: 1.1,
+      interceptSlopeCorrelation: -0.2,
+    },
+    residualSd: 2.4,
+    ...overrides,
+  }
 }
 
 describe('CohortTrajectoryOverlay state', () => {
@@ -65,6 +109,353 @@ describe('CohortTrajectoryOverlay', () => {
     expect(screen.getByText('2 patients')).toBeInTheDocument()
     expect(screen.getByText('4 points')).toBeInTheDocument()
     expect(screen.queryByText('CKD thresholds: 60, 45, 30, 15')).not.toBeInTheDocument()
+  })
+
+  it('draws the stored mixed-model mean line for the matching time-baseline and age overlays', () => {
+    const rows = [
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 59 }),
+      row({ patientId: 2, labDatum: new Date('2020-02-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 58 }),
+      row({ patientId: 2, labDatum: new Date('2021-02-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 54 }),
+      row({ patientId: 3, labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 70, wertNum: 67 }),
+      row({ patientId: 3, labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 71, wertNum: 63 }),
+    ]
+    useAppStore.getState().setDataset(rows)
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().setCohortOverlayXAxis('time_since_baseline')
+
+    const analysisResult = useAppStore.getState().analysisResult()
+    const activeConfig = useAppStore.getState().seriesConfigs[0]
+    const patientIds = [1, 2, 3]
+    const activeSpec = {
+      bezeichnung: activeConfig.bezeichnung as string,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient: {},
+    }
+    const modelRows = mixedModelRowsFromCohortInputs(analysisResult.rows, patientIds, activeSpec)
+    const identity = buildMixedModelResultIdentity({
+      seriesIndex: 0,
+      seriesKey: 'eGFR|ml/min/1.73m2',
+      patientIds: patientIds.map(String),
+      rows: modelRows,
+      fitConfigHash: mixedModelFitConfigHash(activeSpec),
+    })
+
+    useAppStore.getState().setMixedModelResult({
+      identity,
+      result: mixedModelSuccess({ metadata: { ...mixedModelSuccess().metadata, fitConfigHash: identity.fitConfigHash } }),
+    })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+
+    const { rerender } = render(<CohortTrajectoryOverlay />)
+
+    expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
+    expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('Mixed model mean')
+
+    act(() => useAppStore.getState().setCohortOverlayXAxis('age'))
+    rerender(<CohortTrajectoryOverlay />)
+
+    expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
+    expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('Mixed model mean at mean baseline age')
+  })
+
+  it('draws the baseline-age adjusted mixed-model mean line for the default config', () => {
+    const rows = [
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 59 }),
+      row({ patientId: 2, labDatum: new Date('2020-02-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 58 }),
+      row({ patientId: 2, labDatum: new Date('2021-02-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 54 }),
+      row({ patientId: 3, labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 70, wertNum: 67 }),
+      row({ patientId: 3, labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 71, wertNum: 63 }),
+    ]
+    useAppStore.getState().setDataset(rows)
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().setMixedModelConfig(DEFAULT_MIXED_MODEL_CONFIG)
+    useAppStore.getState().setCohortOverlayXAxis('time_since_baseline')
+
+    const analysisResult = useAppStore.getState().analysisResult()
+    const activeConfig = useAppStore.getState().seriesConfigs[0]
+    const patientIds = [1, 2, 3]
+    const activeSpec = {
+      bezeichnung: activeConfig.bezeichnung as string,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient: {},
+    }
+    const modelRows = mixedModelRowsFromCohortInputs(analysisResult.rows, patientIds, activeSpec)
+    const identity = buildMixedModelResultIdentity({
+      seriesIndex: 0,
+      seriesKey: 'eGFR|ml/min/1.73m2',
+      patientIds: patientIds.map(String),
+      rows: modelRows,
+      fitConfigHash: mixedModelFitConfigHash(activeSpec, DEFAULT_MIXED_MODEL_CONFIG),
+    })
+
+    useAppStore.getState().setMixedModelResult({
+      identity,
+      result: mixedModelSuccess({
+        metadata: {
+          ...mixedModelSuccess().metadata,
+          formula: mixedModelFormula(DEFAULT_MIXED_MODEL_CONFIG),
+          modelConfig: DEFAULT_MIXED_MODEL_CONFIG,
+          fitConfigHash: identity.fitConfigHash,
+        },
+        fixedEffects: { intercept: 100, timeSinceBaseline: -2, baselineAge: -0.5 },
+      }),
+    })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+
+    render(<CohortTrajectoryOverlay />)
+
+    expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
+    expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('Mixed model mean')
+  })
+
+  it('places the mixed-model line label above a declining line endpoint', () => {
+    const rows = [
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 95 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 90 }),
+      row({ patientId: 2, labDatum: new Date('2020-02-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 95 }),
+      row({ patientId: 2, labDatum: new Date('2021-02-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 90 }),
+      row({ patientId: 3, labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 70, wertNum: 95 }),
+      row({ patientId: 3, labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 71, wertNum: 90 }),
+    ]
+    useAppStore.getState().setDataset(rows)
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().setCohortOverlayXAxis('time_since_baseline')
+
+    const analysisResult = useAppStore.getState().analysisResult()
+    const activeConfig = useAppStore.getState().seriesConfigs[0]
+    const patientIds = [1, 2, 3]
+    const activeSpec = {
+      bezeichnung: activeConfig.bezeichnung as string,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient: {},
+    }
+    const modelRows = mixedModelRowsFromCohortInputs(analysisResult.rows, patientIds, activeSpec)
+    const identity = buildMixedModelResultIdentity({
+      seriesIndex: 0,
+      seriesKey: 'eGFR|ml/min/1.73m2',
+      patientIds: patientIds.map(String),
+      rows: modelRows,
+      fitConfigHash: mixedModelFitConfigHash(activeSpec, DEFAULT_MIXED_MODEL_CONFIG),
+    })
+
+    useAppStore.getState().setMixedModelResult({
+      identity,
+      result: mixedModelSuccess({
+        metadata: {
+          ...mixedModelSuccess().metadata,
+          formula: mixedModelFormula(DEFAULT_MIXED_MODEL_CONFIG),
+          modelConfig: DEFAULT_MIXED_MODEL_CONFIG,
+          fitConfigHash: identity.fitConfigHash,
+        },
+        fixedEffects: { intercept: 95, timeSinceBaseline: -5, baselineAge: 0 },
+      }),
+    })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+
+    render(<CohortTrajectoryOverlay />)
+
+    const label = screen.getByText('Mixed model mean')
+    expect(label).toHaveAttribute('dy', '-10')
+    expect(label).toHaveAttribute('dx', '-8')
+    expect(label).toHaveAttribute('text-anchor', 'end')
+    expect(label).toHaveAttribute('dominant-baseline', 'auto')
+  })
+
+  it('matches the mixed-model overlay identity with the active non-default model config', () => {
+    const rows = [
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 59 }),
+      row({ patientId: 2, labDatum: new Date('2020-02-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 58 }),
+      row({ patientId: 2, labDatum: new Date('2021-02-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 54 }),
+      row({ patientId: 3, labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 70, wertNum: 67 }),
+      row({ patientId: 3, labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 71, wertNum: 63 }),
+    ]
+    const nonDefaultConfig: MixedModelConfig = {
+      timeAxis: 'time_since_baseline',
+      covariates: [],
+      randomEffects: 'intercept',
+    }
+    useAppStore.getState().setDataset(rows)
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().setMixedModelConfig(nonDefaultConfig)
+    useAppStore.getState().setCohortOverlayXAxis('time_since_baseline')
+
+    const analysisResult = useAppStore.getState().analysisResult()
+    const activeConfig = useAppStore.getState().seriesConfigs[0]
+    const patientIds = [1, 2, 3]
+    const activeSpec = {
+      bezeichnung: activeConfig.bezeichnung as string,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient: {},
+    }
+    const modelRows = mixedModelRowsFromCohortInputs(analysisResult.rows, patientIds, activeSpec)
+    const identity = buildMixedModelResultIdentity({
+      seriesIndex: 0,
+      seriesKey: 'eGFR|ml/min/1.73m2',
+      patientIds: patientIds.map(String),
+      rows: modelRows,
+      fitConfigHash: mixedModelFitConfigHash(activeSpec, nonDefaultConfig),
+    })
+
+    useAppStore.getState().setMixedModelResult({
+      identity,
+      result: mixedModelSuccess({
+        metadata: {
+          ...mixedModelSuccess().metadata,
+          formula: mixedModelFormula(nonDefaultConfig),
+          modelConfig: nonDefaultConfig,
+          fitConfigHash: identity.fitConfigHash,
+        },
+      }),
+    })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+
+    render(<CohortTrajectoryOverlay />)
+
+    expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
+  })
+
+  it('matches mixed-model identity by filtered overlay series index when earlier configs are blank', () => {
+    const rows = [
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 59 }),
+      row({ patientId: 2, labDatum: new Date('2020-02-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 58 }),
+      row({ patientId: 2, labDatum: new Date('2021-02-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 54 }),
+      row({ patientId: 3, labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 70, wertNum: 67 }),
+      row({ patientId: 3, labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 71, wertNum: 63 }),
+    ]
+    useAppStore.getState().setDataset(rows)
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: null, einheit: null })
+    useAppStore.getState().addSeries()
+    useAppStore.getState().setSeriesConfig(1, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().setCohortOverlayXAxis('time_since_baseline')
+
+    const analysisResult = useAppStore.getState().analysisResult()
+    const activeConfig = useAppStore.getState().seriesConfigs[1]
+    const patientIds = [1, 2, 3]
+    const activeSpec = {
+      bezeichnung: activeConfig.bezeichnung as string,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient: {},
+    }
+    const modelRows = mixedModelRowsFromCohortInputs(analysisResult.rows, patientIds, activeSpec)
+    const identity = buildMixedModelResultIdentity({
+      seriesIndex: 0,
+      seriesKey: 'eGFR|ml/min/1.73m2',
+      patientIds: patientIds.map(String),
+      rows: modelRows,
+      fitConfigHash: mixedModelFitConfigHash(activeSpec),
+    })
+
+    useAppStore.getState().setMixedModelResult({
+      identity,
+      result: mixedModelSuccess({ metadata: { ...mixedModelSuccess().metadata, fitConfigHash: identity.fitConfigHash } }),
+    })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+
+    render(<CohortTrajectoryOverlay />)
+
+    expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
+    expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('Mixed model mean')
+  })
+
+  it('matches stored mixed-model identity that includes active fit policy fields', () => {
+    const rows = [
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 59 }),
+      row({ patientId: 2, labDatum: new Date('2020-02-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 58 }),
+      row({ patientId: 2, labDatum: new Date('2021-02-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 54 }),
+      row({ patientId: 3, labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 70, wertNum: 67 }),
+      row({ patientId: 3, labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 71, wertNum: 63 }),
+    ]
+    useAppStore.getState().setDataset(rows)
+    useAppStore.getState().setSeriesConfig(0, {
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1.73m2',
+      fitConfig: {
+        ...ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' }),
+        timeBalancing: 'monthly-median',
+      },
+    })
+    useAppStore.getState().setCohortOverlayXAxis('time_since_baseline')
+
+    const analysisResult = useAppStore.getState().analysisResult()
+    const activeConfig = useAppStore.getState().seriesConfigs[0]
+    const patientIds = [1, 2, 3]
+    const activeSpec = {
+      bezeichnung: activeConfig.bezeichnung as string,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient: {},
+    }
+    const modelRows = mixedModelRowsFromCohortInputs(analysisResult.rows, patientIds, activeSpec)
+    const identity = buildMixedModelResultIdentity({
+      seriesIndex: 0,
+      seriesKey: 'eGFR|ml/min/1.73m2',
+      patientIds: patientIds.map(String),
+      rows: modelRows,
+      fitConfigHash: mixedModelFitConfigHash(activeSpec),
+    })
+
+    useAppStore.getState().setMixedModelResult({
+      identity,
+      result: mixedModelSuccess({ metadata: { ...mixedModelSuccess().metadata, fitConfigHash: identity.fitConfigHash } }),
+    })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+
+    render(<CohortTrajectoryOverlay />)
+
+    expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
+    expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('Mixed model mean')
   })
 
   it('does not render Plot popovers above the clickable trajectories', () => {

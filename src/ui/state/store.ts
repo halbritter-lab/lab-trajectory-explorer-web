@@ -12,6 +12,9 @@ import {
   type FitConfig,
   type FitPreset,
 } from '../../core/fitPipeline/types'
+import { DEFAULT_MIXED_MODEL_CONFIG, type MixedModelConfig } from '../../core/mixedModel/config'
+import type { MixedModelResult } from '../../core/mixedModel/types'
+import type { MixedModelResultIdentity } from '../../core/mixedModel/resultIdentity'
 import { saveDataset, clearDataset, saveSettings } from '../../io/persistence'
 import { datasetFromArrayBuffer, loadBundledFixtureData } from '../data/loadDataset'
 
@@ -48,6 +51,11 @@ export type CohortPatientMode = 'all' | 'selected'
 export type CohortDisplayMode = 'table' | 'overlay'
 export type CohortOverlayXAxis = 'age' | 'calendar_time' | 'time_since_baseline'
 
+export interface StoredMixedModelResult {
+  result: MixedModelResult
+  identity: MixedModelResultIdentity
+}
+
 export interface AppState {
   rows: LabRow[]
   fileName: string | null
@@ -71,6 +79,10 @@ export interface AppState {
   persist: boolean
   cohortZoom: ZoomLevel
   connectPoints: boolean
+  mixedModelConfig: MixedModelConfig
+  mixedModelResult: StoredMixedModelResult | null
+  showCohortMixedModelLine: boolean
+  mixedModelDialogOpen: boolean
   /** Rapid eGFR-decline flag threshold (mL/min/1.73m²/yr); 0 disables the flag. */
   rapidEgfrThreshold: number
   busy: boolean
@@ -105,6 +117,11 @@ export interface AppState {
   setPersist: (v: boolean) => void
   setCohortZoom: (z: ZoomLevel) => void
   setConnectPoints: (v: boolean) => void
+  setMixedModelConfig: (config: MixedModelConfig) => void
+  setMixedModelResult: (value: StoredMixedModelResult) => void
+  clearMixedModelResult: () => void
+  setShowCohortMixedModelLine: (value: boolean) => void
+  setMixedModelDialogOpen: (value: boolean) => void
   setRapidEgfrThreshold: (n: number) => void
   clearSaved: () => Promise<void>
   reset: () => void
@@ -127,7 +144,7 @@ const defaultSeries = (): SeriesConfig => ({
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'selectedPatientId' | 'selectedPatientIds' | 'view' | 'returnToCohort' | 'cohortPatientMode' | 'seriesConfigs' | 'egfrFormula'
   | 'analysisSettings' | 'egfrSource' | 'manualDemographics' | 'events' | 'showEvents' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
-  | 'cohortDisplayMode' | 'cohortOverlayXAxis' | 'connectPoints' | 'rapidEgfrThreshold' | 'busy' | 'notice'>
+  | 'cohortDisplayMode' | 'cohortOverlayXAxis' | 'connectPoints' | 'mixedModelConfig' | 'mixedModelResult' | 'showCohortMixedModelLine' | 'mixedModelDialogOpen' | 'rapidEgfrThreshold' | 'busy' | 'notice'>
 
 function analysisSettingsState(analysisSettings: AnalysisSettings) {
   return {
@@ -161,6 +178,10 @@ const initialState = (): AppData => {
     persist: false,
     cohortZoom: 'm',
     connectPoints: true,
+    mixedModelConfig: DEFAULT_MIXED_MODEL_CONFIG,
+    mixedModelResult: null,
+    showCohortMixedModelLine: false,
+    mixedModelDialogOpen: false,
     busy: false,
     notice: null,
   }
@@ -229,6 +250,10 @@ function patchedFitConfig(config: FitConfig, patch: FitConfigPatch): FitConfig {
   }
 }
 
+function changesMixedModelDataPolicy(patch: FitConfigPatch): boolean {
+  return 'xAxis' in patch || 'censoring' in patch || 'exclusions' in patch || 'timeBalancing' in patch || 'fitModel' in patch
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   ...initialState(),
   setNotice: (n) => set({ notice: n }),
@@ -273,15 +298,25 @@ export const useAppStore = create<AppState>((set, get) => ({
       view: 'cohort',
       returnToCohort: false,
       events: [],
+      mixedModelResult: null,
+      showCohortMixedModelLine: false,
       ...analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: null } }),
     }))
     if (get().persist) void saveDataset(rows, fileName ?? null)
   },
   selectPatient: (id) => set({ selectedPatientId: id }),
-  setSelectedPatientIds: (ids) => set({ selectedPatientIds: [...new Set(ids)].sort(comparePatientIds) }),
+  setSelectedPatientIds: (ids) => set({
+    selectedPatientIds: [...new Set(ids)].sort(comparePatientIds),
+    mixedModelResult: null,
+    showCohortMixedModelLine: false,
+  }),
   setView: (v) => set({ view: v }),
   setReturnToCohort: (v) => set({ returnToCohort: v }),
-  setCohortPatientMode: (v) => set({ cohortPatientMode: v }),
+  setCohortPatientMode: (v) => set({
+    cohortPatientMode: v,
+    mixedModelResult: null,
+    showCohortMixedModelLine: false,
+  }),
   setCohortDisplayMode: (v) => set({ cohortDisplayMode: v }),
   setCohortOverlayXAxis: (v) => set({ cohortOverlayXAxis: v }),
   setSeriesConfig: (index, cfg) =>
@@ -294,15 +329,33 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         return next
       }),
+      mixedModelResult: null,
+      showCohortMixedModelLine: false,
     })),
   addSeries: () => set((s) => (s.seriesConfigs.length >= 3 ? s : { seriesConfigs: [...s.seriesConfigs, defaultSeries()] })),
   removeSeries: (index) =>
-    set((s) => (s.seriesConfigs.length <= 1 ? s : { seriesConfigs: s.seriesConfigs.filter((_, i) => i !== index) })),
+    set((s) => ({
+      ...(s.seriesConfigs.length <= 1 ? {} : { seriesConfigs: s.seriesConfigs.filter((_, i) => i !== index) }),
+      mixedModelResult: null,
+      showCohortMixedModelLine: false,
+    })),
   patientIds: () => [...new Set(get().rows.map((r) => r.patientId))].sort(comparePatientIds),
-  setEgfrFormula: (f) => set((s) => analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, formula: f } })),
-  setEgfrSource: (src) => set((s) => analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: src } })),
-  setManualDemographics: (patientId, demo) => set((s) => ({ manualDemographics: { ...s.manualDemographics, [patientId]: demo } })),
-  setEvents: (events) => set({ events }),
+  setEgfrFormula: (f) => set((s) => ({
+    ...analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, formula: f } }),
+    mixedModelResult: null,
+    showCohortMixedModelLine: false,
+  })),
+  setEgfrSource: (src) => set((s) => ({
+    ...analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: src } }),
+    mixedModelResult: null,
+    showCohortMixedModelLine: false,
+  })),
+  setManualDemographics: (patientId, demo) => set((s) => ({
+    manualDemographics: { ...s.manualDemographics, [patientId]: demo },
+    mixedModelResult: null,
+    showCohortMixedModelLine: false,
+  })),
+  setEvents: (events) => set({ events, mixedModelResult: null, showCohortMixedModelLine: false }),
   setShowEvents: (value) => set({ showEvents: value }),
   setSeriesFitPreset: (index, preset) =>
     set((s) => ({
@@ -316,20 +369,26 @@ export const useAppStore = create<AppState>((set, get) => ({
           exclusionDays: fitConfig.exclusions.akiExclusionDays,
         }
       }),
+      mixedModelResult: null,
+      showCohortMixedModelLine: false,
     })),
   setSeriesFitConfig: (index, patch) =>
-    set((s) => ({
-      seriesConfigs: s.seriesConfigs.map((c, i) => {
-        if (i !== index) return c
-        const fitConfig = patchedFitConfig(c.fitConfig, patch)
-        return {
-          ...c,
-          fitConfig,
-          mode: patch.fitModel ? modeForFitModel(patch.fitModel) : c.mode,
-          exclusionDays: fitConfig.exclusions.akiExclusionDays,
-        }
-      }),
-    })),
+    set((s) => {
+      const shouldClearMixedModelResult = changesMixedModelDataPolicy(patch)
+      return {
+        seriesConfigs: s.seriesConfigs.map((c, i) => {
+          if (i !== index) return c
+          const fitConfig = patchedFitConfig(c.fitConfig, patch)
+          return {
+            ...c,
+            fitConfig,
+            mode: patch.fitModel ? modeForFitModel(patch.fitModel) : c.mode,
+            exclusionDays: fitConfig.exclusions.akiExclusionDays,
+          }
+        }),
+        ...(shouldClearMixedModelResult ? { mixedModelResult: null, showCohortMixedModelLine: false } : {}),
+      }
+    }),
   analysisResult: () => {
     const s = get()
     return computeStoreAnalysisResult(s.rows, s.analysisSettings, s.manualDemographics, s.events)
@@ -354,6 +413,15 @@ export const useAppStore = create<AppState>((set, get) => ({
     } else void clearDataset()
   },
   setConnectPoints: (v) => set({ connectPoints: v }),
+  setMixedModelConfig: (config) => set({
+    mixedModelConfig: config,
+    mixedModelResult: null,
+    showCohortMixedModelLine: false,
+  }),
+  setMixedModelResult: (value) => set({ mixedModelResult: value }),
+  clearMixedModelResult: () => set({ mixedModelResult: null, showCohortMixedModelLine: false }),
+  setShowCohortMixedModelLine: (value) => set({ showCohortMixedModelLine: value }),
+  setMixedModelDialogOpen: (value) => set({ mixedModelDialogOpen: value }),
   setRapidEgfrThreshold: (n) => {
     const threshold = Number.isFinite(n) ? Math.max(0, n) : 0
     set((s) => ({
