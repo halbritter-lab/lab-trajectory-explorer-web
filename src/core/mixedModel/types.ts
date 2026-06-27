@@ -47,6 +47,9 @@ export interface MixedModelSuccess {
     timeSinceBaseline: number
     baselineAge?: number
   }
+  fixedEffectConfidenceIntervals: {
+    timeSinceBaseline: [number, number] | null
+  }
   randomEffects: {
     interceptSd: number | null
     slopeSd: number | null

@@ -55,6 +55,7 @@ const mixedModelSuccess: MixedModelResult = {
   nPatients: 3,
   nMeasurements: 6,
   fixedEffects: { intercept: 60, timeSinceBaseline: -3 },
+  fixedEffectConfidenceIntervals: { timeSinceBaseline: [-3.5, -2.5] },
   randomEffects: { interceptSd: null, slopeSd: null, interceptSlopeCorrelation: null },
   residualSd: null,
 }
@@ -188,6 +189,16 @@ describe('Sidebar event table', () => {
     expect(screen.getByLabelText('Events').closest('label')).toHaveTextContent(/^Events$/)
   })
 
+  it('offers the demo events file next to the event upload', () => {
+    render(<Sidebar />)
+
+    const link = screen.getByRole('link', { name: 'Download demo events' })
+    expect(link).toHaveAttribute('href', '/test_events.csv')
+    expect(link).toHaveAttribute('download', 'test_events.csv')
+    expect(link).toHaveAttribute('title', 'Download demo events')
+    expect(link.closest('section')).toHaveTextContent('Events')
+  })
+
   it('shows event effects according to the selected series fit configuration', async () => {
     render(<Sidebar />)
 
@@ -265,6 +276,52 @@ describe('Sidebar event table', () => {
   })
 })
 
+describe('Sidebar patient attributes import', () => {
+  beforeEach(() => {
+    useAppStore.getState().reset()
+    useAppStore.getState().setDataset([row({ patientId: 10 })])
+  })
+
+  it('imports a valid attributes workbook, stores the byPatient map, and shows status counts', async () => {
+    const file = new File([
+      'patientId,genotype,inheritance\n',
+      '10,UMOD,AD\n',
+      '11,MUC1,AD\n',
+      ',orphan,AD\n',
+      '10,DUPLICATE,AD\n',
+    ], 'attributes.csv', { type: 'text/csv' })
+    render(<Sidebar />)
+
+    await userEvent.upload(screen.getByLabelText('Patient attributes'), file)
+
+    expect(await screen.findByText('Loaded 2 attribute rows; rejected 2 rows; 1 unknown patient.')).toBeInTheDocument()
+    expect(useAppStore.getState().patientAttributes).toEqual({
+      '10': { genotype: 'UMOD', inheritance: 'AD' },
+      '11': { genotype: 'MUC1', inheritance: 'AD' },
+    })
+  })
+
+  it('offers the demo attributes file next to the attributes upload', () => {
+    render(<Sidebar />)
+
+    const link = screen.getByRole('link', { name: 'Download demo attributes' })
+    expect(link).toHaveAttribute('href', '/test_attributes.csv')
+    expect(link).toHaveAttribute('download', 'test_attributes.csv')
+    expect(link).toHaveAttribute('title', 'Download demo attributes')
+    expect(link.closest('section')).toHaveTextContent('Patient attributes')
+  })
+
+  it('surfaces the header error and stores nothing when patientId is missing', async () => {
+    const file = new File(['genotype,inheritance\nUMOD,AD\n'], 'attributes.csv', { type: 'text/csv' })
+    render(<Sidebar />)
+
+    await userEvent.upload(screen.getByLabelText('Patient attributes'), file)
+
+    expect(await screen.findByText('Patient attributes file missing required column: patientId.')).toBeInTheDocument()
+    expect(useAppStore.getState().patientAttributes).toEqual({})
+  })
+})
+
 describe('Sidebar nephro fit configuration', () => {
   beforeEach(() => {
     useAppStore.getState().reset()
@@ -317,7 +374,7 @@ describe('Sidebar nephro fit configuration', () => {
     expect(toggle).toBeDisabled()
 
     act(() => {
-      useAppStore.getState().setMixedModelResult({ identity: mixedModelIdentity, result: mixedModelSuccess })
+      useAppStore.setState({ cohortModelResults: { cohort: { identity: mixedModelIdentity, result: mixedModelSuccess } } })
     })
 
     expect(screen.getByLabelText('Cohort model line')).toBeEnabled()

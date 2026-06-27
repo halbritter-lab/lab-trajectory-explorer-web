@@ -75,33 +75,61 @@ export function validateMixedModelRows(
     return failure('INSUFFICIENT_PATIENTS', 'Mixed model fitting requires at least 3 patients.')
   }
 
+  let repeatedPatientCount = 0
+  let singleMeasurementPatientCount = 0
+  let noTimeVariationPatientCount = 0
+  const modelablePatientIds = new Set<string>()
   for (const [patientId, rowsForPatient] of patientRows) {
     if (rowsForPatient.length < 2) {
-      return failure(
-        'INSUFFICIENT_REPEATED_MEASURES',
-        `Patient ${patientId} requires at least 2 repeated measurements for mixed model fitting.`,
-      )
+      singleMeasurementPatientCount += 1
+      continue
     }
-
     const distinctTimes = new Set(rowsForPatient.map((row) => row.time_since_baseline))
     if (distinctTimes.size < 2) {
-      return failure(
-        'NO_WITHIN_PATIENT_TIME_VARIATION',
-        `Patient ${patientId} requires at least 2 distinct time_since_baseline values.`,
-      )
+      noTimeVariationPatientCount += 1
+      continue
     }
+    repeatedPatientCount += 1
+    modelablePatientIds.add(patientId)
+  }
+
+  if (repeatedPatientCount < 3) {
+    return failure(
+      'INSUFFICIENT_REPEATED_MEASURES',
+      'Mixed model fitting requires at least 3 patients with at least 2 repeated measurements.',
+    )
   }
 
   const patientTimeKeys = new Set<string>()
+  let duplicatePatientTimeRowCount = 0
   for (const row of rows) {
+    if (!modelablePatientIds.has(row.patient_id)) continue
     const patientTimeKey = `${row.patient_id}\u0000${row.time_since_baseline}`
     if (patientTimeKeys.has(patientTimeKey)) {
-      return failure('DUPLICATE_PATIENT_TIME', 'Mixed model rows must not duplicate patient_id and time_since_baseline pairs.')
+      duplicatePatientTimeRowCount += 1
+      continue
     }
     patientTimeKeys.add(patientTimeKey)
   }
 
-  return { ok: true, warnings: [] }
+  const warnings: string[] = []
+  if (singleMeasurementPatientCount > 0) {
+    warnings.push(
+      `${singleMeasurementPatientCount} patient${singleMeasurementPatientCount === 1 ? ' has' : 's have'} fewer than 2 repeated measurements and contribute${singleMeasurementPatientCount === 1 ? 's' : ''} limited within-patient information.`,
+    )
+  }
+  if (noTimeVariationPatientCount > 0) {
+    warnings.push(
+      `${noTimeVariationPatientCount} patient${noTimeVariationPatientCount === 1 ? ' has' : 's have'} fewer than 2 distinct time_since_baseline values and contribute${noTimeVariationPatientCount === 1 ? 's' : ''} limited within-patient time information.`,
+    )
+  }
+  if (duplicatePatientTimeRowCount > 0) {
+    warnings.push(
+      `${duplicatePatientTimeRowCount} duplicate patient/time row${duplicatePatientTimeRowCount === 1 ? ' was' : 's were'} retained for mixed model fitting.`,
+    )
+  }
+
+  return { ok: true, warnings }
 }
 
 export function hashMixedModelInput(rows: readonly MixedModelSpikeRow[]): string {

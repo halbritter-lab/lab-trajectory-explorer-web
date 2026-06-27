@@ -45,6 +45,27 @@ describe('buildCohortRows', () => {
     expect(out[0].cells[0].points).toHaveLength(3)
   })
 
+  it('stamps groupValue when an attribute name and attributes map are passed', () => {
+    const rows: LabRow[] = [
+      row({ patientId: 1, labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 1.5 }),
+      row({ patientId: 2, labDatum: d('2019-01-01'), wertNum: 0.9 }),
+      row({ patientId: 2, labDatum: d('2020-01-01'), wertNum: 1.1 }),
+    ]
+    const byPatient = { '1': { genotype: 'A' }, '2': {} }
+    const out = buildCohortRows(rows, [1, 2], [spec], 'genotype', byPatient)
+    expect(out[0].groupValue).toBe('A')
+    expect(out[1].groupValue).toBe('(ungrouped)')
+  })
+
+  it('leaves groupValue undefined when no attribute name is passed (backward compatible)', () => {
+    const rows: LabRow[] = [
+      row({ patientId: 1, labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 1.5 }),
+    ]
+    expect(buildCohortRows(rows, [1], [spec])[0].groupValue).toBeUndefined()
+  })
+
   it('reports a null reason for a successful fit (not no_numeric_values)', () => {
     const rows: LabRow[] = [
       row({ patientId: 1, labDatum: d('2019-01-01'), wertNum: 1.0 }),

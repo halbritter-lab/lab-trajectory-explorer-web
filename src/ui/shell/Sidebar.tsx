@@ -3,9 +3,13 @@ import { useAppStore } from '../state/store'
 import { allSourceOptions, creatinineSourceOptions, defaultCreatinineSource, isSerumCreatinineSource, type FormulaName } from '../../core/egfr/series'
 import { comparePatientIds, patientIdKey, type PatientId, type Sex } from '../../core/types'
 import { effectForEvent, normalizeClinicalEvents, validateClinicalEvents, type ClinicalEvent, type RejectedClinicalEvent } from '../../core/events/events'
+import { normalizePatientAttributes, validatePatientAttributes } from '../../core/attributes/attributes'
 import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
 import { isEgfrUnit } from '../../core/analysis/rapidEgfrDeclineModule'
 import { readWorkbook } from '../../io/readWorkbook'
+
+const DEMO_EVENTS_HREF = `${import.meta.env.BASE_URL}test_events.csv`
+const DEMO_ATTRIBUTES_HREF = `${import.meta.env.BASE_URL}test_attributes.csv`
 
 export function Sidebar() {
   const [open, setOpen] = useState(true)
@@ -29,6 +33,7 @@ export function Sidebar() {
   const setEvents = useAppStore((s) => s.setEvents)
   const showEvents = useAppStore((s) => s.showEvents)
   const setShowEvents = useAppStore((s) => s.setShowEvents)
+  const setPatientAttributes = useAppStore((s) => s.setPatientAttributes)
   const showAki = useAppStore((s) => s.showAki)
   const setShowAki = useAppStore((s) => s.setShowAki)
   const seriesConfigs = useAppStore((s) => s.seriesConfigs)
@@ -38,16 +43,18 @@ export function Sidebar() {
   const setConnectPoints = useAppStore((s) => s.setConnectPoints)
   const rapidEgfrThreshold = useAppStore((s) => s.analysisSettings.rapidEgfrDecline.threshold)
   const setRapidEgfrThreshold = useAppStore((s) => s.setRapidEgfrThreshold)
-  const mixedModelResult = useAppStore((s) => s.mixedModelResult)
+  const cohortModelResults = useAppStore((s) => s.cohortModelResults)
   const showCohortMixedModelLine = useAppStore((s) => s.showCohortMixedModelLine)
   const setMixedModelDialogOpen = useAppStore((s) => s.setMixedModelDialogOpen)
   const setShowCohortMixedModelLine = useAppStore((s) => s.setShowCohortMixedModelLine)
   const [eventNote, setEventNote] = useState('')
   const [rejectedEvents, setRejectedEvents] = useState<RejectedClinicalEvent[]>([])
+  const [attributeNote, setAttributeNote] = useState('')
   const patientIds = [...new Set(rows.map((r) => r.patientId))].sort(comparePatientIds)
   const activeFitSeriesIndex = Math.min(fitSeriesIndex, seriesConfigs.length - 1)
   const primaryFitConfig = seriesConfigs[activeFitSeriesIndex].fitConfig
-  const hasCohortMixedModelResult = mixedModelResult?.result.status === 'success'
+  const hasCohortMixedModelResult =
+    cohortModelResults != null && Object.values(cohortModelResults).some((stored) => stored.result.status === 'success')
   const hasActiveEgfrCohortSeries = seriesConfigs.some((cfg) =>
     Boolean(cfg.bezeichnung?.toLowerCase().includes('egfr') || isEgfrUnit(cfg.einheit)),
   )
@@ -131,6 +138,29 @@ export function Sidebar() {
       setEvents([])
       setRejectedEvents([])
       setEventNote(err instanceof Error ? err.message : String(err))
+    } finally {
+      input.value = ''
+    }
+  }
+
+  async function onPatientAttributesFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const input = e.currentTarget
+    const file = input.files?.[0]
+    if (!file) return
+    try {
+      const raw = readWorkbook(await file.arrayBuffer())
+      const records = normalizePatientAttributes(raw)
+      const result = validatePatientAttributes(records, rows)
+      const unknown = result.valid.filter((record) => record.warning === 'unknown_patient').length
+      setPatientAttributes(result.byPatient)
+      setAttributeNote(
+        `Loaded ${result.valid.length} ${pluralize(result.valid.length, 'attribute row')}` +
+        `${result.rejected.length ? `; rejected ${result.rejected.length} ${pluralize(result.rejected.length, 'row')}` : ''}` +
+        `${unknown ? `; ${unknown} unknown ${pluralize(unknown, 'patient')}` : ''}.`,
+      )
+    } catch (err) {
+      setPatientAttributes({})
+      setAttributeNote(err instanceof Error ? err.message : String(err))
     } finally {
       input.value = ''
     }
@@ -472,9 +502,20 @@ export function Sidebar() {
             <label className="sidebar-field">Events
               <input type="file" aria-label="Events" accept=".xlsx,.csv" onChange={onEventFile} />
             </label>
+            <a className="button-link sidebar-download" href={DEMO_EVENTS_HREF} download="test_events.csv" title="Download demo events">Download demo events</a>
             {eventNote && <p className="sidebar-note sidebar-status" role="status" aria-live="polite">{eventNote}</p>}
             {events.length > 0 && <EventTable events={events} fitConfig={primaryFitConfig} />}
             {rejectedEvents.length > 0 && <RejectedEventTable rejected={rejectedEvents} />}
+          </section>
+
+          <section className="sidebar-group">
+            <h3 className="sidebar-group-title">Patient attributes</h3>
+            <label className="sidebar-field">Patient attributes
+              <input type="file" aria-label="Patient attributes" accept=".xlsx,.csv" onChange={onPatientAttributesFile} />
+            </label>
+            <a className="button-link sidebar-download" href={DEMO_ATTRIBUTES_HREF} download="test_attributes.csv" title="Download demo attributes">Download demo attributes</a>
+            <p className="sidebar-note">Optional per-patient attribute columns (one row per patient, keyed by patientId). Used to group the cohort (overlay colors, per-group fits) and included in exports.</p>
+            {attributeNote && <p className="sidebar-note sidebar-status" role="status" aria-live="polite">{attributeNote}</p>}
           </section>
         </div>
       )}

@@ -15,6 +15,7 @@ import { clinicalEventAffectsFit, filterFitPointsByClinicalEvents } from '../eve
 import type { FitConfig } from '../fitPipeline/types'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings, type EndpointPoint } from '../endpoints/ckdEndpoints'
 import { balanceSeriesPoints } from '../stats/timeBalancing'
+import { groupValueForPatient } from '../grouping/grouping'
 
 export { formatAkiChip, formatAkiEpisodeSummary }
 export { isEgfrUnit, isRapidEgfrDecline, RAPID_EGFR_DECLINE_DEFAULT } from '../analysis/rapidEgfrDeclineModule'
@@ -59,12 +60,21 @@ export interface CohortCell {
 export interface CohortRow {
   patientId: PatientId
   cells: CohortCell[]
+  /** The patient's group value under the active group-by attribute; undefined
+   * when grouping is inactive. */
+  groupValue?: string
 }
 
 /** One CohortRow per patient; one CohortCell per series spec. The slope cell
  * reuses summarizeByBezeichnung (parity-tested); creatinine mg/dl columns also
  * carry an AKI chip from KDIGO detection. */
-export function buildCohortRows(rows: LabRow[], patientIds: PatientId[], specs: CohortSeriesSpec[]): CohortRow[] {
+export function buildCohortRows(
+  rows: LabRow[],
+  patientIds: PatientId[],
+  specs: CohortSeriesSpec[],
+  attributeName?: string | null,
+  byPatientAttributes?: Record<string, Record<string, string>>,
+): CohortRow[] {
   const ids = [...new Set(patientIds)].sort(comparePatientIds)
   // Bucket rows by patient once. Otherwise every (patient × series) cell would
   // re-scan the full table (summarize + per-cell filter + episode source),
@@ -165,7 +175,10 @@ export function buildCohortRows(rows: LabRow[], patientIds: PatientId[], specs: 
         }),
       }
     })
-    return { patientId: pid, cells }
+    const groupValue = attributeName
+      ? groupValueForPatient(pid, byPatientAttributes ?? {}, attributeName)
+      : undefined
+    return { patientId: pid, cells, ...(groupValue !== undefined ? { groupValue } : {}) }
   })
 }
 
@@ -227,6 +240,9 @@ function ageAtDate(date: Date, rows: LabRow[]): number | null {
 }
 
 export interface CohortExportRecord {
+  /** Active group-by value; present (as the first column) only when grouping is
+   * active, i.e. when the source rows carry a groupValue. */
+  group?: string
   PatientID: PatientId
   Bezeichnung: string
   Einheit: string
@@ -275,6 +291,7 @@ export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): Coho
   for (const r of rows) {
     for (const c of r.cells) {
       out.push({
+        ...(r.groupValue !== undefined ? { group: r.groupValue } : {}),
         PatientID: r.patientId,
         Bezeichnung: c.bezeichnung,
         Einheit: c.einheit ?? '',

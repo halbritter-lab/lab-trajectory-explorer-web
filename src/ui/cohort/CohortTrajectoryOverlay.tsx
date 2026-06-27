@@ -13,11 +13,14 @@ import {
   mixedModelIdentityEquals,
   mixedModelMeanLinePoints,
 } from '../../core/mixedModel/resultIdentity'
-import { mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
+import { mixedModelRowsByGroup, mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
+import type { MixedModelSpikeRow } from '../../core/mixedModel/types'
+import { groupColors, groupPatients, UNGROUPED } from '../../core/grouping/grouping'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../../core/types'
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000
 const MIXED_MODEL_LABEL_OFFSET = 10
+const GROUP_FALLBACK_COLOR = '#475569'
 
 function axisLabel(axis: CohortOverlayXAxis): string {
   if (axis === 'age') return 'Age'
@@ -37,8 +40,11 @@ export function CohortTrajectoryOverlay() {
   const showAki = useAppStore((s) => s.showAki)
   const connectPoints = useAppStore((s) => s.connectPoints)
   const mixedModelConfig = useAppStore((s) => s.mixedModelConfig)
-  const mixedModelResult = useAppStore((s) => s.mixedModelResult)
+  const cohortModelResults = useAppStore((s) => s.cohortModelResults)
+  const pooledModelResult = cohortModelResults?.cohort ?? null
   const showCohortMixedModelLine = useAppStore((s) => s.showCohortMixedModelLine)
+  const cohortGroupByAttribute = useAppStore((s) => s.cohortGroupByAttribute)
+  const patientAttributes = useAppStore((s) => s.patientAttributes)
   const setAxis = useAppStore((s) => s.setCohortOverlayXAxis)
   const selectPatient = useAppStore((s) => s.selectPatient)
   const setView = useAppStore((s) => s.setView)
@@ -49,6 +55,9 @@ export function CohortTrajectoryOverlay() {
   const [activeSeriesIndex, setActiveSeriesIndex] = useState(0)
   const [hoveredPatientId, setHoveredPatientId] = useState<PatientId | null>(null)
   const [selectedOverlayPatientId, setSelectedOverlayPatientId] = useState<PatientId | null>(null)
+  // Overlay-only per-group visibility: clicking a legend entry hides/shows that
+  // group's trajectories and mean line. Does not affect the table, export, or fits.
+  const [hiddenGroups, setHiddenGroups] = useState<Set<string>>(new Set())
 
   const configuredSeries = useMemo(
     () => configs
@@ -115,9 +124,47 @@ export function CohortTrajectoryOverlay() {
       patientIds: scopedPatientIds,
       axis,
       highlightedPatientIds: patientMode === 'selected' ? selectedPatientIds : [],
+      groupByAttribute: cohortGroupByAttribute,
+      patientAttributes,
     })
-  }, [rows, activeConfig?.bezeichnung, activeConfig?.einheit, scopedPatientIds, axis, patientMode, selectedPatientIds])
+  }, [rows, activeConfig?.bezeichnung, activeConfig?.einheit, scopedPatientIds, axis, patientMode, selectedPatientIds, cohortGroupByAttribute, patientAttributes])
 
+  // Reset per-group visibility when the grouping attribute changes, so stale
+  // group values cannot hide unrelated groups under a different attribute.
+  useEffect(() => {
+    setHiddenGroups(new Set())
+  }, [cohortGroupByAttribute])
+
+  const visiblePoints = useMemo(
+    () => (hiddenGroups.size === 0 ? points : points.filter((p) => !hiddenGroups.has(p.group ?? UNGROUPED))),
+    [points, hiddenGroups],
+  )
+  const visiblePatientIds = useMemo(() => [...new Set(visiblePoints.map((p) => p.patientId))].sort(comparePatientIds), [visiblePoints])
+  const toggleSelectedOverlayPatient = (patientId: PatientId) =>
+    setSelectedOverlayPatientId((current) => (current === patientId ? null : patientId))
+  const toggleGroupVisibility = (value: string) =>
+    setHiddenGroups((previous) => {
+      const next = new Set(previous)
+      if (next.has(value)) next.delete(value)
+      else next.add(value)
+      return next
+    })
+
+  const cohortGroups = useMemo(
+    () => (cohortGroupByAttribute
+      ? groupPatients(scopedPatientIds, patientAttributes, cohortGroupByAttribute)
+      : []),
+    [cohortGroupByAttribute, patientAttributes, scopedPatientIds],
+  )
+  const groupColorMap = useMemo(() => groupColors(cohortGroups), [cohortGroups])
+  const groupingActive = cohortGroupByAttribute != null && cohortGroups.length > 0
+  const legendEntries = useMemo(() => {
+    if (!groupingActive) return []
+    const present = new Set(points.map((p) => p.group ?? UNGROUPED))
+    return cohortGroups
+      .filter((group) => present.has(group.value))
+      .map((group) => ({ value: group.value, color: groupColorMap.get(group.value) ?? GROUP_FALLBACK_COLOR }))
+  }, [groupingActive, points, cohortGroups, groupColorMap])
   const activeMixedModelRows = useMemo(
     () => activeSpec
       ? mixedModelRowsFromCohortInputs(rows, scopedPatientIds, activeSpec)
@@ -148,14 +195,76 @@ export function CohortTrajectoryOverlay() {
       fitConfigHash: activeMixedModelFitConfigHash,
     })
   }, [activeSeriesIndex, activeSpec, scopedPatientIds, activeMixedModelRows, activeMixedModelFitConfigHash])
+  const groupMixedModelRows = useMemo(
+    () => (groupingActive && activeSpec ? mixedModelRowsByGroup(rows, cohortGroups, activeSpec) : {}),
+    [groupingActive, activeSpec, rows, cohortGroups],
+  )
+  const groupMeanLines = useMemo(() => {
+    if (!groupingActive || !showCohortMixedModelLine) return []
+    const supportsMixedAxis = axis === 'time_since_baseline' || axis === 'age'
+    if (!supportsMixedAxis) return []
+
+    // Per-group mixed-model mean line, drawn ONLY when a matching successful
+    // grouped fit exists. No OLS fallback: an unfitted group shows no line. The
+    // identity guard mirrors the pooled line so we only draw a model line that
+    // matches the active series/policy the result was fit under.
+    const mixedModelLineForGroup = (value: string): Array<{ x: number; value: number }> => {
+      const stored = cohortModelResults?.[`group:${value}`]
+      if (!stored || stored.result.status !== 'success' || !activeSpec) return []
+      const groupRows = groupMixedModelRows[value] ?? []
+      if (groupRows.length === 0) return []
+      const identity = buildMixedModelResultIdentity({
+        seriesIndex: activeSeriesIndex,
+        seriesKey: `${activeSpec.bezeichnung}|${activeSpec.einheit ?? ''}`,
+        patientIds: groupRows.map((row) => row.patient_id),
+        rows: groupRows,
+        fitConfigHash: activeMixedModelFitConfigHash,
+        groupValue: value,
+      })
+      if (!mixedModelIdentityEquals(identity, stored.identity)) return []
+      const groupMeanBaselineAge = meanBaselineAgeForRows(groupRows)
+      return mixedModelMeanLinePoints(stored.result, groupRows, {
+        baselineAgeCentered: 0,
+        ageAxisBaselineAge: axis === 'age' ? groupMeanBaselineAge : null,
+      })
+        .filter((point) => axis !== 'age' || point.age !== undefined)
+        .map((point) => ({
+          x: axis === 'age' ? (point.age as number) : point.time_since_baseline,
+          value: point.eGFR,
+        }))
+    }
+
+    const lines: Array<{ group: string; color: string; kind: 'mixed'; points: Array<{ x: number; value: number }> }> = []
+    for (const group of cohortGroups) {
+      if (hiddenGroups.has(group.value)) continue
+      const mixedPoints = mixedModelLineForGroup(group.value)
+      if (mixedPoints.length < 2) continue
+      const color = groupColorMap.get(group.value) ?? GROUP_FALLBACK_COLOR
+      lines.push({ group: group.value, color, kind: 'mixed', points: mixedPoints })
+    }
+    return lines
+  }, [
+    groupingActive,
+    cohortGroups,
+    groupColorMap,
+    axis,
+    showCohortMixedModelLine,
+    cohortModelResults,
+    groupMixedModelRows,
+    activeSeriesIndex,
+    activeSpec,
+    activeMixedModelFitConfigHash,
+    hiddenGroups,
+  ])
   const mixedModelLine = useMemo(
     () => (
-      showCohortMixedModelLine
+      !groupingActive
+      && showCohortMixedModelLine
       && (axis === 'time_since_baseline' || axis === 'age')
-      && mixedModelResult?.result.status === 'success'
-      && mixedModelIdentityEquals(mixedModelResult.identity, activeMixedModelIdentity)
+      && pooledModelResult?.result.status === 'success'
+      && mixedModelIdentityEquals(pooledModelResult.identity, activeMixedModelIdentity)
     )
-      ? mixedModelMeanLinePoints(mixedModelResult.result, activeMixedModelRows, {
+      ? mixedModelMeanLinePoints(pooledModelResult.result, activeMixedModelRows, {
         baselineAgeCentered: 0,
         ageAxisBaselineAge: axis === 'age' ? meanBaselineAge : null,
       })
@@ -165,18 +274,18 @@ export function CohortTrajectoryOverlay() {
           value: point.eGFR,
         }))
       : [],
-    [showCohortMixedModelLine, axis, mixedModelResult, activeMixedModelIdentity, activeMixedModelRows, meanBaselineAge],
+    [groupingActive, showCohortMixedModelLine, axis, pooledModelResult, activeMixedModelIdentity, activeMixedModelRows, meanBaselineAge],
   )
   const mixedModelLineLabel = axis === 'age' ? 'Mixed model mean at mean baseline age' : 'Mixed model mean'
   const mixedModelLineStatus = useMemo(() => {
-    if (!showCohortMixedModelLine) return null
+    if (groupingActive || !showCohortMixedModelLine) return null
     if (mixedModelLine.length > 0) return axis === 'age' ? 'Model line: mean baseline age projection' : 'Model line: follow-up time'
     if (axis === 'calendar_time') return 'Model line: available on Age or Years since baseline'
-    if (mixedModelResult?.result.status === 'success') return 'Model line: fit active series/settings first'
+    if (pooledModelResult?.result.status === 'success') return 'Model line: fit active series/settings first'
     return null
-  }, [showCohortMixedModelLine, mixedModelLine.length, axis, mixedModelResult])
+  }, [groupingActive, showCohortMixedModelLine, mixedModelLine.length, axis, pooledModelResult])
 
-  const patientIds = useMemo(() => [...new Set(points.map((p) => p.patientId))].sort(comparePatientIds), [points])
+  const patientIds = visiblePatientIds
   const title = activeConfig?.einheit ? `${activeConfig.bezeichnung} (${activeConfig.einheit})` : activeConfig?.bezeichnung ?? ''
   const egfr = activeConfig?.bezeichnung ? isEgfrLike(activeConfig.bezeichnung, activeConfig.einheit ?? null) : false
   const activeOverlayPatientId = hoveredPatientId ?? selectedOverlayPatientId
@@ -209,18 +318,18 @@ export function CohortTrajectoryOverlay() {
     [events, rows, points, axis, activeOverlayPatientId, activeConfig?.bezeichnung, activeConfig?.einheit, activeConfig?.fitConfig],
   )
   const excludedPoints = useMemo(
-    () => activeOverlayPatientId !== null && activeConfig?.bezeichnung
+    () => activeConfig?.bezeichnung
       ? cohortOverlayExcludedPoints(
         events,
         rows,
         activeConfig.bezeichnung,
         activeConfig.einheit ?? null,
-        points,
-        [activeOverlayPatientId],
+        visiblePoints,
+        visiblePatientIds,
         activeConfig.fitConfig,
       )
       : [],
-    [events, rows, points, activeOverlayPatientId, activeConfig?.bezeichnung, activeConfig?.einheit, activeConfig?.fitConfig],
+    [events, rows, visiblePoints, visiblePatientIds, activeConfig?.bezeichnung, activeConfig?.einheit, activeConfig?.fitConfig],
   )
 
   useEffect(() => {
@@ -246,18 +355,22 @@ export function CohortTrajectoryOverlay() {
       return
     }
 
+    const emphasized = (d: CohortOverlayPoint) =>
+      d.highlighted || d.patientId === hoveredPatientId || d.patientId === selectedOverlayPatientId
+    const groupColorFor = (d: CohortOverlayPoint) => groupColorMap.get(d.group ?? UNGROUPED) ?? GROUP_FALLBACK_COLOR
+
     const marks: Plot.Markish[] = []
     if (egfr) {
       marks.push(Plot.ruleY([60, 45, 30, 15], { stroke: '#94a3b8', strokeDasharray: '3 3', strokeOpacity: 0.75 }))
     }
     if (connectPoints) {
-      marks.push(Plot.line(points, {
+      marks.push(Plot.line(visiblePoints, {
         x: 'x',
         y: 'value',
         z: 'patientId',
-        stroke: (d: CohortOverlayPoint) => d.highlighted || d.patientId === hoveredPatientId || d.patientId === selectedOverlayPatientId ? '#2563eb' : '#475569',
-        strokeOpacity: (d: CohortOverlayPoint) => d.highlighted || d.patientId === hoveredPatientId || d.patientId === selectedOverlayPatientId ? 0.95 : 0.32,
-        strokeWidth: (d: CohortOverlayPoint) => d.highlighted || d.patientId === hoveredPatientId || d.patientId === selectedOverlayPatientId ? 2.4 : 1.15,
+        stroke: (d: CohortOverlayPoint) => groupingActive ? groupColorFor(d) : (emphasized(d) ? '#2563eb' : '#475569'),
+        strokeOpacity: (d: CohortOverlayPoint) => emphasized(d) ? 0.95 : (groupingActive ? 0.55 : 0.32),
+        strokeWidth: (d: CohortOverlayPoint) => emphasized(d) ? 2.4 : 1.15,
       }))
     }
     if (connectPoints && exclusionSegments.length > 0) {
@@ -270,13 +383,14 @@ export function CohortTrajectoryOverlay() {
         strokeWidth: 2.4,
       }))
     }
+    const fitLineMarks: Plot.Markish[] = []
     if (mixedModelLine.length > 0) {
       const mixedModelLineEndpoint = mixedModelLine[mixedModelLine.length - 1]
       const mixedModelLineStart = mixedModelLine[0]
       const mixedModelLabelDy = mixedModelLineEndpoint.value <= mixedModelLineStart.value
         ? -MIXED_MODEL_LABEL_OFFSET
         : MIXED_MODEL_LABEL_OFFSET
-      marks.push(Plot.line(mixedModelLine, {
+      fitLineMarks.push(Plot.line(mixedModelLine, {
         x: 'x',
         y: 'value',
         z: null,
@@ -287,7 +401,7 @@ export function CohortTrajectoryOverlay() {
         strokeWidth: 2.8,
         pointerEvents: 'none',
       }))
-      marks.push(Plot.text([mixedModelLineEndpoint], {
+      fitLineMarks.push(Plot.text([mixedModelLineEndpoint], {
         x: 'x',
         y: 'value',
         text: () => mixedModelLineLabel,
@@ -302,14 +416,26 @@ export function CohortTrajectoryOverlay() {
         pointerEvents: 'none',
       }))
     }
-    marks.push(Plot.dot(points, {
+    for (const groupLine of groupMeanLines) {
+      fitLineMarks.push(Plot.line(groupLine.points, {
+        x: 'x',
+        y: 'value',
+        z: null,
+        className: 'cohort-group-mean-line-mark',
+        stroke: groupLine.color,
+        strokeWidth: 2.6,
+        strokeOpacity: 0.95,
+        pointerEvents: 'none',
+      }))
+    }
+    marks.push(Plot.dot(visiblePoints, {
       x: 'x',
       y: 'value',
-      fill: (d: CohortOverlayPoint) => d.highlighted || d.patientId === hoveredPatientId || d.patientId === selectedOverlayPatientId ? '#2563eb' : '#ffffff',
-      stroke: (d: CohortOverlayPoint) => d.highlighted || d.patientId === hoveredPatientId || d.patientId === selectedOverlayPatientId ? '#2563eb' : '#475569',
-      strokeOpacity: (d: CohortOverlayPoint) => d.highlighted || d.patientId === hoveredPatientId || d.patientId === selectedOverlayPatientId ? 0.9 : 0.55,
-      fillOpacity: (d: CohortOverlayPoint) => d.highlighted || d.patientId === hoveredPatientId || d.patientId === selectedOverlayPatientId ? 0.85 : 0.45,
-      r: (d: CohortOverlayPoint) => d.highlighted || d.patientId === hoveredPatientId || d.patientId === selectedOverlayPatientId ? 3.2 : 1.8,
+      fill: (d: CohortOverlayPoint) => emphasized(d) ? (groupingActive ? groupColorFor(d) : '#2563eb') : '#ffffff',
+      stroke: (d: CohortOverlayPoint) => groupingActive ? groupColorFor(d) : (emphasized(d) ? '#2563eb' : '#475569'),
+      strokeOpacity: (d: CohortOverlayPoint) => emphasized(d) ? 0.9 : 0.55,
+      fillOpacity: (d: CohortOverlayPoint) => emphasized(d) ? 0.85 : 0.45,
+      r: (d: CohortOverlayPoint) => emphasized(d) ? 3.2 : 1.8,
     }))
     if (excludedPoints.length > 0) {
       marks.push(Plot.dot(excludedPoints, {
@@ -321,6 +447,7 @@ export function CohortTrajectoryOverlay() {
         r: 4,
       }))
     }
+    marks.push(...fitLineMarks)
     if (overlayEvents.length > 0) {
       marks.push(Plot.ruleX(overlayEvents, {
         x: 'x',
@@ -341,6 +468,8 @@ export function CohortTrajectoryOverlay() {
       marks,
     })
     el.replaceChildren(fig)
+    const svg = fig.querySelector('svg')
+    svg?.addEventListener('click', () => setSelectedOverlayPatientId(null))
     const mixedModelLinePath = fig.querySelector<SVGPathElement>('g.cohort-mixed-model-line-mark path')
     if (mixedModelLinePath) {
       mixedModelLinePath.dataset.testid = 'cohort-mixed-model-line'
@@ -359,12 +488,26 @@ export function CohortTrajectoryOverlay() {
       mixedModelLabel.setAttribute('text-anchor', 'end')
       mixedModelLabel.setAttribute('dominant-baseline', labelDy < 0 ? 'auto' : 'hanging')
     }
-    const linePaths = [...fig.querySelectorAll<SVGPathElement>('g[aria-label="line"]:not(.cohort-mixed-model-line-mark) path')]
+    fig.querySelectorAll<SVGGElement>('g.cohort-group-mean-line-mark').forEach((groupG, index) => {
+      const groupLine = groupMeanLines[index]
+      if (!groupLine) return
+      groupG.dataset.testid = 'cohort-group-mean-line'
+      groupG.dataset.group = groupLine.group
+      groupG.dataset.kind = groupLine.kind
+      const path = groupG.querySelector('path')
+      if (path) {
+        path.dataset.group = groupLine.group
+        path.dataset.kind = groupLine.kind
+        path.setAttribute('aria-label', `${groupLine.group} ${groupLine.kind === 'mixed' ? 'mixed model mean line' : 'mean line'}`)
+        path.style.pointerEvents = 'none'
+      }
+    })
+    const linePaths = [...fig.querySelectorAll<SVGPathElement>('g[aria-label="line"]:not(.cohort-mixed-model-line-mark):not(.cohort-group-mean-line-mark) path')]
     const nExclusionSegments = new Set(exclusionSegments.map((segment) => segment.segmentId)).size
     const trajectoryPaths = nExclusionSegments > 0 ? linePaths.slice(0, -nExclusionSegments) : linePaths
     const exclusionPaths = nExclusionSegments > 0 ? linePaths.slice(-nExclusionSegments) : []
     trajectoryPaths.forEach((path) => {
-      const patientId = patientIdFromPlotDatum((path as SVGPathElement & { __data__?: unknown }).__data__, points)
+      const patientId = patientIdFromPlotDatum((path as SVGPathElement & { __data__?: unknown }).__data__, visiblePoints)
       if (patientId === null) return
       path.dataset.patientId = String(patientId)
       path.setAttribute('aria-label', `Patient ${patientId} trajectory`)
@@ -375,15 +518,18 @@ export function CohortTrajectoryOverlay() {
       path.style.pointerEvents = 'stroke'
       path.addEventListener('pointerenter', () => setHoveredPatientId(patientId))
       path.addEventListener('pointerleave', () => setHoveredPatientId(null))
-      path.addEventListener('click', () => setSelectedOverlayPatientId(patientId))
+      path.addEventListener('click', (event) => {
+        event.stopPropagation()
+        toggleSelectedOverlayPatient(patientId)
+      })
       path.addEventListener('dblclick', () => openPatient(patientId))
       path.addEventListener('keydown', (event) => handlePatientKey(event, patientId))
     })
     const dotEls = [...fig.querySelectorAll<SVGCircleElement>('g[aria-label="dot"] circle')]
-    const measurementDots = dotEls.slice(0, points.length)
-    const excludedPointDots = dotEls.slice(points.length, points.length + excludedPoints.length)
+    const measurementDots = dotEls.slice(0, visiblePoints.length)
+    const excludedPointDots = dotEls.slice(visiblePoints.length, visiblePoints.length + excludedPoints.length)
     measurementDots.forEach((dot) => {
-      const patientId = patientIdFromPlotDatum((dot as SVGCircleElement & { __data__?: unknown }).__data__, points)
+      const patientId = patientIdFromPlotDatum((dot as SVGCircleElement & { __data__?: unknown }).__data__, visiblePoints)
       if (patientId === null) return
       dot.dataset.patientId = String(patientId)
       dot.setAttribute('aria-label', `Patient ${patientId} measurement`)
@@ -393,7 +539,10 @@ export function CohortTrajectoryOverlay() {
       dot.style.cursor = 'pointer'
       dot.addEventListener('pointerenter', () => setHoveredPatientId(patientId))
       dot.addEventListener('pointerleave', () => setHoveredPatientId(null))
-      dot.addEventListener('click', () => setSelectedOverlayPatientId(patientId))
+      dot.addEventListener('click', (event) => {
+        event.stopPropagation()
+        toggleSelectedOverlayPatient(patientId)
+      })
       dot.addEventListener('dblclick', () => openPatient(patientId))
       dot.addEventListener('keydown', (event) => handlePatientKey(event, patientId))
     })
@@ -410,7 +559,10 @@ export function CohortTrajectoryOverlay() {
       dot.style.cursor = 'pointer'
       dot.addEventListener('pointerenter', () => setHoveredPatientId(point.patientId))
       dot.addEventListener('pointerleave', () => setHoveredPatientId(null))
-      dot.addEventListener('click', () => setSelectedOverlayPatientId(point.patientId))
+      dot.addEventListener('click', (event) => {
+        event.stopPropagation()
+        toggleSelectedOverlayPatient(point.patientId)
+      })
       dot.addEventListener('dblclick', () => openPatient(point.patientId))
       dot.addEventListener('keydown', (event) => handlePatientKey(event, point.patientId))
     })
@@ -433,12 +585,15 @@ export function CohortTrajectoryOverlay() {
         line.style.pointerEvents = 'stroke'
         line.addEventListener('pointerenter', () => setHoveredPatientId(event.patientId))
         line.addEventListener('pointerleave', () => setHoveredPatientId(null))
-        line.addEventListener('click', () => setSelectedOverlayPatientId(event.patientId))
+        line.addEventListener('click', (clickEvent) => {
+          clickEvent.stopPropagation()
+          toggleSelectedOverlayPatient(event.patientId)
+        })
       })
       renderEventLabels(fig, eventRules, overlayEvents)
     }
     return () => fig.remove()
-  }, [activeConfig?.bezeichnung, title, points, patientIds, axis, width, egfr, connectPoints, hoveredPatientId, selectedOverlayPatientId, overlayEvents, exclusionSegments, excludedPoints, mixedModelLine, mixedModelLineLabel])
+  }, [activeConfig?.bezeichnung, title, points, visiblePoints, hiddenGroups, patientIds, axis, width, egfr, connectPoints, hoveredPatientId, selectedOverlayPatientId, overlayEvents, exclusionSegments, excludedPoints, mixedModelLine, mixedModelLineLabel, groupingActive, groupColorMap, groupMeanLines])
 
   function openPatient(patientId: PatientId) {
     selectPatient(patientId)
@@ -452,12 +607,12 @@ export function CohortTrajectoryOverlay() {
       openPatient(patientId)
     } else if (event.key === ' ') {
       event.preventDefault()
-      setSelectedOverlayPatientId(patientId)
+      toggleSelectedOverlayPatient(patientId)
     }
   }
 
   const patientLabel = `${patientIds.length} ${patientIds.length === 1 ? 'patient' : 'patients'}`
-  const pointLabel = `${points.length} ${points.length === 1 ? 'point' : 'points'}`
+  const pointLabel = `${visiblePoints.length} ${visiblePoints.length === 1 ? 'point' : 'points'}`
 
   return (
     <section className="cohort-overlay" aria-label="Cohort trajectory overlay">
@@ -488,6 +643,40 @@ export function CohortTrajectoryOverlay() {
         {selectedOverlayPatientId !== null && <span className="cohort-overlay-stat">Selected: Patient {selectedOverlayPatientId}</span>}
         {hoveredPatientId !== null && <span className="cohort-overlay-stat">Hover: Patient {hoveredPatientId}</span>}
       </div>
+      {legendEntries.length > 0 && (
+        <div className="cohort-overlay-group-legend" data-testid="cohort-overlay-group-legend" aria-label="Cohort group legend">
+          {legendEntries.map((entry) => {
+            const hidden = hiddenGroups.has(entry.value)
+            return (
+              <button
+                key={entry.value}
+                type="button"
+                className="cohort-overlay-group-legend-entry"
+                data-testid="cohort-overlay-group-legend-entry"
+                data-group={entry.value}
+                data-hidden={String(hidden)}
+                aria-pressed={!hidden}
+                aria-label={`${hidden ? 'Show' : 'Hide'} group ${entry.value}`}
+                onClick={() => toggleGroupVisibility(entry.value)}
+              >
+                <span
+                  className="cohort-overlay-group-legend-swatch"
+                  data-testid="cohort-overlay-group-legend-swatch"
+                  style={{ backgroundColor: entry.color }}
+                  aria-hidden="true"
+                />
+                <span
+                  className="cohort-overlay-group-legend-label"
+                  data-testid="cohort-overlay-group-legend-label"
+                  data-group={entry.value}
+                >
+                  {entry.value}
+                </span>
+              </button>
+            )
+          })}
+        </div>
+      )}
       <div className="cohort-overlay-body" ref={wrapRef}>
         <div
           ref={plotRef}
@@ -797,6 +986,20 @@ function valueAtEventDate(eventDate: Date, patientPoints: readonly CohortOverlay
     }
   }
   return null
+}
+
+/** Patient-weighted mean baseline age across a group's model rows, used to
+ * project the group's mixed-model mean line onto the age axis (mirrors the
+ * pooled overlay line). */
+function meanBaselineAgeForRows(rows: readonly MixedModelSpikeRow[]): number | null {
+  const byPatient = new Map<string, number>()
+  for (const row of rows) {
+    if (Number.isFinite(row.baseline_age) && !byPatient.has(row.patient_id)) {
+      byPatient.set(row.patient_id, row.baseline_age as number)
+    }
+  }
+  if (byPatient.size === 0) return null
+  return [...byPatient.values()].reduce((sum, value) => sum + value, 0) / byPatient.size
 }
 
 function renderEventLabels(fig: SVGSVGElement | HTMLElement, eventRules: SVGLineElement[], events: readonly OverlayEvent[]): void {

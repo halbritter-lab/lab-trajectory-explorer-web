@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { App } from '../../src/App'
 import { useAppStore } from '../../src/ui/state/store'
 import type { LabRow } from '../../src/core/types'
@@ -21,8 +21,8 @@ describe('App', () => {
   it('does not duplicate load actions in the empty state', () => {
     render(<App />)
     expect(screen.getAllByRole('button', { name: 'Upload xlsx/csv' })).toHaveLength(1)
-    expect(screen.getAllByRole('button', { name: 'Load synthetic data' })).toHaveLength(1)
-    expect(screen.getAllByRole('link', { name: 'Download test data' })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: 'Load demo data' })).toHaveLength(1)
+    expect(screen.getAllByRole('link', { name: 'Download demo workbook' })).toHaveLength(1)
   })
 
   // Regression guard for React error #185: a store selector that returns a
@@ -34,13 +34,17 @@ describe('App', () => {
     expect(screen.getByLabelText('Patient')).toBeInTheDocument()
   })
 
-  it('offers the bundled test data as a downloadable workbook after data is loaded', () => {
+  it('offers the demo workbook as the header download after data is loaded', () => {
     useAppStore.getState().setDataset([row({ patientId: 7 })])
     render(<App />)
-    const link = screen.getByRole('link', { name: 'Download test data workbook' })
-    expect(link).toHaveAttribute('href', '/test_labs.xlsx')
-    expect(link).toHaveAttribute('download', 'test_labs.xlsx')
-    expect(link).toHaveAttribute('title', 'Download test data')
+    const header = screen.getByRole('banner')
+    const workbook = within(header).getByRole('link', { name: 'Download demo workbook' })
+
+    expect(workbook).toHaveAttribute('href', '/test_labs.xlsx')
+    expect(workbook).toHaveAttribute('download', 'test_labs.xlsx')
+    expect(workbook).toHaveAttribute('title', 'Download demo workbook')
+    expect(within(header).queryByRole('link', { name: 'Download demo events' })).not.toBeInTheDocument()
+    expect(within(header).queryByRole('link', { name: 'Download demo attributes' })).not.toBeInTheDocument()
   })
 
   it('hides mini-graph zoom controls while cohort overlay mode is active', () => {

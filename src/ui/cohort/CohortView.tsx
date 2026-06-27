@@ -7,6 +7,8 @@ import { CohortTrajectoryOverlay } from './CohortTrajectoryOverlay'
 import { sheetsToXlsxBytes, downloadBlob, fileStamp } from '../../io/export'
 import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
 import { comparePatientIds, patientIdKey } from '../../core/types'
+import { patientAttributesExportRows } from '../../core/attributes/attributes'
+import { groupColors, groupPatients } from '../../core/grouping/grouping'
 import { mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
 import {
   mixedModelConfigLabel,
@@ -20,8 +22,8 @@ import { validateMixedModelRows } from '../../core/mixedModel/validation'
 type CohortSortKey = 'id' | 'slope' | 'absSlope' | 'n' | 'duration'
 type CohortBadge = { className: string; label: string; title: string }
 
-const CohortMixedModelPanel = lazy(() =>
-  import('./CohortMixedModelPanel').then((module) => ({ default: module.CohortMixedModelPanel })),
+const CohortModelPanel = lazy(() =>
+  import('./CohortModelPanel').then((module) => ({ default: module.CohortModelPanel })),
 )
 
 const MIXED_MODEL_DATA_POLICY_TEXT =
@@ -79,6 +81,7 @@ export function CohortView() {
   const displayRows = analysisResult.rows
   const configs = useAppStore((s) => s.seriesConfigs)
   const events = useAppStore((s) => s.events)
+  const patientAttributes = useAppStore((s) => s.patientAttributes)
   const showEvents = useAppStore((s) => s.showEvents)
   const cohortPatientMode = useAppStore((s) => s.cohortPatientMode)
   const selectedPatientIds = useAppStore((s) => s.selectedPatientIds)
@@ -93,12 +96,12 @@ export function CohortView() {
   const setView = useAppStore((s) => s.setView)
   const setReturnToCohort = useAppStore((s) => s.setReturnToCohort)
   const rapidThreshold = useAppStore((s) => s.analysisSettings.rapidEgfrDecline.threshold)
-  const mixedModelResult = useAppStore((s) => s.mixedModelResult)
   const mixedModelConfig = useAppStore((s) => s.mixedModelConfig)
-  const setMixedModelResult = useAppStore((s) => s.setMixedModelResult)
   const setMixedModelConfig = useAppStore((s) => s.setMixedModelConfig)
   const mixedModelDialogOpen = useAppStore((s) => s.mixedModelDialogOpen)
   const setMixedModelDialogOpen = useAppStore((s) => s.setMixedModelDialogOpen)
+  const groupByAttribute = useAppStore((s) => s.cohortGroupByAttribute)
+  const setGroupByAttribute = useAppStore((s) => s.setCohortGroupByAttribute)
 
   const clinicalEventsByPatient = useMemo(() => {
     const grouped: Record<string, typeof events> = {}
@@ -129,10 +132,28 @@ export function CohortView() {
     const all = [...new Set(displayRows.map((r) => r.patientId))].sort(comparePatientIds)
     return cohortPatientMode === 'selected' ? all.filter((id) => selectedPatientIds.includes(id)) : all
   }, [displayRows, cohortPatientMode, selectedPatientIds])
+  const availableGroupByAttributes = useMemo(() => {
+    const cohortKeys = new Set(patientIds.map(patientIdKey))
+    const names = new Set<string>()
+    for (const [key, attributes] of Object.entries(patientAttributes)) {
+      if (!cohortKeys.has(key)) continue
+      for (const name of Object.keys(attributes)) names.add(name)
+    }
+    return [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+  }, [patientAttributes, patientIds])
+  const groupingActive = groupByAttribute !== null
+  // Always include the active attribute so the current grouping stays selectable
+  // (and clearable to "No grouping") even if the cohort scope no longer exposes
+  // it as an available attribute.
+  const groupByOptions = useMemo(() => {
+    const names = new Set(availableGroupByAttributes)
+    if (groupByAttribute) names.add(groupByAttribute)
+    return [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+  }, [availableGroupByAttributes, groupByAttribute])
   const cohortRows = useMemo(
-    () => buildCohortRows(displayRows, patientIds, specs)
+    () => buildCohortRows(displayRows, patientIds, specs, groupByAttribute, patientAttributes)
       .filter((row) => row.cells.some((cell) => cell.points.length >= 2)),
-    [displayRows, patientIds, specs],
+    [displayRows, patientIds, specs, groupByAttribute, patientAttributes],
   )
   const eventsByPatient = useMemo(() => {
     const grouped = new Map<string, { date: Date; label: string }[]>()
@@ -174,7 +195,6 @@ export function CohortView() {
     () => specs.findIndex((spec) => spec.bezeichnung.toLowerCase().includes('egfr') || isEgfrUnit(spec.einheit)),
     [specs],
   )
-  const mixedModelPatientIds = useMemo(() => patientIds.map(String), [patientIds])
   const mixedModelRows = useMemo(
     () => mixedModelSeriesIndex >= 0
       ? mixedModelRowsFromCohortInputs(displayRows, patientIds, specs[mixedModelSeriesIndex])
@@ -192,6 +212,11 @@ export function CohortView() {
   )
   const mixedModelFormulaText = useMemo(() => mixedModelFormula(mixedModelConfig), [mixedModelConfig])
   const mixedModelFormulaLabelText = useMemo(() => mixedModelConfigLabel(mixedModelConfig), [mixedModelConfig])
+  const cohortGroups = useMemo(
+    () => (groupByAttribute ? groupPatients(patientIds, patientAttributes, groupByAttribute) : []),
+    [groupByAttribute, patientIds, patientAttributes],
+  )
+  const cohortGroupColorMap = useMemo(() => groupColors(cohortGroups), [cohortGroups])
   const canShowMixedModelDialog = mixedModelDialogOpen && mixedModelSeriesIndex >= 0
 
   function validateMixedModelDraftConfig(config: MixedModelConfig): string | null {
@@ -202,8 +227,17 @@ export function CohortView() {
   }
 
   function exportXlsx() {
+    // Scope the attributes sheet to the exported cohort so the workbook's sheets
+    // cover the same patients (excludes filtered-out and unknown patients).
+    const cohortKeys = new Set(sorted.map((r) => patientIdKey(r.patientId)))
+    const cohortAttributes = Object.fromEntries(
+      Object.entries(patientAttributes).filter(([key]) => cohortKeys.has(key)),
+    )
     const workbook = sheetsToXlsxBytes([
       { name: 'cohort', rows: cohortExportRecords(sorted, rapidThreshold) },
+      ...(Object.keys(cohortAttributes).length > 0
+        ? [{ name: 'patient_attributes', rows: patientAttributesExportRows(cohortAttributes) }]
+        : []),
       { name: 'about', rows: EXPORT_DISCLAIMER_ROWS },
     ])
     downloadBlob(workbook, `cohort-summary-${fileStamp()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
@@ -241,6 +275,21 @@ export function CohortView() {
           <button aria-pressed={displayMode === 'table'} onClick={() => setDisplayMode('table')}>Table</button>
           <button aria-pressed={displayMode === 'overlay'} onClick={() => setDisplayMode('overlay')}>Overlay Plot</button>
         </div>
+        {(groupByOptions.length > 0 || groupByAttribute !== null) && (
+          <label className="cohort-group-by">
+            <span>Group by</span>
+            <select
+              aria-label="Group by attribute"
+              value={groupByAttribute ?? ''}
+              onChange={(e) => setGroupByAttribute(e.target.value || null)}
+            >
+              <option value="">No grouping</option>
+              {groupByOptions.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       {canShowMixedModelDialog && (
         <div className="mixed-model-config-modal-backdrop">
@@ -264,24 +313,22 @@ export function CohortView() {
               </button>
             </div>
             <Suspense fallback={null}>
-              <CohortMixedModelPanel
-                rows={mixedModelRows}
+              <CohortModelPanel
+                rows={displayRows}
+                patientIds={patientIds}
+                groups={cohortGroups}
+                groupColors={cohortGroupColorMap}
+                spec={specs[mixedModelSeriesIndex]}
                 seriesIndex={mixedModelSeriesIndex}
-                seriesLabel={seriesLabel(specs[mixedModelSeriesIndex])}
-                seriesUnit={specs[mixedModelSeriesIndex].einheit}
                 seriesKey={mixedModelSeriesKey}
+                seriesUnit={specs[mixedModelSeriesIndex].einheit}
                 fitConfigHash={mixedModelPolicyHash}
                 config={mixedModelConfig}
                 formula={mixedModelFormulaText}
                 formulaLabel={mixedModelFormulaLabelText}
                 dataPolicySummary={MIXED_MODEL_DATA_POLICY_TEXT}
                 validateConfig={validateMixedModelDraftConfig}
-                patientIds={mixedModelPatientIds}
-                currentIdentity={mixedModelResult?.identity ?? null}
-                currentResult={mixedModelResult?.result ?? null}
-                onResult={setMixedModelResult}
                 onConfigChange={setMixedModelConfig}
-                onConfigFit={setMixedModelConfig}
               />
             </Suspense>
           </div>
@@ -298,6 +345,7 @@ export function CohortView() {
             <table className="cohort-table">
               <thead>
                 <tr>
+                  {groupingActive && <th scope="col">Group</th>}
                   <th aria-sort={ariaSort(sort.key === 'id')}>
                     <span className="cohort-header-main">
                       <span>Patient</span>
@@ -347,6 +395,7 @@ export function CohortView() {
               <tbody>
                 {sorted.map((r) => (
                   <tr key={r.patientId}>
+                    {groupingActive && <td className="cohort-group-cell">{r.groupValue}</td>}
                     <td><button className="patient-link" onClick={() => { selectPatient(r.patientId); setReturnToCohort(true); setView('one') }}>{r.patientId}</button></td>
                     {r.cells.map((c, i) => {
                       const badges: CohortBadge[] = []

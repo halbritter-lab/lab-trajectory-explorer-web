@@ -6,6 +6,7 @@ export interface FitExtractionResult {
   converged: unknown
   warnings: unknown
   fixedEffects: unknown
+  fixedEffectConfidenceIntervals: unknown
   randomEffects: unknown
   residualSd: unknown
   optimizer: unknown
@@ -35,6 +36,9 @@ export function normalizeExtractedFitResult(
   }
 
   const fixedEffects = normalizeFixedEffects(request, extracted.fixedEffects)
+  const fixedEffectConfidenceIntervals = normalizeFixedEffectConfidenceIntervals(
+    extracted.fixedEffectConfidenceIntervals,
+  )
   const randomEffects = normalizeRandomEffects(extracted.randomEffects)
   const residualSd = requireNullableFiniteNumber(extracted.residualSd, 'residualSd')
   const optimizer = typeof extracted.optimizer === 'string' ? extracted.optimizer : metadata.optimizer
@@ -55,6 +59,7 @@ export function normalizeExtractedFitResult(
     nPatients: new Set(request.rows.map((row) => row.patient_id)).size,
     nMeasurements: request.rows.length,
     fixedEffects,
+    fixedEffectConfidenceIntervals,
     randomEffects,
     residualSd,
   }
@@ -74,6 +79,18 @@ function normalizeFixedEffects(
   return { intercept, timeSinceBaseline, baselineAge }
 }
 
+function normalizeFixedEffectConfidenceIntervals(value: unknown): MixedModelSuccess['fixedEffectConfidenceIntervals'] {
+  if (!isRecord(value)) {
+    throw new ResultExtractionError('webR fit result field fixedEffectConfidenceIntervals must be an object.')
+  }
+  return {
+    timeSinceBaseline: requireNullableFiniteNumberPair(
+      value.timeSinceBaseline,
+      'fixedEffectConfidenceIntervals.timeSinceBaseline',
+    ),
+  }
+}
+
 function normalizeRandomEffects(value: unknown): MixedModelSuccess['randomEffects'] | null {
   if (!isRecord(value)) return null
   return {
@@ -84,6 +101,21 @@ function normalizeRandomEffects(value: unknown): MixedModelSuccess['randomEffect
       'randomEffects.interceptSlopeCorrelation',
     ),
   }
+}
+
+function requireNullableFiniteNumberPair(value: unknown, fieldName: string): [number, number] | null {
+  if (value === null) return null
+  if (
+    !Array.isArray(value) ||
+    value.length !== 2 ||
+    typeof value[0] !== 'number' ||
+    typeof value[1] !== 'number' ||
+    !Number.isFinite(value[0]) ||
+    !Number.isFinite(value[1])
+  ) {
+    throw new ResultExtractionError(`webR fit result field ${fieldName} must be a finite [low, high] pair or null.`)
+  }
+  return [value[0], value[1]]
 }
 
 function requireFiniteNumber(value: unknown, fieldName: string): number {

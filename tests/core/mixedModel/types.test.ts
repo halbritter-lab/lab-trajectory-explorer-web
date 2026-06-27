@@ -25,6 +25,7 @@ describe('mixed model result contracts', () => {
       nPatients: 4,
       nMeasurements: 16,
       fixedEffects: { intercept: 60, timeSinceBaseline: -2 },
+      fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.8, -1.2] },
       randomEffects: { interceptSd: 4, slopeSd: 0.5, interceptSlopeCorrelation: null },
       residualSd: 0.1,
     }

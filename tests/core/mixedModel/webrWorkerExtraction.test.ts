@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import {
-  DEFAULT_MIXED_MODEL_CONFIG,
   mixedModelFormula,
   mixedModelFormulaKey,
   type MixedModelConfig,
@@ -15,6 +14,12 @@ import type { MixedModelWorkerRequest } from '../../../src/core/mixedModel/worke
 const LEGACY_MIXED_MODEL_CONFIG: MixedModelConfig = {
   timeAxis: 'time_since_baseline',
   covariates: [],
+  randomEffects: 'intercept_slope',
+}
+
+const BASELINE_AGE_MIXED_MODEL_CONFIG: MixedModelConfig = {
+  timeAxis: 'time_since_baseline',
+  covariates: ['baseline_age'],
   randomEffects: 'intercept_slope',
 }
 
@@ -55,6 +60,7 @@ const validExtraction = {
   converged: true,
   warnings: [],
   fixedEffects: { intercept: 60, timeSinceBaseline: -2 },
+  fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.8, -1.2] },
   randomEffects: { interceptSd: null, slopeSd: 0.5, interceptSlopeCorrelation: null },
   residualSd: null,
   optimizer: undefined,
@@ -68,6 +74,7 @@ describe('webR worker fit extraction validation', () => {
       converged: true,
       warnings: [],
       randomEffects: { interceptSd: null, slopeSd: 0.5, interceptSlopeCorrelation: null },
+      fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.8, -1.2] },
       residualSd: null,
     })
     expect(normalizeExtractedFitResult(request, metadata, {
@@ -120,19 +127,21 @@ describe('webR worker fit extraction validation', () => {
   it('preserves extracted baseline-age fixed effects for baseline-age configs', () => {
     expect(normalizeExtractedFitResult({
       ...request,
-      config: DEFAULT_MIXED_MODEL_CONFIG,
-      formula: mixedModelFormula(DEFAULT_MIXED_MODEL_CONFIG),
-      formulaKey: mixedModelFormulaKey(DEFAULT_MIXED_MODEL_CONFIG),
+      config: BASELINE_AGE_MIXED_MODEL_CONFIG,
+      formula: mixedModelFormula(BASELINE_AGE_MIXED_MODEL_CONFIG),
+      formulaKey: mixedModelFormulaKey(BASELINE_AGE_MIXED_MODEL_CONFIG),
     }, metadata, {
       converged: true,
       warnings: [],
       fixedEffects: { intercept: 60, timeSinceBaseline: -3, baselineAge: -0.4 },
+      fixedEffectConfidenceIntervals: { timeSinceBaseline: [-3.6, -2.4] },
       randomEffects: { interceptSd: 1, slopeSd: 0.2, interceptSlopeCorrelation: null },
       residualSd: 4,
       optimizer: 'nloptwrap',
       packageVersions: {},
     })).toMatchObject({
       fixedEffects: { intercept: 60, timeSinceBaseline: -3, baselineAge: -0.4 },
+      fixedEffectConfidenceIntervals: { timeSinceBaseline: [-3.6, -2.4] },
     })
   })
 })

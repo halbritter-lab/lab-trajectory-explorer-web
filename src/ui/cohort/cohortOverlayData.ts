@@ -1,4 +1,5 @@
 import type { LabRow, PatientId } from '../../core/types'
+import { groupValueForPatient } from '../../core/grouping/grouping'
 import type { CohortOverlayXAxis } from '../state/store'
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000
@@ -10,6 +11,9 @@ export type CohortOverlayPoint = {
   date: Date
   age: number | null
   highlighted: boolean
+  /** The group value for the active grouping attribute, or undefined when no
+   * grouping is active. Domain-neutral: whatever the chosen attribute holds. */
+  group?: string
 }
 
 interface CohortOverlayPointsParams {
@@ -19,6 +23,10 @@ interface CohortOverlayPointsParams {
   patientIds: PatientId[]
   axis: CohortOverlayXAxis
   highlightedPatientIds: PatientId[]
+  /** Active group-by attribute name, or null/undefined when no grouping. */
+  groupByAttribute?: string | null
+  /** Per-patient attribute map (keyed by patientIdKey) used to stamp groups. */
+  patientAttributes?: Record<string, Record<string, string>>
 }
 
 function yearsBetween(start: Date, end: Date): number {
@@ -32,6 +40,8 @@ export function cohortOverlayPointsForSeries({
   patientIds,
   axis,
   highlightedPatientIds,
+  groupByAttribute,
+  patientAttributes,
 }: CohortOverlayPointsParams): CohortOverlayPoint[] {
   const scoped = new Set(patientIds)
   const highlighted = new Set(highlightedPatientIds)
@@ -76,6 +86,9 @@ export function cohortOverlayPointsForSeries({
         date,
         age: Number.isFinite(r.patientAgeAtLab) ? r.patientAgeAtLab as number : null,
         highlighted: highlighted.has(r.patientId),
+        ...(groupByAttribute
+          ? { group: groupValueForPatient(r.patientId, patientAttributes ?? {}, groupByAttribute) }
+          : {}),
       }
     })
     .filter((p): p is CohortOverlayPoint => p !== null)

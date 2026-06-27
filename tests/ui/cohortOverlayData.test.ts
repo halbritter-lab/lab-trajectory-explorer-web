@@ -36,6 +36,49 @@ describe('cohortOverlayPointsForSeries', () => {
     expect(points.map((p) => Number((p.x as number).toFixed(3)))).toEqual([46, 46.496, 46.999])
   })
 
+  it('stamps each point with its group value when a group-by attribute is active', () => {
+    const points = cohortOverlayPointsForSeries({
+      rows: [
+        row({ patientId: 1, labDatum: new Date('2022-01-15T00:00:00Z'), wertNum: 70 }),
+        row({ patientId: 1, labDatum: new Date('2022-07-15T00:00:00Z'), wertNum: 65 }),
+        row({ patientId: 2, labDatum: new Date('2022-01-15T00:00:00Z'), wertNum: 50 }),
+        row({ patientId: 3, labDatum: new Date('2022-01-15T00:00:00Z'), wertNum: 40 }),
+      ],
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1.73m2',
+      patientIds: [1, 2, 3],
+      axis: 'age',
+      highlightedPatientIds: [],
+      groupByAttribute: 'cohort',
+      patientAttributes: {
+        '1': { cohort: 'A' },
+        '2': { cohort: 'B' },
+        // patient 3 has no value -> falls into the ungrouped sentinel
+      },
+    })
+
+    const groupByPatient = new Map(points.map((p) => [p.patientId, p.group]))
+    expect(groupByPatient.get(1)).toBe('A')
+    expect(groupByPatient.get(2)).toBe('B')
+    expect(groupByPatient.get(3)).toBe('(ungrouped)')
+  })
+
+  it('leaves group undefined when no group-by attribute is active', () => {
+    const points = cohortOverlayPointsForSeries({
+      rows: [row({ patientId: 1, wertNum: 70 })],
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1.73m2',
+      patientIds: [1],
+      axis: 'age',
+      highlightedPatientIds: [],
+      patientAttributes: { '1': { cohort: 'A' } },
+    })
+
+    expect(points).toHaveLength(1)
+    expect(points[0].group).toBeUndefined()
+    expect('group' in points[0]).toBe(false)
+  })
+
   it('resolves Observable Plot line path index arrays to the correct patient', () => {
     const points = [
       { patientId: 2 },

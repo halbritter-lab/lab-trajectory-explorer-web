@@ -10,14 +10,14 @@ import {
 } from '../../../src/core/mixedModel/config'
 
 describe('mixed model config', () => {
-  it('uses baseline-age adjusted random slope as the default', () => {
+  it('uses the R-script-compatible random slope model as the default', () => {
     expect(DEFAULT_MIXED_MODEL_CONFIG).toEqual({
       timeAxis: 'time_since_baseline',
-      covariates: ['baseline_age'],
+      covariates: [],
       randomEffects: 'intercept_slope',
     })
     expect(mixedModelFormula(DEFAULT_MIXED_MODEL_CONFIG)).toBe(
-      'eGFR ~ time_since_baseline + baseline_age_centered + (1 + time_since_baseline | patient_id)',
+      'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
     )
   })
 
@@ -82,7 +82,7 @@ describe('mixed model config', () => {
 
   it('builds a compact user-facing label', () => {
     expect(mixedModelConfigLabel(DEFAULT_MIXED_MODEL_CONFIG)).toBe(
-      'eGFR ~ time_since_baseline + centered baseline age + random patient intercept/slope',
+      'eGFR ~ time_since_baseline + random patient intercept/slope',
     )
   })
 
@@ -98,8 +98,8 @@ describe('mixed model config', () => {
 
   it('builds hash input for model config', () => {
     expect(mixedModelConfigHashInput(DEFAULT_MIXED_MODEL_CONFIG)).toEqual({
-      formulaKey: 'time_since_baseline__baseline_age__intercept_slope',
-      formula: 'eGFR ~ time_since_baseline + baseline_age_centered + (1 + time_since_baseline | patient_id)',
+      formulaKey: 'time_since_baseline__none__intercept_slope',
+      formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
       config: DEFAULT_MIXED_MODEL_CONFIG,
     })
   })

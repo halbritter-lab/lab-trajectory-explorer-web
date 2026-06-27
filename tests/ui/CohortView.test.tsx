@@ -215,7 +215,7 @@ describe('CohortView', () => {
     expect(screen.getByText('Experimental')).toBeInTheDocument()
     expect(screen.getByText(/experimental browser-based mixed model/i)).toBeInTheDocument()
     expect(await screen.findByRole('region', { name: 'Cohort mixed model' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Fit model' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Fit selected' })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Close eGFR cohort model' }))
 
@@ -292,6 +292,92 @@ describe('CohortView', () => {
     expect(container.querySelector('[data-testid="event-marker"]')).toBeNull()
     expect(screen.queryByText('Dialysis start')).not.toBeInTheDocument()
     expect(screen.queryByText('Kidney transplant')).not.toBeInTheDocument()
+  })
+
+  it('lists the cohort attribute names plus "No grouping" in the group-by selector', () => {
+    useAppStore.getState().setPatientAttributes({
+      '1': { genotype: 'A', cohort: 'x' },
+      '2': { genotype: 'B' },
+      '99': { offcohort: 'z' },
+    })
+
+    render(<CohortView />)
+
+    const select = screen.getByLabelText('Group by attribute')
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.textContent)
+    expect(options).toEqual(['No grouping', 'cohort', 'genotype'])
+  })
+
+  it('updates the store when a group-by attribute is selected', async () => {
+    useAppStore.getState().setPatientAttributes({ '1': { genotype: 'A' }, '2': { genotype: 'B' } })
+
+    render(<CohortView />)
+
+    await userEvent.selectOptions(screen.getByLabelText('Group by attribute'), 'genotype')
+    expect(useAppStore.getState().cohortGroupByAttribute).toBe('genotype')
+  })
+
+  it('hides the group-by selector when no attributes are loaded', () => {
+    render(<CohortView />)
+    expect(screen.queryByLabelText('Group by attribute')).not.toBeInTheDocument()
+  })
+
+  it('keeps the group-by selector available when grouping stays active but no attributes are available', async () => {
+    // Grouping is active but the cohort scope has no attributes for the chosen
+    // attribute, so the available list is empty. The selector must still render
+    // (with the active value selectable) so "No grouping" remains reachable.
+    useAppStore.getState().setCohortGroupByAttribute('genotype')
+
+    render(<CohortView />)
+
+    const select = screen.getByLabelText('Group by attribute') as HTMLSelectElement
+    const options = Array.from(select.querySelectorAll('option')).map((o) => o.textContent)
+    expect(options).toEqual(['No grouping', 'genotype'])
+    expect(select.value).toBe('genotype')
+
+    await userEvent.selectOptions(select, 'No grouping')
+    expect(useAppStore.getState().cohortGroupByAttribute).toBeNull()
+  })
+
+  it('renders a Group column when grouping is active', () => {
+    useAppStore.getState().setPatientAttributes({ '1': { genotype: 'A' }, '2': { genotype: 'B' } })
+    useAppStore.getState().setCohortGroupByAttribute('genotype')
+
+    render(<CohortView />)
+
+    expect(screen.getByRole('columnheader', { name: 'Group' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'A' })).toBeInTheDocument()
+    expect(screen.getByRole('cell', { name: 'B' })).toBeInTheDocument()
+  })
+
+  it('does not render a Group column when grouping is inactive', () => {
+    render(<CohortView />)
+    expect(screen.queryByRole('columnheader', { name: 'Group' })).not.toBeInTheDocument()
+  })
+
+  it('lists a whole-cohort row plus one row per group when grouping is active', async () => {
+    seedValidEgfrCohort()
+    useAppStore.getState().setPatientAttributes({ '1': { cohort: 'A' }, '2': { cohort: 'A' }, '3': { cohort: 'B' } })
+    useAppStore.getState().setCohortGroupByAttribute('cohort')
+    useAppStore.getState().setMixedModelDialogOpen(true)
+
+    render(<CohortView />)
+
+    expect(await screen.findByRole('region', { name: 'Cohort mixed model' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Fit selected' })).toBeInTheDocument()
+    const rows = screen.getAllByTestId('cohort-model-row')
+    expect(rows.map((row) => row.getAttribute('data-entity'))).toEqual(['cohort', 'group:A', 'group:B'])
+  })
+
+  it('lists only the whole-cohort row when grouping is inactive', async () => {
+    seedValidEgfrCohort()
+    useAppStore.getState().setMixedModelDialogOpen(true)
+
+    render(<CohortView />)
+
+    expect(await screen.findByRole('region', { name: 'Cohort mixed model' })).toBeInTheDocument()
+    const rows = screen.getAllByTestId('cohort-model-row')
+    expect(rows.map((row) => row.getAttribute('data-entity'))).toEqual(['cohort'])
   })
 
   it('switches between the cohort table and overlay plot', async () => {

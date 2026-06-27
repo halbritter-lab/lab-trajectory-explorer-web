@@ -40,7 +40,12 @@ function isMixedModelSuccess(result: Record<string, unknown>): boolean {
   if (typeof result.converged !== 'boolean') return false
   if (!Array.isArray(result.warnings) || !result.warnings.every((warning) => typeof warning === 'string')) return false
   if (!isFiniteNumber(result.nPatients) || !isFiniteNumber(result.nMeasurements)) return false
-  if (!isRecord(result.metadata) || !isRecord(result.fixedEffects) || !isRecord(result.randomEffects)) return false
+  if (
+    !isRecord(result.metadata) ||
+    !isRecord(result.fixedEffects) ||
+    !isRecord(result.fixedEffectConfidenceIntervals) ||
+    !isRecord(result.randomEffects)
+  ) return false
 
   const fixedEffects = result.fixedEffects
   if (!isFiniteNumber(fixedEffects.intercept) || !isFiniteNumber(fixedEffects.timeSinceBaseline)) return false
@@ -50,6 +55,9 @@ function isMixedModelSuccess(result: Record<string, unknown>): boolean {
   ) {
     return false
   }
+
+  const fixedEffectConfidenceIntervals = result.fixedEffectConfidenceIntervals
+  if (!isNullableNumberPair(fixedEffectConfidenceIntervals.timeSinceBaseline)) return false
 
   const randomEffects = result.randomEffects
   return (
@@ -100,6 +108,16 @@ function isEngine(value: unknown): value is MixedModelEngine {
 
 function isNullableNumber(value: unknown): boolean {
   return isFiniteNumber(value) || value === null
+}
+
+function isNullableNumberPair(value: unknown): boolean {
+  return (
+    value === null ||
+    (Array.isArray(value) &&
+      value.length === 2 &&
+      isFiniteNumber(value[0]) &&
+      isFiniteNumber(value[1]))
+  )
 }
 
 function isFiniteNumber(value: unknown): value is number {

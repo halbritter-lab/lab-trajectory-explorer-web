@@ -3,6 +3,7 @@ import { episodesForSeries, fitAkiAware } from '../aki/akiAware'
 import { fitInputForSeries } from '../analysis/types'
 import type { CohortSeriesSpec } from '../cohort/screening'
 import { filterFitPointsByClinicalEvents } from '../events/fitExclusions'
+import type { PatientGroup } from '../grouping/grouping'
 import { balanceSeriesPoints } from '../stats/timeBalancing'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
 import type { MixedModelSpikeRow } from './types'
@@ -120,6 +121,25 @@ export function mixedModelRowsFromCohortInputs(
   }
 
   return out
+}
+
+/** Build mixed-model rows for each group by reusing the single-cohort row
+ * builder with the group's patient ids. Groups that produce no rows (e.g. all
+ * points excluded, or no measurements) are omitted; surviving groups keep the
+ * input insertion order. Additive sibling of the pooled
+ * `mixedModelRowsFromCohortInputs`; the pooled path is unchanged. */
+export function mixedModelRowsByGroup(
+  allRows: readonly LabRow[],
+  groups: readonly PatientGroup[],
+  spec: CohortSeriesSpec,
+): Record<string, MixedModelSpikeRow[]> {
+  const byGroup: Record<string, MixedModelSpikeRow[]> = {}
+  for (const group of groups) {
+    const rows = mixedModelRowsFromCohortInputs(allRows, group.patientIds, spec)
+    if (rows.length === 0) continue
+    byGroup[group.value] = rows
+  }
+  return byGroup
 }
 
 function roundYears(value: number): number {

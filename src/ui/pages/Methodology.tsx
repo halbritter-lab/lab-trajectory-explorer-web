@@ -21,15 +21,57 @@ function ExternalSource({ href, children }: { href: string; children: ReactNode 
 /** Static reference panel describing analytical methods used in Lab Trajectory Explorer. */
 export function Methodology() {
   return (
-    <article style={{ maxWidth: '720px', lineHeight: 1.6 }}>
-      <h2>Methodology</h2>
+    <article className="methodology-page">
+      <h2>Theory &amp; Methods</h2>
       <p>
-        This reference describes the statistical methods, quality flags, and derived series used in
-        Lab Trajectory Explorer. It is provided for transparency and reproducibility only and is{' '}
+        This page combines a practical workflow guide with the statistical methods, quality flags,
+        and derived series used in Lab Trajectory Explorer. It is provided for transparency and
+        reproducibility only and is{' '}
         <strong>not for clinical decision-making</strong>.
       </p>
 
-      <h3>Fit Pipeline</h3>
+      <nav className="methodology-nav" aria-label="Theory and methods sections">
+        <a href="#quick-guide">Quick Guide</a>
+        <a href="#methodology-reference">Methodology Reference</a>
+        <a href="#safety-sources">Safety &amp; Sources</a>
+      </nav>
+
+      <section className="methodology-section" id="quick-guide">
+        <h3>Quick Guide</h3>
+        <ol className="methodology-steps">
+          <li>
+            <strong>Load or upload a workbook.</strong> Use the demo dataset or upload lab rows, then
+            select a patient for detail review or switch to the cohort view.
+          </li>
+          <li>
+            <strong>Choose the active series.</strong> Pick measured laboratory parameters or enable
+            computed eGFR when creatinine plus demographics are available.
+          </li>
+          <li>
+            <strong>Set the fit policy before interpreting slopes.</strong> Configure event censoring,
+            AKI exclusions, time balancing, and the fit model in the sidebar. The same policy feeds
+            plots, cohort summaries, and exports.
+          </li>
+          <li>
+            <strong>Inspect individual and cohort views together.</strong> Use the patient plot for
+            event context and the cohort table or overlay for ranking, grouping, and outlier review.
+          </li>
+          <li>
+            <strong>Open the cohort mixed model when an eGFR cohort is active.</strong> Fit the whole
+            cohort or selected groups, then verify the model status and warnings before using the
+            result as exploratory evidence.
+          </li>
+          <li>
+            <strong>Export only after checking the active configuration.</strong> Exports use the
+            visible series settings and include a disclaimer sheet for reproducibility.
+          </li>
+        </ol>
+      </section>
+
+      <section className="methodology-section" id="methodology-reference">
+        <h3>Methodology Reference</h3>
+
+      <h4>Fit Pipeline</h4>
       <p>
         Each configured series has its own fit configuration. Presets such as general exploration,
         CKD progression, and acute review are named defaults over the same explicit pipeline:
@@ -69,7 +111,7 @@ export function Methodology() {
         </li>
       </ul>
 
-      <h3>Clinical Events and Exclusion Display</h3>
+      <h4>Clinical Events and Exclusion Display</h4>
       <p>
         Clinical events are patient-level annotations with a date, title, optional end date, and
         optional description. Kidney transplant, dialysis, and other events can be loaded from the
@@ -85,7 +127,7 @@ export function Methodology() {
         hidden, but the underlying measurements and excluded-point markers remain visible.
       </p>
 
-      <h3>Cohort Overlay Plot</h3>
+      <h4>Cohort Overlay Plot</h4>
       <p>
         The cohort overlay is a spaghetti plot for one configured series across the selected
         patient scope. It can use age, calendar date, or years since each patient's baseline as the
@@ -100,7 +142,7 @@ export function Methodology() {
         markers.
       </p>
 
-      <h3>Quality Flags</h3>
+      <h4>Quality Flags</h4>
       <p>
         The reason field carries a quality flag when the slope is either uncomputable or of low
         confidence. The first two flags mean no slope was produced; the third is a caveat on an
@@ -123,7 +165,7 @@ export function Methodology() {
         </li>
       </ul>
 
-      <h3>eGFR (Estimated Glomerular Filtration Rate)</h3>
+      <h4>eGFR (Estimated Glomerular Filtration Rate)</h4>
       <p>
         eGFR is a computed series derived from serum creatinine and patient demographics. It is
         flagged with <strong>ƒ</strong> throughout the UI to distinguish it from directly measured
@@ -175,7 +217,7 @@ export function Methodology() {
         </li>
       </ul>
 
-      <h3>AKI Detection (KDIGO Criteria)</h3>
+      <h4>AKI Detection (KDIGO Criteria)</h4>
       <p>
         Acute Kidney Injury episodes are detected automatically on serum creatinine series (unit
         mg/dl) using the KDIGO 2012 creatinine criteria. Only creatinine-based criteria are
@@ -238,7 +280,7 @@ export function Methodology() {
         </li>
       </ul>
 
-      <h3>Cohort Screening</h3>
+      <h4>Cohort Screening</h4>
       <p>
         The cohort table <strong>ranks and sorts</strong> patients by the selected metric (slope,
         absolute slope, number of values, or observation span).
@@ -254,8 +296,20 @@ export function Methodology() {
         cut-offs are applied; all other interpretation of the ranking is left to the user, and the
         flag itself is a screening signal, not a diagnosis.
       </p>
+      </section>
 
-      <h3>Medical Sources</h3>
+      <section className="methodology-section" id="safety-sources">
+        <h3>Safety &amp; Sources</h3>
+
+      <h4>Intended Use</h4>
+      <p>
+        Lab Trajectory Explorer is a tool for <strong>research, transparency, and reproducibility</strong>.
+        It is <strong>not a medical device and not for clinical decision-making</strong>, diagnosis,
+        triage, or patient management. All derived values (slopes, eGFR, AKI episodes) are
+        algorithmic estimates that require independent clinical verification.
+      </p>
+
+      <h4>Medical Sources</h4>
       <ul>
         <li>
           CKD-EPI 2021 creatinine equation:{' '}
@@ -296,14 +350,7 @@ export function Methodology() {
           </ExternalSource>.
         </li>
       </ul>
-
-      <h3>Intended Use</h3>
-      <p>
-        Lab Trajectory Explorer is a tool for <strong>research, transparency, and reproducibility</strong>.
-        It is <strong>not a medical device and not for clinical decision-making</strong>, diagnosis,
-        triage, or patient management. All derived values (slopes, eGFR, AKI episodes) are
-        algorithmic estimates that require independent clinical verification.
-      </p>
+      </section>
     </article>
   )
 }

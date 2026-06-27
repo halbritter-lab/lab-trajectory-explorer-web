@@ -18,10 +18,10 @@ export function datasetFromArrayBuffer(data: ArrayBuffer): LabRow[] {
   }
 }
 
-/** Fetch the bundled synthetic fixture shipped in public/. */
+/** Fetch the bundled demo fixture shipped in public/. */
 export async function loadBundledFixture(baseUrl = import.meta.env.BASE_URL): Promise<LabRow[]> {
   const res = await fetch(`${baseUrl}test_labs.xlsx`)
-  if (!res.ok) throw new Error(`Could not load the synthetic dataset (HTTP ${res.status}).`)
+  if (!res.ok) throw new Error(`Could not load the demo dataset (HTTP ${res.status}).`)
   const buf = await res.arrayBuffer()
   return datasetFromArrayBuffer(buf)
 }
@@ -31,7 +31,7 @@ export interface BundledFixtureData {
   events: ClinicalEvent[]
 }
 
-/** Fetch the bundled synthetic labs plus demo event markers shipped in public/. */
+/** Fetch the bundled demo labs plus demo event markers shipped in public/. */
 export async function loadBundledFixtureData(baseUrl = import.meta.env.BASE_URL): Promise<BundledFixtureData> {
   const rows = await loadBundledFixture(baseUrl)
   const res = await fetch(`${baseUrl}test_events.csv`)

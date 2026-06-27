@@ -12,6 +12,9 @@ export interface MixedModelResultIdentity {
   fitConfigHash: string
   nPatients: number
   nMeasurements: number
+  /** Optional per-group discriminator. Undefined for the pooled (single) fit so
+   * existing pooled identities are byte-for-byte unchanged. */
+  groupValue?: string
 }
 
 export interface MixedModelResultIdentityInput {
@@ -20,6 +23,7 @@ export interface MixedModelResultIdentityInput {
   patientIds: readonly string[]
   rows: readonly MixedModelSpikeRow[]
   fitConfigHash: string
+  groupValue?: string
 }
 
 export interface MixedModelMeanLinePoint {
@@ -68,6 +72,7 @@ export function buildMixedModelResultIdentity({
   patientIds,
   rows,
   fitConfigHash,
+  groupValue,
 }: MixedModelResultIdentityInput): MixedModelResultIdentity {
   const sortedPatientIds = [...new Set(patientIds)].sort(compareCanonicalPatientIds)
   const modelPatientIds = new Set(rows.map((row) => row.patient_id))
@@ -79,6 +84,9 @@ export function buildMixedModelResultIdentity({
     fitConfigHash,
     nPatients: modelPatientIds.size,
     nMeasurements: rows.length,
+    // Only attach the key for grouped fits so pooled identities keep their exact
+    // shape (the equality check still distinguishes defined vs. undefined).
+    ...(groupValue !== undefined ? { groupValue } : {}),
   }
 }
 
@@ -95,7 +103,8 @@ export function mixedModelIdentityEquals(
       a.datasetHash === b.datasetHash &&
       a.fitConfigHash === b.fitConfigHash &&
       a.nPatients === b.nPatients &&
-      a.nMeasurements === b.nMeasurements,
+      a.nMeasurements === b.nMeasurements &&
+      a.groupValue === b.groupValue,
   )
 }
 

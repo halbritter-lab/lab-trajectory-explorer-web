@@ -8,7 +8,7 @@ import { CohortView } from './ui/cohort/CohortView'
 import { Methodology } from './ui/pages/Methodology'
 import './ui/app.css'
 
-const TEST_DATA_HREF = `${import.meta.env.BASE_URL}test_labs.xlsx`
+const DEMO_WORKBOOK_HREF = `${import.meta.env.BASE_URL}test_labs.xlsx`
 
 function EmptyState() {
   const setShowMethodology = useAppStore((s) => s.setShowMethodology)
@@ -18,7 +18,7 @@ function EmptyState() {
   const fileInput = useRef<HTMLInputElement>(null)
   return (
     <div className="empty-state">
-      <p>Upload a workbook or load the synthetic dataset to begin.</p>
+      <p>Upload a workbook or load the demo dataset to begin.</p>
       <div className="empty-state-actions">
         <button disabled={busy} onClick={() => fileInput.current?.click()}>Upload xlsx/csv</button>
         <input
@@ -28,8 +28,8 @@ function EmptyState() {
           hidden
           onChange={async (e) => { const f = e.target.files?.[0]; if (f) { await loadFile(f); e.target.value = '' } }}
         />
-        <button disabled={busy} onClick={() => void loadSynthetic()}>{busy ? 'Loading…' : 'Load synthetic data'}</button>
-        <a className="button-link" href={TEST_DATA_HREF} download="test_labs.xlsx">Download test data</a>
+        <button disabled={busy} onClick={() => void loadSynthetic()}>{busy ? 'Loading…' : 'Load demo data'}</button>
+        <a className="button-link" href={DEMO_WORKBOOK_HREF} download="test_labs.xlsx">Download demo workbook</a>
       </div>
       <p className="empty-state-hint">
         New here? Read the{' '}

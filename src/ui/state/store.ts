@@ -12,9 +12,12 @@ import {
   type FitConfig,
   type FitPreset,
 } from '../../core/fitPipeline/types'
-import { DEFAULT_MIXED_MODEL_CONFIG, type MixedModelConfig } from '../../core/mixedModel/config'
+import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormulaKey, type MixedModelConfig } from '../../core/mixedModel/config'
 import type { MixedModelResult } from '../../core/mixedModel/types'
 import type { MixedModelResultIdentity } from '../../core/mixedModel/resultIdentity'
+import { runCohortMixedModels } from '../../core/mixedModel/cohortModelFit'
+import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEntity'
+import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import { saveDataset, clearDataset, saveSettings } from '../../io/persistence'
 import { datasetFromArrayBuffer, loadBundledFixtureData } from '../data/loadDataset'
 
@@ -56,6 +59,24 @@ export interface StoredMixedModelResult {
   identity: MixedModelResultIdentity
 }
 
+export interface CohortModelProgress {
+  completed: number
+  total: number
+  key: string | null
+}
+
+export interface RunCohortModelsParams {
+  /** Entities to fit (pooled cohort and/or groups), in display order. */
+  entities: CohortModelEntityRows[]
+  seriesIndex: number
+  seriesKey: string
+  fitConfigHash: string
+  config: MixedModelConfig
+  formula: string
+  /** Injectable worker seam (tests pass a mock); defaults to the real webR job. */
+  runJob?: (options: RunMixedModelWorkerJobOptions) => Promise<MixedModelResult>
+}
+
 export interface AppState {
   rows: LabRow[]
   fileName: string | null
@@ -73,6 +94,10 @@ export interface AppState {
   manualDemographics: Record<string, ManualDemographics>
   events: ClinicalEvent[]
   showEvents: boolean
+  /** Generic per-patient attribute maps keyed by patientIdKey. Domain-neutral:
+   * attribute names (e.g. "genotype") carry no special meaning to the app. */
+  patientAttributes: Record<string, Record<string, string>>
+
   cohortSort: { key: 'id' | 'slope' | 'absSlope' | 'n' | 'duration'; dir: 'asc' | 'desc'; seriesIndex?: number }
   showAki: boolean
   showMethodology: boolean
@@ -80,7 +105,16 @@ export interface AppState {
   cohortZoom: ZoomLevel
   connectPoints: boolean
   mixedModelConfig: MixedModelConfig
-  mixedModelResult: StoredMixedModelResult | null
+  /** Attribute name the cohort is grouped by, or null for no grouping. Domain-
+   * neutral: the name carries no special meaning to the app. */
+  cohortGroupByAttribute: string | null
+  /** Cohort mixed-model results keyed by entity (`'cohort'` for the pooled fit,
+   * `'group:<value>'` per group), or null when nothing has been fit. Single
+   * source of truth read by the results table and the overlay. */
+  cohortModelResults: Record<string, StoredMixedModelResult> | null
+  /** True while a `runCohortModels` run is in flight (drives the fit button). */
+  cohortModelRunning: boolean
+  cohortModelProgress: CohortModelProgress | null
   showCohortMixedModelLine: boolean
   mixedModelDialogOpen: boolean
   /** Rapid eGFR-decline flag threshold (mL/min/1.73m²/yr); 0 disables the flag. */
@@ -107,6 +141,7 @@ export interface AppState {
   setManualDemographics: (patientId: PatientId, demo: ManualDemographics) => void
   setEvents: (events: ClinicalEvent[]) => void
   setShowEvents: (value: boolean) => void
+  setPatientAttributes: (byPatient: Record<string, Record<string, string>>) => void
   setSeriesFitPreset: (index: number, preset: FitPreset) => void
   setSeriesFitConfig: (index: number, patch: FitConfigPatch) => void
   analysisResult: () => AnalysisResult
@@ -118,7 +153,8 @@ export interface AppState {
   setCohortZoom: (z: ZoomLevel) => void
   setConnectPoints: (v: boolean) => void
   setMixedModelConfig: (config: MixedModelConfig) => void
-  setMixedModelResult: (value: StoredMixedModelResult) => void
+  setCohortGroupByAttribute: (name: string | null) => void
+  runCohortModels: (params: RunCohortModelsParams) => Promise<void>
   clearMixedModelResult: () => void
   setShowCohortMixedModelLine: (value: boolean) => void
   setMixedModelDialogOpen: (value: boolean) => void
@@ -143,8 +179,8 @@ const defaultSeries = (): SeriesConfig => ({
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'selectedPatientId' | 'selectedPatientIds' | 'view' | 'returnToCohort' | 'cohortPatientMode' | 'seriesConfigs' | 'egfrFormula'
-  | 'analysisSettings' | 'egfrSource' | 'manualDemographics' | 'events' | 'showEvents' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
-  | 'cohortDisplayMode' | 'cohortOverlayXAxis' | 'connectPoints' | 'mixedModelConfig' | 'mixedModelResult' | 'showCohortMixedModelLine' | 'mixedModelDialogOpen' | 'rapidEgfrThreshold' | 'busy' | 'notice'>
+  | 'analysisSettings' | 'egfrSource' | 'manualDemographics' | 'events' | 'showEvents' | 'patientAttributes' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
+  | 'cohortDisplayMode' | 'cohortOverlayXAxis' | 'connectPoints' | 'mixedModelConfig' | 'cohortGroupByAttribute' | 'cohortModelResults' | 'cohortModelRunning' | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'mixedModelDialogOpen' | 'rapidEgfrThreshold' | 'busy' | 'notice'>
 
 function analysisSettingsState(analysisSettings: AnalysisSettings) {
   return {
@@ -173,13 +209,17 @@ const initialState = (): AppData => {
     manualDemographics: {},
     events: [],
     showEvents: true,
+    patientAttributes: {},
     cohortSort: { key: 'id', dir: 'asc' },
     showMethodology: false,
     persist: false,
     cohortZoom: 'm',
     connectPoints: true,
     mixedModelConfig: DEFAULT_MIXED_MODEL_CONFIG,
-    mixedModelResult: null,
+    cohortGroupByAttribute: null,
+    cohortModelResults: null,
+    cohortModelRunning: false,
+    cohortModelProgress: null,
     showCohortMixedModelLine: false,
     mixedModelDialogOpen: false,
     busy: false,
@@ -254,6 +294,28 @@ function changesMixedModelDataPolicy(patch: FitConfigPatch): boolean {
   return 'xAxis' in patch || 'censoring' in patch || 'exclusions' in patch || 'timeBalancing' in patch || 'fitModel' in patch
 }
 
+/** Single source of truth for invalidating every cached mixed-model fit (pooled
+ * and per-group) plus the overlay line toggle. Every setter that changes the
+ * mixed-model data policy spreads this so the pooled and grouped result stores
+ * cannot drift out of sync. */
+/** The in-flight cohort-model run, so any result-invalidating change can abort
+ * it. Module-scoped (not in serializable state). */
+let activeCohortModelRun: AbortController | null = null
+function abortActiveCohortModelRun() {
+  activeCohortModelRun?.abort()
+  activeCohortModelRun = null
+}
+
+const clearedMixedModelResults = (): Pick<AppData, 'cohortModelResults' | 'cohortModelRunning' | 'cohortModelProgress' | 'showCohortMixedModelLine'> => {
+  abortActiveCohortModelRun()
+  return {
+    cohortModelResults: null,
+    cohortModelRunning: false,
+    cohortModelProgress: null,
+    showCohortMixedModelLine: false,
+  }
+}
+
 export const useAppStore = create<AppState>((set, get) => ({
   ...initialState(),
   setNotice: (n) => set({ notice: n }),
@@ -274,12 +336,12 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ busy: true, notice: null })
     try {
       const { rows, events } = await loadBundledFixtureData()
-      get().setDataset(rows, 'test_labs.xlsx (synthetic)')
+      get().setDataset(rows, 'test_labs.xlsx (demo)')
       set({
         events,
         notice: {
           kind: 'info',
-          text: `Loaded ${rows.length} rows and ${events.length} events from the synthetic dataset.`,
+          text: `Loaded ${rows.length} rows and ${events.length} events from the demo dataset.`,
         },
       })
     } catch (err) {
@@ -298,8 +360,9 @@ export const useAppStore = create<AppState>((set, get) => ({
       view: 'cohort',
       returnToCohort: false,
       events: [],
-      mixedModelResult: null,
-      showCohortMixedModelLine: false,
+      patientAttributes: {},
+      cohortGroupByAttribute: null,
+      ...clearedMixedModelResults(),
       ...analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: null } }),
     }))
     if (get().persist) void saveDataset(rows, fileName ?? null)
@@ -307,15 +370,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   selectPatient: (id) => set({ selectedPatientId: id }),
   setSelectedPatientIds: (ids) => set({
     selectedPatientIds: [...new Set(ids)].sort(comparePatientIds),
-    mixedModelResult: null,
-    showCohortMixedModelLine: false,
+    ...clearedMixedModelResults(),
   }),
   setView: (v) => set({ view: v }),
   setReturnToCohort: (v) => set({ returnToCohort: v }),
   setCohortPatientMode: (v) => set({
     cohortPatientMode: v,
-    mixedModelResult: null,
-    showCohortMixedModelLine: false,
+    ...clearedMixedModelResults(),
   }),
   setCohortDisplayMode: (v) => set({ cohortDisplayMode: v }),
   setCohortOverlayXAxis: (v) => set({ cohortOverlayXAxis: v }),
@@ -329,34 +390,33 @@ export const useAppStore = create<AppState>((set, get) => ({
         }
         return next
       }),
-      mixedModelResult: null,
-      showCohortMixedModelLine: false,
+      ...clearedMixedModelResults(),
     })),
   addSeries: () => set((s) => (s.seriesConfigs.length >= 3 ? s : { seriesConfigs: [...s.seriesConfigs, defaultSeries()] })),
   removeSeries: (index) =>
     set((s) => ({
       ...(s.seriesConfigs.length <= 1 ? {} : { seriesConfigs: s.seriesConfigs.filter((_, i) => i !== index) }),
-      mixedModelResult: null,
-      showCohortMixedModelLine: false,
+      ...clearedMixedModelResults(),
     })),
   patientIds: () => [...new Set(get().rows.map((r) => r.patientId))].sort(comparePatientIds),
   setEgfrFormula: (f) => set((s) => ({
     ...analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, formula: f } }),
-    mixedModelResult: null,
-    showCohortMixedModelLine: false,
+    ...clearedMixedModelResults(),
   })),
   setEgfrSource: (src) => set((s) => ({
     ...analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: src } }),
-    mixedModelResult: null,
-    showCohortMixedModelLine: false,
+    ...clearedMixedModelResults(),
   })),
   setManualDemographics: (patientId, demo) => set((s) => ({
     manualDemographics: { ...s.manualDemographics, [patientId]: demo },
-    mixedModelResult: null,
-    showCohortMixedModelLine: false,
+    ...clearedMixedModelResults(),
   })),
-  setEvents: (events) => set({ events, mixedModelResult: null, showCohortMixedModelLine: false }),
+  setEvents: (events) => set({ events, ...clearedMixedModelResults() }),
   setShowEvents: (value) => set({ showEvents: value }),
+  // Re-importing attributes can re-partition the cohort (group membership and
+  // values change), so any cached pooled/per-group fit is stale: invalidate them
+  // alongside, exactly like every other data-policy setter.
+  setPatientAttributes: (byPatient) => set({ patientAttributes: byPatient, ...clearedMixedModelResults() }),
   setSeriesFitPreset: (index, preset) =>
     set((s) => ({
       seriesConfigs: s.seriesConfigs.map((c, i) => {
@@ -369,8 +429,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           exclusionDays: fitConfig.exclusions.akiExclusionDays,
         }
       }),
-      mixedModelResult: null,
-      showCohortMixedModelLine: false,
+      ...clearedMixedModelResults(),
     })),
   setSeriesFitConfig: (index, patch) =>
     set((s) => {
@@ -386,7 +445,7 @@ export const useAppStore = create<AppState>((set, get) => ({
             exclusionDays: fitConfig.exclusions.akiExclusionDays,
           }
         }),
-        ...(shouldClearMixedModelResult ? { mixedModelResult: null, showCohortMixedModelLine: false } : {}),
+        ...(shouldClearMixedModelResult ? clearedMixedModelResults() : {}),
       }
     }),
   analysisResult: () => {
@@ -415,11 +474,46 @@ export const useAppStore = create<AppState>((set, get) => ({
   setConnectPoints: (v) => set({ connectPoints: v }),
   setMixedModelConfig: (config) => set({
     mixedModelConfig: config,
-    mixedModelResult: null,
-    showCohortMixedModelLine: false,
+    ...clearedMixedModelResults(),
   }),
-  setMixedModelResult: (value) => set({ mixedModelResult: value }),
-  clearMixedModelResult: () => set({ mixedModelResult: null, showCohortMixedModelLine: false }),
+  setCohortGroupByAttribute: (name) => set({
+    cohortGroupByAttribute: name,
+    ...clearedMixedModelResults(),
+  }),
+  runCohortModels: async ({ entities, seriesIndex, seriesKey, fitConfigHash, config, formula, runJob = runMixedModelWorkerJob }) => {
+    abortActiveCohortModelRun()
+    const controller = new AbortController()
+    activeCohortModelRun = controller
+    set({ cohortModelRunning: true, cohortModelProgress: { completed: 0, total: entities.length, key: null } })
+    try {
+      const map = await runCohortMixedModels({
+        entities,
+        seriesIndex,
+        seriesKey,
+        fitConfigHash,
+        config,
+        formula,
+        formulaKey: mixedModelFormulaKey(config),
+        datasetId: 'cohort',
+        runJob,
+        signal: controller.signal,
+        onProgress: (progress) => {
+          if (!controller.signal.aborted && activeCohortModelRun === controller) set({ cohortModelProgress: progress })
+        },
+      })
+      // A superseded run was aborted; its results are also identity-guarded by
+      // consumers, so a late arrival is harmless either way.
+      if (controller.signal.aborted || activeCohortModelRun !== controller) return
+      // Merge so fitting only groups keeps a prior cohort result (and vice versa).
+      set((s) => ({ cohortModelResults: { ...(s.cohortModelResults ?? {}), ...map } }))
+    } finally {
+      if (activeCohortModelRun === controller) {
+        activeCohortModelRun = null
+        set({ cohortModelRunning: false, cohortModelProgress: null })
+      }
+    }
+  },
+  clearMixedModelResult: () => set(clearedMixedModelResults()),
   setShowCohortMixedModelLine: (value) => set({ showCohortMixedModelLine: value }),
   setMixedModelDialogOpen: (value) => set({ mixedModelDialogOpen: value }),
   setRapidEgfrThreshold: (n) => {

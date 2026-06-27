@@ -39,6 +39,7 @@ const validFitJson = JSON.stringify({
   converged: true,
   warnings: [],
   fixedEffects: { intercept: 60, timeSinceBaseline: -2 },
+  fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.8, -1.2] },
   randomEffects: { interceptSd: null, slopeSd: 0.5, interceptSlopeCorrelation: null },
   residualSd: 1.2,
   optimizer: 'test-optimizer',
@@ -131,6 +132,7 @@ describe('webR worker runtime behavior', () => {
 
     expect(messages[0].result.status).toBe('success')
     expect(fitCode).toContain('lme4::fixef(mm_fit)')
+    expect(fitCode).toContain('confint(mm_fit, parm = "time_since_baseline", method = "Wald")')
     expect(fitCode).not.toContain('stats::fixef')
     expect(fitCode).toContain('warnings = unname(unique(c(mm_warnings, as.character(mm_lme4_messages))))')
   })
@@ -186,6 +188,7 @@ describe('webR worker runtime behavior', () => {
     expect(fitCode).toContain('mm_conv_warnings <- mm_warnings[grepl("converg"')
     expect(fitCode).toContain('mm_named_number(mm_stddev, "Residual")')
     expect(fitCode).toContain('mm_named_number(mm_stddev, "(Intercept)")')
+    expect(fitCode).toContain('nlme::intervals(mm_fit, which = "fixed")')
   })
 
   it('returns a structured failure for unsupported mixed-model configs', async () => {

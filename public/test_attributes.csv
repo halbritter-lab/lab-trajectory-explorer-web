@@ -1,0 +1,9 @@
+patientId,genotype,inheritance,cohort
+7,UMOD,AD,A
+8,UMOD,AD,A
+9,MUC1,AD,B
+10,PKD1,AD,B
+11,HNF1B,AD,C
+12,UMOD,AD,A
+13,Transplant demo,,C
+14,Transplant demo,,C

@@ -2,11 +2,12 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CohortTrajectoryOverlay } from '../../src/ui/cohort/CohortTrajectoryOverlay'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore, type StoredMixedModelResult } from '../../src/ui/state/store'
 import type { LabRow } from '../../src/core/types'
 import { ckdProgressionConfig, generalExplorationConfig } from '../../src/core/fitPipeline/types'
 import { buildMixedModelResultIdentity, mixedModelFitConfigHash } from '../../src/core/mixedModel/resultIdentity'
-import { mixedModelRowsFromCohortInputs } from '../../src/core/mixedModel/cohortDataset'
+import { mixedModelRowsByGroup, mixedModelRowsFromCohortInputs } from '../../src/core/mixedModel/cohortDataset'
+import { groupPatients } from '../../src/core/grouping/grouping'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula, type MixedModelConfig } from '../../src/core/mixedModel/config'
 import {
   MIXED_MODEL_FORMULA,
@@ -37,6 +38,18 @@ function rectsOverlap(
   return a.x1 < b.x2 && a.x2 > b.x1 && a.y1 < b.y2 && a.y2 > b.y1
 }
 
+/** Seed the pooled (whole-cohort) result in the central results map. */
+function storePooledResult(stored: StoredMixedModelResult) {
+  useAppStore.setState({ cohortModelResults: { cohort: stored } })
+}
+
+/** Seed a per-group result keyed by entity in the central results map. */
+function storeGroupResults(byGroupValue: Record<string, StoredMixedModelResult>) {
+  const map: Record<string, StoredMixedModelResult> = {}
+  for (const [value, stored] of Object.entries(byGroupValue)) map[`group:${value}`] = stored
+  useAppStore.setState({ cohortModelResults: map })
+}
+
 function mixedModelSuccess(overrides: Partial<MixedModelSuccess> = {}): MixedModelSuccess {
   return {
     status: 'success',
@@ -62,6 +75,9 @@ function mixedModelSuccess(overrides: Partial<MixedModelSuccess> = {}): MixedMod
     fixedEffects: {
       intercept: 60,
       timeSinceBaseline: -3,
+    },
+    fixedEffectConfidenceIntervals: {
+      timeSinceBaseline: [-3.5, -2.5],
     },
     randomEffects: {
       interceptSd: 4.2,
@@ -149,7 +165,7 @@ describe('CohortTrajectoryOverlay', () => {
       fitConfigHash: mixedModelFitConfigHash(activeSpec),
     })
 
-    useAppStore.getState().setMixedModelResult({
+    storePooledResult({
       identity,
       result: mixedModelSuccess({ metadata: { ...mixedModelSuccess().metadata, fitConfigHash: identity.fitConfigHash } }),
     })
@@ -159,6 +175,10 @@ describe('CohortTrajectoryOverlay', () => {
 
     expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
     expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('Mixed model mean')
+    const overlay = screen.getByTestId('cohort-trajectory-overlay')
+    const dotGroup = overlay.querySelector('g[aria-label="dot"]')
+    const modelLineGroup = overlay.querySelector('g.cohort-mixed-model-line-mark')
+    expect((dotGroup?.compareDocumentPosition(modelLineGroup as Node) ?? 0) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
 
     act(() => useAppStore.getState().setCohortOverlayXAxis('age'))
     rerender(<CohortTrajectoryOverlay />)
@@ -206,7 +226,7 @@ describe('CohortTrajectoryOverlay', () => {
       fitConfigHash: mixedModelFitConfigHash(activeSpec, DEFAULT_MIXED_MODEL_CONFIG),
     })
 
-    useAppStore.getState().setMixedModelResult({
+    storePooledResult({
       identity,
       result: mixedModelSuccess({
         metadata: {
@@ -264,7 +284,7 @@ describe('CohortTrajectoryOverlay', () => {
       fitConfigHash: mixedModelFitConfigHash(activeSpec, DEFAULT_MIXED_MODEL_CONFIG),
     })
 
-    useAppStore.getState().setMixedModelResult({
+    storePooledResult({
       identity,
       result: mixedModelSuccess({
         metadata: {
@@ -331,7 +351,7 @@ describe('CohortTrajectoryOverlay', () => {
       fitConfigHash: mixedModelFitConfigHash(activeSpec, nonDefaultConfig),
     })
 
-    useAppStore.getState().setMixedModelResult({
+    storePooledResult({
       identity,
       result: mixedModelSuccess({
         metadata: {
@@ -389,7 +409,7 @@ describe('CohortTrajectoryOverlay', () => {
       fitConfigHash: mixedModelFitConfigHash(activeSpec),
     })
 
-    useAppStore.getState().setMixedModelResult({
+    storePooledResult({
       identity,
       result: mixedModelSuccess({ metadata: { ...mixedModelSuccess().metadata, fitConfigHash: identity.fitConfigHash } }),
     })
@@ -446,7 +466,7 @@ describe('CohortTrajectoryOverlay', () => {
       fitConfigHash: mixedModelFitConfigHash(activeSpec),
     })
 
-    useAppStore.getState().setMixedModelResult({
+    storePooledResult({
       identity,
       result: mixedModelSuccess({ metadata: { ...mixedModelSuccess().metadata, fitConfigHash: identity.fitConfigHash } }),
     })
@@ -456,6 +476,179 @@ describe('CohortTrajectoryOverlay', () => {
 
     expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
     expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('Mixed model mean')
+  })
+
+  it('renders a group legend but no model lines until a fit runs when grouping is active', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 55 }),
+      row({ patientId: 2, labDatum: new Date('2020-06-01T00:00:00Z'), patientAgeAtLab: 55, wertNum: 58 }),
+      row({ patientId: 2, labDatum: new Date('2021-06-01T00:00:00Z'), patientAgeAtLab: 56, wertNum: 50 }),
+      row({ patientId: 3, labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 45 }),
+      row({ patientId: 3, labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 38 }),
+      row({ patientId: 4, labDatum: new Date('2020-09-01T00:00:00Z'), patientAgeAtLab: 65, wertNum: 42 }),
+      row({ patientId: 4, labDatum: new Date('2021-09-01T00:00:00Z'), patientAgeAtLab: 66, wertNum: 35 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().setPatientAttributes({
+      '1': { cohort: 'A' },
+      '2': { cohort: 'A' },
+      '3': { cohort: 'B' },
+      '4': { cohort: 'B' },
+    })
+    useAppStore.getState().setCohortGroupByAttribute('cohort')
+
+    render(<CohortTrajectoryOverlay />)
+
+    expect(screen.getByRole('img', { name: /eGFR .* across 4 patient/ })).toBeInTheDocument()
+    const legend = screen.getByTestId('cohort-overlay-group-legend')
+    expect(legend).toBeInTheDocument()
+    expect(screen.getAllByTestId('cohort-overlay-group-legend-entry')).toHaveLength(2)
+    expect(legend).toHaveTextContent('A')
+    expect(legend).toHaveTextContent('B')
+    const firstSwatch = screen.getAllByTestId('cohort-overlay-group-legend-swatch')[0]
+    const firstLabel = screen.getAllByTestId('cohort-overlay-group-legend-label')[0]
+    expect(firstSwatch).toHaveClass('cohort-overlay-group-legend-swatch')
+    expect(firstLabel).toHaveClass('cohort-overlay-group-legend-label')
+    expect(firstLabel).toHaveTextContent('A')
+
+    // No per-group fit has run, so no model mean lines are drawn (OLS removed).
+    expect(screen.queryByTestId('cohort-group-mean-line')).not.toBeInTheDocument()
+  })
+
+  it('toggles a group on and off in the overlay from its legend entry', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 55 }),
+      row({ patientId: 2, labDatum: new Date('2020-06-01T00:00:00Z'), patientAgeAtLab: 55, wertNum: 58 }),
+      row({ patientId: 2, labDatum: new Date('2021-06-01T00:00:00Z'), patientAgeAtLab: 56, wertNum: 50 }),
+      row({ patientId: 3, labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 45 }),
+      row({ patientId: 3, labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 38 }),
+      row({ patientId: 4, labDatum: new Date('2020-09-01T00:00:00Z'), patientAgeAtLab: 65, wertNum: 42 }),
+      row({ patientId: 4, labDatum: new Date('2021-09-01T00:00:00Z'), patientAgeAtLab: 66, wertNum: 35 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().setPatientAttributes({
+      '1': { cohort: 'A' },
+      '2': { cohort: 'A' },
+      '3': { cohort: 'B' },
+      '4': { cohort: 'B' },
+    })
+    useAppStore.getState().setCohortGroupByAttribute('cohort')
+
+    render(<CohortTrajectoryOverlay />)
+    const overlay = screen.getByTestId('cohort-trajectory-overlay')
+    const legendB = () =>
+      screen
+        .getAllByTestId('cohort-overlay-group-legend-entry')
+        .find((entry) => entry.getAttribute('data-group') === 'B')!
+
+    // Both groups visible initially.
+    expect(overlay.querySelector('path[data-patient-id="3"]')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /across 4 patient/ })).toBeInTheDocument()
+
+    // Hide group B via its legend entry.
+    fireEvent.click(legendB())
+
+    expect(overlay.querySelector('path[data-patient-id="3"]')).not.toBeInTheDocument()
+    expect(overlay.querySelector('path[data-patient-id="4"]')).not.toBeInTheDocument()
+    expect(overlay.querySelector('path[data-patient-id="1"]')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /across 2 patient/ })).toBeInTheDocument()
+    expect(legendB().getAttribute('data-hidden')).toBe('true')
+
+    // Toggling again restores it (overlay-only; cohort scope untouched).
+    fireEvent.click(legendB())
+    expect(overlay.querySelector('path[data-patient-id="3"]')).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: /across 4 patient/ })).toBeInTheDocument()
+  })
+
+  it('draws a per-group mixed-model mean line only for groups with a successful grouped result', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 58 }),
+      row({ patientId: 2, labDatum: new Date('2020-02-01T00:00:00Z'), patientAgeAtLab: 55, wertNum: 60 }),
+      row({ patientId: 2, labDatum: new Date('2021-02-01T00:00:00Z'), patientAgeAtLab: 56, wertNum: 55 }),
+      row({ patientId: 3, labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 45 }),
+      row({ patientId: 3, labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 40 }),
+      row({ patientId: 4, labDatum: new Date('2020-09-01T00:00:00Z'), patientAgeAtLab: 65, wertNum: 42 }),
+      row({ patientId: 4, labDatum: new Date('2021-09-01T00:00:00Z'), patientAgeAtLab: 66, wertNum: 36 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().setCohortOverlayXAxis('time_since_baseline')
+    useAppStore.getState().setPatientAttributes({
+      '1': { cohort: 'A' },
+      '2': { cohort: 'A' },
+      '3': { cohort: 'B' },
+      '4': { cohort: 'B' },
+    })
+    useAppStore.getState().setCohortGroupByAttribute('cohort')
+
+    const analysisResult = useAppStore.getState().analysisResult()
+    const activeConfig = useAppStore.getState().seriesConfigs[0]
+    const activeSpec = {
+      bezeichnung: activeConfig.bezeichnung as string,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient: {},
+    }
+    const groups = groupPatients([1, 2, 3, 4], useAppStore.getState().patientAttributes, 'cohort')
+    const rowsByGroup = mixedModelRowsByGroup(analysisResult.rows, groups, activeSpec)
+    const identityA = buildMixedModelResultIdentity({
+      seriesIndex: 0,
+      seriesKey: 'eGFR|ml/min/1.73m2',
+      patientIds: rowsByGroup['A'].map((modelRow) => modelRow.patient_id),
+      rows: rowsByGroup['A'],
+      fitConfigHash: mixedModelFitConfigHash(activeSpec),
+      groupValue: 'A',
+    })
+
+    // Only group A has a successful grouped result; group B has none -> no line.
+    storeGroupResults({
+      A: {
+        identity: identityA,
+        result: mixedModelSuccess({
+          metadata: { ...mixedModelSuccess().metadata, fitConfigHash: identityA.fitConfigHash },
+          nPatients: 2,
+          nMeasurements: rowsByGroup['A'].length,
+          fixedEffects: { intercept: 61, timeSinceBaseline: -4 },
+        }),
+      },
+    })
+    const { rerender } = render(<CohortTrajectoryOverlay />)
+
+    expect(screen.queryByTestId('cohort-group-mean-line')).not.toBeInTheDocument()
+
+    act(() => useAppStore.getState().setShowCohortMixedModelLine(true))
+    rerender(<CohortTrajectoryOverlay />)
+
+    const lines = screen.getAllByTestId('cohort-group-mean-line')
+    expect(lines).toHaveLength(1)
+    expect(lines[0].getAttribute('data-group')).toBe('A')
+    expect(lines[0].getAttribute('data-kind')).toBe('mixed')
+    expect(
+      screen
+        .getByTestId('cohort-trajectory-overlay')
+        .querySelector('path[data-group="A"][data-kind="mixed"]'),
+    ).toBeInTheDocument()
+    expect(
+      screen
+        .getByTestId('cohort-trajectory-overlay')
+        .querySelector('path[data-group="B"]'),
+    ).not.toBeInTheDocument()
+  })
+
+  it('does not render a group legend when no grouping is active', () => {
+    render(<CohortTrajectoryOverlay />)
+
+    expect(screen.queryByTestId('cohort-overlay-group-legend')).not.toBeInTheDocument()
+    expect(screen.queryByTestId('cohort-group-mean-line')).not.toBeInTheDocument()
   })
 
   it('does not render Plot popovers above the clickable trajectories', () => {
@@ -544,6 +737,34 @@ describe('CohortTrajectoryOverlay', () => {
     expect(useAppStore.getState().view).toBe('one')
     expect(useAppStore.getState().selectedPatientId).toBe(2)
     expect(useAppStore.getState().returnToCohort).toBe(true)
+  })
+
+  it('clears the selected overlay patient when clicking empty plot space', () => {
+    render(<CohortTrajectoryOverlay />)
+
+    const overlay = screen.getByTestId('cohort-trajectory-overlay')
+    const patientTrajectory = overlay.querySelector<SVGPathElement>('path[data-patient-id="2"]')
+    const svg = overlay.querySelector('svg')
+
+    fireEvent.click(patientTrajectory!)
+    expect(screen.getByText('Selected: Patient 2')).toBeInTheDocument()
+
+    fireEvent.click(svg!)
+    expect(screen.queryByText('Selected: Patient 2')).not.toBeInTheDocument()
+  })
+
+  it('toggles off the selected overlay patient when clicking the same trajectory again', () => {
+    render(<CohortTrajectoryOverlay />)
+
+    const patientTrajectory = screen
+      .getByTestId('cohort-trajectory-overlay')
+      .querySelector<SVGPathElement>('path[data-patient-id="2"]')
+
+    fireEvent.click(patientTrajectory!)
+    expect(screen.getByText('Selected: Patient 2')).toBeInTheDocument()
+
+    fireEvent.click(patientTrajectory!)
+    expect(screen.queryByText('Selected: Patient 2')).not.toBeInTheDocument()
   })
 
   it('supports keyboard selection and opening for overlay trajectories', () => {
@@ -855,6 +1076,58 @@ describe('CohortTrajectoryOverlay', () => {
     expect(excludedPoints).toHaveLength(2)
     expect([...excludedPoints].every((point) => point.getAttribute('stroke') === '#dc2626')).toBe(true)
     expect([...excludedPoints].every((point) => point.getAttribute('fill') === '#fff')).toBe(true)
+  })
+
+  it('marks excluded overlay measurements across visible attribute groups without requiring hover', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, labDatum: new Date('2020-09-01T00:00:00Z'), patientAgeAtLab: 50.67, wertNum: 52 }),
+      row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 48 }),
+      row({ patientId: 2, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 58 }),
+      row({ patientId: 2, labDatum: new Date('2020-09-01T00:00:00Z'), patientAgeAtLab: 60.67, wertNum: 49 }),
+      row({ patientId: 2, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 44 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, {
+      bezeichnung: 'eGFR',
+      einheit: 'ml/min/1.73m2',
+      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' }),
+    })
+    useAppStore.getState().setPatientAttributes({
+      '1': { cohort: 'A' },
+      '2': { cohort: 'B' },
+    })
+    useAppStore.getState().setCohortGroupByAttribute('cohort')
+    useAppStore.getState().setEvents([
+      {
+        patientId: 1,
+        type: 'kidney_transplant',
+        date: new Date('2020-09-01T00:00:00Z'),
+        title: 'Kidney transplant',
+        description: '',
+        endDate: null,
+        intent: null,
+        warning: '',
+      },
+      {
+        patientId: 2,
+        type: 'kidney_transplant',
+        date: new Date('2020-09-01T00:00:00Z'),
+        title: 'Kidney transplant',
+        description: '',
+        endDate: null,
+        intent: null,
+        warning: '',
+      },
+    ])
+
+    render(<CohortTrajectoryOverlay />)
+
+    const excludedPoints = screen
+      .getByTestId('cohort-trajectory-overlay')
+      .querySelectorAll<SVGCircleElement>('circle[data-testid="cohort-overlay-excluded-point"]')
+
+    expect(excludedPoints).toHaveLength(4)
+    expect([...excludedPoints].map((point) => point.dataset.patientId).sort()).toEqual(['1', '1', '2', '2'])
   })
 
   it('keeps excluded overlay measurements visible when event labels are hidden', () => {

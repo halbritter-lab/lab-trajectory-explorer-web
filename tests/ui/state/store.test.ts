@@ -1,6 +1,7 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { useAppStore } from '../../../src/ui/state/store'
 import type { LabRow } from '../../../src/core/types'
+import { DEFAULT_MIXED_MODEL_CONFIG } from '../../../src/core/mixedModel/config'
 import type { MixedModelResult } from '../../../src/core/mixedModel/types'
 import type { MixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
 import { readFileSync } from 'node:fs'
@@ -47,12 +48,13 @@ describe('useAppStore', () => {
     nPatients: 3,
     nMeasurements: 6,
     fixedEffects: { intercept: 60, timeSinceBaseline: -3 },
+    fixedEffectConfidenceIntervals: { timeSinceBaseline: [-3.5, -2.5] },
     randomEffects: { interceptSd: null, slopeSd: null, interceptSlopeCorrelation: null },
     residualSd: null,
   }
 
   function storeMixedModelResult() {
-    useAppStore.getState().setMixedModelResult({ result: mixedModelResult, identity: mixedModelIdentity })
+    useAppStore.setState({ cohortModelResults: { cohort: { result: mixedModelResult, identity: mixedModelIdentity } } })
     useAppStore.getState().setShowCohortMixedModelLine(true)
   }
 
@@ -95,15 +97,15 @@ describe('useAppStore', () => {
     expect(useAppStore.getState().view).toBe('cohort')
   })
 
-  it('stores and clears the current mixed model result', () => {
-    useAppStore.getState().setMixedModelResult({ result: mixedModelResult, identity: mixedModelIdentity })
+  it('stores and clears the current cohort model result', () => {
+    useAppStore.setState({ cohortModelResults: { cohort: { result: mixedModelResult, identity: mixedModelIdentity } } })
 
-    expect(useAppStore.getState().mixedModelResult?.result).toBe(mixedModelResult)
-    expect(useAppStore.getState().mixedModelResult?.identity).toEqual(mixedModelIdentity)
+    expect(useAppStore.getState().cohortModelResults?.cohort.result).toBe(mixedModelResult)
+    expect(useAppStore.getState().cohortModelResults?.cohort.identity).toEqual(mixedModelIdentity)
 
     useAppStore.getState().clearMixedModelResult()
 
-    expect(useAppStore.getState().mixedModelResult).toBeNull()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
   })
 
   it('toggles the cohort mixed model overlay line', () => {
@@ -125,7 +127,7 @@ describe('useAppStore', () => {
 
     useAppStore.getState().setSelectedPatientIds([1])
 
-    expect(useAppStore.getState().mixedModelResult).toBeNull()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
     expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
   })
 
@@ -134,7 +136,7 @@ describe('useAppStore', () => {
 
     useAppStore.getState().setCohortPatientMode('selected')
 
-    expect(useAppStore.getState().mixedModelResult).toBeNull()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
     expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
   })
 
@@ -143,7 +145,7 @@ describe('useAppStore', () => {
 
     useAppStore.getState().setShowAki(true)
 
-    expect(useAppStore.getState().mixedModelResult?.result).toBe(mixedModelResult)
+    expect(useAppStore.getState().cohortModelResults?.cohort.result).toBe(mixedModelResult)
     expect(useAppStore.getState().showCohortMixedModelLine).toBe(true)
   })
 
@@ -152,7 +154,7 @@ describe('useAppStore', () => {
 
     useAppStore.getState().setSeriesFitConfig(0, { endpoints: { percentDecline: true } })
 
-    expect(useAppStore.getState().mixedModelResult?.result).toBe(mixedModelResult)
+    expect(useAppStore.getState().cohortModelResults?.cohort.result).toBe(mixedModelResult)
     expect(useAppStore.getState().showCohortMixedModelLine).toBe(true)
   })
 
@@ -161,7 +163,7 @@ describe('useAppStore', () => {
 
     useAppStore.getState().setSeriesFitConfig(0, { timeBalancing: 'monthly-median' })
 
-    expect(useAppStore.getState().mixedModelResult).toBeNull()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
     expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
   })
 
@@ -179,7 +181,7 @@ describe('useAppStore', () => {
       covariates: [],
       randomEffects: 'intercept',
     })
-    expect(useAppStore.getState().mixedModelResult).toBeNull()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
     expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
   })
 })
@@ -221,6 +223,7 @@ describe('loadSynthetic', () => {
       expect(state.events.map((event) => event.title)).toEqual(expect.arrayContaining(['Dialysis start', 'Kidney transplant']))
       expect(state.events.map((event) => event.type)).toEqual(expect.arrayContaining(['dialysis', 'kidney_transplant']))
       expect(state.notice?.text).toContain('events')
+      expect(state.notice?.text).toContain('demo dataset')
     } finally {
       globalThis.fetch = originalFetch
     }
@@ -341,5 +344,176 @@ describe('analysis settings compatibility setters', () => {
     expect(state.showAki).toBe(false)
     expect(state.rapidEgfrThreshold).toBe(state.analysisSettings.rapidEgfrDecline.threshold)
     expect(state.rapidEgfrThreshold).toBe(5)
+  })
+})
+
+describe('useAppStore - cohort grouping', () => {
+  beforeEach(() => useAppStore.getState().reset())
+
+  const mixedModelIdentity: MixedModelResultIdentity = {
+    seriesIndex: 0,
+    seriesKey: 'eGFR|ml/min/1.73m2',
+    patientIdsHash: 'patients',
+    datasetHash: 'dataset',
+    fitConfigHash: 'fit',
+    nPatients: 3,
+    nMeasurements: 6,
+  }
+
+  const mixedModelResult: MixedModelResult = {
+    status: 'success',
+    metadata: {
+      engine: 'webr-lme4',
+      formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+      runtimeVersion: '4.6.0',
+      packageVersions: {},
+      browserUserAgent: 'test',
+      wasmAssetSource: 'cdn',
+      optimizer: 'nloptwrap',
+      reml: true,
+      tolerance: 0.000001,
+      datasetId: 'cohort',
+      datasetHash: 'dataset',
+      randomSeed: null,
+      fitConfigHash: 'fit',
+    },
+    converged: true,
+    warnings: [],
+    nPatients: 3,
+    nMeasurements: 6,
+    fixedEffects: { intercept: 60, timeSinceBaseline: -3 },
+    fixedEffectConfidenceIntervals: { timeSinceBaseline: [-3.5, -2.5] },
+    randomEffects: { interceptSd: null, slopeSd: null, interceptSlopeCorrelation: null },
+    residualSd: null,
+  }
+
+  function seedGroupedResults() {
+    useAppStore.setState({
+      cohortModelResults: {
+        cohort: { result: mixedModelResult, identity: mixedModelIdentity },
+        'group:A': { result: mixedModelResult, identity: mixedModelIdentity },
+      },
+    })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+  }
+
+  it('defaults the group-by attribute and the cohort model results to null', () => {
+    expect(useAppStore.getState().cohortGroupByAttribute).toBeNull()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+    expect(useAppStore.getState().cohortModelRunning).toBe(false)
+  })
+
+  it('setCohortGroupByAttribute sets the value and clears the results + the line toggle', () => {
+    seedGroupedResults()
+
+    useAppStore.getState().setCohortGroupByAttribute('genotype')
+
+    expect(useAppStore.getState().cohortGroupByAttribute).toBe('genotype')
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
+  })
+
+  it('setCohortGroupByAttribute(null) clears the grouping', () => {
+    useAppStore.getState().setCohortGroupByAttribute('genotype')
+    useAppStore.getState().setCohortGroupByAttribute(null)
+    expect(useAppStore.getState().cohortGroupByAttribute).toBeNull()
+  })
+
+  it('clearMixedModelResult clears all cohort model results', () => {
+    useAppStore.setState({ cohortModelResults: { 'group:A': { result: mixedModelResult, identity: mixedModelIdentity } } })
+    expect(useAppStore.getState().cohortModelResults?.['group:A'].result).toBe(mixedModelResult)
+
+    useAppStore.getState().clearMixedModelResult()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+  })
+
+  it('clears cohort model results when selected patients change', () => {
+    seedGroupedResults()
+    useAppStore.getState().setSelectedPatientIds([1])
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+  })
+
+  it('clears cohort model results when patient attributes are (re)imported', () => {
+    seedGroupedResults()
+    useAppStore.getState().setPatientAttributes({ '1': { genotype: 'A' } })
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+    expect(useAppStore.getState().showCohortMixedModelLine).toBe(false)
+  })
+
+  it('clears cohort model results when the mixed model config changes', () => {
+    seedGroupedResults()
+    useAppStore.getState().setMixedModelConfig({ timeAxis: 'time_since_baseline', covariates: [], randomEffects: 'intercept' })
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+  })
+
+  it('resets the grouping and cohort model results when a new dataset is loaded', () => {
+    useAppStore.getState().setCohortGroupByAttribute('genotype')
+    useAppStore.setState({ cohortModelResults: { 'group:A': { result: mixedModelResult, identity: mixedModelIdentity } } })
+
+    useAppStore.getState().setDataset([row({ patientId: 1 })], 'new.xlsx')
+
+    expect(useAppStore.getState().cohortGroupByAttribute).toBeNull()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+  })
+
+  it('restores grouping defaults on reset', () => {
+    useAppStore.getState().setCohortGroupByAttribute('genotype')
+    useAppStore.setState({ cohortModelResults: { 'group:A': { result: mixedModelResult, identity: mixedModelIdentity } } })
+
+    useAppStore.getState().reset()
+
+    expect(useAppStore.getState().cohortGroupByAttribute).toBeNull()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+  })
+
+  it('runCohortModels writes results keyed by entity, merges, and toggles running off', async () => {
+    const runJob = vi.fn(async () => mixedModelResult)
+    const entityRows = [
+      { patient_id: 'p1', eGFR: 60, time_since_baseline: 0 },
+      { patient_id: 'p1', eGFR: 58, time_since_baseline: 1 },
+    ]
+    const params = {
+      seriesIndex: 0,
+      seriesKey: 'eGFR|ml/min/1.73m2',
+      fitConfigHash: 'fit',
+      config: DEFAULT_MIXED_MODEL_CONFIG,
+      formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+      runJob,
+    }
+
+    await useAppStore.getState().runCohortModels({
+      ...params,
+      entities: [{ entity: { kind: 'cohort' }, rows: entityRows }],
+    })
+
+    expect(Object.keys(useAppStore.getState().cohortModelResults ?? {})).toEqual(['cohort'])
+    expect(useAppStore.getState().cohortModelRunning).toBe(false)
+
+    // Fitting only a group preserves the prior cohort result (merge).
+    await useAppStore.getState().runCohortModels({
+      ...params,
+      entities: [{ entity: { kind: 'group', value: 'A' }, rows: entityRows }],
+    })
+
+    expect(Object.keys(useAppStore.getState().cohortModelResults ?? {}).sort()).toEqual(['cohort', 'group:A'])
+  })
+})
+
+describe('useAppStore - patient attributes', () => {
+  beforeEach(() => useAppStore.getState().reset())
+
+  it('starts with no patient attributes', () => {
+    expect(useAppStore.getState().patientAttributes).toEqual({})
+  })
+
+  it('stores a patient attribute map', () => {
+    useAppStore.getState().setPatientAttributes({ '10': { genotype: 'UMOD' } })
+    expect(useAppStore.getState().patientAttributes).toEqual({ '10': { genotype: 'UMOD' } })
+  })
+
+  it('clears patient attributes when a new dataset is loaded', () => {
+    useAppStore.getState().setPatientAttributes({ '10': { genotype: 'UMOD' } })
+    useAppStore.getState().setDataset([row({ patientId: 1 })], 'new.xlsx')
+    expect(useAppStore.getState().patientAttributes).toEqual({})
   })
 })

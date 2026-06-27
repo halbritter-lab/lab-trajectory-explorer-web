@@ -14,7 +14,7 @@ export type MixedModelConfigValidation =
 
 export const DEFAULT_MIXED_MODEL_CONFIG: MixedModelConfig = {
   timeAxis: 'time_since_baseline',
-  covariates: ['baseline_age'],
+  covariates: [],
   randomEffects: 'intercept_slope',
 }
 

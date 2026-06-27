@@ -314,6 +314,13 @@ function buildFitCode(modelCall: string, extraction: string): string {
         stop("Mixed model produced non-finite fixed effects (degenerate fit).")
       }
     }
+    mm_ci_pair <- function(value) {
+      if (is.null(value) || length(value) < 2 || any(!is.finite(as.numeric(value[1:2])))) {
+        NULL
+      } else {
+        as.numeric(value[1:2])
+      }
+    }
     ${extraction}
     jsonlite::toJSON(mm_out, auto_unbox = TRUE, null = "null", na = "null")
   `
@@ -360,6 +367,11 @@ function lme4FitCode(modelCall: string): string {
     mm_slope <- as.numeric(mm_fixed[["time_since_baseline"]])
     mm_baseline_age <- if ("baseline_age_centered" %in% names(mm_fixed)) as.numeric(mm_fixed[["baseline_age_centered"]]) else NA_real_
     mm_require_finite_fixed(mm_intercept, mm_slope)
+    mm_time_ci <- tryCatch(
+      confint(mm_fit, parm = "time_since_baseline", method = "Wald"),
+      error = function(e) NULL
+    )
+    mm_time_ci_pair <- if (is.null(mm_time_ci)) NULL else mm_ci_pair(mm_time_ci[1, ])
     mm_vc <- as.data.frame(lme4::VarCorr(mm_fit))
     mm_patient_vc <- mm_vc[mm_vc$grp == "patient_id", ]
     mm_corr_mask <- mm_patient_vc$var1 == "(Intercept)" & mm_patient_vc$var2 == "time_since_baseline"
@@ -382,6 +394,9 @@ function lme4FitCode(modelCall: string): string {
         intercept = mm_intercept,
         timeSinceBaseline = mm_slope,
         baselineAge = mm_nullable_number(mm_baseline_age)
+      ),
+      fixedEffectConfidenceIntervals = list(
+        timeSinceBaseline = mm_time_ci_pair
       ),
       randomEffects = list(
         interceptSd = mm_nullable_number(mm_first(mm_patient_vc$sdcor, mm_patient_vc$var1 == "(Intercept)" & is.na(mm_patient_vc$var2))),
@@ -406,6 +421,15 @@ function nlmeFitCode(modelCall: string): string {
     mm_intercept <- as.numeric(mm_fixed[["(Intercept)"]])
     mm_slope <- as.numeric(mm_fixed[["time_since_baseline"]])
     mm_require_finite_fixed(mm_intercept, mm_slope)
+    mm_fixed_intervals <- tryCatch(
+      nlme::intervals(mm_fit, which = "fixed")$fixed,
+      error = function(e) NULL
+    )
+    mm_time_ci_pair <- if (
+      is.null(mm_fixed_intervals) ||
+        !("time_since_baseline" %in% rownames(mm_fixed_intervals)) ||
+        !all(c("lower", "upper") %in% colnames(mm_fixed_intervals))
+    ) NULL else mm_ci_pair(mm_fixed_intervals["time_since_baseline", c("lower", "upper")])
     mm_vc <- nlme::VarCorr(mm_fit)
     mm_stddev <- suppressWarnings(as.numeric(mm_vc[, "StdDev"]))
     names(mm_stddev) <- rownames(mm_vc)
@@ -422,6 +446,9 @@ function nlmeFitCode(modelCall: string): string {
       fixedEffects = list(
         intercept = mm_intercept,
         timeSinceBaseline = mm_slope
+      ),
+      fixedEffectConfidenceIntervals = list(
+        timeSinceBaseline = mm_time_ci_pair
       ),
       randomEffects = list(
         interceptSd = mm_named_number(mm_stddev, "(Intercept)"),

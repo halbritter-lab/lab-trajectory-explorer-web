@@ -3,7 +3,17 @@ import { useAppStore } from '../state/store'
 import { patientLabel } from '../options'
 import { comparePatientIds, patientIdKey } from '../../core/types'
 
-const TEST_DATA_HREF = `${import.meta.env.BASE_URL}test_labs.xlsx`
+const DEMO_WORKBOOK_HREF = `${import.meta.env.BASE_URL}test_labs.xlsx`
+
+function DownloadIcon() {
+  return (
+    <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M12 3v12" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M5 21h14" />
+    </svg>
+  )
+}
 
 export function Toolbar() {
   const fileInput = useRef<HTMLInputElement>(null)
@@ -48,13 +58,9 @@ export function Toolbar() {
           <button disabled={busy} onClick={() => fileInput.current?.click()}>Upload xlsx/csv</button>
           <input ref={fileInput} type="file" accept=".xlsx,.xls,.csv" hidden onChange={onFile} />
           <span className="split-load">
-            <button disabled={busy} onClick={() => void loadSynthetic()}>{busy ? 'Loading…' : 'Load synthetic data'}</button>
-            <a href={TEST_DATA_HREF} download="test_labs.xlsx" title="Download test data" aria-label="Download test data workbook">
-              <svg aria-hidden="true" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 3v12" />
-                <path d="m7 10 5 5 5-5" />
-                <path d="M5 21h14" />
-              </svg>
+            <button disabled={busy} onClick={() => void loadSynthetic()}>{busy ? 'Loading…' : 'Load demo data'}</button>
+            <a href={DEMO_WORKBOOK_HREF} download="test_labs.xlsx" title="Download demo workbook" aria-label="Download demo workbook">
+              <DownloadIcon />
             </a>
           </span>
         </>

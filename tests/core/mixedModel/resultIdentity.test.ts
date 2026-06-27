@@ -42,6 +42,7 @@ const success: MixedModelSuccess = {
   nPatients: 3,
   nMeasurements: 6,
   fixedEffects: { intercept: 62, timeSinceBaseline: -2.5 },
+  fixedEffectConfidenceIntervals: { timeSinceBaseline: [-3, -2] },
   randomEffects: { interceptSd: 4, slopeSd: 1.2, interceptSlopeCorrelation: -0.3 },
   residualSd: 2.1,
 }
@@ -217,7 +218,7 @@ describe('mixed model result identity', () => {
   })
 
   it('uses centered baseline age context for mean line points', () => {
-    const result = {
+    const result: MixedModelSuccess = {
       status: 'success' as const,
       metadata: success.metadata,
       converged: true,
@@ -225,6 +226,7 @@ describe('mixed model result identity', () => {
       nPatients: 3,
       nMeasurements: 6,
       fixedEffects: { intercept: 100, timeSinceBaseline: -2, baselineAge: -0.5 },
+      fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.5, -1.5] },
       randomEffects: { interceptSd: null, slopeSd: null, interceptSlopeCorrelation: null },
       residualSd: null,
     }

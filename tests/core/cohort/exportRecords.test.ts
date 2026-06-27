@@ -59,6 +59,23 @@ describe('cohortExportRecords', () => {
     expect(cohortExportRecords(cohort, 50)[0].rapid_progression).toBe('') // not steep enough
   })
 
+  it('adds a leading group column only when rows carry a groupValue', () => {
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }
+    const rows = [
+      row({ patientId: 1, labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 1.5 }),
+      row({ patientId: 1, labDatum: d('2021-01-01'), wertNum: 2.0 }),
+    ]
+
+    const ungrouped = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+    expect('group' in ungrouped[0]).toBe(false)
+
+    const grouped = cohortExportRecords(buildCohortRows(rows, [1], [spec], 'genotype', { '1': { genotype: 'A' } }))
+    expect(grouped[0].group).toBe('A')
+    // group is the first column
+    expect(Object.keys(grouped[0])[0]).toBe('group')
+  })
+
   it('exports CKD endpoint values for eGFR cohort records', () => {
     const spec: CohortSeriesSpec = {
       bezeichnung: 'eGFR',
