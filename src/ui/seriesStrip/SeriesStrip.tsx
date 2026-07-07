@@ -1,6 +1,20 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import type { Key } from 'react-aria-components'
+import {
+  Button,
+  ComboBox,
+  Input,
+  ListBox,
+  ListBoxItem,
+  Popover,
+} from 'react-aria-components'
 import { useAppStore } from '../state/store'
 import { cohortSeriesOptions, seriesDisplayLabel } from '../options'
+
+type SeriesOption = {
+  bezeichnung: string
+  einheit: string | null
+}
 
 export function SeriesStrip() {
   const displayRows = useAppStore((s) => s.displayRows())
@@ -9,7 +23,6 @@ export function SeriesStrip() {
   const setSeriesConfig = useAppStore((s) => s.setSeriesConfig)
   const addSeries = useAppStore((s) => s.addSeries)
   const removeSeries = useAppStore((s) => s.removeSeries)
-  const [searchBySeries, setSearchBySeries] = useState<Record<number, string>>({})
 
   const opts = useMemo(
     () => (patientId !== null ? cohortSeriesOptions(displayRows) : []),
@@ -20,56 +33,28 @@ export function SeriesStrip() {
     <div className="series-strip">
       {configs.map((cfg, i) => {
         const selectValue = cfg.bezeichnung ? `${cfg.bezeichnung}|${cfg.einheit ?? ''}` : ''
-        const search = searchBySeries[i] ?? ''
-        const filteredOpts = search.trim()
-          ? opts.filter((opt) => matchesSeriesSearch(opt, search))
-          : opts
         // Keep the dropdown in sync with the stored config: if the selected
         // parameter isn't among this patient's options (e.g. after switching to
         // a patient who lacks it), surface it as an explicit "not available"
         // option instead of silently falling back to the empty placeholder.
         const selectedMissing = selectValue !== '' && !opts.some((o) => `${o.bezeichnung}|${o.einheit ?? ''}` === selectValue)
-        const selectedVisible = filteredOpts.some((o) => `${o.bezeichnung}|${o.einheit ?? ''}` === selectValue)
-        const visibleOpts = selectedVisible || selectedMissing
-          ? filteredOpts
-          : [
-              ...(cfg.bezeichnung ? [{ bezeichnung: cfg.bezeichnung, einheit: cfg.einheit ?? null }] : []),
-              ...filteredOpts,
-            ]
+        const options = selectedMissing && cfg.bezeichnung
+          ? [{ bezeichnung: cfg.bezeichnung, einheit: cfg.einheit ?? null }, ...opts]
+          : opts
         return (
         <div className="series-card" key={i}>
-          <input
-            type="search"
-            className="series-search"
-            aria-label={`Search series ${i + 1} parameters`}
-            placeholder="Search parameters"
-            value={search}
-            onChange={(e) => {
-              const value = e.currentTarget.value
-              setSearchBySeries((current) => ({ ...current, [i]: value }))
+          <SeriesCombobox
+            ariaLabel={`Series ${i + 1} parameter`}
+            options={options}
+            selectedKey={selectValue || null}
+            placeholder="Pick parameter"
+            onSelectionChange={(key) => {
+              const selected = options.find((option) => seriesOptionKey(option) === key)
+              setSeriesConfig(i, selected
+                ? { bezeichnung: selected.bezeichnung, einheit: selected.einheit }
+                : { bezeichnung: null, einheit: null })
             }}
           />
-          <select
-            aria-label={`Series ${i + 1} parameter`}
-            value={selectValue}
-            onChange={(e) => {
-              const [bez, einheit] = e.target.value.split('|')
-              setSeriesConfig(i, { bezeichnung: bez || null, einheit: einheit || null })
-            }}
-          >
-            <option value="">— pick parameter —</option>
-            {selectedMissing && (
-              <option value={selectValue}>{seriesDisplayLabel({ bezeichnung: cfg.bezeichnung as string, einheit: cfg.einheit ?? null })} — not in this patient</option>
-            )}
-            {search.trim() && filteredOpts.length === 0 && (
-              <option value="" disabled>No matching parameters</option>
-            )}
-            {visibleOpts.map((o) => (
-              <option key={`${o.bezeichnung}|${o.einheit ?? ''}`} value={`${o.bezeichnung}|${o.einheit ?? ''}`}>
-                {seriesDisplayLabel(o)}
-              </option>
-            ))}
-          </select>
           {configs.length > 1 && <button onClick={() => removeSeries(i)} aria-label={`Remove series ${i + 1}`}>×</button>}
         </div>
         )
@@ -79,7 +64,108 @@ export function SeriesStrip() {
   )
 }
 
-function matchesSeriesSearch(opt: { bezeichnung: string; einheit: string | null }, query: string): boolean {
+function SeriesCombobox({
+  ariaLabel,
+  options,
+  selectedKey,
+  placeholder,
+  onSelectionChange,
+}: {
+  ariaLabel: string
+  options: SeriesOption[]
+  selectedKey: string | null
+  placeholder: string
+  onSelectionChange: (key: string | null) => void
+}) {
+  const [inputValue, setInputValue] = useState(() => {
+    const selected = options.find((option) => seriesOptionKey(option) === selectedKey)
+    return selected ? seriesDisplayLabel(selected) : ''
+  })
+  const selectedOption = useMemo(
+    () => options.find((option) => seriesOptionKey(option) === selectedKey) ?? null,
+    [options, selectedKey],
+  )
+  const selectedLabel = selectedOption ? seriesDisplayLabel(selectedOption) : ''
+  useEffect(() => {
+    setInputValue(selectedLabel)
+  }, [selectedLabel])
+  const activeQuery = inputValue === selectedLabel ? '' : inputValue
+  const filteredOptions = useMemo(
+    () => activeQuery.trim()
+      ? options.filter((option) => matchesSeriesSearch(option, activeQuery))
+      : options,
+    [options, activeQuery],
+  )
+
+  return (
+    <ComboBox<SeriesOption>
+      aria-label={ariaLabel}
+      className="series-combobox"
+      items={filteredOptions}
+      selectedKey={selectedKey}
+      inputValue={inputValue}
+      allowsEmptyCollection
+      defaultFilter={() => true}
+      onInputChange={setInputValue}
+      onSelectionChange={(key: Key | null) => {
+        const nextKey = key === null ? null : String(key)
+        const selected = options.find((option) => seriesOptionKey(option) === nextKey)
+        setInputValue(selected ? seriesDisplayLabel(selected) : '')
+        onSelectionChange(nextKey)
+      }}
+    >
+      <div className="series-combobox-field">
+        <Input
+          className="series-combobox-input"
+          placeholder={placeholder}
+          onFocus={(event) => event.currentTarget.select()}
+          onClick={(event) => event.currentTarget.select()}
+          onKeyDown={(event) => {
+            if (
+              selectedLabel &&
+              inputValue === selectedLabel &&
+              event.key.length === 1 &&
+              !event.altKey &&
+              !event.ctrlKey &&
+              !event.metaKey
+            ) {
+              event.preventDefault()
+              setInputValue(event.key)
+            }
+          }}
+          onBlur={() => {
+            if (selectedOption) setInputValue(seriesDisplayLabel(selectedOption))
+          }}
+        />
+        <Button className="series-combobox-button" aria-label="Show parameters">
+          <span className="series-combobox-caret" aria-hidden="true" />
+        </Button>
+      </div>
+      <Popover className="series-combobox-popover" placement="bottom start" offset={4}>
+        <ListBox<SeriesOption>
+          className="series-combobox-list"
+          renderEmptyState={() => <div className="series-combobox-empty">No matching parameters</div>}
+        >
+          {(option) => (
+            <ListBoxItem
+              id={seriesOptionKey(option)}
+              textValue={seriesDisplayLabel(option)}
+              className="series-combobox-option"
+            >
+              {seriesDisplayLabel(option)}
+            </ListBoxItem>
+          )}
+        </ListBox>
+      </Popover>
+    </ComboBox>
+  )
+}
+
+function seriesOptionKey(opt: SeriesOption): string {
+  return `${opt.bezeichnung}|${opt.einheit ?? ''}`
+}
+
+function matchesSeriesSearch(opt: SeriesOption, query: string): boolean {
   const haystack = `${opt.bezeichnung} ${opt.einheit ?? ''}`.toLowerCase()
   return query.toLowerCase().split(/\s+/).filter(Boolean).every((token) => haystack.includes(token))
 }

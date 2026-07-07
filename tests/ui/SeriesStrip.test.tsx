@@ -43,7 +43,7 @@ describe('SeriesStrip series controls', () => {
     expect(screen.getByRole('button', { name: '+ Add series' })).toBeInTheDocument()
   })
 
-  it('offers cohort parameters even when the selected toolbar patient lacks them', () => {
+  it('offers cohort parameters even when the selected toolbar patient lacks them', async () => {
     useAppStore.getState().setDataset([
       row({ patientId: 1, bezeichnung: 'Kreatinin', einheit: 'mg/dl' }),
       row({ patientId: 2, bezeichnung: 'HbA1c', einheit: '%' }),
@@ -52,10 +52,12 @@ describe('SeriesStrip series controls', () => {
 
     render(<SeriesStrip />)
 
-    expect(screen.getByRole('option', { name: 'HbA1c (%)' })).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Show parameters' }))
+
+    expect(await screen.findByRole('option', { name: 'HbA1c (%)' })).toBeInTheDocument()
   })
 
-  it('filters parameter options by full-text search without hiding the selected series', async () => {
+  it('filters parameters in a combobox and selects a matching parameter', async () => {
     useAppStore.getState().setDataset([
       row({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }),
       row({ bezeichnung: 'Albumin/Kreatinin-Quotient', einheit: 'mg/g' }),
@@ -65,10 +67,18 @@ describe('SeriesStrip series controls', () => {
 
     render(<SeriesStrip />)
 
-    await userEvent.type(screen.getByLabelText('Search series 1 parameters'), 'albumin mg/g')
+    const combo = screen.getByRole('combobox', { name: 'Series 1 parameter' })
+    await userEvent.click(combo)
+    await userEvent.type(combo, 'albumin mg/g')
 
-    expect(screen.getByRole('option', { name: 'Albumin/Kreatinin-Quotient (mg/g)' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: 'Kreatinin (mg/dl)' })).toBeInTheDocument()
+    expect(await screen.findByRole('option', { name: 'Albumin/Kreatinin-Quotient (mg/g)' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'Kreatinin (mg/dl)' })).not.toBeInTheDocument()
     expect(screen.queryByRole('option', { name: 'HbA1c (%)' })).not.toBeInTheDocument()
+
+    await userEvent.click(screen.getByRole('option', { name: 'Albumin/Kreatinin-Quotient (mg/g)' }))
+
+    expect(useAppStore.getState().seriesConfigs[0].bezeichnung).toBe('Albumin/Kreatinin-Quotient')
+    expect(useAppStore.getState().seriesConfigs[0].einheit).toBe('mg/g')
+    expect(combo).toHaveValue('Albumin/Kreatinin-Quotient (mg/g)')
   })
 })
