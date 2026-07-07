@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { SeriesStrip } from '../../src/ui/seriesStrip/SeriesStrip'
 import { useAppStore } from '../../src/ui/state/store'
 import type { LabRow } from '../../src/core/types'
@@ -52,5 +53,22 @@ describe('SeriesStrip series controls', () => {
     render(<SeriesStrip />)
 
     expect(screen.getByRole('option', { name: 'HbA1c (%)' })).toBeInTheDocument()
+  })
+
+  it('filters parameter options by full-text search without hiding the selected series', async () => {
+    useAppStore.getState().setDataset([
+      row({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }),
+      row({ bezeichnung: 'Albumin/Kreatinin-Quotient', einheit: 'mg/g' }),
+      row({ bezeichnung: 'HbA1c', einheit: '%' }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+
+    render(<SeriesStrip />)
+
+    await userEvent.type(screen.getByLabelText('Search series 1 parameters'), 'albumin mg/g')
+
+    expect(screen.getByRole('option', { name: 'Albumin/Kreatinin-Quotient (mg/g)' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Kreatinin (mg/dl)' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: 'HbA1c (%)' })).not.toBeInTheDocument()
   })
 })

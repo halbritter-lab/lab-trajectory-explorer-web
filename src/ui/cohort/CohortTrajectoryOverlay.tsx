@@ -65,7 +65,14 @@ export function CohortTrajectoryOverlay() {
       .filter((entry) => entry.config.bezeichnung),
     [configs],
   )
-  const activeEntry = configuredSeries[Math.min(activeSeriesIndex, Math.max(0, configuredSeries.length - 1))]
+  const fittedCohortModelSeriesIndex = useMemo(() => {
+    if (!showCohortMixedModelLine || pooledModelResult?.result.status !== 'success') return -1
+    return configuredSeries.findIndex((entry) =>
+      `${entry.config.bezeichnung}|${entry.config.einheit ?? ''}` === pooledModelResult.identity.seriesKey,
+    )
+  }, [showCohortMixedModelLine, pooledModelResult, configuredSeries])
+  const resolvedActiveSeriesIndex = fittedCohortModelSeriesIndex >= 0 ? fittedCohortModelSeriesIndex : activeSeriesIndex
+  const activeEntry = configuredSeries[Math.min(resolvedActiveSeriesIndex, Math.max(0, configuredSeries.length - 1))]
   const activeConfig = activeEntry?.config
 
   const clinicalEventsByPatient = useMemo(() => {
@@ -188,13 +195,13 @@ export function CohortTrajectoryOverlay() {
   const activeMixedModelIdentity = useMemo(() => {
     if (!activeSpec) return null
     return buildMixedModelResultIdentity({
-      seriesIndex: activeSeriesIndex,
+      seriesIndex: resolvedActiveSeriesIndex,
       seriesKey: `${activeSpec.bezeichnung}|${activeSpec.einheit ?? ''}`,
       patientIds: scopedPatientIds.map(String),
       rows: activeMixedModelRows,
       fitConfigHash: activeMixedModelFitConfigHash,
     })
-  }, [activeSeriesIndex, activeSpec, scopedPatientIds, activeMixedModelRows, activeMixedModelFitConfigHash])
+  }, [resolvedActiveSeriesIndex, activeSpec, scopedPatientIds, activeMixedModelRows, activeMixedModelFitConfigHash])
   const groupMixedModelRows = useMemo(
     () => (groupingActive && activeSpec ? mixedModelRowsByGroup(rows, cohortGroups, activeSpec) : {}),
     [groupingActive, activeSpec, rows, cohortGroups],
@@ -214,7 +221,7 @@ export function CohortTrajectoryOverlay() {
       const groupRows = groupMixedModelRows[value] ?? []
       if (groupRows.length === 0) return []
       const identity = buildMixedModelResultIdentity({
-        seriesIndex: activeSeriesIndex,
+        seriesIndex: resolvedActiveSeriesIndex,
         seriesKey: `${activeSpec.bezeichnung}|${activeSpec.einheit ?? ''}`,
         patientIds: groupRows.map((row) => row.patient_id),
         rows: groupRows,
@@ -251,7 +258,7 @@ export function CohortTrajectoryOverlay() {
     showCohortMixedModelLine,
     cohortModelResults,
     groupMixedModelRows,
-    activeSeriesIndex,
+    resolvedActiveSeriesIndex,
     activeSpec,
     activeMixedModelFitConfigHash,
     hiddenGroups,
@@ -620,7 +627,7 @@ export function CohortTrajectoryOverlay() {
         {configuredSeries.length > 1 && (
           <label className="cohort-overlay-field">
             Series
-            <select aria-label="Overlay series" value={activeSeriesIndex} onChange={(e) => setActiveSeriesIndex(Number(e.target.value))}>
+            <select aria-label="Overlay series" value={resolvedActiveSeriesIndex} onChange={(e) => setActiveSeriesIndex(Number(e.target.value))}>
               {configuredSeries.map((entry, optionIndex) => {
                 const label = entry.config.einheit ? `${entry.config.bezeichnung} (${entry.config.einheit})` : entry.config.bezeichnung
                 return <option key={entry.index} value={optionIndex}>{label}</option>

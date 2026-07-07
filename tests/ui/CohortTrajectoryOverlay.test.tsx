@@ -421,6 +421,61 @@ describe('CohortTrajectoryOverlay', () => {
     expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('Mixed model mean')
   })
 
+  it('switches to the fitted eGFR overlay series when showing a stored cohort model line', () => {
+    const rows = [
+      row({ patientId: 1, bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 1.1 }),
+      row({ patientId: 1, bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 1.2 }),
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 59 }),
+      row({ patientId: 2, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', labDatum: new Date('2020-02-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 58 }),
+      row({ patientId: 2, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', labDatum: new Date('2021-02-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 54 }),
+      row({ patientId: 3, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 70, wertNum: 67 }),
+      row({ patientId: 3, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 71, wertNum: 63 }),
+    ]
+    useAppStore.getState().setDataset(rows)
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+    useAppStore.getState().addSeries()
+    useAppStore.getState().setSeriesConfig(1, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().setCohortOverlayXAxis('time_since_baseline')
+
+    const analysisResult = useAppStore.getState().analysisResult()
+    const activeConfig = useAppStore.getState().seriesConfigs[1]
+    const patientIds = [1, 2, 3]
+    const activeSpec = {
+      bezeichnung: activeConfig.bezeichnung as string,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient: {},
+    }
+    const modelRows = mixedModelRowsFromCohortInputs(analysisResult.rows, patientIds, activeSpec)
+    const identity = buildMixedModelResultIdentity({
+      seriesIndex: 1,
+      seriesKey: 'eGFR|ml/min/1.73m2',
+      patientIds: patientIds.map(String),
+      rows: modelRows,
+      fitConfigHash: mixedModelFitConfigHash(activeSpec),
+    })
+
+    storePooledResult({
+      identity,
+      result: mixedModelSuccess({ metadata: { ...mixedModelSuccess().metadata, fitConfigHash: identity.fitConfigHash } }),
+    })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+
+    render(<CohortTrajectoryOverlay />)
+
+    expect(screen.getByLabelText('Overlay series')).toHaveValue('1')
+    expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
+    expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('eGFR')
+  })
+
   it('matches stored mixed-model identity that includes active fit policy fields', () => {
     const rows = [
       row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
