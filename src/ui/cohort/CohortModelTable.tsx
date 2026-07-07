@@ -263,8 +263,8 @@ export function CohortModelTable({
                       </td>
                     </tr>
                     {success && isExpanded && (
-                      <tr data-testid="cohort-model-details" data-entity={row.key}>
-                        <td colSpan={8}>
+                      <tr className="cohort-model-details-row" data-testid="cohort-model-details" data-entity={row.key}>
+                        <td className="cohort-model-details-cell" data-testid="cohort-model-details-cell" colSpan={8}>
                           <ModelDetails result={success} />
                         </td>
                       </tr>
@@ -283,41 +283,41 @@ export function CohortModelTable({
 function ModelDetails({ result }: { result: MixedModelSuccess }) {
   return (
     <dl className="cohort-model-details">
-      <div>
+      <div className="cohort-model-detail-item">
         <dt>Slope 95% CI</dt>
-        <dd>{formatOptionalInterval(result.fixedEffectConfidenceIntervals.timeSinceBaseline)}</dd>
+        <dd data-testid="cohort-model-detail-value">{formatOptionalInterval(result.fixedEffectConfidenceIntervals.timeSinceBaseline)}</dd>
       </div>
-      <div>
+      <div className="cohort-model-detail-item">
         <dt>Patient intercept SD</dt>
-        <dd>{formatOptionalNumber(result.randomEffects.interceptSd)}</dd>
+        <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.randomEffects.interceptSd)}</dd>
       </div>
-      <div>
+      <div className="cohort-model-detail-item">
         <dt>Patient slope SD</dt>
-        <dd>{formatOptionalNumber(result.randomEffects.slopeSd)}</dd>
+        <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.randomEffects.slopeSd)}</dd>
       </div>
-      <div>
+      <div className="cohort-model-detail-item">
         <dt>Intercept-slope correlation</dt>
-        <dd>{formatOptionalNumber(result.randomEffects.interceptSlopeCorrelation)}</dd>
+        <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.randomEffects.interceptSlopeCorrelation)}</dd>
       </div>
-      <div>
+      <div className="cohort-model-detail-item">
         <dt>Residual SD</dt>
-        <dd>{formatOptionalNumber(result.residualSd)}</dd>
+        <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.residualSd)}</dd>
       </div>
-      <div>
+      <div className="cohort-model-detail-item cohort-model-detail-item-wide" data-testid="cohort-model-detail-formula">
         <dt>Formula</dt>
-        <dd>{result.metadata.formula}</dd>
+        <dd data-testid="cohort-model-detail-value">{result.metadata.formula}</dd>
       </div>
-      <div>
+      <div className="cohort-model-detail-item">
         <dt>Engine</dt>
-        <dd>{result.metadata.engine}</dd>
+        <dd data-testid="cohort-model-detail-value">{result.metadata.engine}</dd>
       </div>
-      <div>
+      <div className="cohort-model-detail-item cohort-model-detail-item-wide" data-testid="cohort-model-detail-dataset">
         <dt>Dataset</dt>
-        <dd>{result.metadata.datasetId} ({result.metadata.datasetHash})</dd>
+        <dd data-testid="cohort-model-detail-value">{result.metadata.datasetId} ({result.metadata.datasetHash})</dd>
       </div>
-      <div>
+      <div className="cohort-model-detail-item cohort-model-detail-item-wide" data-testid="cohort-model-detail-fit-config">
         <dt>Fit config</dt>
-        <dd>{result.metadata.fitConfigHash}</dd>
+        <dd data-testid="cohort-model-detail-value">{result.metadata.fitConfigHash}</dd>
       </div>
     </dl>
   )

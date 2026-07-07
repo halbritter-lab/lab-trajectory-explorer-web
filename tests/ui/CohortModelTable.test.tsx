@@ -192,4 +192,32 @@ describe('CohortModelTable', () => {
     expect(screen.getByText('Patient intercept SD')).toBeInTheDocument()
     expect(screen.getByText('4.20')).toBeInTheDocument()
   })
+
+  it('renders long technical details in dedicated wrapping cells', async () => {
+    renderTable({
+      runJob: vi.fn(async () => ({
+        ...success(-2),
+        metadata: {
+          ...success(-2).metadata,
+          formula: 'eGFR ~ time_since_baseline + baseline_age_centered + (1 + time_since_baseline | patient_id)',
+          datasetHash: 'very-long-dataset-hash-without-natural-breakpoints-1234567890abcdef',
+          fitConfigHash: 'very-long-fit-config-hash-without-natural-breakpoints-abcdef1234567890',
+        },
+      })),
+    })
+    await userEvent.click(screen.getByRole('button', { name: 'Fit selected' }))
+    await waitFor(() =>
+      expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('/yr'),
+    )
+
+    await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
+
+    const detailsRow = screen.getByTestId('cohort-model-details')
+    expect(detailsRow).toHaveClass('cohort-model-details-row')
+    expect(within(detailsRow).getByTestId('cohort-model-details-cell')).toHaveClass('cohort-model-details-cell')
+    expect(screen.getByTestId('cohort-model-detail-formula')).toHaveClass('cohort-model-detail-item-wide')
+    expect(screen.getByTestId('cohort-model-detail-fit-config')).toHaveClass('cohort-model-detail-item-wide')
+    expect(screen.getByTestId('cohort-model-detail-dataset')).toHaveClass('cohort-model-detail-item-wide')
+    expect(screen.getAllByTestId('cohort-model-detail-value').length).toBeGreaterThan(0)
+  })
 })

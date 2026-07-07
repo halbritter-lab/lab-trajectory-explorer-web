@@ -366,15 +366,35 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   border-radius: 3px;
   flex: none;
 }
+.cohort-model-details-cell {
+  padding: 0.65rem 0.75rem 0.8rem;
+  background: var(--bg);
+}
 .cohort-model-details {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-  gap: 0.25rem 1rem;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+  gap: 0.45rem 1rem;
   margin: 0.25rem 0;
+  min-width: 0;
+  max-width: 100%;
+}
+.cohort-model-detail-item {
+  min-width: 0;
+}
+.cohort-model-detail-item-wide {
+  grid-column: 1 / -1;
 }
 .cohort-model-details dt {
   color: var(--text-2);
   font-size: 12px;
+}
+.cohort-model-details dd {
+  margin: 0.12rem 0 0;
+  min-width: 0;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  white-space: normal;
 }
 .cohort-model-details-toggle {
   font-size: 12px;
