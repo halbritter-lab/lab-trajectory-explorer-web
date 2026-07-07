@@ -7,6 +7,7 @@ import { appendComputedEgfr, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../../src/co
 
 const FIXTURE = resolve(__dirname, '../../../public/test_labs.xlsx')
 const EVENTS = resolve(__dirname, '../../../public/test_events.csv')
+const ATTRIBUTES = resolve(__dirname, '../../../public/test_attributes.csv')
 const localDate = (iso: string) => {
   const [year, month, day] = iso.split('-').map(Number)
   return new Date(year, month - 1, day)
@@ -84,14 +85,19 @@ describe('loadBundledFixtureData', () => {
   it('loads validated dialysis and transplant demo events with the bundled fixture', async () => {
     const labBytes = readFileSync(FIXTURE)
     const eventBytes = readFileSync(EVENTS)
+    const attributeBytes = readFileSync(ATTRIBUTES)
     const originalFetch = globalThis.fetch
     globalThis.fetch = async (input: RequestInfo | URL) => {
       const url = String(input)
-      const body = url.endsWith('test_events.csv') ? eventBytes : labBytes
+      const body = url.endsWith('test_events.csv')
+        ? eventBytes
+        : url.endsWith('test_attributes.csv')
+          ? attributeBytes
+          : labBytes
       return new Response(body)
     }
     try {
-      const { rows, events } = await loadBundledFixtureData('/')
+      const { rows, events, patientAttributes } = await loadBundledFixtureData('/')
 
       expect(rows.length).toBeGreaterThanOrEqual(180)
       expect(events.map((event) => event.title)).toEqual(expect.arrayContaining(['Dialysis start', 'Kidney transplant']))
@@ -107,6 +113,28 @@ describe('loadBundledFixtureData', () => {
       expect(events.map((event) => event.title)).toEqual(expect.arrayContaining(['Temporary dialysis during AKI', 'Unknown dialysis interval', 'Study medication']))
       expect(events.some((event) => event.warning === 'unknown_dialysis_intent')).toBe(true)
       expect(events).toHaveLength(8)
+      expect(patientAttributes['7']).toEqual({ genotype: 'UMOD', inheritance: 'AD', cohort: 'A' })
+      expect(Object.keys(patientAttributes)).toHaveLength(8)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('keeps the bundled fixture load usable when demo attributes are missing', async () => {
+    const labBytes = readFileSync(FIXTURE)
+    const eventBytes = readFileSync(EVENTS)
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('test_attributes.csv')) return new Response('', { status: 404 })
+      return new Response(url.endsWith('test_events.csv') ? eventBytes : labBytes)
+    }
+    try {
+      const { rows, events, patientAttributes } = await loadBundledFixtureData('/')
+
+      expect(rows.length).toBeGreaterThanOrEqual(180)
+      expect(events).toHaveLength(8)
+      expect(patientAttributes).toEqual({})
     } finally {
       globalThis.fetch = originalFetch
     }

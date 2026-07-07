@@ -6,6 +6,10 @@ import {
   validateClinicalEvents,
   type ClinicalEvent,
 } from '../../core/events/events'
+import {
+  normalizePatientAttributes,
+  validatePatientAttributes,
+} from '../../core/attributes/attributes'
 
 /** Parse an uploaded/fetched workbook ArrayBuffer into typed LabRows. Wraps the
  * raw SheetJS/loader errors in a user-facing message. */
@@ -29,17 +33,33 @@ export async function loadBundledFixture(baseUrl = import.meta.env.BASE_URL): Pr
 export interface BundledFixtureData {
   rows: LabRow[]
   events: ClinicalEvent[]
+  patientAttributes: Record<string, Record<string, string>>
 }
 
 /** Fetch the bundled demo labs plus demo event markers shipped in public/. */
 export async function loadBundledFixtureData(baseUrl = import.meta.env.BASE_URL): Promise<BundledFixtureData> {
   const rows = await loadBundledFixture(baseUrl)
   const res = await fetch(`${baseUrl}test_events.csv`)
-  if (!res.ok) return { rows, events: [] }
+  const patientAttributes = await loadBundledPatientAttributes(rows, baseUrl)
+  if (!res.ok) return { rows, events: [], patientAttributes }
   const normalized = normalizeClinicalEvents(readWorkbook(await res.arrayBuffer()))
   const { valid, rejected: rejects } = validateClinicalEvents(normalized, rows)
   if (rejects.length > 0) {
     throw new Error(`Bundled event fixture contains ${rejects.length} invalid row(s).`)
   }
-  return { rows, events: valid }
+  return { rows, events: valid, patientAttributes }
+}
+
+async function loadBundledPatientAttributes(
+  rows: LabRow[],
+  baseUrl = import.meta.env.BASE_URL,
+): Promise<Record<string, Record<string, string>>> {
+  const res = await fetch(`${baseUrl}test_attributes.csv`)
+  if (!res.ok) return {}
+  const normalized = normalizePatientAttributes(readWorkbook(await res.arrayBuffer()))
+  const { byPatient, rejected } = validatePatientAttributes(normalized, rows)
+  if (rejected.length > 0) {
+    throw new Error(`Bundled attribute fixture contains ${rejected.length} invalid row(s).`)
+  }
+  return byPatient
 }

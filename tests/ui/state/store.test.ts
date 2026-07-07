@@ -211,10 +211,15 @@ describe('loadSynthetic', () => {
   it('loads bundled demo events into events', async () => {
     const labBytes = readFileSync(resolve(__dirname, '../../../public/test_labs.xlsx'))
     const eventBytes = readFileSync(resolve(__dirname, '../../../public/test_events.csv'))
+    const attributeBytes = readFileSync(resolve(__dirname, '../../../public/test_attributes.csv'))
     const originalFetch = globalThis.fetch
     globalThis.fetch = async (input: RequestInfo | URL) => {
       const url = String(input)
-      return new Response(url.endsWith('test_events.csv') ? eventBytes : labBytes)
+      return new Response(url.endsWith('test_events.csv')
+        ? eventBytes
+        : url.endsWith('test_attributes.csv')
+          ? attributeBytes
+          : labBytes)
     }
     try {
       await useAppStore.getState().loadSynthetic()
@@ -222,7 +227,9 @@ describe('loadSynthetic', () => {
       const state = useAppStore.getState()
       expect(state.events.map((event) => event.title)).toEqual(expect.arrayContaining(['Dialysis start', 'Kidney transplant']))
       expect(state.events.map((event) => event.type)).toEqual(expect.arrayContaining(['dialysis', 'kidney_transplant']))
+      expect(state.patientAttributes['7']).toEqual({ genotype: 'UMOD', inheritance: 'AD', cohort: 'A' })
       expect(state.notice?.text).toContain('events')
+      expect(state.notice?.text).toContain('attribute rows')
       expect(state.notice?.text).toContain('demo dataset')
     } finally {
       globalThis.fetch = originalFetch

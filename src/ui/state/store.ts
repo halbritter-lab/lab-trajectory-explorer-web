@@ -335,13 +335,16 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadSynthetic: async () => {
     set({ busy: true, notice: null })
     try {
-      const { rows, events } = await loadBundledFixtureData()
+      const { rows, events, patientAttributes } = await loadBundledFixtureData()
       get().setDataset(rows, 'test_labs.xlsx (demo)')
       set({
         events,
+        patientAttributes,
         notice: {
           kind: 'info',
-          text: `Loaded ${rows.length} rows and ${events.length} events from the demo dataset.`,
+          text:
+            `Loaded ${rows.length} rows, ${events.length} events, ` +
+            `and ${Object.keys(patientAttributes).length} attribute rows from the demo dataset.`,
         },
       })
     } catch (err) {
