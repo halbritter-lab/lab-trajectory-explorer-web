@@ -7,7 +7,7 @@ import type { LabRow } from '../../core/types'
 import type { PlotModeConfig } from '../../core/stats/slopeLines'
 import { fitInputForSeries } from '../../core/analysis/types'
 import type { AkiEpisode } from '../../core/aki/kdigo'
-import type { CohortSeriesSpec } from '../../core/cohort/screening'
+import { buildCohortRows, type CohortSeriesSpec } from '../../core/cohort/screening'
 import { patientWorkbookSheets } from '../../core/patient/patientExport'
 import { eventTooltip } from '../../core/events/events'
 import { clinicalEventAffectsFit } from '../../core/events/fitExclusions'
@@ -28,10 +28,12 @@ interface PlotCardProps {
   events: { date: Date; label: string; tooltip?: string }[]
   episodes?: AkiEpisode[]
   connect: boolean
+  slopeReason: string | null
+  slopeN: number | undefined
   register: (title: string, getter: (() => SVGSVGElement | null) | null) => void
 }
 
-function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, events, episodes, connect, register }: PlotCardProps) {
+function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, events, episodes, connect, slopeReason, slopeN, register }: PlotCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   const svgEl = useCallback((): SVGSVGElement | null => {
@@ -69,6 +71,8 @@ function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, event
         creatinine={creatinine}
         episodes={episodes}
         connect={connect}
+        slopeReason={slopeReason}
+        slopeN={slopeN}
       />
       <div className="chart-export">
         <button aria-label={`Download ${title} as SVG`} onClick={dlSvg}>SVG</button>
@@ -123,6 +127,29 @@ export function OnePatientView() {
     [configs, analysisResult.fitInputs, patientClinicalEvents],
   )
   const canExport = specs.length > 0
+
+  // Slope reason per series, derived from the same builder the cohort table and
+  // the xlsx export use. Recomputing it from the plotted points here would
+  // drift, because the builder counts points only after exclusions, censoring
+  // and time balancing have been applied.
+  //
+  // Indexed by *config* position, not spec position: specs drop configs with no
+  // parameter picked, so the two indices diverge as soon as a slot is empty.
+  const qualityByConfigIndex = useMemo(() => {
+    const out: { reason: string | null; n: number | undefined }[] =
+      Array.from({ length: configs.length }, () => ({ reason: null, n: undefined }))
+    if (patientId === null || specs.length === 0) return out
+    const row = buildCohortRows(displayRows, [patientId], specs)[0]
+    if (!row) return out
+    let specIndex = 0
+    configs.forEach((cfg, configIndex) => {
+      if (!cfg.bezeichnung) return
+      const cell = row.cells[specIndex]
+      out[configIndex] = { reason: cell?.reason ?? null, n: cell?.nNumeric }
+      specIndex += 1
+    })
+    return out
+  }, [configs, displayRows, patientId, specs])
 
   function buildWorkbook(): Uint8Array {
     return sheetsToXlsxBytes(patientWorkbookSheets(displayRows, patientId as number, specs, patientClinicalEvents))
@@ -193,6 +220,8 @@ export function OnePatientView() {
             events={patientEvents}
             episodes={episodes}
             connect={connectPoints}
+            slopeReason={qualityByConfigIndex[i]?.reason ?? null}
+            slopeN={qualityByConfigIndex[i]?.n}
             register={register}
           />
         )

@@ -9,6 +9,7 @@ import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
 import { comparePatientIds, patientIdKey } from '../../core/types'
 import { patientAttributesExportRows } from '../../core/attributes/attributes'
 import { groupColors, groupPatients } from '../../core/grouping/grouping'
+import { projectedG5Label, slopeQualityLabel, isSlopeCaveat } from '../qualityLabels'
 import { mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
 import {
   mixedModelConfigLabel,
@@ -46,6 +47,14 @@ function endpointBadge(endpoints: CkdEndpoints, hasFit: boolean): { label: strin
     const age = endpoints.projectedAgeToCkdG5.value
     labelParts.push(`G5 @ ${age.toFixed(1)}y`)
     titleParts.push(`projected age to CKD G5 ${age.toFixed(1)} years`)
+  } else {
+    // No projection: say why instead of rendering nothing. An empty cell reads
+    // as "not applicable" whether the patient is stable or the data is too thin.
+    const unavailable = projectedG5Label(endpoints)
+    if (unavailable) {
+      labelParts.push(unavailable.label)
+      titleParts.push(unavailable.title)
+    }
   }
   return labelParts.length > 0 ? { label: labelParts.join(' · '), title: titleParts.join(' · ') } : null
 }
@@ -399,6 +408,17 @@ export function CohortView() {
                     <td><button className="patient-link" onClick={() => { selectPatient(r.patientId); setReturnToCohort(true); setView('one') }}>{r.patientId}</button></td>
                     {r.cells.map((c, i) => {
                       const badges: CohortBadge[] = []
+                      // First, because every other badge on this cell describes
+                      // a slope whose reliability this one qualifies.
+                      const quality = slopeQualityLabel(c.reason, c.nNumeric)
+                      if (quality) {
+                        badges.push({
+                          className: isSlopeCaveat(c.reason, c.nNumeric)
+                            ? 'quality-badge quality-badge-caveat'
+                            : 'quality-badge',
+                          ...quality,
+                        })
+                      }
                       if (rapidEgfrDeclineFlagForCell({
                         patientId: r.patientId,
                         bezeichnung: c.bezeichnung,

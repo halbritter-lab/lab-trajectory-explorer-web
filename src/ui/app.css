@@ -350,6 +350,10 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .lg-fit { height: 0; border-top: 2px dashed tomato; }
 .lg-aki { height: 10px; background: rgba(239, 68, 68, 0.18); border: 1px solid var(--danger-border); }
 .plot-aki-summary { margin: 0.2rem 0 0; font-size: 11px; color: var(--danger); }
+.plot-quality-note {
+  margin: 0.35rem 0 0; font-size: 11px; color: var(--text-2);
+  display: flex; align-items: baseline; gap: 0.4rem;
+}
 
 /* --- cohort table ------------------------------------------------------ */
 .cohort-view-controls {
@@ -858,6 +862,17 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
 .more-badge {
   font-size: 11px; background: var(--bg); color: var(--text-2); border: 1px solid var(--border);
   border-radius: 999px; padding: 1px 8px; white-space: nowrap; font-weight: 600;
+}
+/* Slope reliability. Deliberately not red: an unstable slope is a caveat about
+   confidence, not a clinical alarm like AKI, and must not compete with it. */
+.quality-badge {
+  font-size: 11px; background: var(--bg); color: var(--text-2); border: 1px dashed var(--border);
+  border-radius: 999px; padding: 1px 8px; white-space: nowrap; font-weight: 600;
+}
+/* A slope that exists but is fitted over a short window, as opposed to one that
+   could not be fitted at all. Amber marks "present, treat with caution". */
+.quality-badge-caveat {
+  background: #fffbeb; color: #92400e; border-color: #fcd34d;
 }
 .rapid-badge-inline { padding: 0 6px; font-weight: 600; }
 .mini-sparkline { display: block; }
