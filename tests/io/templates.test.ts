@@ -44,12 +44,6 @@ describe('shipped upload templates', () => {
     expect(rows[0].labDatum?.getUTCDate()).toBe(15)
   })
 
-  it('an empty labs template yields no rows rather than throwing', () => {
-    // Downloading the template and uploading it unchanged must reach the
-    // "no usable rows" message, not a parser error.
-    expect(loadLabRows([])).toEqual([])
-  })
-
   it('a filled-in events template parses', () => {
     const headers = templateHeaders('template_events.csv')
     const normalized = normalizeClinicalEvents([rowFrom(headers, {

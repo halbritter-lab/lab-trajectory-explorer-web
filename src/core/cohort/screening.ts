@@ -1,7 +1,7 @@
 import { comparePatientIds, type LabRow, type PatientId } from '../types'
 import type { SeriesPoint } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
-import { summarizeByBezeichnung } from '../stats/summarize'
+import { summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
 import { fitInputForSeries } from '../analysis/types'
 import type { AnalysisFitInputContribution } from '../analysis/types'
@@ -47,12 +47,15 @@ export interface CohortCell {
    * each segment is fitted. Defaults to 'ols' to match summarizeByBezeichnung. */
   fitModel: FitConfig['fitModel']
   nNumeric: number
+  /** Points the fit consumed, after exclusions and balancing. Falls back to
+   * nNumeric only when the fit path reported none. */
+  nFitted: number
   spanDays: number
   slope: number // value-units per YEAR (x-axis is fractional years)
   r2: number
   ciLow: number
   ciHigh: number
-  reason: string | null
+  reason: SeriesSummary['reason']
   points: SeriesPoint[]
   akiChip: string
   akiSummary: string
@@ -160,6 +163,7 @@ export function buildCohortRows(
         mode: spec.mode,
         fitModel: spec.fitConfig?.fitModel ?? 'ols',
         nNumeric: match?.nNumeric ?? 0,
+        nFitted: match?.nFitted ?? match?.nNumeric ?? 0,
         spanDays: match?.spanDays ?? 0,
         slope: match?.slope ?? Number.NaN,
         r2: match?.r2 ?? Number.NaN,
@@ -319,7 +323,7 @@ export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): Coho
         ci_low: numOrBlank(c.ciLow),
         ci_high: numOrBlank(c.ciHigh),
         reason: c.reason ?? '',
-        unstable_slope: isUnstableSlope(c.reason, c.nNumeric) ? 'yes' : '',
+        unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fitModel: c.fitModel }) ? 'yes' : '',
         aki: c.akiChip,
         rapid_progression: rapidEgfrDeclineFlagForCell({
           patientId: r.patientId,

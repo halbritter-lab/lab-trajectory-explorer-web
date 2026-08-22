@@ -140,6 +140,13 @@ select, input[type='number'], input[type='file'], input[type='search'] {
 .sidebar-download { margin-top: -0.2rem; margin-bottom: 0.4rem; }
 .sidebar-note { font-size: 0.75rem; line-height: 1.45; color: var(--muted); margin: 0.6rem 0 0; }
 .sidebar-status { color: var(--text-2); font-weight: 500; }
+/* A data problem the user can fix in their source file, as opposed to the
+   explanatory notes around it. Muted grey read as ordinary prose. */
+.sidebar-warning {
+  color: #92400e; font-weight: 500;
+  background: #fffbeb; border: 1px solid #fcd34d; border-radius: 6px;
+  padding: 0.4rem 0.5rem;
+}
 .experimental-badge {
   display: inline-flex; align-items: center; width: max-content;
   border: 1px solid #fbbf24; border-radius: 999px; background: #fffbeb;

@@ -117,7 +117,7 @@ export function patientSlopeRecords(rows: LabRow[], patientId: PatientId, specs:
     ci_low: numOrBlank(c.ciLow),
     ci_high: numOrBlank(c.ciHigh),
     reason: c.reason ?? '',
-    unstable_slope: isUnstableSlope(c.reason, c.nNumeric) ? 'yes' : '',
+    unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fitModel: c.fitModel }) ? 'yes' : '',
     aki: c.akiChip,
     endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
     endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',

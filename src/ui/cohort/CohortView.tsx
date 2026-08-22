@@ -9,7 +9,7 @@ import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
 import { comparePatientIds, patientIdKey } from '../../core/types'
 import { patientAttributesExportRows } from '../../core/attributes/attributes'
 import { groupColors, groupPatients } from '../../core/grouping/grouping'
-import { projectedG5Label, slopeQualityLabel, isSlopeCaveat } from '../qualityLabels'
+import { projectedG5Label, slopeQualityLabel } from '../qualityLabels'
 import { mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
 import {
   mixedModelConfigLabel,
@@ -50,7 +50,7 @@ function endpointBadge(endpoints: CkdEndpoints, hasFit: boolean): { label: strin
   } else {
     // No projection: say why instead of rendering nothing. An empty cell reads
     // as "not applicable" whether the patient is stable or the data is too thin.
-    const unavailable = projectedG5Label(endpoints)
+    const unavailable = projectedG5Label(endpoints, hasFit)
     if (unavailable) {
       labelParts.push(unavailable.label)
       titleParts.push(unavailable.title)
@@ -408,15 +408,20 @@ export function CohortView() {
                     <td><button className="patient-link" onClick={() => { selectPatient(r.patientId); setReturnToCohort(true); setView('one') }}>{r.patientId}</button></td>
                     {r.cells.map((c, i) => {
                       const badges: CohortBadge[] = []
-                      // First, because every other badge on this cell describes
-                      // a slope whose reliability this one qualifies.
-                      const quality = slopeQualityLabel(c.reason, c.nNumeric)
+                      // AKI first: it is a clinical event, and visibleBadges caps
+                      // the row at three. A cell can carry quality + rapid + endpoint
+                      // + AKI, and the alarm must not be the one pushed into "+N".
+                      if (showAki && c.akiChip) badges.push({ className: 'aki-badge', label: c.akiChip, title: c.akiSummary })
+                      // Then reliability, because the two badges after it make
+                      // claims about a slope whose trustworthiness it qualifies.
+                      const quality = slopeQualityLabel({ reason: c.reason, nFitted: c.nFitted, fitModel: c.fitModel })
                       if (quality) {
                         badges.push({
-                          className: isSlopeCaveat(c.reason, c.nNumeric)
+                          className: quality.caveat
                             ? 'quality-badge quality-badge-caveat'
                             : 'quality-badge',
-                          ...quality,
+                          label: quality.label,
+                          title: quality.title,
                         })
                       }
                       if (rapidEgfrDeclineFlagForCell({
@@ -434,7 +439,6 @@ export function CohortView() {
                       }
                       const endpoint = endpointBadge(c.endpoints, Number.isFinite(c.slope))
                       if (endpoint) badges.push({ className: 'endpoint-badge', ...endpoint })
-                      if (showAki && c.akiChip) badges.push({ className: 'aki-badge', label: c.akiChip, title: c.akiSummary })
                       return (
                         <td key={i}>
                           <div className={`cell-cluster cell-cluster-${zoom}`} data-zoom={zoom}>

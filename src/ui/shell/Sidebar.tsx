@@ -62,14 +62,6 @@ export function Sidebar() {
     Boolean(cfg.bezeichnung?.toLowerCase().includes('egfr') || isEgfrUnit(cfg.einheit)),
   )
 
-  // Sex spellings the loader could not map. Reported separately from "missing
-  // demographics" because the cause and the fix differ: the value is present in
-  // the file, it just is not a spelling we accept, so naming it lets the user
-  // correct the source data instead of entering demographics by hand.
-  const unrecognisedSexValues = [...new Set(
-    rows.filter((r) => isUnrecognisedSex(r.patientSexRaw)).map((r) => r.patientSexRaw as string),
-  )].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
-
   const autoSourceOptions = creatinineSourceOptions(rows)
   const sourceOptions = showAllEgfrSources ? allSourceOptions(rows) : autoSourceOptions
   const selectedSource = egfrSource ?? defaultCreatinineSource(autoSourceOptions)
@@ -92,6 +84,25 @@ export function Sidebar() {
         .map((r) => r.patientId))]
         .sort(comparePatientIds)
     : []
+  // Sex spellings the loader could not map. Reported separately from "missing
+  // demographics" because the cause and the fix differ: the value is present in
+  // the file, it just is not a spelling we accept, so naming it lets the user
+  // correct the source data instead of entering demographics by hand.
+  //
+  // Scoped to rows of the selected eGFR source, and skipping patients who
+  // already have manual demographics — otherwise the note keeps asserting "no
+  // eGFR is computed" for rows the user has already worked around, and claims an
+  // eGFR consequence for rows that were never eGFR inputs.
+  const UNREADABLE_SEX_LIST_CAP = 6
+  const unrecognisedSexValues = selectedSource && selectedSourceIsEligible
+    ? [...new Set(rows
+        .filter((r) => r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
+        .filter((r) => !manualDemographics[patientIdKey(r.patientId)])
+        .filter((r) => isUnrecognisedSex(r.patientSexRaw))
+        .map((r) => r.patientSexRaw as string))]
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+    : []
+
   const manualDemoPatientIds = sourcePatientIds.filter((pid) => manualDemographics[patientIdKey(pid)])
   const demoPanelPatientIds = [...new Set([...(showMissingDemographics ? missingDemoPatientIds : []), ...manualDemoPatientIds])].sort(comparePatientIds)
 
@@ -222,10 +233,14 @@ export function Sidebar() {
               </>
             )}
             {egfrFormula !== 'off' && unrecognisedSexValues.length > 0 && (
-              <p className="sidebar-note sidebar-status" role="status" aria-live="polite">
+              <p className="sidebar-note sidebar-warning" role="status" aria-live="polite">
                 Unreadable sex {pluralize(unrecognisedSexValues.length, 'value')}:{' '}
-                {unrecognisedSexValues.map((value) => `"${value}"`).join(', ')}. No eGFR is computed
-                for those rows. Accepted: m / male / männlich, w / f / female / weiblich, d / divers.
+                {unrecognisedSexValues.slice(0, UNREADABLE_SEX_LIST_CAP).map((value) => `"${value}"`).join(', ')}
+                {unrecognisedSexValues.length > UNREADABLE_SEX_LIST_CAP
+                  ? ` and ${unrecognisedSexValues.length - UNREADABLE_SEX_LIST_CAP} more`
+                  : ''}
+                . No eGFR is computed for those rows. Accepted: m / male / männlich,
+                w / f / female / weiblich, d / divers.
               </p>
             )}
             {egfrFormula !== 'off' && selectedSource && selectedSourceIsEligible && missingDemoPatientIds.length > 0 && (

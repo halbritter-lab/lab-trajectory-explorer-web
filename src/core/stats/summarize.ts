@@ -26,6 +26,11 @@ export interface SeriesSummary {
   ciLow: number
   ciHigh: number
   reason: 'no_numeric_values' | 'n_below_threshold' | 'span_too_short' | null
+  /** Points the fit actually consumed, after clinical-event censoring, AKI
+   * exclusion and time balancing. Differs from nNumeric, which counts raw
+   * measurements before any of that — quarterly-median balancing can collapse
+   * eight raw values into two fitted ones. Undefined when no fit was attempted. */
+  nFitted?: number
   nSegments?: number
   nWindows?: number
   slopeMin?: number
@@ -105,9 +110,9 @@ export function summarizeByBezeichnung(
 
     let summary: SeriesSummary
     if (nNumeric === 0) {
-      summary = { ...base, ...emptyFit, reason: 'no_numeric_values' }
+      summary = { ...base, ...emptyFit, nFitted: 0, reason: 'no_numeric_values' }
     } else if (nNumeric < 2) {
-      summary = { ...base, ...emptyFit, reason: 'n_below_threshold' }
+      summary = { ...base, ...emptyFit, nFitted: nNumeric, reason: 'n_below_threshold' }
     } else if (fitModel === 'none') {
       summary = { ...base, ...emptyFit, reason: 'n_below_threshold' }
     } else if (mode === 'global-robust') {
@@ -121,6 +126,7 @@ export function summarizeByBezeichnung(
       const fit = fitTheilSen(fitPoints)
       summary = {
         ...base,
+        nFitted: fitPoints.length,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }
@@ -138,6 +144,7 @@ export function summarizeByBezeichnung(
       const fit = fitGlobal(points)
       summary = {
         ...base,
+        nFitted: points.length,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
         nSegments: points.length > 0 ? 1 : 0,
@@ -150,6 +157,7 @@ export function summarizeByBezeichnung(
       const fit = fitGlobal(fitPoints)
       summary = {
         ...base,
+        nFitted: fitPoints.length,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }
@@ -180,11 +188,12 @@ export function summarizeByBezeichnung(
       summary = best
         ? {
             ...base,
+            nFitted: best.n,
             slope: best.fit.slope, intercept: best.fit.intercept, r2: best.fit.r2, ciLow: best.fit.ciLow, ciHigh: best.fit.ciHigh,
             reason: spanDays < 365 ? 'span_too_short' : null,
             nSegments: ranges.length,
           }
-        : { ...base, ...emptyFit, reason: 'n_below_threshold', nSegments: ranges.length }
+        : { ...base, ...emptyFit, nFitted: 0, reason: 'n_below_threshold', nSegments: ranges.length }
     } else {
       if (excludeAkiWindows) {
         const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
@@ -196,6 +205,7 @@ export function summarizeByBezeichnung(
       const fit = fitGlobal(fitPoints)
       summary = {
         ...base,
+        nFitted: fitPoints.length,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }

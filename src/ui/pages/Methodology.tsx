@@ -229,11 +229,13 @@ export function Methodology() {
       </ul>
       <p>
         These flags are shown, not only exported: the cohort table carries a badge on the affected
-        cell (<span className="quality-badge">n &lt; 3</span>,{' '}
-        <span className="quality-badge quality-badge-caveat">&lt; 1 yr</span>) and the patient
-        detail plot repeats it beneath the chart, with the full explanation in the label. A dashed
-        grey badge means no slope was produced at all; an amber one means a slope exists but should
-        be treated as unstable.
+        cell and the patient detail plot repeats it beneath the chart, with the full explanation in
+        the label. The colour says which kind of problem it is, not which threshold was crossed: a
+        dashed grey badge (<span className="quality-badge">n &lt; 3</span>) means no slope was
+        produced at all, an amber one (<span className="quality-badge quality-badge-caveat">n &lt;
+        3</span>, <span className="quality-badge quality-badge-caveat">&lt; 1 yr</span>) means a
+        slope exists but should be treated as unstable. The same <em>n &lt; 3</em> label therefore
+        appears in either colour depending on whether a slope came out of it.
       </p>
       <p>
         <strong>The displayed flag is broader than the reason field.</strong> A series of exactly

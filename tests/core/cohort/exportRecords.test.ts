@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildCohortRows, cohortExportRecords, isRapidEgfrDecline, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { LabRow } from '../../../src/core/types'
-import { ckdProgressionConfig } from '../../../src/core/fitPipeline/types'
+import { acuteReviewConfig, ckdProgressionConfig } from '../../../src/core/fitPipeline/types'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2019-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -81,6 +81,38 @@ describe('cohortExportRecords', () => {
       row({ patientId: 1, labDatum: d('2024-01-01'), wertNum: 1.9 }),
     ]
     const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+    expect(rec.unstable_slope).toBe('')
+  })
+
+  it('flags a fit that time balancing collapsed to two points', () => {
+    // Eight raw values clustered in two quarters collapse to two aggregated
+    // points under quarterly-median balancing — the CKD-progression default.
+    // Counting raw measurements would report n = 8 and miss it entirely.
+    const dates = [
+      '2021-01-05', '2021-01-20', '2021-02-10', '2021-03-01',
+      '2023-01-05', '2023-01-20', '2023-02-10', '2023-03-01',
+    ]
+    const rows = dates.map((date, i) =>
+      row({ patientId: 1, labDatum: d(date), wertNum: i < 4 ? 1.0 : 2.0 }))
+    const fitConfig = ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig }
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+    expect(rec.n).toBe(8)
+    expect(rec.reason).toBe('')
+    expect(rec.unstable_slope).toBe('yes')
+  })
+
+  it('claims nothing about reliability when no fit was requested', () => {
+    // The "Acute review" preset sets fitModel 'none', for which summarize emits
+    // reason 'n_below_threshold' no matter how many points exist. Deriving the
+    // flag from reason alone would assert "fewer than three measurements" here.
+    const rows = Array.from({ length: 10 }, (_, i) =>
+      row({ patientId: 1, labDatum: d(`202${Math.floor(i / 4) + 1}-0${(i % 4) + 1}-01`), wertNum: 1 + i * 0.1 }))
+    const fitConfig = acuteReviewConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig }
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+    expect(rec.n).toBe(10)
+    expect(rec.fit_model).toBe('none')
     expect(rec.unstable_slope).toBe('')
   })
 

@@ -24,12 +24,21 @@ const SEX_ALIASES: Record<Sex, readonly string[]> = {
 
 const SEX_BY_ALIAS = new Map<string, Sex>(
   (Object.entries(SEX_ALIASES) as [Sex, readonly string[]][])
-    .flatMap(([code, aliases]) => aliases.map((alias): [string, Sex] => [alias, code])),
+    .flatMap(([code, aliases]) => aliases.map((alias): [string, Sex] => [alias.normalize('NFC'), code])),
 )
+
+/** NFC-normalise before lookup: a CSV from a macOS toolchain carries "männlich"
+ * decomposed (a + combining diaeresis), which is a different string from the NFC
+ * literal above even though it renders identically. Without this the value is
+ * rejected and then reported back to the user under a spelling that looks exactly
+ * like one the message lists as accepted. */
+function sexKey(sex: string): string {
+  return sex.normalize('NFC').toLowerCase().trim()
+}
 
 export function normaliseSex(sex: string | null | undefined): Sex | null {
   if (sex == null) return null
-  return SEX_BY_ALIAS.get(sex.toLowerCase().trim()) ?? null
+  return SEX_BY_ALIAS.get(sexKey(sex)) ?? null
 }
 
 /** True when a value was supplied but matches no accepted spelling. Lets the UI
@@ -38,7 +47,7 @@ export function normaliseSex(sex: string | null | undefined): Sex | null {
 export function isUnrecognisedSex(sex: string | null | undefined): boolean {
   if (sex == null) return false
   const s = sex.trim()
-  return s !== '' && !SEX_BY_ALIAS.has(s.toLowerCase())
+  return s !== '' && !SEX_BY_ALIAS.has(sexKey(s))
 }
 
 function invalid(scr: number, age: number, s: Sex | null): boolean {
