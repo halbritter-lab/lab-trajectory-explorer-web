@@ -6,10 +6,39 @@ export interface EgfrInput {
   sex: Sex | string | null
 }
 
+/**
+ * Accepted spellings per sex code. German and English, short and long forms,
+ * because datasets reach this app from both language settings and an
+ * unrecognised value silently costs the patient their eGFR.
+ *
+ * Deliberately absent: 'other', 'x', 'unknown' and similar. They are not
+ * synonyms of 'd' — mapping them there would silently apply male coefficients
+ * (see the equations below) to a patient whose sex was never recorded. Leaving
+ * them unrecognised surfaces them as missing demographics, which is honest.
+ */
+const SEX_ALIASES: Record<Sex, readonly string[]> = {
+  m: ['m', 'male', 'man', 'maennlich', 'mannlich', 'männlich', 'mann'],
+  w: ['w', 'f', 'female', 'woman', 'weiblich', 'frau'],
+  d: ['d', 'divers', 'diverse'],
+}
+
+const SEX_BY_ALIAS = new Map<string, Sex>(
+  (Object.entries(SEX_ALIASES) as [Sex, readonly string[]][])
+    .flatMap(([code, aliases]) => aliases.map((alias): [string, Sex] => [alias, code])),
+)
+
 export function normaliseSex(sex: string | null | undefined): Sex | null {
   if (sex == null) return null
-  const s = sex.toLowerCase().trim()
-  return s === 'm' || s === 'w' || s === 'd' ? (s as Sex) : null
+  return SEX_BY_ALIAS.get(sex.toLowerCase().trim()) ?? null
+}
+
+/** True when a value was supplied but matches no accepted spelling. Lets the UI
+ * distinguish "no sex recorded" from "sex recorded in a spelling we dropped",
+ * which otherwise both surface as a silently missing eGFR. */
+export function isUnrecognisedSex(sex: string | null | undefined): boolean {
+  if (sex == null) return false
+  const s = sex.trim()
+  return s !== '' && !SEX_BY_ALIAS.has(s.toLowerCase())
 }
 
 function invalid(scr: number, age: number, s: Sex | null): boolean {
