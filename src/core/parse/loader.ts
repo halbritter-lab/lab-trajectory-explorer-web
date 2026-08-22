@@ -15,9 +15,11 @@ function toWertOperator(v: unknown): WertOperator {
  * remaining entries keep workbooks written against the older mixed
  * German/English headers loading unchanged.
  *
- * Alias order is significant: a file that somehow carries two spellings of the
- * same concept resolves to the canonical one rather than to whichever key the
- * workbook happened to list first.
+ * Alias order decides only between spellings that normalise differently (e.g.
+ * `value` vs `Wert`). `patientId` and `PatientID` — like `loinc` and `LOINC` —
+ * normalise to the same key, so they are indistinguishable here; that is
+ * harmless, since they denote the same column either way. Two *different*
+ * columns collapsing to one key is not harmless and is rejected below.
  */
 const COLUMN_ALIASES = {
   patientId: ['patientId', 'PatientID'],
@@ -56,7 +58,19 @@ function resolveColumns(headers: Iterable<string>): ResolvedColumns {
   const byNormalised = new Map<string, string>()
   for (const header of headers) {
     const key = normaliseHeader(header)
-    if (!byNormalised.has(key)) byNormalised.set(key, header)
+    const seen = byNormalised.get(key)
+    // Two distinct headers that normalise alike (e.g. "Patient ID" and
+    // "patient_id") are genuinely ambiguous. Silently keeping one would drop a
+    // whole column and still report a clean import, so refuse the file instead.
+    // SheetJS already disambiguates exact duplicates as "Wert", "Wert_1", which
+    // normalise differently and so do not trip this.
+    if (seen !== undefined && seen !== header) {
+      throw new Error(
+        `Ambiguous columns: "${seen}" and "${header}" are read as the same column. ` +
+          `Rename one of them.`,
+      )
+    }
+    if (seen === undefined) byNormalised.set(key, header)
   }
   const resolved: ResolvedColumns = {}
   for (const [concept, aliases] of Object.entries(COLUMN_ALIASES) as [ColumnKey, readonly string[]][]) {

@@ -147,6 +147,13 @@ describe('loadLabRows', () => {
     expect(row.patientAgeAtLab).toBe(44)
   })
 
+  it('refuses a file where two distinct columns read as the same one', () => {
+    // Silently keeping one would drop a whole column while still reporting a
+    // clean import — the user sees half their values vanish with no error.
+    expect(() => loadLabRows([{ ...base, 'Patient ID': 5, patient_id: 6 }]))
+      .toThrow(/Ambiguous columns/)
+  })
+
   it('prefers the canonical spelling when a file carries both', () => {
     // A file round-tripped through an older export could end up with both
     // spellings. Alias order decides, so the result never depends on key order.
