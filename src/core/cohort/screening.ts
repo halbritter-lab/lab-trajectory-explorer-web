@@ -15,6 +15,7 @@ import { clinicalEventAffectsFit, filterFitPointsByClinicalEvents } from '../eve
 import type { FitConfig } from '../fitPipeline/types'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings, type EndpointPoint } from '../endpoints/ckdEndpoints'
 import { balanceSeriesPoints } from '../stats/timeBalancing'
+import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 
 export { formatAkiChip, formatAkiEpisodeSummary }
@@ -41,6 +42,10 @@ export interface CohortCell {
   bezeichnung: string
   einheit: string | null
   mode: SlopeMode
+  /** The fit model actually used for this cell's slope. Distinct from `mode`
+   * (the SlopeMode), which selects how the series is segmented rather than how
+   * each segment is fitted. Defaults to 'ols' to match summarizeByBezeichnung. */
+  fitModel: FitConfig['fitModel']
   nNumeric: number
   spanDays: number
   slope: number // value-units per YEAR (x-axis is fractional years)
@@ -153,6 +158,7 @@ export function buildCohortRows(
         bezeichnung: spec.bezeichnung,
         einheit: spec.einheit,
         mode: spec.mode,
+        fitModel: spec.fitConfig?.fitModel ?? 'ols',
         nNumeric: match?.nNumeric ?? 0,
         spanDays: match?.spanDays ?? 0,
         slope: match?.slope ?? Number.NaN,
@@ -247,6 +253,9 @@ export interface CohortExportRecord {
   Bezeichnung: string
   Einheit: string
   slope_mode: string
+  /** Which model produced the slope (ols, theil-sen, rolling-ols, ...). Without
+   * it a slope cannot be reproduced from the export alone. */
+  fit_model: string
   n: number
   span_days: number
   slope: number | ''
@@ -256,6 +265,11 @@ export interface CohortExportRecord {
   ci_low: number | ''
   ci_high: number | ''
   reason: string
+  /** 'yes' when the slope rests on fewer than three measurements, under a year
+   * of follow-up, or no fit at all. Broader than `reason`: a two-point fit is
+   * reported by the reference implementation as a clean fit with r2 = 1, so
+   * `reason` alone leaves it unflagged. */
+  unstable_slope: string
   aki: string
   /** 'yes' when this eGFR series declines faster than the rapid-progression
    * threshold, else '' (and '' for non-eGFR series or when the flag is off). */
@@ -296,6 +310,7 @@ export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): Coho
         Bezeichnung: c.bezeichnung,
         Einheit: c.einheit ?? '',
         slope_mode: c.mode,
+        fit_model: c.fitModel,
         n: c.nNumeric,
         span_days: c.spanDays,
         slope: numOrBlank(c.slope),
@@ -304,6 +319,7 @@ export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): Coho
         ci_low: numOrBlank(c.ciLow),
         ci_high: numOrBlank(c.ciHigh),
         reason: c.reason ?? '',
+        unstable_slope: isUnstableSlope(c.reason, c.nNumeric) ? 'yes' : '',
         aki: c.akiChip,
         rapid_progression: rapidEgfrDeclineFlagForCell({
           patientId: r.patientId,

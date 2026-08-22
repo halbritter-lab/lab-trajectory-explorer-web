@@ -29,6 +29,31 @@ describe('cohortExportRecords', () => {
     expect(typeof recs[0].slope).toBe('number')
   })
 
+  it('names the fit model, defaulting to ols when no fit config is set', () => {
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }
+    const rows = [
+      row({ patientId: 1, labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 1.5 }),
+      row({ patientId: 1, labDatum: d('2021-01-01'), wertNum: 2.0 }),
+    ]
+    const recs = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+    expect(recs[0].fit_model).toBe('ols')
+  })
+
+  it('reports the configured fit model, which slope_mode does not capture', () => {
+    const rows = [
+      row({ patientId: 1, labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 1.5 }),
+      row({ patientId: 1, labDatum: d('2021-01-01'), wertNum: 2.0 }),
+    ]
+    const fitConfig = { ...ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }), fitModel: 'theil-sen' as const }
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig }
+    const recs = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+    expect(recs[0].fit_model).toBe('theil-sen')
+    // slope_mode stays 'global': it segments the series, it does not fit it.
+    expect(recs[0].slope_mode).toBe('global')
+  })
+
   it('labels the slope unit per year and carries r2/CI', () => {
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }
     const rows = [
