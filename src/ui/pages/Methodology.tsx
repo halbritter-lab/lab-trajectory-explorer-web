@@ -97,7 +97,9 @@ export function Methodology() {
         <li>
           <strong>Fit model</strong> — no fit, OLS, Theil-Sen, rolling OLS, and segmented OLS are
           available. The trend legend names the active model, and no trend legend is shown when the
-          model is off.
+          model is off. The exported slope table names the model in its{' '}
+          <strong>fit_model</strong> column, so a slope can be traced back to how it was produced.
+          See <em>Choosing a fit model</em> below.
         </li>
         <li>
           <strong>Endpoints</strong> — eGFR series can report total percent decline from baseline,
@@ -110,6 +112,52 @@ export function Methodology() {
           excluded from the configured fit.
         </li>
       </ul>
+
+      <h4>Choosing a Fit Model</h4>
+      <p>
+        All five models answer the same question — how fast is this parameter changing — but they
+        differ in what they assume about the trajectory. Picking one is a judgement about the data,
+        not about accuracy: none of them is more correct in general.
+      </p>
+      <ul>
+        <li>
+          <strong>OLS</strong> — the default. A single least-squares line through all included
+          points. Appropriate when the course is roughly linear over the fitted window and free of
+          extreme values. This is the only model whose output has been cross-checked against an
+          external reference workflow (see the caveat below).
+        </li>
+        <li>
+          <strong>Theil-Sen</strong> — the median of all pairwise slopes, which makes it insensitive
+          to a minority of outlying points. Appropriate when isolated extreme values — an AKI spike,
+          a suspected lab error, a single post-operative measurement — would tilt an OLS line, and
+          you would rather not remove them by hand. It costs statistical efficiency when the data
+          are in fact clean.
+        </li>
+        <li>
+          <strong>Rolling OLS</strong> — a separate OLS fit inside a sliding window. Appropriate
+          when the rate of change itself changes over the observation period and a single slope
+          would average a fast phase together with a slow one. It describes a sequence of local
+          slopes rather than one summary number, so it answers “when did the decline accelerate”
+          better than “how fast is the decline”.
+        </li>
+        <li>
+          <strong>Segmented OLS</strong> — separate OLS fits per segment, split at long measurement
+          gaps or at configured events. Appropriate when a discrete event — transplantation, start
+          of chronic dialysis, a treatment change — makes one slope across the whole record
+          meaningless. Prefer censoring or exclusion when the event should remove data entirely;
+          prefer segmentation when the periods on either side are both of interest.
+        </li>
+        <li>
+          <strong>No fit</strong> — measurements only. Appropriate for acute review, where drawing a
+          trend line through an unstable course would suggest a trajectory the data do not support.
+        </li>
+      </ul>
+      <p>
+        <strong>Caveat.</strong> External comparison against an established workflow has so far
+        covered the OLS results only. The other models are implemented from their standard
+        definitions but have not been cross-validated against an independent implementation. Treat
+        their output as exploratory and verify before relying on it.
+      </p>
 
       <h4>Clinical Events and Exclusion Display</h4>
       <p>
@@ -162,6 +210,51 @@ export function Methodology() {
           <strong>span_too_short</strong> — a slope is produced, but the numeric values span fewer
           than 365 days, so the trend is flagged as low-confidence over such a short observation
           window.
+        </li>
+      </ul>
+      <p>
+        These flags are shown, not only exported: the cohort table carries a badge on the affected
+        cell (<span className="quality-badge">n &lt; 3</span>,{' '}
+        <span className="quality-badge quality-badge-caveat">&lt; 1 yr</span>) and the patient
+        detail plot repeats it beneath the chart, with the full explanation in the label. A dashed
+        grey badge means no slope was produced at all; an amber one means a slope exists but should
+        be treated as unstable.
+      </p>
+      <p>
+        <strong>The displayed flag is broader than the reason field.</strong> A series of exactly
+        two points is a case the reason codes do not cover: the fit falls back to the exact
+        two-point slope and reports R² = 1 with no reason set, because two points always define a
+        line perfectly. Over a span longer than a year such a row would otherwise carry no warning
+        at all, while looking like the best-fitting series in the cohort. The badge and the{' '}
+        <code>unstable_slope</code> export column therefore also test the measurement count
+        directly, so both halves of the rule of thumb — fewer than three measurements, or under a
+        year between the first and the last — are applied. The numeric{' '}
+        <strong>reason</strong> field is left as it is, so it continues to match the reference
+        implementation it is validated against.
+      </p>
+
+      <h4>Why an Endpoint Has No Value</h4>
+      <p>
+        When no projected age to CKD G5 can be computed, the cohort cell states the reason instead
+        of staying empty, because an empty cell reads the same whether the patient is stable or the
+        data are too thin:
+      </p>
+      <ul>
+        <li>
+          <strong>G5 unlikely</strong> — the fitted trend is flat or rising, so no age at G5 is
+          projected. This describes the observed window only and is not a prognosis.
+        </li>
+        <li>
+          <strong>G5 now</strong> — the latest eGFR is already below 15, but without a confirmed
+          persistent period, so neither the observed endpoint nor a projection applies.
+        </li>
+        <li>
+          <strong>G5 no age</strong> — no age is recorded for the latest measurement, so the
+          projection has nothing to anchor to.
+        </li>
+        <li>
+          <strong>G5 n &lt; 3</strong> and <strong>G5 &lt; 1 yr</strong> — the same stability
+          thresholds as above, applied to the projection.
         </li>
       </ul>
 
