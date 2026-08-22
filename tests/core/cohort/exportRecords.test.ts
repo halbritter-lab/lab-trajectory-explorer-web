@@ -54,6 +54,36 @@ describe('cohortExportRecords', () => {
     expect(recs[0].slope_mode).toBe('global')
   })
 
+  it('flags a two-point fit that reason reports as clean', () => {
+    // The case the reason field cannot express: fitGlobal special-cases n === 2,
+    // so a two-point series over two years exports r2 = 1 with an empty reason
+    // and is indistinguishable from the best-fitting series in the cohort.
+    // Mirrors demo patient 3 on Kreatinin (mg/dl).
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }
+    const rows = [
+      row({ patientId: 1, labDatum: d('2022-01-01'), wertNum: 0.9 }),
+      row({ patientId: 1, labDatum: d('2024-01-01'), wertNum: 1.4 }),
+    ]
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+    expect(rec.n).toBe(2)
+    expect(rec.span_days).toBe(730)
+    expect(rec.r2).toBe(1)
+    expect(rec.reason).toBe('')
+    expect(rec.unstable_slope).toBe('yes')
+  })
+
+  it('leaves a well-supported slope unflagged', () => {
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }
+    const rows = [
+      row({ patientId: 1, labDatum: d('2021-01-01'), wertNum: 1.0 }),
+      row({ patientId: 1, labDatum: d('2022-01-01'), wertNum: 1.2 }),
+      row({ patientId: 1, labDatum: d('2023-01-01'), wertNum: 1.5 }),
+      row({ patientId: 1, labDatum: d('2024-01-01'), wertNum: 1.9 }),
+    ]
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+    expect(rec.unstable_slope).toBe('')
+  })
+
   it('labels the slope unit per year and carries r2/CI', () => {
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }
     const rows = [

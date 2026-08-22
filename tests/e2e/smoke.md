@@ -62,3 +62,34 @@ Verified 2026-06-11: after enabling + reload, patients restored and toggle check
    unchecked.
 5. "Remember on this device" + reload restores the chosen zoom level; "Clear
    saved data" clears it.
+
+## Corrections to the phases above (2026-08-22)
+
+Two steps describe UI that no longer exists. Left in place rather than rewritten,
+so the record of what was verified on 2026-06-11 stays intact:
+
+- **Phase 5, step 4** — the cohort view has only `Export cohort (xlsx)`. The ZIP
+  bundle export lives in the one-patient view (`Export bundle (zip + charts)`),
+  not the cohort view.
+- **Phase 5, step 5** — the toolbar button is labelled *Theory & Methods*, not
+  *Methodology*.
+
+No phase covers the features added since June: patient attributes, attribute
+grouping, the cohort overlay, or the WebR cohort mixed model.
+
+## Phase 8 (2026-08-22): import tolerance, quality flags, templates
+
+1. Upload a CSV with canonical camelCase headers
+   (`patientId,labDate,testName,unit,value,sex,ageAtLab`); assert it loads.
+2. Include sex values `female`, `M`, `1` and `unknown`. Set *Compute eGFR* to
+   CKD-EPI 2021. Assert the sidebar names exactly `"1"` and `"unknown"` as
+   unreadable, and does not flag `female`/`M`.
+3. Demo data, cohort view, Kreatinin (mg/dl): assert patient 3 carries an
+   `n < 3` badge and patients 5 and 12 carry `< 1 yr`.
+4. Export the cohort xlsx; assert the sheet has `fit_model` and `unstable_slope`
+   columns, and that `unstable_slope` is `yes` for exactly patients 3, 5 and 12.
+5. Assert patient 3's row exports `r2 = 1` with an empty `reason` — the
+   two-point case the reason field cannot express.
+
+Verified 2026-08-22 via the Playwright MCP: all five hold; console clean
+(0 errors, 0 warnings across the session, not even the historical favicon 404).
