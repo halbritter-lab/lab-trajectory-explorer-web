@@ -123,8 +123,7 @@ export function Methodology() {
         <li>
           <strong>OLS</strong> — the default. A single least-squares line through all included
           points. Appropriate when the course is roughly linear over the fitted window and free of
-          extreme values. This is the only model whose output has been cross-checked against an
-          external reference workflow (see the caveat below).
+          extreme values. It is also the most thoroughly verified of the five (see below).
         </li>
         <li>
           <strong>Theil-Sen</strong> — the median of all pairwise slopes, which makes it insensitive
@@ -153,10 +152,26 @@ export function Methodology() {
         </li>
       </ul>
       <p>
-        <strong>Caveat.</strong> External comparison against an established workflow has so far
-        covered the OLS results only. The other models are implemented from their standard
-        definitions but have not been cross-validated against an independent implementation. Treat
-        their output as exploratory and verify before relying on it.
+        <strong>How far each model is verified.</strong> Two different checks apply, and they do
+        not cover the same models:
+      </p>
+      <ul>
+        <li>
+          <strong>Parity against the reference implementation</strong> — automated tests assert
+          this port against golden values generated from the Python <code>analyses</code> package.
+          Covers OLS, rolling OLS and segmented OLS. <strong>Theil-Sen is not covered</strong>: it
+          has no golden and no numeric test, so it rests on its standard definition alone and
+          should be treated as the least verified of the five.
+        </li>
+        <li>
+          <strong>External comparison against an established clinical workflow</strong> — a manual
+          cross-check by an outside group, which so far covers the <strong>OLS</strong> results
+          only. It found no discrepancy. The other models have not been through this check.
+        </li>
+      </ul>
+      <p>
+        In short: OLS has both checks, rolling and segmented OLS have the automated one, Theil-Sen
+        has neither. Verify before relying on the latter.
       </p>
 
       <h4>Clinical Events and Exclusion Display</h4>
