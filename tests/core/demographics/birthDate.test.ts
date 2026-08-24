@@ -75,4 +75,15 @@ describe('intervalMidpoint and medianDate', () => {
     expect(day(medianDate(dates)!)).toBe('2000-06-01')
     expect(medianDate([])).toBeNull()
   })
+
+  it('floors an odd-day-span midpoint to UTC midnight instead of noon', () => {
+    // This interval spans a leap day (1972-02-29), giving it an odd day-count and
+    // therefore a midpoint that would otherwise land on T12:00:00.000Z.
+    const iv = birthDateInterval(utc('2019-01-01'), 46)
+    const mid = intervalMidpoint(iv)
+    expect(mid.getUTCHours()).toBe(0)
+    expect(mid.getUTCMinutes()).toBe(0)
+    expect(mid.getUTCSeconds()).toBe(0)
+    expect(mid.getUTCMilliseconds()).toBe(0)
+  })
 })

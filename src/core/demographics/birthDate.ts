@@ -45,8 +45,14 @@ export function intervalGapDays(interval: BirthInterval): number {
   return gap <= 0 ? 0 : Math.round(gap / MS_PER_DAY)
 }
 
+/** The midpoint, floored to UTC midnight. An interval spanning an odd number of
+ * days — any range crossing a leap day, for instance — has its raw midpoint
+ * land on a half-day (T12:00:00.000Z). Every other endpoint in this module is
+ * UTC midnight (see `birthDateInterval`, `medianDate`), and this value becomes
+ * the stored birth-date anchor, so it must be too. */
 export function intervalMidpoint(interval: BirthInterval): Date {
-  return new Date(Math.round((interval.lo.getTime() + interval.hi.getTime()) / 2))
+  const raw = Math.round((interval.lo.getTime() + interval.hi.getTime()) / 2)
+  return new Date(Math.floor(raw / MS_PER_DAY) * MS_PER_DAY)
 }
 
 /** Median of dates, taking the earlier of the two middles for an even count so
