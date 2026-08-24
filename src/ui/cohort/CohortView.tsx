@@ -227,6 +227,15 @@ export function CohortView() {
   )
   const cohortGroupColorMap = useMemo(() => groupColors(cohortGroups), [cohortGroups])
   const canShowMixedModelDialog = mixedModelDialogOpen && mixedModelSeriesIndex >= 0
+  const demographicsConflictKeys = useMemo(
+    () =>
+      new Set(
+        analysisResult.messages
+          .filter((m) => m.id.startsWith('demographics:'))
+          .map((m) => m.id.split(':')[2]),
+      ),
+    [analysisResult.messages],
+  )
 
   function validateMixedModelDraftConfig(config: MixedModelConfig): string | null {
     const configValidation = validateMixedModelConfig(config)
@@ -243,7 +252,7 @@ export function CohortView() {
       Object.entries(patientAttributes).filter(([key]) => cohortKeys.has(key)),
     )
     const workbook = sheetsToXlsxBytes([
-      { name: 'cohort', rows: cohortExportRecords(sorted, rapidThreshold) },
+      { name: 'cohort', rows: cohortExportRecords(sorted, rapidThreshold, demographicsConflictKeys) },
       ...(Object.keys(cohortAttributes).length > 0
         ? [{ name: 'patient_attributes', rows: patientAttributesExportRows(cohortAttributes) }]
         : []),
