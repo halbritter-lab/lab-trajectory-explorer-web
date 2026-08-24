@@ -56,6 +56,16 @@ describe('resolveDemographics', () => {
     expect(out.rows.map((r) => r.patientAgeAtLab)).toEqual([46, 54])
   })
 
+  it('applies a manual age to every row when no row has a usable lab date', () => {
+    const rows = [
+      { ...row(1, '2022-01-15', 'w', null), labDatum: null },
+      { ...row(1, '2022-07-20', 'w', null), labDatum: null },
+    ]
+    const out = resolveDemographics(rows, {}, { '1': { age: 46 } })
+    expect(out.rows.map((r) => r.patientAgeAtLab)).toEqual([46, 46])
+    expect(out.conflicts).toEqual([])
+  })
+
   it('reads sex and birthDate from the attributes table', () => {
     const rows = [row(1, '2022-01-15', 'w', 46)]
     const out = resolveDemographics(rows, { '1': { sex: 'male', birthDate: '1980-02-03' } }, {})

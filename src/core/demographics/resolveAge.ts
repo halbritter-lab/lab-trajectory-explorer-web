@@ -27,6 +27,12 @@ export interface AgeResolution {
   /** The single birth date every row's age is derived from, or null when the
    * patient carries no age information at all — then the rows keep what they had. */
   birthAnchor: Date | null
+  /** Set only when a manual age could not be anchored to any lab date (none of
+   * the patient's rows has a usable labDatum), so there is no reference date
+   * to read the age "at". A constant age on every row is the only defensible
+   * answer then — see the call site in resolve.ts, which applies it in place
+   * of birthAnchor + completedYears. */
+  constantAge?: number
   conflicts: DemographicsConflict[]
 }
 
@@ -81,7 +87,13 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
       (min, r) => (min === null || r.labDatum.getTime() < min.getTime() ? r.labDatum : min),
       null,
     )
-    if (earliest === null) return { birthAnchor: null, conflicts: [] }
+    if (earliest === null) {
+      // Nothing to anchor the age to: no row has a usable lab date, so there
+      // is no reference date to read the manual age "at". Apply it as a
+      // constant on every row instead — the pre-anchor behaviour — rather
+      // than dropping the entry the user just made. See AgeResolution.constantAge.
+      return { birthAnchor: null, constantAge: input.manualAge, conflicts: [] }
+    }
     return { birthAnchor: intervalMidpoint(birthDateInterval(earliest, input.manualAge)), conflicts: [] }
   }
 

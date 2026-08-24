@@ -14,6 +14,10 @@ export interface DemographicsResolution {
 interface Resolved {
   sex: LabRow['patientSex']
   birthAnchor: Date | null
+  /** See AgeResolution.constantAge: set when a manual age has no lab date to
+   * anchor to, and applied to every row of the patient verbatim below,
+   * bypassing the birthAnchor + completedYears computation entirely. */
+  constantAge?: number
 }
 
 function parseAttributeDate(value: string | undefined): Date | null {
@@ -66,7 +70,7 @@ export function resolveDemographics(
       manualAge: manualDemo?.age,
     })
 
-    resolved.set(key, { sex: sexResult.sex, birthAnchor: ageResult.birthAnchor })
+    resolved.set(key, { sex: sexResult.sex, birthAnchor: ageResult.birthAnchor, constantAge: ageResult.constantAge })
     conflicts.push(...sexResult.conflicts, ...ageResult.conflicts)
   }
 
@@ -75,9 +79,11 @@ export function resolveDemographics(
     const decision = resolved.get(patientIdKey(row.patientId))
     if (!decision) return row
     const age =
-      decision.birthAnchor && row.labDatum
-        ? completedYears(decision.birthAnchor, row.labDatum)
-        : row.patientAgeAtLab
+      decision.constantAge !== undefined
+        ? decision.constantAge
+        : decision.birthAnchor && row.labDatum
+          ? completedYears(decision.birthAnchor, row.labDatum)
+          : row.patientAgeAtLab
     if (decision.sex === row.patientSex && age === row.patientAgeAtLab) return row
     changed = true
     return { ...row, patientSex: decision.sex, patientAgeAtLab: age }

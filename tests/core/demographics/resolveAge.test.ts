@@ -137,6 +137,24 @@ describe('resolveBirthAnchor', () => {
     expect(completedYears(out.birthAnchor!, utc('2022-01-15'))).toBe(54)
   })
 
+  it('applies a manual age as a constant when no row has a usable lab date', () => {
+    // The old (pre-anchor) code applied a manual age unconditionally to every
+    // row. Losing that when there is no lab date to anchor to would silently
+    // discard the value the user just entered, leaving them on the "missing
+    // demographics" list with no feedback that their input was ignored.
+    const out = resolveBirthAnchor({
+      ...base,
+      manualAge: 46,
+      rows: [
+        { labDatum: null, ageAtLab: null, birthDate: null },
+        { labDatum: new Date(NaN), ageAtLab: null, birthDate: null },
+      ],
+    })
+    expect(out.birthAnchor).toBeNull()
+    expect(out.constantAge).toBe(46)
+    expect(out.conflicts).toEqual([])
+  })
+
   it('returns no anchor when there is nothing to anchor on', () => {
     const out = resolveBirthAnchor({
       ...base,
