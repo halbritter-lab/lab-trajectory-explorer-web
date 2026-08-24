@@ -30,6 +30,17 @@ export interface AgeResolution {
   conflicts: DemographicsConflict[]
 }
 
+/** A valid Date with a finite timestamp, or null. `toDate` in the loader
+ * returns the value unchecked when the cell already is a `Date`, so an
+ * Invalid Date can flow through from the attributes table or a lab row's
+ * birthDate — the same hazard `labDatum` is guarded against above. Left
+ * unchecked, it would become `birthAnchor` directly and turn
+ * `completedYears` — and with it the patient's whole age series — into null
+ * for every row, instead of falling through to the next precedence rule. */
+function validDate(date: Date | null | undefined): Date | null {
+  return date != null && Number.isFinite(date.getTime()) ? date : null
+}
+
 /** An explicit birth date wins on precedence alone, but "no silent resolution"
  * still applies: check it against every row that states an age and report the
  * rows it contradicts. The birth date wins regardless — this only reports. */
@@ -76,11 +87,14 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
 
   // 2. and 3. An explicit birth date needs no inference, but disagreement with
   //    the stated ages is still worth reporting — see explicitBirthDateConflict.
-  if (input.attributeBirthDate !== null) {
-    const conflict = explicitBirthDateConflict(input.patientId, 'attributes', input.attributeBirthDate, dated)
-    return { birthAnchor: input.attributeBirthDate, conflicts: conflict ? [conflict] : [] }
+  const attributeBirthDate = validDate(input.attributeBirthDate)
+  if (attributeBirthDate !== null) {
+    const conflict = explicitBirthDateConflict(input.patientId, 'attributes', attributeBirthDate, dated)
+    return { birthAnchor: attributeBirthDate, conflicts: conflict ? [conflict] : [] }
   }
-  const rowsWithBirthDate = dated.filter((r) => r.birthDate != null)
+  const rowsWithBirthDate = dated
+    .map((r) => ({ row: r, birthDate: validDate(r.birthDate) }))
+    .filter((x): x is { row: typeof dated[number]; birthDate: Date } => x.birthDate !== null)
   if (rowsWithBirthDate.length > 0) {
     // Take the earliest lab row's birth date rather than the first one in file
     // order, so the winner is deterministic and does not depend on row order.
@@ -88,11 +102,11 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
     // a merge artefact or a typo — independent of whatever the stated ages
     // say, so that disagreement is reported even when it does not conflict
     // with any row's ageAtLab.
-    const earliestRow = rowsWithBirthDate.reduce((min, r) =>
-      r.labDatum.getTime() < min.labDatum.getTime() ? r : min,
+    const earliest = rowsWithBirthDate.reduce((min, x) =>
+      x.row.labDatum.getTime() < min.row.labDatum.getTime() ? x : min,
     )
-    const rowBirthDate = earliestRow.birthDate as Date
-    const distinctDates = new Set(rowsWithBirthDate.map((r) => r.birthDate!.getTime())).size
+    const rowBirthDate = earliest.birthDate
+    const distinctDates = new Set(rowsWithBirthDate.map((x) => x.birthDate.getTime())).size
 
     const conflicts: DemographicsConflict[] = []
     if (distinctDates > 1) {

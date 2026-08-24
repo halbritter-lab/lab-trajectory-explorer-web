@@ -177,6 +177,37 @@ describe('resolveBirthAnchor', () => {
     expect(out.conflicts).toEqual([])
   })
 
+  it('treats an invalid attributes birth date as absent and still infers ages from the rows', () => {
+    // Without a validity guard, an Invalid Date from the attributes table would
+    // become birthAnchor directly, and completedYears(birthAnchor, ...) would
+    // then return null for every row — the patient's whole age series (and
+    // eGFR with it) disappearing silently instead of falling through to the
+    // stated ageAtLab values.
+    const out = resolveBirthAnchor({
+      ...base,
+      attributeBirthDate: new Date(NaN),
+      rows: [
+        { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: null },
+        { labDatum: utc('2022-07-20'), ageAtLab: 46, birthDate: null },
+      ],
+    })
+    expect(Number.isNaN(out.birthAnchor?.getTime())).toBe(false)
+    expect(completedYears(out.birthAnchor!, utc('2022-01-15'))).toBe(46)
+    expect(completedYears(out.birthAnchor!, utc('2022-07-20'))).toBe(46)
+  })
+
+  it('treats an invalid row birth date as absent and still infers ages from ageAtLab', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      rows: [
+        { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: new Date(NaN) },
+        { labDatum: utc('2022-07-20'), ageAtLab: 46, birthDate: new Date(NaN) },
+      ],
+    })
+    expect(Number.isNaN(out.birthAnchor?.getTime())).toBe(false)
+    expect(completedYears(out.birthAnchor!, utc('2022-01-15'))).toBe(46)
+  })
+
   it('ignores a row with an invalid lab date instead of letting it poison the anchor', () => {
     // An Invalid Date is not `null`, so a filter that only checks for null would
     // let it through. Its NaN timestamp then wins every interval comparison in
