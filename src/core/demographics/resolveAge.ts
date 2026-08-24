@@ -54,7 +54,14 @@ function explicitBirthDateConflict(
 }
 
 export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
-  const dated = input.rows.filter((r): r is AgeResolutionRow & { labDatum: Date } => r.labDatum !== null)
+  // `!= null` alone would let an Invalid Date through: it is not null, but its
+  // NaN timestamp loses every comparison in intersectBirthIntervals (NaN > x
+  // and NaN < x are both false), so it can silently drag the anchor to NaN
+  // without isEmptyInterval ever flagging it. Require a valid time instead.
+  const dated = input.rows.filter(
+    (r): r is AgeResolutionRow & { labDatum: Date } =>
+      r.labDatum !== null && Number.isFinite(r.labDatum.getTime()),
+  )
 
   // 1. A manual age is the user's answer, read as the age at the first lab date
   //    so it ages across the series instead of freezing.

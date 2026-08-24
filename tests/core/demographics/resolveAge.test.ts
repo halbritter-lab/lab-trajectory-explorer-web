@@ -145,4 +145,24 @@ describe('resolveBirthAnchor', () => {
     expect(out.birthAnchor).toBeNull()
     expect(out.conflicts).toEqual([])
   })
+
+  it('ignores a row with an invalid lab date instead of letting it poison the anchor', () => {
+    // An Invalid Date is not `null`, so a filter that only checks for null would
+    // let it through. Its NaN timestamp then wins every interval comparison in
+    // intersectBirthIntervals (NaN comparisons are always false), so a single
+    // bad row can drag the whole anchor to Invalid Date without being flagged
+    // by isEmptyInterval, which also returns false for NaN.
+    const rows = [
+      { labDatum: new Date(NaN), ageAtLab: 20, birthDate: null },
+      { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: null },
+      { labDatum: utc('2022-07-20'), ageAtLab: 46, birthDate: null },
+      { labDatum: utc('2023-03-02'), ageAtLab: 47, birthDate: null },
+    ]
+    const out = resolveBirthAnchor({ ...base, rows })
+    expect(out.conflicts).toEqual([])
+    expect(Number.isNaN(out.birthAnchor?.getTime())).toBe(false)
+    for (const row of rows.slice(1)) {
+      expect(completedYears(out.birthAnchor!, row.labDatum)).toBe(row.ageAtLab)
+    }
+  })
 })
