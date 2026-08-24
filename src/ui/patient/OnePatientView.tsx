@@ -7,7 +7,8 @@ import type { LabRow } from '../../core/types'
 import type { PlotModeConfig } from '../../core/stats/slopeLines'
 import { fitInputForSeries } from '../../core/analysis/types'
 import type { AkiEpisode } from '../../core/aki/kdigo'
-import type { CohortSeriesSpec } from '../../core/cohort/screening'
+import { buildCohortRows, type CohortSeriesSpec } from '../../core/cohort/screening'
+import type { SlopeQualityInput } from '../qualityLabels'
 import { patientWorkbookSheets } from '../../core/patient/patientExport'
 import { eventTooltip } from '../../core/events/events'
 import { clinicalEventAffectsFit } from '../../core/events/fitExclusions'
@@ -28,10 +29,11 @@ interface PlotCardProps {
   events: { date: Date; label: string; tooltip?: string }[]
   episodes?: AkiEpisode[]
   connect: boolean
+  slopeQuality: SlopeQualityInput | null
   register: (title: string, getter: (() => SVGSVGElement | null) | null) => void
 }
 
-function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, events, episodes, connect, register }: PlotCardProps) {
+function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, events, episodes, connect, slopeQuality, register }: PlotCardProps) {
   const cardRef = useRef<HTMLDivElement>(null)
 
   const svgEl = useCallback((): SVGSVGElement | null => {
@@ -69,6 +71,7 @@ function PlotCard({ title, seriesRows, cfg, computed, creatinine, showAki, event
         creatinine={creatinine}
         episodes={episodes}
         connect={connect}
+        slopeQuality={slopeQuality}
       />
       <div className="chart-export">
         <button aria-label={`Download ${title} as SVG`} onClick={dlSvg}>SVG</button>
@@ -101,10 +104,16 @@ export function OnePatientView() {
     () => patientId === null ? [] : events.filter((event) => event.patientId === patientId),
     [events, patientId],
   )
-  const specs: CohortSeriesSpec[] = useMemo(
+  /** A cohort spec that remembers which config slot it came from, so the plot
+   * loop can look up its own cell without re-deriving the filter predicate. */
+  type PlotSpec = CohortSeriesSpec & { configIndex: number }
+
+  const specs: PlotSpec[] = useMemo(
     () => configs
-      .filter((c) => c.bezeichnung)
-      .map((c) => ({
+      .map((c, configIndex) => ({ c, configIndex }))
+      .filter(({ c }) => c.bezeichnung)
+      .map(({ c, configIndex }) => ({
+        configIndex,
         bezeichnung: c.bezeichnung as string,
         einheit: c.einheit,
         mode: c.mode,
@@ -123,6 +132,29 @@ export function OnePatientView() {
     [configs, analysisResult.fitInputs, patientClinicalEvents],
   )
   const canExport = specs.length > 0
+
+  // Slope reason per series, derived from the same builder the cohort table and
+  // the xlsx export use. Recomputing it from the plotted points here would
+  // drift, because the builder counts points only after exclusions, censoring
+  // and time balancing have been applied.
+  //
+  // Indexed by *config* position, not spec position: specs drop configs with no
+  // parameter picked, so the two indices diverge as soon as a slot is empty.
+  const qualityByConfigIndex = useMemo(() => {
+    const out: (SlopeQualityInput | null)[] = new Array(configs.length).fill(null)
+    if (patientId === null || specs.length === 0) return out
+    const row = buildCohortRows(displayRows, [patientId], specs)[0]
+    if (!row) return out
+    // specs carries its source config index, so the two never drift: re-deriving
+    // the filter predicate here would silently attach one series' reliability
+    // caveat to another's plot if either predicate ever changed.
+    specs.forEach((spec, specIndex) => {
+      const cell = row.cells[specIndex]
+      if (!cell) return
+      out[spec.configIndex] = { reason: cell.reason, nFitted: cell.nFitted, fittedSpanDays: cell.fittedSpanDays, fitModel: cell.fitModel }
+    })
+    return out
+  }, [configs.length, displayRows, patientId, specs])
 
   function buildWorkbook(): Uint8Array {
     return sheetsToXlsxBytes(patientWorkbookSheets(displayRows, patientId as number, specs, patientClinicalEvents))
@@ -193,6 +225,7 @@ export function OnePatientView() {
             events={patientEvents}
             episodes={episodes}
             connect={connectPoints}
+            slopeQuality={qualityByConfigIndex[i] ?? null}
             register={register}
           />
         )

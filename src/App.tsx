@@ -9,6 +9,7 @@ import { Methodology } from './ui/pages/Methodology'
 import './ui/app.css'
 
 const DEMO_WORKBOOK_HREF = `${import.meta.env.BASE_URL}test_labs.xlsx`
+const LABS_TEMPLATE_HREF = `${import.meta.env.BASE_URL}template_labs.csv`
 
 function EmptyState() {
   const setShowMethodology = useAppStore((s) => s.setShowMethodology)
@@ -30,7 +31,20 @@ function EmptyState() {
         />
         <button disabled={busy} onClick={() => void loadSynthetic()}>{busy ? 'Loading…' : 'Load demo data'}</button>
         <a className="button-link" href={DEMO_WORKBOOK_HREF} download="test_labs.xlsx">Download demo workbook</a>
+        <a
+          className="button-link"
+          href={LABS_TEMPLATE_HREF}
+          download="template_labs.csv"
+          title="Empty lab table with the expected column headers"
+        >
+          Download empty template
+        </a>
       </div>
+      <p className="empty-state-hint">
+        Required columns are <code>patientId</code>, <code>labDate</code>, <code>testName</code>,{' '}
+        <code>unit</code> and <code>value</code>; <code>loinc</code>, <code>sex</code> and{' '}
+        <code>ageAtLab</code> are optional. Files using the older German headers still load.
+      </p>
       <p className="empty-state-hint">
         New here? Read the{' '}
         <button className="link-button" onClick={() => setShowMethodology(true)}>Theory &amp; Methods</button>{' '}

@@ -97,7 +97,10 @@ export function Methodology() {
         <li>
           <strong>Fit model</strong> — no fit, OLS, Theil-Sen, rolling OLS, and segmented OLS are
           available. The trend legend names the active model, and no trend legend is shown when the
-          model is off.
+          model is off. In the exported slope table, <strong>fit_model</strong> names the estimator
+          that produced the scalar slope, while <strong>slope_mode</strong> records rolling,
+          segmentation, and other analysis paths. Together they make the scalar result traceable.
+          See <em>Choosing a fit model</em> below.
         </li>
         <li>
           <strong>Endpoints</strong> — eGFR series can report total percent decline from baseline,
@@ -110,6 +113,67 @@ export function Methodology() {
           excluded from the configured fit.
         </li>
       </ul>
+
+      <h4>Choosing a Fit Model</h4>
+      <p>
+        All five models answer the same question — how fast is this parameter changing — but they
+        differ in what they assume about the trajectory. Picking one is a judgement about the data,
+        not about accuracy: none of them is more correct in general.
+      </p>
+      <ul>
+        <li>
+          <strong>OLS</strong> — the default. A single least-squares line through all included
+          points. Appropriate when the course is roughly linear over the fitted window and free of
+          extreme values. It is also the most thoroughly verified of the five (see below).
+        </li>
+        <li>
+          <strong>Theil-Sen</strong> — the median of all pairwise slopes, which makes it insensitive
+          to a minority of outlying points. Appropriate when isolated extreme values — an AKI spike,
+          a suspected lab error, a single post-operative measurement — would tilt an OLS line, and
+          you would rather not remove them by hand. It costs statistical efficiency when the data
+          are in fact clean.
+        </li>
+        <li>
+          <strong>Rolling OLS</strong> — a separate OLS fit inside a sliding window. Appropriate
+          when the rate of change itself changes over the observation period and a single slope
+          would average a fast phase together with a slow one. It describes a sequence of local
+          slopes rather than one summary number, so it answers “when did the decline accelerate”
+          better than “how fast is the decline”.
+        </li>
+        <li>
+          <strong>Segmented OLS</strong> — separate OLS fits per segment, split at long measurement
+          gaps or at configured events. Appropriate when a discrete event — transplantation, start
+          of chronic dialysis, a treatment change — makes one slope across the whole record
+          meaningless. Prefer censoring or exclusion when the event should remove data entirely;
+          prefer segmentation when the periods on either side are both of interest.
+        </li>
+        <li>
+          <strong>No fit</strong> — measurements only. Appropriate for acute review, where drawing a
+          trend line through an unstable course would suggest a trajectory the data do not support.
+        </li>
+      </ul>
+      <p>
+        <strong>How far each model is verified.</strong> Two different checks apply, and they do
+        not cover the same models:
+      </p>
+      <ul>
+        <li>
+          <strong>Parity against the reference implementation</strong> — automated tests assert
+          this port against golden values generated from the Python <code>analyses</code> package.
+          Covers OLS, rolling OLS and segmented OLS. <strong>Theil-Sen is not covered</strong>: it
+          has no golden and no numeric test, so it rests on its standard definition alone and
+          should be treated as the least verified of the five.
+        </li>
+        <li>
+          <strong>External comparison against an established clinical workflow</strong> — a manual
+          cross-check by an outside group, which so far covers the <strong>OLS</strong> results
+          only. It found no discrepancy. The other models have not been through this check.
+        </li>
+      </ul>
+      <p>
+        In short: OLS has both checks, rolling and segmented OLS have the automated one, Theil-Sen
+        has neither. Verify before relying on the latter.
+      </p>
 
       <h4>Clinical Events and Exclusion Display</h4>
       <p>
@@ -144,9 +208,8 @@ export function Methodology() {
 
       <h4>Quality Flags</h4>
       <p>
-        The reason field carries a quality flag when the slope is either uncomputable or of low
-        confidence. The first two flags mean no slope was produced; the third is a caveat on an
-        otherwise valid fit:
+        The reason field mirrors the numeric core and carries a quality flag when the slope is
+        either uncomputable or based on a short raw observation window:
       </p>
       <ul>
         <li>
@@ -154,14 +217,64 @@ export function Methodology() {
           for this patient, so no slope is produced.
         </li>
         <li>
-          <strong>n_below_threshold</strong> — fewer than three numeric values are available (or
-          remain after gap-splitting or after AKI-episode exclusion in aki-aware mode), so OLS
-          cannot be fitted and no slope is produced.
+          <strong>n_below_threshold</strong> — the selected numeric path produced no slope. This
+          includes fewer than two values, mode-specific minimum counts, and a deliberately disabled
+          fit. The exact two-point fallback is the exception described below.
         </li>
         <li>
-          <strong>span_too_short</strong> — a slope is produced, but the numeric values span fewer
-          than 365 days, so the trend is flagged as low-confidence over such a short observation
-          window.
+          <strong>span_too_short</strong> — a slope is produced, but the raw numeric observation
+          span is fewer than 365 days. This reference-compatible field intentionally describes the
+          unfiltered series; the displayed reliability rule below also checks the fitted span.
+        </li>
+      </ul>
+      <p>
+        These flags are shown, not only exported: the cohort table carries a badge on the affected
+        cell and the patient detail plot repeats it beneath the chart, with the full explanation in
+        the label. The colour says which kind of problem it is, not which threshold was crossed: a
+        dashed grey badge (<span className="quality-badge">n &lt; 3</span>) means no slope was
+        produced at all, an amber one (<span className="quality-badge quality-badge-caveat">n &lt;
+        3</span>, <span className="quality-badge quality-badge-caveat">&lt; 1 yr</span>) means a
+        slope exists but should be treated as unstable. The same <em>n &lt; 3</em> label therefore
+        appears in either colour depending on whether a slope came out of it.
+      </p>
+      <p>
+        <strong>The displayed flag is broader than the reason field.</strong> A series of exactly
+        two points is a case the reason codes do not cover: the fit falls back to the exact
+        two-point slope and reports R² = 1 with no reason set, because two points always define a
+        line perfectly. Censoring, exclusions, or time balancing can also leave a much thinner or
+        shorter fitted window than the raw series suggests. The badge and the{' '}
+        <code>unstable_slope</code> export column therefore test both the fitted count and fitted
+        span directly: fewer than three fitted measurements, or under a year between the first and
+        last fitted points. The numeric <strong>reason</strong> field is left reference-compatible,
+        so it can differ from this stricter displayed reliability rule.
+      </p>
+
+      <h4>Why an Endpoint Has No Value</h4>
+      <p>
+        When no projected age to CKD G5 can be computed, the cohort cell states the reason instead
+        of staying empty, because an empty cell reads the same whether the patient is stable or the
+        data are too thin:
+      </p>
+      <ul>
+        <li>
+          <strong>G5 no fit</strong> — no scalar slope is available, so the projection cannot be
+          calculated. This is distinct from a fitted trend that is flat or rising.
+        </li>
+        <li>
+          <strong>G5 unlikely</strong> — the fitted trend is flat or rising, so no age at G5 is
+          projected. This describes the observed window only and is not a prognosis.
+        </li>
+        <li>
+          <strong>G5 now</strong> — the latest eGFR is already below 15, but without a confirmed
+          persistent period, so neither the observed endpoint nor a projection applies.
+        </li>
+        <li>
+          <strong>G5 no age</strong> — no age is recorded for the latest measurement, so the
+          projection has nothing to anchor to.
+        </li>
+        <li>
+          <strong>G5 n &lt; 3</strong> and <strong>G5 &lt; 1 yr</strong> — the same stability
+          thresholds as above, applied to the projection.
         </li>
       </ul>
 

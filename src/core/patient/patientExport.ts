@@ -4,6 +4,7 @@ import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../egfr/series'
 import type { SlopeMode } from '../stats/summarize'
 import type { ClinicalEvent } from '../events/events'
 import { clinicalEventAffectsFit } from '../events/fitExclusions'
+import { isUnstableSlope } from '../stats/slopeQuality'
 
 /** One row per measurement for a single patient. Includes synthesised eGFR rows
  * when the caller passes display rows with computed eGFR appended. */
@@ -23,6 +24,8 @@ export interface PatientSlopeRecord {
   Bezeichnung: string
   Einheit: string
   Mode: string
+  /** Which model produced the slope; `Mode` is the SlopeMode, not the fit. */
+  fit_model: string
   n: number
   span_days: number
   slope: number | ''
@@ -31,6 +34,8 @@ export interface PatientSlopeRecord {
   ci_low: number | ''
   ci_high: number | ''
   reason: string
+  /** See CohortExportRecord.unstable_slope. */
+  unstable_slope: string
   aki: string
   endpoint_percent_decline: number | ''
   endpoint_observed_ckd_g5: string
@@ -103,6 +108,7 @@ export function patientSlopeRecords(rows: LabRow[], patientId: PatientId, specs:
     Bezeichnung: c.bezeichnung,
     Einheit: c.einheit ?? '',
     Mode: specs[i].mode,
+    fit_model: c.fitModel,
     n: c.nNumeric,
     span_days: c.spanDays,
     slope: numOrBlank(c.slope),
@@ -111,6 +117,7 @@ export function patientSlopeRecords(rows: LabRow[], patientId: PatientId, specs:
     ci_low: numOrBlank(c.ciLow),
     ci_high: numOrBlank(c.ciHigh),
     reason: c.reason ?? '',
+    unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
     aki: c.akiChip,
     endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
     endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',

@@ -29,6 +29,11 @@ export interface LabRow {
   wertOperator: WertOperator
   loinc: string | null
   patientSex: Sex | null
+  /** The sex cell as written in the file, kept so the UI can tell "no sex
+   * recorded" apart from "sex recorded in a spelling we could not read" —
+   * patientSex is null in both cases. Optional: datasets persisted before this
+   * field existed, and row literals in tests, simply omit it. */
+  patientSexRaw?: string | null
   patientAgeAtLab: number | null
 }
 

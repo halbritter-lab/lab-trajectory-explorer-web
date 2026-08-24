@@ -26,6 +26,13 @@ export interface SeriesSummary {
   ciLow: number
   ciHigh: number
   reason: 'no_numeric_values' | 'n_below_threshold' | 'span_too_short' | null
+  /** Points the fit actually consumed, after clinical-event censoring, AKI
+   * exclusion and time balancing. Differs from nNumeric, which counts raw
+   * measurements before any of that — quarterly-median balancing can collapse
+   * eight raw values into two fitted ones. */
+  nFitted: number
+  /** Whole days between the first and last points consumed by the scalar fit. */
+  fittedSpanDays: number
   nSegments?: number
   nWindows?: number
   slopeMin?: number
@@ -53,6 +60,22 @@ export interface SummarizeParams {
 
 const NAN = Number.NaN
 const MS_PER_DAY = 86_400_000
+
+function spanDaysForPoints(points: readonly SeriesPoint[]): number {
+  if (points.length < 2) return 0
+  return Math.trunc((points[points.length - 1].date.getTime() - points[0].date.getTime()) / MS_PER_DAY)
+}
+
+/** The estimator that produces SeriesSummary.slope for a mode. Rolling and
+ * gap-split add window/segment statistics, but their exported scalar remains
+ * the global OLS summary. */
+export function scalarFitModelFor(
+  mode: SlopeMode,
+  configured: FitConfig['fitModel'] = 'ols',
+): FitConfig['fitModel'] {
+  if (configured === 'none') return 'none'
+  return mode === 'global-robust' ? 'theil-sen' : 'ols'
+}
 
 function groupKey(bez: string | null, einheit: string | null): string {
   return `${bez ?? ' '}|${einheit ?? ' '}`
@@ -105,11 +128,11 @@ export function summarizeByBezeichnung(
 
     let summary: SeriesSummary
     if (nNumeric === 0) {
-      summary = { ...base, ...emptyFit, reason: 'no_numeric_values' }
+      summary = { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'no_numeric_values' }
     } else if (nNumeric < 2) {
-      summary = { ...base, ...emptyFit, reason: 'n_below_threshold' }
+      summary = { ...base, ...emptyFit, nFitted: fitPoints.length, fittedSpanDays: 0, reason: 'n_below_threshold' }
     } else if (fitModel === 'none') {
-      summary = { ...base, ...emptyFit, reason: 'n_below_threshold' }
+      summary = { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'n_below_threshold' }
     } else if (mode === 'global-robust') {
       if (excludeAkiWindows) {
         const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
@@ -119,8 +142,11 @@ export function summarizeByBezeichnung(
       }
       fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
       const fit = fitTheilSen(fitPoints)
+      const fittedSpanDays = spanDaysForPoints(fitPoints)
       summary = {
         ...base,
+        nFitted: fitPoints.length,
+        fittedSpanDays,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }
@@ -136,8 +162,11 @@ export function summarizeByBezeichnung(
       const cutoffMs = firstDate.getTime() + cutoffDays * MS_PER_DAY
       const points = fitPoints.filter((p) => p.date.getTime() > cutoffMs)
       const fit = fitGlobal(points)
+      const fittedSpanDays = spanDaysForPoints(points)
       summary = {
         ...base,
+        nFitted: points.length,
+        fittedSpanDays,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
         nSegments: points.length > 0 ? 1 : 0,
@@ -148,8 +177,11 @@ export function summarizeByBezeichnung(
       const r = fitAkiAware(fitPoints, exclusionDays, episodes)
       fitPoints = balanceSeriesPoints(r.keptIdx.map((i) => fitPoints[i]), timeBalancing)
       const fit = fitGlobal(fitPoints)
+      const fittedSpanDays = spanDaysForPoints(fitPoints)
       summary = {
         ...base,
+        nFitted: fitPoints.length,
+        fittedSpanDays,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }
@@ -173,18 +205,20 @@ export function summarizeByBezeichnung(
       const fits = ranges
         .map(([a, b]) => {
           const seg = fitPoints.slice(a, b)
-          return { range: [a, b] as [number, number], fit: fitGlobal(seg), n: seg.length }
+          return { range: [a, b] as [number, number], fit: fitGlobal(seg), n: seg.length, fittedSpanDays: spanDaysForPoints(seg) }
         })
       const fittable = fits.filter((f) => f.fit.reason === null)
       const best = fittable.sort((a, b) => Math.abs(b.fit.slope) - Math.abs(a.fit.slope))[0]
       summary = best
         ? {
             ...base,
+            nFitted: best.n,
+            fittedSpanDays: best.fittedSpanDays,
             slope: best.fit.slope, intercept: best.fit.intercept, r2: best.fit.r2, ciLow: best.fit.ciLow, ciHigh: best.fit.ciHigh,
             reason: spanDays < 365 ? 'span_too_short' : null,
             nSegments: ranges.length,
           }
-        : { ...base, ...emptyFit, reason: 'n_below_threshold', nSegments: ranges.length }
+        : { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'n_below_threshold', nSegments: ranges.length }
     } else {
       if (excludeAkiWindows) {
         const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
@@ -194,8 +228,11 @@ export function summarizeByBezeichnung(
       }
       fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
       const fit = fitGlobal(fitPoints)
+      const fittedSpanDays = spanDaysForPoints(fitPoints)
       summary = {
         ...base,
+        nFitted: fitPoints.length,
+        fittedSpanDays,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }

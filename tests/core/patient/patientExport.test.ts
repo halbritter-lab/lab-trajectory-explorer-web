@@ -43,6 +43,8 @@ describe('patientSlopeRecords', () => {
     const recs = patientSlopeRecords(rows, 1, specs)
     expect(recs).toHaveLength(1)
     expect(recs[0]).toMatchObject({ PatientID: 1, Bezeichnung: 'Kreatinin', Mode: 'global', n: 3, reason: '' })
+    // Mode is the SlopeMode; fit_model is what actually fitted the slope.
+    expect(recs[0].fit_model).toBe('ols')
     expect(typeof recs[0].slope).toBe('number')
     expect(recs[0].slope_unit).toBe('mg/dl/yr')
     expect(typeof recs[0].r2).toBe('number')

@@ -12,8 +12,8 @@ const base: RawRow = {
 
 describe('loadLabRows', () => {
   it('throws naming the missing required columns', () => {
-    expect(() => loadLabRows([{ PatientID: 1 }])).toThrow(/PatientID|LabDatum|Bezeichnung|Einheit|Wert/)
-    expect(REQUIRED_COLUMNS).toContain('Wert')
+    expect(() => loadLabRows([{ PatientID: 1 }])).toThrow(/patientId|labDate|testName|unit|value/)
+    expect(REQUIRED_COLUMNS).toContain('value')
   })
 
   it('parses Wert into wertNum/wertOperator when absent', () => {
@@ -85,15 +85,87 @@ describe('loadLabRows', () => {
     expect(rows[1].patientId).toBe('abc-123')
   })
 
-  it('rejects unrecognised PatientSex values as null', () => {
-    expect(loadLabRows([{ ...base, PatientSex: 'male' }])[0].patientSex).toBeNull()
+  it('accepts English and long-form sex spellings', () => {
+    expect(loadLabRows([{ ...base, PatientSex: 'male' }])[0].patientSex).toBe('m')
+    expect(loadLabRows([{ ...base, sex: 'female' }])[0].patientSex).toBe('w')
+    expect(loadLabRows([{ ...base, PatientSex: 'f' }])[0].patientSex).toBe('w')
     expect(loadLabRows([{ ...base, PatientSex: 'd' }])[0].patientSex).toBe('d')
+  })
+
+  it('still rejects sex values that are not a recognised spelling', () => {
+    expect(loadLabRows([{ ...base, PatientSex: 'unknown' }])[0].patientSex).toBeNull()
   })
 
   it('falls back to "unparseable" for an unknown pre-parsed Wert_operator', () => {
     const [row] = loadLabRows([{ ...base, Wert_num: 5, Wert_operator: 'BOGUS' }])
     expect(row.wertOperator).toBe('unparseable')
     expect(row.wertNum).toBe(5)
+  })
+
+  it('loads a workbook using the canonical camelCase headers', () => {
+    const [row] = loadLabRows([{
+      patientId: 7,
+      labDate: '2024-01-15',
+      testName: 'Creatinine',
+      unit: 'mg/dl',
+      value: '1,2',
+      loinc: '2160-0',
+      sex: 'w',
+      ageAtLab: 46,
+    }])
+    expect(row.patientId).toBe(7)
+    expect(row.labDatum?.getUTCFullYear()).toBe(2024)
+    expect(row.bezeichnung).toBe('Creatinine')
+    expect(row.einheit).toBe('mg/dl')
+    expect(row.wertNum).toBe(1.2)
+    expect(row.loinc).toBe('2160-0')
+    expect(row.patientSex).toBe('w')
+    expect(row.patientAgeAtLab).toBe(46)
+  })
+
+  it('matches headers case-insensitively and ignores separators', () => {
+    const [row] = loadLabRows([{
+      'patient id': 3,
+      LABDATE: '2024-01-15',
+      Test_Name: 'Creatinine',
+      Unit: 'mg/dl',
+      VALUE: '2,5',
+    }])
+    expect(row.patientId).toBe(3)
+    expect(row.bezeichnung).toBe('Creatinine')
+    expect(row.wertNum).toBe(2.5)
+  })
+
+  it('accepts the canonical camelCase name for pre-parsed values', () => {
+    const [row] = loadLabRows([{ ...base, valueNum: 9.9, valueOperator: '<' }])
+    expect(row.wertNum).toBe(9.9)
+    expect(row.wertOperator).toBe('<')
+  })
+
+  it('accepts birthDate as an alias for PatientGeburtsdatum', () => {
+    const [row] = loadLabRows([{ ...base, LabDatum: '2024-08-01', birthDate: '1980-03-10' }])
+    expect(row.patientAgeAtLab).toBe(44)
+  })
+
+  it('refuses a file where two distinct columns read as the same one', () => {
+    // Silently keeping one would drop a whole column while still reporting a
+    // clean import — the user sees half their values vanish with no error.
+    expect(() => loadLabRows([{ ...base, 'Patient ID': 5, patient_id: 6 }]))
+      .toThrow(/Ambiguous columns/)
+  })
+
+  it('ignores normalized collisions between unrelated metadata columns', () => {
+    const [row] = loadLabRows([{ ...base, 'Ref Range': '1-2', ref_range: '3-4' }])
+
+    expect(row.patientId).toBe(1)
+    expect(row.wertNum).toBe(1.2)
+  })
+
+  it('prefers the canonical spelling when a file carries both', () => {
+    // A file round-tripped through an older export could end up with both
+    // spellings. Alias order decides, so the result never depends on key order.
+    const [row] = loadLabRows([{ ...base, value: '3,5', Wert: '9,9' }])
+    expect(row.wertNum).toBe(3.5)
   })
 
   it('truncates to whole days when dates carry a time component', () => {

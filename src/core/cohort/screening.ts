@@ -1,7 +1,7 @@
 import { comparePatientIds, type LabRow, type PatientId } from '../types'
 import type { SeriesPoint } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
-import { summarizeByBezeichnung } from '../stats/summarize'
+import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
 import { fitInputForSeries } from '../analysis/types'
 import type { AnalysisFitInputContribution } from '../analysis/types'
@@ -15,6 +15,7 @@ import { clinicalEventAffectsFit, filterFitPointsByClinicalEvents } from '../eve
 import type { FitConfig } from '../fitPipeline/types'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings, type EndpointPoint } from '../endpoints/ckdEndpoints'
 import { balanceSeriesPoints } from '../stats/timeBalancing'
+import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 
 export { formatAkiChip, formatAkiEpisodeSummary }
@@ -41,13 +42,21 @@ export interface CohortCell {
   bezeichnung: string
   einheit: string | null
   mode: SlopeMode
+  /** The fit model actually used for this cell's slope. Distinct from `mode`
+   * (the SlopeMode), which selects how the series is segmented rather than how
+   * each segment is fitted. Defaults to 'ols' to match summarizeByBezeichnung. */
+  fitModel: FitConfig['fitModel']
   nNumeric: number
+  /** Points the fit consumed, after exclusions and balancing. Falls back to
+   * nNumeric only when the fit path reported none. */
+  nFitted: number
+  fittedSpanDays: number
   spanDays: number
   slope: number // value-units per YEAR (x-axis is fractional years)
   r2: number
   ciLow: number
   ciHigh: number
-  reason: string | null
+  reason: SeriesSummary['reason']
   points: SeriesPoint[]
   akiChip: string
   akiSummary: string
@@ -153,7 +162,10 @@ export function buildCohortRows(
         bezeichnung: spec.bezeichnung,
         einheit: spec.einheit,
         mode: spec.mode,
+        fitModel: scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel),
         nNumeric: match?.nNumeric ?? 0,
+        nFitted: match?.nFitted ?? match?.nNumeric ?? 0,
+        fittedSpanDays: match?.fittedSpanDays ?? 0,
         spanDays: match?.spanDays ?? 0,
         slope: match?.slope ?? Number.NaN,
         r2: match?.r2 ?? Number.NaN,
@@ -247,6 +259,9 @@ export interface CohortExportRecord {
   Bezeichnung: string
   Einheit: string
   slope_mode: string
+  /** Scalar estimator that produced `slope` (`ols`, `theil-sen`, or `none`).
+   * `slope_mode` separately records rolling, segmentation, and other paths. */
+  fit_model: string
   n: number
   span_days: number
   slope: number | ''
@@ -256,6 +271,11 @@ export interface CohortExportRecord {
   ci_low: number | ''
   ci_high: number | ''
   reason: string
+  /** 'yes' when the slope rests on fewer than three fitted measurements or a
+   * fitted span under a year. Broader than `reason`: a two-point fit is
+   * reported by the reference implementation as a clean fit with r2 = 1, so
+   * `reason` alone leaves it unflagged. */
+  unstable_slope: string
   aki: string
   /** 'yes' when this eGFR series declines faster than the rapid-progression
    * threshold, else '' (and '' for non-eGFR series or when the flag is off). */
@@ -296,6 +316,7 @@ export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): Coho
         Bezeichnung: c.bezeichnung,
         Einheit: c.einheit ?? '',
         slope_mode: c.mode,
+        fit_model: c.fitModel,
         n: c.nNumeric,
         span_days: c.spanDays,
         slope: numOrBlank(c.slope),
@@ -304,6 +325,7 @@ export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): Coho
         ci_low: numOrBlank(c.ciLow),
         ci_high: numOrBlank(c.ciHigh),
         reason: c.reason ?? '',
+        unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
         aki: c.akiChip,
         rapid_progression: rapidEgfrDeclineFlagForCell({
           patientId: r.patientId,

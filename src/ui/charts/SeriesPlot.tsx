@@ -3,6 +3,7 @@ import * as Plot from '@observablehq/plot'
 import type { LabRow } from '../../core/types'
 import type { SeriesPoint } from '../../core/stats/series'
 import { buildSlopeLines, type PlotModeConfig } from '../../core/stats/slopeLines'
+import { slopeQualityLabel, type SlopeQualityInput } from '../qualityLabels'
 import { findKdigoAkiEpisodes } from '../../core/aki/kdigo'
 import type { AkiEpisode } from '../../core/aki/kdigo'
 import { akiExclusionBands, fitAkiAware } from '../../core/aki/akiAware'
@@ -19,6 +20,13 @@ export interface SeriesPlotProps {
   creatinine?: boolean
   episodes?: AkiEpisode[] // precomputed (cross-series) episodes for aki-aware mode
   connect?: boolean // draw a line joining consecutive measurements
+  /** Slope quality reason from the shared cohort builder, or null when the fit
+   * carries no caveat. Passed in rather than recomputed so the plot, the cohort
+   * table and the export can never disagree. */
+  /** Slope quality inputs from the shared cohort builder, or null when there is
+   * no configured series. Passed in rather than recomputed so the plot, the
+   * cohort table and the export can never disagree. */
+  slopeQuality?: SlopeQualityInput | null
 }
 
 const fmtDate = (d: Date) => d.toISOString().slice(0, 10)
@@ -31,7 +39,7 @@ function trendLegendLabel(cfg: PlotModeConfig): string | null {
   return 'Trend (OLS fit)'
 }
 
-export function SeriesPlot({ title, rows, cfg, computed = false, events, showAki = false, creatinine = false, episodes, connect = true }: SeriesPlotProps) {
+export function SeriesPlot({ title, rows, cfg, computed = false, events, showAki = false, creatinine = false, episodes, connect = true, slopeQuality = null }: SeriesPlotProps) {
   const wrapRef = useRef<HTMLDivElement>(null)
   const ref = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(760)
@@ -61,6 +69,7 @@ export function SeriesPlot({ title, rows, cfg, computed = false, events, showAki
   const akiSummary = formatAkiEpisodeSummary(akiStages)
   const akiLegendText = akiStages.length > 0 ? formatAkiChip(akiStages).replace(/^AKI /, 'AKI episodes: ') : ''
   const trendLabel = trendLegendLabel(cfg)
+  const qualityLabel = slopeQuality ? slopeQualityLabel(slopeQuality) : null
 
   useEffect(() => {
     if (!ref.current) return
@@ -246,6 +255,14 @@ export function SeriesPlot({ title, rows, cfg, computed = false, events, showAki
         </ul>
       )}
       {akiLegendText && <p className="plot-aki-summary" title={akiSummary}>{akiLegendText}</p>}
+      {qualityLabel && (
+        <p className="plot-quality-note" role="note">
+          <span className={qualityLabel.caveat ? 'quality-badge quality-badge-caveat' : 'quality-badge'}>
+            {qualityLabel.label}
+          </span>{' '}
+          {qualityLabel.title}
+        </p>
+      )}
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useAppStore } from '../state/store'
 import { allSourceOptions, creatinineSourceOptions, defaultCreatinineSource, isSerumCreatinineSource, type FormulaName } from '../../core/egfr/series'
+import { isUnrecognisedSex } from '../../core/egfr/formulas'
 import { comparePatientIds, patientIdKey, type PatientId, type Sex } from '../../core/types'
 import { effectForEvent, normalizeClinicalEvents, validateClinicalEvents, type ClinicalEvent, type RejectedClinicalEvent } from '../../core/events/events'
 import { normalizePatientAttributes, validatePatientAttributes } from '../../core/attributes/attributes'
@@ -10,6 +11,8 @@ import { readWorkbook } from '../../io/readWorkbook'
 
 const DEMO_EVENTS_HREF = `${import.meta.env.BASE_URL}test_events.csv`
 const DEMO_ATTRIBUTES_HREF = `${import.meta.env.BASE_URL}test_attributes.csv`
+const EVENTS_TEMPLATE_HREF = `${import.meta.env.BASE_URL}template_events.csv`
+const ATTRIBUTES_TEMPLATE_HREF = `${import.meta.env.BASE_URL}template_attributes.csv`
 
 export function Sidebar() {
   const [open, setOpen] = useState(true)
@@ -81,6 +84,25 @@ export function Sidebar() {
         .map((r) => r.patientId))]
         .sort(comparePatientIds)
     : []
+  // Sex spellings the loader could not map. Reported separately from "missing
+  // demographics" because the cause and the fix differ: the value is present in
+  // the file, it just is not a spelling we accept, so naming it lets the user
+  // correct the source data instead of entering demographics by hand.
+  //
+  // Scoped to rows of the selected eGFR source, and skipping patients who
+  // already have manual demographics — otherwise the note keeps asserting "no
+  // eGFR is computed" for rows the user has already worked around, and claims an
+  // eGFR consequence for rows that were never eGFR inputs.
+  const UNREADABLE_SEX_LIST_CAP = 6
+  const unrecognisedSexValues = selectedSource && selectedSourceIsEligible
+    ? [...new Set(rows
+        .filter((r) => r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
+        .filter((r) => !manualDemographics[patientIdKey(r.patientId)])
+        .filter((r) => isUnrecognisedSex(r.patientSexRaw))
+        .map((r) => r.patientSexRaw as string))]
+        .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
+    : []
+
   const manualDemoPatientIds = sourcePatientIds.filter((pid) => manualDemographics[patientIdKey(pid)])
   const demoPanelPatientIds = [...new Set([...(showMissingDemographics ? missingDemoPatientIds : []), ...manualDemoPatientIds])].sort(comparePatientIds)
 
@@ -209,6 +231,17 @@ export function Sidebar() {
                   <p className="sidebar-note">Selected source is not eligible for eGFR; use serum creatinine in mg/dl or µmol/l.</p>
                 )}
               </>
+            )}
+            {egfrFormula !== 'off' && unrecognisedSexValues.length > 0 && (
+              <p className="sidebar-note sidebar-warning" role="status" aria-live="polite">
+                Unreadable sex {pluralize(unrecognisedSexValues.length, 'value')}:{' '}
+                {unrecognisedSexValues.slice(0, UNREADABLE_SEX_LIST_CAP).map((value) => `"${value}"`).join(', ')}
+                {unrecognisedSexValues.length > UNREADABLE_SEX_LIST_CAP
+                  ? ` and ${unrecognisedSexValues.length - UNREADABLE_SEX_LIST_CAP} more`
+                  : ''}
+                . No eGFR is computed for those rows. Accepted: m / male / männlich,
+                w / f / female / weiblich, d / divers.
+              </p>
             )}
             {egfrFormula !== 'off' && selectedSource && selectedSourceIsEligible && missingDemoPatientIds.length > 0 && (
               <label className="sidebar-check">
@@ -503,6 +536,7 @@ export function Sidebar() {
               <input type="file" aria-label="Events" accept=".xlsx,.csv" onChange={onEventFile} />
             </label>
             <a className="button-link sidebar-download" href={DEMO_EVENTS_HREF} download="test_events.csv" title="Download demo events">Download demo events</a>
+            <a className="button-link sidebar-download" href={EVENTS_TEMPLATE_HREF} download="template_events.csv" title="Empty event table with the expected column headers">Download events template</a>
             {eventNote && <p className="sidebar-note sidebar-status" role="status" aria-live="polite">{eventNote}</p>}
             {events.length > 0 && <EventTable events={events} fitConfig={primaryFitConfig} />}
             {rejectedEvents.length > 0 && <RejectedEventTable rejected={rejectedEvents} />}
@@ -514,7 +548,8 @@ export function Sidebar() {
               <input type="file" aria-label="Patient attributes" accept=".xlsx,.csv" onChange={onPatientAttributesFile} />
             </label>
             <a className="button-link sidebar-download" href={DEMO_ATTRIBUTES_HREF} download="test_attributes.csv" title="Download demo attributes">Download demo attributes</a>
-            <p className="sidebar-note">Optional per-patient attribute columns (one row per patient, keyed by patientId). Used to group the cohort (overlay colors, per-group fits) and included in exports.</p>
+            <a className="button-link sidebar-download" href={ATTRIBUTES_TEMPLATE_HREF} download="template_attributes.csv" title="Empty attribute table; the columns after patientId are yours to choose">Download attributes template</a>
+            <p className="sidebar-note">Optional per-patient attribute columns (one row per patient, keyed by patientId). The column names after patientId are free-form — the template's <code>diagnosis</code> and <code>cohort</code> are only examples. Used to group the cohort (overlay colors, per-group fits) and included in exports.</p>
             {attributeNote && <p className="sidebar-note sidebar-status" role="status" aria-live="polite">{attributeNote}</p>}
           </section>
         </div>

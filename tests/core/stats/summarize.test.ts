@@ -206,4 +206,31 @@ describe('summarizeByBezeichnung extended preset modes', () => {
     expect(filtered.slope).toBeLessThan(1.1)
     expect(filtered.slope).toBeLessThan(unfiltered.slope)
   })
+
+  it('flags the fitted span after post-transplant censoring, not the raw series span', () => {
+    const rows = [
+      row({ bezeichnung: 'A', wertNum: 10, labDatum: d('2020-01-01') }),
+      row({ bezeichnung: 'A', wertNum: 9, labDatum: d('2020-02-01') }),
+      row({ bezeichnung: 'A', wertNum: 8, labDatum: d('2020-03-01') }),
+      row({ bezeichnung: 'A', wertNum: 100, labDatum: d('2024-01-01') }),
+    ]
+    const transplant: ClinicalEvent = {
+      patientId: 1,
+      type: 'kidney_transplant',
+      date: d('2020-04-01'),
+      title: 'Kidney transplant',
+      description: null,
+      endDate: null,
+      intent: null,
+      warning: '',
+    }
+
+    const summary = summarizeByBezeichnung(rows, 1, 'global', { clinicalEvents: [transplant] })[0]
+
+    expect(summary.nNumeric).toBe(4)
+    expect(summary.nFitted).toBe(3)
+    expect(summary.spanDays).toBeGreaterThan(365)
+    expect(summary.fittedSpanDays).toBe(60)
+    expect(summary.reason).toBeNull()
+  })
 })
