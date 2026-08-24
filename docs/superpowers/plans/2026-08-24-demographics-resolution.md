@@ -1354,24 +1354,58 @@ git commit -m "feat: flag contradictory demographics in the cohort export"
 
 - [ ] **Step 1: Write the failing test**
 
-Append to `tests/ui/CohortView.test.tsx`:
+Append to `tests/ui/CohortView.test.tsx`. Note the corrected setup: `CohortView`
+gates its whole table (and the group-by selector) behind `specs.length > 0`
+(`CohortView.tsx:264`), a check that predates this plan. A bare `reset()` +
+`setDataset()` — as an earlier draft of this test had it — never selects a
+series, so the component renders only the empty-state paragraph and the test
+fails for the wrong reason. Seed a series the way the rest of the file does:
+give the rows a `bezeichnung`/`einheit` and call `setSeriesConfig(0, ...)` with
+the same pair, mirroring the file's `seedValidEgfrCohort` pattern.
 
 ```tsx
 it('offers sex for grouping without an attributes table', () => {
-  useAppStore.getState().reset()
   useAppStore.getState().setDataset([
     row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.0, patientSex: 'w' }),
     row({ patientId: 2, labDatum: new Date('2020-01-01'), wertNum: 1.1, patientSex: 'm' }),
   ])
+  useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+
   render(<CohortView />)
+
   expect(screen.getByLabelText(/group by/i)).toHaveTextContent('sex')
+})
+```
+
+Also pin the merge order the `groupableAttributes` docstring in Step 3 claims
+("the attributes table wins on a key collision") — nothing currently tests it:
+
+```tsx
+it('lets the attributes table override a row-derived sex on a key collision', () => {
+  useAppStore.getState().setDataset([
+    row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.0, patientSex: 'w' }),
+    row({ patientId: 1, labDatum: new Date('2020-06-01'), wertNum: 1.1, patientSex: 'w' }),
+  ])
+  useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+  useAppStore.getState().setPatientAttributes({ '1': { sex: 'm' } })
+  useAppStore.getState().setCohortGroupByAttribute('sex')
+
+  render(<CohortView />)
+
+  expect(screen.getByRole('cell', { name: 'm' })).toBeInTheDocument()
+  expect(screen.queryByRole('cell', { name: 'w' })).not.toBeInTheDocument()
 })
 ```
 
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/ui/CohortView.test.tsx -t "offers sex"`
-Expected: FAIL — the option is absent
+Expected: FAIL — with a series selected, the cohort table itself renders (rows,
+sort controls, the lot), but the group-by selector does not render at all: it
+is wrapped in `(groupByOptions.length > 0 || groupByAttribute !== null)`, and
+`availableGroupByAttributes` only reads `patientAttributes`, which is empty
+here. So the failure is a missing option starving the selector's render
+condition, not a missing option inside an otherwise-visible `<select>`.
 
 - [ ] **Step 3: Merge row demographics into the grouping source**
 
