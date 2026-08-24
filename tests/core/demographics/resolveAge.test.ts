@@ -1,0 +1,80 @@
+import { describe, it, expect } from 'vitest'
+import { resolveBirthAnchor } from '../../../src/core/demographics/resolveAge'
+import { completedYears } from '../../../src/core/parse/loader'
+
+const utc = (iso: string) => new Date(`${iso}T00:00:00.000Z`)
+const day = (d: Date) => d.toISOString().slice(0, 10)
+const base = { patientId: 1, attributeBirthDate: null, manualAge: undefined } as const
+
+describe('resolveBirthAnchor', () => {
+  it('reproduces every stated age when the rows are consistent', () => {
+    const rows = [
+      { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: null },
+      { labDatum: utc('2022-07-20'), ageAtLab: 46, birthDate: null },
+      { labDatum: utc('2023-03-02'), ageAtLab: 47, birthDate: null },
+    ]
+    const out = resolveBirthAnchor({ ...base, rows })
+    expect(out.conflicts).toEqual([])
+    for (const row of rows) {
+      expect(completedYears(out.birthAnchor!, row.labDatum)).toBe(row.ageAtLab)
+    }
+  })
+
+  it('reports a typo that fits no single birth date', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      rows: [
+        { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: null },
+        { labDatum: utc('2022-07-20'), ageAtLab: 46, birthDate: null },
+        { labDatum: utc('2023-03-02'), ageAtLab: 64, birthDate: null },
+      ],
+    })
+    expect(out.conflicts).toHaveLength(1)
+    expect(out.conflicts[0]).toMatchObject({ kind: 'age_no_common_birth_date' })
+    // The two agreeing rows outvote the typo, so the anchor lands in the 1970s.
+    expect(out.birthAnchor!.getUTCFullYear()).toBeGreaterThan(1970)
+  })
+
+  it('prefers a birth date on the rows over the stated ages', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      rows: [
+        { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: utc('1975-06-12') },
+        { labDatum: utc('2023-03-02'), ageAtLab: 64, birthDate: utc('1975-06-12') },
+      ],
+    })
+    expect(day(out.birthAnchor!)).toBe('1975-06-12')
+    expect(out.conflicts).toEqual([])
+  })
+
+  it('prefers the attributes table over the rows', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      attributeBirthDate: utc('1980-02-03'),
+      rows: [{ labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: utc('1975-06-12') }],
+    })
+    expect(day(out.birthAnchor!)).toBe('1980-02-03')
+  })
+
+  it('reads a manual age as the age at the first lab date, so it ages with the series', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      manualAge: 46,
+      rows: [
+        { labDatum: utc('2014-01-15'), ageAtLab: null, birthDate: null },
+        { labDatum: utc('2022-01-15'), ageAtLab: null, birthDate: null },
+      ],
+    })
+    expect(completedYears(out.birthAnchor!, utc('2014-01-15'))).toBe(46)
+    expect(completedYears(out.birthAnchor!, utc('2022-01-15'))).toBe(54)
+  })
+
+  it('returns no anchor when there is nothing to anchor on', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      rows: [{ labDatum: utc('2022-01-15'), ageAtLab: null, birthDate: null }],
+    })
+    expect(out.birthAnchor).toBeNull()
+    expect(out.conflicts).toEqual([])
+  })
+})
