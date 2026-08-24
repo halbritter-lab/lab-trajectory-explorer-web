@@ -8,7 +8,7 @@ gotchas that are not obvious from the code.
 `pnpm test` and `pnpm build` are the floor, not the bar. CI runs both on every
 pull request (`.github/workflows/ci.yml`) and again before deploy.
 
-Two things the test suite cannot see, because it runs in jsdom:
+Two things the Vitest suite cannot see, because it runs in jsdom:
 
 - PNG export (`svgStringToPngBlob` needs a real canvas), file downloads, the
   responsive-width path (guarded off when `ResizeObserver` is undefined), and
@@ -16,9 +16,16 @@ Two things the test suite cannot see, because it runs in jsdom:
   `getBoundingClientRect` and gets zeros in jsdom.
 - Anything about how a real workbook behaves end to end.
 
-`tests/e2e/smoke.md` is the manual checklist for those. It carries a
-"Verified <date>" line per phase — update it, and correct steps that have
-drifted rather than leaving them to rot.
+After `pnpm install`, run `pnpm exec playwright install chromium` once on a new
+machine. `pnpm test:e2e` then runs the stable browser-regression subset in
+Chromium: the PR 5 quality and endpoint labels, badge priority, import warnings,
+template downloads, and the mobile methodology path. CI installs Chromium and
+runs the suite after the unit tests and build.
+
+`tests/e2e/smoke.md` remains the broader manual checklist for paths that are too
+expensive or subjective to automate. It carries a "Verified <date>" line per
+phase — update it, and correct steps that have drifted rather than leaving them
+to rot.
 
 **Run a code review before calling a branch done.** In August 2026 an agentic
 review of PR #5 found three serious defects in code that had already been
