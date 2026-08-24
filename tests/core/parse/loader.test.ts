@@ -181,3 +181,28 @@ describe('loadLabRows', () => {
     expect(row.patientAgeAtLab).toBe(0)
   })
 })
+
+describe('birth date passthrough', () => {
+  it('keeps the birth date even when an age column also exists', () => {
+    const rows = loadLabRows([
+      {
+        patientId: 1,
+        labDate: '2022-01-15',
+        testName: 'Kreatinin',
+        unit: 'mg/dl',
+        value: '1,0',
+        ageAtLab: 46,
+        birthDate: '1975-06-12',
+      },
+    ])
+    expect(rows[0].patientAgeAtLab).toBe(46)
+    expect(rows[0].patientBirthDate?.toISOString().slice(0, 10)).toBe('1975-06-12')
+  })
+
+  it('leaves the field null when the column is absent', () => {
+    const rows = loadLabRows([
+      { patientId: 1, labDate: '2022-01-15', testName: 'Kreatinin', unit: 'mg/dl', value: '1,0' },
+    ])
+    expect(rows[0].patientBirthDate ?? null).toBeNull()
+  })
+})

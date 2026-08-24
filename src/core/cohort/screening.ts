@@ -1,4 +1,4 @@
-import { comparePatientIds, type LabRow, type PatientId } from '../types'
+import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
 import type { SeriesPoint } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
@@ -276,6 +276,10 @@ export interface CohortExportRecord {
    * reported by the reference implementation as a clean fit with r2 = 1, so
    * `reason` alone leaves it unflagged. */
   unstable_slope: string
+  /** 'yes' when the patient's demographics (sex and/or birth-date anchor) had to
+   * be resolved from contradictory input rows, else ''. Populated from the
+   * demographics module's conflict messages, keyed by patientIdKey. */
+  demographics_conflict: string
   aki: string
   /** 'yes' when this eGFR series declines faster than the rapid-progression
    * threshold, else '' (and '' for non-eGFR series or when the flag is off). */
@@ -305,8 +309,14 @@ const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
 
 /** Flatten cohort rows into export records (one per patient × series). Pass the
  * rapid-progression threshold (mL/min/1.73m²/yr) to populate rapid_progression;
- * 0 (default) leaves the flag off. */
-export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): CohortExportRecord[] {
+ * 0 (default) leaves the flag off. `conflictPatientKeys` holds the patientIdKey
+ * of every patient whose demographics had to be resolved from contradictory
+ * input, so the caveat travels with the exported table. */
+export function cohortExportRecords(
+  rows: CohortRow[],
+  rapidThreshold = 0,
+  conflictPatientKeys: ReadonlySet<string> = new Set(),
+): CohortExportRecord[] {
   const out: CohortExportRecord[] = []
   for (const r of rows) {
     for (const c of r.cells) {
@@ -326,6 +336,7 @@ export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): Coho
         ci_high: numOrBlank(c.ciHigh),
         reason: c.reason ?? '',
         unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
+        demographics_conflict: conflictPatientKeys.has(patientIdKey(r.patientId)) ? 'yes' : '',
         aki: c.akiChip,
         rapid_progression: rapidEgfrDeclineFlagForCell({
           patientId: r.patientId,

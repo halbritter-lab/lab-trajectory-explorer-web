@@ -1,6 +1,7 @@
 # Phase 2 E2E smoke (run via Playwright)
 
-1. `cd web && pnpm build && pnpm preview -- --port 4188`
+1. `pnpm build && pnpm preview -- --port 4188` (this repo is the web app root now —
+   there is no `web/` subdirectory to `cd` into; it was split out of a monorepo).
 2. Navigate to http://localhost:4188/
 3. Click "Load demo data".
 4. Assert: a Patient picker appears; the series strip is visible.
@@ -90,6 +91,13 @@ grouping, the cohort overlay, or the WebR cohort mixed model.
    columns, and that `unstable_slope` is `yes` for exactly patients 3, 5 and 12.
 5. Assert patient 3's row exports `r2 = 1` with an empty `reason` — the
    two-point case the reason field cannot express.
+6. Upload a patient with ages that fit no single birth date (e.g. `46`, `46`,
+   then `64` years old across three lab dates spanning about a year). Assert a
+   sidebar warning naming the patient and stating the ages fit no single birth
+   date, without setting *Compute eGFR* — the conflict note does not depend on
+   eGFR being on.
 
-Verified 2026-08-22 via the Playwright MCP: all five hold; console clean
-(0 errors, 0 warnings across the session, not even the historical favicon 404).
+Verified 2026-08-24: all six hold; console clean (0 errors, 0 warnings). Step 6
+covered by the Chromium regression test in `tests/e2e/pr5-quality.e2e.ts`
+("reports a patient whose ages fit no single birth date"); steps 1-5 verified
+2026-08-22 via the Playwright MCP and re-confirmed unchanged.

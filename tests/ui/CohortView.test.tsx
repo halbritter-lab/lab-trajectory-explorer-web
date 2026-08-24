@@ -393,4 +393,51 @@ describe('CohortView', () => {
 
     expect(screen.getByRole('table')).toBeInTheDocument()
   })
+
+  it('offers sex for grouping without an attributes table', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.0, patientSex: 'w' }),
+      row({ patientId: 2, labDatum: new Date('2020-01-01'), wertNum: 1.1, patientSex: 'm' }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+
+    render(<CohortView />)
+
+    expect(screen.getByLabelText(/group by/i)).toHaveTextContent('sex')
+  })
+
+  it('normalises an attributes-table sex spelling so it groups with the row-derived code', async () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.0, patientSex: 'w' }),
+      row({ patientId: 1, labDatum: new Date('2020-06-01'), wertNum: 1.1, patientSex: 'w' }),
+      row({ patientId: 2, labDatum: new Date('2020-01-01'), wertNum: 1.2, patientSex: null }),
+      row({ patientId: 2, labDatum: new Date('2020-06-01'), wertNum: 1.3, patientSex: null }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+    // Patient 1's sex comes from the lab rows (already the normalised code
+    // 'w'); patient 2's comes from an attributes table spelling it "female" —
+    // normalizePatientAttributes only trims this, it does not know it is sex.
+    useAppStore.getState().setPatientAttributes({ '2': { sex: 'female' } })
+    useAppStore.getState().setCohortGroupByAttribute('sex')
+
+    render(<CohortView />)
+
+    expect(screen.getAllByRole('cell', { name: 'w' })).toHaveLength(2)
+    expect(screen.queryByRole('cell', { name: 'female' })).not.toBeInTheDocument()
+  })
+
+  it('lets the attributes table override a row-derived sex on a key collision', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.0, patientSex: 'w' }),
+      row({ patientId: 1, labDatum: new Date('2020-06-01'), wertNum: 1.1, patientSex: 'w' }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+    useAppStore.getState().setPatientAttributes({ '1': { sex: 'm' } })
+    useAppStore.getState().setCohortGroupByAttribute('sex')
+
+    render(<CohortView />)
+
+    expect(screen.getByRole('cell', { name: 'm' })).toBeInTheDocument()
+    expect(screen.queryByRole('cell', { name: 'w' })).not.toBeInTheDocument()
+  })
 })
