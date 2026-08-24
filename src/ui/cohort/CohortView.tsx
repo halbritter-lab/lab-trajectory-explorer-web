@@ -260,7 +260,11 @@ export function CohortView() {
       new Set(
         analysisResult.messages
           .filter((m) => m.id.startsWith('demographics:'))
-          .map((m) => m.id.split(':')[2]),
+          // id is `demographics:<kind>:<patientIdKey>`; patientIdKey is
+          // String(patientId), which may itself contain ':' (e.g. "P:001").
+          // Rejoin everything after the first two segments instead of taking
+          // index [2], or such an id truncates to the wrong key.
+          .map((m) => m.id.split(':').slice(2).join(':')),
       ),
     [analysisResult.messages],
   )

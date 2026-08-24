@@ -106,12 +106,14 @@ export function OnePatientView() {
   )
   // Same derivation CohortView uses for demographicsConflictKeys, narrowed to
   // this one patient: analysisResult.messages carries every demographics
-  // conflict as `demographics:<kind>:<patientIdKey>`.
+  // conflict as `demographics:<kind>:<patientIdKey>`. patientIdKey is
+  // String(patientId), which may itself contain ':' (e.g. "P:001"), so rejoin
+  // everything after the first two segments rather than indexing [2].
   const hasDemographicsConflict = useMemo(
     () =>
       patientId !== null &&
       analysisResult.messages.some(
-        (m) => m.id.startsWith('demographics:') && m.id.split(':')[2] === patientIdKey(patientId),
+        (m) => m.id.startsWith('demographics:') && m.id.split(':').slice(2).join(':') === patientIdKey(patientId),
       ),
     [analysisResult.messages, patientId],
   )
