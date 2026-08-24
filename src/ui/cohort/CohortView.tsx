@@ -8,6 +8,7 @@ import { sheetsToXlsxBytes, downloadBlob, fileStamp } from '../../io/export'
 import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
 import { comparePatientIds, patientIdKey } from '../../core/types'
 import { patientAttributesExportRows } from '../../core/attributes/attributes'
+import { normaliseSex } from '../../core/egfr/formulas'
 import { groupColors, groupPatients } from '../../core/grouping/grouping'
 import { projectedG5Label, slopeQualityLabel } from '../qualityLabels'
 import { mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
@@ -143,9 +144,14 @@ export function CohortView() {
   }, [displayRows, cohortPatientMode, selectedPatientIds])
   /** Patient attributes plus the demographics that live on the lab rows, so the
    * cohort can be grouped by sex without a second spreadsheet. The attributes
-   * table wins on a key collision, which is free of consequence: the
-   * demographics module has already merged both sources into one value, so they
-   * agree by construction. */
+   * table wins on a key collision, but for `sex` specifically the two sources
+   * are not guaranteed to already agree as strings: the row-derived value is a
+   * normalised code ('m' / 'w' / 'd'), while `normalizePatientAttributes` only
+   * trims the attributes-table value, so a spelling like "female" would
+   * otherwise collide with "w" for the same sex and land in a different group.
+   * Route the attributes-table value through normaliseSex first so both sources
+   * land on the same code; every other attribute name is passed through as-is,
+   * since sex is the only one with a canonical form. */
   const groupableAttributes = useMemo(() => {
     const merged: Record<string, Record<string, string>> = {}
     for (const r of displayRows) {
@@ -154,7 +160,12 @@ export function CohortView() {
       if (merged[key] === undefined) merged[key] = { sex: r.patientSex }
     }
     for (const [key, attributes] of Object.entries(patientAttributes)) {
-      merged[key] = { ...merged[key], ...attributes }
+      const normalisedSex = normaliseSex(attributes.sex)
+      merged[key] = {
+        ...merged[key],
+        ...attributes,
+        ...(normalisedSex !== null ? { sex: normalisedSex } : {}),
+      }
     }
     return merged
   }, [displayRows, patientAttributes])
