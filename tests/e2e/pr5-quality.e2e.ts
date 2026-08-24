@@ -202,6 +202,16 @@ test('downloads all three empty templates with stable filenames', async ({ page 
   expect(problems).toEqual([])
 })
 
+test('reports a patient whose ages fit no single birth date', async ({ page }) => {
+  await uploadCsv(page, 'age-conflict.csv', [
+    'patientId,labDate,testName,unit,value,sex,ageAtLab',
+    '1,2022-01-15,Kreatinin,mg/dl,1.0,w,46',
+    '1,2022-07-20,Kreatinin,mg/dl,1.2,w,46',
+    '1,2023-03-02,Kreatinin,mg/dl,1.4,w,64',
+  ].join('\n'))
+  await expect(page.getByText(/no single birth date/i)).toBeVisible()
+})
+
 test('keeps methodology usable on a mobile viewport', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   await loadDemo(page)
