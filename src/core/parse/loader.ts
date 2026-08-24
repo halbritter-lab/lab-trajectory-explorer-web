@@ -128,7 +128,7 @@ function toPatientId(v: unknown): PatientId | null {
 }
 
 /** Completed calendar years between birth and a reference date. */
-function completedYears(birth: Date, ref: Date): number | null {
+export function completedYears(birth: Date, ref: Date): number | null {
   if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime())) return null
   let years = ref.getUTCFullYear() - birth.getUTCFullYear()
   const birthdayReached =
