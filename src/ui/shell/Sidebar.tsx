@@ -103,6 +103,10 @@ export function Sidebar() {
         .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
     : []
 
+  const DEMOGRAPHICS_CONFLICT_CAP = 4
+  const demographicsConflicts = useAppStore((s) => s.analysisResult().messages)
+    .filter((m) => m.id.startsWith('demographics:'))
+
   const manualDemoPatientIds = sourcePatientIds.filter((pid) => manualDemographics[patientIdKey(pid)])
   const demoPanelPatientIds = [...new Set([...(showMissingDemographics ? missingDemoPatientIds : []), ...manualDemoPatientIds])].sort(comparePatientIds)
 
@@ -242,6 +246,16 @@ export function Sidebar() {
                 . No eGFR is computed for those rows. Accepted: m / male / männlich,
                 w / f / female / weiblich, d / divers.
               </p>
+            )}
+            {demographicsConflicts.length > 0 && (
+              <div className="sidebar-note sidebar-warning" role="status" aria-live="polite">
+                {demographicsConflicts.slice(0, DEMOGRAPHICS_CONFLICT_CAP).map((message) => (
+                  <p key={message.id}>{message.text}</p>
+                ))}
+                {demographicsConflicts.length > DEMOGRAPHICS_CONFLICT_CAP && (
+                  <p>and {demographicsConflicts.length - DEMOGRAPHICS_CONFLICT_CAP} more</p>
+                )}
+              </div>
             )}
             {egfrFormula !== 'off' && selectedSource && selectedSourceIsEligible && missingDemoPatientIds.length > 0 && (
               <label className="sidebar-check">

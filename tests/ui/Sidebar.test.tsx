@@ -411,3 +411,16 @@ describe('Sidebar nephro fit configuration', () => {
     expect(useAppStore.getState().seriesConfigs[1].fitConfig.preset).toBe('ckd_progression')
   })
 })
+
+describe('demographics conflict notes', () => {
+  it('names the patient and shows with the eGFR formula off', () => {
+    useAppStore.getState().reset()
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2022-01-15'), patientSex: 'w', patientAgeAtLab: 46 }),
+      row({ patientId: 1, labDatum: new Date('2022-07-20'), patientSex: 'w', patientAgeAtLab: 46 }),
+      row({ patientId: 1, labDatum: new Date('2023-03-02'), patientSex: 'w', patientAgeAtLab: 64 }),
+    ])
+    render(<Sidebar />)
+    expect(screen.getByText(/no single birth date/i)).toBeInTheDocument()
+  })
+})
