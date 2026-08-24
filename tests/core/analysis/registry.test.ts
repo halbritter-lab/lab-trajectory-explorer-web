@@ -25,6 +25,7 @@ describe('computeAnalysisResult', () => {
     const result = computeAnalysisResult({
       rows,
       manualDemographics: {},
+      patientAttributes: {},
       events: [],
       settings: {
         egfr: { formula: 'off', source: null },
@@ -64,6 +65,7 @@ describe('computeAnalysisResult', () => {
     const result = computeAnalysisResult({
       rows,
       manualDemographics: {},
+      patientAttributes: {},
       events: [],
       settings: {
         egfr: { formula: 'off', source: null },
@@ -113,6 +115,7 @@ describe('computeAnalysisResult', () => {
     const result = computeAnalysisResult({
       rows,
       manualDemographics: {},
+      patientAttributes: {},
       events: [],
       settings: {
         egfr: { formula: 'off', source: null },
