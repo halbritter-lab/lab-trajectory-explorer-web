@@ -423,4 +423,63 @@ describe('demographics conflict notes', () => {
     render(<Sidebar />)
     expect(screen.getByText(/no single birth date/i)).toBeInTheDocument()
   })
+
+  it('caps the conflict list and lets it be expanded to see the rest', async () => {
+    useAppStore.getState().reset()
+    // Five patients, each with its own unresolvable birth date, so the
+    // conflict count (5) exceeds the sidebar's collapsed cap (4).
+    useAppStore.getState().setDataset(
+      [1, 2, 3, 4, 5].flatMap((patientId) => [
+        row({ patientId, labDatum: new Date('2022-01-15'), patientSex: 'w', patientAgeAtLab: 46 }),
+        row({ patientId, labDatum: new Date('2022-07-20'), patientSex: 'w', patientAgeAtLab: 46 }),
+        row({ patientId, labDatum: new Date('2023-03-02'), patientSex: 'w', patientAgeAtLab: 64 }),
+      ]),
+    )
+    render(<Sidebar />)
+
+    expect(screen.getAllByText(/no single birth date/i)).toHaveLength(4)
+    expect(screen.getByText('and 1 more')).toBeInTheDocument()
+
+    await userEvent.click(screen.getByLabelText('Show all demographics conflicts'))
+
+    expect(screen.getAllByText(/no single birth date/i)).toHaveLength(5)
+    expect(screen.queryByText('and 1 more')).not.toBeInTheDocument()
+  })
+})
+
+describe('Sidebar demographics resolution', () => {
+  beforeEach(() => {
+    useAppStore.getState().reset()
+  })
+
+  it('excludes a patient whose sex is resolved only from the attributes table from missing demographics', async () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2019-01-01'), wertNum: 1.0, patientSex: null, patientAgeAtLab: 50 }),
+      row({ patientId: 2, labDatum: new Date('2019-01-01'), wertNum: 1.1, patientSex: null, patientAgeAtLab: null }),
+    ])
+    useAppStore.getState().setEgfrFormula('ckd-epi-2021')
+    useAppStore.getState().setPatientAttributes({ '1': { sex: 'female' } })
+
+    render(<Sidebar />)
+    await userEvent.click(screen.getByLabelText('Show missing demographics'))
+
+    expect(screen.queryByText('Patient 1: missing')).not.toBeInTheDocument()
+    expect(screen.getByText('Patient 2: missing')).toBeInTheDocument()
+  })
+
+  it('prefills the manual age dialog from the earliest lab date, not file order', async () => {
+    useAppStore.getState().setDataset([
+      // Newest-first file order: the later-dated row appears first in the array.
+      row({ patientId: 1, labDatum: new Date('2023-01-01'), wertNum: 1.0, patientAgeAtLab: 60 }),
+      row({ patientId: 1, labDatum: new Date('2019-01-01'), wertNum: 0.9, patientAgeAtLab: 56 }),
+    ])
+    useAppStore.getState().setEgfrFormula('ckd-epi-2021')
+
+    render(<Sidebar />)
+    await userEvent.click(screen.getByLabelText('Show missing demographics'))
+    await userEvent.click(screen.getByRole('button', { name: 'Enter demographics for patient 1' }))
+
+    expect(screen.getByText('Age on 2019-01-01')).toBeInTheDocument()
+    expect(screen.getByLabelText('Manual age for patient 1')).toHaveValue(56)
+  })
 })

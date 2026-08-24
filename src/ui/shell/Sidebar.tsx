@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useAppStore } from '../state/store'
 import { allSourceOptions, creatinineSourceOptions, defaultCreatinineSource, isSerumCreatinineSource, type FormulaName } from '../../core/egfr/series'
 import { isUnrecognisedSex } from '../../core/egfr/formulas'
-import { comparePatientIds, patientIdKey, type PatientId, type Sex } from '../../core/types'
+import { comparePatientIds, patientIdKey, type LabRow, type PatientId, type Sex } from '../../core/types'
 import { effectForEvent, normalizeClinicalEvents, validateClinicalEvents, type ClinicalEvent, type RejectedClinicalEvent } from '../../core/events/events'
 import { normalizePatientAttributes, validatePatientAttributes } from '../../core/attributes/attributes'
 import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
@@ -18,7 +18,8 @@ export function Sidebar() {
   const [open, setOpen] = useState(true)
   const [showAllEgfrSources, setShowAllEgfrSources] = useState(false)
   const [showMissingDemographics, setShowMissingDemographics] = useState(false)
-  const [demoDraft, setDemoDraft] = useState<{ patientId: PatientId; sex: Sex | ''; age: string } | null>(null)
+  const [showAllDemographicsConflicts, setShowAllDemographicsConflicts] = useState(false)
+  const [demoDraft, setDemoDraft] = useState<{ patientId: PatientId; sex: Sex | ''; age: string; ageDate: string | null } | null>(null)
   const [fitSeriesIndex, setFitSeriesIndex] = useState(0)
   const analysisSettings = useAppStore((s) => s.analysisSettings)
   const egfrFormula = analysisSettings.egfr.formula
@@ -28,6 +29,13 @@ export function Sidebar() {
   const manualDemographics = useAppStore((s) => s.manualDemographics)
   const setManualDemographics = useAppStore((s) => s.setManualDemographics)
   const rows = useAppStore((s) => s.rows)
+  // Post demographics-resolution rows (same array analysisResult().rows /
+  // displayRows() expose): the demographics module may already have supplied a
+  // sex from the attributes table, or an age derived from a birth-date anchor,
+  // for a row that looked incomplete in the raw file. The "missing"/"unreadable"
+  // notes below must reflect that resolved state, not the pre-resolution file,
+  // or they keep flagging patients whose eGFR is already computed.
+  const resolvedRows = useAppStore((s) => s.displayRows())
   const cohortPatientMode = useAppStore((s) => s.cohortPatientMode)
   const setCohortPatientMode = useAppStore((s) => s.setCohortPatientMode)
   const selectedPatientIds = useAppStore((s) => s.selectedPatientIds)
@@ -68,19 +76,19 @@ export function Sidebar() {
   const selectedSourceKey = selectedSource ? `${selectedSource[0]}|${selectedSource[1]}` : ''
   const selectedSourceIsEligible = selectedSource ? isSerumCreatinineSource(selectedSource) : false
   const sourcePatientIds = selectedSource && selectedSourceIsEligible
-    ? [...new Set(rows
+    ? [...new Set(resolvedRows
         .filter((r) => r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
         .map((r) => r.patientId))]
         .sort(comparePatientIds)
     : []
+  // patientSex / patientAgeAtLab on resolvedRows already reflect manual entries
+  // (resolveDemographics gives manual the highest precedence), so there is no
+  // need to re-apply manualDemographics here the way the pre-resolution version
+  // of this filter did.
   const missingDemoPatientIds = selectedSource && selectedSourceIsEligible
-    ? [...new Set(rows
+    ? [...new Set(resolvedRows
         .filter((r) => r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
-        .filter((r) => {
-          const manual = manualDemographics[patientIdKey(r.patientId)]
-          const age = manual?.age ?? r.patientAgeAtLab
-          return (manual?.sex ?? r.patientSex) == null || age == null || age < 18
-        })
+        .filter((r) => r.patientSex == null || r.patientAgeAtLab == null || r.patientAgeAtLab < 18)
         .map((r) => r.patientId))]
         .sort(comparePatientIds)
     : []
@@ -89,15 +97,18 @@ export function Sidebar() {
   // the file, it just is not a spelling we accept, so naming it lets the user
   // correct the source data instead of entering demographics by hand.
   //
-  // Scoped to rows of the selected eGFR source, and skipping patients who
-  // already have manual demographics — otherwise the note keeps asserting "no
-  // eGFR is computed" for rows the user has already worked around, and claims an
-  // eGFR consequence for rows that were never eGFR inputs.
+  // Scoped to rows of the selected eGFR source. patientSexRaw itself never
+  // changes — it is always the file's original spelling, kept so the message
+  // can quote it — but whether a row still counts as unresolved must come from
+  // the resolved patientSex: a row's own spelling can be unreadable and the
+  // patient still end up with a real sex (from the attributes table, a manual
+  // entry, or a majority vote across that patient's other rows), in which case
+  // eGFR is already computed for it and it must drop out of this list.
   const UNREADABLE_SEX_LIST_CAP = 6
   const unrecognisedSexValues = selectedSource && selectedSourceIsEligible
-    ? [...new Set(rows
+    ? [...new Set(resolvedRows
         .filter((r) => r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
-        .filter((r) => !manualDemographics[patientIdKey(r.patientId)])
+        .filter((r) => r.patientSex === null)
         .filter((r) => isUnrecognisedSex(r.patientSexRaw))
         .map((r) => r.patientSexRaw as string))]
         .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
@@ -128,11 +139,20 @@ export function Sidebar() {
       ? rows.filter((r) => r.patientId === patientId && r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
       : []
     const sourceSex = sourceRows.find((r) => r.patientSex !== null)?.patientSex ?? ''
-    const sourceAge = sourceRows.find((r) => r.patientAgeAtLab !== null)?.patientAgeAtLab
+    // The row this age is read off: earliest labDatum among this patient's
+    // source rows that carries an age — not the first row in file order.
+    // resolveBirthAnchor (src/core/demographics/resolveAge.ts) reads a manual
+    // age as the age at the patient's earliest lab date and derives every row
+    // from that anchor, so prefilling from a later-dated row would silently
+    // reinterpret that row's age as if it belonged to an earlier date.
+    const anchorRow = earliestAgeRow(sourceRows)
     setDemoDraft({
       patientId,
       sex: current?.sex ?? sourceSex,
-      age: current?.age !== undefined ? String(current.age) : sourceAge !== undefined && sourceAge !== null ? String(sourceAge) : '',
+      age: current?.age !== undefined
+        ? String(current.age)
+        : anchorRow && anchorRow.patientAgeAtLab !== null ? String(anchorRow.patientAgeAtLab) : '',
+      ageDate: anchorRow?.labDatum ? isoDate(anchorRow.labDatum) : null,
     })
   }
 
@@ -249,13 +269,24 @@ export function Sidebar() {
             )}
             {demographicsConflicts.length > 0 && (
               <div className="sidebar-note sidebar-warning" role="status" aria-live="polite">
-                {demographicsConflicts.slice(0, DEMOGRAPHICS_CONFLICT_CAP).map((message) => (
+                {(showAllDemographicsConflicts ? demographicsConflicts : demographicsConflicts.slice(0, DEMOGRAPHICS_CONFLICT_CAP)).map((message) => (
                   <p key={message.id}>{message.text}</p>
                 ))}
-                {demographicsConflicts.length > DEMOGRAPHICS_CONFLICT_CAP && (
+                {!showAllDemographicsConflicts && demographicsConflicts.length > DEMOGRAPHICS_CONFLICT_CAP && (
                   <p>and {demographicsConflicts.length - DEMOGRAPHICS_CONFLICT_CAP} more</p>
                 )}
               </div>
+            )}
+            {demographicsConflicts.length > DEMOGRAPHICS_CONFLICT_CAP && (
+              <label className="sidebar-check">
+                <input
+                  type="checkbox"
+                  aria-label="Show all demographics conflicts"
+                  checked={showAllDemographicsConflicts}
+                  onChange={(e) => setShowAllDemographicsConflicts(e.target.checked)}
+                />
+                Show all demographics conflicts
+              </label>
             )}
             {egfrFormula !== 'off' && selectedSource && selectedSourceIsEligible && missingDemoPatientIds.length > 0 && (
               <label className="sidebar-check">
@@ -273,7 +304,7 @@ export function Sidebar() {
                 {showMissingDemographics && missingDemoPatientIds.length > 0 && (
                   <p className="sidebar-note">{missingDemoPatientIds.length} patient(s) missing demographics for computed eGFR.</p>
                 )}
-                <p className="sidebar-note">Manual age is applied to all lab dates for that patient.</p>
+                <p className="sidebar-note">Manual age is read as the patient's age on the date shown in the dialog (their earliest lab date for this source); every row's age for that patient is derived from that anchor.</p>
                 {demoPanelPatientIds.map((pid) => (
                   <div className="manual-demo-row" key={pid}>
                     <span>{manualDemographics[patientIdKey(pid)] ? `Patient ${pid}: ${manualDemographics[patientIdKey(pid)].sex}, age ${manualDemographics[patientIdKey(pid)].age}` : `Patient ${pid}: missing`}</span>
@@ -297,7 +328,8 @@ export function Sidebar() {
                         <option value="d">d</option>
                       </select>
                     </label>
-                    <label className="sidebar-field">Age
+                    <label className="sidebar-field">
+                      {demoDraft.ageDate ? `Age on ${demoDraft.ageDate}` : 'Age (no dated lab on file for this source; applied to every row)'}
                       <input
                         type="number"
                         min={18}
@@ -574,6 +606,21 @@ export function Sidebar() {
 
 function pluralize(count: number, singular: string): string {
   return count === 1 ? singular : `${singular}s`
+}
+
+/** The row a manual-age prefill/label is anchored to: earliest labDatum, among
+ * the given rows, that also carries an age. Undefined when none of the rows
+ * has both. See openDemographicsDialog. */
+function earliestAgeRow(sourceRows: readonly LabRow[]): LabRow | undefined {
+  const dated = sourceRows.filter((r) => r.patientAgeAtLab !== null && r.labDatum !== null)
+  if (dated.length === 0) return undefined
+  return dated.reduce((earliest, r) =>
+    (r.labDatum as Date).getTime() < (earliest.labDatum as Date).getTime() ? r : earliest,
+  )
+}
+
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10)
 }
 
 function EventTable({ events, fitConfig }: { events: ClinicalEvent[]; fitConfig: FitConfig }) {
