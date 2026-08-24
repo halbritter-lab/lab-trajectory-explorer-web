@@ -247,7 +247,7 @@ export function medianDate(dates: readonly Date[]): Date | null {
 - [ ] **Step 6: Run the test to verify it passes**
 
 Run: `pnpm exec vitest run tests/core/demographics/birthDate.test.ts`
-Expected: PASS, 7 tests
+Expected: PASS, 8 tests
 
 - [ ] **Step 7: Commit**
 
