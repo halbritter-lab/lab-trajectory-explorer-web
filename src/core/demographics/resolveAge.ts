@@ -1,4 +1,5 @@
 import type { PatientId } from '../types'
+import { completedYears } from '../parse/loader'
 import {
   birthDateInterval,
   intersectBirthIntervals,
@@ -29,6 +30,29 @@ export interface AgeResolution {
   conflicts: DemographicsConflict[]
 }
 
+/** An explicit birth date wins on precedence alone, but "no silent resolution"
+ * still applies: check it against every row that states an age and report the
+ * rows it contradicts. The birth date wins regardless — this only reports. */
+function explicitBirthDateConflict(
+  patientId: PatientId,
+  source: 'attributes' | 'labs',
+  birthDate: Date,
+  dated: readonly (AgeResolutionRow & { labDatum: Date })[],
+): DemographicsConflict | null {
+  const withAge = dated.filter((r) => r.ageAtLab !== null)
+  const mismatchedRows = withAge.filter(
+    (r) => completedYears(birthDate, r.labDatum) !== r.ageAtLab,
+  ).length
+  if (mismatchedRows === 0) return null
+  return {
+    kind: 'age_source_disagreement',
+    patientId,
+    source,
+    mismatchedRows,
+    totalRows: withAge.length,
+  }
+}
+
 export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
   const dated = input.rows.filter((r): r is AgeResolutionRow & { labDatum: Date } => r.labDatum !== null)
 
@@ -43,10 +67,17 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
     return { birthAnchor: intervalMidpoint(birthDateInterval(earliest, input.manualAge)), conflicts: [] }
   }
 
-  // 2. and 3. An explicit birth date needs no inference.
-  if (input.attributeBirthDate !== null) return { birthAnchor: input.attributeBirthDate, conflicts: [] }
+  // 2. and 3. An explicit birth date needs no inference, but disagreement with
+  //    the stated ages is still worth reporting — see explicitBirthDateConflict.
+  if (input.attributeBirthDate !== null) {
+    const conflict = explicitBirthDateConflict(input.patientId, 'attributes', input.attributeBirthDate, dated)
+    return { birthAnchor: input.attributeBirthDate, conflicts: conflict ? [conflict] : [] }
+  }
   const rowBirthDate = dated.find((r) => r.birthDate != null)?.birthDate
-  if (rowBirthDate != null) return { birthAnchor: rowBirthDate, conflicts: [] }
+  if (rowBirthDate != null) {
+    const conflict = explicitBirthDateConflict(input.patientId, 'labs', rowBirthDate, dated)
+    return { birthAnchor: rowBirthDate, conflicts: conflict ? [conflict] : [] }
+  }
 
   // 4. Infer from the stated ages.
   const intervals = dated

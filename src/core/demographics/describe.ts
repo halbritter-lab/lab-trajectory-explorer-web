@@ -32,5 +32,12 @@ export function describeConflict(conflict: DemographicsConflict): string {
         `Patient ${conflict.patientId}: the age values fit no single birth date ` +
         `(${conflict.gapDays} days apart) — ages derived from the median instead.`
       )
+    case 'age_source_disagreement': {
+      const from = conflict.source === 'attributes' ? 'the attributes table' : 'the lab rows'
+      return (
+        `Patient ${conflict.patientId}: the birth date from ${from} contradicts ` +
+        `${conflict.mismatchedRows} of ${conflict.totalRows} stated ages — the birth date wins.`
+      )
+    }
   }
 }

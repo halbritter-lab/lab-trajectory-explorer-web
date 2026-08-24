@@ -61,7 +61,9 @@ describe('resolveDemographics', () => {
     const out = resolveDemographics(rows, { '1': { sex: 'male', birthDate: '1980-02-03' } }, {})
     expect(out.rows[0].patientSex).toBe('m')
     expect(out.rows[0].patientAgeAtLab).toBe(41)
-    expect(out.conflicts.map((c) => c.kind)).toEqual(['sex_source_disagreement'])
+    // The attributes birth date (implying 41) also contradicts the row's stated
+    // age of 46 — reported, not silently overridden, same as the sex conflict.
+    expect(out.conflicts.map((c) => c.kind)).toEqual(['age_source_disagreement', 'sex_source_disagreement'])
   })
 
   it('keeps patients independent of one another', () => {

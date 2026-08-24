@@ -95,8 +95,13 @@ landed in the wrong place.
 Every row's age is then derived from that anchor.
 
 1. A manually entered age, read as the age **at the patient's first lab date**.
-2. `birthDate` from the `attributes` table.
-3. `birthDate` from the lab rows.
+2. `birthDate` from the `attributes` table. If it disagrees with a row's stated
+   `ageAtLab`, the disagreement is reported as `age_source_disagreement` and the
+   attributes table still wins — the same "report, don't silently pick a
+   winner" rule sex applies to `sex_source_disagreement`.
+3. `birthDate` from the lab rows. Same rule: a mismatch against another row's
+   stated age is reported as `age_source_disagreement` with `source: 'labs'`,
+   and the birth date still wins.
 4. `ageAtLab` from the lab rows. Each row implies an interval of birth dates
    consistent with its stated age. If the intersection across all rows is
    non-empty, it is the anchor — and reproduces every stated age exactly. If it

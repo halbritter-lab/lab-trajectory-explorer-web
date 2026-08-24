@@ -40,7 +40,7 @@ describe('resolveBirthAnchor', () => {
       ...base,
       rows: [
         { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: utc('1975-06-12') },
-        { labDatum: utc('2023-03-02'), ageAtLab: 64, birthDate: utc('1975-06-12') },
+        { labDatum: utc('2023-03-02'), ageAtLab: 47, birthDate: utc('1975-06-12') },
       ],
     })
     expect(day(out.birthAnchor!)).toBe('1975-06-12')
@@ -54,6 +54,74 @@ describe('resolveBirthAnchor', () => {
       rows: [{ labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: utc('1975-06-12') }],
     })
     expect(day(out.birthAnchor!)).toBe('1980-02-03')
+  })
+
+  it('reports nothing when the attributes birth date agrees with every stated age', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      attributeBirthDate: utc('1975-06-12'),
+      rows: [
+        { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: null },
+        { labDatum: utc('2023-08-20'), ageAtLab: 48, birthDate: null },
+      ],
+    })
+    expect(day(out.birthAnchor!)).toBe('1975-06-12')
+    expect(out.conflicts).toEqual([])
+  })
+
+  it('reports a contradiction when the attributes birth date disagrees with some stated ages, and still wins', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      patientId: 7,
+      attributeBirthDate: utc('1975-06-12'),
+      rows: [
+        { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: null },
+        { labDatum: utc('2023-08-20'), ageAtLab: 48, birthDate: null },
+        { labDatum: utc('2024-01-01'), ageAtLab: 99, birthDate: null },
+      ],
+    })
+    expect(day(out.birthAnchor!)).toBe('1975-06-12')
+    expect(out.conflicts).toHaveLength(1)
+    expect(out.conflicts[0]).toMatchObject({
+      kind: 'age_source_disagreement',
+      patientId: 7,
+      source: 'attributes',
+      mismatchedRows: 1,
+      totalRows: 3,
+    })
+  })
+
+  it('reports a contradiction the same way when the birth date comes from the lab rows', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      patientId: 3,
+      rows: [
+        { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: utc('1975-06-12') },
+        { labDatum: utc('2023-08-20'), ageAtLab: 48, birthDate: null },
+        { labDatum: utc('2024-01-01'), ageAtLab: 99, birthDate: null },
+      ],
+    })
+    expect(day(out.birthAnchor!)).toBe('1975-06-12')
+    expect(out.conflicts).toHaveLength(1)
+    expect(out.conflicts[0]).toMatchObject({
+      kind: 'age_source_disagreement',
+      patientId: 3,
+      source: 'labs',
+      mismatchedRows: 1,
+      totalRows: 3,
+    })
+  })
+
+  it('stays silent for a manual age even when rows carry a contradicting birth date', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      manualAge: 46,
+      rows: [
+        { labDatum: utc('2014-01-15'), ageAtLab: 99, birthDate: utc('1975-06-12') },
+        { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: utc('1975-06-12') },
+      ],
+    })
+    expect(out.conflicts).toEqual([])
   })
 
   it('reads a manual age as the age at the first lab date, so it ages with the series', () => {
