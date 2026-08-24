@@ -482,4 +482,25 @@ describe('Sidebar demographics resolution', () => {
     expect(screen.getByText('Age on 2019-01-01')).toBeInTheDocument()
     expect(screen.getByLabelText('Manual age for patient 1')).toHaveValue(56)
   })
+
+  it('prefills the manual age dialog from the earliest lab date across all series, not just the selected creatinine source', async () => {
+    useAppStore.getState().setDataset([
+      // The selected eGFR source (Kreatinin HP, mg/dl) is not this patient's
+      // earliest row: an HbA1c measurement predates it. resolveBirthAnchor
+      // anchors to the earliest labDatum across ALL of the patient's rows, so
+      // the dialog must too, or its "Age on {date}" label states a contract
+      // the code does not honour.
+      row({ patientId: 1, bezeichnung: 'Kreatinin HP', einheit: 'mg/dl', labDatum: new Date('2020-01-01'), wertNum: 1.0, patientAgeAtLab: 60 }),
+      row({ patientId: 1, bezeichnung: 'HbA1c', einheit: '%', labDatum: new Date('2018-01-01'), wertNum: 5.5, patientAgeAtLab: 58 }),
+    ])
+    useAppStore.getState().setEgfrFormula('ckd-epi-2021')
+
+    render(<Sidebar />)
+    expect(screen.getByLabelText('Creatinine source')).toHaveValue('Kreatinin HP|mg/dl')
+    await userEvent.click(screen.getByLabelText('Show missing demographics'))
+    await userEvent.click(screen.getByRole('button', { name: 'Enter demographics for patient 1' }))
+
+    expect(screen.getByText('Age on 2018-01-01')).toBeInTheDocument()
+    expect(screen.getByLabelText('Manual age for patient 1')).toHaveValue(58)
+  })
 })

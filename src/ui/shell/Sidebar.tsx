@@ -139,13 +139,17 @@ export function Sidebar() {
       ? rows.filter((r) => r.patientId === patientId && r.bezeichnung === selectedSource[0] && r.einheit === selectedSource[1])
       : []
     const sourceSex = sourceRows.find((r) => r.patientSex !== null)?.patientSex ?? ''
-    // The row this age is read off: earliest labDatum among this patient's
-    // source rows that carries an age — not the first row in file order.
-    // resolveBirthAnchor (src/core/demographics/resolveAge.ts) reads a manual
-    // age as the age at the patient's earliest lab date and derives every row
-    // from that anchor, so prefilling from a later-dated row would silently
-    // reinterpret that row's age as if it belonged to an earlier date.
-    const anchorRow = earliestAgeRow(sourceRows)
+    // The row this age is read off: earliest labDatum among ALL of this
+    // patient's rows (every series, not just the selected creatinine source)
+    // — not the first row in file order. resolveBirthAnchor
+    // (src/core/demographics/resolveAge.ts) anchors a manual age to the
+    // earliest lab date across the whole patient, any series — e.g. an HbA1c
+    // row can predate the first creatinine row — and derives every row from
+    // that anchor, so scoping this to the source rows or a later-dated row
+    // would silently reinterpret the entered age as if it belonged to a
+    // different date than the one the resolver actually uses.
+    const patientRows = rows.filter((r) => r.patientId === patientId)
+    const anchorRow = earliestDatedRow(patientRows)
     setDemoDraft({
       patientId,
       sex: current?.sex ?? sourceSex,
@@ -608,11 +612,15 @@ function pluralize(count: number, singular: string): string {
   return count === 1 ? singular : `${singular}s`
 }
 
-/** The row a manual-age prefill/label is anchored to: earliest labDatum, among
- * the given rows, that also carries an age. Undefined when none of the rows
- * has both. See openDemographicsDialog. */
-function earliestAgeRow(sourceRows: readonly LabRow[]): LabRow | undefined {
-  const dated = sourceRows.filter((r) => r.patientAgeAtLab !== null && r.labDatum !== null)
+/** The row a manual-age prefill/label is anchored to: earliest valid labDatum
+ * among the given rows. Mirrors the `dated` filter and earliest-date reduction
+ * in resolveBirthAnchor's manual-age branch (src/core/demographics/resolveAge.ts)
+ * exactly — a null or invalid (NaN-timestamp) labDatum is excluded there too,
+ * and the row need not carry an age itself: the anchor date is what matters,
+ * not whether that particular row happens to have one. Undefined when none of
+ * the rows has a usable labDatum. See openDemographicsDialog. */
+function earliestDatedRow(rows: readonly LabRow[]): LabRow | undefined {
+  const dated = rows.filter((r) => r.labDatum !== null && Number.isFinite(r.labDatum.getTime()))
   if (dated.length === 0) return undefined
   return dated.reduce((earliest, r) =>
     (r.labDatum as Date).getTime() < (earliest.labDatum as Date).getTime() ? r : earliest,
