@@ -80,10 +80,32 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
     const conflict = explicitBirthDateConflict(input.patientId, 'attributes', input.attributeBirthDate, dated)
     return { birthAnchor: input.attributeBirthDate, conflicts: conflict ? [conflict] : [] }
   }
-  const rowBirthDate = dated.find((r) => r.birthDate != null)?.birthDate
-  if (rowBirthDate != null) {
-    const conflict = explicitBirthDateConflict(input.patientId, 'labs', rowBirthDate, dated)
-    return { birthAnchor: rowBirthDate, conflicts: conflict ? [conflict] : [] }
+  const rowsWithBirthDate = dated.filter((r) => r.birthDate != null)
+  if (rowsWithBirthDate.length > 0) {
+    // Take the earliest lab row's birth date rather than the first one in file
+    // order, so the winner is deterministic and does not depend on row order.
+    // Distinct dates across the rows are a contradiction in their own right —
+    // a merge artefact or a typo — independent of whatever the stated ages
+    // say, so that disagreement is reported even when it does not conflict
+    // with any row's ageAtLab.
+    const earliestRow = rowsWithBirthDate.reduce((min, r) =>
+      r.labDatum.getTime() < min.labDatum.getTime() ? r : min,
+    )
+    const rowBirthDate = earliestRow.birthDate as Date
+    const distinctDates = new Set(rowsWithBirthDate.map((r) => r.birthDate!.getTime())).size
+
+    const conflicts: DemographicsConflict[] = []
+    if (distinctDates > 1) {
+      conflicts.push({
+        kind: 'birth_date_row_disagreement',
+        patientId: input.patientId,
+        distinctDates,
+        resolved: rowBirthDate,
+      })
+    }
+    const ageConflict = explicitBirthDateConflict(input.patientId, 'labs', rowBirthDate, dated)
+    if (ageConflict) conflicts.push(ageConflict)
+    return { birthAnchor: rowBirthDate, conflicts }
   }
 
   // 4. Infer from the stated ages.

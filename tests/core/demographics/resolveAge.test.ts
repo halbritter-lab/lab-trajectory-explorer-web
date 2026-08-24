@@ -146,6 +146,37 @@ describe('resolveBirthAnchor', () => {
     expect(out.conflicts).toEqual([])
   })
 
+  it('reports when the lab rows carry more than one distinct birth date, and anchors on the earliest row', () => {
+    // The first row in file order carries the later, wrong birth date; the
+    // fix must not pick "first in the array" but "earliest lab date", so this
+    // also pins that the winner does not depend on row order.
+    const out = resolveBirthAnchor({
+      ...base,
+      rows: [
+        { labDatum: utc('2023-08-20'), ageAtLab: null, birthDate: utc('1980-01-01') },
+        { labDatum: utc('2022-01-15'), ageAtLab: null, birthDate: utc('1975-06-12') },
+      ],
+    })
+    expect(day(out.birthAnchor!)).toBe('1975-06-12')
+    expect(out.conflicts).toHaveLength(1)
+    expect(out.conflicts[0]).toMatchObject({
+      kind: 'birth_date_row_disagreement',
+      distinctDates: 2,
+    })
+    expect(day((out.conflicts[0] as { resolved: Date }).resolved)).toBe('1975-06-12')
+  })
+
+  it('reports nothing extra when the rows carry the same birth date more than once', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      rows: [
+        { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: utc('1975-06-12') },
+        { labDatum: utc('2023-03-02'), ageAtLab: 47, birthDate: utc('1975-06-12') },
+      ],
+    })
+    expect(out.conflicts).toEqual([])
+  })
+
   it('ignores a row with an invalid lab date instead of letting it poison the anchor', () => {
     // An Invalid Date is not `null`, so a filter that only checks for null would
     // let it through. Its NaN timestamp then wins every interval comparison in

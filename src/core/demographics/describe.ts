@@ -39,5 +39,14 @@ export function describeConflict(conflict: DemographicsConflict): string {
         `${conflict.mismatchedRows} of ${conflict.totalRows} stated ages — the birth date wins.`
       )
     }
+    case 'birth_date_row_disagreement':
+      return (
+        `Patient ${conflict.patientId}: the lab rows carry ${conflict.distinctDates} different birth ` +
+        `dates — the earliest, ${isoDate(conflict.resolved)}, was used.`
+      )
   }
+}
+
+function isoDate(date: Date): string {
+  return date.toISOString().slice(0, 10)
 }

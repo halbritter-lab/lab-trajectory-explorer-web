@@ -24,3 +24,9 @@ export type DemographicsConflict =
       mismatchedRows: number
       totalRows: number
     }
+  | {
+      kind: 'birth_date_row_disagreement'
+      patientId: PatientId
+      distinctDates: number
+      resolved: Date
+    }
