@@ -97,8 +97,9 @@ export function Methodology() {
         <li>
           <strong>Fit model</strong> — no fit, OLS, Theil-Sen, rolling OLS, and segmented OLS are
           available. The trend legend names the active model, and no trend legend is shown when the
-          model is off. The exported slope table names the model in its{' '}
-          <strong>fit_model</strong> column, so a slope can be traced back to how it was produced.
+          model is off. In the exported slope table, <strong>fit_model</strong> names the estimator
+          that produced the scalar slope, while <strong>slope_mode</strong> records rolling,
+          segmentation, and other analysis paths. Together they make the scalar result traceable.
           See <em>Choosing a fit model</em> below.
         </li>
         <li>
@@ -207,9 +208,8 @@ export function Methodology() {
 
       <h4>Quality Flags</h4>
       <p>
-        The reason field carries a quality flag when the slope is either uncomputable or of low
-        confidence. The first two flags mean no slope was produced; the third is a caveat on an
-        otherwise valid fit:
+        The reason field mirrors the numeric core and carries a quality flag when the slope is
+        either uncomputable or based on a short raw observation window:
       </p>
       <ul>
         <li>
@@ -217,14 +217,14 @@ export function Methodology() {
           for this patient, so no slope is produced.
         </li>
         <li>
-          <strong>n_below_threshold</strong> — fewer than three numeric values are available (or
-          remain after gap-splitting or after AKI-episode exclusion in aki-aware mode), so OLS
-          cannot be fitted and no slope is produced.
+          <strong>n_below_threshold</strong> — the selected numeric path produced no slope. This
+          includes fewer than two values, mode-specific minimum counts, and a deliberately disabled
+          fit. The exact two-point fallback is the exception described below.
         </li>
         <li>
-          <strong>span_too_short</strong> — a slope is produced, but the numeric values span fewer
-          than 365 days, so the trend is flagged as low-confidence over such a short observation
-          window.
+          <strong>span_too_short</strong> — a slope is produced, but the raw numeric observation
+          span is fewer than 365 days. This reference-compatible field intentionally describes the
+          unfiltered series; the displayed reliability rule below also checks the fitted span.
         </li>
       </ul>
       <p>
@@ -241,13 +241,12 @@ export function Methodology() {
         <strong>The displayed flag is broader than the reason field.</strong> A series of exactly
         two points is a case the reason codes do not cover: the fit falls back to the exact
         two-point slope and reports R² = 1 with no reason set, because two points always define a
-        line perfectly. Over a span longer than a year such a row would otherwise carry no warning
-        at all, while looking like the best-fitting series in the cohort. The badge and the{' '}
-        <code>unstable_slope</code> export column therefore also test the measurement count
-        directly, so both halves of the rule of thumb — fewer than three measurements, or under a
-        year between the first and the last — are applied. The numeric{' '}
-        <strong>reason</strong> field is left as it is, so it continues to match the reference
-        implementation it is validated against.
+        line perfectly. Censoring, exclusions, or time balancing can also leave a much thinner or
+        shorter fitted window than the raw series suggests. The badge and the{' '}
+        <code>unstable_slope</code> export column therefore test both the fitted count and fitted
+        span directly: fewer than three fitted measurements, or under a year between the first and
+        last fitted points. The numeric <strong>reason</strong> field is left reference-compatible,
+        so it can differ from this stricter displayed reliability rule.
       </p>
 
       <h4>Why an Endpoint Has No Value</h4>
@@ -257,6 +256,10 @@ export function Methodology() {
         data are too thin:
       </p>
       <ul>
+        <li>
+          <strong>G5 no fit</strong> — no scalar slope is available, so the projection cannot be
+          calculated. This is distinct from a fitted trend that is flat or rising.
+        </li>
         <li>
           <strong>G5 unlikely</strong> — the fitted trend is flat or rising, so no age at G5 is
           projected. This describes the observed window only and is not a prognosis.

@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { buildCohortRows, cohortExportRecords, isRapidEgfrDecline, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { LabRow } from '../../../src/core/types'
 import { acuteReviewConfig, ckdProgressionConfig } from '../../../src/core/fitPipeline/types'
+import type { ClinicalEvent } from '../../../src/core/events/events'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2019-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -40,18 +41,37 @@ describe('cohortExportRecords', () => {
     expect(recs[0].fit_model).toBe('ols')
   })
 
-  it('reports the configured fit model, which slope_mode does not capture', () => {
+  it('reports the estimator that produced the scalar slope, not conflicting config metadata', () => {
     const rows = [
       row({ patientId: 1, labDatum: d('2019-01-01'), wertNum: 1.0 }),
-      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 1.5 }),
-      row({ patientId: 1, labDatum: d('2021-01-01'), wertNum: 2.0 }),
+      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 2.0 }),
+      row({ patientId: 1, labDatum: d('2021-01-01'), wertNum: 3.0 }),
+      row({ patientId: 1, labDatum: d('2022-01-01'), wertNum: 4.0 }),
+      row({ patientId: 1, labDatum: d('2023-01-01'), wertNum: 100.0 }),
     ]
     const fitConfig = { ...ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }), fitModel: 'theil-sen' as const }
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig }
     const recs = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
-    expect(recs[0].fit_model).toBe('theil-sen')
-    // slope_mode stays 'global': it segments the series, it does not fit it.
+    expect(recs[0].fit_model).toBe('ols')
     expect(recs[0].slope_mode).toBe('global')
+    expect(recs[0].slope).toBeGreaterThan(15)
+  })
+
+  it('identifies and numerically exports a Theil-Sen scalar fit', () => {
+    const rows = [
+      row({ patientId: 1, labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 2.0 }),
+      row({ patientId: 1, labDatum: d('2021-01-01'), wertNum: 3.0 }),
+      row({ patientId: 1, labDatum: d('2022-01-01'), wertNum: 4.0 }),
+      row({ patientId: 1, labDatum: d('2023-01-01'), wertNum: 100.0 }),
+    ]
+    const fitConfig = { ...ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }), fitModel: 'theil-sen' as const }
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global-robust', fitConfig }
+    const [record] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+
+    expect(record.fit_model).toBe('theil-sen')
+    expect(record.slope).toBeGreaterThan(0.9)
+    expect(record.slope).toBeLessThan(1.1)
   })
 
   it('flags a two-point fit that reason reports as clean', () => {
@@ -98,6 +118,37 @@ describe('cohortExportRecords', () => {
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig }
     const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
     expect(rec.n).toBe(8)
+    expect(rec.reason).toBe('')
+    expect(rec.unstable_slope).toBe('yes')
+  })
+
+  it('flags a short fitted span without changing the reference-compatible reason', () => {
+    const rows = [
+      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 10 }),
+      row({ patientId: 1, labDatum: d('2020-02-01'), wertNum: 9 }),
+      row({ patientId: 1, labDatum: d('2020-03-01'), wertNum: 8 }),
+      row({ patientId: 1, labDatum: d('2024-01-01'), wertNum: 100 }),
+    ]
+    const transplant: ClinicalEvent = {
+      patientId: 1,
+      type: 'kidney_transplant',
+      date: d('2020-04-01'),
+      title: 'Kidney transplant',
+      description: null,
+      endDate: null,
+      intent: null,
+      warning: '',
+    }
+    const spec: CohortSeriesSpec = {
+      bezeichnung: 'Kreatinin',
+      einheit: 'mg/dl',
+      mode: 'global',
+      clinicalEvents: [transplant],
+    }
+
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+
+    expect(rec.span_days).toBeGreaterThan(365)
     expect(rec.reason).toBe('')
     expect(rec.unstable_slope).toBe('yes')
   })

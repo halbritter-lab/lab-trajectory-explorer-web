@@ -75,4 +75,14 @@ describe('computeCkdEndpoints', () => {
     expect(endpoints.projectedAgeToCkdG5.value).toBeNull()
     expect(endpoints.projectedAgeToCkdG5.reason).toBe('observed_ckd_g5')
   })
+
+  it('reports that no projection fit exists instead of calling it non-declining', () => {
+    const endpoints = computeCkdEndpoints({
+      points: [point('2020-01-01', 60, 60), point('2021-06-01', 40, 61.5), point('2023-01-01', 20, 63)],
+      slopePerYear: Number.NaN,
+      enabled: { percentDecline: false, observedCkdG5: true, projectedAgeToCkdG5: true },
+    })
+
+    expect(endpoints.projectedAgeToCkdG5.reason).toBe('no_fit')
+  })
 })

@@ -1,7 +1,7 @@
 import { comparePatientIds, type LabRow, type PatientId } from '../types'
 import type { SeriesPoint } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
-import { summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
+import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
 import { fitInputForSeries } from '../analysis/types'
 import type { AnalysisFitInputContribution } from '../analysis/types'
@@ -50,6 +50,7 @@ export interface CohortCell {
   /** Points the fit consumed, after exclusions and balancing. Falls back to
    * nNumeric only when the fit path reported none. */
   nFitted: number
+  fittedSpanDays: number
   spanDays: number
   slope: number // value-units per YEAR (x-axis is fractional years)
   r2: number
@@ -161,9 +162,10 @@ export function buildCohortRows(
         bezeichnung: spec.bezeichnung,
         einheit: spec.einheit,
         mode: spec.mode,
-        fitModel: spec.fitConfig?.fitModel ?? 'ols',
+        fitModel: scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel),
         nNumeric: match?.nNumeric ?? 0,
         nFitted: match?.nFitted ?? match?.nNumeric ?? 0,
+        fittedSpanDays: match?.fittedSpanDays ?? 0,
         spanDays: match?.spanDays ?? 0,
         slope: match?.slope ?? Number.NaN,
         r2: match?.r2 ?? Number.NaN,
@@ -257,8 +259,8 @@ export interface CohortExportRecord {
   Bezeichnung: string
   Einheit: string
   slope_mode: string
-  /** Which model produced the slope (ols, theil-sen, rolling-ols, ...). Without
-   * it a slope cannot be reproduced from the export alone. */
+  /** Scalar estimator that produced `slope` (`ols`, `theil-sen`, or `none`).
+   * `slope_mode` separately records rolling, segmentation, and other paths. */
   fit_model: string
   n: number
   span_days: number
@@ -269,8 +271,8 @@ export interface CohortExportRecord {
   ci_low: number | ''
   ci_high: number | ''
   reason: string
-  /** 'yes' when the slope rests on fewer than three measurements, under a year
-   * of follow-up, or no fit at all. Broader than `reason`: a two-point fit is
+  /** 'yes' when the slope rests on fewer than three fitted measurements or a
+   * fitted span under a year. Broader than `reason`: a two-point fit is
    * reported by the reference implementation as a clean fit with r2 = 1, so
    * `reason` alone leaves it unflagged. */
   unstable_slope: string
@@ -323,7 +325,7 @@ export function cohortExportRecords(rows: CohortRow[], rapidThreshold = 0): Coho
         ci_low: numOrBlank(c.ciLow),
         ci_high: numOrBlank(c.ciHigh),
         reason: c.reason ?? '',
-        unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fitModel: c.fitModel }) ? 'yes' : '',
+        unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
         aki: c.akiChip,
         rapid_progression: rapidEgfrDeclineFlagForCell({
           patientId: r.patientId,

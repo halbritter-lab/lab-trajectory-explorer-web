@@ -23,7 +23,7 @@ export interface CkdEndpoints {
   }
   projectedAgeToCkdG5: {
     value: number | null
-    reason: 'disabled' | 'observed_ckd_g5' | 'non_declining_fit' | 'insufficient_points' | 'span_too_short' | 'already_below_threshold' | 'missing_age' | null
+    reason: 'disabled' | 'observed_ckd_g5' | 'no_fit' | 'non_declining_fit' | 'insufficient_points' | 'span_too_short' | 'already_below_threshold' | 'missing_age' | null
   }
 }
 
@@ -84,7 +84,8 @@ function projectedAge(
   const latest = points[points.length - 1]
   const spanYears = (latest.date.getTime() - first.date.getTime()) / MS_PER_YEAR
   if (spanYears < 1) return { value: null, reason: 'span_too_short' }
-  if (!Number.isFinite(slopePerYear) || slopePerYear >= 0) return { value: null, reason: 'non_declining_fit' }
+  if (!Number.isFinite(slopePerYear)) return { value: null, reason: 'no_fit' }
+  if (slopePerYear >= 0) return { value: null, reason: 'non_declining_fit' }
   if (latest.value < threshold) return { value: null, reason: 'already_below_threshold' }
   if (latest.ageYears === null || !Number.isFinite(latest.ageYears)) return { value: null, reason: 'missing_age' }
   return { value: latest.ageYears + (latest.value - threshold) / Math.abs(slopePerYear), reason: null }

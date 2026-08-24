@@ -154,6 +154,13 @@ describe('loadLabRows', () => {
       .toThrow(/Ambiguous columns/)
   })
 
+  it('ignores normalized collisions between unrelated metadata columns', () => {
+    const [row] = loadLabRows([{ ...base, 'Ref Range': '1-2', ref_range: '3-4' }])
+
+    expect(row.patientId).toBe(1)
+    expect(row.wertNum).toBe(1.2)
+  })
+
   it('prefers the canonical spelling when a file carries both', () => {
     // A file round-tripped through an older export could end up with both
     // spellings. Alias order decides, so the result never depends on key order.

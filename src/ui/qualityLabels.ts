@@ -30,10 +30,17 @@ export function slopeQualityLabel(input: SlopeQualityInput): QualityLabel | null
   if (!isUnstableSlope(input)) return null
   const { reason, nFitted } = input
 
-  if (reason === 'no_numeric_values' || nFitted === 0) {
+  if (reason === 'no_numeric_values') {
     return {
       label: 'no values',
       title: 'No parseable numeric measurements in this series, so no slope was fitted.',
+      caveat: false,
+    }
+  }
+  if (nFitted === 0) {
+    return {
+      label: 'no fit values',
+      title: 'No usable measurements remain for fitting after exclusions and censoring.',
       caveat: false,
     }
   }
@@ -68,15 +75,19 @@ export function slopeQualityLabel(input: SlopeQualityInput): QualityLabel | null
  * exists, when the endpoint is off, or when G5 was already observed — the
  * caller shows the observed date in that case.
  *
- * Requires hasFit: with no fit the slope is NaN, and projectedAge classifies a
- * NaN slope as 'non_declining_fit', which would render "G5 unlikely" for a
- * patient whose eGFR is in free fall.
+ * A missing scalar fit is represented explicitly as `no_fit`, so it cannot be
+ * confused with a real non-declining fit.
  */
-export function projectedG5Label(endpoints: CkdEndpoints, hasFit: boolean): QualityLabel | null {
-  if (!hasFit) return null
+export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
   if (endpoints.projectedAgeToCkdG5.value !== null) return null
   const caveat = false
   switch (endpoints.projectedAgeToCkdG5.reason) {
+    case 'no_fit':
+      return {
+        label: 'G5 no fit',
+        title: 'No fitted slope is available, so no age at CKD G5 can be projected.',
+        caveat,
+      }
     case 'non_declining_fit':
       return {
         label: 'G5 unlikely',

@@ -56,8 +56,14 @@ type ResolvedColumns = Partial<Record<ColumnKey, string>>
 /** Map each column concept to the header actually present in the file. */
 function resolveColumns(headers: Iterable<string>): ResolvedColumns {
   const byNormalised = new Map<string, string>()
+  const consumedKeys = new Set(
+    Object.values(COLUMN_ALIASES).flatMap((aliases) => aliases.map(normaliseHeader)),
+  )
   for (const header of headers) {
     const key = normaliseHeader(header)
+    // Extra workbook metadata is ignored by this loader. Collisions between
+    // those unused columns cannot discard a value the app consumes.
+    if (!consumedKeys.has(key)) continue
     const seen = byNormalised.get(key)
     // Two distinct headers that normalise alike (e.g. "Patient ID" and
     // "patient_id") are genuinely ambiguous. Silently keeping one would drop a

@@ -6,7 +6,7 @@ import { computeCkdEndpoints, type CkdEndpoints } from '../../src/core/endpoints
 const ALL_ENDPOINTS = { percentDecline: true, observedCkdG5: true, projectedAgeToCkdG5: true }
 
 function q(partial: Partial<SlopeQualityInput>): SlopeQualityInput {
-  return { reason: null, nFitted: 10, fitModel: 'ols', ...partial }
+  return { reason: null, nFitted: 10, fittedSpanDays: 1_000, fitModel: 'ols', ...partial }
 }
 
 function endpointsFor(points: { date: string; value: number; ageYears?: number }[], slopePerYear: number): CkdEndpoints {
@@ -21,6 +21,13 @@ describe('slopeQualityLabel', () => {
   it('labels the reasons that mean no slope was produced', () => {
     expect(slopeQualityLabel(q({ reason: 'n_below_threshold', nFitted: 1 }))?.label).toBe('n < 3')
     expect(slopeQualityLabel(q({ reason: 'no_numeric_values', nFitted: 0 }))?.label).toBe('no values')
+  })
+
+  it('does not call fully excluded numeric measurements unparseable', () => {
+    const label = slopeQualityLabel(q({ nFitted: 0, fittedSpanDays: 0 }))
+
+    expect(label?.label).toBe('no fit values')
+    expect(label?.title).toContain('No usable measurements remain for fitting')
   })
 
   it('labels a short observation window and leaves a clean fit unflagged', () => {
@@ -49,6 +56,11 @@ describe('slopeQualityLabel', () => {
     // exact case this rule exists to catch.
     expect(slopeQualityLabel(q({ nFitted: 2 }))?.label).toBe('n < 3')
     expect(slopeQualityLabel(q({ nFitted: 2 }))?.title).toContain('only 2 points')
+  })
+
+  it('flags a short fitted span even when the reference reason uses the long raw span', () => {
+    expect(slopeQualityLabel(q({ nFitted: 3, fittedSpanDays: 60 }))?.label).toBe('< 1 yr')
+    expect(isUnstableSlope(q({ nFitted: 3, fittedSpanDays: 60 }))).toBe(true)
   })
 
   it('says nothing when no fit was requested', () => {
@@ -80,20 +92,17 @@ describe('projectedG5Label', () => {
       { date: '2023-01-01', value: 60 },
     ], 0.2)
     expect(endpoints.projectedAgeToCkdG5.reason).toBe('non_declining_fit')
-    expect(projectedG5Label(endpoints, true)?.label).toBe('G5 unlikely')
+    expect(projectedG5Label(endpoints)?.label).toBe('G5 unlikely')
   })
 
-  it('stays silent when there is no fit at all', () => {
-    // With no fit the slope is NaN, which projectedAge classifies as
-    // 'non_declining_fit'. Without the hasFit guard a patient whose eGFR fell
-    // 60 -> 20 would be labelled "G5 unlikely" — the opposite of the data.
+  it('labels an unavailable projection when there is no fit at all', () => {
     const endpoints = endpointsFor([
       { date: '2019-01-01', value: 60 },
       { date: '2021-01-01', value: 40 },
       { date: '2024-01-01', value: 20 },
     ], Number.NaN)
-    expect(endpoints.projectedAgeToCkdG5.reason).toBe('non_declining_fit')
-    expect(projectedG5Label(endpoints, false)).toBeNull()
+    expect(endpoints.projectedAgeToCkdG5.reason).toBe('no_fit')
+    expect(projectedG5Label(endpoints)?.label).toBe('G5 no fit')
   })
 
   it('distinguishes too-few-points from too-short-a-span', () => {
@@ -101,14 +110,14 @@ describe('projectedG5Label', () => {
       { date: '2020-01-01', value: 60 },
       { date: '2023-01-01', value: 30 },
     ], -10)
-    expect(projectedG5Label(tooFew, true)?.label).toBe('G5 n < 3')
+    expect(projectedG5Label(tooFew)?.label).toBe('G5 n < 3')
 
     const tooShort = endpointsFor([
       { date: '2023-01-01', value: 60 },
       { date: '2023-04-01', value: 50 },
       { date: '2023-07-01', value: 40 },
     ], -10)
-    expect(projectedG5Label(tooShort, true)?.label).toBe('G5 < 1 yr')
+    expect(projectedG5Label(tooShort)?.label).toBe('G5 < 1 yr')
   })
 
   it('flags a missing age anchor', () => {
@@ -121,7 +130,7 @@ describe('projectedG5Label', () => {
       slopePerYear: -10,
       enabled: ALL_ENDPOINTS,
     })
-    expect(projectedG5Label(endpoints, true)?.label).toBe('G5 no age')
+    expect(projectedG5Label(endpoints)?.label).toBe('G5 no age')
   })
 
   it('stays silent when a projection exists', () => {
@@ -131,7 +140,7 @@ describe('projectedG5Label', () => {
       { date: '2023-01-01', value: 30 },
     ], -10)
     expect(endpoints.projectedAgeToCkdG5.value).not.toBeNull()
-    expect(projectedG5Label(endpoints, true)).toBeNull()
+    expect(projectedG5Label(endpoints)).toBeNull()
   })
 
   it('stays silent when G5 was already observed, since the date is shown instead', () => {
@@ -141,7 +150,7 @@ describe('projectedG5Label', () => {
       { date: '2021-06-01', value: 10 },
     ], -5)
     expect(endpoints.observedCkdG5.met).toBe(true)
-    expect(projectedG5Label(endpoints, true)).toBeNull()
+    expect(projectedG5Label(endpoints)).toBeNull()
   })
 
   it('stays silent when the endpoint is switched off', () => {
@@ -150,6 +159,6 @@ describe('projectedG5Label', () => {
       slopePerYear: -10,
       enabled: { percentDecline: true, observedCkdG5: true, projectedAgeToCkdG5: false },
     })
-    expect(projectedG5Label(endpoints, true)).toBeNull()
+    expect(projectedG5Label(endpoints)).toBeNull()
   })
 })

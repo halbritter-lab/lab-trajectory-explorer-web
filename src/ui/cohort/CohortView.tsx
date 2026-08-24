@@ -50,7 +50,7 @@ function endpointBadge(endpoints: CkdEndpoints, hasFit: boolean): { label: strin
   } else {
     // No projection: say why instead of rendering nothing. An empty cell reads
     // as "not applicable" whether the patient is stable or the data is too thin.
-    const unavailable = projectedG5Label(endpoints, hasFit)
+    const unavailable = projectedG5Label(endpoints)
     if (unavailable) {
       labelParts.push(unavailable.label)
       titleParts.push(unavailable.title)
@@ -414,7 +414,7 @@ export function CohortView() {
                       if (showAki && c.akiChip) badges.push({ className: 'aki-badge', label: c.akiChip, title: c.akiSummary })
                       // Then reliability, because the two badges after it make
                       // claims about a slope whose trustworthiness it qualifies.
-                      const quality = slopeQualityLabel({ reason: c.reason, nFitted: c.nFitted, fitModel: c.fitModel })
+                      const quality = slopeQualityLabel({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel })
                       if (quality) {
                         badges.push({
                           className: quality.caveat

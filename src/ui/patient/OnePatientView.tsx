@@ -151,7 +151,7 @@ export function OnePatientView() {
     specs.forEach((spec, specIndex) => {
       const cell = row.cells[specIndex]
       if (!cell) return
-      out[spec.configIndex] = { reason: cell.reason, nFitted: cell.nFitted, fitModel: cell.fitModel }
+      out[spec.configIndex] = { reason: cell.reason, nFitted: cell.nFitted, fittedSpanDays: cell.fittedSpanDays, fitModel: cell.fitModel }
     })
     return out
   }, [configs.length, displayRows, patientId, specs])
