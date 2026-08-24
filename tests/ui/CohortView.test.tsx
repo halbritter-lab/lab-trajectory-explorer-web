@@ -393,4 +393,31 @@ describe('CohortView', () => {
 
     expect(screen.getByRole('table')).toBeInTheDocument()
   })
+
+  it('offers sex for grouping without an attributes table', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.0, patientSex: 'w' }),
+      row({ patientId: 2, labDatum: new Date('2020-01-01'), wertNum: 1.1, patientSex: 'm' }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+
+    render(<CohortView />)
+
+    expect(screen.getByLabelText(/group by/i)).toHaveTextContent('sex')
+  })
+
+  it('lets the attributes table override a row-derived sex on a key collision', () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.0, patientSex: 'w' }),
+      row({ patientId: 1, labDatum: new Date('2020-06-01'), wertNum: 1.1, patientSex: 'w' }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+    useAppStore.getState().setPatientAttributes({ '1': { sex: 'm' } })
+    useAppStore.getState().setCohortGroupByAttribute('sex')
+
+    render(<CohortView />)
+
+    expect(screen.getByRole('cell', { name: 'm' })).toBeInTheDocument()
+    expect(screen.queryByRole('cell', { name: 'w' })).not.toBeInTheDocument()
+  })
 })

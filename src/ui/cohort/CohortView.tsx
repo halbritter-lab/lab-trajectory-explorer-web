@@ -141,15 +141,32 @@ export function CohortView() {
     const all = [...new Set(displayRows.map((r) => r.patientId))].sort(comparePatientIds)
     return cohortPatientMode === 'selected' ? all.filter((id) => selectedPatientIds.includes(id)) : all
   }, [displayRows, cohortPatientMode, selectedPatientIds])
+  /** Patient attributes plus the demographics that live on the lab rows, so the
+   * cohort can be grouped by sex without a second spreadsheet. The attributes
+   * table wins on a key collision, which is free of consequence: the
+   * demographics module has already merged both sources into one value, so they
+   * agree by construction. */
+  const groupableAttributes = useMemo(() => {
+    const merged: Record<string, Record<string, string>> = {}
+    for (const r of displayRows) {
+      if (r.patientSex === null) continue
+      const key = patientIdKey(r.patientId)
+      if (merged[key] === undefined) merged[key] = { sex: r.patientSex }
+    }
+    for (const [key, attributes] of Object.entries(patientAttributes)) {
+      merged[key] = { ...merged[key], ...attributes }
+    }
+    return merged
+  }, [displayRows, patientAttributes])
   const availableGroupByAttributes = useMemo(() => {
     const cohortKeys = new Set(patientIds.map(patientIdKey))
     const names = new Set<string>()
-    for (const [key, attributes] of Object.entries(patientAttributes)) {
+    for (const [key, attributes] of Object.entries(groupableAttributes)) {
       if (!cohortKeys.has(key)) continue
       for (const name of Object.keys(attributes)) names.add(name)
     }
     return [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
-  }, [patientAttributes, patientIds])
+  }, [groupableAttributes, patientIds])
   const groupingActive = groupByAttribute !== null
   // Always include the active attribute so the current grouping stays selectable
   // (and clearable to "No grouping") even if the cohort scope no longer exposes
@@ -160,9 +177,9 @@ export function CohortView() {
     return [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
   }, [availableGroupByAttributes, groupByAttribute])
   const cohortRows = useMemo(
-    () => buildCohortRows(displayRows, patientIds, specs, groupByAttribute, patientAttributes)
+    () => buildCohortRows(displayRows, patientIds, specs, groupByAttribute, groupableAttributes)
       .filter((row) => row.cells.some((cell) => cell.points.length >= 2)),
-    [displayRows, patientIds, specs, groupByAttribute, patientAttributes],
+    [displayRows, patientIds, specs, groupByAttribute, groupableAttributes],
   )
   const eventsByPatient = useMemo(() => {
     const grouped = new Map<string, { date: Date; label: string }[]>()
@@ -222,8 +239,8 @@ export function CohortView() {
   const mixedModelFormulaText = useMemo(() => mixedModelFormula(mixedModelConfig), [mixedModelConfig])
   const mixedModelFormulaLabelText = useMemo(() => mixedModelConfigLabel(mixedModelConfig), [mixedModelConfig])
   const cohortGroups = useMemo(
-    () => (groupByAttribute ? groupPatients(patientIds, patientAttributes, groupByAttribute) : []),
-    [groupByAttribute, patientIds, patientAttributes],
+    () => (groupByAttribute ? groupPatients(patientIds, groupableAttributes, groupByAttribute) : []),
+    [groupByAttribute, patientIds, groupableAttributes],
   )
   const cohortGroupColorMap = useMemo(() => groupColors(cohortGroups), [cohortGroups])
   const canShowMixedModelDialog = mixedModelDialogOpen && mixedModelSeriesIndex >= 0
