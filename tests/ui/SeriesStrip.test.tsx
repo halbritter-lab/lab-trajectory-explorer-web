@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SeriesStrip } from '../../src/ui/seriesStrip/SeriesStrip'
 import { useAppStore } from '../../src/ui/state/store'
@@ -55,6 +55,51 @@ describe('SeriesStrip series controls', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Show parameters' }))
 
     expect(await screen.findByRole('option', { name: 'HbA1c (%)' })).toBeInTheDocument()
+  })
+
+  it('does not offer a computed eGFR series to a patient with no computed values', async () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2022-01-01'), patientSex: 'w', patientAgeAtLab: 50 }),
+      row({ patientId: 2, labDatum: new Date('2022-01-01'), patientSex: 'w', patientAgeAtLab: 50 }),
+      row({ patientId: 2, labDatum: new Date('2023-01-01'), patientSex: 'm', patientAgeAtLab: 51 }),
+    ])
+    useAppStore.getState().setEgfrFormula('ckd-epi-2021')
+    useAppStore.getState().selectPatient(2)
+    useAppStore.getState().setView('one')
+
+    render(<SeriesStrip />)
+    await userEvent.click(screen.getByRole('button', { name: 'Show parameters' }))
+
+    expect(await screen.findByRole('option', { name: 'Kreatinin (mg/dl)' })).toBeInTheDocument()
+    expect(screen.queryByRole('option', { name: /computed eGFR|eGFR.*computed/i })).not.toBeInTheDocument()
+  })
+
+  it('marks an already-selected computed eGFR series unavailable after switching patients', async () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2022-01-01'), patientSex: 'w', patientAgeAtLab: 50 }),
+      row({ patientId: 2, labDatum: new Date('2022-01-01'), patientSex: 'w', patientAgeAtLab: 50 }),
+      row({ patientId: 2, labDatum: new Date('2023-01-01'), patientSex: 'm', patientAgeAtLab: 51 }),
+    ])
+    useAppStore.getState().setEgfrFormula('ckd-epi-2021')
+    useAppStore.getState().selectPatient(1)
+    useAppStore.getState().setView('one')
+
+    render(<SeriesStrip />)
+
+    const combo = screen.getByRole('combobox', { name: 'Series 1 parameter' })
+    await userEvent.click(combo)
+    await userEvent.type(combo, 'eGFR')
+    await userEvent.click(await screen.findByRole('option', { name: /CKD-EPI 2021, computed/ }))
+    expect(combo).toHaveValue(
+      'ƒ eGFR (CKD-EPI 2021, computed) (ml/min/1,73m²)',
+    )
+
+    act(() => useAppStore.getState().selectPatient(2))
+
+    expect(screen.getByRole('combobox', { name: 'Series 1 parameter' })).toHaveValue(
+      'ƒ eGFR (CKD-EPI 2021, computed) (ml/min/1,73m²)',
+    )
+    expect(screen.getByText('Not available for this patient')).toBeInTheDocument()
   })
 
   it('filters parameters in a combobox and selects a matching parameter', async () => {
