@@ -76,6 +76,21 @@ describe('resolveDemographics', () => {
     expect(out.conflicts.map((c) => c.kind)).toEqual(['age_source_disagreement', 'sex_source_disagreement'])
   })
 
+  // resolveBirthAnchor guards labDatum against Invalid Date before it infers
+  // an anchor; the row rewrite below it must use the same guard, or a row with
+  // an unreadable date silently loses the age it stated and drops out of the
+  // eGFR entirely.
+  it('keeps a stated age on a row whose lab date is unreadable', () => {
+    const rows = [
+      row(1, '2020-01-15', 'w', 50),
+      row(1, '2022-01-15', 'w', 52),
+      { ...row(1, '2021-01-15', 'w', 51), labDatum: new Date('not a date') },
+    ]
+    const out = resolveDemographics(rows, {}, {})
+    expect(out.rows[0].patientAgeAtLab).toBe(50)
+    expect(out.rows[2].patientAgeAtLab).toBe(51)
+  })
+
   it('keeps patients independent of one another', () => {
     const rows = [
       row(1, '2022-01-15', 'w', 46),

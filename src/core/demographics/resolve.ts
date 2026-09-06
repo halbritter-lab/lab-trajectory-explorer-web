@@ -81,7 +81,10 @@ export function resolveDemographics(
     const age =
       decision.constantAge !== undefined
         ? decision.constantAge
-        : decision.birthAnchor && row.labDatum
+        // Same Invalid Date guard as resolveBirthAnchor: completedYears returns
+        // null for a NaN reference date, which would drop the age the row
+        // stated and take the row out of the eGFR with it.
+        : decision.birthAnchor && row.labDatum && Number.isFinite(row.labDatum.getTime())
           ? completedYears(decision.birthAnchor, row.labDatum)
           : row.patientAgeAtLab
     if (decision.sex === row.patientSex && age === row.patientAgeAtLab) return row
