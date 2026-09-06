@@ -102,6 +102,21 @@ describe('SeriesStrip series controls', () => {
     expect(screen.getByText('Not available for this patient')).toBeInTheDocument()
   })
 
+  // In the cohort view no single patient is in play, and the filter above is
+  // bypassed, so a selected parameter can only be missing because the whole
+  // dataset lacks it. Blaming the patient there misdirects the reader.
+  it('does not blame the patient when the dataset itself lacks the selected parameter', () => {
+    useAppStore.getState().setDataset([row({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'HbA1c', einheit: '%' })
+    useAppStore.getState().selectPatient(1)
+    useAppStore.getState().setView('cohort')
+
+    render(<SeriesStrip />)
+
+    expect(screen.getByText('Not in this dataset')).toBeInTheDocument()
+    expect(screen.queryByText('Not available for this patient')).not.toBeInTheDocument()
+  })
+
   it('filters parameters in a combobox and selects a matching parameter', async () => {
     useAppStore.getState().setDataset([
       row({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }),

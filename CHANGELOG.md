@@ -21,6 +21,9 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
+- The single-patient parameter list no longer offers a computed eGFR series to
+  a patient for whom no value can be computed, and marks an already-selected
+  one as unavailable instead of drawing an empty chart.
 - A manually entered age now ages across the series instead of being applied
   unchanged to every row. This corrects a real error: on an eight-year series,
   the old behaviour left the patient the same age at both ends, roughly an

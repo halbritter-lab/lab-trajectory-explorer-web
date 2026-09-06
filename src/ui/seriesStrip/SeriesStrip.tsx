@@ -58,11 +58,19 @@ export function SeriesStrip() {
         const options = selectedMissing && cfg.bezeichnung
           ? [{ bezeichnung: cfg.bezeichnung, einheit: cfg.einheit ?? null, unavailable: true }, ...opts]
           : opts
+        // In the cohort view the per-patient filter above is bypassed, so a
+        // selected parameter can only be missing because the dataset as a whole
+        // lacks it — e.g. after loading a second workbook, which keeps the
+        // series configs. Blaming the selected patient there would misdirect.
+        const unavailableNote = view === 'one'
+          ? 'Not available for this patient'
+          : 'Not in this dataset'
         return (
         <div className="series-card" key={i}>
           <SeriesCombobox
             ariaLabel={`Series ${i + 1} parameter`}
             options={options}
+            unavailableNote={unavailableNote}
             selectedKey={selectValue || null}
             placeholder="Pick parameter"
             onSelectionChange={(key) => {
@@ -72,7 +80,7 @@ export function SeriesStrip() {
                 : { bezeichnung: null, einheit: null })
             }}
           />
-          {selectedMissing && <span className="series-unavailable">Not available for this patient</span>}
+          {selectedMissing && <span className="series-unavailable">{unavailableNote}</span>}
           {configs.length > 1 && <button onClick={() => removeSeries(i)} aria-label={`Remove series ${i + 1}`}>×</button>}
         </div>
         )
@@ -85,12 +93,14 @@ export function SeriesStrip() {
 function SeriesCombobox({
   ariaLabel,
   options,
+  unavailableNote,
   selectedKey,
   placeholder,
   onSelectionChange,
 }: {
   ariaLabel: string
   options: SeriesOption[]
+  unavailableNote: string
   selectedKey: string | null
   placeholder: string
   onSelectionChange: (key: string | null) => void
@@ -172,7 +182,7 @@ function SeriesCombobox({
               className="series-combobox-option"
             >
               {seriesDisplayLabel(option)}
-              {option.unavailable && ' — not available for this patient'}
+              {option.unavailable && ` — ${unavailableNote.toLowerCase()}`}
             </ListBoxItem>
           )}
         </ListBox>
