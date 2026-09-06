@@ -17,9 +17,15 @@ export function describeConflict(conflict: DemographicsConflict): string {
     }
     case 'sex_tie': {
       const parts = conflict.counts.map((c) => `${c.count} × "${c.sex}"`)
+      const split = `Patient ${conflict.patientId}: sex is split evenly (${parts.join(', ')})`
+      // Only an attributes-table entry can break a tie here: a manual entry
+      // silences the conflict altogether, and the rows are what tied.
+      if (conflict.resolved !== null) {
+        return `${split} — the attributes table says "${conflict.resolved}", which was used.`
+      }
       return (
-        `Patient ${conflict.patientId}: sex is split evenly (${parts.join(', ')}) — treated as ` +
-        `unknown, so no eGFR is computed. Enter it under Patients to resolve.`
+        `${split} — treated as unknown, so no eGFR is computed. ` +
+        `Enter it under Patients to resolve.`
       )
     }
     case 'sex_source_disagreement':
@@ -42,7 +48,10 @@ export function describeConflict(conflict: DemographicsConflict): string {
     case 'birth_date_row_disagreement':
       return (
         `Patient ${conflict.patientId}: the lab rows carry ${conflict.distinctDates} different birth ` +
-        `dates — the earliest, ${isoDate(conflict.resolved)}, was used.`
+        // Not the earliest of the birth dates: resolveBirthAnchor takes the one
+        // carried by the row with the earliest lab date, which can be a later
+        // birth date than another row's.
+        `dates — the one on the earliest lab row, ${isoDate(conflict.resolved)}, was used.`
       )
   }
 }

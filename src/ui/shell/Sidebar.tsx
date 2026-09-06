@@ -308,7 +308,7 @@ export function Sidebar() {
                 {showMissingDemographics && missingDemoPatientIds.length > 0 && (
                   <p className="sidebar-note">{missingDemoPatientIds.length} patient(s) missing demographics for computed eGFR.</p>
                 )}
-                <p className="sidebar-note">Manual age is read as the patient's age on the date shown in the dialog (their earliest lab date for this source); every row's age for that patient is derived from that anchor.</p>
+                <p className="sidebar-note">Manual age is read as the patient's age on the date shown in the dialog (their earliest lab date across all series); every row's age for that patient is derived from that anchor.</p>
                 {demoPanelPatientIds.map((pid) => (
                   <div className="manual-demo-row" key={pid}>
                     <span>{manualDemographics[patientIdKey(pid)] ? `Patient ${pid}: ${manualDemographics[patientIdKey(pid)].sex}, age ${manualDemographics[patientIdKey(pid)].age}` : `Patient ${pid}: missing`}</span>

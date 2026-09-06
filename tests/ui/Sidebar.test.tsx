@@ -502,5 +502,8 @@ describe('Sidebar demographics resolution', () => {
 
     expect(screen.getByText('Age on 2018-01-01')).toBeInTheDocument()
     expect(screen.getByLabelText('Manual age for patient 1')).toHaveValue(58)
+    // The standing note next to the list must describe the same anchor the
+    // dialog uses, or it sends the user to read their age off another date.
+    expect(screen.getByText(/Manual age is read as/)).toHaveTextContent('across all series')
   })
 })

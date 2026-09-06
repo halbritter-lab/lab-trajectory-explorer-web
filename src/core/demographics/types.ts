@@ -14,7 +14,10 @@ export interface SexCount {
 
 export type DemographicsConflict =
   | { kind: 'sex_row_disagreement'; patientId: PatientId; counts: SexCount[]; resolved: Sex }
-  | { kind: 'sex_tie'; patientId: PatientId; counts: SexCount[] }
+  /** `resolved` is null when the tie stands, and the sex that broke it
+   * otherwise — an attributes-table entry outranks the rows, so an evenly
+   * split patient can still end up with a sex and a computed eGFR. */
+  | { kind: 'sex_tie'; patientId: PatientId; counts: SexCount[]; resolved: Sex | null }
   | { kind: 'sex_source_disagreement'; patientId: PatientId; fromAttributes: Sex; fromRows: Sex }
   | { kind: 'age_no_common_birth_date'; patientId: PatientId; gapDays: number }
   | {

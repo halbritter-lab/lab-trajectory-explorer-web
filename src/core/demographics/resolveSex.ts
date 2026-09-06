@@ -37,28 +37,32 @@ export function resolveSex(input: SexResolutionInput): SexResolution {
   // same reason unrecognisedSexValues skips patients with manual demographics.
   if (input.manualSex !== null) return { sex: input.manualSex, conflicts: [] }
 
+  // Decide first, report second. The attributes table outranks the rows, so a
+  // conflict that named the row majority as the winner would tell the reader
+  // the analysis used a sex it did not use.
+  const resolved = input.attributeSex !== null ? input.attributeSex : fromRows
+
   const conflicts: DemographicsConflict[] = []
   if (tied) {
-    conflicts.push({ kind: 'sex_tie', patientId: input.patientId, counts })
+    conflicts.push({ kind: 'sex_tie', patientId: input.patientId, counts, resolved })
   } else if (counts.length > 1) {
     conflicts.push({
       kind: 'sex_row_disagreement',
       patientId: input.patientId,
       counts,
-      resolved: counts[0].sex,
+      // Non-null here: more than one spelling and no tie means the rows have a
+      // majority, so `resolved` is either that majority or the attributes table.
+      resolved: resolved as Sex,
     })
   }
 
-  if (input.attributeSex !== null) {
-    if (fromRows !== null && fromRows !== input.attributeSex) {
-      conflicts.push({
-        kind: 'sex_source_disagreement',
-        patientId: input.patientId,
-        fromAttributes: input.attributeSex,
-        fromRows,
-      })
-    }
-    return { sex: input.attributeSex, conflicts }
+  if (input.attributeSex !== null && fromRows !== null && fromRows !== input.attributeSex) {
+    conflicts.push({
+      kind: 'sex_source_disagreement',
+      patientId: input.patientId,
+      fromAttributes: input.attributeSex,
+      fromRows,
+    })
   }
-  return { sex: fromRows, conflicts }
+  return { sex: resolved, conflicts }
 }
