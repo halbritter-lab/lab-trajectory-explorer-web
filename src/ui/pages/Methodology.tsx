@@ -328,6 +328,15 @@ export function Methodology() {
           no validated coefficient set, so the <strong>male coefficients are applied</strong>; such
           eGFR values may mis-estimate true GFR and should be interpreted with caution.
         </li>
+        <li>
+          <strong>Age</strong> — the equations use the patient's age at the date of measurement.
+          This app does not read the age stated on each row directly. It resolves one birth-date
+          anchor per patient, taken from a manual entry, an explicit birth date, or the stated ages
+          themselves, and derives every row's age from that anchor. A stated age that contradicts
+          the others is corrected rather than used, and the contradiction is reported. Ages shown
+          and exported can therefore differ from the values in the source file, usually by a year,
+          and the eGFR follows that correction.
+        </li>
       </ul>
 
       <h4>AKI Detection (KDIGO Criteria)</h4>
