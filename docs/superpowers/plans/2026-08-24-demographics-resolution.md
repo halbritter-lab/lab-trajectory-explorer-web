@@ -10,6 +10,10 @@
 
 **Spec:** `docs/superpowers/specs/2026-08-24-demographics-resolution-design.md`
 
+**Status:** implemented on `feat/demographics-resolution` (PR #8), all tasks and the
+final verification done as of 2026-09-08. Two code reviews ran on the branch; the
+findings that fell outside this plan's scope are checklist items in issue #3.
+
 ---
 
 ## File Structure
@@ -53,7 +57,7 @@ The whole design rests on one idea: a lab date plus a stated integer age bracket
 - Modify: `src/core/parse/loader.ts:131`
 - Test: `tests/core/demographics/birthDate.test.ts`
 
-- [ ] **Step 1: Export the existing `completedYears` helper**
+- [x] **Step 1: Export the existing `completedYears` helper**
 
 It is currently private in the loader. Exporting it is a one-word change and keeps a single definition of "completed years", which the interval maths must agree with exactly.
 
@@ -63,7 +67,7 @@ In `src/core/parse/loader.ts`, line 131:
 export function completedYears(birth: Date, ref: Date): number | null {
 ```
 
-- [ ] **Step 2: Create the shared types**
+- [x] **Step 2: Create the shared types**
 
 `src/core/demographics/types.ts`:
 
@@ -89,7 +93,7 @@ export type DemographicsConflict =
   | { kind: 'age_no_common_birth_date'; patientId: PatientId; gapDays: number }
 ```
 
-- [ ] **Step 3: Write the failing test**
+- [x] **Step 3: Write the failing test**
 
 `tests/core/demographics/birthDate.test.ts`:
 
@@ -174,12 +178,12 @@ describe('intervalMidpoint and medianDate', () => {
 })
 ```
 
-- [ ] **Step 4: Run the test to verify it fails**
+- [x] **Step 4: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/core/demographics/birthDate.test.ts`
 Expected: FAIL — `Failed to resolve import "../../../src/core/demographics/birthDate"`
 
-- [ ] **Step 5: Write the implementation**
+- [x] **Step 5: Write the implementation**
 
 `src/core/demographics/birthDate.ts`:
 
@@ -244,12 +248,12 @@ export function medianDate(dates: readonly Date[]): Date | null {
 }
 ```
 
-- [ ] **Step 6: Run the test to verify it passes**
+- [x] **Step 6: Run the test to verify it passes**
 
 Run: `pnpm exec vitest run tests/core/demographics/birthDate.test.ts`
 Expected: PASS, 8 tests
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add src/core/demographics/types.ts src/core/demographics/birthDate.ts src/core/parse/loader.ts tests/core/demographics/birthDate.test.ts
@@ -269,7 +273,7 @@ This is additive: a new optional field. No existing value changes, so the parity
 - Modify: `src/core/parse/loader.ts:191-201`
 - Test: `tests/core/parse/loader.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/core/parse/loader.test.ts`:
 
@@ -300,12 +304,12 @@ describe('birth date passthrough', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/core/parse/loader.test.ts -t "birth date passthrough"`
 Expected: FAIL — `patientBirthDate` does not exist on type `LabRow`
 
-- [ ] **Step 3: Add the field to the type**
+- [x] **Step 3: Add the field to the type**
 
 In `src/core/types.ts`, inside `interface LabRow`, after `patientAgeAtLab`:
 
@@ -318,7 +322,7 @@ In `src/core/types.ts`, inside `interface LabRow`, after `patientAgeAtLab`:
   patientBirthDate?: Date | null
 ```
 
-- [ ] **Step 4: Populate it in the loader**
+- [x] **Step 4: Populate it in the loader**
 
 In `src/core/parse/loader.ts`, replace the age block at lines 191-201 with:
 
@@ -338,12 +342,12 @@ In `src/core/parse/loader.ts`, replace the age block at lines 191-201 with:
 
 and add `patientBirthDate: birthDate,` to the pushed row literal, next to `patientAgeAtLab`.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pnpm exec vitest run tests/core/parse/loader.test.ts tests/parity`
 Expected: PASS — including every parity test, unchanged. A red parity test here means the age logic was altered rather than extended.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/core/types.ts src/core/parse/loader.ts tests/core/parse/loader.test.ts
@@ -358,7 +362,7 @@ git commit -m "feat: keep the parsed birth date on lab rows"
 - Create: `src/core/demographics/resolveSex.ts`
 - Test: `tests/core/demographics/resolveSex.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/core/demographics/resolveSex.test.ts`:
 
@@ -423,12 +427,12 @@ describe('resolveSex', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/core/demographics/resolveSex.test.ts`
 Expected: FAIL — cannot resolve `resolveSex`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `src/core/demographics/resolveSex.ts`:
 
@@ -499,12 +503,12 @@ export function resolveSex(input: SexResolutionInput): SexResolution {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm exec vitest run tests/core/demographics/resolveSex.test.ts`
 Expected: PASS, 7 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/demographics/resolveSex.ts tests/core/demographics/resolveSex.test.ts
@@ -519,7 +523,7 @@ git commit -m "feat: resolve one sex per patient across manual, attributes and r
 - Create: `src/core/demographics/resolveAge.ts`
 - Test: `tests/core/demographics/resolveAge.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/core/demographics/resolveAge.test.ts`:
 
@@ -606,12 +610,12 @@ describe('resolveBirthAnchor', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/core/demographics/resolveAge.test.ts`
 Expected: FAIL — cannot resolve `resolveBirthAnchor`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `src/core/demographics/resolveAge.ts`:
 
@@ -690,12 +694,12 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm exec vitest run tests/core/demographics/resolveAge.test.ts`
 Expected: PASS, 6 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/demographics/resolveAge.ts tests/core/demographics/resolveAge.test.ts
@@ -712,7 +716,7 @@ The centrepiece test is the guarantee the whole design rests on: consistent inpu
 - Create: `src/core/demographics/resolve.ts`
 - Test: `tests/core/demographics/resolve.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/core/demographics/resolve.test.ts`:
 
@@ -796,12 +800,12 @@ describe('resolveDemographics', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/core/demographics/resolve.test.ts`
 Expected: FAIL — cannot resolve `resolveDemographics`
 
-- [ ] **Step 3: Write the implementation**
+- [x] **Step 3: Write the implementation**
 
 `src/core/demographics/resolve.ts`:
 
@@ -896,12 +900,12 @@ export function resolveDemographics(
 }
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm exec vitest run tests/core/demographics/resolve.test.ts`
 Expected: PASS, 6 tests
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/core/demographics/resolve.ts tests/core/demographics/resolve.test.ts
@@ -921,7 +925,7 @@ git commit -m "feat: resolve demographics per patient across a row set"
 - Modify: `src/ui/state/store.ts:245-256`, `:454-457`
 - Test: `tests/core/analysis/demographicsModule.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/core/analysis/demographicsModule.test.ts`:
 
@@ -976,12 +980,12 @@ describe('demographicsModule', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/core/analysis/demographicsModule.test.ts`
 Expected: FAIL — cannot resolve `demographicsModule`
 
-- [ ] **Step 3: Write the message text**
+- [x] **Step 3: Write the message text**
 
 `src/core/demographics/describe.ts`:
 
@@ -1024,7 +1028,7 @@ export function describeConflict(conflict: DemographicsConflict): string {
 }
 ```
 
-- [ ] **Step 4: Write the module**
+- [x] **Step 4: Write the module**
 
 `src/core/analysis/demographicsModule.ts`:
 
@@ -1057,7 +1061,7 @@ export const demographicsModule = {
 }
 ```
 
-- [ ] **Step 5: Extend the context type**
+- [x] **Step 5: Extend the context type**
 
 In `src/core/analysis/types.ts`, `interface AnalysisContext`:
 
@@ -1070,7 +1074,7 @@ export interface AnalysisContext {
 }
 ```
 
-- [ ] **Step 6: Register the module and thread the attributes**
+- [x] **Step 6: Register the module and thread the attributes**
 
 In `src/core/analysis/registry.ts`, add the import and put the module first:
 
@@ -1105,7 +1109,7 @@ export interface ComputeAnalysisResultOptions {
     )
 ```
 
-- [ ] **Step 7: Strip the old override out of the eGFR module**
+- [x] **Step 7: Strip the old override out of the eGFR module**
 
 `src/core/analysis/egfrModule.ts` becomes, in full:
 
@@ -1126,7 +1130,7 @@ export const egfrModule: AnalysisModule<EgfrModuleSettings> = {
 
 Manual demographics are already applied by the time this runs, so the module no longer needs to know about them — and returning `{}` when the formula is off is now correct, because it no longer has rows of its own to contribute.
 
-- [ ] **Step 8: Thread the attributes through the store**
+- [x] **Step 8: Thread the attributes through the store**
 
 In `src/ui/state/store.ts`, extend `computeStoreAnalysisResult` to take and cache the attributes:
 
@@ -1168,12 +1172,12 @@ Add `attributes` to the parameter list and to the `analysisCache` type declarati
 
 Caching on `attributes` identity is required, not decorative: without it, uploading an attributes table would leave the previous result in place.
 
-- [ ] **Step 9: Run the full suite**
+- [x] **Step 9: Run the full suite**
 
 Run: `pnpm test`
 Expected: PASS. Existing tests calling `computeAnalysisResult` need `patientAttributes: {}` added; fix each call site rather than making the field optional, so a future module cannot silently receive an empty map.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add src/core/demographics/describe.ts src/core/analysis/ src/ui/state/store.ts tests/
@@ -1190,7 +1194,7 @@ git commit -m "feat: resolve demographics as the first analysis pipeline step"
 - Modify: `src/ui/shell/Sidebar.tsx:235`
 - Test: `tests/ui/Sidebar.test.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/ui/Sidebar.test.tsx`, using the `row` helper and `setDataset`
 pattern that file already uses. Note the deliberate absence of
@@ -1211,12 +1215,12 @@ describe('demographics conflict notes', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/ui/Sidebar.test.tsx -t "demographics conflict"`
 Expected: FAIL — text not found
 
-- [ ] **Step 3: Render the notes**
+- [x] **Step 3: Render the notes**
 
 In `src/ui/shell/Sidebar.tsx`, read the messages near the other derived values:
 
@@ -1241,12 +1245,12 @@ and render them immediately after the `unrecognisedSexValues` note, deliberately
             )}
 ```
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm exec vitest run tests/ui/Sidebar.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/shell/Sidebar.tsx tests/ui/Sidebar.test.tsx
@@ -1262,7 +1266,7 @@ git commit -m "feat: surface demographics conflicts in the sidebar"
 - Modify: `src/ui/cohort/CohortView.tsx` (the export call site)
 - Test: `tests/core/cohort/exportRecords.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/core/cohort/exportRecords.test.ts`:
 
@@ -1284,12 +1288,12 @@ it('flags patients whose demographics were contradictory', () => {
 The third assertion pins the default: existing call sites that pass no set must
 keep exporting a blank column rather than crashing or claiming a conflict.
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/core/cohort/exportRecords.test.ts`
 Expected: FAIL — `cohortExportRecords` takes two arguments
 
-- [ ] **Step 3: Add the parameter and the column**
+- [x] **Step 3: Add the parameter and the column**
 
 In `src/core/cohort/screening.ts`:
 
@@ -1314,7 +1318,7 @@ and next to `unstable_slope` in the record literal:
 
 Add `demographics_conflict: string` to `CohortExportRecord`, and import `patientIdKey` if it is not already imported in that file.
 
-- [ ] **Step 4: Pass the set from the call site**
+- [x] **Step 4: Pass the set from the call site**
 
 In `src/ui/cohort/CohortView.tsx`, where the export records are built:
 
@@ -1332,12 +1336,12 @@ In `src/ui/cohort/CohortView.tsx`, where the export records are built:
 
 and pass it as the third argument to `cohortExportRecords`.
 
-- [ ] **Step 5: Run the tests to verify they pass**
+- [x] **Step 5: Run the tests to verify they pass**
 
 Run: `pnpm exec vitest run tests/core/cohort tests/ui/exports.test.tsx`
 Expected: PASS
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add src/core/cohort/screening.ts src/ui/cohort/CohortView.tsx tests/core/cohort/exportRecords.test.ts
@@ -1352,7 +1356,7 @@ git commit -m "feat: flag contradictory demographics in the cohort export"
 - Modify: `src/ui/cohort/CohortView.tsx:144`
 - Test: `tests/ui/CohortView.test.tsx`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/ui/CohortView.test.tsx`. Note the corrected setup: `CohortView`
 gates its whole table (and the group-by selector) behind `specs.length > 0`
@@ -1397,7 +1401,7 @@ it('lets the attributes table override a row-derived sex on a key collision', ()
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/ui/CohortView.test.tsx -t "offers sex"`
 Expected: FAIL — with a series selected, the cohort table itself renders (rows,
@@ -1407,7 +1411,7 @@ is wrapped in `(groupByOptions.length > 0 || groupByAttribute !== null)`, and
 here. So the failure is a missing option starving the selector's render
 condition, not a missing option inside an otherwise-visible `<select>`.
 
-- [ ] **Step 3: Merge row demographics into the grouping source**
+- [x] **Step 3: Merge row demographics into the grouping source**
 
 Grouping reads its values from `patientAttributes` in two places —
 `buildCohortRows(displayRows, patientIds, specs, groupByAttribute, patientAttributes)`
@@ -1443,12 +1447,12 @@ loop inside `availableGroupByAttributes` (`CohortView.tsx:146`), the
 their dependency arrays. Import `patientIdKey` from `../../core/types` if it is
 not already imported.
 
-- [ ] **Step 4: Run the test to verify it passes**
+- [x] **Step 4: Run the test to verify it passes**
 
 Run: `pnpm exec vitest run tests/ui/CohortView.test.tsx`
 Expected: PASS
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add src/ui/cohort/CohortView.tsx tests/ui/CohortView.test.tsx
@@ -1468,7 +1472,7 @@ git commit -m "feat: allow grouping the cohort by sex"
 - Modify: `public/test_labs.xlsx`
 - Test: `tests/io/demoFixture.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 `tests/io/demoFixture.test.ts`:
 
@@ -1495,12 +1499,12 @@ describe('shipped demo workbook', () => {
 })
 ```
 
-- [ ] **Step 2: Run the test to verify it fails**
+- [x] **Step 2: Run the test to verify it fails**
 
 Run: `pnpm exec vitest run tests/io/demoFixture.test.ts`
 Expected: FAIL — 7 conflicts of kind `age_no_common_birth_date`
 
-- [ ] **Step 3: Write the regeneration script**
+- [x] **Step 3: Write the regeneration script**
 
 `scripts/regen_demo_birthdates.mjs`:
 
@@ -1564,22 +1568,22 @@ writeFileSync(FILE, XLSX.write(book, { type: 'buffer', bookType: 'xlsx' }))
 console.log(`patients: ${anchors.size}, rewritten age cells: ${rewritten} of ${rows.length}`)
 ```
 
-- [ ] **Step 4: Run the script**
+- [x] **Step 4: Run the script**
 
 Run: `pnpm exec node scripts/regen_demo_birthdates.mjs`
 Expected: a line reporting 13 patients and a non-zero count of rewritten cells.
 
-- [ ] **Step 5: Run the test to verify it passes**
+- [x] **Step 5: Run the test to verify it passes**
 
 Run: `pnpm exec vitest run tests/io/demoFixture.test.ts`
 Expected: PASS
 
-- [ ] **Step 6: Run the whole suite and the build**
+- [x] **Step 6: Run the whole suite and the build**
 
 Run: `pnpm test && pnpm build`
 Expected: PASS. Some UI snapshots or assertions may reference demo eGFR values; update those, and note in the commit which numbers moved and why.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add scripts/regen_demo_birthdates.mjs public/test_labs.xlsx tests/io/demoFixture.test.ts
@@ -1596,7 +1600,7 @@ Sidebar geometry is worthless in jsdom, so the note gets one Chromium case along
 - Modify: `tests/e2e/pr5-quality.e2e.ts` or a sibling spec following the same upload pattern
 - Modify: `tests/e2e/smoke.md`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Append to `tests/e2e/pr5-quality.e2e.ts`, using its existing
 `uploadCsv(page, name, csv)` helper (`pr5-quality.e2e.ts:29`):
@@ -1613,16 +1617,16 @@ test('reports a patient whose ages fit no single birth date', async ({ page }) =
 })
 ```
 
-- [ ] **Step 2: Run it to verify it fails, then passes**
+- [x] **Step 2: Run it to verify it fails, then passes**
 
 Run: `pnpm test:e2e`
 Expected: FAIL before Task 7 is in place, PASS after.
 
-- [ ] **Step 3: Update the manual checklist**
+- [x] **Step 3: Update the manual checklist**
 
 In `tests/e2e/smoke.md`, add a demographics-conflict step to the relevant phase and refresh that phase's `Verified <date>` line.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add tests/e2e/
@@ -1633,9 +1637,9 @@ git commit -m "test: cover the demographics conflict note in Chromium"
 
 ## Final verification
 
-- [ ] `pnpm test` — full unit suite green, **parity tests unmodified**
-- [ ] `pnpm build` — clean
-- [ ] `pnpm test:e2e` — Chromium subset green
-- [ ] `git diff main --stat -- tests/parity tests/goldens` — **empty**. Any change here means resolution leaked into the ported core and the goldens stopped meaning anything.
-- [ ] Run `/code-review` on the branch before opening the PR, per `CLAUDE.md`
-- [ ] In the PR body, list which demo eGFR values moved and by how much
+- [x] `pnpm test` — full unit suite green, **parity tests unmodified**
+- [x] `pnpm build` — clean
+- [x] `pnpm test:e2e` — Chromium subset green
+- [x] `git diff main --stat -- tests/parity tests/goldens` — **empty**. Any change here means resolution leaked into the ported core and the goldens stopped meaning anything.
+- [x] Run `/code-review` on the branch before opening the PR, per `CLAUDE.md`
+- [x] In the PR body, list which demo eGFR values moved and by how much
