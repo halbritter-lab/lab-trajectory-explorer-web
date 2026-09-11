@@ -233,6 +233,19 @@ describe('cohortExportRecords', () => {
     expect(rec.endpoint_observed_ckd_g5).toBe('')
     expect(rec.endpoint_projected_age_to_ckd_g5).toBeCloseTo(63, 1)
   })
+
+  it('flags patients whose demographics were contradictory', () => {
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }
+    const rows = [
+      row({ patientId: 1, labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ patientId: 1, labDatum: d('2020-01-01'), wertNum: 1.5 }),
+      row({ patientId: 1, labDatum: d('2021-01-01'), wertNum: 2.0 }),
+    ]
+    const cohort = buildCohortRows(rows, [1], [spec])
+    expect(cohortExportRecords(cohort, 0, new Set(['1']))[0].demographics_conflict).toBe('yes')
+    expect(cohortExportRecords(cohort, 0, new Set())[0].demographics_conflict).toBe('')
+    expect(cohortExportRecords(cohort)[0].demographics_conflict).toBe('')
+  })
 })
 
 describe('isRapidEgfrDecline', () => {

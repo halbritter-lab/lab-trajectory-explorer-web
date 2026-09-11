@@ -36,6 +36,11 @@ export interface PatientSlopeRecord {
   reason: string
   /** See CohortExportRecord.unstable_slope. */
   unstable_slope: string
+  /** 'yes' when this patient's demographics had to be resolved from
+   * contradictory input, else ''. See CohortExportRecord.demographics_conflict —
+   * same flag, threaded per-patient instead of per-row since this export
+   * already scopes to one patient. */
+  demographics_conflict: string
   aki: string
   endpoint_percent_decline: number | ''
   endpoint_observed_ckd_g5: string
@@ -97,8 +102,16 @@ export function slopeSpecsWithComputedEgfr(specs: CohortSeriesSpec[], rows: LabR
 }
 
 /** Slope summary table for one patient, one row per configured series spec.
- * Reuses buildCohortRows so the slope/reason/AKI logic stays in one place. */
-export function patientSlopeRecords(rows: LabRow[], patientId: PatientId, specs: CohortSeriesSpec[]): PatientSlopeRecord[] {
+ * Reuses buildCohortRows so the slope/reason/AKI logic stays in one place.
+ * `hasDemographicsConflict` follows the same pattern as cohortExportRecords'
+ * `conflictPatientKeys`: an optional flag defaulting to false, so existing
+ * call sites keep working and never claim a conflict that was not passed. */
+export function patientSlopeRecords(
+  rows: LabRow[],
+  patientId: PatientId,
+  specs: CohortSeriesSpec[],
+  hasDemographicsConflict = false,
+): PatientSlopeRecord[] {
   if (specs.length === 0) return []
   const cohortRow = buildCohortRows(rows, [patientId], specs)[0]
   if (!cohortRow) return []
@@ -118,6 +131,7 @@ export function patientSlopeRecords(rows: LabRow[], patientId: PatientId, specs:
     ci_high: numOrBlank(c.ciHigh),
     reason: c.reason ?? '',
     unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
+    demographics_conflict: hasDemographicsConflict ? 'yes' : '',
     aki: c.akiChip,
     endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
     endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',
@@ -128,12 +142,14 @@ export function patientSlopeRecords(rows: LabRow[], patientId: PatientId, specs:
 /** Assemble the named sheets for a patient workbook: long-format measurements,
  * the per-series slope summary (with computed eGFR auto-included so its slope is
  * exported even when not picked in the series strip), and the disclaimer.
- * Pure — pass to sheetsToXlsxBytes to serialise. */
+ * Pure — pass to sheetsToXlsxBytes to serialise. `hasDemographicsConflict`
+ * threads straight through to patientSlopeRecords; see its doc comment. */
 export function patientWorkbookSheets(
   displayRows: LabRow[],
   patientId: PatientId,
   specs: CohortSeriesSpec[],
   clinicalEvents: ClinicalEvent[] = [],
+  hasDemographicsConflict = false,
 ): { name: string; rows: readonly object[] }[] {
   const measurements = patientMeasurementRecords(displayRows, patientId)
   const patientEvents = clinicalEvents.filter((event) => event.patientId === patientId)
@@ -146,7 +162,7 @@ export function patientWorkbookSheets(
         eventDates: spec.eventDates ?? fitEvents.map((event) => event.date),
       }
     })
-  const slopes = patientSlopeRecords(displayRows, patientId, slopeSpecs)
+  const slopes = patientSlopeRecords(displayRows, patientId, slopeSpecs, hasDemographicsConflict)
   return [
     { name: 'measurements', rows: measurements },
     { name: 'slopes', rows: slopes },

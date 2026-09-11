@@ -128,7 +128,7 @@ function toPatientId(v: unknown): PatientId | null {
 }
 
 /** Completed calendar years between birth and a reference date. */
-function completedYears(birth: Date, ref: Date): number | null {
+export function completedYears(birth: Date, ref: Date): number | null {
   if (Number.isNaN(birth.getTime()) || Number.isNaN(ref.getTime())) return null
   let years = ref.getUTCFullYear() - birth.getUTCFullYear()
   const birthdayReached =
@@ -189,15 +189,16 @@ export function loadLabRows(rawRows: RawRow[]): LabRow[] {
     const patientSexRaw = toStr(cell(r, columns, 'sex'))
     const patientSex = normaliseSex(patientSexRaw)
 
+    const birthDate = hasBirth ? toDate(cell(r, columns, 'birthDate')) : null
+
     let patientAgeAtLab: number | null = null
     if (hasAge) {
       const a = cell(r, columns, 'ageAtLab')
       patientAgeAtLab =
         a === null || a === undefined || a === '' ? null : Math.trunc(Number(a))
       if (patientAgeAtLab !== null && Number.isNaN(patientAgeAtLab)) patientAgeAtLab = null
-    } else if (hasBirth) {
-      const birth = toDate(cell(r, columns, 'birthDate'))
-      patientAgeAtLab = birth && labDatum ? completedYears(birth, labDatum) : null
+    } else if (birthDate) {
+      patientAgeAtLab = labDatum ? completedYears(birthDate, labDatum) : null
     }
 
     out.push({
@@ -212,6 +213,7 @@ export function loadLabRows(rawRows: RawRow[]): LabRow[] {
       patientSex,
       patientSexRaw,
       patientAgeAtLab,
+      patientBirthDate: birthDate,
     })
   }
   return out

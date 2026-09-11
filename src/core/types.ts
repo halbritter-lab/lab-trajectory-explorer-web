@@ -35,6 +35,11 @@ export interface LabRow {
    * field existed, and row literals in tests, simply omit it. */
   patientSexRaw?: string | null
   patientAgeAtLab: number | null
+  /** The birth date as read from the file, when the column was present. Kept so
+   * demographics resolution can anchor ages exactly instead of inferring an
+   * anchor from integer ages. Optional: datasets persisted before this field
+   * existed, and row literals in tests, simply omit it. */
+  patientBirthDate?: Date | null
 }
 
 export type FitReason =

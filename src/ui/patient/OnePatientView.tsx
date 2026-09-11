@@ -3,7 +3,7 @@ import { useAppStore } from '../state/store'
 import { SeriesPlot } from '../charts/SeriesPlot'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../../core/egfr/series'
 import { svgElementToString, downloadBlob, svgStringToPngBlob, sheetsToXlsxBytes, zipBytes, fileStamp } from '../../io/export'
-import type { LabRow } from '../../core/types'
+import { patientIdKey, type LabRow } from '../../core/types'
 import type { PlotModeConfig } from '../../core/stats/slopeLines'
 import { fitInputForSeries } from '../../core/analysis/types'
 import type { AkiEpisode } from '../../core/aki/kdigo'
@@ -104,6 +104,19 @@ export function OnePatientView() {
     () => patientId === null ? [] : events.filter((event) => event.patientId === patientId),
     [events, patientId],
   )
+  // Same derivation CohortView uses for demographicsConflictKeys, narrowed to
+  // this one patient: analysisResult.messages carries every demographics
+  // conflict as `demographics:<kind>:<patientIdKey>`. patientIdKey is
+  // String(patientId), which may itself contain ':' (e.g. "P:001"), so rejoin
+  // everything after the first two segments rather than indexing [2].
+  const hasDemographicsConflict = useMemo(
+    () =>
+      patientId !== null &&
+      analysisResult.messages.some(
+        (m) => m.id.startsWith('demographics:') && m.id.split(':').slice(2).join(':') === patientIdKey(patientId),
+      ),
+    [analysisResult.messages, patientId],
+  )
   /** A cohort spec that remembers which config slot it came from, so the plot
    * loop can look up its own cell without re-deriving the filter predicate. */
   type PlotSpec = CohortSeriesSpec & { configIndex: number }
@@ -157,7 +170,9 @@ export function OnePatientView() {
   }, [configs.length, displayRows, patientId, specs])
 
   function buildWorkbook(): Uint8Array {
-    return sheetsToXlsxBytes(patientWorkbookSheets(displayRows, patientId as number, specs, patientClinicalEvents))
+    return sheetsToXlsxBytes(
+      patientWorkbookSheets(displayRows, patientId as number, specs, patientClinicalEvents, hasDemographicsConflict),
+    )
   }
 
   function exportXlsx() {

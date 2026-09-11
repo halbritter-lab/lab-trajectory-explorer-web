@@ -239,6 +239,7 @@ select, input[type='number'], input[type='file'], input[type='search'] {
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-lg);
   padding: 0.5rem 0.75rem; box-shadow: var(--shadow);
 }
+.series-unavailable { color: var(--muted); font-size: 12px; max-width: 9rem; }
 .series-card select { min-width: 16rem; }
 .series-combobox {
   position: relative;

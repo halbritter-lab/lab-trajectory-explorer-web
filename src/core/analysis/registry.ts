@@ -1,4 +1,5 @@
 import { akiModule } from './akiModule'
+import { demographicsModule } from './demographicsModule'
 import { egfrModule } from './egfrModule'
 import { rapidEgfrDeclineModule } from './rapidEgfrDeclineModule'
 import type {
@@ -20,6 +21,7 @@ export const defaultAnalysisSettings = (): AnalysisSettings => ({
 export interface ComputeAnalysisResultOptions {
   rows: LabRow[]
   manualDemographics: Record<string, ManualDemographics>
+  patientAttributes: Record<string, Record<string, string>>
   events: ClinicalEvent[]
   settings: AnalysisSettings
   modules?: readonly RegisteredAnalysisModule[]
@@ -39,6 +41,7 @@ function adaptModule<K extends keyof AnalysisSettings>(
 }
 
 export const analysisModules: readonly RegisteredAnalysisModule[] = [
+  demographicsModule,
   adaptModule('egfr', egfrModule),
   adaptModule('aki', akiModule),
   adaptModule('rapidEgfrDecline', rapidEgfrDeclineModule),
@@ -47,6 +50,7 @@ export const analysisModules: readonly RegisteredAnalysisModule[] = [
 export function computeAnalysisResult({
   rows,
   manualDemographics,
+  patientAttributes,
   events,
   settings,
   modules = analysisModules,
@@ -61,7 +65,10 @@ export function computeAnalysisResult({
   }
 
   for (const module of modules) {
-    const contribution = module.apply({ rows: currentRows, manualDemographics, events }, settings)
+    const contribution = module.apply(
+      { rows: currentRows, manualDemographics, patientAttributes, events },
+      settings,
+    )
     if (contribution.rows) {
       currentRows = contribution.rows
       result.rows = contribution.rows

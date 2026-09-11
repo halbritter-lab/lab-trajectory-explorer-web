@@ -80,6 +80,29 @@ describe('exports + methodology', () => {
     expect(attrRows.map((r) => String(r.patientId))).toEqual(['1'])
   })
 
+  it('flags demographics_conflict in the export for a patient id containing a colon', async () => {
+    const captured = stubDownloadCapture()
+    useAppStore.getState().setDataset([
+      // Ages that fit no single birth date, so the demographics module reports
+      // a conflict keyed by `demographics:age_no_common_birth_date:<idKey>`.
+      // patientIdKey is String(patientId), so a colon in the id itself (a
+      // plausible spreadsheet value) must not truncate the key on export.
+      row({ patientId: 'P:001', labDatum: new Date('2022-01-15'), wertNum: 1.0, patientSex: 'w', patientAgeAtLab: 46 }),
+      row({ patientId: 'P:001', labDatum: new Date('2022-07-20'), wertNum: 1.1, patientSex: 'w', patientAgeAtLab: 46 }),
+      row({ patientId: 'P:001', labDatum: new Date('2023-03-02'), wertNum: 1.2, patientSex: 'w', patientAgeAtLab: 64 }),
+    ])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+
+    render(<CohortView />)
+    await userEvent.click(screen.getByRole('button', { name: /export cohort/i }))
+
+    const bytes = new Uint8Array(await captured[0].arrayBuffer())
+    const cohortRows = readWorkbook(bytes, 'cohort')
+    expect(cohortRows).toHaveLength(1)
+    expect(String(cohortRows[0].PatientID)).toBe('P:001')
+    expect(cohortRows[0].demographics_conflict).toBe('yes')
+  })
+
   it('Methodology renders the fit-pipeline reference', () => {
     render(<Methodology />)
     expect(screen.getByRole('heading', { name: 'Quick Guide' })).toBeInTheDocument()

@@ -37,6 +37,7 @@ export interface AnalysisSettings {
 export interface AnalysisContext {
   rows: LabRow[]
   manualDemographics: Record<string, ManualDemographics>
+  patientAttributes: Record<string, Record<string, string>>
   events: ClinicalEvent[]
 }
 

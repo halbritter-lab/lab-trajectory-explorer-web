@@ -38,7 +38,10 @@ describe('eGFR + events wiring', () => {
     const rows = useAppStore.getState().displayRows()
     const egfrRows = rows.filter((r) => r.bezeichnung?.includes(', computed)'))
     expect(egfrRows).toHaveLength(2)
-    expect(egfrRows.every((r) => r.patientSex === 'm' && r.patientAgeAtLab === 50)).toBe(true)
+    expect(egfrRows.every((r) => r.patientSex === 'm')).toBe(true)
+    // The manually entered age is anchored to the first lab date and then ages
+    // with the series, so the 2020 row is a year older than the 2019 one.
+    expect(egfrRows.map((r) => r.patientAgeAtLab)).toEqual([50, 51])
   })
 
   it('renders the app with eGFR enabled without crashing', () => {

@@ -233,6 +233,7 @@ let analysisCache: {
   rows: LabRow[]
   settings: AnalysisSettings
   manual: Record<string, ManualDemographics>
+  attributes: Record<string, Record<string, string>>
   events: ClinicalEvent[]
   result: AnalysisResult
 } | null = null
@@ -241,6 +242,7 @@ function computeStoreAnalysisResult(
   rows: LabRow[],
   settings: AnalysisSettings,
   manual: Record<string, ManualDemographics>,
+  attributes: Record<string, Record<string, string>>,
   events: ClinicalEvent[],
 ): AnalysisResult {
   if (
@@ -248,11 +250,18 @@ function computeStoreAnalysisResult(
     analysisCache.rows === rows &&
     analysisCache.settings === settings &&
     analysisCache.manual === manual &&
+    analysisCache.attributes === attributes &&
     analysisCache.events === events
   ) return analysisCache.result
 
-  const result = computeAnalysisResult({ rows, settings, manualDemographics: manual, events })
-  analysisCache = { rows, settings, manual, events, result }
+  const result = computeAnalysisResult({
+    rows,
+    settings,
+    manualDemographics: manual,
+    patientAttributes: attributes,
+    events,
+  })
+  analysisCache = { rows, settings, manual, attributes, events, result }
   return result
 }
 
@@ -453,7 +462,13 @@ export const useAppStore = create<AppState>((set, get) => ({
     }),
   analysisResult: () => {
     const s = get()
-    return computeStoreAnalysisResult(s.rows, s.analysisSettings, s.manualDemographics, s.events)
+    return computeStoreAnalysisResult(
+      s.rows,
+      s.analysisSettings,
+      s.manualDemographics,
+      s.patientAttributes,
+      s.events,
+    )
   },
   displayRows: () => get().analysisResult().rows,
   setCohortSort: (s) => set({ cohortSort: s }),

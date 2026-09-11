@@ -8,25 +8,42 @@ import {
   ListBoxItem,
   Popover,
 } from 'react-aria-components'
+import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../../core/egfr/series'
 import { useAppStore } from '../state/store'
 import { cohortSeriesOptions, seriesDisplayLabel } from '../options'
 
 type SeriesOption = {
   bezeichnung: string
   einheit: string | null
+  unavailable?: boolean
 }
 
 export function SeriesStrip() {
   const displayRows = useAppStore((s) => s.displayRows())
   const patientId = useAppStore((s) => s.selectedPatientId)
+  const view = useAppStore((s) => s.view)
   const configs = useAppStore((s) => s.seriesConfigs)
   const setSeriesConfig = useAppStore((s) => s.setSeriesConfig)
   const addSeries = useAppStore((s) => s.addSeries)
   const removeSeries = useAppStore((s) => s.removeSeries)
 
   const opts = useMemo(
-    () => (patientId !== null ? cohortSeriesOptions(displayRows) : []),
-    [displayRows, patientId],
+    () => {
+      if (patientId === null) return []
+      const cohortOptions = cohortSeriesOptions(displayRows)
+      if (view === 'cohort') return cohortOptions
+      return cohortOptions.filter((option) => {
+        if (!option.bezeichnung.includes(COMPUTED_BEZEICHNUNG_SUFFIX)) return true
+        return displayRows.some(
+          (row) => row.patientId === patientId
+            && row.bezeichnung === option.bezeichnung
+            && row.einheit === option.einheit
+            && row.wertNum !== null
+            && Number.isFinite(row.wertNum),
+        )
+      })
+    },
+    [displayRows, patientId, view],
   )
 
   return (
@@ -39,13 +56,21 @@ export function SeriesStrip() {
         // option instead of silently falling back to the empty placeholder.
         const selectedMissing = selectValue !== '' && !opts.some((o) => `${o.bezeichnung}|${o.einheit ?? ''}` === selectValue)
         const options = selectedMissing && cfg.bezeichnung
-          ? [{ bezeichnung: cfg.bezeichnung, einheit: cfg.einheit ?? null }, ...opts]
+          ? [{ bezeichnung: cfg.bezeichnung, einheit: cfg.einheit ?? null, unavailable: true }, ...opts]
           : opts
+        // In the cohort view the per-patient filter above is bypassed, so a
+        // selected parameter can only be missing because the dataset as a whole
+        // lacks it — e.g. after loading a second workbook, which keeps the
+        // series configs. Blaming the selected patient there would misdirect.
+        const unavailableNote = view === 'one'
+          ? 'Not available for this patient'
+          : 'Not in this dataset'
         return (
         <div className="series-card" key={i}>
           <SeriesCombobox
             ariaLabel={`Series ${i + 1} parameter`}
             options={options}
+            unavailableNote={unavailableNote}
             selectedKey={selectValue || null}
             placeholder="Pick parameter"
             onSelectionChange={(key) => {
@@ -55,6 +80,7 @@ export function SeriesStrip() {
                 : { bezeichnung: null, einheit: null })
             }}
           />
+          {selectedMissing && <span className="series-unavailable">{unavailableNote}</span>}
           {configs.length > 1 && <button onClick={() => removeSeries(i)} aria-label={`Remove series ${i + 1}`}>×</button>}
         </div>
         )
@@ -67,12 +93,14 @@ export function SeriesStrip() {
 function SeriesCombobox({
   ariaLabel,
   options,
+  unavailableNote,
   selectedKey,
   placeholder,
   onSelectionChange,
 }: {
   ariaLabel: string
   options: SeriesOption[]
+  unavailableNote: string
   selectedKey: string | null
   placeholder: string
   onSelectionChange: (key: string | null) => void
@@ -150,9 +178,11 @@ function SeriesCombobox({
             <ListBoxItem
               id={seriesOptionKey(option)}
               textValue={seriesDisplayLabel(option)}
+              isDisabled={option.unavailable}
               className="series-combobox-option"
             >
               {seriesDisplayLabel(option)}
+              {option.unavailable && ` — ${unavailableNote.toLowerCase()}`}
             </ListBoxItem>
           )}
         </ListBox>

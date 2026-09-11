@@ -8,6 +8,7 @@ import { sheetsToXlsxBytes, downloadBlob, fileStamp } from '../../io/export'
 import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
 import { comparePatientIds, patientIdKey } from '../../core/types'
 import { patientAttributesExportRows } from '../../core/attributes/attributes'
+import { normaliseSex } from '../../core/egfr/formulas'
 import { groupColors, groupPatients } from '../../core/grouping/grouping'
 import { projectedG5Label, slopeQualityLabel } from '../qualityLabels'
 import { mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
@@ -141,15 +142,42 @@ export function CohortView() {
     const all = [...new Set(displayRows.map((r) => r.patientId))].sort(comparePatientIds)
     return cohortPatientMode === 'selected' ? all.filter((id) => selectedPatientIds.includes(id)) : all
   }, [displayRows, cohortPatientMode, selectedPatientIds])
+  /** Patient attributes plus the demographics that live on the lab rows, so the
+   * cohort can be grouped by sex without a second spreadsheet. The attributes
+   * table wins on a key collision, but for `sex` specifically the two sources
+   * are not guaranteed to already agree as strings: the row-derived value is a
+   * normalised code ('m' / 'w' / 'd'), while `normalizePatientAttributes` only
+   * trims the attributes-table value, so a spelling like "female" would
+   * otherwise collide with "w" for the same sex and land in a different group.
+   * Route the attributes-table value through normaliseSex first so both sources
+   * land on the same code; every other attribute name is passed through as-is,
+   * since sex is the only one with a canonical form. */
+  const groupableAttributes = useMemo(() => {
+    const merged: Record<string, Record<string, string>> = {}
+    for (const r of displayRows) {
+      if (r.patientSex === null) continue
+      const key = patientIdKey(r.patientId)
+      if (merged[key] === undefined) merged[key] = { sex: r.patientSex }
+    }
+    for (const [key, attributes] of Object.entries(patientAttributes)) {
+      const normalisedSex = normaliseSex(attributes.sex)
+      merged[key] = {
+        ...merged[key],
+        ...attributes,
+        ...(normalisedSex !== null ? { sex: normalisedSex } : {}),
+      }
+    }
+    return merged
+  }, [displayRows, patientAttributes])
   const availableGroupByAttributes = useMemo(() => {
     const cohortKeys = new Set(patientIds.map(patientIdKey))
     const names = new Set<string>()
-    for (const [key, attributes] of Object.entries(patientAttributes)) {
+    for (const [key, attributes] of Object.entries(groupableAttributes)) {
       if (!cohortKeys.has(key)) continue
       for (const name of Object.keys(attributes)) names.add(name)
     }
     return [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
-  }, [patientAttributes, patientIds])
+  }, [groupableAttributes, patientIds])
   const groupingActive = groupByAttribute !== null
   // Always include the active attribute so the current grouping stays selectable
   // (and clearable to "No grouping") even if the cohort scope no longer exposes
@@ -160,9 +188,9 @@ export function CohortView() {
     return [...names].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
   }, [availableGroupByAttributes, groupByAttribute])
   const cohortRows = useMemo(
-    () => buildCohortRows(displayRows, patientIds, specs, groupByAttribute, patientAttributes)
+    () => buildCohortRows(displayRows, patientIds, specs, groupByAttribute, groupableAttributes)
       .filter((row) => row.cells.some((cell) => cell.points.length >= 2)),
-    [displayRows, patientIds, specs, groupByAttribute, patientAttributes],
+    [displayRows, patientIds, specs, groupByAttribute, groupableAttributes],
   )
   const eventsByPatient = useMemo(() => {
     const grouped = new Map<string, { date: Date; label: string }[]>()
@@ -222,11 +250,24 @@ export function CohortView() {
   const mixedModelFormulaText = useMemo(() => mixedModelFormula(mixedModelConfig), [mixedModelConfig])
   const mixedModelFormulaLabelText = useMemo(() => mixedModelConfigLabel(mixedModelConfig), [mixedModelConfig])
   const cohortGroups = useMemo(
-    () => (groupByAttribute ? groupPatients(patientIds, patientAttributes, groupByAttribute) : []),
-    [groupByAttribute, patientIds, patientAttributes],
+    () => (groupByAttribute ? groupPatients(patientIds, groupableAttributes, groupByAttribute) : []),
+    [groupByAttribute, patientIds, groupableAttributes],
   )
   const cohortGroupColorMap = useMemo(() => groupColors(cohortGroups), [cohortGroups])
   const canShowMixedModelDialog = mixedModelDialogOpen && mixedModelSeriesIndex >= 0
+  const demographicsConflictKeys = useMemo(
+    () =>
+      new Set(
+        analysisResult.messages
+          .filter((m) => m.id.startsWith('demographics:'))
+          // id is `demographics:<kind>:<patientIdKey>`; patientIdKey is
+          // String(patientId), which may itself contain ':' (e.g. "P:001").
+          // Rejoin everything after the first two segments instead of taking
+          // index [2], or such an id truncates to the wrong key.
+          .map((m) => m.id.split(':').slice(2).join(':')),
+      ),
+    [analysisResult.messages],
+  )
 
   function validateMixedModelDraftConfig(config: MixedModelConfig): string | null {
     const configValidation = validateMixedModelConfig(config)
@@ -243,7 +284,7 @@ export function CohortView() {
       Object.entries(patientAttributes).filter(([key]) => cohortKeys.has(key)),
     )
     const workbook = sheetsToXlsxBytes([
-      { name: 'cohort', rows: cohortExportRecords(sorted, rapidThreshold) },
+      { name: 'cohort', rows: cohortExportRecords(sorted, rapidThreshold, demographicsConflictKeys) },
       ...(Object.keys(cohortAttributes).length > 0
         ? [{ name: 'patient_attributes', rows: patientAttributesExportRows(cohortAttributes) }]
         : []),

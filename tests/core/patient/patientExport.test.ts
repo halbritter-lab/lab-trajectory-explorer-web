@@ -57,6 +57,24 @@ describe('patientSlopeRecords', () => {
     expect(patientSlopeRecords([row({})], 1, [])).toEqual([])
   })
 
+  it('defaults demographics_conflict to blank, matching cohortExportRecords', () => {
+    const rows: LabRow[] = [
+      row({ labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ labDatum: d('2020-01-01'), wertNum: 1.5 }),
+    ]
+    const [rec] = patientSlopeRecords(rows, 1, specs)
+    expect(rec.demographics_conflict).toBe('')
+  })
+
+  it('flags demographics_conflict when the caller passes it, e.g. after a resolved contradiction', () => {
+    const rows: LabRow[] = [
+      row({ labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ labDatum: d('2020-01-01'), wertNum: 1.5 }),
+    ]
+    const [rec] = patientSlopeRecords(rows, 1, specs, true)
+    expect(rec.demographics_conflict).toBe('yes')
+  })
+
   it('includes CKD endpoint columns for eGFR slope rows', () => {
     const spec: CohortSeriesSpec = {
       bezeichnung: 'eGFR',
@@ -106,6 +124,20 @@ describe('patientSlopeRecords', () => {
 
     expect(slopes[0].n).toBe(4)
     expect(slopes[0].slope).toBeCloseTo(-10, 1)
+  })
+
+  it('threads the demographics conflict flag into the slopes sheet, defaulting to blank', () => {
+    const rows: LabRow[] = [
+      row({ labDatum: d('2019-01-01'), wertNum: 1.0 }),
+      row({ labDatum: d('2020-01-01'), wertNum: 1.5 }),
+    ]
+    const withoutFlag = patientWorkbookSheets(rows, 1, specs)
+    const slopesWithoutFlag = withoutFlag.find((sheet) => sheet.name === 'slopes')!.rows as Array<{ demographics_conflict: string }>
+    expect(slopesWithoutFlag[0].demographics_conflict).toBe('')
+
+    const withFlag = patientWorkbookSheets(rows, 1, specs, [], true)
+    const slopesWithFlag = withFlag.find((sheet) => sheet.name === 'slopes')!.rows as Array<{ demographics_conflict: string }>
+    expect(slopesWithFlag[0].demographics_conflict).toBe('yes')
   })
 })
 
