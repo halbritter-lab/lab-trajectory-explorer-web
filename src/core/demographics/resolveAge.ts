@@ -98,15 +98,33 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
   }
 
   // 2. and 3. An explicit birth date needs no inference, but disagreement with
-  //    the stated ages is still worth reporting — see explicitBirthDateConflict.
+  //    the stated ages or between sources is still worth reporting — see
+  //    explicitBirthDateConflict and birth_date_source_disagreement.
   const attributeBirthDate = validDate(input.attributeBirthDate)
-  if (attributeBirthDate !== null) {
-    const conflict = explicitBirthDateConflict(input.patientId, 'attributes', attributeBirthDate, dated)
-    return { birthAnchor: attributeBirthDate, conflicts: conflict ? [conflict] : [] }
-  }
   const rowsWithBirthDate = dated
     .map((r) => ({ row: r, birthDate: validDate(r.birthDate) }))
     .filter((x): x is { row: typeof dated[number]; birthDate: Date } => x.birthDate !== null)
+
+  if (attributeBirthDate !== null) {
+    const conflicts: DemographicsConflict[] = []
+    if (rowsWithBirthDate.length > 0) {
+      const earliest = rowsWithBirthDate.reduce((min, x) =>
+        x.row.labDatum.getTime() < min.row.labDatum.getTime() ? x : min,
+      )
+      if (earliest.birthDate.getTime() !== attributeBirthDate.getTime()) {
+        conflicts.push({
+          kind: 'birth_date_source_disagreement',
+          patientId: input.patientId,
+          fromAttributes: attributeBirthDate,
+          fromRows: earliest.birthDate,
+        })
+      }
+    }
+    const conflict = explicitBirthDateConflict(input.patientId, 'attributes', attributeBirthDate, dated)
+    if (conflict) conflicts.push(conflict)
+    return { birthAnchor: attributeBirthDate, conflicts }
+  }
+
   if (rowsWithBirthDate.length > 0) {
     // Take the earliest lab row's birth date rather than the first one in file
     // order, so the winner is deterministic and does not depend on row order.

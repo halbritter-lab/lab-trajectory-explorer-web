@@ -44,4 +44,16 @@ describe('describeConflict', () => {
     expect(text).toContain('earliest lab row')
     expect(text).not.toContain('the earliest, ')
   })
+
+  it('describes disagreement between attributes table and lab rows birth dates', () => {
+    const text = describeConflict({
+      kind: 'birth_date_source_disagreement',
+      patientId: 1,
+      fromAttributes: new Date('1980-02-03T00:00:00.000Z'),
+      fromRows: new Date('1975-06-12T00:00:00.000Z'),
+    })
+    expect(text).toBe(
+      'Patient 1: the attributes table birth date (1980-02-03) disagrees with the lab rows (1975-06-12) — the attributes table wins.',
+    )
+  })
 })

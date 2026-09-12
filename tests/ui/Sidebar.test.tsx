@@ -85,6 +85,20 @@ describe('Sidebar eGFR controls', () => {
     expect(screen.getByText('Patient 1: m, age 50')).toBeInTheDocument()
   })
 
+  it('falls back to the earliest row with an age when the anchor row carries no age', async () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2019-01-01'), wertNum: 1.0, patientAgeAtLab: null }),
+      row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.2, patientAgeAtLab: 54 }),
+    ])
+    render(<Sidebar />)
+    await userEvent.click(screen.getByLabelText('Show missing demographics'))
+    await userEvent.click(screen.getByRole('button', { name: 'Enter demographics for patient 1' }))
+
+    const ageInput = screen.getByLabelText('Manual age for patient 1') as HTMLInputElement
+    expect(ageInput.value).toBe('54')
+    expect(screen.getByText(/2019-01-01/)).toBeInTheDocument()
+  })
+
   it('hides missing demographics until toggled on', async () => {
     render(<Sidebar />)
 

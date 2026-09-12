@@ -150,12 +150,19 @@ export function Sidebar() {
     // different date than the one the resolver actually uses.
     const patientRows = rows.filter((r) => r.patientId === patientId)
     const anchorRow = earliestDatedRow(patientRows)
+    const fallbackRow = earliestRowWithAge(patientRows)
+    const prefillAge =
+      current?.age !== undefined
+        ? String(current.age)
+        : anchorRow && anchorRow.patientAgeAtLab !== null
+          ? String(anchorRow.patientAgeAtLab)
+          : fallbackRow && fallbackRow.patientAgeAtLab !== null
+            ? String(fallbackRow.patientAgeAtLab)
+            : ''
     setDemoDraft({
       patientId,
       sex: current?.sex ?? sourceSex,
-      age: current?.age !== undefined
-        ? String(current.age)
-        : anchorRow && anchorRow.patientAgeAtLab !== null ? String(anchorRow.patientAgeAtLab) : '',
+      age: prefillAge,
       ageDate: anchorRow?.labDatum ? isoDate(anchorRow.labDatum) : null,
     })
   }
@@ -622,6 +629,16 @@ function pluralize(count: number, singular: string): string {
 function earliestDatedRow(rows: readonly LabRow[]): LabRow | undefined {
   const dated = rows.filter((r) => r.labDatum !== null && Number.isFinite(r.labDatum.getTime()))
   if (dated.length === 0) return undefined
+  return dated.reduce((earliest, r) =>
+    (r.labDatum as Date).getTime() < (earliest.labDatum as Date).getTime() ? r : earliest,
+  )
+}
+
+function earliestRowWithAge(rows: readonly LabRow[]): LabRow | undefined {
+  const withAge = rows.filter((r) => r.patientAgeAtLab !== null)
+  if (withAge.length === 0) return undefined
+  const dated = withAge.filter((r) => r.labDatum !== null && Number.isFinite(r.labDatum.getTime()))
+  if (dated.length === 0) return withAge[0]
   return dated.reduce((earliest, r) =>
     (r.labDatum as Date).getTime() < (earliest.labDatum as Date).getTime() ? r : earliest,
   )
