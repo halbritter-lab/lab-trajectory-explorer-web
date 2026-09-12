@@ -81,7 +81,7 @@ export function checkRequiredColumns<K extends string>(
 ): void {
   const missing = required.filter((concept) => resolved[concept] === undefined)
   if (missing.length > 0) {
-    throw new Error(`${fileLabel} missing required column(s): ${missing.join(', ')}.`)
+    throw new Error(`${fileLabel} missing required column(s): ${required.join(', ')}.`)
   }
 }
 

@@ -95,7 +95,7 @@ describe('checkRequiredColumns', () => {
         ['patientId', 'labDate', 'testName'],
         'Event file',
       ),
-    ).toThrow('Event file missing required column(s): labDate, testName.')
+    ).toThrow('Event file missing required column(s): patientId, labDate, testName.')
   })
 })
 

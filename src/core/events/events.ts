@@ -58,8 +58,15 @@ export interface ClinicalEventValidationResult {
   rejected: RejectedClinicalEvent[]
 }
 
-const requiredHeaders = ['patientId', 'type', 'date', 'title']
-const legacyHeaders = ['PatientID', 'ReferenceDate', 'label']
+import {
+  cell,
+  checkRequiredColumns,
+  collectHeaders,
+  resolveColumns,
+  EVENTS_COLUMN_ALIASES,
+  REQUIRED_EVENTS_COLUMNS,
+} from '../../io/headers'
+
 const clinicalEventTypes = new Set<string>([
   'kidney_transplant',
   'dialysis',
@@ -70,22 +77,24 @@ const dialysisIntents = new Set<string>(['acute', 'chronic', 'unknown'])
 export function normalizeClinicalEvents(rows: RawRow[]): RawClinicalEvent[] {
   if (rows.length === 0) return []
 
-  const headers = new Set(Object.keys(rows[0]))
-  if (legacyHeaders.some((header) => headers.has(header))) {
+  const headers = collectHeaders(rows)
+  if (
+    headers.has('ReferenceDate') ||
+    (headers.has('label') && !headers.has('title') && !headers.has('type'))
+  ) {
     throw new Error('Legacy annotation schema is no longer supported. Use patientId,type,date,title.')
   }
-  if (requiredHeaders.some((header) => !headers.has(header))) {
-    throw new Error('Event file missing required column(s): patientId, type, date, title.')
-  }
+  const columns = resolveColumns(headers, EVENTS_COLUMN_ALIASES)
+  checkRequiredColumns(columns, REQUIRED_EVENTS_COLUMNS, 'Event file')
 
   return rows.map((row) => ({
-    patientId: parsePatientId(row.patientId),
-    type: parseText(row.type) ?? '',
-    date: parseDate(row.date),
-    title: parseText(row.title) ?? '',
-    description: parseText(row.description),
-    endDate: parseDate(row.endDate),
-    intent: parseText(row.intent) ?? '',
+    patientId: parsePatientId(cell(row, columns, 'patientId')),
+    type: parseText(cell(row, columns, 'type')) ?? '',
+    date: parseDate(cell(row, columns, 'date')),
+    title: parseText(cell(row, columns, 'title')) ?? '',
+    description: parseText(cell(row, columns, 'description')),
+    endDate: parseDate(cell(row, columns, 'endDate')),
+    intent: parseText(cell(row, columns, 'intent')) ?? '',
   }))
 }
 
