@@ -280,4 +280,41 @@ describe('clinical events', () => {
       }).effect,
     ).toBe('display_only')
   })
+
+  it('accepts PascalCase, camelCase, and aliased headers', () => {
+    const events = normalizeClinicalEvents([
+      {
+        PatientID: 1,
+        Type: 'dialysis',
+        Date: '2024-04-15',
+        Title: 'Dialysis start',
+        Description: 'first session',
+        EndDate: '2024-04-20',
+        Intent: 'acute',
+      },
+    ])
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      patientId: 1,
+      type: 'dialysis',
+      title: 'Dialysis start',
+      description: 'first session',
+      intent: 'acute',
+    })
+  })
+
+  it('throws on ambiguous event headers', () => {
+    expect(() =>
+      normalizeClinicalEvents([
+        {
+          patientId: 1,
+          'patient id': 1,
+          type: 'dialysis',
+          date: '2024-04-15',
+          title: 'Dialysis start',
+        },
+      ]),
+    ).toThrow(/Ambiguous columns/)
+  })
 })
+

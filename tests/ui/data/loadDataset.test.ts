@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { datasetFromArrayBuffer, loadBundledFixtureData } from '../../../src/ui/data/loadDataset'
+import * as XLSX from 'xlsx'
+import { datasetFromArrayBuffer, loadBundledFixtureData, loadDatasetFromWorkbook } from '../../../src/ui/data/loadDataset'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { episodesForSeries } from '../../../src/core/aki/akiAware'
@@ -120,14 +121,39 @@ describe('loadBundledFixtureData', () => {
     }
   })
 
-  it('keeps the bundled fixture load usable when demo attributes are missing', async () => {
+  it('loads multi-sheet demo fixture directly without needing external CSVs', async () => {
     const labBytes = readFileSync(FIXTURE)
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('test_labs.xlsx')) return new Response(labBytes)
+      return new Response('Not found', { status: 404 })
+    }
+    try {
+      const { rows, events, patientAttributes } = await loadBundledFixtureData('/')
+
+      expect(rows.length).toBeGreaterThanOrEqual(180)
+      expect(events).toHaveLength(8)
+      expect(Object.keys(patientAttributes)).toHaveLength(8)
+      expect(patientAttributes['7']).toEqual({ genotype: 'UMOD', inheritance: 'AD', cohort: 'A' })
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('keeps single-sheet fixture load usable when demo attributes are missing', async () => {
+    // Construct a single-sheet version of the fixture (labs sheet only)
+    const fullWb = XLSX.read(readFileSync(FIXTURE), { type: 'buffer' })
+    const singleSheetWb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(singleSheetWb, fullWb.Sheets['labs'], 'labs')
+    const singleSheetBytes = XLSX.write(singleSheetWb, { type: 'buffer', bookType: 'xlsx' })
     const eventBytes = readFileSync(EVENTS)
+
     const originalFetch = globalThis.fetch
     globalThis.fetch = async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.endsWith('test_attributes.csv')) return new Response('', { status: 404 })
-      return new Response(url.endsWith('test_events.csv') ? eventBytes : labBytes)
+      return new Response(url.endsWith('test_events.csv') ? eventBytes : singleSheetBytes)
     }
     try {
       const { rows, events, patientAttributes } = await loadBundledFixtureData('/')
@@ -140,3 +166,39 @@ describe('loadBundledFixtureData', () => {
     }
   })
 })
+
+describe('loadDatasetFromWorkbook', () => {
+  it('parses multi-sheet workbook containing labs, events, and attributes', () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        { patientId: 1, labDate: '2024-01-15', testName: 'Creatinine', unit: 'mg/dl', value: '1.2' },
+      ]),
+      'labs',
+    )
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        { patientId: 1, type: 'dialysis', date: '2024-02-01', title: 'Dialysis start', intent: 'chronic' },
+      ]),
+      'events',
+    )
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        { patientId: 1, genotype: 'PKD1', cohort: 'Group A' },
+      ]),
+      'attributes',
+    )
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+
+    const dataset = loadDatasetFromWorkbook(buf)
+    expect(dataset.rows).toHaveLength(1)
+    expect(dataset.rows[0].wertNum).toBe(1.2)
+    expect(dataset.events).toHaveLength(1)
+    expect(dataset.events[0].title).toBe('Dialysis start')
+    expect(dataset.patientAttributes['1']).toEqual({ genotype: 'PKD1', cohort: 'Group A' })
+  })
+})
+

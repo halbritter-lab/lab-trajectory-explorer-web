@@ -31,27 +31,73 @@ export interface PatientAttributesResult {
   attributeNames: string[]
 }
 
+import {
+  collectHeaders,
+  normaliseHeader,
+  resolveColumns,
+} from '../../io/headers'
+
 /** Parse raw workbook rows into per-row patient id + attribute map. Attribute
  * columns are every column other than `patientId`; empty cells are omitted. */
 export function normalizePatientAttributes(rows: RawRow[]): RawPatientAttributes[] {
   if (rows.length === 0) return []
 
-  const headers = new Set(Object.keys(rows[0]))
-  if (!headers.has('patientId')) {
+  const headers = collectHeaders(rows)
+  const resolved = resolveColumns(headers, { patientId: ['patientId', 'PatientID'] })
+  if (resolved.patientId === undefined) {
     throw new Error('Patient attributes file missing required column: patientId.')
   }
-  if ([...headers].every((header) => header === 'patientId')) {
+  const patientIdHeader = resolved.patientId
+
+  const sexAliases = new Set(['sex', 'patientsex', 'geschlecht'])
+  const birthAliases = new Set(['birthdate', 'patientgeburtsdatum', 'geburtsdatum'])
+
+  let seenSexHeader: string | null = null
+  let seenBirthHeader: string | null = null
+
+  for (const h of headers) {
+    if (h === patientIdHeader) continue
+    const norm = normaliseHeader(h)
+    if (sexAliases.has(norm)) {
+      if (seenSexHeader !== null && seenSexHeader !== h) {
+        throw new Error(
+          `Ambiguous columns: "${seenSexHeader}" and "${h}" are read as the same column. Rename one of them.`,
+        )
+      }
+      seenSexHeader = h
+    } else if (birthAliases.has(norm)) {
+      if (seenBirthHeader !== null && seenBirthHeader !== h) {
+        throw new Error(
+          `Ambiguous columns: "${seenBirthHeader}" and "${h}" are read as the same column. Rename one of them.`,
+        )
+      }
+      seenBirthHeader = h
+    }
+  }
+
+  const attributeHeaders = new Map<string, string>()
+  for (const h of headers) {
+    if (h === patientIdHeader) continue
+    if (h === seenSexHeader) {
+      attributeHeaders.set(h, 'sex')
+    } else if (h === seenBirthHeader) {
+      attributeHeaders.set(h, 'birthDate')
+    } else {
+      attributeHeaders.set(h, h.trim())
+    }
+  }
+
+  if (attributeHeaders.size === 0) {
     throw new Error('Patient attributes file has no attribute columns.')
   }
 
   return rows.map((row) => {
     const attributes: Record<string, string> = {}
-    for (const [key, value] of Object.entries(row)) {
-      if (key === 'patientId') continue
-      const text = parseText(value)
-      if (text !== null) attributes[key] = text
+    for (const [rawHeader, canonicalKey] of attributeHeaders) {
+      const text = parseText(row[rawHeader])
+      if (text !== null) attributes[canonicalKey] = text
     }
-    return { patientId: parsePatientId(row.patientId), attributes }
+    return { patientId: parsePatientId(row[patientIdHeader]), attributes }
   })
 }
 

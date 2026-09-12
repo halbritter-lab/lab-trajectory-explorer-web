@@ -19,7 +19,7 @@ import { runCohortMixedModels } from '../../core/mixedModel/cohortModelFit'
 import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEntity'
 import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import { saveDataset, clearDataset, saveSettings } from '../../io/persistence'
-import { datasetFromArrayBuffer, loadBundledFixtureData } from '../data/loadDataset'
+import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../data/loadDataset'
 
 export type ZoomLevel = 's' | 'm' | 'l'
 
@@ -331,10 +331,22 @@ export const useAppStore = create<AppState>((set, get) => ({
   loadFile: async (file) => {
     set({ busy: true, notice: null })
     try {
-      const rows = datasetFromArrayBuffer(await file.arrayBuffer())
+      const dataset = loadDatasetFromWorkbook(await file.arrayBuffer())
+      const { rows, events, patientAttributes } = dataset
       if (rows.length === 0) { set({ notice: { kind: 'error', text: 'No usable rows found in this file.' } }); return }
       get().setDataset(rows, file.name)
-      set({ notice: { kind: 'info', text: `Loaded ${rows.length} rows from ${file.name}.` } })
+      const hasExtra = events.length > 0 || Object.keys(patientAttributes).length > 0
+      if (hasExtra) {
+        set({ events, patientAttributes })
+        const parts = [`Loaded ${rows.length} rows`]
+        if (events.length > 0) parts.push(`${events.length} events`)
+        if (Object.keys(patientAttributes).length > 0) {
+          parts.push(`${Object.keys(patientAttributes).length} attribute rows`)
+        }
+        set({ notice: { kind: 'info', text: `${parts.join(', ')} from ${file.name}.` } })
+      } else {
+        set({ notice: { kind: 'info', text: `Loaded ${rows.length} rows from ${file.name}.` } })
+      }
     } catch (err) {
       set({ notice: { kind: 'error', text: err instanceof Error ? err.message : String(err) } })
     } finally {

@@ -10,6 +10,40 @@ function normaliseXlsxDate(d: Date): Date {
   return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
 }
 
+export interface WorkbookSheets {
+  sheetNames: string[]
+  getSheet(sheet: string | number): RawRow[]
+}
+
+/**
+ * Inspect an xlsx or csv file (as an ArrayBuffer or Uint8Array) and return its
+ * sheet names along with a getter for raw rows of any sheet.
+ */
+export function readWorkbookSheets(data: ArrayBuffer | Uint8Array): WorkbookSheets {
+  const arr =
+    data instanceof Uint8Array
+      ? data
+      : new Uint8Array(data as ArrayBuffer)
+  const wb = XLSX.read(arr, { type: 'array', cellDates: true })
+  return {
+    sheetNames: wb.SheetNames,
+    getSheet(sheet: string | number): RawRow[] {
+      const sheetName =
+        typeof sheet === 'number' ? wb.SheetNames[sheet] : sheet
+      const ws = wb.Sheets[sheetName]
+      if (!ws) return []
+      const rows = XLSX.utils.sheet_to_json<RawRow>(ws, { defval: null })
+      return rows.map((row) => {
+        const out: RawRow = {}
+        for (const [k, v] of Object.entries(row)) {
+          out[k] = v instanceof Date ? normaliseXlsxDate(v) : v
+        }
+        return out
+      })
+    },
+  }
+}
+
 /**
  * Parse an xlsx or csv file (as an ArrayBuffer) into header-keyed row objects
  * from the first sheet. Blank cells are filled with null (keys are always
@@ -19,31 +53,5 @@ function normaliseXlsxDate(d: Date): Date {
  * match Python's naive-timestamp arithmetic.
  */
 export function readWorkbook(data: ArrayBuffer | Uint8Array, sheet: string | number = 0): RawRow[] {
-  // cellDates: true makes SheetJS emit Date objects for date cells instead of
-  // Excel serial numbers, so loader.ts toDate() can parse them correctly.
-  // SheetJS type:'array' requires a Uint8Array; wrap a bare ArrayBuffer so
-  // callers can pass either type without surprises.  We check ArrayBuffer by
-  // duck-typing (byteLength + no BYTES_PER_ELEMENT) rather than instanceof
-  // because jsdom provides a different ArrayBuffer class from the Node.js
-  // native one, so instanceof ArrayBuffer can be false even for real buffers.
-  const arr =
-    data instanceof Uint8Array
-      ? data
-      : new Uint8Array(data as ArrayBuffer)
-  const wb = XLSX.read(arr, { type: 'array', cellDates: true })
-  const sheetName =
-    typeof sheet === 'number' ? wb.SheetNames[sheet] : sheet
-  const ws = wb.Sheets[sheetName]
-  if (!ws) return []
-  const rows = XLSX.utils.sheet_to_json<RawRow>(ws, { defval: null })
-  // Normalise all Date values from local-midnight to UTC-midnight so that
-  // relative differences (e.g. spanDays = Math.trunc(ms/86400000)) are
-  // identical to Python's (t2 - t1).days using naive timestamps.
-  return rows.map((row) => {
-    const out: RawRow = {}
-    for (const [k, v] of Object.entries(row)) {
-      out[k] = v instanceof Date ? normaliseXlsxDate(v) : v
-    }
-    return out
-  })
+  return readWorkbookSheets(data).getSheet(sheet)
 }

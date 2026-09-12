@@ -2,99 +2,19 @@ import type { LabRow, PatientId, WertOperator } from '../types'
 import type { RawRow } from '../../io/readWorkbook'
 import { parseWert } from './wert'
 import { normaliseSex } from '../egfr/formulas'
+export { REQUIRED_COLUMNS } from '../../io/headers'
+import {
+  COLUMN_ALIASES,
+  REQUIRED_COLUMNS,
+  cell,
+  collectHeaders,
+  resolveColumns,
+} from '../../io/headers'
 
 const WERT_OPERATORS: readonly WertOperator[] = ['=', '<', '>', 'range', 'unparseable']
 
 function toWertOperator(v: unknown): WertOperator {
   return WERT_OPERATORS.includes(v as WertOperator) ? (v as WertOperator) : 'unparseable'
-}
-
-/**
- * Column concepts and the header spellings accepted for each. The first entry
- * is the canonical name used by the download templates and the demo files; the
- * remaining entries keep workbooks written against the older mixed
- * German/English headers loading unchanged.
- *
- * Alias order decides only between spellings that normalise differently (e.g.
- * `value` vs `Wert`). `patientId` and `PatientID` — like `loinc` and `LOINC` —
- * normalise to the same key, so they are indistinguishable here; that is
- * harmless, since they denote the same column either way. Two *different*
- * columns collapsing to one key is not harmless and is rejected below.
- */
-const COLUMN_ALIASES = {
-  patientId: ['patientId', 'PatientID'],
-  labDate: ['labDate', 'LabDatum'],
-  testName: ['testName', 'Bezeichnung'],
-  unit: ['unit', 'Einheit'],
-  value: ['value', 'Wert'],
-  loinc: ['loinc', 'LOINC'],
-  sex: ['sex', 'PatientSex'],
-  ageAtLab: ['ageAtLab', 'PatientAgeAtLab'],
-  birthDate: ['birthDate', 'PatientGeburtsdatum'],
-  valueNum: ['valueNum', 'Wert_num'],
-  valueOperator: ['valueOperator', 'Wert_operator'],
-} as const satisfies Record<string, readonly string[]>
-
-type ColumnKey = keyof typeof COLUMN_ALIASES
-
-export const REQUIRED_COLUMNS = [
-  'patientId',
-  'labDate',
-  'testName',
-  'unit',
-  'value',
-] as const satisfies readonly ColumnKey[]
-
-/** Header spellings are compared case-insensitively and without separators, so
- * "patient id", "Patient_ID" and "PatientID" all resolve to the same concept. */
-function normaliseHeader(header: string): string {
-  return header.trim().toLowerCase().replace(/[^a-z0-9]/g, '')
-}
-
-type ResolvedColumns = Partial<Record<ColumnKey, string>>
-
-/** Map each column concept to the header actually present in the file. */
-function resolveColumns(headers: Iterable<string>): ResolvedColumns {
-  const byNormalised = new Map<string, string>()
-  const consumedKeys = new Set(
-    Object.values(COLUMN_ALIASES).flatMap((aliases) => aliases.map(normaliseHeader)),
-  )
-  for (const header of headers) {
-    const key = normaliseHeader(header)
-    // Extra workbook metadata is ignored by this loader. Collisions between
-    // those unused columns cannot discard a value the app consumes.
-    if (!consumedKeys.has(key)) continue
-    const seen = byNormalised.get(key)
-    // Two distinct headers that normalise alike (e.g. "Patient ID" and
-    // "patient_id") are genuinely ambiguous. Silently keeping one would drop a
-    // whole column and still report a clean import, so refuse the file instead.
-    // SheetJS already disambiguates exact duplicates as "Wert", "Wert_1", which
-    // normalise differently and so do not trip this.
-    if (seen !== undefined && seen !== header) {
-      throw new Error(
-        `Ambiguous columns: "${seen}" and "${header}" are read as the same column. ` +
-          `Rename one of them.`,
-      )
-    }
-    if (seen === undefined) byNormalised.set(key, header)
-  }
-  const resolved: ResolvedColumns = {}
-  for (const [concept, aliases] of Object.entries(COLUMN_ALIASES) as [ColumnKey, readonly string[]][]) {
-    for (const alias of aliases) {
-      const actual = byNormalised.get(normaliseHeader(alias))
-      if (actual !== undefined) {
-        resolved[concept] = actual
-        break
-      }
-    }
-  }
-  return resolved
-}
-
-/** Read a cell by column concept; undefined when the file lacks that column. */
-function cell(row: RawRow, columns: ResolvedColumns, concept: ColumnKey): unknown {
-  const header = columns[concept]
-  return header === undefined ? undefined : row[header]
 }
 
 function toStr(v: unknown): string | null {
@@ -147,9 +67,8 @@ export function loadLabRows(rawRows: RawRow[]): LabRow[] {
   // Union of all rows' keys rather than just the first row's, so a column left
   // blank in the first data row can't cause its header to be missed (defensive;
   // readWorkbook's defval:null normally makes every row share the same keys).
-  const headers = new Set<string>()
-  for (const r of rawRows) for (const k of Object.keys(r)) headers.add(k)
-  const columns = resolveColumns(headers)
+  const headers = collectHeaders(rawRows)
+  const columns = resolveColumns(headers, COLUMN_ALIASES)
   const missing = REQUIRED_COLUMNS.filter((c) => columns[c] === undefined)
   if (rawRows.length > 0 && missing.length > 0) {
     throw new Error(

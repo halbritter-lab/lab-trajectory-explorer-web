@@ -51,6 +51,34 @@ describe('patient attributes - normalize', () => {
       'Patient attributes file has no attribute columns.',
     )
   })
+
+  it('accepts PatientID alias for patientId', () => {
+    const rows = [{ PatientID: 10, genotype: 'UMOD' }]
+    expect(normalizePatientAttributes(rows)).toEqual([
+      { patientId: 10, attributes: { genotype: 'UMOD' } },
+    ])
+  })
+
+  it('canonicalizes demographics columns like Sex and Geburtsdatum', () => {
+    const rows1 = [
+      { PatientID: 10, Sex: 'male', Geburtsdatum: '1980-01-01', Cohort: 'A' },
+    ]
+    expect(normalizePatientAttributes(rows1)).toEqual([
+      { patientId: 10, attributes: { sex: 'male', birthDate: '1980-01-01', Cohort: 'A' } },
+    ])
+
+    const rows2 = [
+      { PatientID: 11, Geschlecht: 'w', BirthDate: '1985-05-12', Cohort: 'B' },
+    ]
+    expect(normalizePatientAttributes(rows2)).toEqual([
+      { patientId: 11, attributes: { sex: 'w', birthDate: '1985-05-12', Cohort: 'B' } },
+    ])
+  })
+
+  it('throws on ambiguous demographics columns', () => {
+    const rows = [{ PatientID: 10, Sex: 'male', Geschlecht: 'm' }]
+    expect(() => normalizePatientAttributes(rows)).toThrow(/Ambiguous columns/)
+  })
 })
 
 describe('patient attributes - validate', () => {

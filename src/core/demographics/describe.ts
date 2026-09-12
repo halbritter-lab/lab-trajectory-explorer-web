@@ -53,6 +53,11 @@ export function describeConflict(conflict: DemographicsConflict): string {
         // birth date than another row's.
         `dates — the one on the earliest lab row, ${isoDate(conflict.resolved)}, was used.`
       )
+    case 'birth_date_source_disagreement':
+      return (
+        `Patient ${conflict.patientId}: the attributes table birth date (${isoDate(conflict.fromAttributes)}) ` +
+        `disagrees with the lab rows (${isoDate(conflict.fromRows)}) — the attributes table wins.`
+      )
   }
 }
 

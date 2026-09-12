@@ -33,3 +33,10 @@ export type DemographicsConflict =
       distinctDates: number
       resolved: Date
     }
+  | {
+      kind: 'birth_date_source_disagreement'
+      patientId: PatientId
+      fromAttributes: Date
+      fromRows: Date
+    }
+
