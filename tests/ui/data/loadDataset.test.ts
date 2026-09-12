@@ -121,14 +121,39 @@ describe('loadBundledFixtureData', () => {
     }
   })
 
-  it('keeps the bundled fixture load usable when demo attributes are missing', async () => {
+  it('loads multi-sheet demo fixture directly without needing external CSVs', async () => {
     const labBytes = readFileSync(FIXTURE)
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (input: RequestInfo | URL) => {
+      const url = String(input)
+      if (url.endsWith('test_labs.xlsx')) return new Response(labBytes)
+      return new Response('Not found', { status: 404 })
+    }
+    try {
+      const { rows, events, patientAttributes } = await loadBundledFixtureData('/')
+
+      expect(rows.length).toBeGreaterThanOrEqual(180)
+      expect(events).toHaveLength(8)
+      expect(Object.keys(patientAttributes)).toHaveLength(8)
+      expect(patientAttributes['7']).toEqual({ genotype: 'UMOD', inheritance: 'AD', cohort: 'A' })
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('keeps single-sheet fixture load usable when demo attributes are missing', async () => {
+    // Construct a single-sheet version of the fixture (labs sheet only)
+    const fullWb = XLSX.read(readFileSync(FIXTURE), { type: 'buffer' })
+    const singleSheetWb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(singleSheetWb, fullWb.Sheets['labs'], 'labs')
+    const singleSheetBytes = XLSX.write(singleSheetWb, { type: 'buffer', bookType: 'xlsx' })
     const eventBytes = readFileSync(EVENTS)
+
     const originalFetch = globalThis.fetch
     globalThis.fetch = async (input: RequestInfo | URL) => {
       const url = String(input)
       if (url.endsWith('test_attributes.csv')) return new Response('', { status: 404 })
-      return new Response(url.endsWith('test_events.csv') ? eventBytes : labBytes)
+      return new Response(url.endsWith('test_events.csv') ? eventBytes : singleSheetBytes)
     }
     try {
       const { rows, events, patientAttributes } = await loadBundledFixtureData('/')

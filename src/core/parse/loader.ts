@@ -9,7 +9,6 @@ import {
   cell,
   collectHeaders,
   resolveColumns,
-  type ResolvedColumns,
 } from '../../io/headers'
 
 const WERT_OPERATORS: readonly WertOperator[] = ['=', '<', '>', 'range', 'unparseable']

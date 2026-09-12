@@ -19,7 +19,7 @@ import { runCohortMixedModels } from '../../core/mixedModel/cohortModelFit'
 import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEntity'
 import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import { saveDataset, clearDataset, saveSettings } from '../../io/persistence'
-import { datasetFromArrayBuffer, loadBundledFixtureData, loadDatasetFromWorkbook } from '../data/loadDataset'
+import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../data/loadDataset'
 
 export type ZoomLevel = 's' | 'm' | 'l'
 

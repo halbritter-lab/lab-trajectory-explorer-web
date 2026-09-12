@@ -35,7 +35,6 @@ import {
   collectHeaders,
   normaliseHeader,
   resolveColumns,
-  ATTRIBUTES_DEMOGRAPHICS_ALIASES,
 } from '../../io/headers'
 
 /** Parse raw workbook rows into per-row patient id + attribute map. Attribute
