@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { datasetFromArrayBuffer, loadBundledFixtureData } from '../../../src/ui/data/loadDataset'
+import * as XLSX from 'xlsx'
+import { datasetFromArrayBuffer, loadBundledFixtureData, loadDatasetFromWorkbook } from '../../../src/ui/data/loadDataset'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 import { episodesForSeries } from '../../../src/core/aki/akiAware'
@@ -140,3 +141,39 @@ describe('loadBundledFixtureData', () => {
     }
   })
 })
+
+describe('loadDatasetFromWorkbook', () => {
+  it('parses multi-sheet workbook containing labs, events, and attributes', () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        { patientId: 1, labDate: '2024-01-15', testName: 'Creatinine', unit: 'mg/dl', value: '1.2' },
+      ]),
+      'labs',
+    )
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        { patientId: 1, type: 'dialysis', date: '2024-02-01', title: 'Dialysis start', intent: 'chronic' },
+      ]),
+      'events',
+    )
+    XLSX.utils.book_append_sheet(
+      wb,
+      XLSX.utils.json_to_sheet([
+        { patientId: 1, genotype: 'PKD1', cohort: 'Group A' },
+      ]),
+      'attributes',
+    )
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+
+    const dataset = loadDatasetFromWorkbook(buf)
+    expect(dataset.rows).toHaveLength(1)
+    expect(dataset.rows[0].wertNum).toBe(1.2)
+    expect(dataset.events).toHaveLength(1)
+    expect(dataset.events[0].title).toBe('Dialysis start')
+    expect(dataset.patientAttributes['1']).toEqual({ genotype: 'PKD1', cohort: 'Group A' })
+  })
+})
+

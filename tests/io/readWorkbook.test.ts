@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import * as XLSX from 'xlsx'
-import { readWorkbook } from '../../src/io/readWorkbook'
+import { readWorkbook, readWorkbookSheets } from '../../src/io/readWorkbook'
 
 function makeXlsxBuffer(rows: Record<string, unknown>[]): ArrayBuffer {
   const ws = XLSX.utils.json_to_sheet(rows)
@@ -26,4 +26,18 @@ describe('readWorkbook', () => {
     const buf = makeXlsxBuffer([])
     expect(readWorkbook(buf)).toEqual([])
   })
+
+  it('inspects sheet names and reads rows from specific sheets', () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ patientId: 1 }]), 'labs')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ patientId: 1, type: 'dialysis' }]), 'events')
+    const buf = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+
+    const inspected = readWorkbookSheets(buf)
+    expect(inspected.sheetNames).toEqual(['labs', 'events'])
+    expect(inspected.getSheet('labs')).toEqual([{ patientId: 1 }])
+    expect(inspected.getSheet('events')).toEqual([{ patientId: 1, type: 'dialysis' }])
+    expect(inspected.getSheet('nonexistent')).toEqual([])
+  })
 })
+
