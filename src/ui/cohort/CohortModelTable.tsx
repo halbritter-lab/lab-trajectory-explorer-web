@@ -21,6 +21,9 @@ import type {
 } from '../../core/mixedModel/types'
 import { validateMixedModelRows } from '../../core/mixedModel/validation'
 import { useAppStore, type StoredMixedModelResult } from '../state/store'
+import { projectionSettingsKey } from '../state/store'
+import { buildProjectionSnapshot, createDefaultProjectionSettings, type ProjectionResponse, type ProjectionSnapshot } from '../../core/projection/projectionSnapshot'
+import { ModelProjectionPanel } from './ModelProjectionPanel'
 
 const FALLBACK_COLOR = '#475569'
 
@@ -35,6 +38,7 @@ export interface CohortModelTableProps {
   seriesIndex: number
   seriesKey: string
   seriesUnit: string | null
+  sourceResponse: ProjectionResponse
   fitConfigHash: string
   config: MixedModelConfig
   formula: string
@@ -66,6 +70,7 @@ export function CohortModelTable({
   seriesIndex,
   seriesKey,
   seriesUnit,
+  sourceResponse,
   fitConfigHash,
   config,
   formula,
@@ -75,6 +80,9 @@ export function CohortModelTable({
   const running = useAppStore((s) => s.cohortModelRunning)
   const progress = useAppStore((s) => s.cohortModelProgress)
   const runCohortModels = useAppStore((s) => s.runCohortModels)
+  const projectionSettings = useAppStore((s) => s.projectionSettings)
+  const setProjectionSettings = useAppStore((s) => s.setProjectionSettings)
+  const [dirtyEditors, setDirtyEditors] = useState<Set<string>>(new Set())
 
   const entityRows = useMemo<EntityRow[]>(
     () =>
@@ -190,17 +198,46 @@ export function CohortModelTable({
     return `Fit failed: ${result.message}`
   }
 
+  useEffect(() => {
+    for (const row of entityRows) {
+      const stored = storedFor(row)
+      if (!stored || stored.result.status !== 'success' || !stored.result.converged) continue
+      const applied = projectionSettings[projectionSettingsKey(seriesIndex,seriesKey,row.key)]
+      if (!applied || !mixedModelIdentityEquals(applied.sourceIdentity,stored.identity)) {
+        setProjectionSettings(seriesIndex,seriesKey,row.key,{sourceIdentity:stored.identity,settings:createDefaultProjectionSettings(stored.result,sourceResponse)})
+      }
+    }
+  }, [entityRows,cohortModelResults,projectionSettings,seriesIndex,seriesKey,sourceResponse,setProjectionSettings])
+
   const exportable = entityRows.flatMap((row) => {
     const stored = storedFor(row)
-    return stored ? [{entity: row.label, result: stored.result, identity: stored.identity}] : []
+    if (!stored) return []
+    const applied = projectionSettings[projectionSettingsKey(seriesIndex,seriesKey,row.key)]
+    let projection: ProjectionSnapshot | undefined
+    let projectionError: string | undefined
+    if (stored.result.status === 'success' && stored.result.converged && applied && mixedModelIdentityEquals(applied.sourceIdentity,stored.identity)) {
+      try { projection = buildProjectionSnapshot(stored.result,stored.identity,sourceResponse,row.rows,applied.settings) }
+      catch (error) { projectionError = error instanceof Error ? error.message : 'Projection settings or source fit are invalid.' }
+    }
+    return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError}]
   })
+  const hasDirtyEditor = exportable.some((model) => dirtyEditors.has(model.key))
+  const initializing = exportable.some((model) => model.result.status === 'success' && model.result.converged && !model.projection)
+  function exportModels() {
+    if (hasDirtyEditor || initializing || running) return
+    const current = useAppStore.getState().cohortModelResults
+    if (exportable.some((model) => current?.[model.key]?.result !== model.result || !mixedModelIdentityEquals(current?.[model.key]?.identity ?? null, model.identity))) return
+    downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable)), `cohort-models-${fileStamp()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+  }
   const adjusted = mixedModelFactors(config).length > 0
 
   return (
     <section className="mixed-model-panel cohort-model-panel" aria-label="Cohort mixed model">
       <div className="mixed-model-panel-header">
         <p className="mixed-model-message">One mixed model per selected unit, fit sequentially. Failures are isolated per unit.</p>
-        <button type="button" disabled={exportable.length === 0 || running} onClick={() => downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable)), `cohort-models-${fileStamp()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}>Export models (xlsx)</button>
+        <button type="button" disabled={exportable.length === 0 || running || hasDirtyEditor || initializing} onClick={exportModels}>Export models (xlsx)</button>
+        {hasDirtyEditor && <p role="status">Apply or cancel projection changes before exporting models.</p>}
+        {exportable.filter((model) => model.projectionError).map((model) => <p role="alert" key={model.key}>{model.entity}: {model.projectionError} Refit the model before exporting.</p>)}
         <button
           type="button"
           onClick={() => void fitSelected()}
@@ -284,6 +321,18 @@ export function CohortModelTable({
                       <tr className="cohort-model-details-row" data-testid="cohort-model-details" data-entity={row.key}>
                         <td className="cohort-model-details-cell" data-testid="cohort-model-details-cell" colSpan={8}>
                           <ModelDetails result={success} />
+                          {(() => {
+                            const snapshot = exportable.find((model) => model.key === row.key)?.projection
+                            return snapshot ? <ModelProjectionPanel snapshot={snapshot} showWarnings={false}
+                              onApply={(settings) => setProjectionSettings(seriesIndex,seriesKey,row.key,{sourceIdentity:snapshot.sourceIdentity,settings})}
+                              onDirtyChange={(dirty) => setDirtyEditors((previous) => {
+                                if (previous.has(row.key) === dirty) return previous
+                                const next = new Set(previous)
+                                if (dirty) next.add(row.key)
+                                else next.delete(row.key)
+                                return next
+                              })} /> : <p>Projection unavailable: a current converged fit is required.</p>
+                          })()}
                         </td>
                       </tr>
                     )}

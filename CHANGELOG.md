@@ -7,6 +7,14 @@ interfaces are still evolving before 1.0.
 
 ### Added
 
+- Configurable trend projections from fitted mixed-model profiles: editable
+  above/below targets, G4/G5 boundary presets for compatible eGFR series,
+  reference time and projection horizon. Results include unavailable reasons
+  and clearly identify that time uncertainty is not estimated.
+- Numeric cohort series can now explicitly open the mixed-model dialog. Profile
+  and target settings remain session-only; exports include the applied target,
+  profile, source response, model identity and projected times.
+
 - Configurable mixed-model patient factors: select level or level-and-slope
   effects, numeric/categorical interpretation and reference categories, with a
   genotype example including baseline age and sex. Preview model-specific

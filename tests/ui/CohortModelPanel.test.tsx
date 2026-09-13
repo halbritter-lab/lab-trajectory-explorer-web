@@ -39,6 +39,11 @@ function renderPanel(overrides: Record<string, unknown> = {}) {
 }
 
 describe('CohortModelPanel', () => {
+  it('labels model summary and formula with the explicit nonrenal response', () => {
+    renderPanel({spec:{...spec,bezeichnung:'Study marker'},formulaLabel:'eGFR ~ Time + Patient',dataPolicySummary:'Selected study cohort'})
+    expect(screen.getByText(/^Model:/)).toHaveTextContent('Model: Study marker ~ Time + Patient')
+    expect(screen.getByLabelText('Readable formula')).toHaveTextContent('Study marker ~')
+  })
   it('renders model settings and the results table with a Whole cohort row', () => {
     renderPanel()
     expect(screen.getByRole('region', { name: 'Model settings' })).toBeInTheDocument()

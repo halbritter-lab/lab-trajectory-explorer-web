@@ -6,7 +6,6 @@ import { comparePatientIds, patientIdKey, type LabRow, type PatientId, type Sex 
 import { effectForEvent, normalizeClinicalEvents, validateClinicalEvents, type ClinicalEvent, type RejectedClinicalEvent } from '../../core/events/events'
 import { normalizePatientAttributes, validatePatientAttributes } from '../../core/attributes/attributes'
 import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
-import { isEgfrUnit } from '../../core/analysis/rapidEgfrDeclineModule'
 import { readWorkbook } from '../../io/readWorkbook'
 import { resolveDemographics } from '../../core/demographics/resolve'
 
@@ -57,7 +56,7 @@ export function Sidebar() {
   const setRapidEgfrThreshold = useAppStore((s) => s.setRapidEgfrThreshold)
   const cohortModelResults = useAppStore((s) => s.cohortModelResults)
   const showCohortMixedModelLine = useAppStore((s) => s.showCohortMixedModelLine)
-  const setMixedModelDialogOpen = useAppStore((s) => s.setMixedModelDialogOpen)
+  const openMixedModelDialog = useAppStore((s) => s.openMixedModelDialog)
   const setShowCohortMixedModelLine = useAppStore((s) => s.setShowCohortMixedModelLine)
   const [eventNote, setEventNote] = useState('')
   const [rejectedEvents, setRejectedEvents] = useState<RejectedClinicalEvent[]>([])
@@ -67,9 +66,11 @@ export function Sidebar() {
   const primaryFitConfig = seriesConfigs[activeFitSeriesIndex].fitConfig
   const hasCohortMixedModelResult =
     cohortModelResults != null && Object.values(cohortModelResults).some((stored) => stored.result.status === 'success')
-  const hasActiveEgfrCohortSeries = seriesConfigs.some((cfg) =>
-    Boolean(cfg.bezeichnung?.toLowerCase().includes('egfr') || isEgfrUnit(cfg.einheit)),
-  )
+  const selectedModelSeries = seriesConfigs[activeFitSeriesIndex]
+  const hasNumericModelSeries = Boolean(selectedModelSeries.bezeichnung && resolvedRows.some((row) =>
+    row.bezeichnung === selectedModelSeries.bezeichnung && row.einheit === selectedModelSeries.einheit &&
+    row.wertNum !== null && Number.isFinite(row.wertNum),
+  ))
 
   const autoSourceOptions = creatinineSourceOptions(rows)
   const sourceOptions = showAllEgfrSources ? allSourceOptions(rows) : autoSourceOptions
@@ -496,13 +497,13 @@ export function Sidebar() {
               <button
                 type="button"
                 className="sidebar-action"
-                disabled={!hasActiveEgfrCohortSeries}
-                onClick={() => setMixedModelDialogOpen(true)}
+                disabled={!hasNumericModelSeries}
+                onClick={() => openMixedModelDialog(activeFitSeriesIndex, `${selectedModelSeries.bezeichnung}|${selectedModelSeries.einheit ?? ''}`)}
               >
-                Open eGFR cohort model
+                Open cohort model
               </button>
-              {!hasActiveEgfrCohortSeries && (
-                <p className="sidebar-note">Select an eGFR cohort series to enable the experimental model.</p>
+              {!hasNumericModelSeries && (
+                <p className="sidebar-note">Select a numeric cohort series to enable the experimental model.</p>
               )}
               <label className="sidebar-check">
                 <input

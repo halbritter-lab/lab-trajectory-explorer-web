@@ -14,7 +14,7 @@ test('real workbook previews complete-case factor selection before applying', as
   await page.getByRole('button',{name:'Cohort',exact:true}).click()
   await page.getByRole('combobox',{name:'Series 1 parameter'}).fill('eGFR')
   await page.getByRole('option',{name:/^eGFR \(ml\/min\/1.73m2\)$/}).click()
-  await page.getByRole('button',{name:'Open eGFR cohort model'}).click()
+  await page.getByRole('button',{name:'Open cohort model'}).click()
   const dialog = page.getByRole('dialog',{name:'eGFR cohort model'})
   await expect(dialog.getByLabel('genotype effect')).toHaveValue('excluded')
   await dialog.getByRole('button',{name:'Use genotype example'}).click()

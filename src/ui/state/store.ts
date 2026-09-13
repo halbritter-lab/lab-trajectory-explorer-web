@@ -14,7 +14,8 @@ import {
 } from '../../core/fitPipeline/types'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormulaKey, type MixedModelConfig } from '../../core/mixedModel/config'
 import type { MixedModelResult } from '../../core/mixedModel/types'
-import type { MixedModelResultIdentity } from '../../core/mixedModel/resultIdentity'
+import { mixedModelIdentityEquals, type MixedModelResultIdentity } from '../../core/mixedModel/resultIdentity'
+import type { AppliedProjectionSettings } from '../../core/projection/projectionSnapshot'
 import { runCohortMixedModels } from '../../core/mixedModel/cohortModelFit'
 import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEntity'
 import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
@@ -118,6 +119,9 @@ export interface AppState {
   cohortModelProgress: CohortModelProgress | null
   showCohortMixedModelLine: boolean
   mixedModelDialogOpen: boolean
+  mixedModelSeriesIndex: number | null
+  mixedModelSeriesKey: string | null
+  projectionSettings: Record<string, AppliedProjectionSettings>
   /** Rapid eGFR-decline flag threshold (mL/min/1.73m²/yr); 0 disables the flag. */
   rapidEgfrThreshold: number
   busy: boolean
@@ -159,6 +163,8 @@ export interface AppState {
   clearMixedModelResult: () => void
   setShowCohortMixedModelLine: (value: boolean) => void
   setMixedModelDialogOpen: (value: boolean) => void
+  openMixedModelDialog: (seriesIndex: number, seriesKey: string) => void
+  setProjectionSettings: (seriesIndex: number, seriesKey: string, entityKey: string, applied: AppliedProjectionSettings) => void
   setRapidEgfrThreshold: (n: number) => void
   clearSaved: () => Promise<void>
   reset: () => void
@@ -179,6 +185,7 @@ const defaultSeries = (): SeriesConfig => ({
 /** Resettable data fields (no actions). Single source of truth for both the
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
+  | 'mixedModelSeriesIndex' | 'mixedModelSeriesKey' | 'projectionSettings'
   | 'rows' | 'fileName' | 'selectedPatientId' | 'selectedPatientIds' | 'view' | 'returnToCohort' | 'cohortPatientMode' | 'seriesConfigs' | 'egfrFormula'
   | 'analysisSettings' | 'egfrSource' | 'manualDemographics' | 'events' | 'showEvents' | 'patientAttributes' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
   | 'cohortDisplayMode' | 'cohortOverlayXAxis' | 'connectPoints' | 'mixedModelConfig' | 'cohortGroupByAttribute' | 'cohortModelResults' | 'cohortModelRunning' | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'mixedModelDialogOpen' | 'rapidEgfrThreshold' | 'busy' | 'notice'>
@@ -223,6 +230,9 @@ const initialState = (): AppData => {
     cohortModelProgress: null,
     showCohortMixedModelLine: false,
     mixedModelDialogOpen: false,
+    mixedModelSeriesIndex: null,
+    mixedModelSeriesKey: null,
+    projectionSettings: {},
     busy: false,
     notice: null,
   }
@@ -316,13 +326,20 @@ function abortActiveCohortModelRun() {
   activeCohortModelRun = null
 }
 
-const clearedMixedModelResults = (): Pick<AppData, 'cohortModelResults' | 'cohortModelRunning' | 'cohortModelProgress' | 'showCohortMixedModelLine'> => {
+export function projectionSettingsKey(seriesIndex: number, seriesKey: string, entityKey: string): string {
+  return JSON.stringify([seriesIndex, seriesKey, entityKey])
+}
+
+const clearedModelSelection = { mixedModelSeriesIndex: null, mixedModelSeriesKey: null, mixedModelDialogOpen: false }
+
+const clearedMixedModelResults = (): Pick<AppData, 'cohortModelResults' | 'cohortModelRunning' | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'projectionSettings'> => {
   abortActiveCohortModelRun()
   return {
     cohortModelResults: null,
     cohortModelRunning: false,
     cohortModelProgress: null,
     showCohortMixedModelLine: false,
+    projectionSettings: {},
   }
 }
 
@@ -396,6 +413,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       events: [],
       patientAttributes: {},
       cohortGroupByAttribute: null,
+      ...clearedModelSelection,
       ...clearedMixedModelResults(),
       ...analysisSettingsState({ ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: null } }),
     }))
@@ -416,6 +434,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   setCohortOverlayXAxis: (v) => set({ cohortOverlayXAxis: v }),
   setSeriesConfig: (index, cfg) =>
     set((s) => ({
+      ...(s.mixedModelSeriesIndex === index && (
+        ('bezeichnung' in cfg && cfg.bezeichnung !== s.seriesConfigs[index]?.bezeichnung) ||
+        ('einheit' in cfg && cfg.einheit !== s.seriesConfigs[index]?.einheit)
+      ) ? clearedModelSelection : {}),
       seriesConfigs: s.seriesConfigs.map((c, i) => {
         if (i !== index) return c
         const next = { ...c, ...cfg }
@@ -429,6 +451,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   addSeries: () => set((s) => (s.seriesConfigs.length >= 3 ? s : { seriesConfigs: [...s.seriesConfigs, defaultSeries()] })),
   removeSeries: (index) =>
     set((s) => ({
+      ...(s.seriesConfigs.length > 1 && s.mixedModelSeriesIndex !== null && index <= s.mixedModelSeriesIndex ? clearedModelSelection : {}),
       ...(s.seriesConfigs.length <= 1 ? {} : { seriesConfigs: s.seriesConfigs.filter((_, i) => i !== index) }),
       ...clearedMixedModelResults(),
     })),
@@ -545,7 +568,15 @@ export const useAppStore = create<AppState>((set, get) => ({
       // consumers, so a late arrival is harmless either way.
       if (controller.signal.aborted || activeCohortModelRun !== controller) return
       // Merge so fitting only groups keeps a prior cohort result (and vice versa).
-      set((s) => ({ cohortModelResults: { ...(s.cohortModelResults ?? {}), ...map } }))
+      set((s) => {
+        const cohortModelResults = { ...(s.cohortModelResults ?? {}), ...map }
+        const projectionSettings = Object.fromEntries(Object.entries(s.projectionSettings).filter(([key, applied]) => {
+          const entityKey = JSON.parse(key)[2] as string
+          const stored = cohortModelResults[entityKey]
+          return stored?.result.status === 'success' && stored.result.converged && mixedModelIdentityEquals(applied.sourceIdentity, stored.identity)
+        }))
+        return { cohortModelResults, projectionSettings }
+      })
     } finally {
       if (activeCohortModelRun === controller) {
         activeCohortModelRun = null
@@ -556,6 +587,19 @@ export const useAppStore = create<AppState>((set, get) => ({
   clearMixedModelResult: () => set(clearedMixedModelResults()),
   setShowCohortMixedModelLine: (value) => set({ showCohortMixedModelLine: value }),
   setMixedModelDialogOpen: (value) => set({ mixedModelDialogOpen: value }),
+  openMixedModelDialog: (seriesIndex, seriesKey) => set((s) => {
+    const cfg = s.seriesConfigs[seriesIndex]
+    if (!cfg?.bezeichnung || `${cfg.bezeichnung}|${cfg.einheit ?? ''}` !== seriesKey) return {}
+    const changed = s.mixedModelSeriesIndex !== seriesIndex || s.mixedModelSeriesKey !== seriesKey
+    return { ...(changed ? clearedMixedModelResults() : {}), mixedModelSeriesIndex: seriesIndex, mixedModelSeriesKey: seriesKey, mixedModelDialogOpen: true }
+  }),
+  setProjectionSettings: (seriesIndex, seriesKey, entityKey, applied) => set((s) => {
+    const stored = s.cohortModelResults?.[entityKey]
+    if (!stored || stored.result.status !== 'success' || !stored.result.converged ||
+      applied.sourceIdentity.seriesIndex !== seriesIndex || applied.sourceIdentity.seriesKey !== seriesKey ||
+      !mixedModelIdentityEquals(stored.identity, applied.sourceIdentity)) return {}
+    return { projectionSettings: { ...s.projectionSettings, [projectionSettingsKey(seriesIndex, seriesKey, entityKey)]: structuredClone(applied) } }
+  }),
   setRapidEgfrThreshold: (n) => {
     const threshold = Number.isFinite(n) ? Math.max(0, n) : 0
     set((s) => ({

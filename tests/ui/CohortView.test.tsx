@@ -209,12 +209,13 @@ describe('CohortView', () => {
 
     expect(screen.queryByRole('region', { name: 'Cohort mixed model' })).not.toBeInTheDocument()
 
-    act(() => useAppStore.getState().setMixedModelDialogOpen(true))
+    act(() => useAppStore.getState().openMixedModelDialog(0, `eGFR|${useAppStore.getState().seriesConfigs[0].einheit}`))
 
     expect(await screen.findByRole('dialog', { name: 'eGFR cohort model' })).toBeInTheDocument()
     expect(screen.getByText('Experimental')).toBeInTheDocument()
     expect(screen.getByText(/experimental browser-based mixed model/i)).toBeInTheDocument()
-    expect(await screen.findByRole('region', { name: 'Cohort mixed model' })).toBeInTheDocument()
+    // The first dialog lazily imports the model and projection modules.
+    expect(await screen.findByRole('region', { name: 'Cohort mixed model' }, { timeout: 5000 })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Fit selected' })).toBeInTheDocument()
 
     await userEvent.click(screen.getByRole('button', { name: 'Close eGFR cohort model' }))
@@ -223,9 +224,19 @@ describe('CohortView', () => {
     expect(useAppStore.getState().mixedModelDialogOpen).toBe(false)
   })
 
+  it('uses the selected numeric response after an unselected series slot', async () => {
+    useAppStore.getState().setDataset([row({ bezeichnung: 'Glucose', einheit: 'mg/dl', wertNum: 80 })])
+    useAppStore.getState().addSeries()
+    useAppStore.getState().setSeriesConfig(1, { bezeichnung: 'Glucose', einheit: 'mg/dl' })
+    useAppStore.getState().openMixedModelDialog(1, 'Glucose|mg/dl')
+    render(<CohortView />)
+    expect(await screen.findByRole('dialog', { name: 'Glucose cohort model' })).toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: 'eGFR cohort model' })).not.toBeInTheDocument()
+  })
+
   it('opens the cohort mixed model dialog without requiring an environment flag', async () => {
     seedValidEgfrCohort()
-    useAppStore.getState().setMixedModelDialogOpen(true)
+    useAppStore.getState().openMixedModelDialog(0, 'eGFR|ml/min/1.73m2')
 
     render(<CohortView />)
 
@@ -235,7 +246,7 @@ describe('CohortView', () => {
 
   it('shows mixed model configuration directly inside the cohort model dialog', async () => {
     seedValidEgfrCohort()
-    useAppStore.getState().setMixedModelDialogOpen(true)
+    useAppStore.getState().openMixedModelDialog(0, 'eGFR|ml/min/1.73m2')
     render(<CohortView />)
 
     expect(await screen.findByRole('dialog', { name: /egfr cohort model/i })).toBeInTheDocument()
@@ -359,7 +370,7 @@ describe('CohortView', () => {
     seedValidEgfrCohort()
     useAppStore.getState().setPatientAttributes({ '1': { cohort: 'A' }, '2': { cohort: 'A' }, '3': { cohort: 'B' } })
     useAppStore.getState().setCohortGroupByAttribute('cohort')
-    useAppStore.getState().setMixedModelDialogOpen(true)
+    useAppStore.getState().openMixedModelDialog(0, `eGFR|${useAppStore.getState().seriesConfigs[0].einheit}`)
 
     render(<CohortView />)
 
@@ -371,7 +382,7 @@ describe('CohortView', () => {
 
   it('lists only the whole-cohort row when grouping is inactive', async () => {
     seedValidEgfrCohort()
-    useAppStore.getState().setMixedModelDialogOpen(true)
+    useAppStore.getState().openMixedModelDialog(0, 'eGFR|ml/min/1.73m2')
 
     render(<CohortView />)
 

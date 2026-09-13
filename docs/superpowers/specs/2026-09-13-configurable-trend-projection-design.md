@@ -1,7 +1,8 @@
 # Configurable trend projection
 
 Status: interface concept and generalizable scope accepted in conversation on
-2026-09-13. This document makes the implementation boundaries explicit.
+2026-09-13. Implemented on `feat/configurable-trend-projection`; see the plan
+for verification and the separate dependency on PR #11.
 
 ## Scope and architecture
 
