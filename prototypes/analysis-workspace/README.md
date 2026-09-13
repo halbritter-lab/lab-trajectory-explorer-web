@@ -215,3 +215,10 @@ Geprüft: zwei Standardschnittpunkte (A: 10, B: 9 Jahre), synchrones Ändern auf
 Grenzwert 40, Horizont 5 ohne Marker, leere Eingabe mit gesperrtem Export,
 Richtungswechsel, erhaltenes bisheriges Ergebnis bei Modelländerung, zweites
 Zielgrößenbeispiel sowie Desktop und Mobile ohne Seitenüberbreite.
+
+
+Die aktuellen Überschriften verdeutlichen die Zugehörigkeit zum selben Modell:
+„Gruppenvergleich konfigurieren“ → „Ergebnis des Gruppenvergleichs“ →
+„Grenzwerte aus diesem Modell“. Die Zielgröße bleibt in der Ergebnisbeschreibung
+sichtbar. Die Grenzwertprojektion ist eine Auswertung des dargestellten Modells,
+keine unabhängige Modellschätzung.
