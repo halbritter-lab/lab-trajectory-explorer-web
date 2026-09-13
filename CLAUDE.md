@@ -66,9 +66,10 @@ these. Keep it separate from `reason` for exactly that reason.
 
 ## Issues and pull requests
 
-- During the UI redesign, follow [the integration and release rules](docs/release-process.md):
-  target `integration/ui-redesign` and obtain user acceptance of complete workflows
-  before releasing to `main`. Passing CI alone does not authorize publication.
+- Follow [the development and release rules](docs/release-process.md): target
+  `main` for reviewed development work. Publication occurs only through a regular
+  GitHub Release after user acceptance of complete workflows. Passing CI alone
+  does not authorize publication.
 
 - **Split issues by domain and sign-off path**, not by which files they touch:
   quick wins, UI restructuring, data structure, statistics/clinical. The axis
