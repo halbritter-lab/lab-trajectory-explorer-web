@@ -10,9 +10,9 @@ Produktionsbuild aufgenommen. Keine Veröffentlichung oder Änderung am Rechenke
 ## Zweck und Grenzen
 
 Die Navigation gliedert die Arbeit in **Daten → Verläufe → Analysen**.
-Konfiguration und Ergebnis sind im Analysearbeitsplatz gemeinsam sichtbar;
-es gibt keine globale Einstellungs-Sidebar. Auf schmalen Bildschirmen stehen
-die Bereiche untereinander. Das ist ein zu beurteilender Entwurf, keine
+Konfiguration und Ergebnis stehen im Analysearbeitsplatz untereinander über
+die volle Breite; es gibt keine Einstellungs-Sidebar. Nach dem Berechnen
+klappt die Konfiguration zu einer kompakten Zusammenfassung zusammen. Das ist ein zu beurteilender Entwurf, keine
 freigegebene neue Anwendungsoberfläche.
 
 Alle Daten und Modellwerte sind illustrative Konstanten. Die Bedienelemente
@@ -39,8 +39,9 @@ Daten bzw. der vorhandenen Konfiguration. Das zweite Zielgrößenbeispiel
    vom Patientenbrowser und übernimmt keine seiner Filter.
 3. **Analyse:** Bei eGFR Alter und Geschlecht auf „Niveau + jährliche Änderung“
    belassen. Formel öffnen; beide Faktoren haben eine Wechselwirkung mit Zeit.
-   Beispielergebnis ansehen. Alter ausschließen: 48 statt 46 Personen,
-   Ergebnis muss aktualisiert werden, Export ist bis dahin gesperrt.
+   Beispiel berechnen. Alter ausschließen: 48 statt 46 Personen,
+   Bisheriges Ergebnis bleibt sichtbar und wird als veraltet markiert; Export
+   ist bis zum erneuten Berechnen gesperrt.
 4. **Grenzwerte:** Bei eGFR Grenzwert 30 / Horizont 10 / Richtung abwärts:
    Genotyp A erreicht nach 10 Jahren, B nach 9 Jahren. Grenzwert 40 ergibt
    6,7 bzw. 6,5 Jahre. Horizont 5 ergibt „Nicht innerhalb des Horizonts“.
@@ -157,3 +158,28 @@ Escape, leere Auswahl und Wiederherstellung der Auswahl funktionieren. Rückweg
 von Person 030 → 031 stellt Fokus und horizontale Position der Tabelle wieder her.
 Für produktive große Datensätze bleibt Zeilenvirtualisierung vorgesehen; die
 48 Beispielpersonen benötigen keine eigene Paging- oder Nachladelogik.
+
+
+## Überarbeitung: Analyse ohne Sidebar
+
+Die Seite besteht aus einer kompakten Zusammenfassung, der aufklappbaren
+Konfiguration in voller Breite und dem Ergebnis darunter. Zielgröße, Datenbasis
+und Modell stehen oben in der Konfiguration; Einflussfaktoren stehen als Tabelle
+mit Auswahl für Niveau / Niveau und jährliche Änderung / ausgeschlossen.
+
+„Beispiel berechnen“ aktualisiert das illustrative Ergebnis, klappt die
+Konfiguration ein und fokussiert die Ergebnisüberschrift. „Einstellungen
+bearbeiten“ öffnet sie erneut. Ein bisheriges Ergebnis bleibt während der
+Bearbeitung sichtbar. Bei Änderungen trägt es einen deutlichen Veraltet-Hinweis;
+Zielgröße, Formel, Population und Projektion bleiben dem bisherigen Stand
+zugeordnet. Export ist gesperrt, bis neu berechnet oder verworfen wird.
+
+Ergebnisaktionen liegen am Ergebnis: Einstellungen bearbeiten,
+Trendfortschreibung öffnen, Bericht exportieren. Es gibt keinen neuen Assistenten
+und keine zusätzliche Seitenfolge. „Änderungen verwerfen“ stellt die zuletzt
+berechnete Konfiguration einschließlich aktueller Projektionswerte wieder her.
+
+Browserprüfung: Konfiguration ein-/ausklappen, Zielgröße und Alter ändern,
+Snapshot von Formel und Einschlusszahlen, Export-Sperre, Verwerfen und Neuberechnen.
+Desktop 1440 px und Mobile 390 px ohne Seitenüberbreite; keine Laufzeitfehler.
+Unabhängiges Review: Snapshot für live geänderte Projektionswerte ergänzt.
