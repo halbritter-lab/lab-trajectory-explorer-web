@@ -29,6 +29,16 @@ that compatible wire format but carry the actual response name and unit in
 the adapter, UI and export. Verify non-eGFR series end to end before claiming
 general applicability. No other outcome receives renal presets automatically.
 
+Replace both existing eGFR-only entry gates: `Sidebar.tsx` exposes the model
+button for a selected numeric series and passes its index; `CohortView.tsx`
+uses that explicit selection instead of searching for the first eGFR series.
+Store the selected index in session state, validate it against the current
+series identity, and close/reset on removal or replacement. Dialog titles,
+formula previews and export response labels use the selected outcome. Retain
+renal rapid-decline and legacy endpoint controls under their existing gates;
+they are not generic model controls. Align `CohortTrajectoryOverlay.tsx` with
+the explicit selection so a result for another series is never drawn as eGFR.
+
 ## Time and calculation
 
 For y(t) = a + b*t, time is in years since model origin. Controls expose
@@ -44,7 +54,10 @@ report `already_met`, without claiming a historical first-crossing date.
 Equality is a boundary touch: a trend toward the requested side returns a
 zero-time intersection; a flat/away trend is not a future crossing. Classify
 flat, away, beyond-horizon and invalid inputs separately. A crossing exactly
-at the horizon is included. Preserve small finite slopes; do not invent a
+at the horizon is included. Check both derived times for finiteness immediately
+after calculation, before comparing remaining time with the horizon. For
+example, a=1, b=-Number.MIN_VALUE, threshold=0, r=0, H=20 produces an invalid
+overflow result with null times, not a beyond-horizon result. Preserve small finite slopes; do not invent a
 clinical flatness cutoff. Do not present infinity as a numeric result.
 
 Label results as projected boundary intersections conditional on continuation
@@ -66,6 +79,36 @@ Export a projection sheet containing target definition, profile, outcome/unit,
 source fit identity, a, b, r, H, status and available crossing times. Export
 the settings used for the displayed projection, including disabled/failed
 result states where applicable, rather than silently omitting them.
+
+Each configured target has an `enabled` flag, separate from the mathematical
+target definition. A disabled target remains in settings/export with status
+`disabled` and null times. Missing profile inputs/coefficients produce status
+`unavailable_profile`, a reason and null times; model warnings are retained.
+Only successful converged, identity-matched source fits can be projected.
+
+Session state owns applied settings per [series index, series key, entity key].
+Each entry retains its source model identity; clear it when that identity is
+invalidated or its entity/series is removed. Store no derived coefficients or
+projection results in this map. No new disk persistence is introduced.
+The editor holds a local draft. `Apply projection settings` validates and copies
+it into session state; duplicate target IDs, empty labels and malformed values
+block apply. Cancel restores applied values. Closing a dialog discards drafts
+but preserves applied session settings. Defaults are initialized once per
+valid source identity, not on every render. Refitting the same identity keeps
+settings but recomputes from the new result object; changed identities reset
+profile/targets and require fresh settings.
+
+One pure snapshot builder combines the current stored fit, validated applied
+settings, identity-matched prepared rows and an explicit source response
+`{outcome, unit}` from the matched selected series spec. Carry that response
+in the panel and snapshot even when there are no targets. Validate targets
+against it; never derive source units from target values or split identity keys. It derives category choices from
+those rows after complete-case exclusions, using generated column keys. The
+same snapshot feeds the visible results and XLSX rows. The model export action
+is disabled while any included projection editor has unapplied changes and
+explains why; it never mixes draft settings with applied results. A snapshot
+must match the current stored result object and identity when exported.
+Nonconverged/failed or stale source fits cannot reuse an older snapshot.
 
 The current result contract has marginal coefficient intervals but no full
 fixed-effect covariance. Initial projection output must explicitly state that
