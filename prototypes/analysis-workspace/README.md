@@ -86,41 +86,19 @@ Vor produktiver Umsetzung beurteilen: Sind die drei Bereiche verständlich?
 Sind Konfiguration, Datenbasis und Ergebnis eindeutig zuzuordnen? Sind die
 wichtigsten Einstellungen gut erreichbar, auch auf schmalen Bildschirmen?
 
-## Funktionsinventar für die spätere Umsetzung
+## Funktionsinventar und nächste Umsetzung
 
-Basis: `src/ui/shell`, `src/ui/patient`, `src/ui/cohort`, `src/ui/pages`.
-„Vorgesehen“ bedeutet: im bestehenden Produkt vorhanden oder bereits geplant,
-im Klick-Prototyp noch nicht umgesetzt. Keine dieser Zeilen ist eine Streichung.
+Der [Funktionsabgleich mit dem Original](feature-audit.md) ist das aktuelle
+Inventar: Bestandsfunktionen, Demo-Grenzen, vorgesehener Platz und abnehmbare
+Bedienwege. Er ersetzt die frühere, inzwischen überholte Übersicht an dieser Stelle.
 
-| Bestehende Funktion | Neuer Platz | Im Prototyp |
-| --- | --- | --- |
-| Workbook, Beispieldaten, Vorlagen, Ereignis- und Attributimport | Daten / Quellen | Beispieldaten; Importablauf erklärt |
-| Spaltenzuordnung, abgelehnte Zeilen, Importwarnungen | Daten / Zuordnung und Qualität | Rollenübersicht; weitere Prüfungen vorgesehen |
-| Demografie-Konflikte, fehlende Angaben, manuelle Korrektur | Daten / Qualität | Zwei fehlende Altersangaben illustriert |
-| eGFR-Formel und Kreatininquelle | Daten / abgeleitete Zielgrößen | Vorgesehen |
-| Zielgrößenauswahl, Personenauswahl, Einzelansicht | Verläufe / lokale Auswahl | 48 Beispielpersonen, zwölf wählbare Parameter, Vor/Zurück und Direktwahl |
-| Kohortentabelle, Screening, Sortierung, Gruppierung, Patientenauswahl | Verläufe / Kohortenübersicht | Graphentabelle, ID-Suche, Gruppenfilter, Sortierung und durchgehende Liste; Screening und Mehrfachauswahl vorgesehen |
-| Kohortenoverlay, individuelle Steigungen, Qualitätsmarkierungen | Verläufe / Grafik und Details | Vereinfachte Grafik; volle Darstellung vorgesehen |
-| Miniaturgrafiken, Zoom, Punkte verbinden, Ereignismarker | Verläufe / Darstellungsoptionen | Kleine Graphen und gemeinsame Skalen je Parameter; weitere Optionen vorgesehen |
-| OLS, Theil–Sen, Fit-Presets, Zeitbalancierung | Analysen / Einzelverlauf-Konfiguration | Vorgesehen |
-| AKI-Fenster, Dialyse, Transplantation, Zensierung | Analysen / Datenaufbereitung | Vorgesehen, mit sichtbarer Ausschlussübersicht |
-| Individuelle CKD-Endpunkte und Fit-Qualität | Analysen / Einzelverlauf-Ergebnisse | Vorgesehen; getrennt von Gruppenprojektionen |
-| Mixed Model, Engine, Zufallseffekte, Modelllinie | Analysen / Gruppenmodell | Feste Beispielwerte; keine Engine |
-| Beliebige Faktoren, Interpretation, Referenz, Niveau/Steigung | Analysen / Einflussfaktoren | Alter und Geschlecht umstellbar; weitere Faktoren vorgesehen |
-| Modellpopulation, fehlende Werte, Formel, Fehlerzustände | Analysen / Konfiguration und Nachvollziehen | Einschlusszahlen, Formel, veraltetes Ergebnis |
-| Projektionsprofile, Bezugszeit, Horizont, mehrere benannte Ziele | Analysen / Grenzwerte | Ein Ziel, Richtung und Horizont; feste Profile und Jahr 0 |
-| Ergebnis-CSV, Patientenausgabe, SVG/PNG, Modellmetadaten | Kontextbezogener Export | Illustrativer HTML-Bericht; übrige Formate vorgesehen |
-| Methodik, Forschungszweck, Herkunft, Einschränkungen | Nachvollziehen / Hilfe und Berichte | Prototyp-Hinweise; vollständige Methodik vorgesehen |
-| Lokale Persistenz und Zurücksetzen | Daten / Arbeitsstand | Nur flüchtiger Zustand |
+Nächster Umsetzungsschritt ist der vollständige Weg von echtem Import und
+Datenqualität über abgeleitete Parameter bis zum Patientenvergleich und Export.
+Danach folgen vollständige Einzelverlaufsanalysen und echte Kohortenmodelle.
+Time-to-event bleibt als separate spätere Ergänzung festgehalten.
 
-Time-to-event / Ereigniszeitanalyse bleibt eine mögliche spätere Erweiterung.
-Sie benötigt ein eigenes Modell und ist kein anderer Name für die hier gezeigte
-Trendfortschreibung.
-
-Die eigentliche Umsetzung kann nach Beurteilung dieses Entwurfs in vollständigen
-Bedienwegen erfolgen. Vor einem Release müssen sämtliche vorgesehenen Funktionen
-bewusst eingeordnet und die echten Import-, Analyse- und Exportwege abgenommen
-sein; der Prototyp ersetzt diese Abnahme nicht.
+Die folgenden Prüfungen und Überarbeitungsnotizen dokumentieren die Entwicklung
+des Prototyps; sie sind keine Abnahme der produktiven Integration.
 
 ## Prüfung am 13.09.2026
 
