@@ -42,6 +42,8 @@ export function CohortTrajectoryOverlay() {
   const connectPoints = useAppStore((s) => s.connectPoints)
   const mixedModelConfig = useAppStore((s) => s.mixedModelConfig)
   const cohortModelResults = useAppStore((s) => s.cohortModelResults)
+  const selectedModelIndex = useAppStore((s) => s.mixedModelSeriesIndex)
+  const selectedModelKey = useAppStore((s) => s.mixedModelSeriesKey)
   const pooledModelResult = cohortModelResults?.cohort ?? null
   const showCohortMixedModelLine = useAppStore((s) => s.showCohortMixedModelLine)
   const cohortGroupByAttribute = useAppStore((s) => s.cohortGroupByAttribute)
@@ -67,11 +69,11 @@ export function CohortTrajectoryOverlay() {
     [configs],
   )
   const fittedCohortModelSeriesIndex = useMemo(() => {
-    if (!showCohortMixedModelLine || pooledModelResult?.result.status !== 'success') return -1
-    return configuredSeries.findIndex((entry) =>
-      `${entry.config.bezeichnung}|${entry.config.einheit ?? ''}` === pooledModelResult.identity.seriesKey,
+    if (!showCohortMixedModelLine) return -1
+    return configuredSeries.findIndex((entry) => entry.index === selectedModelIndex &&
+      `${entry.config.bezeichnung}|${entry.config.einheit ?? ''}` === selectedModelKey,
     )
-  }, [showCohortMixedModelLine, pooledModelResult, configuredSeries])
+  }, [showCohortMixedModelLine, selectedModelIndex, selectedModelKey, configuredSeries])
   const resolvedActiveSeriesIndex = fittedCohortModelSeriesIndex >= 0 ? fittedCohortModelSeriesIndex : activeSeriesIndex
   const activeEntry = configuredSeries[Math.min(resolvedActiveSeriesIndex, Math.max(0, configuredSeries.length - 1))]
   const activeConfig = activeEntry?.config
@@ -197,21 +199,21 @@ export function CohortTrajectoryOverlay() {
   const activeMixedModelIdentity = useMemo(() => {
     if (!activeSpec) return null
     return buildMixedModelResultIdentity({
-      seriesIndex: resolvedActiveSeriesIndex,
+      seriesIndex: activeEntry!.index,
       seriesKey: `${activeSpec.bezeichnung}|${activeSpec.einheit ?? ''}`,
       patientIds: activeMixedModelRows.map((row) => row.patient_id),
       rows: activeMixedModelRows,
       preparation: activeMixedModelData.preparation,
       fitConfigHash: activeMixedModelFitConfigHash,
     })
-  }, [resolvedActiveSeriesIndex, activeSpec, activeMixedModelData, activeMixedModelRows, activeMixedModelFitConfigHash])
+  }, [activeEntry, activeSpec, activeMixedModelData, activeMixedModelRows, activeMixedModelFitConfigHash])
   const groupMixedModelData = useMemo(
     () => Object.fromEntries(Object.entries(groupingActive && activeSpec ? mixedModelRowsByGroup(rows, cohortGroups, activeSpec) : {})
       .map(([group, modelRows]) => [group, prepareMixedModelFactors(modelRows, mixedModelConfig, patientAttributes, rows)])),
     [groupingActive, activeSpec, rows, cohortGroups, mixedModelConfig, patientAttributes],
   )
   const groupMeanLines = useMemo(() => {
-    if (!groupingActive || !showCohortMixedModelLine) return []
+    if (!groupingActive || !showCohortMixedModelLine || fittedCohortModelSeriesIndex < 0) return []
     const supportsMixedAxis = axis === 'time_since_baseline' || axis === 'age'
     if (!supportsMixedAxis) return []
 
@@ -225,7 +227,7 @@ export function CohortTrajectoryOverlay() {
       const groupRows = groupMixedModelData[value]?.rows ?? []
       if (groupRows.length === 0) return []
       const identity = buildMixedModelResultIdentity({
-        seriesIndex: resolvedActiveSeriesIndex,
+        seriesIndex: activeEntry!.index,
         seriesKey: `${activeSpec.bezeichnung}|${activeSpec.einheit ?? ''}`,
         patientIds: groupRows.map((row) => row.patient_id),
         rows: groupRows,
@@ -263,7 +265,8 @@ export function CohortTrajectoryOverlay() {
     showCohortMixedModelLine,
     cohortModelResults,
     groupMixedModelData,
-    resolvedActiveSeriesIndex,
+    activeEntry,
+    fittedCohortModelSeriesIndex,
     activeSpec,
     activeMixedModelFitConfigHash,
     hiddenGroups,
@@ -272,6 +275,7 @@ export function CohortTrajectoryOverlay() {
     () => (
       !groupingActive
       && showCohortMixedModelLine
+      && fittedCohortModelSeriesIndex >= 0
       && (axis === 'time_since_baseline' || axis === 'age')
       && pooledModelResult?.result.status === 'success'
       && mixedModelIdentityEquals(pooledModelResult.identity, activeMixedModelIdentity)
@@ -286,7 +290,7 @@ export function CohortTrajectoryOverlay() {
           value: point.eGFR,
         }))
       : [],
-    [groupingActive, showCohortMixedModelLine, axis, pooledModelResult, activeMixedModelIdentity, activeMixedModelRows, meanBaselineAge],
+    [groupingActive, showCohortMixedModelLine, fittedCohortModelSeriesIndex, axis, pooledModelResult, activeMixedModelIdentity, activeMixedModelRows, meanBaselineAge],
   )
   const adjustedModel = (mixedModelConfig.factors?.length ?? 0) > 0
   const mixedModelLineLabel = adjustedModel ? 'Mixed model reference' : axis === 'age' ? 'Mixed model mean at mean baseline age' : 'Mixed model mean'

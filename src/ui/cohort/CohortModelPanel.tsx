@@ -45,7 +45,7 @@ function sameConfig(a: MixedModelConfig, b: MixedModelConfig): boolean {
 }
 
 /** Display only: user-provided attribute labels never enter the executable formula. */
-function readableFormula(config: MixedModelConfig): string {
+function readableFormula(config: MixedModelConfig, outcome: string): string {
   const labels = new Map<string, string>([
     ['time_since_baseline', 'Time (years)'],
     ['patient_id', 'Patient'],
@@ -54,7 +54,7 @@ function readableFormula(config: MixedModelConfig): string {
     const label = factor.key === 'baseline_age' ? 'Baseline age (centered)' : factor.key === 'sex' ? 'Sex' : factor.key
     labels.set(mixedModelFactorColumn(factor, index), JSON.stringify(label))
   })
-  return mixedModelFormula(config).replace(/baseline_age_centered|factor_\d+_|time_since_baseline|patient_id/g, (token) => labels.get(token) ?? token)
+  return mixedModelFormula(config).replace(/^eGFR/, () => outcome).replace(/baseline_age_centered|factor_\d+_|time_since_baseline|patient_id/g, (token) => labels.get(token) ?? token)
 }
 
 /** The cohort mixed-model surface: shared model settings on top, then one
@@ -159,7 +159,7 @@ export function CohortModelPanel({
       <section className="mixed-model-inline-config" aria-label="Model settings">
         <div className="mixed-model-config-summary">
           <p className="export-hint mixed-model-message">{dataPolicySummary}</p>
-          <p className="mixed-model-message">Model: {formulaLabel}</p>
+          <p className="mixed-model-message">Model: {formulaLabel.replace(/^eGFR\b/, () => spec.bezeichnung)}</p>
         </div>
 
         <div className="mixed-model-options-grid">
@@ -223,14 +223,14 @@ export function CohortModelPanel({
         {draftValidationMessage && (
           <p className="mixed-model-config-validation" role="alert">
             {draftValidationMessage}
-            {draftValidationMessage.includes('patients') ? ' Expand the cohort scope or choose an eGFR series with enough eligible patients.' : ''}
+            {draftValidationMessage.includes('patients') ? ' Expand the cohort scope or choose a series with enough eligible patients.' : ''}
           </p>
         )}
 
         <div className="mixed-model-config-footer">
           <details className="mixed-model-formula-details">
             <summary>Formula preview</summary>
-            <code className="mixed-model-config-formula" aria-label="Readable formula">{readableFormula(draftConfig)}</code>
+            <code className="mixed-model-config-formula" aria-label="Readable formula">{readableFormula(draftConfig,spec.bezeichnung)}</code>
           </details>
           <div className="mixed-model-config-actions">
             <button type="button" onClick={applyDraftConfig} disabled={draftValidationMessage !== null || !draftChanged}>
@@ -247,6 +247,7 @@ export function CohortModelPanel({
         seriesIndex={seriesIndex}
         seriesKey={seriesKey}
         seriesUnit={seriesUnit}
+        sourceResponse={{outcome:spec.bezeichnung,unit:spec.einheit ?? ''}}
         fitConfigHash={fitConfigHash}
         config={config}
         formula={formula}

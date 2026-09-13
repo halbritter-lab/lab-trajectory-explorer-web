@@ -349,6 +349,17 @@ describe('Sidebar nephro fit configuration', () => {
     useAppStore.getState().setDataset([row({ patientId: 1 })])
   })
 
+  it('opens the explicitly selected second numeric series', async () => {
+    useAppStore.getState().setDataset([row({ bezeichnung: 'Glucose', einheit: 'mg/dl', wertNum: 80 })])
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    useAppStore.getState().addSeries()
+    useAppStore.getState().setSeriesConfig(1, { bezeichnung: 'Glucose', einheit: 'mg/dl' })
+    render(<Sidebar />)
+    await userEvent.selectOptions(screen.getByLabelText('Fit settings series'), '1')
+    await userEvent.click(screen.getByRole('button', { name: 'Open cohort model' }))
+    expect(useAppStore.getState()).toMatchObject({ mixedModelDialogOpen: true, mixedModelSeriesIndex: 1, mixedModelSeriesKey: 'Glucose|mg/dl' })
+  })
+
   it('shows spec-level CKD progression controls outside the event import block', () => {
     render(<Sidebar />)
 
@@ -364,7 +375,7 @@ describe('Sidebar nephro fit configuration', () => {
     const mixedModelGroup = screen.getByRole('group', { name: 'Cohort mixed model' })
     expect(mixedModelGroup).toHaveClass('sidebar-control-frame')
     expect(within(mixedModelGroup).getByText('Experimental')).toBeInTheDocument()
-    expect(within(mixedModelGroup).getByRole('button', { name: 'Open eGFR cohort model' })).toBeInTheDocument()
+    expect(within(mixedModelGroup).getByRole('button', { name: 'Open cohort model' })).toBeInTheDocument()
     expect(within(mixedModelGroup).getByLabelText('Cohort model line')).toBeDisabled()
     expect(screen.queryByLabelText('Fit x-axis')).not.toBeInTheDocument()
   })
@@ -373,16 +384,17 @@ describe('Sidebar nephro fit configuration', () => {
     render(<Sidebar />)
 
     const mixedModelGroup = screen.getByRole('group', { name: 'Cohort mixed model' })
-    expect(within(mixedModelGroup).getByRole('button', { name: 'Open eGFR cohort model' })).toBeDisabled()
-    expect(within(mixedModelGroup).getByText('Select an eGFR cohort series to enable the experimental model.')).toBeInTheDocument()
+    expect(within(mixedModelGroup).getByRole('button', { name: 'Open cohort model' })).toBeDisabled()
+    expect(within(mixedModelGroup).getByText('Select a numeric cohort series to enable the experimental model.')).toBeInTheDocument()
   })
 
   it('opens the eGFR cohort model dialog from the nephro controls', async () => {
+    useAppStore.getState().setDataset([row({ bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', wertNum: 60 })])
     useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
     render(<Sidebar />)
 
     expect(useAppStore.getState().mixedModelDialogOpen).toBe(false)
-    const button = screen.getByRole('button', { name: 'Open eGFR cohort model' })
+    const button = screen.getByRole('button', { name: 'Open cohort model' })
     expect(button).toBeEnabled()
     await userEvent.click(button)
     expect(useAppStore.getState().mixedModelDialogOpen).toBe(true)

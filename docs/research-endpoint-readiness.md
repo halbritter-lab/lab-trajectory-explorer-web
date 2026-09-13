@@ -6,13 +6,15 @@ definition or a change to application methodology.
 ## Agreed delivery priority
 
 On 2026-09-13, trajectory extrapolation was selected as the next threshold-time
-increment. Report a projected threshold crossing conditional on continuation
+increment. Implementation is on `feat/configurable-trend-projection`, dependent
+on the factor feature in PR #11. Report a projected threshold crossing conditional on continuation
 of the estimated trend, rather than an expected observed event time.
 
 Time-to-event analysis is retained as an optional later extension in issue #4.
 Its event definition, follow-up and competing-event questions below are deferred;
-they do not block work on trajectory projection. Projection scope, anchor,
-horizon and uncertainty presentation still need to be specified.
+they do not block work on trajectory projection. The first implementation uses fixed-effect profiles, the fitted-curve anchor,
+configurable reference time/horizon and explicit unavailable time uncertainty.
+See the configurable trend projection design and implementation plan.
 
 ## Current implementation
 

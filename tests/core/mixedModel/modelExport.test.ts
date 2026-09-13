@@ -4,6 +4,23 @@ import { describe, it, expect } from 'vitest'
 import { mixedModelExportSheets, mixedModelTermLabel } from '../../../src/core/mixedModel/modelExport'
 import { DEFAULT_MIXED_MODEL_CONFIG } from '../../../src/core/mixedModel/config'
 import type { MixedModelSuccess } from '../../../src/core/mixedModel/types'
+import type { ProjectionSnapshot } from '../../../src/core/projection/projectionSnapshot'
+
+it('exports explicit response and disabled projection provenance, rejecting an older result object', () => {
+  const result = {status:'success', converged:true, metadata:{}, warnings:['Fit warning'], fixedEffects:{intercept:80,timeSinceBaseline:5}, fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as MixedModelSuccess
+  const identity = {seriesKey:'ambiguous|key|unit'} as ProjectionSnapshot['sourceIdentity']
+  const target = {id:'custom',label:'Study boundary',outcome:'Protein|marker',unit:'mg/L',threshold:100,direction:'above' as const,enabled:false}
+  const projection = {sourceResult:result,sourceIdentity:identity,sourceResponse:{outcome:'Protein|marker',unit:'mg/L'},settings:{targets:[target],profile:{},referenceTimeYears:2,horizonYears:20},line:{status:'ready',intercept:80,slopePerYear:5},rows:[{target,status:'disabled',reason:null,modelTimeYears:null,remainingYears:null}],warnings:result.warnings,categoryChoices:{}} satisfies ProjectionSnapshot
+  const sheets = mixedModelExportSheets([{entity:'Whole cohort',result,identity,projection}])
+  const workbook = XLSX.read(sheetsToXlsxBytes(sheets),{type:'array'})
+  expect(XLSX.utils.sheet_to_json(workbook.Sheets.projections)).toEqual([expect.objectContaining({outcome:'Protein|marker',outcome_unit:'mg/L',status:'disabled',enabled:false,reference_time_years:2,time_uncertainty:'not estimated'})])
+  expect(XLSX.utils.sheet_to_json(workbook.Sheets.models)).toEqual([expect.objectContaining({outcome:'Protein|marker',outcome_unit:'mg/L'})])
+  expect(() => mixedModelExportSheets([{entity:'Whole cohort',result:{...result},identity,projection}])).toThrow(/current|source|snapshot/i)
+  const empty = {...projection,settings:{...projection.settings,targets:[]},rows:[]}
+  expect(mixedModelExportSheets([{entity:'Whole cohort',result,identity,projection:empty}]).find((sheet) => sheet.name === 'projections')?.rows).toEqual([expect.objectContaining({status:'no_targets',outcome:'Protein|marker',outcome_unit:'mg/L'})])
+  const unavailable = {...projection,line:{status:'unavailable' as const,reason:'Missing coefficient'},rows:[{...projection.rows[0],status:'unavailable_profile' as const,reason:'Missing coefficient'}]}
+  expect(mixedModelExportSheets([{entity:'Whole cohort',result,identity,projection:unavailable}]).find((sheet) => sheet.name === 'projections')?.rows).toEqual([expect.objectContaining({status:'unavailable_profile',reason:'Missing coefficient',intercept:null,slope_per_year:null,model_time_years:null,remaining_years:null})])
+})
 
 describe('mixed model export', () => {
   it('exports fitted configuration, every term, reference, exclusions, centers and disclaimer', () => {

@@ -466,6 +466,70 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   padding: 0.65rem 0.75rem 0.8rem;
   background: var(--bg);
 }
+.cohort-model-table .cohort-model-details-cell {
+  text-align: left;
+  white-space: normal;
+}
+.model-projection-panel {
+  display: block;
+  min-width: 0;
+  max-width: 100%;
+  margin-top: 1rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border, #e2e8f0);
+  text-align: left;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+.model-projection-panel h4,
+.model-projection-panel p { margin: 0 0 0.65rem; }
+.model-projection-panel fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 0.75rem 1rem;
+  min-width: 0;
+  margin: 0.75rem 0;
+  padding: 0.75rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 0.5rem;
+}
+.model-projection-panel legend { padding: 0 0.3rem; font-weight: 600; }
+.model-projection-panel label {
+  display: inline-flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.3rem;
+  max-width: 100%;
+  margin: 0 0.75rem 0.5rem 0;
+}
+.model-projection-panel label:has(input[type="checkbox"]) {
+  flex-direction: row;
+  align-items: center;
+}
+.cohort-model-table .model-projection-panel input {
+  display: inline-block;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0;
+}
+.model-projection-panel input:not([type="checkbox"]),
+.model-projection-panel select {
+  width: 11rem;
+  max-width: 100%;
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border, #e2e8f0);
+  border-radius: 0.4rem;
+}
+.model-projection-panel button { margin: 0 0.5rem 0.5rem 0; }
+.model-projection-results { max-width: 100%; overflow-x: auto; }
+.model-projection-results .cohort-model-table th,
+.model-projection-results .cohort-model-table td {
+  width: auto;
+  min-width: 6rem;
+  text-align: left;
+  white-space: normal;
+}
 .cohort-model-details {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
@@ -934,6 +998,11 @@ button:disabled { opacity: 0.5; cursor: not-allowed; }
   }
   .cohort-model-table {
     min-width: 32rem;
+  }
+  /* Keep the editor within the viewport even when its parent results table
+     needs horizontal scrolling. Projection result columns scroll separately. */
+  .model-projection-panel {
+    max-width: calc(100vw - 6rem);
   }
   .cohort-model-table th:nth-child(2),
   .cohort-model-table td:nth-child(2) {
