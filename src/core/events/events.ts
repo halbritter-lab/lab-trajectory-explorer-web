@@ -62,6 +62,7 @@ import {
   cell,
   checkRequiredColumns,
   collectHeaders,
+  normaliseHeader,
   resolveColumns,
   EVENTS_COLUMN_ALIASES,
   REQUIRED_EVENTS_COLUMNS,
@@ -78,13 +79,17 @@ export function normalizeClinicalEvents(rows: RawRow[]): RawClinicalEvent[] {
   if (rows.length === 0) return []
 
   const headers = collectHeaders(rows)
+  const columns = resolveColumns(headers, EVENTS_COLUMN_ALIASES)
+  const normalizedHeaders = new Set([...headers].map(normaliseHeader))
+  const hasStructuredTitle = EVENTS_COLUMN_ALIASES.title.some(
+    (alias) => normaliseHeader(alias) !== 'label' && normalizedHeaders.has(normaliseHeader(alias)),
+  )
   if (
-    headers.has('ReferenceDate') ||
-    (headers.has('label') && !headers.has('title') && !headers.has('type'))
+    normalizedHeaders.has('referencedate') ||
+    (normalizedHeaders.has('label') && columns.type === undefined && !hasStructuredTitle)
   ) {
     throw new Error('Legacy annotation schema is no longer supported. Use patientId,type,date,title.')
   }
-  const columns = resolveColumns(headers, EVENTS_COLUMN_ALIASES)
   checkRequiredColumns(columns, REQUIRED_EVENTS_COLUMNS, 'Event file')
 
   return rows.map((row) => ({

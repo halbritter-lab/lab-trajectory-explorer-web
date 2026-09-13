@@ -107,16 +107,15 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
 
   if (attributeBirthDate !== null) {
     const conflicts: DemographicsConflict[] = []
-    if (rowsWithBirthDate.length > 0) {
-      const earliest = rowsWithBirthDate.reduce((min, x) =>
-        x.row.labDatum.getTime() < min.row.labDatum.getTime() ? x : min,
-      )
-      if (earliest.birthDate.getTime() !== attributeBirthDate.getTime()) {
+    const distinctRowDates = [...new Set(rowsWithBirthDate.map((x) => x.birthDate.getTime()))]
+      .sort((a, b) => a - b)
+    for (const timestamp of distinctRowDates) {
+      if (timestamp !== attributeBirthDate.getTime()) {
         conflicts.push({
           kind: 'birth_date_source_disagreement',
           patientId: input.patientId,
           fromAttributes: attributeBirthDate,
-          fromRows: earliest.birthDate,
+          fromRows: new Date(timestamp),
         })
       }
     }

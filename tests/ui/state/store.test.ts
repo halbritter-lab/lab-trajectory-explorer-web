@@ -6,6 +6,7 @@ import type { MixedModelResult } from '../../../src/core/mixedModel/types'
 import type { MixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import * as XLSX from 'xlsx'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -15,6 +16,25 @@ function row(p: Partial<LabRow>): LabRow {
 
 describe('useAppStore', () => {
   beforeEach(() => useAppStore.getState().reset())
+
+  it('reports rejected workbook events even when no auxiliary row is accepted', async () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { patientId: 1, labDate: '2024-01-15', testName: 'Creatinine', unit: 'mg/dl', value: 1.2 },
+    ]), 'labs')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { patientId: 1, type: 'dialysis', date: 'invalid', title: 'Start', intent: 'chronic' },
+    ]), 'events')
+    const buffer = XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+    await useAppStore.getState().loadFile({ name: 'partial.xlsx', arrayBuffer: async () => buffer } as File)
+    const state = useAppStore.getState()
+    expect(state.rows).toHaveLength(1)
+    expect(state.events).toEqual([])
+    expect(state.notice?.text).toContain('1 rejected row')
+    expect(state.notice?.details).toEqual([
+      { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'invalid_date' },
+    ])
+  })
 
   const mixedModelIdentity: MixedModelResultIdentity = {
     seriesIndex: 0,

@@ -19,13 +19,14 @@ import { runCohortMixedModels } from '../../core/mixedModel/cohortModelFit'
 import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEntity'
 import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import { saveDataset, clearDataset, saveSettings } from '../../io/persistence'
-import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../data/loadDataset'
+import { loadBundledFixtureData, loadDatasetFromWorkbook, type ImportDiagnostic } from '../data/loadDataset'
 
 export type ZoomLevel = 's' | 'm' | 'l'
 
 export interface Notice {
   kind: 'error' | 'info'
   text: string
+  details?: ImportDiagnostic[]
 }
 
 export interface SeriesConfig {
@@ -346,6 +347,15 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ notice: { kind: 'info', text: `${parts.join(', ')} from ${file.name}.` } })
       } else {
         set({ notice: { kind: 'info', text: `Loaded ${rows.length} rows from ${file.name}.` } })
+      }
+      if (dataset.diagnostics.length > 0) {
+        const rejected = dataset.diagnostics.filter((item) => item.severity === 'rejected').length
+        const warnings = dataset.diagnostics.length - rejected
+        set({ notice: {
+          kind: 'info',
+          text: `${get().notice!.text} Import needs attention: ${rejected} rejected row(s), ${warnings} warning(s).`,
+          details: dataset.diagnostics,
+        } })
       }
     } catch (err) {
       set({ notice: { kind: 'error', text: err instanceof Error ? err.message : String(err) } })

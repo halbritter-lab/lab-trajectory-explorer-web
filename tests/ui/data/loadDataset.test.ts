@@ -168,6 +168,39 @@ describe('loadBundledFixtureData', () => {
 })
 
 describe('loadDatasetFromWorkbook', () => {
+  it.each(['events', 'attributes'])('treats a sole %s sheet as labs', (name) => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { patientId: 1, labDate: '2024-01-15', testName: 'Creatinine', unit: 'mg/dl', value: 1.2 },
+    ]), name)
+    const dataset = loadDatasetFromWorkbook(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }))
+    expect(dataset.rows).toHaveLength(1)
+    expect(dataset.events).toEqual([])
+    expect(dataset.patientAttributes).toEqual({})
+  })
+
+  it('preserves rejected rows and accepted-row warnings from auxiliary sheets', () => {
+    const wb = XLSX.utils.book_new()
+    for (const [name, rows] of Object.entries({
+      labs: [{ patientId: 1, labDate: '2024-01-15', testName: 'Creatinine', unit: 'mg/dl', value: 1.2 }],
+      events: [
+        { patientId: 1, type: 'dialysis', date: 'invalid', title: 'Start', intent: 'chronic' },
+        { patientId: 999, type: 'other', date: '2024-02-01', title: 'Unknown patient' },
+      ],
+      attributes: [{ patientId: 1, genotype: 'A' }, { patientId: 1, genotype: 'B' }, { patientId: 999, genotype: 'C' }],
+    })) XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), name)
+    const dataset = loadDatasetFromWorkbook(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }))
+    expect(dataset.events).toHaveLength(1)
+    expect(dataset.patientAttributes['1']).toEqual({ genotype: 'A' })
+    expect(dataset.diagnostics).toEqual(expect.arrayContaining([
+      { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'invalid_date' },
+      { sheet: 'events', patientId: 999, severity: 'warning', reason: 'unknown_patient' },
+      { sheet: 'attributes', patientId: 1, severity: 'rejected', reason: 'duplicate_patient' },
+      { sheet: 'attributes', patientId: 999, severity: 'warning', reason: 'unknown_patient' },
+    ]))
+    expect(dataset.diagnostics).toHaveLength(4)
+  })
+
   it('parses multi-sheet workbook containing labs, events, and attributes', () => {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(

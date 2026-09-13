@@ -10,7 +10,20 @@
 5. Support single-workbook upload with `labs`, `events`, and `attributes` sheets in `.xlsx`, while keeping the separate-file workflow intact.
 6. Harmonize the shipped demo workbook `public/test_labs.xlsx` to canonical English camelCase across all three sheets.
 
-**Status:** IN PROGRESS on `feat/unify-input-schema-and-single-workbook`
+**Status:** Implementation present in PR #9; local review corrections completed
+on `feat/unify-input-schema-and-single-workbook` (2026-09-13). The original step checkboxes below are historical;
+the current review status is recorded here.
+
+Review corrections cover import diagnostics, single-sheet compatibility,
+all explicit birth-date disagreements, unique conflict identifiers, event
+header aliases, and manual-age prefills at the displayed reference date.
+The last item corrects Task 3's original instruction: a later row's stated age
+must not be copied unchanged to an earlier reference date.
+
+Verification: 688 unit/parity tests, production build, targeted demographics/UI
+regressions, and 10 Chromium cases including real multi-sheet workbook upload
+(browser cases verified with one worker).
+The existing Python parity fixtures remain unchanged by this branch's fixes.
 
 ---
 

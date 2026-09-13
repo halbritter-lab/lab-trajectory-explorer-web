@@ -22,6 +22,13 @@ function labRow(id: number): LabRow {
 }
 
 describe('clinical events', () => {
+  it('accepts a label title with a tolerant type alias', () => {
+    const events = normalizeClinicalEvents([
+      { PatientID: 1, Type: 'other', Date: '2024-01-01', label: 'Clinical note' },
+    ])
+    expect(events[0]).toMatchObject({ patientId: 1, type: 'other', title: 'Clinical note' })
+  })
+
   it('normalizes structured clinical event rows', () => {
     const rows = [
       {

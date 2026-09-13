@@ -1,6 +1,6 @@
 import { readWorkbook, readWorkbookSheets } from '../../io/readWorkbook'
 import { loadLabRows } from '../../core/parse/loader'
-import type { LabRow } from '../../core/types'
+import type { LabRow, PatientId } from '../../core/types'
 import {
   normalizeClinicalEvents,
   validateClinicalEvents,
@@ -12,11 +12,19 @@ import {
 } from '../../core/attributes/attributes'
 import { normaliseHeader } from '../../io/headers'
 
+export interface ImportDiagnostic {
+  sheet: string
+  patientId: PatientId | null
+  severity: 'rejected' | 'warning'
+  reason: string
+}
+
 export interface LoadedDataset {
   rows: LabRow[]
   events: ClinicalEvent[]
   patientAttributes: Record<string, Record<string, string>>
   sheetNames: string[]
+  diagnostics: ImportDiagnostic[]
 }
 
 const LABS_SHEET_NAMES = new Set(['labs', 'labor', 'labrows', 'labdata'])
@@ -32,8 +40,12 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer): LoadedDataset {
   try {
     const wb = readWorkbookSheets(data)
     if (wb.sheetNames.length === 0) {
-      return { rows: [], events: [], patientAttributes: {}, sheetNames: [] }
+      return { rows: [], events: [], patientAttributes: {}, sheetNames: [], diagnostics: [] }
     }
+    if (wb.sheetNames.length === 1) {
+      return { rows: loadLabRows(wb.getSheet(0)), events: [], patientAttributes: {}, sheetNames: wb.sheetNames, diagnostics: [] }
+    }
+    const diagnostics: ImportDiagnostic[] = []
 
     const eventsSheetName = wb.sheetNames.find((s) => EVENTS_SHEET_NAMES.has(normaliseHeader(s)))
     const attributesSheetName = wb.sheetNames.find((s) => ATTRIBUTES_SHEET_NAMES.has(normaliseHeader(s)))
@@ -48,22 +60,30 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer): LoadedDataset {
     const rows = loadLabRows(rawLabs)
 
     let events: ClinicalEvent[] = []
-    if (eventsSheetName) {
+    if (eventsSheetName && eventsSheetName !== labsSheetName) {
       const rawEvents = wb.getSheet(eventsSheetName)
       if (rawEvents.length > 0) {
         const normalized = normalizeClinicalEvents(rawEvents)
-        const { valid } = validateClinicalEvents(normalized, rows)
+        const { valid, rejected } = validateClinicalEvents(normalized, rows)
         events = valid
+        for (const { event, reason } of rejected) diagnostics.push({ sheet: eventsSheetName, patientId: event.patientId, severity: 'rejected', reason })
+        for (const event of valid) {
+          if (event.warning) diagnostics.push({ sheet: eventsSheetName, patientId: event.patientId, severity: 'warning', reason: event.warning })
+        }
       }
     }
 
     let patientAttributes: Record<string, Record<string, string>> = {}
-    if (attributesSheetName) {
+    if (attributesSheetName && attributesSheetName !== labsSheetName) {
       const rawAttributes = wb.getSheet(attributesSheetName)
       if (rawAttributes.length > 0) {
         const normalized = normalizePatientAttributes(rawAttributes)
-        const { byPatient } = validatePatientAttributes(normalized, rows)
+        const { byPatient, valid, rejected } = validatePatientAttributes(normalized, rows)
         patientAttributes = byPatient
+        for (const { row, reason } of rejected) diagnostics.push({ sheet: attributesSheetName, patientId: row.patientId, severity: 'rejected', reason })
+        for (const record of valid) {
+          if (record.warning) diagnostics.push({ sheet: attributesSheetName, patientId: record.patientId, severity: 'warning', reason: record.warning })
+        }
       }
     }
 
@@ -72,6 +92,7 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer): LoadedDataset {
       events,
       patientAttributes,
       sheetNames: wb.sheetNames,
+      diagnostics,
     }
   } catch (err) {
     const detail = err instanceof Error ? err.message : String(err)

@@ -7,6 +7,22 @@ const day = (d: Date) => d.toISOString().slice(0, 10)
 const base = { patientId: 1, attributeBirthDate: null, manualAge: undefined } as const
 
 describe('resolveBirthAnchor', () => {
+  it('reports a later conflicting birth date even when the earliest agrees with attributes', () => {
+    const out = resolveBirthAnchor({
+      ...base,
+      attributeBirthDate: utc('1980-01-01'),
+      rows: [
+        { labDatum: utc('2020-01-01'), ageAtLab: null, birthDate: utc('1980-01-01') },
+        { labDatum: utc('2021-01-01'), ageAtLab: null, birthDate: utc('1981-01-01') },
+      ],
+    })
+    expect(day(out.birthAnchor!)).toBe('1980-01-01')
+    expect(out.conflicts).toContainEqual({
+      kind: 'birth_date_source_disagreement', patientId: 1,
+      fromAttributes: utc('1980-01-01'), fromRows: utc('1981-01-01'),
+    })
+  })
+
   it('reproduces every stated age when the rows are consistent', () => {
     const rows = [
       { labDatum: utc('2022-01-15'), ageAtLab: 46, birthDate: null },

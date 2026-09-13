@@ -31,6 +31,14 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
+- Workbook imports now report rejected event/attribute rows and accepted-row
+  warnings, with expandable sheet, patient, and reason details. Single-sheet
+  lab files remain usable even when their sheet is named `events` or `attributes`.
+- Explicit birth-date cross-checks include later lab rows, and multiple conflicts
+  receive distinct UI identifiers. Manual-age prefills use the displayed
+  reference date rather than copying a later measurement's age unchanged.
+- Event imports recognize supported case/separator aliases before checking for
+  an obsolete event schema.
 - The single-patient parameter list no longer offers a computed eGFR series to
   a patient for whom no value can be computed, and marks an already-selected
   one as unavailable instead of drawing an empty chart.

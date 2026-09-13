@@ -8,6 +8,7 @@ import { normalizePatientAttributes, validatePatientAttributes } from '../../cor
 import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
 import { isEgfrUnit } from '../../core/analysis/rapidEgfrDeclineModule'
 import { readWorkbook } from '../../io/readWorkbook'
+import { resolveDemographics } from '../../core/demographics/resolve'
 
 const DEMO_EVENTS_HREF = `${import.meta.env.BASE_URL}test_events.csv`
 const DEMO_ATTRIBUTES_HREF = `${import.meta.env.BASE_URL}test_attributes.csv`
@@ -150,7 +151,11 @@ export function Sidebar() {
     // different date than the one the resolver actually uses.
     const patientRows = rows.filter((r) => r.patientId === patientId)
     const anchorRow = earliestDatedRow(patientRows)
-    const fallbackRow = earliestRowWithAge(patientRows)
+    // Resolve the fallback at the displayed reference date; copying a later
+    // stated age here would shift the patient's entire age series on Apply.
+    const fallbackRow = anchorRow
+      ? earliestDatedRow(resolveDemographics(patientRows, useAppStore.getState().patientAttributes, {}).rows)
+      : earliestRowWithAge(patientRows)
     const prefillAge =
       current?.age !== undefined
         ? String(current.age)
