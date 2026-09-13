@@ -7,6 +7,11 @@ interfaces are still evolving before 1.0.
 
 ### Added
 
+- Configurable mixed-model patient factors: select level or level-and-slope
+  effects, numeric/categorical interpretation and reference categories, with a
+  genotype example including baseline age and sex. Preview model-specific
+  exclusions and export all coefficients, fitted settings, centers and units.
+
 - Single-workbook upload: `.xlsx` workbooks containing `labs`, `events`, and/or
   `attributes` sheets can now be uploaded in one step, automatically populating
   measurements, timeline events, and patient metadata while preserving the

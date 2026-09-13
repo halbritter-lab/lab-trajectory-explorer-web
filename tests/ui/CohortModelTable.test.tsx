@@ -118,7 +118,7 @@ describe('CohortModelTable', () => {
     expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveClass('cohort-model-status')
     const bCheckbox = within(rowByEntity('group:B')).getByRole('checkbox')
     expect(bCheckbox).toBeDisabled()
-    expect(within(rowByEntity('group:B')).getByTestId('cohort-model-status')).toHaveTextContent('Too few data to fit')
+    expect(within(rowByEntity('group:B')).getByTestId('cohort-model-status')).toHaveTextContent('Mixed model fitting requires at least 3 patients.')
   })
 
   it('fits all selected eligible units via the store and never the ineligible one', async () => {
@@ -220,4 +220,18 @@ describe('CohortModelTable', () => {
     expect(screen.getByTestId('cohort-model-detail-dataset')).toHaveClass('cohort-model-detail-item-wide')
     expect(screen.getAllByTestId('cohort-model-detail-value').length).toBeGreaterThan(0)
   })
+})
+
+it('shows all stored coefficients and enables export only after a fit', async () => {
+  const fitted = success(-2)
+  fitted.metadata.modelConfig = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'genotype',kind:'categorical',effect:'level_slope',reference:'A'}]}
+  fitted.fixedEffectTerms = [{term:'time_since_baseline:factor_0_B',estimate:-3,confidenceInterval:[-4,-2]}]
+  fitted.warnings = ['Boundary singular fit']
+  renderTable({runJob:async () => fitted})
+  expect(screen.getByRole('button',{name:'Export models (xlsx)'})).toBeDisabled()
+  await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
+  await waitFor(() => expect(screen.getByRole('button',{name:'Export models (xlsx)'})).toBeEnabled())
+  await userEvent.click(screen.getAllByRole('button',{name:'Details'})[0])
+  expect(screen.getByRole('table',{name:'Fixed effect coefficients'})).toHaveTextContent('Slope \u00d7 genotype: B (reference A)')
+  expect(screen.getByText('Boundary singular fit')).toBeInTheDocument()
 })

@@ -53,6 +53,26 @@ afterEach(() => {
 })
 
 describe('webR worker runtime behavior', () => {
+  it('generates configured models for both engines with complete-case and rank guards', async () => {
+    const codes: string[] = []
+    const {messages,postRequest} = await setupWorker({evalRString: code => {codes.push(code);return Promise.resolve(validFitJson)}})
+    const config: MixedModelConfig = {...LEGACY_MIXED_MODEL_CONFIG,factors:[{key:'genotype',kind:'categorical',effect:'level_slope',reference:'A'}]}
+    const configuredRows = rows.map(row => ({...row,factorValues:{factor_0_: Number(row.patient_id.replace(/\D/g,'')) % 2 ? 'A':'B'}}))
+    for (const engine of ['webr-lme4','webr-nlme'] as const) {
+      postRequest({...baseRequest,engine,config,formula:mixedModelFormula(config),formulaKey:mixedModelFormulaKey(config),rows:configuredRows})
+      await waitForMessages(messages,codes.length || 1)
+      await new Promise(resolve => setTimeout(resolve,0))
+    }
+    expect(codes).toHaveLength(2)
+    for (const code of codes) {
+      expect(code).toContain('time_since_baseline:factor_0_')
+      expect(code).toContain('contr.treatment')
+      expect(code).toContain('qr(mm_design)$rank')
+      expect(code).toContain('na.action = na.fail')
+      expect(code).toContain('fixedEffectTerms =')
+    }
+    expect(codes[0]).toContain('col.dropped')
+  })
   it('rejects a second concurrent request while R globals are in use', async () => {
     let resolveInit: (value: unknown) => void = () => {}
     const initPromise = new Promise((resolve) => {

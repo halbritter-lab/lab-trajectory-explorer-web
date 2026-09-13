@@ -48,6 +48,18 @@ const success: MixedModelSuccess = {
 }
 
 describe('mixed model result identity', () => {
+  it('invalidates centered results when raw centers or exclusion metadata change', () => {
+    const base = { seriesIndex: 0, seriesKey: 'eGFR', patientIds: ['p1', 'p2', 'p3'], rows, fitConfigHash: 'fit' }
+    const preparation = { nPatientsBefore: 4, nMeasurementsBefore: 8,
+      excludedPatients: [{ patientId: 'p4', reasons: ['Missing dose'] }], centers: { factor_0_: 2 } }
+    const original = buildMixedModelResultIdentity({ ...base, preparation })
+    expect(mixedModelIdentityEquals(original, buildMixedModelResultIdentity({ ...base,
+      preparation: { ...preparation, centers: { factor_0_: 12 } },
+    }))).toBe(false)
+    expect(mixedModelIdentityEquals(original, buildMixedModelResultIdentity({ ...base,
+      preparation: { ...preparation, excludedPatients: [{ patientId: 'p4', reasons: ['Missing genotype'] }] },
+    }))).toBe(false)
+  })
   it('includes baseline_age in dataset identity when present', () => {
     const base = hashMixedModelInput([
       { patient_id: 'p1', eGFR: 70, time_since_baseline: 0, baseline_age: 50 },
@@ -214,6 +226,25 @@ describe('mixed model result identity', () => {
     expect(mixedModelMeanLinePoints(success, rows)).toEqual([
       { time_since_baseline: 0, eGFR: 62 },
       { time_since_baseline: 2, eGFR: 57 },
+    ])
+  })
+
+  it('includes the baseline-age time interaction in an adjusted reference line', () => {
+    const result: MixedModelSuccess = {
+      ...success,
+      metadata: { ...success.metadata, modelConfig: { ...DEFAULT_MIXED_MODEL_CONFIG, factors: [
+        { key: 'baseline_age', kind: 'numeric', effect: 'level_slope' },
+      ] } },
+      fixedEffects: { intercept: 100, timeSinceBaseline: -2, baselineAge: -0.5 },
+      fixedEffectTerms: [
+        { term: '(Intercept)', estimate: 100, confidenceInterval: null },
+        { term: 'time_since_baseline', estimate: -2, confidenceInterval: null },
+        { term: 'baseline_age_centered', estimate: -0.5, confidenceInterval: null },
+        { term: 'time_since_baseline:baseline_age_centered', estimate: -0.1, confidenceInterval: null },
+      ],
+    }
+    expect(mixedModelMeanLinePoints(result, rows, { baselineAgeCentered: -10 })).toEqual([
+      { time_since_baseline: 0, eGFR: 105 }, { time_since_baseline: 2, eGFR: 103 },
     ])
   })
 

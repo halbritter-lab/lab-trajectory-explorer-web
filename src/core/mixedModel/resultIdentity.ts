@@ -1,7 +1,7 @@
 import { comparePatientIds } from '../types'
 import { hashMixedModelInput, hashString, roundTo10Decimals } from './validation'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelConfigHashInput, type MixedModelConfig } from './config'
-import { MIXED_MODEL_FORMULA, MIXED_MODEL_TOLERANCE, type MixedModelSpikeRow, type MixedModelSuccess } from './types'
+import { MIXED_MODEL_FORMULA, MIXED_MODEL_TOLERANCE, type MixedModelPreparationSummary, type MixedModelSpikeRow, type MixedModelSuccess } from './types'
 import type { CohortSeriesSpec } from '../cohort/screening'
 
 export interface MixedModelResultIdentity {
@@ -15,6 +15,7 @@ export interface MixedModelResultIdentity {
   /** Optional per-group discriminator. Undefined for the pooled (single) fit so
    * existing pooled identities are byte-for-byte unchanged. */
   groupValue?: string
+  preparationHash?: string
 }
 
 export interface MixedModelResultIdentityInput {
@@ -24,6 +25,7 @@ export interface MixedModelResultIdentityInput {
   rows: readonly MixedModelSpikeRow[]
   fitConfigHash: string
   groupValue?: string
+  preparation?: MixedModelPreparationSummary
 }
 
 export interface MixedModelMeanLinePoint {
@@ -73,6 +75,7 @@ export function buildMixedModelResultIdentity({
   rows,
   fitConfigHash,
   groupValue,
+  preparation,
 }: MixedModelResultIdentityInput): MixedModelResultIdentity {
   const sortedPatientIds = [...new Set(patientIds)].sort(compareCanonicalPatientIds)
   const modelPatientIds = new Set(rows.map((row) => row.patient_id))
@@ -87,6 +90,11 @@ export function buildMixedModelResultIdentity({
     // Only attach the key for grouped fits so pooled identities keep their exact
     // shape (the equality check still distinguishes defined vs. undefined).
     ...(groupValue !== undefined ? { groupValue } : {}),
+    ...(preparation !== undefined && (Object.keys(preparation.centers).length > 0 || preparation.excludedPatients.length > 0) ? { preparationHash: hashString(JSON.stringify({
+      ...preparation,
+      centers: Object.fromEntries(Object.entries(preparation.centers).sort(([a], [b]) => a.localeCompare(b))),
+      excludedPatients: [...preparation.excludedPatients].sort((a, b) => compareCanonicalPatientIds(a.patientId, b.patientId)),
+    })) } : {}),
   }
 }
 
@@ -104,7 +112,10 @@ export function mixedModelIdentityEquals(
       a.fitConfigHash === b.fitConfigHash &&
       a.nPatients === b.nPatients &&
       a.nMeasurements === b.nMeasurements &&
-      a.groupValue === b.groupValue,
+      // Preparation changes alter the interpretation/export even when centered
+      // design columns and the resulting coefficients happen to remain equal.
+      a.groupValue === b.groupValue &&
+      a.preparationHash === b.preparationHash,
   )
 }
 
@@ -135,11 +146,16 @@ export function mixedModelMeanLinePoints(
     result.fixedEffects.baselineAge !== undefined && context.baselineAgeCentered !== null && context.baselineAgeCentered !== undefined
       ? result.fixedEffects.baselineAge * context.baselineAgeCentered
       : 0
+  // All other numeric factors are at their centered zero, categorical factors
+  // at their selected reference. The caller labels adjusted lines as references.
+  const baselineAgeSlope = result.fixedEffectTerms?.find((term) =>
+    term.term === 'time_since_baseline:baseline_age_centered' || term.term === 'baseline_age_centered:time_since_baseline')?.estimate ?? 0
+  const slopeAdjustment = baselineAgeSlope * (context.baselineAgeCentered ?? 0)
   return [minTime, maxTime].map((time) => ({
     time_since_baseline: roundTo10Decimals(time),
     ...(context.ageAxisBaselineAge !== null && context.ageAxisBaselineAge !== undefined
       ? { age: roundTo10Decimals(context.ageAxisBaselineAge + time) }
       : {}),
-    eGFR: roundTo10Decimals(intercept + baselineAgeAdjustment + timeSinceBaseline * time),
+    eGFR: roundTo10Decimals(intercept + baselineAgeAdjustment + (timeSinceBaseline + slopeAdjustment) * time),
   }))
 }

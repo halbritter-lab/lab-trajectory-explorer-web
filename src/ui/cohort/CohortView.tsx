@@ -1,3 +1,4 @@
+import { prepareMixedModelFactors } from '../../core/mixedModel/factors'
 import { lazy, Suspense, useMemo } from 'react'
 import { useAppStore } from '../state/store'
 import { buildCohortRows, cohortExportRecords, slopeUnit, EXPORT_DISCLAIMER_ROWS, type CohortSeriesSpec } from '../../core/cohort/screening'
@@ -272,7 +273,7 @@ export function CohortView() {
   function validateMixedModelDraftConfig(config: MixedModelConfig): string | null {
     const configValidation = validateMixedModelConfig(config)
     if (!configValidation.ok) return configValidation.message
-    const rowValidation = validateMixedModelRows(mixedModelRows, config)
+    const rowValidation = validateMixedModelRows(prepareMixedModelFactors(mixedModelRows, config, patientAttributes, displayRows).rows, config)
     return rowValidation.ok ? null : rowValidation.message
   }
 
@@ -365,6 +366,7 @@ export function CohortView() {
             <Suspense fallback={null}>
               <CohortModelPanel
                 rows={displayRows}
+                patientAttributes={patientAttributes}
                 patientIds={patientIds}
                 groups={cohortGroups}
                 groupColors={cohortGroupColorMap}

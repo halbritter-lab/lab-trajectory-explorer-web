@@ -63,6 +63,12 @@ class FakeWorker {
 }
 
 describe('runMixedModelWorkerJob', () => {
+  it('forwards the reviewed preparation summary into the worker request', async () => {
+    const worker = new FakeWorker('success')
+    const preparation = {nPatientsBefore:5,nMeasurementsBefore:20,excludedPatients:[{patientId:'missing',reasons:['genotype']}],centers:{factor_1_:42}}
+    await runMixedModelWorkerJob({rows:syntheticMixedModelRows(),engine:'webr-lme4',preparation,createWorker:() => worker as unknown as Worker})
+    expect(worker.lastMessage).toMatchObject({preparation})
+  })
   afterEach(() => {
     vi.useRealTimers()
     disposeMixedModelWorker()

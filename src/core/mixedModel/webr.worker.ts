@@ -1,5 +1,5 @@
 import { WebR } from 'webr'
-import { mixedModelFormula, mixedModelFormulaKey } from './config'
+import { mixedModelFormula, mixedModelFormulaKey, mixedModelFactors, mixedModelFactorColumn, validateMixedModelConfig, type MixedModelConfig } from './config'
 import { isRecord } from './guards'
 import {
   MIXED_MODEL_TOLERANCE,
@@ -114,8 +114,8 @@ async function runRequest(request: MixedModelWorkerRequest): Promise<MixedModelR
   }
 
   try {
-    await bindRows(webR, request.rows)
-    const extracted = await extractFit(webR, request.engine, modelCall)
+    await bindRows(webR, request.rows, request.config)
+    const extracted = await extractFit(webR, request.engine, modelCall, request.config)
     return normalizeExtractedFitResult(request, runtimeMetadata(webR, baseMetadata), extracted)
   } catch (error) {
     if (error instanceof ResultExtractionError) {
@@ -158,7 +158,7 @@ function ensurePackages(webR: WebR, engine: WebREngine): Promise<void> {
   return promise
 }
 
-async function bindRows(webR: WebR, rows: readonly MixedModelSpikeRow[]): Promise<void> {
+async function bindRows(webR: WebR, rows: readonly MixedModelSpikeRow[], config: MixedModelConfig): Promise<void> {
   const patientIds = rows.map((row) => row.patient_id)
   const egfr = rows.map((row) => row.eGFR)
   const time = rows.map((row) => row.time_since_baseline)
@@ -170,12 +170,17 @@ async function bindRows(webR: WebR, rows: readonly MixedModelSpikeRow[]): Promis
     mm_time <- jsonlite::fromJSON(${rStringLiteral(JSON.stringify(time))})
     mm_baseline_age_centered <- jsonlite::fromJSON(${rStringLiteral(JSON.stringify(baselineAgeCentered))})
   `)
+  for (const [index, factor] of mixedModelFactors(config).entries()) {
+    const column = mixedModelFactorColumn(factor, index)
+    const values = rows.map(row => config.factors === undefined ? row.baseline_age_centered : row.factorValues?.[column])
+    await webR.evalRVoid(`mm_${column} <- jsonlite::fromJSON(${rStringLiteral(JSON.stringify(values))})`)
+  }
 }
 
-async function extractFit(webR: WebR, engine: WebREngine, modelCall: string): Promise<FitExtractionResult> {
+async function extractFit(webR: WebR, engine: WebREngine, modelCall: string, config: MixedModelConfig): Promise<FitExtractionResult> {
   let json: string
   try {
-    json = await webR.evalRString(engine === 'webr-lme4' ? lme4FitCode(modelCall) : nlmeFitCode(modelCall))
+    json = await webR.evalRString(engine === 'webr-lme4' ? lme4FitCode(modelCall, config) : nlmeFitCode(modelCall, config))
   } catch (error) {
     throw new ModelFitError(errorMessage(error))
   }
@@ -196,6 +201,7 @@ function createBaseMetadata(request: MixedModelWorkerRequest): MixedModelMetadat
     engine: request.engine,
     formula: request.formula,
     modelConfig: request.config,
+    preparation: request.preparation,
     runtimeVersion: null,
     packageVersions: {},
     browserUserAgent: typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent,
@@ -243,13 +249,14 @@ function isWebREngine(engine: MixedModelEngine): engine is WebREngine {
 
 function modelCallForRequest(request: MixedModelWorkerRequest): string | null {
   if (
+    !validateMixedModelConfig(request.config).ok ||
     mixedModelFormulaKey(request.config) !== request.formulaKey ||
     mixedModelFormula(request.config) !== request.formula
   ) {
     return null
   }
-  if (request.engine === 'webr-lme4') return lme4ModelCall(request.formulaKey)
-  if (request.engine === 'webr-nlme') return nlmeModelCall(request.formulaKey)
+  if (request.engine === 'webr-lme4') return `lme4::lmer(${mixedModelFormula(request.config)}, data = mm_data, REML = TRUE, na.action = na.fail)`
+  if (request.engine === 'webr-nlme') return `nlme::lme(${fixedFormula(request.config)}, random = ~ ${request.config.randomEffects === 'intercept_slope' ? 'time_since_baseline' : '1'} | patient_id, data = mm_data, method = "REML", na.action = na.fail)`
   return null
 }
 
@@ -287,7 +294,11 @@ class ModelFitError extends Error {}
  * helpers, then run the engine-specific extraction block (which must assign
  * `mm_out`) and serialize it. Keeping the prologue/epilogue in one place stops
  * the lme4 and nlme paths from drifting apart. */
-function buildFitCode(modelCall: string, extraction: string): string {
+function fixedFormula(config: MixedModelConfig): string {
+  return mixedModelFormula(config).split(' + (')[0]
+}
+
+function buildFitCode(modelCall: string, extraction: string, config: MixedModelConfig): string {
   return `
     mm_data <- data.frame(
       patient_id = factor(mm_patient_id),
@@ -295,6 +306,16 @@ function buildFitCode(modelCall: string, extraction: string): string {
       time_since_baseline = as.numeric(mm_time),
       baseline_age_centered = as.numeric(mm_baseline_age_centered)
     )
+    ${mixedModelFactors(config).map((factor,index) => {
+      const column = mixedModelFactorColumn(factor,index)
+      if (factor.kind === 'numeric') return `mm_data$${column} <- as.numeric(mm_${column})`
+      return `mm_levels <- c(${rStringLiteral(factor.reference!)}, sort(setdiff(unique(mm_${column}), ${rStringLiteral(factor.reference!)})))
+      mm_data$${column} <- factor(mm_${column}, levels = mm_levels)
+      contrasts(mm_data$${column}) <- contr.treatment(mm_levels, base = 1)`
+    }).join('\n')}
+    mm_frame <- model.frame(${fixedFormula(config)}, data = mm_data, na.action = na.fail)
+    mm_design <- model.matrix(${fixedFormula(config)}, data = mm_frame)
+    if (qr(mm_design)$rank < ncol(mm_design)) stop("Fixed-effect design is rank deficient; no terms were dropped.")
     mm_warnings <- character()
     mm_fit <- withCallingHandlers(
       ${modelCall},
@@ -321,40 +342,19 @@ function buildFitCode(modelCall: string, extraction: string): string {
         as.numeric(value[1:2])
       }
     }
+    mm_all_terms <- function(estimates, intervals) {
+      if (length(estimates) != ncol(mm_design) || !all(is.finite(estimates))) stop("Missing or non-finite fixed effects; no terms may be dropped.")
+      unname(lapply(names(estimates), function(term) list(
+        term = term, estimate = as.numeric(estimates[[term]]),
+        confidenceInterval = if (is.null(intervals) || !(term %in% rownames(intervals))) NULL else mm_ci_pair(intervals[term, ])
+      )))
+    }
     ${extraction}
     jsonlite::toJSON(mm_out, auto_unbox = TRUE, null = "null", na = "null")
   `
 }
 
-function lme4ModelCall(formulaKey: string): string | null {
-  if (formulaKey === 'time_since_baseline__none__intercept') {
-    return 'lme4::lmer(eGFR ~ time_since_baseline + (1 | patient_id), data = mm_data, REML = TRUE)'
-  }
-  if (formulaKey === 'time_since_baseline__none__intercept_slope') {
-    return 'lme4::lmer(eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id), data = mm_data, REML = TRUE)'
-  }
-  if (formulaKey === 'time_since_baseline__baseline_age__intercept') {
-    return 'lme4::lmer(eGFR ~ time_since_baseline + baseline_age_centered + (1 | patient_id), data = mm_data, REML = TRUE)'
-  }
-  if (formulaKey === 'time_since_baseline__baseline_age__intercept_slope') {
-    return 'lme4::lmer(eGFR ~ time_since_baseline + baseline_age_centered + (1 + time_since_baseline | patient_id), data = mm_data, REML = TRUE)'
-  }
-  return null
-}
-
-function nlmeModelCall(formulaKey: string): string | null {
-  if (formulaKey === 'time_since_baseline__none__intercept_slope') {
-    return `nlme::lme(
-        eGFR ~ time_since_baseline,
-        random = ~ time_since_baseline | patient_id,
-        data = mm_data,
-        method = "REML"
-      )`
-  }
-  return null
-}
-
-function lme4FitCode(modelCall: string): string {
+function lme4FitCode(modelCall: string, config: MixedModelConfig): string {
   return buildFitCode(
     modelCall,
     `
@@ -362,7 +362,9 @@ function lme4FitCode(modelCall: string): string {
       idx <- which(mask)
       if (length(idx) == 0) NA_real_ else values[idx[[1]]]
     }
+    if (!is.null(attr(lme4::getME(mm_fit, "X"), "col.dropped"))) stop("Fixed-effect terms were dropped; model rejected.")
     mm_fixed <- lme4::fixef(mm_fit)
+    mm_all_ci <- tryCatch(confint(mm_fit, parm = names(mm_fixed), method = "Wald"), error = function(e) NULL)
     mm_intercept <- as.numeric(mm_fixed[["(Intercept)"]])
     mm_slope <- as.numeric(mm_fixed[["time_since_baseline"]])
     mm_baseline_age <- if ("baseline_age_centered" %in% names(mm_fixed)) as.numeric(mm_fixed[["baseline_age_centered"]]) else NA_real_
@@ -395,6 +397,7 @@ function lme4FitCode(modelCall: string): string {
         timeSinceBaseline = mm_slope,
         baselineAge = mm_nullable_number(mm_baseline_age)
       ),
+      fixedEffectTerms = mm_all_terms(mm_fixed, mm_all_ci),
       fixedEffectConfidenceIntervals = list(
         timeSinceBaseline = mm_time_ci_pair
       ),
@@ -410,10 +413,11 @@ function lme4FitCode(modelCall: string): string {
         jsonlite = as.character(utils::packageVersion("jsonlite"))
       )
     )`,
+    config,
   )
 }
 
-function nlmeFitCode(modelCall: string): string {
+function nlmeFitCode(modelCall: string, config: MixedModelConfig): string {
   return buildFitCode(
     modelCall,
     `
@@ -425,6 +429,7 @@ function nlmeFitCode(modelCall: string): string {
       nlme::intervals(mm_fit, which = "fixed")$fixed,
       error = function(e) NULL
     )
+    mm_all_ci <- if (is.null(mm_fixed_intervals)) NULL else mm_fixed_intervals[, c("lower", "upper"), drop = FALSE]
     mm_time_ci_pair <- if (
       is.null(mm_fixed_intervals) ||
         !("time_since_baseline" %in% rownames(mm_fixed_intervals)) ||
@@ -445,8 +450,10 @@ function nlmeFitCode(modelCall: string): string {
       warnings = unname(unique(mm_warnings)),
       fixedEffects = list(
         intercept = mm_intercept,
-        timeSinceBaseline = mm_slope
+        timeSinceBaseline = mm_slope,
+        baselineAge = mm_named_number(mm_fixed, "baseline_age_centered")
       ),
+      fixedEffectTerms = mm_all_terms(mm_fixed, mm_all_ci),
       fixedEffectConfidenceIntervals = list(
         timeSinceBaseline = mm_time_ci_pair
       ),
@@ -462,5 +469,6 @@ function nlmeFitCode(modelCall: string): string {
         jsonlite = as.character(utils::packageVersion("jsonlite"))
       )
     )`,
+    config,
   )
 }

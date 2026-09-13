@@ -1,4 +1,5 @@
 import { isRecord } from './guards'
+import { mixedModelFactors } from './config'
 import type { MixedModelMetadata, MixedModelSuccess } from './types'
 import type { MixedModelWorkerRequest } from './workerProtocol'
 
@@ -6,6 +7,7 @@ export interface FitExtractionResult {
   converged: unknown
   warnings: unknown
   fixedEffects: unknown
+  fixedEffectTerms?: unknown
   fixedEffectConfidenceIntervals: unknown
   randomEffects: unknown
   residualSd: unknown
@@ -36,6 +38,9 @@ export function normalizeExtractedFitResult(
   }
 
   const fixedEffects = normalizeFixedEffects(request, extracted.fixedEffects)
+  if (request.config.factors?.length && extracted.fixedEffectTerms === undefined) {
+    throw new ResultExtractionError('Adjusted model results require fixedEffectTerms for all coefficients.')
+  }
   const fixedEffectConfidenceIntervals = normalizeFixedEffectConfidenceIntervals(
     extracted.fixedEffectConfidenceIntervals,
   )
@@ -51,6 +56,7 @@ export function normalizeExtractedFitResult(
     status: 'success',
     metadata: {
       ...metadata,
+      ...(request.preparation ? {preparation: request.preparation} : {}),
       optimizer,
       packageVersions: extracted.packageVersions,
     },
@@ -59,6 +65,7 @@ export function normalizeExtractedFitResult(
     nPatients: new Set(request.rows.map((row) => row.patient_id)).size,
     nMeasurements: request.rows.length,
     fixedEffects,
+    ...(extracted.fixedEffectTerms === undefined ? {} : {fixedEffectTerms: normalizeFixedEffectTerms(extracted.fixedEffectTerms)}),
     fixedEffectConfidenceIntervals,
     randomEffects,
     residualSd,
@@ -72,11 +79,21 @@ function normalizeFixedEffects(
   if (!isRecord(value)) return null
   const intercept = requireFiniteNumber(value.intercept, 'fixedEffects.intercept')
   const timeSinceBaseline = requireFiniteNumber(value.timeSinceBaseline, 'fixedEffects.timeSinceBaseline')
-  if (!request.config.covariates.includes('baseline_age')) {
+  if (!mixedModelFactors(request.config).some(factor => factor.key === 'baseline_age')) {
     return { intercept, timeSinceBaseline }
   }
   const baselineAge = requireFiniteNumber(value.baselineAge, 'fixedEffects.baselineAge')
   return { intercept, timeSinceBaseline, baselineAge }
+}
+
+function normalizeFixedEffectTerms(value: unknown): NonNullable<MixedModelSuccess['fixedEffectTerms']> {
+  if (!Array.isArray(value) || value.length === 0) throw new ResultExtractionError('fixedEffectTerms must be a non-empty array.')
+  const seen = new Set<string>()
+  return value.map(item => {
+    if (!isRecord(item) || typeof item.term !== 'string' || !item.term || seen.has(item.term)) throw new ResultExtractionError('fixedEffectTerms requires unique named terms.')
+    seen.add(item.term)
+    return {term:item.term,estimate:requireFiniteNumber(item.estimate,'fixedEffectTerms.estimate'),confidenceInterval:requireNullableFiniteNumberPair(item.confidenceInterval,'fixedEffectTerms.confidenceInterval')}
+  })
 }
 
 function normalizeFixedEffectConfidenceIntervals(value: unknown): MixedModelSuccess['fixedEffectConfidenceIntervals'] {

@@ -10,6 +10,14 @@ export interface MixedModelSpikeRow {
   baseline_age?: number
   /** Patient baseline age centered at the modeled cohort's patient-weighted mean baseline age. */
   baseline_age_centered?: number
+  factorValues?: Record<string, number | string>
+}
+
+export interface MixedModelPreparationSummary {
+  nPatientsBefore: number
+  nMeasurementsBefore: number
+  excludedPatients: Array<{ patientId: string; reasons: string[] }>
+  centers: Record<string, number>
 }
 
 export interface MixedModelProductionRow extends MixedModelSpikeRow {
@@ -26,6 +34,7 @@ export interface MixedModelMetadata {
   browserUserAgent: string
   wasmAssetSource: 'cdn' | 'self-hosted' | 'local-dev'
   modelConfig?: MixedModelConfig
+  preparation?: MixedModelPreparationSummary
   optimizer: string | null
   reml: boolean
   tolerance: number | null
@@ -47,6 +56,7 @@ export interface MixedModelSuccess {
     timeSinceBaseline: number
     baselineAge?: number
   }
+  fixedEffectTerms?: Array<{ term: string; estimate: number; confidenceInterval: [number, number] | null }>
   fixedEffectConfidenceIntervals: {
     timeSinceBaseline: [number, number] | null
   }
