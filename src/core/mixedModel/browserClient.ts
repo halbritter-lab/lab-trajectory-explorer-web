@@ -11,11 +11,13 @@ import {
   type MixedModelFailure,
   type MixedModelResult,
   type MixedModelSpikeRow,
+  type MixedModelPreparationSummary,
 } from './types'
 import { isMixedModelWorkerResponse, type MixedModelWorkerRequest } from './workerProtocol'
 
 export interface RunMixedModelWorkerJobOptions {
   rows: MixedModelSpikeRow[]
+  preparation?: MixedModelPreparationSummary
   engine: MixedModelEngine
   config?: MixedModelConfig
   formula?: string
@@ -153,6 +155,7 @@ export function runMixedModelWorkerJob(options: RunMixedModelWorkerJobOptions): 
       formula,
       formulaKey,
       rows: options.rows,
+      preparation: options.preparation,
       datasetId: options.datasetId ?? 'ad-hoc',
       fitConfigHash: options.fitConfigHash ?? 'unknown',
       wasmAssetSource: options.wasmAssetSource ?? 'cdn',
@@ -177,7 +180,7 @@ export function runMixedModelWorkerJob(options: RunMixedModelWorkerJobOptions): 
 function failure(
   options: Pick<
     RunMixedModelWorkerJobOptions,
-    'config' | 'datasetId' | 'engine' | 'fitConfigHash' | 'formula' | 'wasmAssetSource'
+    'config' | 'datasetId' | 'engine' | 'fitConfigHash' | 'formula' | 'wasmAssetSource' | 'preparation'
   >,
   status: MixedModelFailure['status'],
   stage: MixedModelFailure['stage'],
@@ -196,6 +199,7 @@ function failure(
       engine: options.engine,
       formula: options.formula ?? mixedModelFormula(config),
       modelConfig: config,
+      preparation: options.preparation,
       browserUserAgent: typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent,
       datasetId: options.datasetId ?? 'ad-hoc',
       fitConfigHash: options.fitConfigHash ?? 'unknown',

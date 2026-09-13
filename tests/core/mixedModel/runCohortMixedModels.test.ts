@@ -62,6 +62,13 @@ const baseParams = {
 }
 
 describe('runCohortMixedModels', () => {
+  it('forwards complete-case and centering metadata with each entity', async () => {
+    const preparation = { nPatientsBefore: 3, nMeasurementsBefore: 6,
+      excludedPatients: [{ patientId: 'missing', reasons: ['Missing genotype'] }], centers: { factor_0_: 50 } }
+    const runJob = vi.fn(async (_options: RunMixedModelWorkerJobOptions) => success(62))
+    await runCohortMixedModels({ ...baseParams, entities: [{ ...entities[0], preparation }], runJob })
+    expect(runJob.mock.calls[0][0].preparation).toEqual(preparation)
+  })
   it('runs the job once per entity in array order with reuseWorker', async () => {
     const runJob = vi.fn<(options: RunMixedModelWorkerJobOptions) => Promise<MixedModelResult>>(
       async () => success(62),

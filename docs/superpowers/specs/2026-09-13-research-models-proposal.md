@@ -1,7 +1,10 @@
 # Research models: proposed scope
 
-Status: draft for scientific/product review. No new model behavior is authorized
-by this document. The technical import and estimator-test work is separate.
+Status: patient-factor configuration and the genotype example were approved on
+2026-09-13 and are implemented on `feat/configurable-mixed-model-factors`.
+Baseline age and sex can affect both level and slope; each factor remains
+configurable. Intervention timing and threshold-time models remain proposals
+requiring further definition.
 
 ## Confirmed research needs
 

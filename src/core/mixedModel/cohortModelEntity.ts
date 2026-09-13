@@ -1,4 +1,4 @@
-import type { MixedModelSpikeRow } from './types'
+import type { MixedModelPreparationSummary, MixedModelSpikeRow } from './types'
 
 /** A unit to fit a cohort mixed model for: either the pooled whole cohort or one
  * group. Domain-neutral — a group value is whatever the chosen attribute holds. */
@@ -9,6 +9,7 @@ export type CohortModelEntity =
 export interface CohortModelEntityRows {
   entity: CohortModelEntity
   rows: MixedModelSpikeRow[]
+  preparation?: MixedModelPreparationSummary
 }
 
 /** Stable map/selection key. `'cohort'` for the pooled fit; `'group:<value>'` for

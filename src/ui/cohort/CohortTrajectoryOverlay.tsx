@@ -14,6 +14,7 @@ import {
   mixedModelMeanLinePoints,
 } from '../../core/mixedModel/resultIdentity'
 import { mixedModelRowsByGroup, mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
+import { prepareMixedModelFactors } from '../../core/mixedModel/factors'
 import type { MixedModelSpikeRow } from '../../core/mixedModel/types'
 import { groupColors, groupPatients, UNGROUPED } from '../../core/grouping/grouping'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../../core/types'
@@ -172,12 +173,13 @@ export function CohortTrajectoryOverlay() {
       .filter((group) => present.has(group.value))
       .map((group) => ({ value: group.value, color: groupColorMap.get(group.value) ?? GROUP_FALLBACK_COLOR }))
   }, [groupingActive, points, cohortGroups, groupColorMap])
-  const activeMixedModelRows = useMemo(
-    () => activeSpec
+  const activeMixedModelData = useMemo(
+    () => prepareMixedModelFactors(activeSpec
       ? mixedModelRowsFromCohortInputs(rows, scopedPatientIds, activeSpec)
-      : [],
-    [rows, scopedPatientIds, activeSpec],
+      : [], mixedModelConfig, patientAttributes, rows),
+    [rows, scopedPatientIds, activeSpec, mixedModelConfig, patientAttributes],
   )
+  const activeMixedModelRows = activeMixedModelData.rows
   const activeMixedModelFitConfigHash = useMemo(
     () => activeSpec ? mixedModelFitConfigHash(activeSpec, mixedModelConfig) : '',
     [activeSpec, mixedModelConfig],
@@ -197,14 +199,16 @@ export function CohortTrajectoryOverlay() {
     return buildMixedModelResultIdentity({
       seriesIndex: resolvedActiveSeriesIndex,
       seriesKey: `${activeSpec.bezeichnung}|${activeSpec.einheit ?? ''}`,
-      patientIds: scopedPatientIds.map(String),
+      patientIds: activeMixedModelRows.map((row) => row.patient_id),
       rows: activeMixedModelRows,
+      preparation: activeMixedModelData.preparation,
       fitConfigHash: activeMixedModelFitConfigHash,
     })
-  }, [resolvedActiveSeriesIndex, activeSpec, scopedPatientIds, activeMixedModelRows, activeMixedModelFitConfigHash])
-  const groupMixedModelRows = useMemo(
-    () => (groupingActive && activeSpec ? mixedModelRowsByGroup(rows, cohortGroups, activeSpec) : {}),
-    [groupingActive, activeSpec, rows, cohortGroups],
+  }, [resolvedActiveSeriesIndex, activeSpec, activeMixedModelData, activeMixedModelRows, activeMixedModelFitConfigHash])
+  const groupMixedModelData = useMemo(
+    () => Object.fromEntries(Object.entries(groupingActive && activeSpec ? mixedModelRowsByGroup(rows, cohortGroups, activeSpec) : {})
+      .map(([group, modelRows]) => [group, prepareMixedModelFactors(modelRows, mixedModelConfig, patientAttributes, rows)])),
+    [groupingActive, activeSpec, rows, cohortGroups, mixedModelConfig, patientAttributes],
   )
   const groupMeanLines = useMemo(() => {
     if (!groupingActive || !showCohortMixedModelLine) return []
@@ -218,7 +222,7 @@ export function CohortTrajectoryOverlay() {
     const mixedModelLineForGroup = (value: string): Array<{ x: number; value: number }> => {
       const stored = cohortModelResults?.[`group:${value}`]
       if (!stored || stored.result.status !== 'success' || !activeSpec) return []
-      const groupRows = groupMixedModelRows[value] ?? []
+      const groupRows = groupMixedModelData[value]?.rows ?? []
       if (groupRows.length === 0) return []
       const identity = buildMixedModelResultIdentity({
         seriesIndex: resolvedActiveSeriesIndex,
@@ -227,6 +231,7 @@ export function CohortTrajectoryOverlay() {
         rows: groupRows,
         fitConfigHash: activeMixedModelFitConfigHash,
         groupValue: value,
+        preparation: groupMixedModelData[value]?.preparation,
       })
       if (!mixedModelIdentityEquals(identity, stored.identity)) return []
       const groupMeanBaselineAge = meanBaselineAgeForRows(groupRows)
@@ -257,7 +262,7 @@ export function CohortTrajectoryOverlay() {
     axis,
     showCohortMixedModelLine,
     cohortModelResults,
-    groupMixedModelRows,
+    groupMixedModelData,
     resolvedActiveSeriesIndex,
     activeSpec,
     activeMixedModelFitConfigHash,
@@ -283,14 +288,17 @@ export function CohortTrajectoryOverlay() {
       : [],
     [groupingActive, showCohortMixedModelLine, axis, pooledModelResult, activeMixedModelIdentity, activeMixedModelRows, meanBaselineAge],
   )
-  const mixedModelLineLabel = axis === 'age' ? 'Mixed model mean at mean baseline age' : 'Mixed model mean'
+  const adjustedModel = (mixedModelConfig.factors?.length ?? 0) > 0
+  const mixedModelLineLabel = adjustedModel ? 'Mixed model reference' : axis === 'age' ? 'Mixed model mean at mean baseline age' : 'Mixed model mean'
   const mixedModelLineStatus = useMemo(() => {
     if (groupingActive || !showCohortMixedModelLine) return null
-    if (mixedModelLine.length > 0) return axis === 'age' ? 'Model line: mean baseline age projection' : 'Model line: follow-up time'
+    if (mixedModelLine.length > 0) return adjustedModel
+      ? 'Model line: reference categories and numeric means'
+      : axis === 'age' ? 'Model line: mean baseline age projection' : 'Model line: follow-up time'
     if (axis === 'calendar_time') return 'Model line: available on Age or Years since baseline'
     if (pooledModelResult?.result.status === 'success') return 'Model line: fit active series/settings first'
     return null
-  }, [groupingActive, showCohortMixedModelLine, mixedModelLine.length, axis, pooledModelResult])
+  }, [groupingActive, showCohortMixedModelLine, mixedModelLine.length, axis, pooledModelResult, adjustedModel])
 
   const patientIds = visiblePatientIds
   const title = activeConfig?.einheit ? `${activeConfig.bezeichnung} (${activeConfig.einheit})` : activeConfig?.bezeichnung ?? ''
@@ -480,7 +488,7 @@ export function CohortTrajectoryOverlay() {
     const mixedModelLinePath = fig.querySelector<SVGPathElement>('g.cohort-mixed-model-line-mark path')
     if (mixedModelLinePath) {
       mixedModelLinePath.dataset.testid = 'cohort-mixed-model-line'
-      mixedModelLinePath.setAttribute('aria-label', 'Mixed model mean line')
+      mixedModelLinePath.setAttribute('aria-label', adjustedModel ? 'Mixed model reference line' : 'Mixed model mean line')
       mixedModelLinePath.style.pointerEvents = 'none'
     }
     const mixedModelLabel = [...fig.querySelectorAll<SVGTextElement>('text')]
@@ -505,7 +513,7 @@ export function CohortTrajectoryOverlay() {
       if (path) {
         path.dataset.group = groupLine.group
         path.dataset.kind = groupLine.kind
-        path.setAttribute('aria-label', `${groupLine.group} ${groupLine.kind === 'mixed' ? 'mixed model mean line' : 'mean line'}`)
+        path.setAttribute('aria-label', `${groupLine.group} ${groupLine.kind === 'mixed' ? (adjustedModel ? 'mixed model reference line' : 'mixed model mean line') : 'mean line'}`)
         path.style.pointerEvents = 'none'
       }
     })
@@ -600,7 +608,7 @@ export function CohortTrajectoryOverlay() {
       renderEventLabels(fig, eventRules, overlayEvents)
     }
     return () => fig.remove()
-  }, [activeConfig?.bezeichnung, title, points, visiblePoints, hiddenGroups, patientIds, axis, width, egfr, connectPoints, hoveredPatientId, selectedOverlayPatientId, overlayEvents, exclusionSegments, excludedPoints, mixedModelLine, mixedModelLineLabel, groupingActive, groupColorMap, groupMeanLines])
+  }, [activeConfig?.bezeichnung, title, points, visiblePoints, hiddenGroups, patientIds, axis, width, egfr, connectPoints, hoveredPatientId, selectedOverlayPatientId, overlayEvents, exclusionSegments, excludedPoints, mixedModelLine, mixedModelLineLabel, groupingActive, groupColorMap, groupMeanLines, adjustedModel])
 
   function openPatient(patientId: PatientId) {
     selectPatient(patientId)

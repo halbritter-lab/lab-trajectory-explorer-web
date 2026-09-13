@@ -1,3 +1,6 @@
+import { mixedModelCoefficientTerms, mixedModelExportSheets, mixedModelTermLabel } from '../../core/mixedModel/modelExport'
+import { mixedModelFactors } from '../../core/mixedModel/config'
+import { downloadBlob, fileStamp, sheetsToXlsxBytes } from '../../io/export'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import type { MixedModelConfig } from '../../core/mixedModel/config'
@@ -48,6 +51,8 @@ interface EntityRow {
   nPatients: number
   nMeasurements: number
   /** Passes the same pooled validity gate as the single fit. */
+  preparation?: CohortModelEntityRows['preparation']
+  validationMessage: string | null
   eligible: boolean
 }
 
@@ -74,7 +79,8 @@ export function CohortModelTable({
   const entityRows = useMemo<EntityRow[]>(
     () =>
       entities
-        .map(({ entity, rows }) => {
+        .map(({ entity, rows, preparation }) => {
+          const validation = validateMixedModelRows(rows, config)
           const key = entityKey(entity)
           return {
             entity,
@@ -84,11 +90,13 @@ export function CohortModelTable({
             color: entityColors.get(key) ?? FALLBACK_COLOR,
             nPatients: new Set(rows.map((row) => row.patient_id)).size,
             nMeasurements: rows.length,
-            eligible: validateMixedModelRows(rows, config).ok,
+            preparation,
+            validationMessage: validation.ok ? null : validation.message,
+            eligible: validation.ok,
           }
         })
         // Always keep the pooled cohort row; drop empty groups (no model rows).
-        .filter((row) => row.entity.kind === 'cohort' || row.rows.length > 0),
+        .filter((row) => row.entity.kind === 'cohort' || row.rows.length > 0 || (row.preparation?.nMeasurementsBefore ?? 0) > 0),
     [entities, entityLabels, entityColors, config],
   )
 
@@ -150,6 +158,7 @@ export function CohortModelTable({
       seriesKey,
       patientIds: row.rows.map((modelRow) => modelRow.patient_id),
       rows: row.rows,
+      preparation: row.preparation,
       fitConfigHash,
       groupValue: entityGroupValue(row.entity),
     })
@@ -159,7 +168,7 @@ export function CohortModelTable({
   async function fitSelected() {
     if (selectedEligible.length === 0) return
     await runCohortModels({
-      entities: selectedEligible.map((row) => ({ entity: row.entity, rows: row.rows })),
+      entities: selectedEligible.map((row) => ({ entity: row.entity, rows: row.rows, preparation: row.preparation })),
       seriesIndex,
       seriesKey,
       fitConfigHash,
@@ -170,7 +179,7 @@ export function CohortModelTable({
   }
 
   function statusText(row: EntityRow): string {
-    if (!row.eligible) return 'Too few data to fit'
+    if (!row.eligible) return row.validationMessage ?? 'Invalid model design'
     const stored = storedFor(row)
     if (!stored) return 'Not fitted'
     const result = stored.result
@@ -181,10 +190,17 @@ export function CohortModelTable({
     return `Fit failed: ${result.message}`
   }
 
+  const exportable = entityRows.flatMap((row) => {
+    const stored = storedFor(row)
+    return stored ? [{entity: row.label, result: stored.result, identity: stored.identity}] : []
+  })
+  const adjusted = mixedModelFactors(config).length > 0
+
   return (
     <section className="mixed-model-panel cohort-model-panel" aria-label="Cohort mixed model">
       <div className="mixed-model-panel-header">
         <p className="mixed-model-message">One mixed model per selected unit, fit sequentially. Failures are isolated per unit.</p>
+        <button type="button" disabled={exportable.length === 0 || running} onClick={() => downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable)), `cohort-models-${fileStamp()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}>Export models (xlsx)</button>
         <button
           type="button"
           onClick={() => void fitSelected()}
@@ -213,8 +229,8 @@ export function CohortModelTable({
                 <th scope="col">Unit</th>
                 <th scope="col">Patients</th>
                 <th scope="col">Measurements</th>
-                <th scope="col">Slope</th>
-                <th scope="col">Intercept</th>
+                <th scope="col">{adjusted ? 'Reference slope' : 'Slope'}</th>
+                <th scope="col">{adjusted ? 'Reference intercept' : 'Intercept'}</th>
                 <th scope="col">Status</th>
                 <th scope="col"><span className="visually-hidden">Details</span></th>
               </tr>
@@ -248,7 +264,9 @@ export function CohortModelTable({
                       <td>{row.nMeasurements}</td>
                       <td>{success ? formatSlope(success.fixedEffects.timeSinceBaseline, seriesUnit) : '—'}</td>
                       <td>{success ? formatValue(success.fixedEffects.intercept, seriesUnit) : '—'}</td>
-                      <td className="cohort-model-status" data-testid="cohort-model-status">{statusText(row)}</td>
+                      <td className="cohort-model-status" data-testid="cohort-model-status">{statusText(row)}
+                        {(row.preparation?.excludedPatients.length ?? 0) > 0 && <details><summary>Excluded patients ({row.preparation!.excludedPatients.length})</summary><ul>{row.preparation!.excludedPatients.map((patient) => <li key={patient.patientId}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul></details>}
+                      </td>
                       <td>
                         {success && (
                           <button
@@ -281,7 +299,12 @@ export function CohortModelTable({
 }
 
 function ModelDetails({ result }: { result: MixedModelSuccess }) {
+  const factors = result.metadata.modelConfig ? mixedModelFactors(result.metadata.modelConfig) : []
   return (
+    <>
+    {factors.length > 0 && <p>Reference intercept and slope: {factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : `${factor.key} at its included-patient mean`).join('; ')}. Associations are conditional on this model and population.</p>}
+    {result.warnings.map((warning, index) => <p role="status" key={index}>{warning}</p>)}
+    <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{coefficient.estimate.toFixed(3)}</td><td>{formatOptionalInterval(coefficient.confidenceInterval)}</td></tr>)}</tbody></table>
     <dl className="cohort-model-details">
       <div className="cohort-model-detail-item">
         <dt>Slope 95% CI</dt>
@@ -320,6 +343,7 @@ function ModelDetails({ result }: { result: MixedModelSuccess }) {
         <dd data-testid="cohort-model-detail-value">{result.metadata.fitConfigHash}</dd>
       </div>
     </dl>
+    </>
   )
 }
 

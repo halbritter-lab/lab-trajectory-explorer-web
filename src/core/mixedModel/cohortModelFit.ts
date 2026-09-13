@@ -57,7 +57,7 @@ export async function runCohortMixedModels({
   const total = entities.length
   let completed = 0
 
-  for (const { entity, rows } of entities) {
+  for (const { entity, rows, preparation } of entities) {
     if (signal?.aborted) break
     const key = entityKey(entity)
 
@@ -68,12 +68,14 @@ export async function runCohortMixedModels({
       rows,
       fitConfigHash,
       groupValue: entityGroupValue(entity),
+      preparation,
     })
 
     let result: MixedModelResult
     try {
       result = await runJob({
         rows,
+        preparation,
         engine,
         config,
         formula,
@@ -85,6 +87,7 @@ export async function runCohortMixedModels({
       })
     } catch (error) {
       result = jobFailure(engine, formula, config, datasetId, fitConfigHash, error)
+      result.metadata.preparation = preparation
     }
 
     results[key] = { result, identity }

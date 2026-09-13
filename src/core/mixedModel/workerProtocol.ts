@@ -1,6 +1,6 @@
 import { isRecord } from './guards'
 import type { MixedModelConfig } from './config'
-import type { MixedModelEngine, MixedModelResult, MixedModelSpikeRow } from './types'
+import type { MixedModelEngine, MixedModelResult, MixedModelSpikeRow, MixedModelPreparationSummary } from './types'
 
 export interface MixedModelWorkerRequest {
   type: 'run-mixed-model'
@@ -10,6 +10,7 @@ export interface MixedModelWorkerRequest {
   formula: string
   formulaKey: string
   rows: MixedModelSpikeRow[]
+  preparation?: MixedModelPreparationSummary
   datasetId: string
   fitConfigHash: string
   wasmAssetSource: 'cdn' | 'self-hosted' | 'local-dev'
@@ -48,6 +49,8 @@ function isMixedModelSuccess(result: Record<string, unknown>): boolean {
   ) return false
 
   const fixedEffects = result.fixedEffects
+  if (isRecord(result.metadata.modelConfig) && Array.isArray(result.metadata.modelConfig.factors) && result.metadata.modelConfig.factors.length > 0 && (!Array.isArray(result.fixedEffectTerms) || result.fixedEffectTerms.length === 0)) return false
+  if (result.fixedEffectTerms !== undefined && (!Array.isArray(result.fixedEffectTerms) || !result.fixedEffectTerms.every(term => isRecord(term) && typeof term.term === 'string' && isFiniteNumber(term.estimate) && isNullableNumberPair(term.confidenceInterval)))) return false
   if (!isFiniteNumber(fixedEffects.intercept) || !isFiniteNumber(fixedEffects.timeSinceBaseline)) return false
   if (
     typeof fixedEffects.baselineAge !== 'undefined' &&
