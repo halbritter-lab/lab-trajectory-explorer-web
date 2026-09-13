@@ -12,7 +12,7 @@ from pathlib import Path
 import pandas as pd
 
 from analyses.lab_explorer import _parse_wert, load_lab_excel, summarize_by_bezeichnung, fit_segments, _rolling_slopes_for_series
-from analyses.methods import _fit_ols_impl, apply_preset, find_kdigo_aki_episodes
+from analyses.methods import _fit_ols_impl, _theil_sen_estimator, SegmentMeta, apply_preset, find_kdigo_aki_episodes
 from analyses.egfr import ckdepi_2021, mdrd_4, append_computed_egfr
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "tests" / "goldens"
@@ -124,6 +124,43 @@ def gen_ols() -> list[dict]:
     return rows
 
 
+def gen_theil_sen() -> list[dict]:
+    """Python reference outputs; web parity currently covers slope/reason/r2 only.
+
+    See tests/parity/theilSen.parity.test.ts for the scope and known differences.
+    """
+    cases = [
+        ("rising", [0, 0.5, 2, 4], [7, 8, 11, 15]),
+        ("falling", [0, 0.5, 2, 4], [7, 6, 3, -1]),
+        ("constant", [0, 0.5, 2, 4], [7, 7, 7, 7]),
+        ("gross_outlier", [0, 1, 2, 3, 4], [0, 2, 4, 6, 108]),
+        ("odd_pair_count", [0, 1, 2], [0, 2, 10]),
+        ("even_pair_count", [0, 1, 2, 3], [0, 0, 4, 9]),
+        ("repeated_dates", [0, 0, 1, 2], [0, 10, 2, 8]),
+        ("empty", [], []),
+        ("one_point", [0], [7]),
+        ("identical_dates", [0, 0, 0], [7, 9, 11]),
+    ]
+    rows = []
+    for name, xs, ys in cases:
+        t0 = pd.Timestamp("2000-01-01")
+        times = pd.Series([t0 + pd.Timedelta(days=x * 365.25) for x in xs], dtype="datetime64[ns]")
+        meta = SegmentMeta(idx_range=(0, len(xs)), t_start=times.min(), t_end=times.max(), n=len(xs))
+        fit = _theil_sen_estimator(times, pd.Series(ys, dtype=float), meta)
+        rows.append({
+            "name": name,
+            "xYears": xs,
+            "values": ys,
+            "slope": _num(fit.slope),
+            "intercept": _num(fit.intercept),
+            "r2": _num(fit.r2),
+            "ciLow": _num(fit.ci_low),
+            "ciHigh": _num(fit.ci_high),
+            "reason": fit.reason,
+        })
+    return rows
+
+
 def gen_egfr() -> dict:
     grid = [
         (1.0, 50, "m"), (1.0, 50, "w"), (1.0, 50, "d"),
@@ -212,6 +249,7 @@ def main() -> None:
     OUT_DIR.mkdir(parents=True, exist_ok=True)
     (OUT_DIR / "wert.json").write_text(json.dumps(gen_wert(), indent=2), encoding="utf-8")
     (OUT_DIR / "ols.json").write_text(json.dumps(gen_ols(), indent=2), encoding="utf-8")
+    (OUT_DIR / "theil_sen.json").write_text(json.dumps(gen_theil_sen(), indent=2), encoding="utf-8")
     sr = gen_segments_rolling_summary()
     (OUT_DIR / "segments.json").write_text(json.dumps(sr["segments"], indent=2), encoding="utf-8")
     (OUT_DIR / "rolling.json").write_text(json.dumps(sr["rolling"], indent=2), encoding="utf-8")

@@ -1,0 +1,194 @@
+[
+  {
+    "name": "rising",
+    "xYears": [
+      0,
+      0.5,
+      2,
+      4
+    ],
+    "values": [
+      7,
+      8,
+      11,
+      15
+    ],
+    "slope": 2.0,
+    "intercept": 7.0,
+    "r2": null,
+    "ciLow": 2.0,
+    "ciHigh": 2.0,
+    "reason": null
+  },
+  {
+    "name": "falling",
+    "xYears": [
+      0,
+      0.5,
+      2,
+      4
+    ],
+    "values": [
+      7,
+      6,
+      3,
+      -1
+    ],
+    "slope": -2.0,
+    "intercept": 7.0,
+    "r2": null,
+    "ciLow": -2.0,
+    "ciHigh": -2.0,
+    "reason": null
+  },
+  {
+    "name": "constant",
+    "xYears": [
+      0,
+      0.5,
+      2,
+      4
+    ],
+    "values": [
+      7,
+      7,
+      7,
+      7
+    ],
+    "slope": 0.0,
+    "intercept": 7.0,
+    "r2": null,
+    "ciLow": 0.0,
+    "ciHigh": 0.0,
+    "reason": null
+  },
+  {
+    "name": "gross_outlier",
+    "xYears": [
+      0,
+      1,
+      2,
+      3,
+      4
+    ],
+    "values": [
+      0,
+      2,
+      4,
+      6,
+      108
+    ],
+    "slope": 2.0,
+    "intercept": 0.0,
+    "r2": null,
+    "ciLow": 2.0,
+    "ciHigh": 102.0,
+    "reason": null
+  },
+  {
+    "name": "odd_pair_count",
+    "xYears": [
+      0,
+      1,
+      2
+    ],
+    "values": [
+      0,
+      2,
+      10
+    ],
+    "slope": 5.0,
+    "intercept": -3.0,
+    "r2": null,
+    "ciLow": 2.0,
+    "ciHigh": 8.0,
+    "reason": null
+  },
+  {
+    "name": "even_pair_count",
+    "xYears": [
+      0,
+      1,
+      2,
+      3
+    ],
+    "values": [
+      0,
+      0,
+      4,
+      9
+    ],
+    "slope": 3.5,
+    "intercept": -3.25,
+    "r2": null,
+    "ciLow": 0.0,
+    "ciHigh": 5.0,
+    "reason": null
+  },
+  {
+    "name": "repeated_dates",
+    "xYears": [
+      0,
+      0,
+      1,
+      2
+    ],
+    "values": [
+      0,
+      10,
+      2,
+      8
+    ],
+    "slope": 2.0,
+    "intercept": 4.0,
+    "r2": null,
+    "ciLow": -8.0,
+    "ciHigh": 6.0,
+    "reason": null
+  },
+  {
+    "name": "empty",
+    "xYears": [],
+    "values": [],
+    "slope": null,
+    "intercept": null,
+    "r2": null,
+    "ciLow": null,
+    "ciHigh": null,
+    "reason": "n_below_threshold"
+  },
+  {
+    "name": "one_point",
+    "xYears": [
+      0
+    ],
+    "values": [
+      7
+    ],
+    "slope": null,
+    "intercept": null,
+    "r2": null,
+    "ciLow": null,
+    "ciHigh": null,
+    "reason": "n_below_threshold"
+  },
+  {
+    "name": "identical_dates",
+    "xYears": [
+      0,
+      0,
+      0
+    ],
+    "values": [
+      7,
+      9,
+      11
+    ],
+    "slope": null,
+    "intercept": null,
+    "r2": null,
+    "ciLow": null,
+    "ciHigh": null,
+    "reason": "identical_timestamps"
+  }
+]
