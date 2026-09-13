@@ -2,7 +2,12 @@ import { patientIdKey } from '../types'
 import type { DemographicsConflict } from './types'
 
 export function conflictId(conflict: DemographicsConflict): string {
-  return `demographics:${conflict.kind}:${patientIdKey(conflict.patientId)}`
+  // Keep the patient ID after the second colon: view consumers preserve any
+  // colons inside patient IDs by joining all remaining segments.
+  const kind = conflict.kind === 'birth_date_source_disagreement'
+    ? `${conflict.kind}-${conflict.fromRows.getTime()}`
+    : conflict.kind
+  return `demographics:${kind}:${patientIdKey(conflict.patientId)}`
 }
 
 /** One sentence per conflict: what disagreed, and what won. Kept out of the
@@ -52,6 +57,11 @@ export function describeConflict(conflict: DemographicsConflict): string {
         // carried by the row with the earliest lab date, which can be a later
         // birth date than another row's.
         `dates — the one on the earliest lab row, ${isoDate(conflict.resolved)}, was used.`
+      )
+    case 'birth_date_source_disagreement':
+      return (
+        `Patient ${conflict.patientId}: the attributes table birth date (${isoDate(conflict.fromAttributes)}) ` +
+        `disagrees with the lab rows (${isoDate(conflict.fromRows)}) — the attributes table wins.`
       )
   }
 }

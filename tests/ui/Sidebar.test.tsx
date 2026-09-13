@@ -85,6 +85,27 @@ describe('Sidebar eGFR controls', () => {
     expect(screen.getByText('Patient 1: m, age 50')).toBeInTheDocument()
   })
 
+  it('prefills age at the displayed anchor date when only a later row states an age', async () => {
+    useAppStore.getState().setDataset([
+      row({ patientId: 1, labDatum: new Date('2019-01-01'), wertNum: 1.0, patientAgeAtLab: null }),
+      row({ patientId: 1, labDatum: new Date('2020-01-01'), wertNum: 1.2, patientAgeAtLab: 54 }),
+    ])
+    render(<Sidebar />)
+    await userEvent.click(screen.getByLabelText('Show missing demographics'))
+    await userEvent.click(screen.getByRole('button', { name: 'Enter demographics for patient 1' }))
+
+    const ageInput = screen.getByLabelText('Manual age for patient 1') as HTMLInputElement
+    expect(ageInput.value).toBe('53')
+    expect(screen.getByText(/2019-01-01/)).toBeInTheDocument()
+    await userEvent.selectOptions(screen.getByLabelText('Manual sex for patient 1'), 'm')
+    await userEvent.click(screen.getByRole('button', { name: 'Apply demographics' }))
+    expect(useAppStore.getState().manualDemographics[1]).toEqual({ sex: 'm', age: 53 })
+    expect(useAppStore.getState().displayRows()
+      .filter((r) => r.patientId === 1 && r.bezeichnung === 'Kreatinin HP')
+      .map((r) => r.patientAgeAtLab))
+      .toEqual([53, 54])
+  })
+
   it('hides missing demographics until toggled on', async () => {
     render(<Sidebar />)
 

@@ -7,6 +7,16 @@ interfaces are still evolving before 1.0.
 
 ### Added
 
+- Single-workbook upload: `.xlsx` workbooks containing `labs`, `events`, and/or
+  `attributes` sheets can now be uploaded in one step, automatically populating
+  measurements, timeline events, and patient metadata while preserving the
+  separate-file upload workflow.
+- Tolerant header resolution across all importers (`labs`, `events`, `attributes`),
+  supporting case and separator variations (e.g. `patient_id`, `Patient ID`, `patientID`)
+  with strict ambiguity detection when distinct headers refer to the same concept.
+- Explicit birth date conflict detection: disagreements between birth dates stated
+  in lab rows versus the attributes table are tracked and reported as
+  `birth_date_source_disagreement`.
 - Cohort and single-patient exports gained a `demographics_conflict` column
   flagging patients whose sex or age could not be resolved without
   contradiction.
@@ -21,6 +31,14 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
+- Workbook imports now report rejected event/attribute rows and accepted-row
+  warnings, with expandable sheet, patient, and reason details. Single-sheet
+  lab files remain usable even when their sheet is named `events` or `attributes`.
+- Explicit birth-date cross-checks include later lab rows, and multiple conflicts
+  receive distinct UI identifiers. Manual-age prefills use the displayed
+  reference date rather than copying a later measurement's age unchanged.
+- Event imports recognize supported case/separator aliases before checking for
+  an obsolete event schema.
 - The single-patient parameter list no longer offers a computed eGFR series to
   a patient for whom no value can be computed, and marks an already-selected
   one as unavailable instead of drawing an empty chart.

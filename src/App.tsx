@@ -68,7 +68,23 @@ export function App() {
       <div className="status-region" role="status" aria-live="polite">
         {notice && (
           <div className={`notice notice-${notice.kind}`}>
-            <span>{notice.text}</span>
+            <div>
+              <span>{notice.text}</span>
+              {notice.details && notice.details.length > 0 && (
+                <details>
+                  <summary>Import details ({notice.details.length})</summary>
+                  <table aria-label="Workbook import details">
+                    <thead><tr><th>Sheet</th><th>Patient</th><th>Status</th><th>Reason</th></tr></thead>
+                    <tbody>{notice.details.map((item, index) => (
+                      <tr key={index}>
+                        <td>{item.sheet}</td><td>{item.patientId ?? 'Missing'}</td>
+                        <td>{item.severity}</td><td>{item.reason.replaceAll('_', ' ')}</td>
+                      </tr>
+                    ))}</tbody>
+                  </table>
+                </details>
+              )}
+            </div>
             <button className="notice-dismiss" aria-label="Dismiss message" onClick={() => setNotice(null)}>×</button>
           </div>
         )}

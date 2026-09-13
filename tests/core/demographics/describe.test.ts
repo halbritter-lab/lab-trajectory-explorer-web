@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { describeConflict } from '../../../src/core/demographics/describe'
+import { conflictId, describeConflict } from '../../../src/core/demographics/describe'
 
 const tie = [
   { sex: 'm', count: 2 },
@@ -7,6 +7,20 @@ const tie = [
 ] as const
 
 describe('describeConflict', () => {
+  it('distinguishes source birth-date conflicts while preserving patient ID extraction', () => {
+    const ids = ['1975-06-12', '1976-06-12'].map((date) => conflictId({
+      kind: 'birth_date_source_disagreement',
+      patientId: 'site:patient:1',
+      fromAttributes: new Date('1980-02-03T00:00:00.000Z'),
+      fromRows: new Date(`${date}T00:00:00.000Z`),
+    }))
+    expect(new Set(ids).size).toBe(2)
+    for (const id of ids) {
+      expect(id.startsWith('demographics:')).toBe(true)
+      expect(id.split(':').slice(2).join(':')).toBe('site:patient:1')
+    }
+  })
+
   it('tells the user to enter a sex only when nothing resolved the tie', () => {
     const text = describeConflict({
       kind: 'sex_tie',
@@ -43,5 +57,17 @@ describe('describeConflict', () => {
     expect(text).toContain('1980-05-05')
     expect(text).toContain('earliest lab row')
     expect(text).not.toContain('the earliest, ')
+  })
+
+  it('describes disagreement between attributes table and lab rows birth dates', () => {
+    const text = describeConflict({
+      kind: 'birth_date_source_disagreement',
+      patientId: 1,
+      fromAttributes: new Date('1980-02-03T00:00:00.000Z'),
+      fromRows: new Date('1975-06-12T00:00:00.000Z'),
+    })
+    expect(text).toBe(
+      'Patient 1: the attributes table birth date (1980-02-03) disagrees with the lab rows (1975-06-12) — the attributes table wins.',
+    )
   })
 })
