@@ -27,9 +27,39 @@ dort stammen Faktoren, Kategorien, Referenzen, Zielgrößen und Einheiten aus de
 Daten bzw. der vorhandenen Konfiguration. Das zweite Zielgrößenbeispiel
 „Studienmarker“ demonstriert die Anwendung außerhalb von eGFR.
 
+## Aktueller Rundgang: Daten, Konfiguration, Darstellung
+
+1. **Daten → Abgeleitete Parameter:** eGFR-Definition bearbeiten. CKD-EPI 2021
+   oder MDRD-4 wählen, Vorschau prüfen, übernehmen. Die Kreatininreihe in mg/dl,
+   Alter und Geschlecht sind als Eingaben dokumentiert. Bei 047/048 fehlt das Alter;
+   diese Personen bekommen keine erfundenen eGFR-Werte.
+2. **Verläufe → Tabelle / Überlagerung:** dieselben Parameter, Filter und Personen.
+   Jeder Parameter erhält ein eigenes Diagramm mit eigener Einheit. Eine Linie
+   per Klick oder Tastatur öffnet die Person; Zurück führt zur Überlagerung.
+3. **Konfigurationen verwalten:** benannte OLS-Konfigurationen bearbeiten oder
+   kopieren. Zeitfenster und optionale Grenzwerte je Parameter festlegen, Vorschau
+   prüfen und übernehmen. Änderungen wirken auf alle zugeordneten Parameter.
+4. **Anzeige am Parameter:** nur Konfiguration und sichtbare Ergebnisse auswählen.
+   Die komplexeren Einstellungen bleiben zentral. Tabelle und Einzelansicht zeigen
+   dieselben Kennzahlen; die Überlagerung zeigt Messreihen und optionale Fit-Linien.
+5. **Abhängigkeiten prüfen:** eGFR-Formel ändern und zurück zu Verläufe wechseln.
+   Berechnete Werte und OLS-Auswertungen aktualisieren sich in allen Ansichten.
+   Rohdaten bleiben unverändert. Das illustrative Kohortenmodell bleibt separat.
+
+Der Prototyp hat einen begrenzten Verfahrenskatalog: zwei eGFR-Formeln, OLS,
+Zeitfenster und parameterbezogene Grenzwerte. Er enthält keine freie Formel-Engine,
+keine frei zuordenbaren Quelldateien und noch keine Ereignisausschlüsse oder
+Zeitbalancierung in der neuen Konfigurationsverwaltung. Das sind weiterhin
+Anforderungen an die produktive Integration, keine gestrichenen Funktionen.
+
+Die Datenkette ist **Quellmessungen → abgeleitete Messgröße → benannte Auswertung →
+Darstellung**. Die eGFR-Beispieldaten kommen jetzt tatsächlich aus der synthetischen
+Kreatininreihe und den Demografieangaben, mit unveränderten Kernfunktionen. 46 von
+48 Personen sind berechenbar. Neuladen setzt Definitionen und Konfigurationen zurück.
+
 ## Kurzes manuelles Testprotokoll
 
-1. **Daten:** Beispieldaten öffnen. 48 Personen / 288 Messungen je Parameter, zwei fehlende
+1. **Daten:** Beispieldaten öffnen. 48 Personen / 288 Messungen je Quellparameter (276 berechenbare eGFR-Werte), zwei fehlende
    Altersangaben und die betroffenen Personen finden.
 2. **Verläufe:** Verläufe ansehen. Parameter als Spalten ein-/ausblenden,
    nach ID suchen und nach letztem Parameterwert sortieren. Person öffnen,
@@ -260,3 +290,16 @@ Geprüft: vier Auswertungen für eGFR auf 48 Zeilen; identische Werte in Tabelle
 und Person 001; getrennte Einstellungen für Hämoglobin; Abbrechen; leere
 Grenzwerte blockieren Übernehmen; Navigation erhält die Konfiguration; direkter
 Einstieg in Kohortenmodelle und dessen Beispielberechnung; 390 px ohne Überbreite.
+
+
+## Prüfung der Verwaltung und Überlagerung
+
+Browser: 46 eGFR-Linien, 48 Linien je anderem Parameter, Gruppenfilter A mit
+23 berechenbaren eGFR-Verläufen, Tastaturwechsel zur Person und zurück. Eigene
+Konfiguration kopiert und zugeordnet; Zeitfenster 4–5 ergibt einen nachvollziehbaren
+Hinweis statt eines vorgetäuschten Fits. Formelwechsel CKD-EPI → MDRD verändert
+Personenwerte und Auswertungen nach Übernehmen. Fehlendes Alter bleibt sichtbar.
+Desktop und Mobile geprüft; Dialog und Seite ohne horizontale Überbreite.
+
+Unabhängiges Review der neuen eGFR-Komponente sowie der Integration. Fehlender
+Rücksprungfokus bei nicht darstellbaren Linien und unzureichende Fit-Punkte behoben.

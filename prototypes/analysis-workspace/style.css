@@ -25,3 +25,8 @@
 .series-evaluation-values{display:grid;gap:4px;font-size:11px;margin:8px 0;color:var(--ink)}.series-evaluation-values small{color:var(--muted);font-size:9px}.series-evaluation-values strong{font-weight:600}.evaluation-methods{border:0;padding:0;margin:18px 0}.evaluation-methods legend{font-size:12px;color:var(--muted);margin-bottom:8px}.evaluation-methods label{display:flex;align-items:center;gap:9px;font-size:13px;padding:8px 0}.patient-table thead .small{margin-top:8px;font-size:11px;padding:5px 8px}.patient-detail-grid .card-header{flex-wrap:wrap}.patient-detail-grid .card-header h3{margin:0}
 @media(max-width:780px){.nav button{font-size:12px;padding:16px 5px}}
 .patient-table td{vertical-align:top}
+
+.browser-view-switch{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0}.browser-view-switch [aria-pressed=true]{background:var(--accent);color:white}.overlay-grid{display:grid;gap:20px}.overlay-plot{display:block;width:100%;max-height:380px}.overlay-plot text{font:11px system-ui;fill:var(--muted)}.overlay-plot polyline{cursor:pointer}.overlay-plot polyline:hover,.overlay-plot polyline:focus{stroke-opacity:1;stroke-width:3;outline:none}.overlay-grid .card-header{flex-wrap:wrap}.patient-table th .small{white-space:normal}
+
+#preset-dialog h2{overflow-wrap:anywhere}#preset-dialog .actions>.field{min-width:0;max-width:100%}@media(max-width:780px){#preset-dialog h2{font-size:20px}#preset-dialog .inline-fields{grid-template-columns:1fr}}
+.browser-view-switch button[aria-pressed=true]:hover{background:var(--accent);color:white}
