@@ -1,9 +1,10 @@
 name: CI
 
-# Pull requests only. Pushes to main are covered by the test step in
-# deploy-pages.yml, so the two workflows never duplicate work.
+# Main is the integration branch; publication is a separate release action.
 on:
   pull_request:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 jobs:
