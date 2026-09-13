@@ -3,15 +3,17 @@
 Status: patient-factor configuration and the genotype example were approved on
 2026-09-13 and are implemented on `feat/configurable-mixed-model-factors`.
 Baseline age and sex can affect both level and slope; each factor remains
-configurable. Intervention timing and threshold-time models remain proposals
-requiring further definition.
+configurable. Trajectory extrapolation was selected as the next threshold-time
+increment on 2026-09-13. Time-to-event analysis is an optional later extension;
+dated intervention models also remain proposals requiring further definition.
 
 ## Confirmed research needs
 
 The primary questions concern associations between kidney-function trajectories
 and genes, treatments, or interventions. Sex is one of several explanatory
 variables. Time to a specified kidney-function stage has been explicitly
-requested, but the intended interpretation still needs definition.
+requested. The first increment will address trend-based threshold projection;
+observed event-time analysis is deferred as a possible later extension.
 
 Patient characteristics usually accompany patient data. There is no externally
 mandated schema. Retain the optional three-sheet workbook:
@@ -133,7 +135,12 @@ Keep the requested threshold-time feature in scope, with distinct outputs:
 
 1. Observed threshold crossing under an explicit event definition.
 2. Projected crossing of a fitted trajectory, conditional on extrapolation.
-3. A future event-time analysis accounting for incomplete follow-up, if needed.
+3. An optional later event-time analysis accounting for incomplete follow-up.
+
+Delivery decision (2026-09-13): implement trajectory extrapolation first.
+Event-time analysis remains recorded in issue #4 as a possible extension, not
+a requirement for the first projection release. Its event-definition decisions
+are deferred and do not block trajectory projection.
 
 For a linear fitted trajectory `y(t) = a + b*t`, its threshold intersection is
 `(threshold - a) / b` when applicable. It is not automatically the expected event
@@ -147,7 +154,6 @@ Decisions still required:
   observed event; distinguish stage thresholds from dialysis/transplant events.
 - Individual versus cohort/group projections, and their intended use.
 - Projection horizon and how uncertainty and unavailable results are displayed.
-- Whether observed event-time analysis is required in the first release.
 - Study-specific adjustment variables, category coding, and missing-data policy.
 
 ## Delivery order

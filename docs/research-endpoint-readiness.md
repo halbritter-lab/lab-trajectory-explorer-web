@@ -3,6 +3,17 @@
 This is a technical inventory and decision record, not an approved endpoint
 definition or a change to application methodology.
 
+## Agreed delivery priority
+
+On 2026-09-13, trajectory extrapolation was selected as the next threshold-time
+increment. Report a projected threshold crossing conditional on continuation
+of the estimated trend, rather than an expected observed event time.
+
+Time-to-event analysis is retained as an optional later extension in issue #4.
+Its event definition, follow-up and competing-event questions below are deferred;
+they do not block work on trajectory projection. Projection scope, anchor,
+horizon and uncertainty presentation still need to be specified.
+
 ## Current implementation
 
 - PR #11 implements configurable patient-level factors for trajectory level
