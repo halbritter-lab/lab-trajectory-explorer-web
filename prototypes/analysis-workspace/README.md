@@ -183,3 +183,15 @@ Browserprüfung: Konfiguration ein-/ausklappen, Zielgröße und Alter ändern,
 Snapshot von Formel und Einschlusszahlen, Export-Sperre, Verwerfen und Neuberechnen.
 Desktop 1440 px und Mobile 390 px ohne Seitenüberbreite; keine Laufzeitfehler.
 Unabhängiges Review: Snapshot für live geänderte Projektionswerte ergänzt.
+
+
+## Vereinfachung: Eine Karte für die Analyseeinstellungen
+
+Die separate Zusammenfassungsleiste entfällt. Die einzige Karte
+„Analyseeinstellungen“ bleibt beim Ein-/Ausklappen bestehen: eingeklappt mit
+Zielgröße, Modell, Vergleich und Personenzahl; geöffnet mit denselben Einstellungen
+wie bisher. „Einstellungen bearbeiten“ und „Einstellungen einklappen“ sind zwei
+Zustände desselben Schalters. Berechnen klappt den Inhalt innerhalb der Karte ein.
+Der doppelte Bearbeiten-Button am Ergebnis entfällt. Entwürfe bleiben beim
+manuellen Einklappen erhalten; veraltete Ergebnisse und die Export-Sperre bleiben
+sichtbar. Nur Berechnen oder explizites Verwerfen übernimmt bzw. verwirft Änderungen.

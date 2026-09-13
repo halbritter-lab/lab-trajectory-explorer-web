@@ -45,15 +45,16 @@ function projections(readOnly = false, config = state) {
 }
 function analysisConfig() {
   const effects = [['both','Niveau + jährliche Änderung'],['level','Nur Niveau'],['off','Nicht einbeziehen']];
-  return `<section class="card analysis-config" aria-labelledby="config-title"><div class="card-header"><div><p class="eyebrow">Einstellungen</p><h2 id="config-title">Analyse einstellen</h2></div>${state.lastResult ? button('Änderungen verwerfen', 'discard-config') : ''}</div>
+  return `<section class="card analysis-config" aria-labelledby="config-title"><div class="card-header"><div><h2 id="config-title">Analyseeinstellungen</h2>${state.editOpen?'':`<p class="subtext">${escape(state.response)} · Gruppenmodell · Genotyp A / B · ${count()} Personen${!fresh()&&state.lastResult?' · geänderte Einstellungen':''}</p>`}</div><button type="button" data-action="toggle-config" aria-expanded="${state.editOpen}" aria-controls="analysis-config-content">${state.editOpen?'Einstellungen einklappen':'Einstellungen bearbeiten'}</button></div>
+    <div id="analysis-config-content" ${state.editOpen?'':'hidden'}>
     <div class="analysis-basics">${responseSelect()}<div class="field">Modell<strong>Gruppenvergleich im Zeitverlauf</strong><span>Genotyp · Referenz A</span></div><div class="field">Datenbasis<strong>Beispielkohorte · 48 Personen</strong><span>Jahre seit erster Messung</span></div></div>
     <h3>Einflussfaktoren</h3><p class="subtext">Lege für jedes Merkmal fest, ob es das Niveau und die jährliche Änderung berücksichtigt.</p>
     <table class="factor-table"><thead><tr><th scope="col">Merkmal</th><th scope="col">Einbeziehen für</th></tr></thead><tbody>${[['Alter bei erster Messung','age'],['Geschlecht','sex']].map(([label,key])=>`<tr><th scope="row">${label}</th><td>${select(label,key,effects)}</td></tr>`).join('')}</tbody></table>
     <details><summary>Modellformel lesen</summary><p class="formula">${escape(formula())}</p><p class="subtext">× enthält Haupteffekte und Wechselwirkung. Zeit × Alter₀ lässt die Steigung vom Ausgangsalter abhängen.</p></details>
-    <div class="analysis-run"><p class="notice ${state.age==='off'?'':'amber'}">${count()} von 48 Personen · ${count()*6} Messungen.${state.age==='off'?'':' Bei 2 Personen fehlt das Ausgangsalter.'}</p><div>${button(state.lastResult ? 'Beispiel neu berechnen' : 'Beispiel berechnen','run',true)}<p class="subtext">Illustrative Werte, keine echte Modellberechnung.</p></div></div></section>`;
+    <div class="analysis-run"><p class="notice ${state.age==='off'?'':'amber'}">${count()} von 48 Personen · ${count()*6} Messungen.${state.age==='off'?'':' Bei 2 Personen fehlt das Ausgangsalter.'}</p><div><div class="actions">${button(state.lastResult ? 'Beispiel neu berechnen' : 'Beispiel berechnen','run',true)}${state.lastResult ? button('Änderungen verwerfen', 'discard-config') : ''}</div><p class="subtext">Illustrative Werte, keine echte Modellberechnung.</p></div></div></div></section>`;
 }
 function analysisResults() {
-  if (!state.lastResult) return '<p class="muted analysis-placeholder">Das Ergebnis erscheint nach dem Berechnen unter der Zusammenfassung.</p>';
+  if (!state.lastResult) return '<p class="muted analysis-placeholder">Das Ergebnis erscheint nach dem Berechnen unter den Analyseeinstellungen.</p>';
   const config = fresh() ? state : state.lastResult;
   const n = config.age === 'off' ? 48 : 46;
   const effect = value => value === 'both' ? 'Niveau + Änderung' : value === 'level' ? 'nur Niveau' : 'nicht einbezogen';
@@ -61,13 +62,12 @@ function analysisResults() {
     ${fresh()?'':'<p class="notice amber" role="status">Die Einstellungen wurden geändert. Dieses Ergebnis zeigt weiterhin die vorherige Konfiguration. Bitte neu berechnen; Export ist bis dahin gesperrt.</p>'}
     <div class="tabs" role="group" aria-label="Ergebnisansichten">${['Überblick','Grenzwerte','Nachvollziehen'].map(tab=>`<button data-tab="${tab}" aria-pressed="${state.tab===tab}">${tab}</button>`).join('')}</div>
     ${state.tab==='Grenzwerte'?projections(!fresh(),config):state.tab==='Nachvollziehen'?`<h3>Verwendete Konfiguration</h3><p class="formula">${escape(formula(config))}</p><p class="muted">Zeit: Jahre seit erster Messung. Referenzprofil: Genotyp A/B, Alter₀ 50 Jahre, weiblich. Zufälliger Achsenabschnitt und zufällige Steigung pro Person.</p><p>${48-n} Personen wegen fehlenden Alters ausgeschlossen.</p><p class="notice">Alle Ergebniswerte sind fest vorgegeben. Ein statistisches Modell wird im Prototyp nicht geschätzt.</p>`:`<p class="muted">Illustratives Referenzprofil: Alter₀ 50 Jahre · weiblich · Genotyp A / B</p><div class="analysis-chart">${chart(config)}</div>`}
-    <div class="analysis-result-actions"><button type="button" data-action="edit-config">Einstellungen bearbeiten</button><button type="button" data-tab="Grenzwerte" ${fresh()?'':'disabled'}>Trendfortschreibung öffnen</button><button type="button" data-action="export" ${fresh()&&validTargets()?'':'disabled'}>Bericht exportieren</button></div></section>`;
+    <div class="analysis-result-actions"><button type="button" data-tab="Grenzwerte" ${fresh()?'':'disabled'}>Trendfortschreibung öffnen</button><button type="button" data-action="export" ${fresh()&&validTargets()?'':'disabled'}>Bericht exportieren</button></div></section>`;
 }
 function analysisPage() {
   if (!state.started) return `<h1>Eine Fragestellung wählen</h1><p class="muted">Einstellungen und Ergebnisse liegen in einem gemeinsamen Arbeitsbereich.</p><div class="equal"><div class="card"><h2>Unterscheiden sich Gruppen?</h2><p class="muted">Niveau und Änderung über die Zeit vergleichen, weitere Merkmale berücksichtigen.</p>${button('Genotypvergleich vorbereiten','start',true)}</div><div class="card"><h2>Wann wird ein Grenzwert erreicht?</h2><p class="muted">Einen geschätzten Trend für definierte Profile fortschreiben.</p>${button('Trendfortschreibung vorbereiten','projection-start')}</div></div>`;
   return `<div class="page-heading"><div><p class="eyebrow">03 / Analysen</p><h1>Genotypen im Verlauf vergleichen</h1><p class="muted">Analyse einstellen, berechnen und das Ergebnis darunter prüfen.</p></div></div>
-    <div class="analysis-summary"><div><strong>${escape(state.response)} · Gruppenmodell</strong><p class="subtext">Beispielkohorte · Genotyp A / B · ${count()} eingeschlossene Personen${!fresh()&&state.lastResult?' · geänderte Einstellungen':''}</p></div><button data-action="edit-config" aria-expanded="${state.editOpen}" aria-controls="analysis-config-slot">${state.editOpen?'Einstellungen geöffnet':'Analyse einstellen'}</button></div>
-    <div id="analysis-config-slot">${state.editOpen?analysisConfig():''}</div>${analysisResults()}`;
+    ${analysisConfig()}${analysisResults()}`;
 }
 function render() {
   root.innerHTML = `<header class="topbar"><div class="brand"><svg width="27" height="27" viewBox="0 0 28 28" aria-hidden="true"><path d="M3 4v21h23M5 10l6 3 6-5 8 9" fill="none" stroke="currentColor" stroke-width="2"/></svg>Trajektorien</div><nav class="nav" aria-label="Hauptnavigation">${['Daten','Verläufe','Analysen'].map(page=>`<button data-page="${page}" ${state.page===page?'aria-current="page"':''} ${!state.loaded&&page!=='Daten'?'disabled':''}>${page}</button>`).join('')}</nav><div class="top-actions"><span class="badge">Entwurf · Beispieldaten</span></div></header><main id="content" class="workspace">${state.page==='Daten'?dataPage():state.page==='Verläufe'?trajectoriesPage():analysisPage()}</main><footer class="prototype-footer">Klick-Prototyp · Alle Daten und Ergebnisse sind illustrativ · Nur für Forschungszwecke</footer>`;
@@ -89,7 +89,7 @@ document.addEventListener('click', event => {
   if (action==='trajectories') state.page='Verläufe';
   if (action==='patient') state.patient=!state.patient;
   if (action==='start'||action==='projection-start') { state.started=true; state.page='Analysen'; state.tab=action==='projection-start'?'Grenzwerte':'Überblick'; }
-  if (action==='edit-config') state.editOpen=true;
+  if (action==='toggle-config') state.editOpen=!state.editOpen;
   if (action==='discard-config' && state.lastResult) { Object.assign(state, state.lastResult); state.editOpen=false; }
   if (action==='run') { state.result=fingerprint(); state.lastResult = {response:state.response, age:state.age, sex:state.sex, threshold:state.threshold, horizon:state.horizon, direction:state.direction}; state.editOpen=false; document.querySelector('#announcement').textContent='Illustratives Beispielergebnis aktualisiert.'; }
   if (action==='import') { showDialog('Import im späteren Arbeitsablauf','<p>Hier werden Dateien ausgewählt, Spalten zugeordnet und die Datenqualität geprüft. Der Klick-Prototyp öffnet ausschließlich feste Beispieldaten.</p>'+button('Beispieldaten öffnen','dialog-load',true)); return; }
@@ -102,7 +102,7 @@ document.addEventListener('click', event => {
   }
   render();
   const selector = target.dataset.tab ? `[data-tab="${target.dataset.tab}"]` : target.dataset.page ? `[data-page="${target.dataset.page}"]` : `[data-action="${action}"]`;
-  const focusTarget = action==='run' ? root.querySelector('#results-title') : action==='edit-config' ? root.querySelector('[data-field="response"]') : root.querySelector(selector) || root.querySelector('h1');
+  const focusTarget = action==='run' ? root.querySelector('#results-title') : action==='discard-config' ? root.querySelector('[data-action="toggle-config"]') : root.querySelector(selector) || root.querySelector('h1');
   if (focusTarget) { if (focusTarget.tagName === 'H1') focusTarget.tabIndex = -1; focusTarget.focus(); }
 });
 root.addEventListener('input', event => {
