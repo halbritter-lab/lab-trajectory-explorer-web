@@ -34,7 +34,7 @@ Daten bzw. der vorhandenen Konfiguration. Das zweite Zielgrößenbeispiel
 2. **Verläufe:** Verläufe ansehen. Parameter als Spalten ein-/ausblenden,
    nach ID suchen und nach letztem Parameterwert sortieren. Person öffnen,
    vor/zurück blättern oder direkt wählen. Zur Tabelle zurückkehren: Auswahl,
-   Sortierung und die Seite der aktuellen Person bleiben erhalten. Die Analyse
+   Sortierung und die Position der aktuellen Person bleiben erhalten. Die Analyse
    ist über die Hauptnavigation erreichbar; das Modellbeispiel bleibt unabhängig
    vom Patientenbrowser und übernimmt keine seiner Filter.
 3. **Analyse:** Bei eGFR Alter und Geschlecht auf „Niveau + jährliche Änderung“
@@ -67,8 +67,8 @@ im Klick-Prototyp noch nicht umgesetzt. Keine dieser Zeilen ist eine Streichung.
 | Spaltenzuordnung, abgelehnte Zeilen, Importwarnungen | Daten / Zuordnung und Qualität | Rollenübersicht; weitere Prüfungen vorgesehen |
 | Demografie-Konflikte, fehlende Angaben, manuelle Korrektur | Daten / Qualität | Zwei fehlende Altersangaben illustriert |
 | eGFR-Formel und Kreatininquelle | Daten / abgeleitete Zielgrößen | Vorgesehen |
-| Zielgrößenauswahl, Personenauswahl, Einzelansicht | Verläufe / lokale Auswahl | 48 Beispielpersonen, vier wählbare Parameter, Vor/Zurück und Direktwahl |
-| Kohortentabelle, Screening, Sortierung, Gruppierung, Patientenauswahl | Verläufe / Kohortenübersicht | Graphentabelle, ID-Suche, Gruppenfilter, Sortierung und Seitenwechsel; Screening und Mehrfachauswahl vorgesehen |
+| Zielgrößenauswahl, Personenauswahl, Einzelansicht | Verläufe / lokale Auswahl | 48 Beispielpersonen, zwölf wählbare Parameter, Vor/Zurück und Direktwahl |
+| Kohortentabelle, Screening, Sortierung, Gruppierung, Patientenauswahl | Verläufe / Kohortenübersicht | Graphentabelle, ID-Suche, Gruppenfilter, Sortierung und durchgehende Liste; Screening und Mehrfachauswahl vorgesehen |
 | Kohortenoverlay, individuelle Steigungen, Qualitätsmarkierungen | Verläufe / Grafik und Details | Vereinfachte Grafik; volle Darstellung vorgesehen |
 | Miniaturgrafiken, Zoom, Punkte verbinden, Ereignismarker | Verläufe / Darstellungsoptionen | Kleine Graphen und gemeinsame Skalen je Parameter; weitere Optionen vorgesehen |
 | OLS, Theil–Sen, Fit-Presets, Zeitbalancierung | Analysen / Einzelverlauf-Konfiguration | Vorgesehen |
@@ -116,22 +116,44 @@ identischer Zeitachse und einer festen Werteskala je Parameter über alle Person
 Die Detailansicht vergrößert dieselben Verläufe und bietet Vor/Zurück innerhalb
 der gefilterten, sortierten Auswahl. Die Tabelle bleibt über einen Rückweg erreichbar.
 
-Die vier Parameter sind illustrative Datensatz-Metadaten. Ein Plot-Renderer
+Die zwölf Parameter sind illustrative Datensatz-Metadaten. Ein Plot-Renderer
 verarbeitet sie gleichermaßen, ohne eGFR-Sonderfall. Die spätere produktive Liste
 muss aus den importierten Daten kommen. Der bestehende Analyseentwurf mit festen
 Gruppenwerten ist weiterhin ein separates Beispiel, kein Fit dieser Messpunkte.
 
 Zusätzliche Prüfschritte: Suche ohne Treffer; keine ausgewählten Parameter;
-Filter mit 24 Personen; Blättern an Anfang/Ende; Rückweg nach Seitenwechsel;
+Filter mit 24 Personen; Blättern an Anfang/Ende; Rückweg nach langem Scrollen;
 Sortierung nach einem anschließend ausgeblendeten Parameter; mobile Tabelle
 horizontal scrollen bei fixierter Personenspalte. 48 Personen × 6 Zeitpunkte
-× 4 Parameter ergeben 1.152 illustrative Messwerte.
+× 12 Parameter ergeben 3.456 illustrative Messwerte.
 
 
-Browserprüfung der Überarbeitung: Seitenwechsel 1 → 2, Person 009 → 010,
+Browserprüfung der ersten Überarbeitung: Person 009 → 010,
 Rückkehr mit Fokus auf 010, Gruppenfilter (24 Personen), leere Suche,
 Sortierung und Entfernen der Sortierspalte, keine Parameter, erste/letzte
 Person, Direktwahl und mobile Ansichten ohne Seitenüberbreite erfolgreich.
 Alle sechs Messwerte sind auch in der zugänglichen Grafikbeschreibung enthalten.
 Der separate Analyseablauf wurde erneut geöffnet und geprüft. Unabhängiges
 Review ergab keine blockierenden Logikfehler; beide Detailhinweise wurden behoben.
+
+
+## Überarbeitung: Viele Patienten und Parameter
+
+Die Tabelle zeigt alle 48 Personen ohne Pagination und ohne eigenen vertikalen
+Scrollbereich. Vertikales Scrollen bewegt die Seite. Die Tabelle scrollt nur
+horizontal; eine angeheftete Spaltennavigation bietet Pfeile und einen direkten
+Sprung zu jedem ausgewählten Parameter. Die Patientenspalte bleibt links stehen.
+285 px pro Parameterspalte halten die Graphen auch bei zwölf Parametern lesbar.
+Die Parameternamen wiederholen sich klein pro Zelle zur Orientierung weiter unten.
+
+„Parameter auswählen“ öffnet einen durchsuchbaren Dialog mit Name und Einheit,
+Auswahlzähler, Alle/Keine sowie Übernehmen/Abbrechen. Änderungen sind zunächst
+Entwürfe; Escape und Abbrechen erhalten die ursprünglichen Spalten. Die kompakte
+Zusammenfassung außerhalb des Dialogs nennt höchstens drei Namen plus Restanzahl.
+
+Chromium geprüft mit zwölf ausgewählten Parametern: 48 Zeilen, 285 px Spalten,
+kein inneres vertikales Scrollen, kein Seitenüberlauf auf 390 px. Suche, Abbrechen,
+Escape, leere Auswahl und Wiederherstellung der Auswahl funktionieren. Rückweg
+von Person 030 → 031 stellt Fokus und horizontale Position der Tabelle wieder her.
+Für produktive große Datensätze bleibt Zeilenvirtualisierung vorgesehen; die
+48 Beispielpersonen benötigen keine eigene Paging- oder Nachladelogik.

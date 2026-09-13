@@ -4,6 +4,14 @@ const parameters = [
   { key: 'creatinine', name: 'Kreatinin', unit: 'mg/dl', min: 0, max: 4, color: '#487ca9' },
   { key: 'hemoglobin', name: 'Hämoglobin', unit: 'g/dl', min: 8, max: 18, color: '#9d5d72' },
   { key: 'crp', name: 'CRP', unit: 'mg/l', min: 0, max: 60, color: '#ac792b' },
+  { key: 'sodium', name: 'Natrium', unit: 'mmol/l', min: 120, max: 160, color: '#487ca9' },
+  { key: 'potassium', name: 'Kalium', unit: 'mmol/l', min: 2, max: 7, color: '#9d5d72' },
+  { key: 'calcium', name: 'Calcium', unit: 'mmol/l', min: 1.5, max: 3, color: '#176c68' },
+  { key: 'phosphate', name: 'Phosphat', unit: 'mmol/l', min: 0, max: 3, color: '#ac792b' },
+  { key: 'albumin', name: 'Albumin', unit: 'g/l', min: 20, max: 55, color: '#487ca9' },
+  { key: 'glucose', name: 'Glukose', unit: 'mg/dl', min: 60, max: 200, color: '#9d5d72' },
+  { key: 'alt', name: 'ALT', unit: 'U/l', min: 0, max: 100, color: '#176c68' },
+  { key: 'platelets', name: 'Thrombozyten', unit: 'G/l', min: 100, max: 450, color: '#ac792b' },
 ];
 const patients = Array.from({ length: 48 }, (_, index) => ({
   id: String(index + 1).padStart(3, '0'),
@@ -14,12 +22,15 @@ const patients = Array.from({ length: 48 }, (_, index) => ({
       const value = p === 0 ? 90 - index % 13 * 3 - t * (index % 5 + 1) + wave * 3
         : p === 1 ? 0.8 + index % 9 * 0.12 + t * (index % 5) * 0.07 + wave * 0.06
           : p === 2 ? 15 - index % 6 * 0.5 - t * ((index % 3) - 1) * 0.22 + wave * 0.3
-            : 5 + index % 7 + (t === index % 6 ? 15 + index % 25 : 0) + wave * 2;
+            : p === 3 ? 5 + index % 7 + (t === index % 6 ? 15 + index % 25 : 0) + wave * 2
+              : parameter.min + (parameter.max - parameter.min) * (0.45 + wave * 0.15 + (index % 5 - 2) * 0.04);
       return { time: t, value };
     })])),
 }));
-const browser = { selected: ['egfr', 'hemoglobin', 'crp'], query: '', group: 'all', sort: 'id', page: 0, patient: null };
-const pageSize = 8;
+const browser = { selected: ['egfr', 'hemoglobin', 'crp'], query: '', group: 'all', sort: 'id', patient: null, horizontal: 0 };
+let draft = [];
+let parameterQuery = '';
+const columnWidth = 285;
 const esc = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const number = value => value.toLocaleString('de-DE', { maximumFractionDigits: 1 });
 const action = (label, name, disabled = false) => `<button type="button" data-browser-action="${name}" ${disabled ? 'disabled' : ''}>${label}</button>`;
@@ -42,7 +53,15 @@ function plot(patient, parameter, large = false) {
   </svg>`;
 }
 function parameterControls() {
-  return `<fieldset class="parameter-picker"><legend>Parameter vergleichen</legend>${parameters.map(parameter => `<label><input type="checkbox" data-browser-parameter="${parameter.key}" ${browser.selected.includes(parameter.key) ? 'checked' : ''}>${parameter.name}<span class="subtext">${parameter.unit}</span></label>`).join('')}</fieldset>`;
+  const names = browser.selected.map(key => parameters.find(p => p.key === key).name);
+  return `<div class="parameter-summary"><div><strong>${names.length} Parameter ausgewählt</strong><p class="subtext">${names.slice(0, 3).join(' · ')}${names.length > 3 ? ` · +${names.length - 3} weitere` : ''}</p></div>${action('Parameter auswählen …', 'parameters')}</div>`;
+}
+function parameterOptions() {
+  const options = parameters.filter(p => `${p.name} ${p.unit}`.toLocaleLowerCase('de').includes(parameterQuery.toLocaleLowerCase('de')));
+  return options.length ? options.map(p => `<label class="parameter-option"><input type="checkbox" data-browser-parameter="${p.key}" ${draft.includes(p.key) ? 'checked' : ''}><span>${p.name}</span><span class="subtext">${p.unit}</span></label>`).join('') : '<p class="muted">Keine passenden Parameter.</p>';
+}
+function picker() {
+  return `<dialog id="parameter-dialog" aria-labelledby="parameter-title"><h2 id="parameter-title">Parameter auswählen</h2><p class="muted">Ausgewählte Parameter erscheinen als Spalten. Die Graphen behalten ihre Breite; weitere Spalten sind horizontal erreichbar.</p><label class="field">Parameter suchen<input type="search" data-browser-field="parameter-query" placeholder="Name oder Einheit" autocomplete="off"></label><div class="actions">${action('Alle auswählen', 'all-parameters')}${action('Auswahl leeren', 'no-parameters')}<span id="parameter-count" role="status">${draft.length} ausgewählt</span></div><fieldset class="parameter-options"><legend class="sr-only">Verfügbare Parameter</legend><div id="parameter-options">${parameterOptions()}</div></fieldset><div class="actions picker-footer">${action('Abbrechen', 'cancel-parameters')}${action('Auswahl übernehmen', 'apply-parameters')}</div></dialog>`;
 }
 function patientDetail(rows) {
   const index = rows.findIndex(patient => patient.id === browser.patient);
@@ -53,11 +72,9 @@ function patientDetail(rows) {
     ${browser.selected.length ? `<div class="patient-detail-grid">${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<section class="card"><h3>${parameter.name} <span class="muted">${parameter.unit}</span></h3>${plot(patient, parameter, true)}<p class="subtext">Erster Wert ${number(patient.values[key][0].value)} · letzter Wert ${number(patient.values[key].at(-1).value)} ${parameter.unit}</p></section>`; }).join('')}</div>` : '<p class="notice">Wähle oben mindestens einen Parameter für die Verlaufsansicht.</p>'}`;
 }
 function table(rows) {
-  const maxPage = Math.max(0, Math.ceil(rows.length / pageSize) - 1);
-  browser.page = Math.min(browser.page, maxPage);
-  const visible = rows.slice(browser.page * pageSize, (browser.page + 1) * pageSize);
-  return `<div class="patient-toolbar"><div><h2>Patientenübersicht</h2><span class="muted">${rows.length} von 48 Personen · Personen-ID öffnen zum Durchblättern</span></div><div class="actions">${action('← Vorherige Seite', 'page-previous', browser.page === 0)}<span class="subtext">${browser.page + 1} / ${maxPage + 1}</span>${action('Nächste Seite →', 'page-next', browser.page === maxPage)}</div></div>
-    ${!rows.length ? '<div class="empty"><h2>Keine passenden Personen</h2><p class="muted">Suche oder Gruppenfilter ändern.</p></div>' : !browser.selected.length ? '<p class="notice">Wähle oben mindestens einen Parameter für die Vergleichstabelle.</p>' : `<div class="patient-table-scroll" tabindex="0" role="region" aria-label="Patiententabelle mit vergleichbaren Verlaufsgrafiken"><table class="patient-table"><thead><tr><th scope="col">Person</th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<th scope="col">${parameter.name}<span class="subtext">${parameter.unit}</span></th>`; }).join('')}</tr></thead><tbody>${visible.map(patient => `<tr><th scope="row"><button class="table-link" data-browser-patient="${patient.id}" aria-label="Person ${patient.id} öffnen">${patient.id} ↗</button><span class="subtext">Genotyp ${patient.group}</span></th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<td>${plot(patient, parameter)}<span class="cell-summary">${number(patient.values[key][0].value)} → ${number(patient.values[key].at(-1).value)} ${parameter.unit}</span></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`}`;
+
+  return `<div class="patient-toolbar"><div><h2>Patientenübersicht</h2><span class="muted">${rows.length} von 48 Personen · Personen-ID öffnen zum Durchblättern</span></div></div>
+    ${!rows.length ? '<div class="empty"><h2>Keine passenden Personen</h2><p class="muted">Suche oder Gruppenfilter ändern.</p></div>' : !browser.selected.length ? '<p class="notice">Wähle oben mindestens einen Parameter für die Vergleichstabelle.</p>' : `<div class="column-navigation"><span class="subtext">${browser.selected.length} Parameterspalten · horizontal vergleichen</span><div class="actions">${action('← Spalten', 'columns-left')}${action('Spalten →', 'columns-right')}<label class="sr-only" for="column-jump">Zu Parameter springen</label><select id="column-jump" data-browser-field="column-jump"><option value="">Zu Parameter …</option>${browser.selected.map(key => `<option value="${key}">${parameters.find(p => p.key === key).name}</option>`).join('')}</select></div></div><div class="patient-table-scroll" tabindex="0" role="region" aria-label="Patiententabelle mit vergleichbaren Verlaufsgrafiken"><table class="patient-table" style="width:${115 + browser.selected.length * columnWidth}px"><thead><tr><th scope="col">Person</th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<th scope="col">${parameter.name}<span class="subtext">${parameter.unit}</span></th>`; }).join('')}</tr></thead><tbody>${rows.map(patient => `<tr><th scope="row"><button class="table-link" data-browser-patient="${patient.id}" aria-label="Person ${patient.id} öffnen">${patient.id} ↗</button><span class="subtext">Genotyp ${patient.group}</span></th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<td><span class="cell-parameter" aria-hidden="true">${parameter.name}</span>${plot(patient, parameter)}<span class="cell-summary">${number(patient.values[key][0].value)} → ${number(patient.values[key].at(-1).value)} ${parameter.unit}</span></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`}`;
 }
 export function patientBrowser() {
   const rows = filtered();
@@ -67,14 +84,52 @@ export function patientBrowser() {
     <div id="patient-browser-results">${browser.patient ? patientDetail(rows) : table(rows)}</div>
     <p class="chart-note">Synthetische Beispielverläufe · verbundene Messpunkte, keine Modellschätzungen. Die Parameterliste steht beispielhaft für die später aus den Daten verfügbaren Messgrößen.</p>`;
 }
+export function restorePatientBrowser(root) {
+  const table = root.querySelector('.patient-table-scroll');
+  if (table) { table.scrollLeft = browser.horizontal; browser.horizontal = table.scrollLeft; }
+}
 export function bindPatientBrowser(root, render) {
-  function redraw(selector) { render(); root.querySelector(selector)?.focus(); }
+  function restoreHorizontal() { restorePatientBrowser(root); }
+  function redraw(selector) { render(); restoreHorizontal(); root.querySelector(selector)?.focus(); }
+  function refreshPicker() {
+    root.querySelector('#parameter-options').innerHTML = parameterOptions();
+    root.querySelector('#parameter-count').textContent = `${draft.length} ausgewählt`;
+  }
+  function moveColumns(left) {
+    const table = root.querySelector('.patient-table-scroll');
+    if (table) { table.scrollLeft = left; browser.horizontal = table.scrollLeft; }
+  }
+  root.addEventListener('scroll', event => {
+    if (event.target.matches?.('.patient-table-scroll')) browser.horizontal = event.target.scrollLeft;
+  }, true);
   root.addEventListener('click', event => {
     const target = event.target.closest('[data-browser-action], [data-browser-patient]');
     if (!target) return;
+    const name = target.dataset.browserAction;
+    if (name === 'parameters') {
+      draft = [...browser.selected]; parameterQuery = '';
+      root.insertAdjacentHTML('beforeend', picker());
+      root.querySelector('#parameter-dialog').showModal();
+      root.querySelector('[data-browser-field="parameter-query"]').focus();
+      root.querySelector('#parameter-dialog').addEventListener('close', event => event.target.remove(), { once: true });
+      return;
+    }
+    if (name === 'all-parameters' || name === 'no-parameters') {
+      draft = name === 'all-parameters' ? parameters.map(p => p.key) : []; refreshPicker(); return;
+    }
+    if (name === 'cancel-parameters') { root.querySelector('#parameter-dialog').close(); return; }
+    if (name === 'apply-parameters') {
+      browser.selected = [...draft];
+      if (!browser.selected.includes(browser.sort)) browser.sort = 'id';
+      browser.horizontal = 0;
+      root.querySelector('#parameter-dialog').close();
+      redraw('[data-browser-action="parameters"]'); return;
+    }
+    if (name === 'columns-left' || name === 'columns-right') {
+      moveColumns(browser.horizontal + (name === 'columns-left' ? -columnWidth : columnWidth)); return;
+    }
     const rows = filtered();
     const index = rows.findIndex(patient => patient.id === browser.patient);
-    const name = target.dataset.browserAction;
     let focus = '[data-browser-action="back"]';
     if (target.dataset.browserPatient) browser.patient = target.dataset.browserPatient;
     if (name === 'next' || name === 'previous') {
@@ -82,32 +137,33 @@ export function bindPatientBrowser(root, render) {
       focus = '[data-browser-field="patient"]';
     }
     if (name === 'back') {
-      browser.page = Math.floor(index / pageSize);
+
       focus = `[data-browser-patient="${browser.patient}"]`;
       browser.patient = null;
-    }
-    if (name === 'page-next' || name === 'page-previous') {
-      browser.page += name === 'page-next' ? 1 : -1;
-      focus = '.patient-table-scroll';
     }
     redraw(focus);
   });
   root.addEventListener('input', event => {
+    if (event.target.dataset.browserField === 'parameter-query') { parameterQuery = event.target.value; refreshPicker(); return; }
     if (event.target.dataset.browserField !== 'query') return;
-    browser.query = event.target.value; browser.page = 0; browser.patient = null;
+    browser.query = event.target.value; browser.patient = null;
     // Preserve the search input and pointer targets while typing.
     root.querySelector('#patient-browser-results').innerHTML = table(filtered());
+    restoreHorizontal();
   });
   root.addEventListener('change', event => {
     const key = event.target.dataset.browserField;
     const parameter = event.target.dataset.browserParameter;
     if (parameter) {
-      browser.selected = event.target.checked ? [...browser.selected, parameter] : browser.selected.filter(value => value !== parameter);
-      if (!browser.selected.includes(browser.sort)) browser.sort = 'id';
-      redraw(`[data-browser-parameter="${parameter}"]`);
-    } else if (key && key !== 'query') {
+      draft = event.target.checked ? [...draft, parameter] : draft.filter(value => value !== parameter);
+      root.querySelector('#parameter-count').textContent = `${draft.length} ausgewählt`;
+    } else if (key === 'column-jump') {
+      const index = browser.selected.indexOf(event.target.value);
+      if (index >= 0) moveColumns(index * columnWidth);
+      event.target.value = '';
+    } else if (key && !['query', 'parameter-query'].includes(key)) {
       browser[key] = event.target.value;
-      if (key !== 'patient') { browser.page = 0; browser.patient = null; }
+      if (key !== 'patient') { browser.patient = null; }
       redraw(`[data-browser-field="${key}"]`);
     }
   });
