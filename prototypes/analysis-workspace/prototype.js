@@ -1,7 +1,7 @@
 import { patientBrowser, bindPatientBrowser, restorePatientBrowser } from './patient-browser.js';
 const root = document.querySelector('#app');
 const dialog = document.querySelector('#dialog');
-const state = { page: 'Daten', loaded: false, started: false, tab: 'Überblick', response: 'eGFR', age: 'both', sex: 'both', patient: false, threshold: 30, horizon: 10, direction: 'down', result: '', editOpen: true, lastResult: null };
+const state = { page: 'Daten', loaded: false, started: false, response: 'eGFR', age: 'both', sex: 'both', patient: false, threshold: 30, horizon: 10, direction: 'down', result: '', editOpen: true, lastResult: null };
 const escape = value => String(value).replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 const button = (label, action, primary = false) => `<button type="button" data-action="${action}" class="${primary ? 'primary' : ''}">${label}</button>`;
 const fingerprint = () => JSON.stringify([state.response, state.age, state.sex]);
@@ -16,19 +16,29 @@ function select(label, key, options) {
 }
 const responseSelect = () => select('Zielgröße', 'response', [['eGFR','eGFR · ml/min/1,73 m²'],['Studienmarker','Studienmarker · U/L']]);
 function chart(config = state) {
+  if (!Number.isFinite(config.threshold) || !Number.isFinite(config.horizon) || config.horizon <= 0) return '<p class="notice amber">Bitte Grenzwert und positiven Horizont eingeben, um die Projektion darzustellen.</p>';
   const rising = config.response !== 'eGFR';
-  const individual = state.page === 'Verläufe' && state.patient;
-  const y = value => 243 - value / (rising ? 140 : 100) * 208;
-  const start = rising ? 80 : 60;
-  const slope = rising ? 5 : -3;
-  return `<svg class="chart" viewBox="0 0 660 310" role="img" aria-label="Illustrative ${individual ? 'Einzeltrajektorie' : 'Gruppenverläufe'}: ${rising ? 'steigende' : 'fallende'} Werte über fünf Jahre">
-    ${[0,1,2,3,4].map(i => `<line x1="55" y1="${35+i*52}" x2="635" y2="${35+i*52}" stroke="#e5eaed"/><text x="40" y="${40+i*52}" text-anchor="end">${(rising ? 140 : 100)-i*(rising ? 35 : 25)}</text>`).join('')}
-    ${[0,1,2,3,4,5].map(i => `<text x="${55+i*116}" y="274" text-anchor="middle">${i}</text>`).join('')}
-    <text x="330" y="305" text-anchor="middle">Jahre seit erster Messung</text>
-    <path d="${`M55 ${y(start)} L635 ${y(start+slope*5)}`}" fill="none" stroke="#176c68" stroke-width="4"/>
-    ${individual ? '' : `<path d="${`M55 ${y(start+6)} L635 ${y(start+6+(rising?6:-4)*5)}`}" fill="none" stroke="#487ca9" stroke-width="4"/>`}
-    ${[0,1,2,3,4,5].map(i => `<circle cx="${55+i*116}" cy="${y(start+slope*i)}" r="5" fill="#176c68"/>`).join('')}
-  </svg><div class="legend"><span><i class="dot a"></i>${individual ? 'Person 001' : 'Genotyp A'}</span>${individual ? '' : '<span><i class="dot b"></i>Genotyp B</span>'}</div><p class="chart-note">Illustration mit festen Beispielwerten; keine Modellschätzung.</p>`;
+  const end = Math.max(5, config.horizon);
+  const profiles = [0,1].map(i => ({name: i ? 'B' : 'A', start: rising ? 80+i*6 : 60+i*6, slope: rising ? 5+i : -3-i, color: i ? '#487ca9' : '#176c68'}));
+  const values = [config.threshold, ...profiles.flatMap(p=>[p.start,p.start+p.slope*end])];
+  if (!values.every(Number.isFinite)) return '<p class="notice amber">Der Horizont ist für die Beispieldarstellung zu groß.</p>';
+  const low = Math.min(0,...values), high = Math.max(...values,1);
+  const span = high-low, min = low-span*.08, max = high+span*.12;
+  if (![span,min,max,max-min].every(Number.isFinite)) return '<p class="notice amber">Der Wertebereich ist für die Beispieldarstellung zu groß.</p>';
+  const x = time => 55 + time/end*570;
+  const y = value => 245 - (value-min)/(max-min)*205;
+  const format = value => value.toLocaleString('de-DE',{maximumFractionDigits:1});
+  const crossings = profiles.map(p => ({...p, time:(config.threshold-p.start)/p.slope})).filter(p => !(config.direction==='down'?p.start<=config.threshold:p.start>=config.threshold) && p.time>0 && p.time<=config.horizon);
+  return `<svg class="chart projection-chart" viewBox="0 0 660 320" role="img" aria-label="Illustrative Gruppenverläufe bis Jahr ${format(end)}, Grenzwert ${format(config.threshold)}. ${crossings.map(p=>`Genotyp ${p.name}: Schnittpunkt nach ${format(p.time)} Jahren.`).join(' ')} Durchgezogen bis Jahr 5, danach gestrichelte Trendfortschreibung.">
+    ${[0,1,2,3,4].map(i=>{const value=low+i*span/4;return `<line x1="55" x2="625" y1="${y(value)}" y2="${y(value)}" stroke="#e5eaed"/><text x="46" y="${y(value)+4}" text-anchor="end">${format(value)}</text>`;}).join('')}
+    ${[0,1,2,3,4].map(i=>`<text x="${x(end*i/4)}" y="278" text-anchor="middle">${format(end*i/4)}</text>`).join('')}
+    <text x="330" y="310" text-anchor="middle">Jahre seit erster Messung</text>
+    <line x1="${x(5)}" x2="${x(5)}" y1="35" y2="250" stroke="#a9b7c0" stroke-dasharray="3 5"/><text x="${x(5)-5}" y="25" text-anchor="end">Beispieldaten bis Jahr 5</text>
+    <line data-threshold-line x1="55" x2="625" y1="${y(config.threshold)}" y2="${y(config.threshold)}" stroke="#ad792b" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <text x="60" y="${y(config.threshold)-9}" style="fill:#92651f">Grenzwert ${format(config.threshold)}</text>
+    ${profiles.map(p=>`<path d="M${x(0)} ${y(p.start)} L${x(5)} ${y(p.start+p.slope*5)}" fill="none" stroke="${p.color}" stroke-width="3"/>${end>5?`<path d="M${x(5)} ${y(p.start+p.slope*5)} L${x(end)} ${y(p.start+p.slope*end)}" fill="none" stroke="${p.color}" stroke-width="3" stroke-dasharray="7 5"/>`:''}`).join('')}
+    ${crossings.map((p,i)=>`<circle data-crossing="${p.name}" cx="${x(p.time)}" cy="${y(config.threshold)}" r="6" fill="white" stroke="${p.color}" stroke-width="3"/><text x="${x(p.time)-8}" y="${y(config.threshold)+20+i*17}" text-anchor="end">${p.name}: ${format(p.time)} J.</text>`).join('')}
+  </svg><div class="legend"><span><i class="dot a"></i>Genotyp A</span><span><i class="dot b"></i>Genotyp B</span><span>Gestrichelt: Fortschreibung nach Jahr 5</span></div><p class="chart-note">Feste illustrative Trends; keine Modellschätzung. Markiert werden erreichbare Schnittpunkte innerhalb des gewählten Horizonts. Die Statusangaben stehen rechts bzw. darunter.</p>`;
 }
 function dataPage() {
   if (!state.loaded) return `<div class="page-heading"><div><p class="eyebrow">01 / Datenbasis</p><h1>Mit einer klaren Datenbasis starten</h1><p class="muted">Messungen, Personenmerkmale und Ereignisse an einem Ort prüfen.</p></div></div><div class="card hero"><p class="eyebrow">Arbeitsplatz vorbereiten</p><h2>Welche Verläufe möchtest du untersuchen?</h2><p>Öffne den Beispieldatensatz und gehe den Weg von der Datenprüfung bis zum Ergebnis durch.</p><div class="actions">${button('Beispieldaten öffnen','load',true)}${button('Daten importieren','import')}</div></div><div class="equal" style="margin-top:22px"><div class="card"><h2>Erst verstehen</h2><p class="muted">Variablen zuordnen, fehlende Angaben erkennen und einzelne Verläufe ansehen.</p></div><div class="card"><h2>Dann untersuchen</h2><p class="muted">Gruppen vergleichen, Einflussfaktoren auswählen und Trends zu Grenzwerten fortschreiben.</p></div></div>`;
@@ -60,9 +70,10 @@ function analysisResults() {
   const effect = value => value === 'both' ? 'Niveau + Änderung' : value === 'level' ? 'nur Niveau' : 'nicht einbezogen';
   return `<section class="card analysis-results" aria-labelledby="results-title"><div class="card-header"><div><p class="eyebrow">${fresh()?'Ergebnis':'Bisheriges Ergebnis'}</p><h2 id="results-title" tabindex="-1">${escape(config.response)}: Gruppenvergleich</h2><p class="muted">${n} Personen · ${n*6} Messungen · Alter: ${effect(config.age)} · Geschlecht: ${effect(config.sex)}</p></div><span class="badge ${fresh()?'green':'amber'}">${fresh()?'Beispielergebnis':'Veraltet'}</span></div>
     ${fresh()?'':'<p class="notice amber" role="status">Die Einstellungen wurden geändert. Dieses Ergebnis zeigt weiterhin die vorherige Konfiguration. Bitte neu berechnen; Export ist bis dahin gesperrt.</p>'}
-    <div class="tabs" role="group" aria-label="Ergebnisansichten">${['Überblick','Grenzwerte','Nachvollziehen'].map(tab=>`<button data-tab="${tab}" aria-pressed="${state.tab===tab}">${tab}</button>`).join('')}</div>
-    ${state.tab==='Grenzwerte'?projections(!fresh(),config):state.tab==='Nachvollziehen'?`<h3>Verwendete Konfiguration</h3><p class="formula">${escape(formula(config))}</p><p class="muted">Zeit: Jahre seit erster Messung. Referenzprofil: Genotyp A/B, Alter₀ 50 Jahre, weiblich. Zufälliger Achsenabschnitt und zufällige Steigung pro Person.</p><p>${48-n} Personen wegen fehlenden Alters ausgeschlossen.</p><p class="notice">Alle Ergebniswerte sind fest vorgegeben. Ein statistisches Modell wird im Prototyp nicht geschätzt.</p>`:`<p class="muted">Illustratives Referenzprofil: Alter₀ 50 Jahre · weiblich · Genotyp A / B</p><div class="analysis-chart">${chart(config)}</div>`}
-    <div class="analysis-result-actions"><button type="button" data-tab="Grenzwerte" ${fresh()?'':'disabled'}>Trendfortschreibung öffnen</button><button type="button" data-action="export" ${fresh()&&validTargets()?'':'disabled'}>Bericht exportieren</button></div></section>`;
+    <div class="analysis-linked-results"><div class="analysis-plot-panel"><h3>Verlauf und Trendfortschreibung</h3><p class="muted">Illustratives Referenzprofil: Alter₀ 50 Jahre · weiblich · Genotyp A / B</p><div id="linked-projection-chart">${chart(config)}</div></div><section class="analysis-projection-panel" aria-label="Grenzwertprojektion">${projections(!fresh(),config)}</section></div>
+    <details class="analysis-provenance"><summary>Modell und Datengrundlage</summary><p class="formula">${escape(formula(config))}</p><p class="muted">Zeit: Jahre seit erster Messung. Referenzprofil: Genotyp A/B, Alter₀ 50 Jahre, weiblich. Zufälliger Achsenabschnitt und zufällige Steigung pro Person.</p><p>${48-n} Personen wegen fehlenden Alters ausgeschlossen.</p><p class="notice">Alle Ergebniswerte sind fest vorgegeben. Ein statistisches Modell wird im Prototyp nicht geschätzt.</p></details>
+    <div class="analysis-result-actions"><button type="button" data-action="export" ${fresh()&&validTargets()?'':'disabled'}>Bericht exportieren</button></div></section>`;
+
 }
 function analysisPage() {
   if (!state.started) return `<h1>Eine Fragestellung wählen</h1><p class="muted">Einstellungen und Ergebnisse liegen in einem gemeinsamen Arbeitsbereich.</p><div class="equal"><div class="card"><h2>Unterscheiden sich Gruppen?</h2><p class="muted">Niveau und Änderung über die Zeit vergleichen, weitere Merkmale berücksichtigen.</p>${button('Genotypvergleich vorbereiten','start',true)}</div><div class="card"><h2>Wann wird ein Grenzwert erreicht?</h2><p class="muted">Einen geschätzten Trend für definierte Profile fortschreiben.</p>${button('Trendfortschreibung vorbereiten','projection-start')}</div></div>`;
@@ -83,12 +94,11 @@ function report() {
 document.addEventListener('click', event => {
   const target = event.target.closest('button'); if (!target || target.dataset.browserAction || target.dataset.browserPatient) return;
   if (target.dataset.page) state.page=target.dataset.page;
-  if (target.dataset.tab) state.tab=target.dataset.tab;
   const action=target.dataset.action;
   if (action==='load') state.loaded=true;
   if (action==='trajectories') state.page='Verläufe';
   if (action==='patient') state.patient=!state.patient;
-  if (action==='start'||action==='projection-start') { state.started=true; state.page='Analysen'; state.tab=action==='projection-start'?'Grenzwerte':'Überblick'; }
+  if (action==='start'||action==='projection-start') { state.started=true; state.page='Analysen'; }
   if (action==='toggle-config') state.editOpen=!state.editOpen;
   if (action==='discard-config' && state.lastResult) { Object.assign(state, state.lastResult); state.editOpen=false; }
   if (action==='run') { state.result=fingerprint(); state.lastResult = {response:state.response, age:state.age, sex:state.sex, threshold:state.threshold, horizon:state.horizon, direction:state.direction}; state.editOpen=false; document.querySelector('#announcement').textContent='Illustratives Beispielergebnis aktualisiert.'; }
@@ -101,7 +111,7 @@ document.addEventListener('click', event => {
     const link=document.createElement('a'); link.href=url; link.download='prototyp-analysebericht.html'; link.click(); setTimeout(()=>URL.revokeObjectURL(url),1000); return;
   }
   render();
-  const selector = target.dataset.tab ? `[data-tab="${target.dataset.tab}"]` : target.dataset.page ? `[data-page="${target.dataset.page}"]` : `[data-action="${action}"]`;
+  const selector = target.dataset.page ? `[data-page="${target.dataset.page}"]` : `[data-action="${action}"]`;
   const focusTarget = action==='run' ? root.querySelector('#results-title') : action==='discard-config' ? root.querySelector('[data-action="toggle-config"]') : root.querySelector(selector) || root.querySelector('h1');
   if (focusTarget) { if (focusTarget.tagName === 'H1') focusTarget.tabIndex = -1; focusTarget.focus(); }
 });
@@ -112,6 +122,8 @@ root.addEventListener('input', event => {
   saveProjectionSnapshot();
   const fragment=document.createElement('template'); fragment.innerHTML=projections();
   root.querySelector('.projection-result')?.replaceWith(fragment.content.querySelector('.projection-result'));
+  const linkedChart = root.querySelector('#linked-projection-chart');
+  if (linkedChart) linkedChart.innerHTML = chart();
   const exportButton=root.querySelector('[data-action="export"]');
   if (exportButton) exportButton.disabled=!fresh()||!validTargets();
 });

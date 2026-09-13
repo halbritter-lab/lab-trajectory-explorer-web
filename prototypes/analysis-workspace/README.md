@@ -195,3 +195,23 @@ Zustände desselben Schalters. Berechnen klappt den Inhalt innerhalb der Karte e
 Der doppelte Bearbeiten-Button am Ergebnis entfällt. Entwürfe bleiben beim
 manuellen Einklappen erhalten; veraltete Ergebnisse und die Export-Sperre bleiben
 sichtbar. Nur Berechnen oder explizites Verwerfen übernimmt bzw. verwirft Änderungen.
+
+
+## Gemeinsames Ergebnis: Verlauf und Grenzwerte
+
+Überblick und Grenzwerte haben keine separaten Tabs mehr. Links steht die Grafik,
+rechts die zugehörige Grenzwertprojektion. Unter 900 px stehen beide untereinander.
+„Modell und Datengrundlage“ liegt als aufklappbarer Bereich darunter. Die separate
+Aktion zum Öffnen der Trendfortschreibung entfällt, da sie unmittelbar sichtbar ist.
+
+Die Grafik zeigt die festen Beispieltrends bis Jahr 5 durchgezogen und eine
+Fortschreibung darüber hinaus gestrichelt. Grenzwertlinie und Schnittpunkte
+reagieren sofort auf Grenzwert, Richtung und Horizont. Markiert werden nur
+zukünftige, in der gewählten Richtung erreichbare Schnittpunkte innerhalb des
+Horizonts. Bereits am Ausgangspunkt erfüllte Bedingungen stehen als Status in
+der Tabelle; sie erhalten keinen irreführenden späteren Eintrittsmarker.
+
+Geprüft: zwei Standardschnittpunkte (A: 10, B: 9 Jahre), synchrones Ändern auf
+Grenzwert 40, Horizont 5 ohne Marker, leere Eingabe mit gesperrtem Export,
+Richtungswechsel, erhaltenes bisheriges Ergebnis bei Modelländerung, zweites
+Zielgrößenbeispiel sowie Desktop und Mobile ohne Seitenüberbreite.
