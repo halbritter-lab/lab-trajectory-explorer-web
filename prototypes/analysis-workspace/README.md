@@ -9,15 +9,15 @@ Produktionsbuild aufgenommen. Keine Veröffentlichung oder Änderung am Rechenke
 
 ## Zweck und Grenzen
 
-Die Navigation gliedert die Arbeit in **Daten → Verläufe → Analysen**.
+Die Navigation gliedert die Arbeit in **Daten → Verläufe → Kohortenmodelle**.
 Konfiguration und Ergebnis stehen im Analysearbeitsplatz untereinander über
 die volle Breite; es gibt keine Einstellungs-Sidebar. Nach dem Berechnen
 klappt die Konfiguration zu einer kompakten Zusammenfassung zusammen. Das ist ein zu beurteilender Entwurf, keine
 freigegebene neue Anwendungsoberfläche.
 
-Alle Daten und Modellwerte sind illustrative Konstanten. Die Bedienelemente
-ändern Konfiguration, Formel, Einschlusszahlen und Ergebniszustand, schätzen
-aber kein Modell. Die Projektion berechnet lediglich Schnittpunkte der festen
+Alle Daten sind synthetisch. Die Kohortenmodellwerte sind illustrative Konstanten;
+optionale Einzelverlaufswerte werden mit vorhandenen Rechenfunktionen daraus berechnet. Die Kohortenmodell-Bedienelemente ändern Konfiguration, Formel, Einschlusszahlen
+und Ergebniszustand, schätzen aber kein gemeinsames Modell. Die Projektion berechnet lediglich Schnittpunkte der festen
 Beispielgeraden. Import erklärt den vorgesehenen Ablauf; echte Dateien werden
 hier nicht eingelesen. Neuladen setzt den Entwurf zurück.
 
@@ -37,7 +37,7 @@ Daten bzw. der vorhandenen Konfiguration. Das zweite Zielgrößenbeispiel
    Sortierung und die Position der aktuellen Person bleiben erhalten. Die Analyse
    ist über die Hauptnavigation erreichbar; das Modellbeispiel bleibt unabhängig
    vom Patientenbrowser und übernimmt keine seiner Filter.
-3. **Analyse:** Bei eGFR Alter und Geschlecht auf „Niveau + jährliche Änderung“
+3. **Kohortenmodell:** Bei eGFR Alter und Geschlecht auf „Niveau + jährliche Änderung“
    belassen. Formel öffnen; beide Faktoren haben eine Wechselwirkung mit Zeit.
    Beispiel berechnen. Alter ausschließen: 48 statt 46 Personen,
    Bisheriges Ergebnis bleibt sichtbar und wird als veraltet markiert; Export
@@ -222,3 +222,41 @@ Die aktuellen Überschriften verdeutlichen die Zugehörigkeit zum selben Modell:
 „Grenzwerte aus diesem Modell“. Die Zielgröße bleibt in der Ergebnisbeschreibung
 sichtbar. Die Grenzwertprojektion ist eine Auswertung des dargestellten Modells,
 keine unabhängige Modellschätzung.
+
+
+## Einblendbare Auswertungen je Verlauf
+
+Unter „Verläufe“ öffnet jeder Parameterkopf „Auswertungen“. Dieselbe Auswahl ist
+in der Einzelansicht verfügbar. Die Einstellung gilt je Parameter für alle
+Patienten und bleibt beim Wechsel zwischen Tabelle und Einzelansicht erhalten.
+Trendlinie, jährliche Änderung, R² und Grenzwertzeitpunkt sind unabhängig wählbar.
+Grenzwert, Richtung und Horizont sind frei einstellbar; ein Grenzwert wird nicht
+anhand des Parameternamens vorgegeben. Abbrechen/Escape verwerfen Entwürfe.
+
+Der Prototyp verwendet dafür unverändert `fitOls` und `projectLinearThreshold`
+aus dem bestehenden Kern, ausschließlich mit synthetischen Verläufen. Er enthält
+keine zweite numerische Implementierung. Der Einzelverlaufs-Projektionsbezug ist
+der letzte Messzeitpunkt (Jahr 5), ausgewertet am **angepassten Trend**; die
+Restzeit ist relativ dazu. Eine erreichbare Grenze außerhalb des Datenzeitraums
+wird als Kennzahl angezeigt, die kleine Grafik bleibt auf den Messzeitraum begrenzt.
+R² beschreibt die Anpassung und ist kein Prognosesicherheitsmaß.
+
+Die zwölf Parameter sind weiterhin Beispielmetadaten; dieselben Methoden und
+Renderer funktionieren für alle. Der Methodenkatalog ist ausdrücklich eine
+Softwarefunktion, Parameter und Zielkonfiguration sind davon getrennt. Die spätere
+produktionsseitige Anbindung muss Methodenverfügbarkeit, fehlende Messwerte,
+Zeitfenster, Ausschlüsse und weitere bestehende Fit-Optionen berücksichtigen.
+Der Prototyp demonstriert zunächst OLS; keine neue Freigabe aller produktiven Wege.
+
+Tab 3 heißt „Kohortenmodelle“ und öffnet direkt die Konfiguration des gemeinsamen
+Modells. Die zwei gleichartigen Einstiegskarten entfallen. Dessen Modellwerte
+bleiben fest vorgegeben; Einzelverlaufs-Auswertungen benötigen diesen Bereich nicht.
+
+Start weiterhin mit **Vite / pnpm dev**, kein reiner statischer Dateiserver: Der
+Auswertungsadapter importiert bestehende TypeScript-Kernfunktionen, die Vite für
+den Browser verarbeitet. Am produktiven Einstieg und Rechenkern wurde nichts geändert.
+
+Geprüft: vier Auswertungen für eGFR auf 48 Zeilen; identische Werte in Tabelle
+und Person 001; getrennte Einstellungen für Hämoglobin; Abbrechen; leere
+Grenzwerte blockieren Übernehmen; Navigation erhält die Konfiguration; direkter
+Einstieg in Kohortenmodelle und dessen Beispielberechnung; 390 px ohne Überbreite.

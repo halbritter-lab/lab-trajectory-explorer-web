@@ -1,4 +1,5 @@
-// Self-contained illustrative data. No clinical computation or production imports.
+import { evaluationMethods, getEvaluation, setEvaluation, validEvaluation, evaluateSeries, evaluationValues } from './series-evaluations.js';
+// Synthetic data for UI review. Optional series evaluations reuse existing numeric functions.
 const parameters = [
   { key: 'egfr', name: 'eGFR', unit: 'ml/min/1,73 m²', min: 0, max: 120, color: '#176c68' },
   { key: 'creatinine', name: 'Kreatinin', unit: 'mg/dl', min: 0, max: 4, color: '#487ca9' },
@@ -30,6 +31,8 @@ const patients = Array.from({ length: 48 }, (_, index) => ({
 const browser = { selected: ['egfr', 'hemoglobin', 'crp'], query: '', group: 'all', sort: 'id', patient: null, horizontal: 0 };
 let draft = [];
 let parameterQuery = '';
+let evaluationKey = null;
+let evaluationDraft = null;
 const columnWidth = 285;
 const esc = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const number = value => value.toLocaleString('de-DE', { maximumFractionDigits: 1 });
@@ -45,12 +48,27 @@ function plot(patient, parameter, large = false) {
   const x = time => left + time / 5 * (right - left);
   const y = value => bottom - (value - parameter.min) / (parameter.max - parameter.min) * (bottom - top);
   const points = patient.values[parameter.key];
+  const {config,fit} = evaluateSeries(points,parameter);
+  const clipId = `series-clip-${patient.id}-${parameter.key}`;
+  const trend = config.features.includes('trend') && Number.isFinite(fit.slope) && Number.isFinite(fit.intercept);
+  const threshold = config.features.includes('projection') && Number.isFinite(config.threshold) && config.threshold >= parameter.min && config.threshold <= parameter.max;
   return `<svg class="patient-plot" viewBox="0 0 ${width} ${height}" role="img" aria-label="Person ${patient.id}, ${parameter.name}, ${parameter.unit}, sechs illustrative Messungen über fünf Jahre: ${points.map(point => `Jahr ${point.time}: ${number(point.value)} ${parameter.unit}`).join('; ')}">
     ${[parameter.min, (parameter.min + parameter.max) / 2, parameter.max].map(v => `<line x1="${left}" x2="${right}" y1="${y(v)}" y2="${y(v)}" stroke="#e5eaed"/><text x="${left - 5}" y="${y(v) + 3}" text-anchor="end">${number(v)}</text>`).join('')}
     <polyline points="${points.map(point => `${x(point.time)},${y(point.value)}`).join(' ')}" fill="none" stroke="${parameter.color}" stroke-width="2"/>
+    <defs><clipPath id="${clipId}"><rect x="${left}" y="${top}" width="${right-left}" height="${bottom-top}"/></clipPath></defs>
+    ${trend?`<path data-series-trend d="M${x(0)} ${y(fit.intercept)} L${x(5)} ${y(fit.intercept+fit.slope*5)}" stroke="#233746" stroke-dasharray="5 3" stroke-width="2" fill="none" clip-path="url(#${clipId})"/>`:''}
+    ${threshold?`<line data-series-threshold x1="${left}" x2="${right}" y1="${y(config.threshold)}" y2="${y(config.threshold)}" stroke="#ac792b" stroke-dasharray="3 3"/>`:''}
     ${points.map(point => `<circle cx="${x(point.time)}" cy="${y(point.value)}" r="${large ? 3 : 2}" fill="${parameter.color}"/>`).join('')}
     ${[0, 5].map(t => `<text x="${x(t)}" y="${height - 6}" text-anchor="middle">${t} J.</text>`).join('')}
   </svg>`;
+}
+function evaluationButton(parameter) {
+  const count = getEvaluation(parameter.key).features.length;
+  return `<button type="button" class="small" data-browser-action="evaluations" data-parameter="${parameter.key}" aria-label="${parameter.name}: Auswertungen">Auswertungen${count?` (${count})`:''}</button>`;
+}
+function evaluationPicker(parameter) {
+  const config = evaluationDraft;
+  return `<dialog id="evaluation-dialog" aria-labelledby="evaluation-title"><h2 id="evaluation-title">${parameter.name}: Auswertungen</h2><p class="muted">Für diesen Parameter in allen Patientenverläufen einblenden — in der Tabelle und der Einzelansicht.</p><fieldset class="evaluation-methods"><legend>Einblenden</legend>${evaluationMethods.map(method=>`<label><input type="checkbox" data-evaluation-feature="${method.key}" ${config.features.includes(method.key)?'checked':''}>${method.label}</label>`).join('')}</fieldset><div id="evaluation-target" ${config.features.includes('projection')?'':'hidden'}><label class="field">Grenzwert (${parameter.unit})<input type="number" data-evaluation-field="threshold" value="${config.threshold??''}"></label><label class="field">Richtung<select data-evaluation-field="direction"><option value="below" ${config.direction==='below'?'selected':''}>Unterhalb (&lt;)</option><option value="above" ${config.direction==='above'?'selected':''}>Oberhalb (&gt;)</option></select></label><label class="field">Horizont ab letzter Messung (Jahre)<input type="number" data-evaluation-field="horizon" min="0.1" step="any" value="${config.horizon}"></label></div><p id="evaluation-error" role="status"></p><p class="notice">OLS wird hier auf synthetische Einzelverläufe angewendet. R² beschreibt die Anpassung, keine Prognosesicherheit. Grenzwertzeitpunkte sind Trendfortschreibungen ohne Unsicherheitsintervall.</p><div class="actions picker-footer">${action('Abbrechen','cancel-evaluation')}${action('Übernehmen','apply-evaluation',!validEvaluation(config))}</div></dialog>`;
 }
 function parameterControls() {
   const names = browser.selected.map(key => parameters.find(p => p.key === key).name);
@@ -69,12 +87,12 @@ function patientDetail(rows) {
   if (!patient) { browser.patient = null; return table(rows); }
   return `<div class="patient-toolbar"><div class="actions">${action('← Zur Tabelle', 'back')}${action('← Vorherige Person', 'previous', index === 0)}${action('Nächste Person →', 'next', index === rows.length - 1)}</div><span class="muted">${index + 1} von ${rows.length} in der aktuellen Auswahl</span></div>
     <div class="page-heading"><div><p class="eyebrow">Patientenansicht</p><h2>Person ${patient.id}</h2><p class="muted">Genotyp ${patient.group} · 6 Zeitpunkte · gleiche Zeitachse für alle Parameter</p></div><label class="field">Direkt zu Person<select data-browser-field="patient" aria-label="Direkt zu Person">${rows.map(row => `<option ${row.id === patient.id ? 'selected' : ''}>${row.id}</option>`).join('')}</select></label></div>
-    ${browser.selected.length ? `<div class="patient-detail-grid">${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<section class="card"><h3>${parameter.name} <span class="muted">${parameter.unit}</span></h3>${plot(patient, parameter, true)}<p class="subtext">Erster Wert ${number(patient.values[key][0].value)} · letzter Wert ${number(patient.values[key].at(-1).value)} ${parameter.unit}</p></section>`; }).join('')}</div>` : '<p class="notice">Wähle oben mindestens einen Parameter für die Verlaufsansicht.</p>'}`;
+    ${browser.selected.length ? `<div class="patient-detail-grid">${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<section class="card"><div class="card-header"><h3>${parameter.name} <span class="muted">${parameter.unit}</span></h3>${evaluationButton(parameter)}</div>${plot(patient, parameter, true)}${evaluationValues(patient.values[key], parameter)}<p class="subtext">Erster Wert ${number(patient.values[key][0].value)} · letzter Wert ${number(patient.values[key].at(-1).value)} ${parameter.unit}</p></section>`; }).join('')}</div>` : '<p class="notice">Wähle oben mindestens einen Parameter für die Verlaufsansicht.</p>'}`;
 }
 function table(rows) {
 
   return `<div class="patient-toolbar"><div><h2>Patientenübersicht</h2><span class="muted">${rows.length} von 48 Personen · Personen-ID öffnen zum Durchblättern</span></div></div>
-    ${!rows.length ? '<div class="empty"><h2>Keine passenden Personen</h2><p class="muted">Suche oder Gruppenfilter ändern.</p></div>' : !browser.selected.length ? '<p class="notice">Wähle oben mindestens einen Parameter für die Vergleichstabelle.</p>' : `<div class="column-navigation"><span class="subtext">${browser.selected.length} Parameterspalten · horizontal vergleichen</span><div class="actions">${action('← Spalten', 'columns-left')}${action('Spalten →', 'columns-right')}<label class="sr-only" for="column-jump">Zu Parameter springen</label><select id="column-jump" data-browser-field="column-jump"><option value="">Zu Parameter …</option>${browser.selected.map(key => `<option value="${key}">${parameters.find(p => p.key === key).name}</option>`).join('')}</select></div></div><div class="patient-table-scroll" tabindex="0" role="region" aria-label="Patiententabelle mit vergleichbaren Verlaufsgrafiken"><table class="patient-table" style="width:${115 + browser.selected.length * columnWidth}px"><thead><tr><th scope="col">Person</th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<th scope="col">${parameter.name}<span class="subtext">${parameter.unit}</span></th>`; }).join('')}</tr></thead><tbody>${rows.map(patient => `<tr><th scope="row"><button class="table-link" data-browser-patient="${patient.id}" aria-label="Person ${patient.id} öffnen">${patient.id} ↗</button><span class="subtext">Genotyp ${patient.group}</span></th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<td><span class="cell-parameter" aria-hidden="true">${parameter.name}</span>${plot(patient, parameter)}<span class="cell-summary">${number(patient.values[key][0].value)} → ${number(patient.values[key].at(-1).value)} ${parameter.unit}</span></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`}`;
+    ${!rows.length ? '<div class="empty"><h2>Keine passenden Personen</h2><p class="muted">Suche oder Gruppenfilter ändern.</p></div>' : !browser.selected.length ? '<p class="notice">Wähle oben mindestens einen Parameter für die Vergleichstabelle.</p>' : `<div class="column-navigation"><span class="subtext">${browser.selected.length} Parameterspalten · horizontal vergleichen</span><div class="actions">${action('← Spalten', 'columns-left')}${action('Spalten →', 'columns-right')}<label class="sr-only" for="column-jump">Zu Parameter springen</label><select id="column-jump" data-browser-field="column-jump"><option value="">Zu Parameter …</option>${browser.selected.map(key => `<option value="${key}">${parameters.find(p => p.key === key).name}</option>`).join('')}</select></div></div><div class="patient-table-scroll" tabindex="0" role="region" aria-label="Patiententabelle mit vergleichbaren Verlaufsgrafiken"><table class="patient-table" style="width:${115 + browser.selected.length * columnWidth}px"><thead><tr><th scope="col">Person</th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<th scope="col">${parameter.name}<span class="subtext">${parameter.unit}</span>${evaluationButton(parameter)}</th>`; }).join('')}</tr></thead><tbody>${rows.map(patient => `<tr><th scope="row"><button class="table-link" data-browser-patient="${patient.id}" aria-label="Person ${patient.id} öffnen">${patient.id} ↗</button><span class="subtext">Genotyp ${patient.group}</span></th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<td><span class="cell-parameter" aria-hidden="true">${parameter.name}</span>${plot(patient, parameter)}${evaluationValues(patient.values[key], parameter)}<span class="cell-summary">${number(patient.values[key][0].value)} → ${number(patient.values[key].at(-1).value)} ${parameter.unit}</span></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`}`;
 }
 export function patientBrowser() {
   const rows = filtered();
@@ -82,7 +100,7 @@ export function patientBrowser() {
     <div class="card browser-controls"><div class="browser-filters"><label class="field">Person suchen<input type="search" data-browser-field="query" value="${esc(browser.query)}" placeholder="z. B. 012" autocomplete="off"></label><label class="field">Gruppe<select data-browser-field="group"><option value="all">Alle Gruppen</option>${['A', 'B'].map(group => `<option value="${group}" ${browser.group === group ? 'selected' : ''}>Genotyp ${group}</option>`).join('')}</select></label><label class="field">Sortieren nach<select data-browser-field="sort"><option value="id">Personen-ID</option>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<option value="${key}" ${browser.sort === key ? 'selected' : ''}>${parameter.name}: letzter Wert ↓</option>`; }).join('')}</select></label></div>${parameterControls()}</div>
     <p class="browser-scale-note">Gemeinsame Zeitachse: Jahre seit erster Messung · feste Werteskala je Parameter über alle Personen · unterschiedliche Einheiten werden separat dargestellt.</p>
     <div id="patient-browser-results">${browser.patient ? patientDetail(rows) : table(rows)}</div>
-    <p class="chart-note">Synthetische Beispielverläufe · verbundene Messpunkte, keine Modellschätzungen. Die Parameterliste steht beispielhaft für die später aus den Daten verfügbaren Messgrößen.</p>`;
+    <p class="chart-note">Synthetische Beispielverläufe · verbundene Messpunkte. Optionale OLS-Auswertungen werden je Einzelverlauf aus diesen Beispieldaten berechnet. Die Parameterliste steht beispielhaft für die später aus den Daten verfügbaren Messgrößen.</p>`;
 }
 export function restorePatientBrowser(root) {
   const table = root.querySelector('.patient-table-scroll');
@@ -106,6 +124,22 @@ export function bindPatientBrowser(root, render) {
     const target = event.target.closest('[data-browser-action], [data-browser-patient]');
     if (!target) return;
     const name = target.dataset.browserAction;
+    if (name === 'evaluations') {
+      evaluationKey=target.dataset.parameter;
+      evaluationDraft=structuredClone(getEvaluation(evaluationKey));
+      const parameter=parameters.find(p=>p.key===evaluationKey);
+      root.insertAdjacentHTML('beforeend',evaluationPicker(parameter));
+      const modal=root.querySelector('#evaluation-dialog'); modal.showModal();
+      modal.addEventListener('close',event=>event.target.remove(),{once:true});
+      return;
+    }
+    if (name === 'cancel-evaluation') { root.querySelector('#evaluation-dialog').close(); return; }
+    if (name === 'apply-evaluation') {
+      if (!validEvaluation(evaluationDraft)) return;
+      setEvaluation(evaluationKey,evaluationDraft);
+      root.querySelector('#evaluation-dialog').close();
+      redraw(`[data-browser-action="evaluations"][data-parameter="${evaluationKey}"]`); return;
+    }
     if (name === 'parameters') {
       draft = [...browser.selected]; parameterQuery = '';
       root.insertAdjacentHTML('beforeend', picker());
@@ -143,7 +177,17 @@ export function bindPatientBrowser(root, render) {
     }
     redraw(focus);
   });
+  function updateEvaluationValidity() {
+    const valid=validEvaluation(evaluationDraft);
+    root.querySelector('[data-browser-action="apply-evaluation"]').disabled=!valid;
+    root.querySelector('#evaluation-error').textContent=valid?'':'Bitte einen Grenzwert und einen positiven Horizont eingeben.';
+  }
   root.addEventListener('input', event => {
+    const evaluationField=event.target.dataset.evaluationField;
+    if (evaluationField && evaluationField!=='direction') {
+      evaluationDraft[evaluationField]=event.target.value===''?null:Number(event.target.value);
+      updateEvaluationValidity(); return;
+    }
     if (event.target.dataset.browserField === 'parameter-query') { parameterQuery = event.target.value; refreshPicker(); return; }
     if (event.target.dataset.browserField !== 'query') return;
     browser.query = event.target.value; browser.patient = null;
@@ -152,6 +196,16 @@ export function bindPatientBrowser(root, render) {
     restoreHorizontal();
   });
   root.addEventListener('change', event => {
+    const feature=event.target.dataset.evaluationFeature;
+    if (feature) {
+      evaluationDraft.features=event.target.checked?[...evaluationDraft.features,feature]:evaluationDraft.features.filter(key=>key!==feature);
+      root.querySelector('#evaluation-target').hidden=!evaluationDraft.features.includes('projection');
+      updateEvaluationValidity(); return;
+    }
+    if (event.target.dataset.evaluationField) {
+      if (event.target.dataset.evaluationField==='direction') evaluationDraft.direction=event.target.value;
+      return;
+    }
     const key = event.target.dataset.browserField;
     const parameter = event.target.dataset.browserParameter;
     if (parameter) {
