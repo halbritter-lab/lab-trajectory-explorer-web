@@ -1,3 +1,4 @@
+import { overlayView, bindOverlay } from './overlay-view.js';
 import { derivePoints, getDerivedDefinition } from './derived-parameters.js';
 import { bindPresets } from './evaluation-presets.js';
 import { evaluationMethods, getPresets, getEvaluation, setEvaluation, validEvaluation, evaluateSeries, evaluationValues } from './series-evaluations.js';
@@ -21,6 +22,7 @@ const patients = Array.from({ length: 48 }, (_, index) => ({
   group: index % 2 ? 'B' : 'A',
   baselineAge: index>=46 ? null : 40+index%20,
   sex: index%2 ? 'm' : 'w',
+  baselineDate: `${2015+index%6}-01-01`,
   values: Object.fromEntries(parameters.map((parameter, p) => [parameter.key,
     Array.from({ length: 6 }, (_, t) => {
       const wave = Math.sin(index * 1.7 + t * 1.3);
@@ -32,11 +34,12 @@ const patients = Array.from({ length: 48 }, (_, index) => ({
       return { time: t, value };
     })])),
 }));
-const browser = { selected: ['egfr', 'hemoglobin', 'crp'], query: '', group: 'all', sort: 'id', patient: null, horizontal: 0, mode: 'table' };
+const browser = { selected: ['egfr', 'hemoglobin', 'crp'], query: '', group: 'all', sort: 'id', patient: null, horizontal: 0, mode: 'table', patientScope:'all', patientIds:[] };
 let draft = [];
 let parameterQuery = '';
 let evaluationKey = null;
 let evaluationDraft = null;
+let patientDraft = [];
 const columnWidth = 285;
 const esc = value => String(value).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c]);
 const number = value => value.toLocaleString('de-DE', { maximumFractionDigits: 1 });
@@ -44,7 +47,7 @@ const action = (label, name, disabled = false) => `<button type="button" data-br
 function series(patient,key) { return derivePoints(patient,key) ?? patient.values[key]; }
 function seriesSummary(patient,key,parameter) { const points=series(patient,key); return points.length ? `${number(points[0].value)} → ${number(points.at(-1).value)} ${parameter.unit}` : 'Nicht berechenbar: Ausgangsalter fehlt'; }
 function filtered() {
-  const rows = patients.filter(patient => patient.id.includes(browser.query.trim()) && (browser.group === 'all' || patient.group === browser.group));
+  const rows = patients.filter(patient => (browser.patientScope==='all'||browser.patientIds.includes(patient.id)) && patient.id.includes(browser.query.trim()) && (browser.group === 'all' || patient.group === browser.group));
   if (browser.sort !== 'id') rows.sort((a, b) => (series(b,browser.sort).at(-1)?.value??-Infinity) - (series(a,browser.sort).at(-1)?.value??-Infinity));
   return rows;
 }
@@ -101,27 +104,13 @@ function table(rows) {
   return `<div class="patient-toolbar"><div><h2>Patientenübersicht</h2><span class="muted">${rows.length} von 48 Personen · Personen-ID öffnen zum Durchblättern</span></div></div>
     ${!rows.length ? '<div class="empty"><h2>Keine passenden Personen</h2><p class="muted">Suche oder Gruppenfilter ändern.</p></div>' : !browser.selected.length ? '<p class="notice">Wähle oben mindestens einen Parameter für die Vergleichstabelle.</p>' : `<div class="column-navigation"><span class="subtext">${browser.selected.length} Parameterspalten · horizontal vergleichen</span><div class="actions">${action('← Spalten', 'columns-left')}${action('Spalten →', 'columns-right')}<label class="sr-only" for="column-jump">Zu Parameter springen</label><select id="column-jump" data-browser-field="column-jump"><option value="">Zu Parameter …</option>${browser.selected.map(key => `<option value="${key}">${parameters.find(p => p.key === key).name}</option>`).join('')}</select></div></div><div class="patient-table-scroll" tabindex="0" role="region" aria-label="Patiententabelle mit vergleichbaren Verlaufsgrafiken"><table class="patient-table" style="width:${115 + browser.selected.length * columnWidth}px"><thead><tr><th scope="col">Person</th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<th scope="col">${parameter.name}<span class="subtext">${parameter.unit}</span>${evaluationButton(parameter)}</th>`; }).join('')}</tr></thead><tbody>${rows.map(patient => `<tr><th scope="row"><button class="table-link" data-browser-patient="${patient.id}" aria-label="Person ${patient.id} öffnen">${patient.id} ↗</button><span class="subtext">Genotyp ${patient.group}</span></th>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<td><span class="cell-parameter" aria-hidden="true">${parameter.name}</span>${plot(patient, parameter)}${evaluationValues(series(patient,key), parameter)}<span class="cell-summary">${seriesSummary(patient,key,parameter)}</span></td>`; }).join('')}</tr>`).join('')}</tbody></table></div>`}`;
 }
-function overlay(rows) {
-  if(!rows.length)return '<p class="notice">Keine passenden Personen. Suche oder Gruppenfilter ändern.</p>';
-  if(!browser.selected.length)return '<p class="notice">Wähle mindestens einen Parameter.</p>';
-  return `<div class="patient-toolbar"><div><h2>Verläufe überlagern</h2><p class="muted">${rows.length} Personen in der Auswahl · Linie anklicken, um die Person zu öffnen</p></div></div><div class="overlay-grid">${browser.selected.map(key=>{
-    const parameter=parameters.find(p=>p.key===key),config=getEvaluation(key);
-    const available=rows.filter(p=>series(p,key).length);
-    const x=t=>45+t/5*565,y=v=>220-(v-parameter.min)/(parameter.max-parameter.min)*185;
-    const clip=`overlay-${key}`;
-    return `<section class="card"><div class="card-header"><div><h3>${parameter.name} · ${parameter.unit}</h3><p class="subtext">${available.length} von ${rows.length} Verläufen darstellbar · ${esc(config.presetName)}</p></div>${evaluationButton(parameter)}</div><svg class="overlay-plot" viewBox="0 0 650 265" aria-label="${parameter.name}: ${available.length} überlagerte Patientenverläufe"><defs><clipPath id="${clip}"><rect x="45" y="35" width="565" height="185"/></clipPath></defs>${[parameter.min,(parameter.min+parameter.max)/2,parameter.max].map(v=>`<line x1="45" x2="610" y1="${y(v)}" y2="${y(v)}" stroke="#dce5e9"/><text x="40" y="${y(v)+4}" text-anchor="end">${number(v)}</text>`).join('')}${[0,1,2,3,4,5].map(t=>`<text x="${x(t)}" y="250" text-anchor="middle">${t} J.</text>`).join('')}${available.map(patient=>{
-      const points=series(patient,key), color=patient.group==='A'?'#176c68':'#487ca9';
-      const {fit}=evaluateSeries(points,parameter);
-      return `<polyline data-browser-patient="${patient.id}" tabindex="0" role="button" aria-label="Person ${patient.id} öffnen, ${parameter.name}" points="${points.map(p=>`${x(p.time)},${y(p.value)}`).join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-opacity=".45" clip-path="url(#${clip})"><title>Person ${patient.id} · Genotyp ${patient.group}</title></polyline>${config.features.includes('trend')&&Number.isFinite(fit.slope)?`<path d="M${x(Math.max(0,config.from))} ${y(fit.intercept+fit.slope*Math.max(0,config.from))} L${x(Math.min(5,config.to))} ${y(fit.intercept+fit.slope*Math.min(5,config.to))}" stroke="${color}" stroke-width="1.5" stroke-dasharray="5 4" fill="none" pointer-events="none" clip-path="url(#${clip})"/>`:''}`;
-    }).join('')}${config.features.includes('projection')&&Number.isFinite(config.threshold)&&config.threshold>=parameter.min&&config.threshold<=parameter.max?`<line x1="45" x2="610" y1="${y(config.threshold)}" y2="${y(config.threshold)}" stroke="#ac792b" stroke-dasharray="4 4"/>`:''}</svg><div class="legend"><span><i class="dot a"></i>Genotyp A</span><span><i class="dot b"></i>Genotyp B</span></div><p class="subtext">Gemeinsame Zeitachse seit erster Messung. ${config.features.includes('trend')?'Gestrichelt: OLS je Person.':''} ${rows.length-available.length?`${rows.length-available.length} Personen ohne berechenbare Werte (fehlendes Alter).`:''}</p></section>`;
-  }).join('')}</div>`;
-}
+function overlay(rows) { return overlayView(rows,browser.selected,parameters,series,evaluationButton); }
 function browserResults(rows) { return browser.patient ? patientDetail(rows) : browser.mode==='overlay' ? overlay(rows) : table(rows); }
 export function patientBrowser() {
   const rows = filtered();
   return `<div class="page-heading"><div><p class="eyebrow">02 / Verläufe</p><h1>Patienten und Parameter erkunden</h1><p class="muted">Verläufe über Personen hinweg vergleichen und mehrere Messgrößen gemeinsam betrachten.</p></div></div>
-    <div class="card browser-controls"><div class="browser-filters"><label class="field">Person suchen<input type="search" data-browser-field="query" value="${esc(browser.query)}" placeholder="z. B. 012" autocomplete="off"></label><label class="field">Gruppe<select data-browser-field="group"><option value="all">Alle Gruppen</option>${['A', 'B'].map(group => `<option value="${group}" ${browser.group === group ? 'selected' : ''}>Genotyp ${group}</option>`).join('')}</select></label><label class="field">Sortieren nach<select data-browser-field="sort"><option value="id">Personen-ID</option>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<option value="${key}" ${browser.sort === key ? 'selected' : ''}>${parameter.name}: letzter Wert ↓</option>`; }).join('')}</select></label></div>${parameterControls()}</div>
-    <p class="browser-scale-note">Gemeinsame Zeitachse: Jahre seit erster Messung · feste Werteskala je Parameter über alle Personen · unterschiedliche Einheiten werden separat dargestellt.</p>
+    <div class="card browser-controls"><div class="browser-filters"><label class="field">Person suchen<input type="search" data-browser-field="query" value="${esc(browser.query)}" placeholder="z. B. 012" autocomplete="off"></label><label class="field">Genotyp filtern<select data-browser-field="group"><option value="all">Alle Gruppen</option>${['A', 'B'].map(group => `<option value="${group}" ${browser.group === group ? 'selected' : ''}>Genotyp ${group}</option>`).join('')}</select></label><label class="field">Sortieren nach<select data-browser-field="sort"><option value="id">Personen-ID</option>${browser.selected.map(key => { const parameter = parameters.find(p => p.key === key); return `<option value="${key}" ${browser.sort === key ? 'selected' : ''}>${parameter.name}: letzter Wert ↓</option>`; }).join('')}</select></label></div>${parameterControls()}<div class="patient-scope"><label class="field">Patientenauswahl<select data-browser-field="patientScope"><option value="all" ${browser.patientScope==='all'?'selected':''}>Alle 48 Personen</option><option value="selected" ${browser.patientScope==='selected'?'selected':''}>Auswahl (${browser.patientIds.length} Personen)</option></select></label>${action('Patienten auswählen …','patient-picker')}<p class="subtext">Gilt für Tabelle und Überlagerung; Suche und Genotypfilter grenzen zusätzlich ein.</p></div></div>
+    <p class="browser-scale-note">Feste Werteskala je Parameter · unterschiedliche Einheiten separat. Tabelle und Einzelansicht: Jahre seit erster Messung; die Überlagerung bietet zusätzliche Zeitachsen.</p>
     <div class="browser-view-switch" role="group" aria-label="Verlaufsdarstellung"><button data-browser-action="mode-table" aria-pressed="${browser.mode==='table'}">Tabelle</button><button data-browser-action="mode-overlay" aria-pressed="${browser.mode==='overlay'}">Überlagerung (Spaghetti-Plot)</button></div><div id="patient-browser-results">${browserResults(rows)}</div>
     <p class="chart-note">Synthetische Beispielverläufe · verbundene Messpunkte. Optionale OLS-Auswertungen werden je Einzelverlauf aus diesen Beispieldaten berechnet. Die Parameterliste steht beispielhaft für die später aus den Daten verfügbaren Messgrößen.</p>`;
 }
@@ -131,7 +120,8 @@ export function restorePatientBrowser(root) {
 }
 export function bindPatientBrowser(root, render) {
   bindPresets(root,render,parameters);
-  root.addEventListener('keydown',event=>{ if(event.target.matches('polyline[data-browser-patient]') && ['Enter',' '].includes(event.key)){event.preventDefault();event.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));} });
+  bindOverlay(root,render);
+  root.addEventListener('keydown',event=>{ if(event.target.matches('polyline[data-browser-patient],circle[data-browser-patient]') && ['Enter',' '].includes(event.key)){event.preventDefault();event.target.dispatchEvent(new MouseEvent('click',{bubbles:true}));} });
   function restoreHorizontal() { restorePatientBrowser(root); }
   function redraw(selector) { render(); restoreHorizontal(); (root.querySelector(selector) || root.querySelector(`[data-browser-action="mode-${browser.mode}"]`))?.focus(); }
   function refreshPicker() {
@@ -149,7 +139,15 @@ export function bindPatientBrowser(root, render) {
     const target = event.target.closest('[data-browser-action], [data-browser-patient]');
     if (!target) return;
     const name = target.dataset.browserAction;
-    if (name==='mode-table'||name==='mode-overlay') { browser.mode=name==='mode-table'?'table':'overlay';browser.patient=null;redraw(`[data-browser-action="${name}"]`);return; }
+    if (name==='patient-picker') {
+      patientDraft=browser.patientScope==='all'?patients.map(p=>p.id):[...browser.patientIds];
+      root.insertAdjacentHTML('beforeend',`<dialog id="patient-picker" aria-labelledby="patient-picker-title"><h2 id="patient-picker-title">Patienten auswählen</h2><p class="subtext">Diese Auswahl gilt in Tabelle und Überlagerung. Die Auswahl ändert keine Berechnungseinstellungen.</p><div class="actions">${action('Alle markieren','patient-all')}${action('Keine markieren','patient-none')}</div><fieldset class="patient-pick-list"><legend>Beispielpersonen</legend>${patients.map(p=>`<label><input type="checkbox" data-patient-pick="${p.id}" ${patientDraft.includes(p.id)?'checked':''}>${p.id} · Genotyp ${p.group}</label>`).join('')}</fieldset><div class="actions">${action('Abbrechen','patient-cancel')}${action('Auswahl übernehmen','patient-apply')}</div></dialog>`);
+      const modal=root.querySelector('#patient-picker');modal.showModal();modal.addEventListener('close',()=>modal.remove(),{once:true});return;
+    }
+    if(name==='patient-all'||name==='patient-none') {patientDraft=name==='patient-all'?patients.map(p=>p.id):[];root.querySelectorAll('[data-patient-pick]').forEach(input=>input.checked=patientDraft.includes(input.dataset.patientPick));return;}
+    if(name==='patient-cancel'){root.querySelector('#patient-picker').close();return;}
+    if(name==='patient-apply'){browser.patientIds=[...patientDraft];browser.patientScope='selected';browser.patient=null;root.querySelector('#patient-picker').close();redraw('[data-browser-action="patient-picker"]');return;}
+    if (name==='mode-table' ||name==='mode-overlay') { browser.mode=name==='mode-table'?'table':'overlay';browser.patient=null;redraw(`[data-browser-action="${name}"]`);return; }
     if (name === 'evaluations') {
       evaluationKey=target.dataset.parameter;
       evaluationDraft=structuredClone(getEvaluation(evaluationKey));
@@ -217,6 +215,7 @@ export function bindPatientBrowser(root, render) {
     restoreHorizontal();
   });
   root.addEventListener('change', event => {
+    if(event.target.dataset.patientPick){const id=event.target.dataset.patientPick;patientDraft=event.target.checked?[...patientDraft,id]:patientDraft.filter(p=>p!==id);return;}
     const feature=event.target.dataset.evaluationFeature;
     if (feature) {
       evaluationDraft.features=event.target.checked?[...evaluationDraft.features,feature]:evaluationDraft.features.filter(key=>key!==feature);

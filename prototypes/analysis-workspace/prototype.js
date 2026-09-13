@@ -93,7 +93,7 @@ function report() {
   return `<h1>Illustrativer Analysebericht</h1><p>Klick-Prototyp · Beispieldaten · Keine Modellberechnung · Nur für Forschungszwecke</p><h2>Konfiguration</h2><p>${escape(formula())}</p><p>${count()} Personen, ${count()*6} Messungen; ${48-count()} Personen wegen fehlenden Alters ausgeschlossen.</p><p>Referenzprofil: Genotyp A/B, Ausgangsalter 50 Jahre, weiblich.</p>${projections(true)}`;
 }
 document.addEventListener('click', event => {
-  const target = event.target.closest('button'); if (!target || target.dataset.derivedAction || target.dataset.presetAction || target.dataset.browserAction || target.dataset.browserPatient) return;
+  const target = event.target.closest('button'); if (!target || target.dataset.overlayGroup || target.dataset.derivedAction || target.dataset.presetAction || target.dataset.browserAction || target.dataset.browserPatient) return;
   if (target.dataset.page) state.page=target.dataset.page;
   const action=target.dataset.action;
   if (action==='load') state.loaded=true;

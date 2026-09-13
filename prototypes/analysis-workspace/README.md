@@ -303,3 +303,33 @@ Desktop und Mobile geprüft; Dialog und Seite ohne horizontale Überbreite.
 
 Unabhängiges Review der neuen eGFR-Komponente sowie der Integration. Fehlender
 Rücksprungfokus bei nicht darstellbaren Linien und unzureichende Fit-Punkte behoben.
+
+
+## Plot-Einstellungen aus dem ursprünglichen Overlay
+
+Direkt über dem Spaghetti-Plot: Zeit seit erster Messung / Alter / synthetisches
+Kalenderdatum, Färbung nach Genotyp / Geschlecht / ohne Gruppierung und einzelne
+Person hervorheben. Unter Darstellung: Messpunkte, Verbindungslinien und illustrative
+Studienbesuche. Gruppen lassen sich über die Legende aus-/einblenden; das beeinflusst
+nur den Plot, nicht die gemeinsame Patientenauswahl oder die berechneten Fits.
+
+„Patienten auswählen“ erstellt eine explizite Auswahl, die Tabelle und Überlagerung
+verwenden. „Alle 48 Personen“ stellt die vollständige Basis wieder her. Suche und
+Genotypfilter grenzen diese Basis zusätzlich ein. Abbrechen und Escape verändern
+keine Auswahl. Die Einzelansicht blättert durch dieselbe gemeinsame Auswahl.
+
+Die Kalenderachse verwendet künstliche Startdaten 2015–2020 und den Zeitabstand der
+Messungen. Für die Altersachse werden Personen ohne Ausgangsalter weggelassen und
+gezählt. Fit-Fenster bleiben Jahre seit erster Messung; ihre Darstellung wird auf
+die gewählte Achse transformiert. Färbung bleibt je Gruppe stabil über Parameter.
+
+Die Ereignisse sind als Beispiel erzeugte Studienbesuche bei sechs Personen,
+jeweils in Jahr 2,5. Sie bewirken keine Zensierung. „Ausgeschlossene Messungen“ ist
+mangels Ausschlüssen deaktiviert; „Kohortenmodell-Linien“ mangels passendem berechneten
+Modell. Beide sind ausdrücklich offene Integrationspunkte. Die festen Linien im
+separaten Kohortenmodell-Beispiel werden nicht als passende Fits ausgegeben.
+
+Browserprüfung: Altersachse mit 46 Personen, Kalenderachse, gruppenweises Ausblenden
+bei unveränderten 48 Tabellenzeilen, reine Punktansicht mit 276 eGFR-Punkten,
+Ereignismarker, gemeinsame Auswahl 001/047 und zwei Tabellenzeilen, mobile Breite.
+Review: inaktive Hervorhebung zurückgesetzt und Gruppenfarben stabilisiert.
