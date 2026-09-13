@@ -1,9 +1,8 @@
 name: Deploy Pages
 
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:
+  release:
+    types: [published]
 
 permissions:
   contents: read
@@ -16,9 +15,13 @@ concurrency:
 
 jobs:
   build:
+    if: ${{ github.event.release.draft == false && github.event.release.prerelease == false }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Pin the build to the release event's commit, not a moving branch.
+          ref: ${{ github.sha }}
       - uses: pnpm/action-setup@v4
       - uses: actions/setup-node@v4
         with:
@@ -27,6 +30,8 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm build
+      - run: pnpm exec playwright install --with-deps chromium
+      - run: pnpm test:e2e
       - uses: actions/configure-pages@v5
         with:
           enablement: true
