@@ -1,7 +1,8 @@
+import { prepareMixedModelFactors } from '../../core/mixedModel/factors'
 import { lazy, Suspense, useMemo } from 'react'
 import { useAppStore } from '../state/store'
 import { buildCohortRows, cohortExportRecords, slopeUnit, EXPORT_DISCLAIMER_ROWS, type CohortSeriesSpec } from '../../core/cohort/screening'
-import { isEgfrUnit, rapidEgfrDeclineFlagForCell } from '../../core/analysis/rapidEgfrDeclineModule'
+import { rapidEgfrDeclineFlagForCell } from '../../core/analysis/rapidEgfrDeclineModule'
 import { MiniSparkline } from '../charts/MiniSparkline'
 import { CohortTrajectoryOverlay } from './CohortTrajectoryOverlay'
 import { sheetsToXlsxBytes, downloadBlob, fileStamp } from '../../io/export'
@@ -228,24 +229,29 @@ export function CohortView() {
     })
     return out
   }, [cohortRows, sort])
-  const mixedModelSeriesIndex = useMemo(
-    () => specs.findIndex((spec) => spec.bezeichnung.toLowerCase().includes('egfr') || isEgfrUnit(spec.einheit)),
-    [specs],
-  )
+  const selectedModelIndex = useAppStore((s) => s.mixedModelSeriesIndex)
+  const selectedModelKey = useAppStore((s) => s.mixedModelSeriesKey)
+  const selectedModelConfig = selectedModelIndex !== null ? configs[selectedModelIndex] : null
+  const mixedModelSeriesIndex = selectedModelConfig?.bezeichnung &&
+    `${selectedModelConfig.bezeichnung}|${selectedModelConfig.einheit ?? ''}` === selectedModelKey
+    ? selectedModelIndex! : -1
+  const mixedModelSpec = mixedModelSeriesIndex >= 0
+    ? specs[configs.slice(0, mixedModelSeriesIndex).filter((c) => c.bezeichnung).length] : undefined
+  const responseName = mixedModelSpec?.bezeichnung ?? ''
   const mixedModelRows = useMemo(
     () => mixedModelSeriesIndex >= 0
-      ? mixedModelRowsFromCohortInputs(displayRows, patientIds, specs[mixedModelSeriesIndex])
+      ? mixedModelRowsFromCohortInputs(displayRows, patientIds, mixedModelSpec!)
       : [],
-    [displayRows, patientIds, specs, mixedModelSeriesIndex],
+    [displayRows, patientIds, mixedModelSpec, mixedModelSeriesIndex],
   )
   const mixedModelSeriesKey = useMemo(() => {
     if (mixedModelSeriesIndex < 0) return ''
-    const spec = specs[mixedModelSeriesIndex]
+    const spec = mixedModelSpec!
     return `${spec.bezeichnung}|${spec.einheit ?? ''}`
-  }, [mixedModelSeriesIndex, specs])
+  }, [mixedModelSeriesIndex, mixedModelSpec])
   const mixedModelPolicyHash = useMemo(
-    () => mixedModelSeriesIndex >= 0 ? mixedModelFitConfigHash(specs[mixedModelSeriesIndex], mixedModelConfig) : '',
-    [mixedModelSeriesIndex, specs, mixedModelConfig],
+    () => mixedModelSeriesIndex >= 0 ? mixedModelFitConfigHash(mixedModelSpec!, mixedModelConfig) : '',
+    [mixedModelSeriesIndex, mixedModelSpec, mixedModelConfig],
   )
   const mixedModelFormulaText = useMemo(() => mixedModelFormula(mixedModelConfig), [mixedModelConfig])
   const mixedModelFormulaLabelText = useMemo(() => mixedModelConfigLabel(mixedModelConfig), [mixedModelConfig])
@@ -272,7 +278,7 @@ export function CohortView() {
   function validateMixedModelDraftConfig(config: MixedModelConfig): string | null {
     const configValidation = validateMixedModelConfig(config)
     if (!configValidation.ok) return configValidation.message
-    const rowValidation = validateMixedModelRows(mixedModelRows, config)
+    const rowValidation = validateMixedModelRows(prepareMixedModelFactors(mixedModelRows, config, patientAttributes, displayRows).rows, config)
     return rowValidation.ok ? null : rowValidation.message
   }
 
@@ -347,31 +353,32 @@ export function CohortView() {
             className="mixed-model-config-modal mixed-model-result-dialog"
             role="dialog"
             aria-modal="true"
-            aria-labelledby="egfr-cohort-model-title"
+            aria-labelledby="cohort-model-title"
           >
             <div className="mixed-model-config-modal-header">
               <div>
                 <div className="mixed-model-title-row">
-                  <h2 id="egfr-cohort-model-title">eGFR cohort model</h2>
+                  <h2 id="cohort-model-title">{responseName} cohort model</h2>
                   <span className="experimental-badge">Experimental</span>
                 </div>
-                <p>Nephro-specific mixed model using the active eGFR cohort and current filter settings.</p>
+                <p>Mixed model using the selected {responseName} cohort and current filter settings.</p>
                 <p className="mixed-model-experimental-note">Experimental browser-based mixed model; verify clinical interpretation independently.</p>
               </div>
-              <button type="button" onClick={() => setMixedModelDialogOpen(false)} aria-label="Close eGFR cohort model">
+              <button type="button" onClick={() => setMixedModelDialogOpen(false)} aria-label={`Close ${responseName} cohort model`}>
                 Close
               </button>
             </div>
             <Suspense fallback={null}>
               <CohortModelPanel
                 rows={displayRows}
+                patientAttributes={patientAttributes}
                 patientIds={patientIds}
                 groups={cohortGroups}
                 groupColors={cohortGroupColorMap}
-                spec={specs[mixedModelSeriesIndex]}
+                spec={mixedModelSpec!}
                 seriesIndex={mixedModelSeriesIndex}
                 seriesKey={mixedModelSeriesKey}
-                seriesUnit={specs[mixedModelSeriesIndex].einheit}
+                seriesUnit={mixedModelSpec!.einheit}
                 fitConfigHash={mixedModelPolicyHash}
                 config={mixedModelConfig}
                 formula={mixedModelFormulaText}

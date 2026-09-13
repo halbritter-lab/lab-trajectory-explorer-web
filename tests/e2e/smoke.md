@@ -101,3 +101,14 @@ Verified 2026-08-24: all six hold; console clean (0 errors, 0 warnings). Step 6
 covered by the Chromium regression test in `tests/e2e/pr5-quality.e2e.ts`
 ("reports a patient whose ages fit no single birth date"); steps 1-5 verified
 2026-08-22 via the Playwright MCP and re-confirmed unchanged.
+
+
+## Configurable trend projections
+
+Verified 2026-09-13: desktop and 390px-wide Chromium with real workbook uploads.
+`model-projections.e2e.ts` verifies a rising nonrenal custom target, G4/G5 presets,
+changed genotype profile, horizon/disabled states, draft cancellation and actual
+XLSX downloads. The browser tests intercept the worker to isolate UI behavior;
+`scripts/verify_mixed_model_projections.mjs` independently runs the actual webR
+worker with lme4 and nlme and checks known profile coefficients/crossing times.
+The projection form stays within the mobile dialog; result columns can scroll.

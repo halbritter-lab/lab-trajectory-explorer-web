@@ -78,6 +78,71 @@ describe('useAppStore', () => {
     useAppStore.getState().setShowCohortMixedModelLine(true)
   }
 
+  it('binds the model dialog to an explicit series and closes on replacement', () => {
+    const state = useAppStore.getState()
+    state.addSeries()
+    state.setSeriesConfig(1, { bezeichnung: 'Glucose', einheit: 'mg/dl' })
+    state.openMixedModelDialog(1, 'Glucose|mg/dl')
+    expect(useAppStore.getState()).toMatchObject({ mixedModelDialogOpen: true, mixedModelSeriesIndex: 1, mixedModelSeriesKey: 'Glucose|mg/dl' })
+    state.setSeriesConfig(1, { bezeichnung: 'Sodium' })
+    expect(useAppStore.getState()).toMatchObject({ mixedModelDialogOpen: false, mixedModelSeriesIndex: null, mixedModelSeriesKey: null })
+    state.openMixedModelDialog(1, 'Glucose|mg/dl')
+    expect(useAppStore.getState().mixedModelDialogOpen).toBe(false)
+  })
+
+  it('stores independent copied projection settings and clears them with their fit', () => {
+    storeMixedModelResult()
+    const applied = { sourceIdentity: mixedModelIdentity, settings: { targets: [], profile: {}, referenceTimeYears: 0, horizonYears: 20 } }
+    useAppStore.getState().setProjectionSettings(0, mixedModelIdentity.seriesKey, 'cohort', applied)
+    const key = JSON.stringify([0, mixedModelIdentity.seriesKey, 'cohort'])
+    expect(useAppStore.getState().projectionSettings[key]).toEqual(applied)
+    applied.settings.horizonYears = 3
+    expect(useAppStore.getState().projectionSettings[key].settings.horizonYears).toBe(20)
+    useAppStore.getState().setEvents([])
+    expect(useAppStore.getState().projectionSettings).toEqual({})
+  })
+
+  it('clears the bound model selection when an earlier series is removed', () => {
+    const state = useAppStore.getState()
+    state.addSeries()
+    state.setSeriesConfig(1, { bezeichnung: 'Glucose', einheit: 'mg/dl' })
+    state.openMixedModelDialog(1, 'Glucose|mg/dl')
+    state.removeSeries(0)
+    expect(useAppStore.getState()).toMatchObject({ mixedModelDialogOpen: false, mixedModelSeriesIndex: null, mixedModelSeriesKey: null })
+  })
+
+  it('rejects stale and cross-series projection settings', () => {
+    storeMixedModelResult()
+    const settings = { targets: [], profile: {}, referenceTimeYears: 0, horizonYears: 20 }
+    useAppStore.getState().setProjectionSettings(0, mixedModelIdentity.seriesKey, 'cohort', { sourceIdentity: { ...mixedModelIdentity, datasetHash: 'stale' }, settings })
+    useAppStore.getState().setProjectionSettings(1, mixedModelIdentity.seriesKey, 'cohort', { sourceIdentity: mixedModelIdentity, settings })
+    expect(useAppStore.getState().projectionSettings).toEqual({})
+  })
+
+  it('preserves applied settings across closing and same-identity refits, but resets changed identities', async () => {
+    const params = {
+      seriesIndex: 0, seriesKey: mixedModelIdentity.seriesKey, fitConfigHash: 'fit',
+      config: DEFAULT_MIXED_MODEL_CONFIG, formula: mixedModelResult.metadata.formula,
+      entities: [{ entity: { kind: 'cohort' as const }, rows: [
+        { patient_id: 'p1', eGFR: 60, time_since_baseline: 0 },
+        { patient_id: 'p1', eGFR: 58, time_since_baseline: 1 },
+      ] }], runJob: vi.fn(async () => mixedModelResult),
+    }
+    await useAppStore.getState().runCohortModels(params)
+    const identity = useAppStore.getState().cohortModelResults!.cohort.identity
+    const applied = { sourceIdentity: identity, settings: { targets: [], profile: {}, referenceTimeYears: 2, horizonYears: 7 } }
+    useAppStore.getState().setProjectionSettings(0, identity.seriesKey, 'cohort', applied)
+    useAppStore.getState().setMixedModelDialogOpen(false)
+    const key = JSON.stringify([0, identity.seriesKey, 'cohort'])
+    expect(useAppStore.getState().projectionSettings[key]).toEqual(applied)
+    const replacement = { ...mixedModelResult, fixedEffects: { intercept: 80, timeSinceBaseline: 5 } }
+    await useAppStore.getState().runCohortModels({ ...params, runJob: async () => replacement })
+    expect(useAppStore.getState().projectionSettings[key]).toEqual(applied)
+    expect(useAppStore.getState().cohortModelResults!.cohort.result).toBe(replacement)
+    await useAppStore.getState().runCohortModels({ ...params, fitConfigHash: 'different' })
+    expect(useAppStore.getState().projectionSettings).toEqual({})
+  })
+
   it('starts empty', () => {
     const state = useAppStore.getState()
     expect(state.rows).toEqual([])

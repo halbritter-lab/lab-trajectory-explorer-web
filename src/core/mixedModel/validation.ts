@@ -1,4 +1,4 @@
-import { DEFAULT_MIXED_MODEL_CONFIG, validateMixedModelConfig, type MixedModelConfig } from './config'
+import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFactors, mixedModelFactorColumn, validateMixedModelConfig, type MixedModelConfig } from './config'
 import type { MixedModelFailureStage, MixedModelSpikeRow } from './types'
 
 export type MixedModelValidationCode =
@@ -11,6 +11,7 @@ export type MixedModelValidationCode =
   | 'NO_WITHIN_PATIENT_TIME_VARIATION'
   | 'UNSUPPORTED_CONFIG'
   | 'MISSING_BASELINE_AGE'
+  | 'INVALID_FACTOR_VALUES'
 
 export type MixedModelValidationResult =
   | {
@@ -59,7 +60,7 @@ export function validateMixedModelRows(
     return failure('UNSUPPORTED_CONFIG', configValidation.message)
   }
 
-  if (config.covariates.includes('baseline_age')) {
+  if (config.factors === undefined && config.covariates.includes('baseline_age')) {
     const missingPatients = [...patientRows.entries()]
       .filter(([, rowsForPatient]) => rowsForPatient.some((row) => !Number.isFinite(row.baseline_age) || !Number.isFinite(row.baseline_age_centered)))
       .map(([patientId]) => patientId)
@@ -68,6 +69,22 @@ export function validateMixedModelRows(
         'MISSING_BASELINE_AGE',
         `Baseline age is required for this model but is unavailable for ${missingPatients.length} modeled patient${missingPatients.length === 1 ? '' : 's'}.`,
       )
+    }
+  }
+
+  if (config.factors !== undefined) {
+    for (const [index, factor] of mixedModelFactors(config).entries()) {
+      const column = mixedModelFactorColumn(factor, index)
+      const values = rows.map(row => row.factorValues?.[column])
+      if (values.some(value => factor.kind === 'numeric' ? typeof value !== 'number' || !Number.isFinite(value) : typeof value !== 'string' || !value.trim())) {
+        return failure('INVALID_FACTOR_VALUES', `Factor ${factor.key} requires a valid value for every modeled row.`)
+      }
+      if ([...patientRows.values()].some(patient => new Set(patient.map(row => row.factorValues?.[column])).size !== 1)) {
+        return failure('INVALID_FACTOR_VALUES', `Factor ${factor.key} must be constant within each patient.`)
+      }
+      if (new Set(values).size < 2 || (factor.kind === 'categorical' && !values.includes(factor.reference!))) {
+        return failure('INVALID_FACTOR_VALUES', `Factor ${factor.key} requires variation and an observed reference level.`)
+      }
     }
   }
 
@@ -140,6 +157,7 @@ export function hashMixedModelInput(rows: readonly MixedModelSpikeRow[]): string
       time_since_baseline: roundTo10Decimals(row.time_since_baseline),
       baseline_age: canonicalBaselineAge(row.baseline_age),
       baseline_age_centered: canonicalBaselineAge(row.baseline_age_centered),
+      ...(row.factorValues === undefined ? {} : {factorValues: Object.fromEntries(Object.entries(row.factorValues).sort(([a], [b]) => a.localeCompare(b)).map(([key, value]) => [key, typeof value === 'number' ? roundTo10Decimals(value) : value]))}),
     }))
     .sort((a, b) => {
       const patientComparison = a.patient_id.localeCompare(b.patient_id)

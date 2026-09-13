@@ -4,6 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { CohortModelTable } from '../../src/ui/cohort/CohortModelTable'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula } from '../../src/core/mixedModel/config'
 import { buildMixedModelResultIdentity } from '../../src/core/mixedModel/resultIdentity'
+import { hashMixedModelInput } from '../../src/core/mixedModel/validation'
 import { useAppStore } from '../../src/ui/state/store'
 import type { RunMixedModelWorkerJobOptions } from '../../src/core/mixedModel/browserClient'
 import type { CohortModelEntityRows } from '../../src/core/mixedModel/cohortModelEntity'
@@ -91,10 +92,15 @@ function renderTable(opts: {
       seriesIndex={0}
       seriesKey="eGFR|ml/min/1.73m2"
       seriesUnit="ml/min/1.73m2"
+      sourceResponse={{outcome:'eGFR',unit:'ml/min/1.73m2'}}
       fitConfigHash="fit12345"
       config={DEFAULT_MIXED_MODEL_CONFIG}
       formula={mixedModelFormula(DEFAULT_MIXED_MODEL_CONFIG)}
-      runJob={runJob}
+      runJob={async (options) => {
+        const result = await runJob(options)
+        if (result.status !== 'success') return result
+        return {...result,metadata:{...result.metadata,datasetHash:hashMixedModelInput(options.rows),fitConfigHash:'fit12345'}}
+      }}
     />,
   )
   return runJob
@@ -109,6 +115,28 @@ function rowByEntity(key: string): HTMLElement {
 }
 
 describe('CohortModelTable', () => {
+  it('explains an inconsistent source fit and blocks its projection export', async () => {
+    renderTable({seed:() => {
+      const identity = buildMixedModelResultIdentity({seriesIndex:0,seriesKey:'eGFR|ml/min/1.73m2',patientIds:cohortRows.map((row) => row.patient_id),rows:cohortRows,fitConfigHash:'fit12345'})
+      useAppStore.setState({cohortModelResults:{cohort:{identity,result:success(-2)}}})
+    }})
+    expect(await screen.findByRole('alert')).toHaveTextContent('Projection source fit or prepared rows are stale.')
+    expect(screen.getByRole('button',{name:'Export models (xlsx)'})).toBeDisabled()
+  })
+  it('blocks model export during projection drafts and preserves applied values across collapse', async () => {
+    renderTable()
+    await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
+    await userEvent.click(within(rowByEntity('cohort')).getByRole('button',{name:'Details'}))
+    const reference = await screen.findByLabelText('Reference time (years)')
+    await userEvent.clear(reference)
+    await userEvent.type(reference,'2')
+    expect(screen.getByRole('button',{name:'Export models (xlsx)'})).toBeDisabled()
+    await userEvent.click(screen.getByRole('button',{name:'Apply projection settings'}))
+    expect(screen.getByRole('button',{name:'Export models (xlsx)'})).toBeEnabled()
+    await userEvent.click(within(rowByEntity('cohort')).getByRole('button',{name:'Details'}))
+    await userEvent.click(within(rowByEntity('cohort')).getByRole('button',{name:'Details'}))
+    expect(screen.getByLabelText('Reference time (years)')).toHaveValue(2)
+  })
   it('lists the cohort and groups in order; the ineligible group is disabled', () => {
     renderTable()
     const rows = screen.getAllByTestId('cohort-model-row')
@@ -118,7 +146,7 @@ describe('CohortModelTable', () => {
     expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveClass('cohort-model-status')
     const bCheckbox = within(rowByEntity('group:B')).getByRole('checkbox')
     expect(bCheckbox).toBeDisabled()
-    expect(within(rowByEntity('group:B')).getByTestId('cohort-model-status')).toHaveTextContent('Too few data to fit')
+    expect(within(rowByEntity('group:B')).getByTestId('cohort-model-status')).toHaveTextContent('Mixed model fitting requires at least 3 patients.')
   })
 
   it('fits all selected eligible units via the store and never the ineligible one', async () => {
@@ -220,4 +248,18 @@ describe('CohortModelTable', () => {
     expect(screen.getByTestId('cohort-model-detail-dataset')).toHaveClass('cohort-model-detail-item-wide')
     expect(screen.getAllByTestId('cohort-model-detail-value').length).toBeGreaterThan(0)
   })
+})
+
+it('shows all stored coefficients and enables export only after a fit', async () => {
+  const fitted = success(-2)
+  fitted.metadata.modelConfig = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'genotype',kind:'categorical',effect:'level_slope',reference:'A'}]}
+  fitted.fixedEffectTerms = [{term:'time_since_baseline:factor_0_B',estimate:-3,confidenceInterval:[-4,-2]}]
+  fitted.warnings = ['Boundary singular fit']
+  renderTable({runJob:async () => fitted})
+  expect(screen.getByRole('button',{name:'Export models (xlsx)'})).toBeDisabled()
+  await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
+  await waitFor(() => expect(screen.getByRole('button',{name:'Export models (xlsx)'})).toBeEnabled())
+  await userEvent.click(screen.getAllByRole('button',{name:'Details'})[0])
+  expect(screen.getByRole('table',{name:'Fixed effect coefficients'})).toHaveTextContent('Slope \u00d7 genotype: B (reference A)')
+  expect(screen.getByText('Boundary singular fit')).toBeInTheDocument()
 })

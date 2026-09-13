@@ -22,6 +22,10 @@ describe('isMixedModelWorkerResponse', () => {
     }
 
     expect(isMixedModelWorkerResponse(successResponse)).toBe(true)
+    const adjusted = {...successResponse,result:{...successResponse.result,metadata:{modelConfig:{...DEFAULT_MIXED_MODEL_CONFIG,factors:[{key:'genotype',kind:'categorical',effect:'level',reference:'A'}]}}}}
+    expect(isMixedModelWorkerResponse(adjusted)).toBe(false)
+    expect(isMixedModelWorkerResponse({...adjusted,result:{...adjusted.result,fixedEffectTerms:[]}})).toBe(false)
+    expect(isMixedModelWorkerResponse({...adjusted,result:{...adjusted.result,fixedEffectTerms:[{term:'factor_0_B',estimate:3,confidenceInterval:null}]}})).toBe(true)
     expect(
       isMixedModelWorkerResponse({
         type: 'mixed-model-result',

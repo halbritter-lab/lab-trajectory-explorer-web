@@ -68,6 +68,17 @@ const validExtraction = {
 }
 
 describe('webR worker fit extraction validation', () => {
+  it('rejects missing all-term extraction for explicitly adjusted models', () => {
+    const adjustedRequest: MixedModelWorkerRequest = {...request,config:{...request.config,factors:[{key:'genotype',kind:'categorical',effect:'level_slope',reference:'A'}]}}
+    expect(() => normalizeExtractedFitResult(adjustedRequest,metadata,validExtraction)).toThrow(/fixedEffectTerms/)
+    expect(() => normalizeExtractedFitResult(adjustedRequest,metadata,{...validExtraction,fixedEffectTerms:[]})).toThrow(/fixedEffectTerms/)
+  })
+  it('preserves all coefficient intervals and preparation metadata', () => {
+    const fixedEffectTerms = [{term:'(Intercept)',estimate:60,confidenceInterval:[55,65]}, {term:'time_since_baseline',estimate:-2,confidenceInterval:[-3,-1]}, {term:'factor_0_B',estimate:3,confidenceInterval:null}]
+    const preparation = {nPatientsBefore:4,nMeasurementsBefore:12,excludedPatients:[],centers:{}}
+    expect(normalizeExtractedFitResult({...request,preparation},metadata,{...validExtraction,fixedEffectTerms})).toMatchObject({fixedEffectTerms,metadata:{preparation}})
+    expect(() => normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms:[{term:'factor_0_B',estimate:NaN,confidenceInterval:null}]})).toThrow(/finite/)
+  })
   it('accepts nullable numeric fields and rejects malformed extracted payloads', () => {
     expect(normalizeExtractedFitResult(request, metadata, validExtraction)).toMatchObject({
       status: 'success',

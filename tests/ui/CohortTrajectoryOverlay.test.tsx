@@ -40,14 +40,15 @@ function rectsOverlap(
 
 /** Seed the pooled (whole-cohort) result in the central results map. */
 function storePooledResult(stored: StoredMixedModelResult) {
-  useAppStore.setState({ cohortModelResults: { cohort: stored } })
+  useAppStore.setState({ cohortModelResults: { cohort: stored }, mixedModelSeriesIndex: stored.identity.seriesIndex, mixedModelSeriesKey: stored.identity.seriesKey })
 }
 
 /** Seed a per-group result keyed by entity in the central results map. */
 function storeGroupResults(byGroupValue: Record<string, StoredMixedModelResult>) {
   const map: Record<string, StoredMixedModelResult> = {}
   for (const [value, stored] of Object.entries(byGroupValue)) map[`group:${value}`] = stored
-  useAppStore.setState({ cohortModelResults: map })
+  const identity = Object.values(map)[0]?.identity
+  useAppStore.setState({ cohortModelResults: map, mixedModelSeriesIndex: identity?.seriesIndex ?? null, mixedModelSeriesKey: identity?.seriesKey ?? null })
 }
 
 function mixedModelSuccess(overrides: Partial<MixedModelSuccess> = {}): MixedModelSuccess {
@@ -369,7 +370,7 @@ describe('CohortTrajectoryOverlay', () => {
     expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
   })
 
-  it('matches mixed-model identity by filtered overlay series index when earlier configs are blank', () => {
+  it('matches mixed-model identity by original selected series index when earlier configs are blank', () => {
     const rows = [
       row({ patientId: 1, labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
       row({ patientId: 1, labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 59 }),
@@ -402,7 +403,7 @@ describe('CohortTrajectoryOverlay', () => {
     }
     const modelRows = mixedModelRowsFromCohortInputs(analysisResult.rows, patientIds, activeSpec)
     const identity = buildMixedModelResultIdentity({
-      seriesIndex: 0,
+      seriesIndex: 1,
       seriesKey: 'eGFR|ml/min/1.73m2',
       patientIds: patientIds.map(String),
       rows: modelRows,
@@ -474,6 +475,63 @@ describe('CohortTrajectoryOverlay', () => {
     expect(screen.getByLabelText('Overlay series')).toHaveValue('1')
     expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
     expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('eGFR')
+  })
+
+  it('shows the selected generic model and rejects a mismatched explicit selection', () => {
+    const rows = [
+      row({ patientId: 1, bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 1.1 }),
+      row({ patientId: 1, bezeichnung: 'Kreatinin', einheit: 'mg/dl', labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 1.2 }),
+      row({ patientId: 1, bezeichnung: 'Glucose', einheit: 'mg/dl', labDatum: new Date('2020-01-01T00:00:00Z'), patientAgeAtLab: 50, wertNum: 62 }),
+      row({ patientId: 1, bezeichnung: 'Glucose', einheit: 'mg/dl', labDatum: new Date('2021-01-01T00:00:00Z'), patientAgeAtLab: 51, wertNum: 59 }),
+      row({ patientId: 2, bezeichnung: 'Glucose', einheit: 'mg/dl', labDatum: new Date('2020-02-01T00:00:00Z'), patientAgeAtLab: 60, wertNum: 58 }),
+      row({ patientId: 2, bezeichnung: 'Glucose', einheit: 'mg/dl', labDatum: new Date('2021-02-01T00:00:00Z'), patientAgeAtLab: 61, wertNum: 54 }),
+      row({ patientId: 3, bezeichnung: 'Glucose', einheit: 'mg/dl', labDatum: new Date('2020-03-01T00:00:00Z'), patientAgeAtLab: 70, wertNum: 67 }),
+      row({ patientId: 3, bezeichnung: 'Glucose', einheit: 'mg/dl', labDatum: new Date('2021-03-01T00:00:00Z'), patientAgeAtLab: 71, wertNum: 63 }),
+    ]
+    useAppStore.getState().setDataset(rows)
+    useAppStore.getState().setSeriesConfig(0, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+    useAppStore.getState().addSeries()
+    useAppStore.getState().setSeriesConfig(1, { bezeichnung: 'Glucose', einheit: 'mg/dl' })
+    useAppStore.getState().setCohortOverlayXAxis('time_since_baseline')
+
+    const analysisResult = useAppStore.getState().analysisResult()
+    const activeConfig = useAppStore.getState().seriesConfigs[1]
+    const patientIds = [1, 2, 3]
+    const activeSpec = {
+      bezeichnung: activeConfig.bezeichnung as string,
+      einheit: activeConfig.einheit,
+      mode: activeConfig.mode,
+      gapDays: activeConfig.gapDays,
+      windowDays: activeConfig.windowDays,
+      stepDays: activeConfig.stepDays,
+      cutoffDays: activeConfig.cutoffDays,
+      exclusionDays: activeConfig.exclusionDays,
+      fitConfig: activeConfig.fitConfig,
+      fitInputs: analysisResult.fitInputs,
+      clinicalEventsByPatient: {},
+    }
+    const modelRows = mixedModelRowsFromCohortInputs(analysisResult.rows, patientIds, activeSpec)
+    const identity = buildMixedModelResultIdentity({
+      seriesIndex: 1,
+      seriesKey: 'Glucose|mg/dl',
+      patientIds: patientIds.map(String),
+      rows: modelRows,
+      fitConfigHash: mixedModelFitConfigHash(activeSpec),
+    })
+
+    storePooledResult({
+      identity,
+      result: mixedModelSuccess({ metadata: { ...mixedModelSuccess().metadata, fitConfigHash: identity.fitConfigHash } }),
+    })
+    useAppStore.getState().setShowCohortMixedModelLine(true)
+
+    render(<CohortTrajectoryOverlay />)
+
+    expect(screen.getByLabelText('Overlay series')).toHaveValue('1')
+    expect(screen.getByTestId('cohort-mixed-model-line')).toBeInTheDocument()
+    expect(screen.getByTestId('cohort-trajectory-overlay')).toHaveTextContent('Glucose')
+    act(() => useAppStore.setState({ mixedModelSeriesIndex: 0, mixedModelSeriesKey: 'Kreatinin|mg/dl' }))
+    expect(screen.queryByTestId('cohort-mixed-model-line')).not.toBeInTheDocument()
   })
 
   it('matches stored mixed-model identity that includes active fit policy fields', () => {
