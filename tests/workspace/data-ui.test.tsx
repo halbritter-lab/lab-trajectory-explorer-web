@@ -11,6 +11,30 @@ beforeEach(() => {
 })
 afterEach(cleanup)
 const row: LabRow = { patientId: 'P-01', labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl', wert: '1', wertNum: 1, wertOperator: '=', loinc: null, patientSex: null, patientAgeAtLab: null }
+it('presents readable sex labels while retaining the recorded codes', () => {
+  const raw = ([null, 'w', 'm', 'd'] as const).map((patientSex, i) => ({ ...row, patientId: `P-${i}`, patientSex }))
+  useAppStore.getState().setDataset(raw)
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  fireEvent.click(screen.getByText('Review and edit patients (4)'))
+  const table = screen.getByRole('table')
+  expect(within(table).getByRole('columnheader', { name: 'Patient' })).toBeInTheDocument()
+  for (const label of ['Not recorded', 'Female', 'Male', 'Diverse']) expect(within(table).getByRole('cell', { name: label })).toBeInTheDocument()
+  expect(useAppStore.getState().rows.map(r => r.patientSex)).toEqual([null, 'w', 'm', 'd'])
+  expect(screen.getByText('Parameter–unit combinations')).toBeInTheDocument()
+})
+it('keeps Apply before the complete keyboard-scrollable computed preview', () => {
+  useAppStore.getState().setDataset(Array.from({ length: 118 }, (_, i) => ({ ...row, patientId: `P-${i}`, patientSex: 'm' as const, patientAgeAtLab: 50 })))
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ekfc-2021' } })
+  fireEvent.click(screen.getByText('Inspect computed values (118)'))
+  const preview = screen.getByRole('region', { name: 'Computed value preview' })
+  expect(preview).toHaveAttribute('tabindex', '0')
+  expect(within(preview).getAllByRole('row')).toHaveLength(119)
+  const apply = screen.getByRole('button', { name: 'Apply calculation' })
+  expect(apply.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  fireEvent.click(apply)
+  expect(useAppStore.getState().displayRows()).toHaveLength(236)
+})
 it('blocks derivation when its output collides with an imported computed series', () => {
   useAppStore.getState().setDataset([
     { ...row, patientSex: 'm', patientAgeAtLab: 50 },
