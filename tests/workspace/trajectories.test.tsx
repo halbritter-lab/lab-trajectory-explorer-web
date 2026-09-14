@@ -12,6 +12,61 @@ function fixture(): WorkspaceData {
 }
 
 describe('real-data trajectories workspace', () => {
+  it('preserves negative measurements in the shared domain', () => {
+    const data = fixture()
+    data.rows = data.rows.map(row => row.einheit === 'unit-0' ? { ...row, wertNum: row.patientId === 'ID-A' ? -3 : 2 } : row)
+    render(<TrajectoriesWorkspace data={data} />)
+    const mini = screen.getAllByRole('img', { name: /Measurement trajectory/ })[0]
+    expect(mini).toHaveAttribute('data-y-min', '-3')
+    expect(mini).toHaveAttribute('data-y-max', '2')
+  })
+  it('keeps a zero-based full-dataset scale across views and only zooms by explicit choice', () => {
+    const data = fixture()
+    data.rows = data.rows.map(row => row.einheit === 'unit-0' ? { ...row, wertNum: row.patientId === 'ID-A' ? 6 + (row.labDatum!.getUTCFullYear() - 2020) * .01 : 8 } : row)
+    render(<TrajectoriesWorkspace data={data} />)
+    expect(screen.getByLabelText('Value scale')).toHaveValue('shared')
+    fireEvent.change(screen.getByLabelText('Search patients'), { target: { value: 'ID-A' } })
+    const mini = screen.getAllByRole('img', { name: /Measurement trajectory/ })[0]
+    expect(within(mini).getByText('0', { selector: 'text[text-anchor="end"]' })).toBeInTheDocument()
+    expect(within(mini).getByText('8')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
+    const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
+    expect(within(chart).getByText('8', { selector: 'text' })).toBeInTheDocument()
+    const verticalSpan = () => {
+      const points = within(chart).getByRole('button', { name: /Open patient ID-A/ }).querySelector('polyline')!.getAttribute('points')!.split(' ').map(pair => Number(pair.split(',')[1]))
+      return Math.max(...points) - Math.min(...points)
+    }
+    expect(verticalSpan()).toBeLessThan(2)
+    fireEvent.change(screen.getByLabelText('Value scale'), { target: { value: 'zoom' } })
+    expect(verticalSpan()).toBeGreaterThan(100)
+    expect(chart.querySelector('svg')!.getAttribute('data-export-context')).toContain('Zoom to visible values')
+  })
+
+  it('adds newly computed parameters once without restoring a deliberately unchecked series', () => {
+    const data = fixture()
+    const result = render(<TrajectoriesWorkspace data={data} />)
+    const derived = { ...data.parameters[0], key: 'derived-new', bezeichnung: 'eGFR CKD', label: 'eGFR CKD', derived: true }
+    const updated = { ...data, parameters: [...data.parameters, derived] }
+    result.rerender(<TrajectoriesWorkspace data={updated} />)
+    expect(screen.getByRole('columnheader', { name: 'eGFR CKD · derived' })).toBeInTheDocument()
+    expect(screen.getByText(/Added derived parameter: eGFR CKD/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Choose parameters' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('checkbox', { name: 'eGFR CKD' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    result.rerender(<TrajectoriesWorkspace data={{ ...updated, parameters: [...updated.parameters] }} />)
+    expect(screen.queryByRole('columnheader', { name: 'eGFR CKD · derived' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('columnheader')).toHaveLength(5)
+  })
+
+  it('provides inspectable event labels and counts in overlay without placing every label on the chart', () => {
+    const data = fixture()
+    data.events = [{ patientId: 'ID-A', type: 'other', date: new Date('2021-06-15T00:00:00Z'), title: 'Recorded visit', description: 'Follow-up', endDate: null, intent: null, warning: '' }]
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Events' }))
+    expect(screen.getAllByText('Inspect events (1)')).toHaveLength(3)
+    expect(screen.getAllByText(/Patient ID-A · 15\/06\/2021 · Recorded visit/)).toHaveLength(3)
+  })
   it('offers all parameters with distinct units, and cancel preserves applied columns', () => {
     render(<TrajectoriesWorkspace data={fixture()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Choose parameters' }))
@@ -137,7 +192,7 @@ describe('real-data trajectories workspace', () => {
     fireEvent.change(screen.getByLabelText('Time axis'), { target: { value: 'age' } })
     const exactAge = ((Date.UTC(2020, 0, 1) - data.patients[0].birthAnchor.getTime()) / (365.25 * 86400000)).toLocaleString('en-GB', { maximumFractionDigits: 2 })
     expect(screen.getAllByText(exactAge).length).toBeGreaterThan(0)
-    expect(screen.getAllByText(/0 trajectories use an estimated birth-date anchor/)).toHaveLength(3)
+    expect(screen.getAllByText(/Age: recorded birth date/)).toHaveLength(3)
   })
 
   it('renders a graph in every populated table cell and restores horizontal position after detail', () => {

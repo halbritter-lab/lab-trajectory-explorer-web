@@ -4,6 +4,8 @@ import type { LabRow, PatientId, WertOperator } from '../core/types'
 import { slopeQualityLabel } from '../ui/qualityLabels'
 import type { WorkspaceData, WorkspaceParameter } from './workspace-data'
 import { ChartExportActions } from './WorkspaceExports'
+import type { SparkDomain } from './WorkspaceSparkline'
+import { sexLabel } from './workspace-labels'
 
 export type WorkspaceAxis = 'baseline' | 'calendar' | 'age'
 export interface WorkspaceDisplay { points: boolean; connect: boolean; events: boolean }
@@ -18,10 +20,11 @@ export function measurementText(row: LabRow): string {
   return prefix && !/^[<>≤≥]/.test(text.trim()) ? `${prefix}${text}` : text
 }
 
-export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axis, groupBy, highlight, display, showFit, onOpen }: {
+export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axis, groupBy, highlight, display, showFit, onOpen, sharedDomain, scaleMode }: {
   data: WorkspaceData; parameter: WorkspaceParameter; parameterIndex: number; cohortRows: CohortRow[];
   axis: WorkspaceAxis; groupBy: string; highlight: PatientId | null; display: WorkspaceDisplay; showFit: boolean;
   onOpen: (id: PatientId) => void;
+  sharedDomain: SparkDomain; scaleMode: 'shared' | 'zoom';
 }) {
   const svg = useRef<SVGSVGElement>(null)
   const clip = useId().replace(/:/g, '')
@@ -60,6 +63,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const groups = [...new Set(prepared.map(p => p.group))].sort()
   const fullGroups = [...new Set(data.patients.map(patient => groupBy ? patient.attributes[groupBy] || 'Not recorded' : 'All patients'))].sort()
   const groupColor = (group: string) => colors[fullGroups.indexOf(group) % colors.length]
+  const groupLabel = (group: string) => groupBy === 'sex' ? sexLabel(group) : group
   const visible = prepared.filter(p => !hiddenGroups.includes(p.group) && p.points.length > 0)
   const uncertain = visible.filter(p => slopeQualityLabel(p.cell)?.caveat && Number.isFinite(p.cell.slope)).length
   const noFit = visible.filter(p => !Number.isFinite(p.cell.slope)).length
@@ -78,8 +82,14 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   }
   if (!Number.isFinite(xMin)) { xMin = 0; xMax = 1; yMin = 0; yMax = 1 }
   if (xMin === xMax) { const pad = axis === 'calendar' ? 86_400_000 : .5; xMin -= pad; xMax += pad }
-  const yPad = (yMax - yMin || Math.abs(yMax) || 1) * .08
-  yMin -= yPad; yMax += yPad
+  if (scaleMode === 'shared') { yMin = sharedDomain.min; yMax = sharedDomain.max }
+  else {
+    const yPad = (yMax - yMin || Math.abs(yMax) || 1) * .08
+    yMin -= yPad; yMax += yPad
+  }
+  const scaleLabel = scaleMode === 'shared' ? 'Shared parameter scale' : 'Zoom to visible values'
+  const visibleIds = new Set(visible.map(series => series.row.patientId))
+  const visibleEvents = data.events.filter(event => visibleIds.has(event.patientId))
   const x = (n: number) => 65 + (n - xMin) / (xMax - xMin) * 565
   const y = (n: number) => 240 - (n - yMin) / (yMax - yMin) * 210
   const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)' : 'Years since first measurement of this parameter'
@@ -87,10 +97,10 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const exportTitle = cohortRows.length === 1 ? `Patient ${cohortRows[0].patientId} · ${parameter.label}` : parameter.label
   return <section className="wt-plot-card" aria-label={`Chart ${parameter.label}`}>
     <div className="wt-card-heading"><h3>{parameter.label}</h3><ChartExportActions getSvg={() => svg.current} title={exportTitle} /></div>
-    {groupBy && <div className="wt-legend" role="group" aria-label={`Groups for ${parameter.label}`}>{groups.map(group => <button key={group} aria-pressed={!hiddenGroups.includes(group)} onClick={() => setHiddenGroups(previous => previous.includes(group) ? previous.filter(g => g !== group) : [...previous, group])}><span style={{ color: groupColor(group) }}>● </span>{group}{hiddenGroups.includes(group) ? ' (hidden)' : ''}</button>)}</div>}
-    <p className="wt-muted">{visible.length} of {cohortRows.length} trajectories visible · {withoutValues} without numeric measurements · {withoutAge} additional trajectories without age data</p>
-    {axis === 'age' && <p className="wt-muted">Age from the birth-date anchor · {visible.filter(p => p.ageEstimated).length} trajectories use an estimated birth-date anchor; the others use a recorded birth date.</p>}
-    {!visible.length ? <p>No trajectories can be plotted. Check measurements, ages, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: group, color: groupColor(group) })) : [])} data-export-context={`${axisLabel}; ${visible.length} visible trajectories${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? `; ${uncertain} uncertain individual OLS fits; ${noFit} without a fit` : ''}`}>
+    {groupBy && <div className="wt-legend" role="group" aria-label={`Groups for ${parameter.label}`}>{groups.map(group => <button key={group} aria-pressed={!hiddenGroups.includes(group)} onClick={() => setHiddenGroups(previous => previous.includes(group) ? previous.filter(g => g !== group) : [...previous, group])}><span style={{ color: groupColor(group) }}>● </span>{groupLabel(group)}{hiddenGroups.includes(group) ? ' (hidden)' : ''}</button>)}</div>}
+    <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? ` · ${visible.length} of ${cohortRows.length} trajectories` : ''}{withoutValues > 0 ? ` · ${withoutValues} without numeric measurements` : ''}{withoutAge > 0 ? ` · ${withoutAge} additional trajectories without age data` : ''}</p>
+    {axis === 'age' && <p className="wt-muted">{cohortRows.length === 1 ? visible[0]?.ageEstimated ? 'Age: estimated birth-date anchor.' : visible.length ? 'Age: recorded birth date.' : 'Age unavailable.' : `${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors; other ages use recorded birth dates.`}</p>}
+    {!visible.length ? <p>No trajectories can be plotted. Check measurements, ages, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-y-min={yMin} data-y-max={yMax} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? `; ${uncertain} uncertain individual OLS fits; ${noFit} without a fit` : ''}`}>
       <title>{parameter.label} · {axisLabel}</title>
       <desc>Measurements for the selected patients. Press Enter or Space to open a trajectory. Research use only.</desc>
       <defs><clipPath id={clip}><rect x="65" y="20" width="565" height="230" /></clipPath></defs>
@@ -102,7 +112,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         const active = series.row.patientId === highlight
         return <g key={String(series.row.patientId)} clipPath={`url(#${clip})`} opacity={hasHighlight && !active ? .25 : 1}>
           <g role="button" tabIndex={0} aria-label={`Open patient ${series.row.patientId}, ${parameter.label}`} onClick={() => onOpen(series.row.patientId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(series.row.patientId) } }} className="wt-chart-person">
-            <title>Patient {series.row.patientId} · {series.group}</title>
+            <title>Patient {series.row.patientId} · {groupLabel(series.group)}</title>
             {display.connect && <polyline points={series.points.map(p => `${x(p.x)},${y(p.value)}`).join(' ')} fill="none" stroke={color} strokeWidth={active ? 3 : 1.5} />}
             {series.points.filter(p => display.points || display.connect && (series.points.length === 1 || boundedPrefix(p.operator))).map((p, i) => <g key={i}><circle cx={x(p.x)} cy={y(p.value)} r={active ? 4 : 3} fill={boundedPrefix(p.operator) ? 'white' : color} stroke={color}><title>{`${formatWorkspaceDate(p.date)}: ${boundedPrefix(p.operator)}${formatWorkspaceNumber(p.value)} ${parameter.einheit ?? ''}`}</title></circle>{boundedPrefix(p.operator) && <text x={x(p.x) + 5} y={y(p.value) - 5} fill={color}>{p.operator}</text>}</g>)}
             {showFit && series.cell.fitLines.map((line, i) => <polyline key={i} points={line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} strokeDasharray="6 4" strokeWidth="2" />)}
@@ -111,6 +121,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         </g>
       })}
     </svg>}
+    {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length})</summary>{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId} · {formatWorkspaceDate(event.date)} · {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` · ${event.description}` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
     {showFit && <p className="wt-muted">Dashed: individual OLS lines from the prepared analyses.</p>}
     {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurements or less than one year of follow-up. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
