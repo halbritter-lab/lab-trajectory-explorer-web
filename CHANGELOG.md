@@ -7,6 +7,11 @@ interfaces are still evolving before 1.0.
 
 ### Added
 
+- English real-data workspace at `/workspace.html`: import and demographic review,
+  previewed eGFR derivations, multi-parameter patient graph table, individual
+  trajectories, configurable spaghetti overlays, and scoped XLSX/SVG/PNG exports.
+  The original application remains available during workflow acceptance.
+
 - Configurable trend projections from fitted mixed-model profiles: editable
   above/below targets, G4/G5 boundary presets for compatible eGFR series,
   reference time and projection horizon. Results include unavailable reasons

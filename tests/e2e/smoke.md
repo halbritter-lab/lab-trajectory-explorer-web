@@ -112,3 +112,27 @@ XLSX downloads. The browser tests intercept the worker to isolate UI behavior;
 `scripts/verify_mixed_model_projections.mjs` independently runs the actual webR
 worker with lme4 and nlme and checks known profile coefficients/crossing times.
 The projection form stays within the mobile dialog; result columns can scroll.
+
+
+## Real-data workspace
+
+1. Open `/workspace.html`; confirm English navigation and session-only status.
+2. Load demo data or a workbook with labs, attributes and events. Review import
+   diagnostics and edit demographics using the displayed age reference date.
+3. Select an eGFR formula and source, inspect the preview and apply. Confirm the
+   derived parameter appears without changing the original measurements.
+4. Open Trajectories, select many parameters, and browse the graph table. Check
+   horizontal navigation, sticky patient IDs and shared per-parameter scales.
+5. Open a patient and return to the table; check focus and scroll restoration.
+   Compare the same patient scope in Overlay, including grouping and time axes.
+6. Download XLSX, SVG and PNG. Check selected scope, original/derived provenance,
+   UTC dates, English chart context/legend and research-use footer.
+7. Change the formula, then disable derivation; verify the selected computed
+   parameter updates or is explicitly unavailable. Replace the dataset and check
+   that browser selections reset. Repeat table/detail navigation at 390 px width.
+
+Verified 2026-09-14: all three workspace Chromium tests pass against the production
+build, including actual file downloads and narrow-screen navigation. Desktop graph
+table and grouped overlay visually checked; downloaded English PNG includes readable
+axes, unit, title, grouping/legend and research footer. Original 13 browser checks
+also pass. Representative research-data acceptance remains pending.

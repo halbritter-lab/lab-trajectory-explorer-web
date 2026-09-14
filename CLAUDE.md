@@ -3,6 +3,13 @@
 Notes for anyone — human or agent — picking up work here. Conventions and
 gotchas that are not obvious from the code.
 
+## Language and checkpoints
+
+- Application copy, accessibility labels, generated export labels and new user
+  documentation are English. Preserve imported names, values and units verbatim.
+- Commit coherent, verified work packages regularly during implementation; do not
+  leave an entire multi-agent workflow uncommitted until its final review.
+
 ## Verification
 
 `pnpm test` and `pnpm build` are the floor, not the bar. CI runs both on every

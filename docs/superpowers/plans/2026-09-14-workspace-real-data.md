@@ -47,43 +47,43 @@ Parameter identity uses collision-safe serialization of name/unit. `workspaceSpe
 
 Owner: data agent. Files: `workspace-data.ts`, `DataWorkspace.tsx`, `data-workspace.css`, tests under `tests/workspace/data*`.
 
-- [ ] Test actual CSV/workbook loading, arbitrary IDs/units, replacement/failure, missing/conflicting demographics and derived-value updates.
-- [ ] Implement adapter using existing analysis registry/store; no numeric rewrites.
-- [ ] Build import, demo, template downloads, separate event/attribute uploads, file summary and accessible diagnostics.
-- [ ] Offer per-patient demographic correction with explicit age reference date and conflict visibility using existing resolver/describe helpers.
-- [ ] Implement eGFR off/source/formula (including EKFC), preview before apply, actual counts/reasons and no mutation of source rows.
-- [ ] Run focused tests, self-review, report changed files and results. Do not commit shared files or run full suite.
+- [x] Test actual CSV/workbook loading, arbitrary IDs/units, replacement/failure, missing/conflicting demographics and derived-value updates.
+- [x] Implement adapter using existing analysis registry/store; no numeric rewrites.
+- [x] Build import, demo, template downloads, separate event/attribute uploads, file summary and accessible diagnostics.
+- [x] Offer per-patient demographic correction with explicit age reference date and conflict visibility using existing resolver/describe helpers.
+- [x] Implement eGFR off/source/formula (including EKFC), preview before apply, actual counts/reasons and no mutation of source rows.
+- [x] Run focused tests, self-review, report changed files and results. Do not commit shared files or run full suite.
 
 ## Task 2: Patient browser and multi-parameter plots
 
 Owner: trajectories agent. Files: `TrajectoriesWorkspace.tsx`, `WorkspacePlot.tsx` and optionally focused helper components, `trajectories-workspace.css`, tests `tests/workspace/trajectories*`.
 
-- [ ] Test arbitrary parameter/ID data and shared scope across table/detail/overlay; selection persists between views and resets after dataset replacement.
-- [ ] Searchable parameter picker with draft/apply/cancel, many columns and distinct units. Patient search/selection, group filter, ID/last-value sorting, previous/next/direct detail navigation.
-- [ ] Prepare cohort once with `buildCohortRows` and shared specs; reuse for table/detail/exports, show missing/no-fit and existing quality labels.
-- [ ] Real overlay per parameter; baseline/calendar/age axes, data-driven grouping, legend visibility, highlight, points/connect/events, keyboard open-person. No synthetic dates or values. Missing age must be explicit.
-- [ ] Display optional per-parameter fit lines/slope/R² from real cells, with clearly named current general-exploration OLS config; full config manager is deferred to next workflow.
-- [ ] Add Task 3 export components; run focused tests and report. No edits to shared model/export/root shell files.
+- [x] Test arbitrary parameter/ID data and shared scope across table/detail/overlay; selection persists between views and resets after dataset replacement.
+- [x] Searchable parameter picker with draft/apply/cancel, many columns and distinct units. Patient search/selection, group filter, ID/last-value sorting, previous/next/direct detail navigation.
+- [x] Prepare cohort once with `buildCohortRows` and shared specs; reuse for table/detail/exports, show missing/no-fit and existing quality labels.
+- [x] Real overlay per parameter; baseline/calendar/age axes, data-driven grouping, legend visibility, highlight, points/connect/events, keyboard open-person. No synthetic dates or values. Missing age must be explicit.
+- [x] Display optional per-parameter fit lines/slope/R² from real cells, with clearly named current general-exploration OLS config; full config manager is deferred to next workflow.
+- [x] Add Task 3 export components; run focused tests and report. No edits to shared model/export/root shell files.
 
 ## Task 3: Consistent patient/cohort and chart export
 
 Owner: export agent. Files: `WorkspaceExports.tsx`, `workspace-export.ts`, optional `exports-workspace.css`, tests `tests/workspace/export*`.
 
-- [ ] Test actual downloaded workbook contents, selected scope, derived provenance, events/attributes, empty/unavailable cases.
-- [ ] Reuse existing patient/cohort XLSX core; scope all sheets to visible patients and parameters, record formula/source/settings and research-use statement.
-- [ ] Use prepared cohort rows for cohort summaries; raw/derived measurement meaning explicit. Preserve string IDs and units.
-- [ ] Provide SVG/PNG export component, safe filenames, errors, no empty silent downloads. Include research-use attribution in exported chart content.
-- [ ] Run focused tests and report; do not edit other workers' files.
+- [x] Test actual downloaded workbook contents, selected scope, derived provenance, events/attributes, empty/unavailable cases.
+- [x] Reuse existing patient/cohort XLSX core; scope all sheets to visible patients and parameters, record formula/source/settings and research-use statement.
+- [x] Use prepared cohort rows for cohort summaries; raw/derived measurement meaning explicit. Preserve string IDs and units.
+- [x] Provide SVG/PNG export component, safe filenames, errors, no empty silent downloads. Include research-use attribution in exported chart content.
+- [x] Run focused tests and report; do not edit other workers' files.
 
 ## Task 4: Integration and acceptance
 
 Owner: controller integration; independent reviewer after tasks land.
 
-- [ ] Add root workspace shell/main entry/style, Vite second build input and navigation retaining mounted browser. Real dataset status; cohort model page explains next integration without fake calculations.
-- [ ] Test shell navigation/empty and data replacement paths; resolve interface integration issues with owning agents.
-- [ ] Review each work package; fix substantive findings and re-review.
-- [ ] Run full tests/build and real Chromium workbook workflow including CSV/XLSX download inspection, formula change, person browsing, overlay and narrow screen.
-- [ ] Update manual smoke/implementation record and remaining feature inventory. No release, no merge.
+- [x] Add root workspace shell/main entry/style, Vite second build input and navigation retaining mounted browser. Real dataset status; cohort model page explains next integration without fake calculations.
+- [x] Test shell navigation/empty and data replacement paths; resolve interface integration issues with owning agents.
+- [x] Review each work package; fix substantive findings and re-review.
+- [x] Run full tests/build and real Chromium workbook workflow including CSV/XLSX download inspection, formula change, person browsing, overlay and narrow screen.
+- [x] Update manual smoke/implementation record and remaining feature inventory. No release, no merge.
 
 ## Progress
 
@@ -95,3 +95,19 @@ Owner: controller integration; independent reviewer after tasks land.
 - Task reviews found: bounded measurement labels, overlay reliability, palette stability, derived-selection continuity, precise/estimated age anchors, imported-computed naming collisions, UTC export dates and standalone chart context. Assigned to their owning agents with focused regressions.
 - Integration review also requires the accepted table sparklines, sticky person columns and scroll restoration; these remain in Task 2's fix wave before completion.
 - Task 1 fix round: collision blocked before apply; resolved birth anchor/estimate metadata added. Nine focused tests pass; independent re-review pending.
+
+- All implementation and review fix packages completed. Graph table, shared scales,
+  sticky columns, scroll/focus restoration and export context were re-reviewed.
+- Verified: 814 tests / 97 files, final focused trajectory tests, production build,
+  13 existing plus 3 new production-browser checks. See workspace acceptance record.
+- Checkpoint commit `3f12763` secures the real-data workflow.
+- User correction: English application language and regular incremental commits.
+  Navigation translated in `804d3e0`; data, trajectories and exports being translated
+  in parallel with separate ownership and follow-up verification.
+
+- English correction complete: data `164dc57`, trajectories `92e3799`, exports
+  `0873575`; final independent language/regression review clean.
+- Final verified English tree: 814 tests / 97 files, production build, all 16
+  Chromium tests in one run. English downloaded PNG visually checked.
+- Acceptance record and smoke checklist updated. Branch remains separate; no
+  release or merge. Next packages remain full fit settings and real cohort models.
