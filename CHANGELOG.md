@@ -49,6 +49,12 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
+- Workspace plots now share a zero-inclusive parameter scale by default, with
+  explicit zoom for inspecting small changes. View selection is visibly active,
+  new derived series appear in the selection, and Methods distinguishes the
+  workspace from features available only in the original application.
+- Workspace demographic labels are readable, derivation actions remain above
+  long previews, and plotted events have an inspectable patient/date/title list.
 - Workbook imports now report rejected event/attribute rows and accepted-row
   warnings, with expandable sheet, patient, and reason details. Single-sheet
   lab files remain usable even when their sheet is named `events` or `attributes`.

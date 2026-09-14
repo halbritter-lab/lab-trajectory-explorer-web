@@ -83,3 +83,38 @@ Final English-language verification, 2026-09-14:
 
 Technical verification does not replace acceptance with representative research
 files or release approval. Nothing from this branch has been released.
+
+## Visual review follow-up
+
+The external preview review identified misleading automatic value-axis zoom,
+an unstyled active view switch, an overly broad methods page, an inconspicuous
+new derivation, dense controls, unresolved sex codes and inconspicuous event lines.
+These were checked against the implementation rather than treated as clinical
+recommendations.
+
+- Value scales default to the full dataset range for each parameter and unit,
+  including zero and negative values where present. The same scale is used in
+  the graph table, overlay and individual view. Users can explicitly choose
+  **Zoom to visible values** to inspect small changes. This is a display choice,
+  not a clinical reference range; the chosen scale is included in chart exports.
+- Table, Overlay and Individual patient have a visibly selected button.
+- Methods starts with the available workspace workflow and OLS configuration.
+  The unchanged full application reference is in a clearly labeled disclosure
+  and explicitly includes features not connected to this workspace.
+- Newly created derived parameters are added to the current selection with a
+  notice. Imported parameters remain selected; deliberate deselection is respected.
+- Derived-value preview scrolling is bounded and Apply stays above it. Sex codes
+  are translated only for presentation; source values and grouping identities are
+  retained. Plot copy and analysis controls are made more compact, and plotted
+  events can be inspected by patient, date and title.
+
+The broader first-time-user orientation and full analysis configuration remain
+in the existing requirements inventory. Technical preview acceptance does not
+establish clinical significance or replace testing with representative data.
+
+Final follow-up verification, 2026-09-14: 821 tests across 97 files passed,
+production build passed, and all 17 Chromium checks passed against that build.
+The added browser regression verifies computed-series visibility, contrasting
+active-view styles, identical shared scale in overlay and patient detail,
+explicit zoom and the methods disclosure. Independent review completed with no
+substantive issues remaining; the numerical core is unchanged.

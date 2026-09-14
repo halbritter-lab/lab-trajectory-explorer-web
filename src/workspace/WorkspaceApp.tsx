@@ -69,7 +69,7 @@ export function WorkspaceApp() {
         <h2>Available in this workspace</h2>
         <p>Start with Data to review measurements and demographics, then preview and apply a derived eGFR series. Use Trajectories to compare parameters across patients or inspect one patient. The same patient and parameter selection controls the table, overlay and workbook export.</p>
         <p>Optional individual trend lines use ordinary least squares (OLS) on the available numeric measurements. This general exploration configuration does not exclude AKI windows, censor measurements at clinical events, or aggregate measurements over time. Slope and R² describe the fitted data; quality notices flag limited support for a slope.</p>
-        <p>Derived eGFR values use the chosen formula, creatinine source and resolved demographics. The Data preview explains unavailable values before applying a calculation. Source measurements remain available separately in exports.</p>
+        <p>Derived eGFR values use the chosen formula, creatinine source and resolved demographics. The Data preview explains unavailable values before applying a calculation. Select the source parameter as well to include its imported measurements in the export.</p>
         <h2>Available in the original application only</h2>
         <p>The sidebar, CKD-progression fit presets, configurable exclusions and time balancing, mixed models and trend projections described in the full reference are not yet connected here. Open the <a href="./index.html">original application</a> and import the file there to use those controls.</p>
         <details><summary>Full application reference — includes features not available here</summary><Methodology /></details>
