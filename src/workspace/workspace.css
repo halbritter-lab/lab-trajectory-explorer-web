@@ -1,0 +1,81 @@
+:root { font-family: Inter, "Segoe UI", system-ui, sans-serif; color: #243740; background: #f4f6f5; font-synthesis: none; --accent: #176c68; --border: #dce4e2; --surface: #fff; --muted: #62757c; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+[hidden] { display: none !important; }
+button, input, select, textarea { font: inherit; }
+button, .button-link { padding: 9px 13px; border: 1px solid var(--border); border-radius: 7px; background: white; color: #304b54; cursor: pointer; font-size: 14px; text-decoration: none; }
+button:hover, .button-link:hover { border-color: #689793; background: #f1f7f5; }
+button:disabled { opacity: .55; cursor: not-allowed; }
+button.primary, .button-link.primary { background: var(--accent); color: white; border-color: var(--accent); }
+:focus-visible { outline: 3px solid #478eae; outline-offset: 3px; }
+input:not([type="checkbox"]):not([type="radio"]), select, textarea { max-width: 100%; min-width: 0; padding: 9px 10px; border: 1px solid #cbd8d6; border-radius: 6px; background: white; color: inherit; }
+input[type="checkbox"], input[type="radio"] { accent-color: var(--accent); }
+input[type="file"] { width: 100%; }
+a { color: #176c68; text-underline-offset: 3px; }
+h1 { font-size: clamp(24px, 2.5vw, 32px); font-weight: 620; margin: 0 0 12px; letter-spacing: -.6px; }
+h2 { font-size: 20px; font-weight: 620; margin: 0 0 12px; }
+h3 { font-size: 16px; margin: 20px 0 10px; }
+p { line-height: 1.6; margin: 10px 0; }
+small, .subtext { font-size: 13px; color: var(--muted); }
+.muted { color: var(--muted); }
+.eyebrow { color: #587870; font-size: 11px; font-weight: 700; letter-spacing: 1.6px; text-transform: uppercase; margin: 0 0 12px; }
+.workspace-app { min-height: 100vh; }
+.workspace-header { background: #fff; border-bottom: 1px solid var(--border); padding: 19px 32px; display: flex; gap: 24px; align-items: center; flex-wrap: wrap; }
+.workspace-brand { display: flex; align-items: center; gap: 11px; margin-right: auto; }
+.workspace-logo { width: 38px; height: 38px; display: grid; place-items: center; border-radius: 10px; background: #176c68; color: white; font-size: 24px; }
+.workspace-brand strong { font-size: 15px; display: block; }
+.workspace-brand span:not(.workspace-logo) { font-size: 12px; color: var(--muted); display: block; margin-top: 4px; }
+.workspace-nav { display: flex; flex-wrap: wrap; gap: 6px; }
+.workspace-nav button { border-color: transparent; background: transparent; }
+.workspace-nav button span { margin-right: 4px; font-size: 10px; color: #869a99; }
+.workspace-nav button[aria-current="page"] { background: #e9f3ef; color: #145d59; font-weight: 650; }
+.workspace-help { font-size: 12px; }
+.workspace-dataset { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 10px 32px; color: #657c7c; font-size: 12px; border-bottom: 1px solid #e5ebe8; }
+.workspace-dataset span:first-child { color: #355754; font-weight: 600; overflow-wrap: anywhere; }
+.workspace-dataset span:last-child { margin-left: auto; }
+.workspace-main { max-width: 1600px; padding: 30px 32px 64px; margin: auto; outline: none; min-width: 0; }
+.workspace-main > section { min-width: 0; }
+.workspace-footer { padding: 22px 32px; border-top: 1px solid var(--border); font-size: 12px; color: #687c7f; line-height: 1.6; }
+.skip-link { position: absolute; top: -100px; z-index: 20; background: white; padding: 14px; }
+.skip-link:focus { top: 4px; left: 4px; }
+.card { min-width: 0; padding: 24px; background: white; border: 1px solid var(--border); border-radius: 12px; box-shadow: 0 3px 14px #15392c03; }
+.card-header, .page-heading { display: flex; align-items: start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+.page-heading { margin-bottom: 24px; }
+.stack { display: grid; gap: 20px; min-width: 0; }
+.equal { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; }
+.field { display: grid; gap: 7px; font-size: 13px; min-width: 0; }
+.notice { background: #edf5f2; border: 1px solid #d5e6de; border-radius: 7px; padding: 12px 14px; font-size: 13px; line-height: 1.6; }
+.notice.amber { background: #fcf7e9; border-color: #e9dcb7; color: #795d2a; }
+.badge { display: inline-block; border-radius: 5px; padding: 3px 7px; font-size: 11px; background: #e9f3ef; color: #26675d; }
+.badge.amber { background: #faf0d7; color: #806223; }
+.table-scroll { max-width: 100%; overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 13px; text-align: left; }
+th { color: #647a7e; font-size: 12px; font-weight: 600; }
+th, td { padding: 12px 10px; border-bottom: 1px solid #e8eeeb; vertical-align: top; }
+td { overflow-wrap: anywhere; }
+details { margin: 14px 0; }
+summary { cursor: pointer; font-size: 13px; color: #365e5c; padding: 6px 0; }
+fieldset { min-width: 0; border: 1px solid var(--border); border-radius: 7px; padding: 14px; }
+legend { font-size: 13px; padding: 0 6px; }
+dialog { max-width: min(760px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); overflow: auto; width: 640px; padding: 24px; border: 1px solid var(--border); border-radius: 14px; color: inherit; box-shadow: 0 20px 80px #18373033; }
+dialog::backdrop { background: #1b333d66; }
+.segmented { display: inline-flex; flex-wrap: wrap; gap: 3px; background: #eaf0ed; border-radius: 8px; padding: 3px; }
+.segmented button { background: transparent; border-color: transparent; }
+.segmented button[aria-pressed="true"] { background: white; color: #176c68; box-shadow: 0 1px 4px #18373015; }
+.workspace-methodology { max-width: 1050px; margin: auto; }
+.workspace-methodology table { display: block; overflow-x: auto; }
+.workspace-model-pending { max-width: 900px; }
+@media (max-width: 700px) {
+  .workspace-header { padding: 16px; gap: 14px; }
+  .workspace-nav { order: 3; width: 100%; gap: 2px; }
+  .workspace-nav button { padding: 9px 8px; font-size: 12px; }
+  .workspace-nav button span { display: none; }
+  .workspace-dataset { padding: 10px 16px; }
+  .workspace-dataset span:last-child { margin-left: 0; }
+  .workspace-main { padding: 22px 16px 40px; }
+  .workspace-footer { padding: 20px 16px; }
+  .card { padding: 18px; }
+  .equal { grid-template-columns: 1fr; }
+  dialog { padding: 18px; }
+}

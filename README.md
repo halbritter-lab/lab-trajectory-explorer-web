@@ -11,6 +11,10 @@ All parsing and computation runs in the browser; no data leaves the machine.
 
 ## Develop
 
+Der [Arbeitsplatz mit echten Daten](docs/workspace-real-data.md) ist unter
+`/workspace.html` erreichbar. Er setzt den ersten Bedienweg des UI-Entwurfs um;
+die bestehende Oberfläche unter `/index.html` bleibt während der Abnahme verfügbar.
+
 This project uses [pnpm](https://pnpm.io/) (pinned via the `packageManager`
 field; run `corepack enable` once to let Node provision it automatically).
 
