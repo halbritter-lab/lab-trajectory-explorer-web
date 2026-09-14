@@ -1,5 +1,10 @@
 # Arbeitsplatz-Prototyp
 
+## Übergreifende Anforderungen
+
+Der [Abgleich früherer Analysen und Issues](../../docs/requirements-reconciliation.md) ergänzt dieses UI-Inventar um gesicherte Entscheidungen, offene Fachfragen und historische Statuskorrekturen (14.09.2026).
+
+
 Branch: `design/analysis-workspace-prototype`.
 
 Mit `pnpm dev --host 127.0.0.1` starten und

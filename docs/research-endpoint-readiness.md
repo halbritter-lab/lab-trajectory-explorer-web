@@ -1,12 +1,14 @@
-# Endpoint analysis readiness — 2026-09-13
+# Endpoint analysis readiness — updated 2026-09-14
 
 This is a technical inventory and decision record, not an approved endpoint
 definition or a change to application methodology.
 
+Current cross-document status: [requirements reconciliation](requirements-reconciliation.md).
+
 ## Agreed delivery priority
 
 On 2026-09-13, trajectory extrapolation was selected as the next threshold-time
-increment. Implementation is on `feat/configurable-trend-projection`, dependent
+increment. Implementation was delivered in PR #12, dependent
 on the factor feature in PR #11. Report a projected threshold crossing conditional on continuation
 of the estimated trend, rather than an expected observed event time.
 
@@ -19,8 +21,8 @@ See the configurable trend projection design and implementation plan.
 ## Current implementation
 
 - PR #11 implements configurable patient-level factors for trajectory level
-  and slope; its GitHub CI passed. It remains a draft awaiting dataset/product
-  acceptance. It does not implement event-time analysis.
+  and slope; PRs #11/#12 are merged through #13. They still await dataset/product
+  acceptance. They do not implement event-time analysis.
 - The bundled workbook contains 216 lab rows, 8 event rows and 8 attribute rows.
   Attributes include genotype, inheritance and cohort. These are demo/test data;
   they do not establish representativeness for a research cohort.
@@ -70,13 +72,13 @@ analyses](https://pmc.ncbi.nlm.nih.gov/articles/PMC2394262/).
 
 ## Issue mapping
 
-- #4: configurable factors delivered in PR #11; G4, mixed-model threshold
-  projection and event-time definitions remain open. Do not close the issue
-  when the factor PR merges.
-- #6: numeric coverage supplied by the separate open PR #10; estimator
+- #4: factors (#11) and mixed-model threshold projections (#12) are integrated.
+  Observed G4/G5 definitions, legacy individual projections and optional
+  event-time work remain open; technical integration does not close the issue.
+- #6: numeric coverage supplied by merged PR #10; estimator
   conventions remain unresolved as recorded in that issue.
-- #2: navigation/mode taxonomy and plot export remain separate work; this PR
-  does not settle the mode taxonomy.
+- #2: the workplace prototype defines the new navigation; real-data integration,
+  plot export and workflow acceptance remain open.
 
 Next acceptance step: evaluate the factor dialog and fitted export with a
 representative research dataset. Existing automated checks establish technical

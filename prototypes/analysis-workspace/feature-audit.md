@@ -6,6 +6,13 @@ Webanwendung unter `src/`, nicht die frühere Python-Anwendung.
 Dies ist eine Quellcode-Inventur und Umsetzungsreihenfolge, keine erneute
 Laufzeitabnahme oder Freigabe zum Veröffentlichen.
 
+Ergänzt am 14.09.2026 durch den [Abgleich früherer Analysen und Issues](../../docs/requirements-reconciliation.md).
+Zusätzliche offene Anforderungen aus #2: instabile Fits ausdrücklich auch im
+Overlay kennzeichnen; SVG/PNG für alle Plots anbieten; die passende Tätigkeit
+am Einstieg erklären; Badge-Dichte verbessern und doppelte vollständige
+Kohortenberechnungen nur für Qualitätslabels vermeiden. Diese Punkte gehören
+zur Integration und Abnahme, nicht zu bereits fertigen Demo-Funktionen.
+
 ## Ergebnis
 
 Die Navigation **Daten → Verläufe → Kohortenmodelle** trägt die vorhandenen
