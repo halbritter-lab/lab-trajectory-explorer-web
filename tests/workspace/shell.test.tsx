@@ -8,39 +8,39 @@ vi.mock('../../src/workspace/workspace-data', () => ({
   useWorkspaceData: () => ({ rawRows: fixture.rows, rows: fixture.rows, patients: fixture.rows, parameters: [], fileName: 'research.csv' }),
 }))
 vi.mock('../../src/workspace/DataWorkspace', () => ({
-  DataWorkspace: ({ onBrowse }: { onBrowse: (id?: string) => void }) => <button onClick={() => onBrowse('alpha')}>Person prüfen</button>,
+  DataWorkspace: ({ onBrowse }: { onBrowse: (id?: string) => void }) => <button onClick={() => onBrowse('alpha')}>Review patient</button>,
 }))
 vi.mock('../../src/workspace/TrajectoriesWorkspace', () => ({
   TrajectoriesWorkspace: ({ requestedPatientId }: { requestedPatientId?: string }) => {
     const [query, setQuery] = useState('')
-    return <><label>Browsersuche<input value={query} onChange={e => setQuery(e.target.value)} /></label><span>Person: {requestedPatientId}</span></>
+    return <><label>Patient search<input value={query} onChange={e => setQuery(e.target.value)} /></label><span>Patient: {requestedPatientId}</span></>
   },
 }))
-vi.mock('../../src/ui/pages/Methodology', () => ({ Methodology: () => <p>Methodik-Inhalt</p> }))
+vi.mock('../../src/ui/pages/Methodology', () => ({ Methodology: () => <p>Methods content</p> }))
 
 describe('workspace shell', () => {
   beforeEach(() => { fixture.rows = [{ patientId: 'alpha' }] })
   it('retains browser state through data navigation and opens the requested person', () => {
     render(<WorkspaceApp />)
-    fireEvent.click(screen.getByRole('button', { name: /^Verläufe$/ }))
-    fireEvent.change(screen.getByLabelText('Browsersuche'), { target: { value: 'alpha' } })
-    fireEvent.click(screen.getByRole('button', { name: /^Daten$/ }))
-    fireEvent.click(screen.getByRole('button', { name: 'Person prüfen' }))
-    expect(screen.getByLabelText('Browsersuche')).toHaveValue('alpha')
-    expect(screen.getByText('Person: alpha')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: /^Trajectories$/ }))
+    fireEvent.change(screen.getByLabelText('Patient search'), { target: { value: 'alpha' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Data$/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Review patient' }))
+    expect(screen.getByLabelText('Patient search')).toHaveValue('alpha')
+    expect(screen.getByText('Patient: alpha')).toBeVisible()
   })
   it('resets patient browser state when the loaded dataset is replaced', () => {
     const result = render(<WorkspaceApp />)
-    fireEvent.click(screen.getByRole('button', { name: /^Verläufe$/ }))
-    fireEvent.change(screen.getByLabelText('Browsersuche'), { target: { value: 'old scope' } })
+    fireEvent.click(screen.getByRole('button', { name: /^Trajectories$/ }))
+    fireEvent.change(screen.getByLabelText('Patient search'), { target: { value: 'old scope' } })
     fixture.rows = [{ patientId: 'beta' }]
     result.rerender(<WorkspaceApp />)
-    expect(screen.getByLabelText('Browsersuche')).toHaveValue('')
+    expect(screen.getByLabelText('Patient search')).toHaveValue('')
   })
   it('does not offer a synthetic fit for loaded research data', () => {
     render(<WorkspaceApp />)
-    fireEvent.click(screen.getByRole('button', { name: /^Kohortenmodelle$/ }))
-    expect(screen.queryByRole('button', { name: /berechnen/i })).not.toBeInTheDocument()
-    expect(screen.getByText(/noch nicht angebunden/)).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: /^Cohort models$/ }))
+    expect(screen.queryByRole('button', { name: /calculate/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/not yet connected/)).toBeVisible()
   })
 })

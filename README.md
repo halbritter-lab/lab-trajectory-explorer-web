@@ -1,9 +1,8 @@
 # Lab Trajectory Explorer
 
-## Entwicklungsstand und offene Anforderungen
+## Development status and open requirements
 
-Der [Anforderungsabgleich](docs/requirements-reconciliation.md) verbindet Analysebefunde, Entscheidungen, Issues und offene Probleme. Der [Arbeitsplatz-Prototyp](prototypes/analysis-workspace/README.md) und sein [Funktionsinventar](prototypes/analysis-workspace/feature-audit.md) dokumentieren den UI-Umbau. Für Integration und Veröffentlichung gelten die [Release-Regeln](docs/release-process.md).
-
+The [requirements reconciliation](docs/requirements-reconciliation.md) connects analysis findings, decisions, issues and outstanding problems. The [workspace prototype](prototypes/analysis-workspace/README.md) and its [feature inventory](prototypes/analysis-workspace/feature-audit.md) document the UI redesign. Integration and publication follow the [release rules](docs/release-process.md).
 
 [Open the Lab Trajectory Explorer online](https://halbritter-lab.github.io/lab-trajectory-explorer-web/)
 
@@ -11,9 +10,9 @@ All parsing and computation runs in the browser; no data leaves the machine.
 
 ## Develop
 
-Der [Arbeitsplatz mit echten Daten](docs/workspace-real-data.md) ist unter
-`/workspace.html` erreichbar. Er setzt den ersten Bedienweg des UI-Entwurfs um;
-die bestehende Oberfläche unter `/index.html` bleibt während der Abnahme verfügbar.
+The [real-data workspace](docs/workspace-real-data.md) is available at
+`/workspace.html`. It implements the first complete workflow from the UI design;
+the existing interface at `/index.html` remains available during acceptance.
 
 This project uses [pnpm](https://pnpm.io/) (pinned via the `packageManager`
 field; run `corepack enable` once to let Node provision it automatically).
