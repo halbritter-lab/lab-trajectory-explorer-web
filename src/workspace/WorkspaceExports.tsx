@@ -10,14 +10,14 @@ export function WorkspaceExportActions(props: WorkspaceExportInput) {
     setError(null)
     try {
       const bytes = workspaceWorkbookBytes(props)
-      const title = props.patientId === undefined ? 'Kohorte' : `Patient-${props.patientId}`
+      const title = props.patientId === undefined ? 'cohort' : `Patient-${props.patientId}`
       downloadBlob(bytes,safeExportFilename(title,'xlsx'),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    } catch (cause) {setError(cause instanceof Error ? cause.message : 'Die Arbeitsmappe konnte nicht exportiert werden.')}
+    } catch (cause) {setError(cause instanceof Error ? cause.message : 'The workbook could not be exported.')}
   }
   return <div className="workspace-export-actions">
-    <button type="button" disabled={empty} onClick={download}>{props.patientId === undefined ? 'Kohorte' : 'Patient'} exportieren (XLSX)</button>
-    {empty && <span>Bitte Patienten und Parameter auswählen.</span>}
-    {error && <p role="alert">Export fehlgeschlagen: {error}</p>}
+    <button type="button" disabled={empty} onClick={download}>Export {props.patientId === undefined ? 'cohort' : 'patient'} (XLSX)</button>
+    {empty && <span>Select patients and parameters first.</span>}
+    {error && <p role="alert">Export failed: {error}</p>}
   </div>
 }
 
@@ -29,21 +29,21 @@ export function ChartExportActions({getSvg,title}: {getSvg:()=>SVGSVGElement | n
     setBusy(true)
     try {
       const element = getSvg()
-      if (!element) throw new Error('Kein Diagramm verfügbar. Bitte zuerst Daten und Parameter auswählen.')
+      if (!element) throw new Error('No chart available. Select data and parameters first.')
       const chart = exportChartSvg(element,title)
       if (format === 'svg') downloadBlob(chart.svg,safeExportFilename(title,'svg'),'image/svg+xml;charset=utf-8')
       else {
         const blob = await svgStringToPngBlob(chart.svg,chart.width,chart.height)
-        if (!blob.size) throw new Error('Die PNG-Datei ist leer.')
+        if (!blob.size) throw new Error('The PNG file is empty.')
         downloadBlob(new Uint8Array(await blob.arrayBuffer()),safeExportFilename(title,'png'),'image/png')
       }
-    } catch (cause) {setError(cause instanceof Error ? cause.message : 'Das Diagramm konnte nicht exportiert werden.')}
+    } catch (cause) {setError(cause instanceof Error ? cause.message : 'The chart could not be exported.')}
     finally {setBusy(false)}
   }
-  return <div className="workspace-export-actions" role="group" aria-label={`Diagramm exportieren: ${title}`}>
-    <button type="button" disabled={busy} onClick={() => void download('svg')}>SVG herunterladen</button>
-    <button type="button" disabled={busy} onClick={() => void download('png')}>PNG herunterladen</button>
-    {busy && <span role="status">Diagramm wird exportiert …</span>}
-    {error && <p role="alert">Export fehlgeschlagen: {error}</p>}
+  return <div className="workspace-export-actions" role="group" aria-label={`Export chart: ${title}`}>
+    <button type="button" disabled={busy} onClick={() => void download('svg')}>Download SVG</button>
+    <button type="button" disabled={busy} onClick={() => void download('png')}>Download PNG</button>
+    {busy && <span role="status">Exporting chart …</span>}
+    {error && <p role="alert">Export failed: {error}</p>}
   </div>
 }
