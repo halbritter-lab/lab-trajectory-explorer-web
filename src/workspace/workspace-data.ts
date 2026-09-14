@@ -41,7 +41,7 @@ export function useWorkspaceData(): WorkspaceData {
       bucket.push(row); buckets.set(row.patientId, bucket)
       if (row.bezeichnung === null) continue
       const key = JSON.stringify([row.bezeichnung, row.einheit])
-      if (!parameterMap.has(key)) parameterMap.set(key, { key, bezeichnung: row.bezeichnung, einheit: row.einheit, label: `${row.bezeichnung} [${row.einheit ?? 'ohne Einheit'}]`, derived: !rawKeys.has(key) })
+      if (!parameterMap.has(key)) parameterMap.set(key, { key, bezeichnung: row.bezeichnung, einheit: row.einheit, label: `${row.bezeichnung} [${row.einheit ?? 'no unit'}]`, derived: !rawKeys.has(key) })
     }
     const patientAttributes = { ...attributes }
     const patients = [...buckets].sort(([a], [b]) => comparePatientIds(a, b)).map(([id, patientRows]) => {
@@ -84,7 +84,7 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
   useAppStore.setState({ busy: true, notice: null })
   try {
     const dataset = file ? loadDatasetFromWorkbook(await file.arrayBuffer()) : { ...await loadBundledFixtureData(), diagnostics: [] }
-    if (!dataset.rows.length) throw new Error('Keine verwendbaren Laborwerte in dieser Datei.')
+    if (!dataset.rows.length) throw new Error('No usable lab values in this file.')
     const ids = [...new Set(dataset.rows.map(r => r.patientId))].sort(comparePatientIds)
     const rejected = dataset.diagnostics.filter(d => d.severity === 'rejected').length
     // Abort active legacy model jobs before replacing the session. All data and
@@ -94,7 +94,7 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
       ...useAppStore.getInitialState(), rows: dataset.rows, events: dataset.events,
       patientAttributes: dataset.patientAttributes, fileName: file?.name ?? 'test_labs.xlsx (Demo)',
       selectedPatientId: ids[0] ?? null, selectedPatientIds: ids, view: 'cohort',
-      notice: { kind: 'info', text: `${dataset.rows.length} Laborwerte, ${dataset.events.length} Ereignisse und ${Object.keys(dataset.patientAttributes).length} Attributzeilen geladen. ${rejected} Zeilen abgelehnt; ${dataset.diagnostics.length - rejected} Warnungen.`, details: dataset.diagnostics },
+      notice: { kind: 'info', text: `${dataset.rows.length} lab values, ${dataset.events.length} events and ${Object.keys(dataset.patientAttributes).length} attribute rows loaded. ${rejected} rows rejected; ${dataset.diagnostics.length - rejected} warnings.`, details: dataset.diagnostics },
     })
   } catch (error) {
     useAppStore.setState({ busy: false, notice: { kind: 'error', text: error instanceof Error ? error.message : String(error) } })
