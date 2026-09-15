@@ -7,6 +7,11 @@ interfaces are still evolving before 1.0.
 
 ### Added
 
+- English real-data workspace at `/workspace.html`: import and demographic review,
+  previewed eGFR derivations, multi-parameter patient graph table, individual
+  trajectories, configurable spaghetti overlays, and scoped XLSX/SVG/PNG exports.
+  The original application remains available during workflow acceptance.
+
 - Configurable trend projections from fitted mixed-model profiles: editable
   above/below targets, G4/G5 boundary presets for compatible eGFR series,
   reference time and projection horizon. Results include unavailable reasons
@@ -44,6 +49,12 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
+- Workspace plots now share a zero-inclusive parameter scale by default, with
+  explicit zoom for inspecting small changes. View selection is visibly active,
+  new derived series appear in the selection, and Methods distinguishes the
+  workspace from features available only in the original application.
+- Workspace demographic labels are readable, derivation actions remain above
+  long previews, and plotted events have an inspectable patient/date/title list.
 - Workbook imports now report rejected event/attribute rows and accepted-row
   warnings, with expandable sheet, patient, and reason details. Single-sheet
   lab files remain usable even when their sheet is named `events` or `attributes`.

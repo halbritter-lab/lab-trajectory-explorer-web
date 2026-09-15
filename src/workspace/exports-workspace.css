@@ -1,0 +1,14 @@
+.workspace-export-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.workspace-export-actions p {
+  flex-basis: 100%;
+  margin: 0.25rem 0;
+  overflow-wrap: anywhere;
+}
+.workspace-export-actions [role="alert"] { color: #a32424; }
+.workspace-export-actions button { max-width: 100%; }

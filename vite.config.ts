@@ -10,6 +10,7 @@ export default defineConfig({
   base: './',
   build: {
     rollupOptions: {
+      input: { app: 'index.html', workspace: 'workspace.html' },
       output: {
         // Split the two large vendor libraries into their own chunks so the
         // main bundle stays lean and they cache independently.

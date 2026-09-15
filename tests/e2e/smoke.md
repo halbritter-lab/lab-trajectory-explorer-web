@@ -112,3 +112,49 @@ XLSX downloads. The browser tests intercept the worker to isolate UI behavior;
 `scripts/verify_mixed_model_projections.mjs` independently runs the actual webR
 worker with lme4 and nlme and checks known profile coefficients/crossing times.
 The projection form stays within the mobile dialog; result columns can scroll.
+
+
+## Real-data workspace
+
+1. Open `/workspace.html`; confirm English navigation and session-only status.
+2. Load demo data or a workbook with labs, attributes and events. Review import
+   diagnostics and edit demographics using the displayed age reference date.
+3. Select an eGFR formula and source, inspect the preview and apply. Confirm the
+   derived parameter appears without changing the original measurements.
+4. Open Trajectories, select many parameters, and browse the graph table. Check
+   horizontal navigation, sticky patient IDs and shared per-parameter scales.
+5. Open a patient and return to the table; check focus and scroll restoration.
+   Compare the same patient scope in Overlay, including grouping and time axes.
+6. Download XLSX, SVG and PNG. Check selected scope, original/derived provenance,
+   UTC dates, English chart context/legend and research-use footer.
+7. Change the formula, then disable derivation; verify the selected computed
+   parameter updates or is explicitly unavailable. Replace the dataset and check
+   that browser selections reset. Repeat table/detail navigation at 390 px width.
+
+Verified 2026-09-14: all three workspace Chromium tests pass against the production
+build, including actual file downloads and narrow-screen navigation. Desktop graph
+table and grouped overlay visually checked; downloaded English PNG includes readable
+axes, unit, title, grouping/legend and research footer. Original 13 browser checks
+also pass. Representative research-data acceptance remains pending.
+
+## Workspace visual-review regressions
+
+1. Load the demo, apply CKD-EPI 2021 and open Trajectories. The computed series
+   should already be selected, alongside the imported parameters.
+2. Switch Table / Overlay / Individual patient and check that the current view
+   has a contrasting filled button. Open patient 1: creatinine should retain the
+   shared 0–4.2 range rather than stretching its small variation across the chart.
+3. Choose Zoom to visible values explicitly and check that the scale notice and
+   exported chart context change. Restore Shared parameter scale.
+4. Group the overlay by sex: readable Female/Male labels, original grouping codes
+   retained. Enable Events and expand Inspect events to read patient/date/title.
+5. Open Methods: only the available workspace workflow is initially described.
+   Expand the full reference deliberately to see original-app features.
+6. Expand the derived preview and confirm Apply is above it; scroll the preview
+   independently. Repeat the trajectory workflow at 390 px width.
+
+Verified 2026-09-14 against the local development server: all four workspace
+browser tests pass; shared patient-1 plots and active view state visually checked.
+Mobile overlay remains within the viewport; event inspector and sex labels checked.
+Final production-build run: all 17 Chromium tests passed, including these four
+workspace workflows. Unit/component suite: 821 passed; production build passed.
