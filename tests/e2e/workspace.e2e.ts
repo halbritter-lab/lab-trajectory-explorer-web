@@ -184,3 +184,40 @@ test('review fixes: active views, stable value scales, visible derivation and sc
   await page.getByText('Full application reference', { exact: false }).click()
   await expect(page.getByRole('heading', { name: 'Theory & Methods' })).toBeVisible()
 })
+
+test('back navigation: explicit in-app back button and browser history integration', async ({ page }) => {
+  await page.goto('/workspace.html')
+  await page.getByRole('button', { name: 'Load demo data', exact: true }).click()
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await expect(page.getByRole('table')).toBeVisible()
+
+  // 1. Open patient from table
+  await page.getByRole('button', { name: 'Open patient 1', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Patient 1', exact: true })).toBeVisible()
+
+  // In-app back button shows "← Back to table" and returns to table
+  const backToTableBtn = page.getByRole('button', { name: 'Back to table', exact: true })
+  await expect(backToTableBtn).toBeVisible()
+  await backToTableBtn.click()
+  await expect(page.getByRole('table')).toBeVisible()
+
+  // 2. Open patient from overlay
+  await page.getByRole('button', { name: 'Overlay', exact: true }).click()
+  await expect(page.locator('.wt-plot-grid')).toBeVisible()
+  await page.getByRole('button', { name: /^Open patient 1,/ }).first().click()
+  await expect(page.getByRole('heading', { name: 'Patient 1', exact: true })).toBeVisible()
+
+  // In-app back button shows "← Back to overlay"
+  const backToOverlayBtn = page.getByRole('button', { name: 'Back to overlay', exact: true })
+  await expect(backToOverlayBtn).toBeVisible()
+
+  // 3. Browser back returns to overlay
+  await page.goBack()
+  await expect(page.locator('.wt-plot-grid')).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Overlay', exact: true })).toHaveAttribute('aria-pressed', 'true')
+
+  // 4. Browser back returns to detail from previous in-app flow or table
+  // Let's test browser back navigation through the stack
+  await page.goBack()
+  await expect(page.getByRole('table')).toBeVisible()
+})

@@ -212,4 +212,29 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Scroll columns right' }))
     expect(screen.getByRole('region', { name: 'Patient table, horizontal scrolling' }).scrollLeft).toBeGreaterThan(340)
   })
+
+  it('provides an explicit in-app back button and responds to browser popstate', () => {
+    render(<TrajectoriesWorkspace data={fixture()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
+    expect(screen.getByRole('heading', { name: 'Patient ID-A' })).toBeVisible()
+
+    // Explicit in-app back button
+    const backBtn = screen.getByRole('button', { name: 'Back to table' })
+    expect(backBtn).toBeVisible()
+    expect(backBtn).toHaveTextContent('← Back to table')
+    fireEvent.click(backBtn)
+    expect(screen.getByRole('table')).toBeVisible()
+
+    // Open from overlay
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
+    const personInChart = screen.getAllByRole('button', { name: /Open patient ID-A, Marker/ })[0]
+    fireEvent.click(personInChart)
+    expect(screen.getByRole('heading', { name: 'Patient ID-A' })).toBeVisible()
+    expect(screen.getByRole('button', { name: 'Back to overlay' })).toBeVisible()
+
+    // Browser back via popstate
+    fireEvent(window, new PopStateEvent('popstate', { state: { page: 'Trajectories', mode: 'table' } }))
+    expect(screen.getByRole('table')).toBeVisible()
+  })
 })
+

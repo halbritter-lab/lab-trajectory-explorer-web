@@ -53,4 +53,19 @@ describe('workspace shell', () => {
     expect(screen.queryByRole('button', { name: /calculate/i })).not.toBeInTheDocument()
     expect(screen.getByText(/not yet connected/)).toBeVisible()
   })
+  it('navigates between pages on browser popstate', () => {
+    render(<WorkspaceApp />)
+    fireEvent.click(screen.getByRole('button', { name: /^Trajectories$/ }))
+    expect(screen.getByLabelText('Trajectory workspace')).not.toHaveAttribute('hidden')
+
+    // Popstate back to Data
+    fireEvent(window, new PopStateEvent('popstate', { state: { page: 'Data' } }))
+    expect(screen.getByLabelText('Data workspace')).not.toHaveAttribute('hidden')
+    expect(screen.getByLabelText('Trajectory workspace')).toHaveAttribute('hidden')
+
+    // Popstate forward to Methods
+    fireEvent(window, new PopStateEvent('popstate', { state: { page: 'Methods' } }))
+    expect(screen.getByRole('heading', { name: 'Available in this workspace' })).toBeVisible()
+  })
 })
+

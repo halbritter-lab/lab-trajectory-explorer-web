@@ -34,6 +34,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   const [sort, setSort] = useState('id')
   const [mode, setMode] = useState<'table' | 'overlay' | 'detail'>('table')
   const [patientId, setPatientId] = useState<PatientId | null>(null)
+  const [returnMode, setReturnMode] = useState<'table' | 'overlay'>('table')
   const [axis, setAxis] = useState<WorkspaceAxis>('baseline')
   const [scaleMode, setScaleMode] = useState<'shared' | 'zoom'>('shared')
   const [highlight, setHighlight] = useState<PatientId | null>(null)
@@ -132,7 +133,13 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
       tablePosition.current = { left: tableScroller.current?.scrollLeft ?? 0, top: document.scrollingElement?.scrollTop ?? document.documentElement.scrollTop, restore: true }
       originatingPerson.current = id
     }
-    setPatientId(id); setMode('detail')
+    const nextReturn = mode !== 'detail' ? mode : returnMode
+    setReturnMode(nextReturn)
+    setPatientId(id)
+    setMode('detail')
+    if (typeof window !== 'undefined' && window.history?.pushState) {
+      window.history.pushState({ page: 'Trajectories', mode: 'detail', patientId: id, returnMode: nextReturn }, '')
+    }
   }
   useLayoutEffect(() => {
     if (mode === 'detail') {
@@ -157,8 +164,26 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
     tablePosition.current.left = scroller.scrollLeft
   }
   useEffect(() => {
+    const onPopState = (event: PopStateEvent) => {
+      const state = event.state as { page?: string; mode?: 'table' | 'overlay' | 'detail'; patientId?: PatientId; returnMode?: 'table' | 'overlay' } | null
+      if (state?.mode === 'table' || state?.mode === 'overlay' || state?.mode === 'detail') {
+        if (state.mode === 'table') tablePosition.current.restore = true
+        if (state.mode === 'detail' && state.patientId !== undefined) {
+          setPatientId(state.patientId)
+        }
+        if (state.returnMode) setReturnMode(state.returnMode)
+        setMode(state.mode)
+      } else if (state?.page === 'Trajectories') {
+        tablePosition.current.restore = true
+        setMode('table')
+      }
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
+  useEffect(() => {
     if (requestedPatientId === undefined || requestedPatientId === null) return
-    setQuery(''); setGroup(''); setSelectedOnly(false); setPatientId(requestedPatientId); setMode('detail')
+    setQuery(''); setGroup(''); setSelectedOnly(false); setPatientId(requestedPatientId); setReturnMode('table'); setMode('detail')
   }, [requestedPatientId])
   useEffect(() => {
     if (draftKeys !== null && dialog.current && !dialog.current.open && typeof dialog.current.showModal === 'function') dialog.current.showModal()
@@ -180,7 +205,20 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
       </div>
       <div className="wt-toolbar"><label><input type="checkbox" checked={selectedOnly} onChange={event => setSelectedOnly(event.target.checked)} /> Selected patients only</label><span>{selected.length} selected · {visible.length} in the shared scope</span><button onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])} disabled={!patientIds.length}>Select visible patients</button><button onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div>
     </section>
-    <div className="wt-view-switch" role="group" aria-label="View"><button aria-pressed={mode === 'table'} onClick={() => setMode('table')}>Table</button><button aria-pressed={mode === 'overlay'} onClick={() => setMode('overlay')}>Overlay</button><button aria-pressed={mode === 'detail'} disabled={!current} onClick={() => setMode('detail')}>Individual patient</button></div>
+    <div className="wt-view-switch" role="group" aria-label="View"><button aria-pressed={mode === 'table'} onClick={() => {
+      if (mode !== 'table') {
+        if (mode === 'detail') tablePosition.current.restore = true
+        setMode('table')
+        if (typeof window !== 'undefined' && window.history?.pushState) window.history.pushState({ page: 'Trajectories', mode: 'table' }, '')
+      }
+    }}>Table</button><button aria-pressed={mode === 'overlay'} onClick={() => {
+      if (mode !== 'overlay') {
+        setMode('overlay')
+        if (typeof window !== 'undefined' && window.history?.pushState) window.history.pushState({ page: 'Trajectories', mode: 'overlay' }, '')
+      }
+    }}>Overlay</button><button aria-pressed={mode === 'detail'} disabled={!current} onClick={() => {
+      if (mode !== 'detail' && current) open(current.patientId)
+    }}>Individual patient</button></div>
     <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
     <details className="card"><summary>Display and analysis</summary><p>General exploration: global OLS per patient and parameter, unweighted individual measurements, no AKI or event exclusions, and no time aggregation. Slopes are per year. Changing the axis affects the display, not the calculation.</p><div className="wt-fit-options">{parameters.map(p => <label key={p.key}><input type="checkbox" checked={fitKeys.includes(p.key)} onChange={() => toggleFit(p.key)} /> OLS, slope and R²: {p.label}</label>)}</div></details>
     {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={display[key]} onChange={event => setDisplay(previous => ({ ...previous, [key]: event.target.checked }))} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}</div></section>}
@@ -189,7 +227,23 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
     {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table"><thead><tr><th>Selection</th><th>Patient</th>{parameters.map(p => <th key={p.key} ref={element => { if (element) parameterHeaders.current.set(p.key, element); else parameterHeaders.current.delete(p.key) }}>{p.label}{p.derived ? ' · derived' : ''}</th>)}</tr></thead><tbody>{visible.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selected.includes(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} fit={fitKeys.includes(keys[i])} measurements={measurementsFor(row.patientId, cell)} /></td>)}</tr>)}</tbody></table></div>}
     {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <WorkspacePlot key={`${parameter.key}-${groupBy}`} data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} />)}</div>}
-    {mode === 'detail' && current && <section><div className="wt-toolbar"><h2 ref={detailHeading} tabIndex={-1}>Patient {current.patientId}</h2><button disabled={currentIndex <= 0} onClick={() => setPatientId(visible[currentIndex - 1].patientId)}>Previous patient</button><label>Open patient directly<select value={currentIndex} onChange={event => setPatientId(visible[Number(event.target.value)].patientId)}>{visible.map((row, index) => <option key={String(row.patientId)} value={index}>{row.patientId}</option>)}</select></label><button disabled={currentIndex >= visible.length - 1} onClick={() => setPatientId(visible[currentIndex + 1].patientId)}>Next patient</button><span>{currentIndex + 1} / {visible.length}</span></div><div className="wt-plot-grid">{parameters.map((parameter, index) => {
+    {mode === 'detail' && current && <section><div className="wt-toolbar"><button type="button" className="wt-back-button" aria-label={`Back to ${returnMode}`} onClick={() => {
+      if (returnMode === 'table') tablePosition.current.restore = true
+      setMode(returnMode)
+      if (typeof window !== 'undefined' && window.history?.pushState) window.history.pushState({ page: 'Trajectories', mode: returnMode }, '')
+    }}>← Back to {returnMode}</button><h2 ref={detailHeading} tabIndex={-1}>Patient {current.patientId}</h2><button disabled={currentIndex <= 0} onClick={() => {
+      const nextId = visible[currentIndex - 1].patientId
+      setPatientId(nextId)
+      if (typeof window !== 'undefined' && window.history?.replaceState) window.history.replaceState({ page: 'Trajectories', mode: 'detail', patientId: nextId, returnMode }, '')
+    }}>Previous patient</button><label>Open patient directly<select value={currentIndex} onChange={event => {
+      const nextId = visible[Number(event.target.value)].patientId
+      setPatientId(nextId)
+      if (typeof window !== 'undefined' && window.history?.replaceState) window.history.replaceState({ page: 'Trajectories', mode: 'detail', patientId: nextId, returnMode }, '')
+    }}>{visible.map((row, index) => <option key={String(row.patientId)} value={index}>{row.patientId}</option>)}</select></label><button disabled={currentIndex >= visible.length - 1} onClick={() => {
+      const nextId = visible[currentIndex + 1].patientId
+      setPatientId(nextId)
+      if (typeof window !== 'undefined' && window.history?.replaceState) window.history.replaceState({ page: 'Trajectories', mode: 'detail', patientId: nextId, returnMode }, '')
+    }}>Next patient</button><span>{currentIndex + 1} / {visible.length}</span></div><div className="wt-plot-grid">{parameters.map((parameter, index) => {
       const measurements = measurementsFor(current.patientId, parameter)
       return <div key={parameter.key}><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary cell={current.cells[index]} fit={fitKeys.includes(parameter.key)} measurements={measurements} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` · ${event.description}` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section></section>}

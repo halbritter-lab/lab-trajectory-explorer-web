@@ -9,6 +9,7 @@
 .wt-fit-options label { display: flex; gap: 8px; align-items: flex-start; padding: 8px; border: 1px solid #e0e8eb; border-radius: 6px; overflow-wrap: anywhere; }
 .wt-event-inspector { margin-top: 10px; font-size: .875rem; }
 .wt-event-inspector ul { max-height: 180px; overflow-y: auto; padding-left: 20px; }
+.wt-back-button { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
 .wt-toolbar, .wt-card-heading, .wt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .wt-card-heading { justify-content: space-between; align-items: flex-start; }
 .wt-card-heading h3 { margin: 0; overflow-wrap: anywhere; }

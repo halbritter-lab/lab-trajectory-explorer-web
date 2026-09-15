@@ -21,7 +21,31 @@ export function WorkspaceApp() {
   const mainRef = useRef<HTMLElement>(null)
   const firstRender = useRef(true)
   const hasData = data.rawRows.length > 0
-  const go = (next: Page) => { setRequestedPerson(null); setPage(next) }
+
+  const go = (next: Page, pushHistory = true) => {
+    setRequestedPerson(null)
+    setPage(next)
+    if (pushHistory && typeof window !== 'undefined' && window.history?.pushState) {
+      window.history.pushState({ page: next, mode: 'table' }, '')
+    }
+  }
+
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.history?.replaceState) {
+      const current = window.history.state as { page?: Page } | null
+      if (!current?.page) {
+        window.history.replaceState({ page: 'Data', mode: 'table' }, '')
+      }
+    }
+    const onPopState = (event: PopStateEvent) => {
+      const state = event.state as { page?: Page } | null
+      const targetPage = state?.page ?? 'Data'
+      setRequestedPerson(null)
+      setPage(targetPage)
+    }
+    window.addEventListener('popstate', onPopState)
+    return () => window.removeEventListener('popstate', onPopState)
+  }, [])
 
   useEffect(() => {
     if (firstRender.current) { firstRender.current = false; return }
@@ -33,9 +57,9 @@ export function WorkspaceApp() {
     <header className="workspace-header">
       <div className="workspace-brand"><span aria-hidden="true" className="workspace-logo">↗</span><div><strong>Lab Trajectory Explorer</strong><span>Workspace · Preview</span></div></div>
       <nav aria-label="Main navigation" className="workspace-nav">
-        {(['Data', 'Trajectories', 'Cohort models'] as const).map((name, index) => <button type="button" key={name}
+        {(['Data', 'Trajectories', 'Cohort models'] as const).map(name => <button type="button" key={name}
           aria-current={page === name ? 'page' : undefined} onClick={() => go(name)}>
-          <span aria-hidden="true">0{index + 1}</span> {name}
+          {name}
         </button>)}
       </nav>
       <button type="button" className="workspace-help" aria-current={page === 'Methods' ? 'page' : undefined} onClick={() => go('Methods')}>Methods</button>
@@ -50,6 +74,9 @@ export function WorkspaceApp() {
         <DataWorkspace onBrowse={id => {
           setRequestedPerson(id === undefined ? null : { id, rows: data.rawRows })
           setPage('Trajectories')
+          if (typeof window !== 'undefined' && window.history?.pushState) {
+            window.history.pushState({ page: 'Trajectories', mode: id ? 'detail' : 'table', patientId: id ?? null }, '')
+          }
         }} />
       </section>
       <section hidden={page !== 'Trajectories'} aria-label="Trajectory workspace">
@@ -58,7 +85,7 @@ export function WorkspaceApp() {
           : <div className="card"><h1>Compare trajectories</h1><p>Load a file or the demo data first. Then compare patients and multiple parameters in the table, individual view and overlay.</p><button type="button" className="primary" onClick={() => go('Data')}>Load data</button></div>}
       </section>
       {page === 'Cohort models' && <section className="card workspace-model-pending">
-        <p className="eyebrow">03 / Shared models</p><h1>Cohort models</h1>
+        <p className="eyebrow">Shared models</p><h1>Cohort models</h1>
         <p>Explore associations between trajectories and patient characteristics such as genotype, age or treatment group.</p>
         <p className="notice">Model fitting is not yet connected in this workspace. The first workflow covers data review, derivations, patient comparison and export.</p>
         <p>Existing models remain available in the <a href="./index.html">original application</a> with a separate file import.</p>
