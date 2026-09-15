@@ -4,6 +4,7 @@ import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '..
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../core/analysis/types'
 import type { ClinicalEvent } from '../core/events/events'
 import type { CohortSeriesSpec } from '../core/cohort/screening'
+import type { FitConfig } from '../core/fitPipeline/types'
 import { generalExplorationConfig } from '../core/fitPipeline/types'
 import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../ui/data/loadDataset'
 import { resolveBirthAnchor } from '../core/demographics/resolveAge'
@@ -66,15 +67,17 @@ export function useWorkspaceData(): WorkspaceData {
   }, [rawRows, fileName, events, attributes, analysisSettings, manualDemographics])
 }
 
-export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[]): CohortSeriesSpec[] {
+export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>): CohortSeriesSpec[] {
   const parameters = new Map(data.parameters.map(p => [p.key, p]))
   const clinicalEventsByPatient: Record<string, ClinicalEvent[]> = Object.create(null)
   for (const event of data.events) (clinicalEventsByPatient[patientIdKey(event.patientId)] ??= []).push(event)
   return parameterKeys.flatMap(key => {
     const parameter = parameters.get(key)
     if (!parameter) return []
-    return [{ bezeichnung: parameter.bezeichnung, einheit: parameter.einheit, mode: 'global' as const,
-      fitConfig: generalExplorationConfig(parameter), clinicalEventsByPatient, fitInputs: data.analysis.fitInputs }]
+    const fitConfig = fitConfigByParameterKey?.[key] ?? generalExplorationConfig(parameter)
+    const mode = fitConfig.fitModel === 'theil-sen' ? 'global-robust' as const : 'global' as const
+    return [{ bezeichnung: parameter.bezeichnung, einheit: parameter.einheit, mode,
+      fitConfig, clinicalEventsByPatient, fitInputs: data.analysis.fitInputs }]
   })
 }
 

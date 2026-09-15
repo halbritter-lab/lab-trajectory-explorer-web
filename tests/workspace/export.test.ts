@@ -60,6 +60,30 @@ describe('workspace workbook', () => {
     expect(() => workspaceWorkbookBytes({...input,parameterKeys:[]})).toThrow(/parameters/)
     expect(() => workspaceWorkbookBytes({...input,cohortRows:[]})).toThrow(/summary/)
   })
+  it('serializes custom fit configurations into the settings sheet', () => {
+    const input = exportFixture()
+    const customConfig = {
+      parameter: { bezeichnung: 'Marker|one', einheit: 'mg/L' },
+      preset: 'custom' as const,
+      xAxis: 'calendar_time' as const,
+      censoring: { censorAfterKidneyTransplant: true, censorAfterChronicDialysis: false, excludeAcuteDialysisPeriods: false, unknownDialysisPolicy: 'flag-only' as const },
+      exclusions: { excludeAkiWindows: true, akiExclusionDays: 14 },
+      timeBalancing: 'monthly-median' as const,
+      fitModel: 'theil-sen' as const,
+      endpoints: { percentDecline: true, observedCkdG5: false, projectedAgeToCkdG5: false },
+    }
+    const workbook = XLSX.read(workspaceWorkbookBytes({
+      ...input,
+      fitConfigByParameterKey: { [input.parameterKeys[0]]: customConfig },
+    }), { type: 'array' })
+    const settings = records(workbook, 'settings')
+    expect(settings[0]).toMatchObject({
+      parameter_key: input.parameterKeys[0],
+    })
+    expect(String(settings[0].fit_config)).toContain('"fitModel":"theil-sen"')
+    expect(String(settings[0].fit_config)).toContain('"timeBalancing":"monthly-median"')
+    expect(String(settings[0].fit_config)).toContain('"censorAfterKidneyTransplant":true')
+  })
 })
 
 describe('chart serialization', () => {

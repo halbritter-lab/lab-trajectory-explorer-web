@@ -4,6 +4,7 @@ import { patientAttributesExportRows } from '../core/attributes/attributes'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString } from '../io/export'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
+import type { FitConfig } from '../core/fitPipeline/types'
 
 export interface WorkspaceExportInput {
   data: WorkspaceData
@@ -11,6 +12,7 @@ export interface WorkspaceExportInput {
   patientIds: PatientId[]
   cohortRows: CohortRow[]
   patientId?: PatientId
+  fitConfigByParameterKey?: Record<string, FitConfig>
 }
 
 const seriesIdentity = (name: string | null, unit: string | null) => JSON.stringify([name,unit])
@@ -20,7 +22,7 @@ function utcDate(date: Date | null): string {
 }
 
 /** All sheets share the supplied visible scope; summaries are never fitted again. */
-export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId}: WorkspaceExportInput): {name:string;rows:object[]}[] {
+export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey}: WorkspaceExportInput): {name:string;rows:object[]}[] {
   const requestedKeys = [...new Set(parameterKeys)]
   const parameters = requestedKeys.map(key => data.parameters.find(parameter => parameter.key === key))
   if (!parameters.length || parameters.some(parameter => !parameter)) throw new Error('No valid parameters selected for export.')
@@ -54,7 +56,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const demographicWarnings = data.analysis.messages.filter(message => message.id.startsWith('demographics:'))
   const warningsFor = (id: PatientId) => demographicWarnings.filter(message => message.id.split(':').slice(2).join(':') === patientIdKey(id)).map(message => message.text)
   const conflictKeys = new Set(ids.filter(id => warningsFor(id).length > 0).map(patientIdKey))
-  const specs = workspaceSpecs(data,requestedKeys)
+  const specs = workspaceSpecs(data,requestedKeys,fitConfigByParameterKey)
   const summaries = cohortExportRecords(prepared,0,conflictKeys).map((record,index) => {
     const cell = prepared[Math.floor(index / selectedParameters.length)].cells[index % selectedParameters.length]
     const {Bezeichnung,Einheit,...fields} = record

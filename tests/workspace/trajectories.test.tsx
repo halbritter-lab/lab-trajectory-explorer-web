@@ -236,5 +236,47 @@ describe('real-data trajectories workspace', () => {
     fireEvent(window, new PopStateEvent('popstate', { state: { page: 'Trajectories', mode: 'table' } }))
     expect(screen.getByRole('table')).toBeVisible()
   })
+
+  it('supports selecting the Theil-Sen robust preset and displays Theil-Sen slope', () => {
+    const data = fixture()
+    render(<TrajectoriesWorkspace data={data} />)
+    expect(screen.getByLabelText('Analysis preset')).toHaveValue('general_exploration')
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'theil_sen' } })
+    expect(screen.getByLabelText('Analysis preset')).toHaveValue('theil_sen')
+    expect(screen.getByText(/Theil–Sen: non-parametric median slope/)).toBeInTheDocument()
+    const fitCheckbox = screen.getByRole('checkbox', { name: 'Theil–Sen, slope and R²: Marker · unit-0' })
+    expect(fitCheckbox).toBeInTheDocument()
+    fireEvent.click(fitCheckbox)
+    expect(screen.getAllByText(/Theil–Sen: 1 unit-0\/year/).length).toBeGreaterThan(0)
+  })
+
+  it('supports selecting CKD progression preset and custom pipeline settings', () => {
+    const data = fixture()
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'ckd_progression' } })
+    expect(screen.getByLabelText('Analysis preset')).toHaveValue('ckd_progression')
+    expect(screen.getByText(/CKD progression: quarterly medians/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Aggregation')).toHaveValue('quarterly-median')
+    expect(screen.getByLabelText('Censor after kidney transplant')).toBeChecked()
+
+    // Modifying a custom setting switches preset to custom
+    fireEvent.change(screen.getByLabelText('Aggregation'), { target: { value: 'monthly-median' } })
+    expect(screen.getByLabelText('Analysis preset')).toHaveValue('custom')
+  })
+
+  it('displays rapid eGFR decline badge when slope declines faster than threshold', () => {
+    const data = fixture()
+    data.parameters[0] = { ...data.parameters[0], bezeichnung: 'eGFR', einheit: 'ml/min/1.73m²', label: 'eGFR [ml/min/1.73m²]' }
+    data.rows = data.rows.map(row => {
+      if (row.patientId === 'ID-A' && row.einheit === 'unit-0') {
+        const year = row.labDatum!.getUTCFullYear() - 2020
+        return { ...row, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m²', wertNum: 80 - year * 20 }
+      }
+      return row
+    })
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: eGFR [ml/min/1.73m²]' }))
+    expect(screen.getByText('rapid ↓')).toBeInTheDocument()
+  })
 })
 
