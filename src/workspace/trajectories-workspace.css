@@ -21,18 +21,25 @@
 .wt-muted { color: #5d6f78; font-size: .875rem; }
 .wt-warning { color: #845008; background: #fff3d9; padding: 3px 5px; border-radius: 4px; }
 .wt-table-scroll { overflow-x: auto; max-width: 100%; border: 1px solid #dce5e9; border-radius: 8px; }
-.wt-table { width: max-content; min-width: 100%; border-collapse: collapse; }
-.wt-table th, .wt-table td { vertical-align: top; min-width: 210px; padding: 14px; text-align: left; border-bottom: 1px solid #e0e7eb; }
-.wt-table th:first-child, .wt-table td:first-child { min-width: 70px; width: 70px; max-width: 70px; padding-inline: 8px; position: sticky; left: 0; z-index: 2; background: #f7fafa; box-sizing: border-box; }
-.wt-table th:nth-child(2) { min-width: 140px; width: 140px; max-width: 140px; position: sticky; left: 70px; z-index: 2; box-sizing: border-box; overflow-wrap: anywhere; box-shadow: 2px 0 0 #dce5e9; }
-.wt-table thead th:nth-child(-n+2) { background: #eef4f6; }
-.wt-sparkline { display: block; width: 218px; height: 85px; margin-bottom: 8px; }
+.wt-table { width: max-content; min-width: 100%; border-collapse: collapse; font-size: 12px; }
+.wt-table th, .wt-table td { vertical-align: top; min-width: 176px; padding: 8px 10px; text-align: left; border-bottom: 1px solid #e0e7eb; }
+.wt-table thead th { background: #eef4f6; padding: 8px 10px; font-size: 12px; font-weight: 600; line-height: 1.3; }
+.wt-table thead th:nth-child(-n+2) { background: #eef4f6; z-index: 3; }
+.wt-table th:first-child, .wt-table td:first-child { min-width: 36px; width: 36px; max-width: 36px; padding: 6px 2px; text-align: center; position: sticky; left: 0; z-index: 2; background: #f7fafa; box-sizing: border-box; }
+.wt-table td:first-child { vertical-align: middle; }
+.wt-table th:first-child input[type="checkbox"], .wt-table td:first-child input[type="checkbox"] { cursor: pointer; margin: 0 auto; display: block; }
+.wt-table th:nth-child(2) { min-width: 88px; width: 88px; max-width: 88px; position: sticky; left: 36px; z-index: 2; box-sizing: border-box; overflow-wrap: anywhere; box-shadow: 2px 0 0 #dce5e9; padding: 6px 8px; }
+.wt-table tbody th:nth-child(2) { background: #f7fafa; vertical-align: top; padding: 8px 6px; }
+.wt-table tbody th button { display: inline-block; padding: 2px 6px; font-size: 12px; font-weight: 600; line-height: 1.25; border-radius: 4px; border: 1px solid #b8ccd2; background: #fff; color: #176c68; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wt-table tbody th button:hover { background: #eef6f5; border-color: #176c68; }
+.wt-table tbody tr:hover td { background: #fbfdfc; }
+.wt-table tbody tr:hover th:first-child, .wt-table tbody tr:hover th:nth-child(2) { background: #f2f7f6; }
+.wt-table small { display: block; margin-top: 3px; font-size: 11px; line-height: 1.25; color: #5d6f78; }
+.wt-sparkline { display: block; width: 176px; height: 68px; margin-bottom: 4px; }
 .wt-sparkline text { font: 9px system-ui, sans-serif; fill: #445963; }
-.wt-table thead { background: #eef4f6; }
-.wt-table tbody th { background: #f7fafa; }
-.wt-table small { display: block; margin-top: 8px; }
-.wt-cell-summary { display: grid; gap: 5px; font-size: .85rem; }
-.wt-cell-summary strong { font-size: 1rem; }
+.wt-cell-summary { display: grid; gap: 2px; font-size: .8rem; line-height: 1.35; }
+.wt-cell-summary strong { font-size: .88rem; color: #1d333e; }
+.wt-cell-summary span { color: #4b606a; }
 .wt-plot-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 500px), 1fr)); gap: 20px; }
 .wt-plot-card { padding: 20px; border: 1px solid #dce5e9; border-radius: 12px; background: #fff; min-width: 0; }
 .wt-plot { display: block; width: 100%; height: auto; overflow: visible; }

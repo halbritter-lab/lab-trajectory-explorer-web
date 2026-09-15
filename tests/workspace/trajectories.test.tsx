@@ -209,7 +209,7 @@ describe('real-data trajectories workspace', () => {
     expect(document.documentElement.scrollTop).toBe(720)
     expect(screen.getByRole('button', { name: 'Open patient ID-A' })).toHaveFocus()
     expect(screen.getByLabelText('Jump to parameter')).toBeInTheDocument()
-    fireEvent.click(screen.getByRole('button', { name: 'Scroll columns right' }))
+    fireEvent.change(screen.getByLabelText('Jump to parameter'), { target: { value: JSON.stringify(['Marker', 'unit-2']) } })
     expect(screen.getByRole('region', { name: 'Patient table, horizontal scrolling' }).scrollLeft).toBeGreaterThan(340)
   })
 
