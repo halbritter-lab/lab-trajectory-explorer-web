@@ -77,7 +77,8 @@ export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fit
     const fitConfig = fitConfigByParameterKey?.[key] ?? generalExplorationConfig(parameter)
     const mode = fitConfig.fitModel === 'theil-sen' ? 'global-robust' as const : 'global' as const
     return [{ bezeichnung: parameter.bezeichnung, einheit: parameter.einheit, mode,
-      fitConfig, clinicalEventsByPatient, fitInputs: data.analysis.fitInputs }]
+      fitConfig, exclusionDays: fitConfig.exclusions.akiExclusionDays,
+      clinicalEventsByPatient, fitInputs: data.analysis.fitInputs }]
   })
 }
 

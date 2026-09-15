@@ -5,10 +5,32 @@ import process from 'node:process'
 
 
 import { workspaceWorkbookBytes, exportChartSvg, safeExportFilename } from '../../src/workspace/workspace-export'
+import { defaultFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
 
 function records(workbook: XLSX.WorkBook, name: string) {return XLSX.utils.sheet_to_json<Record<string,unknown>>(workbook.Sheets[name])}
 
 describe('workspace workbook', () => {
+  it('exports each column model and rapid-decline threshold with matching flags', () => {
+    const input = exportFixture()
+    const first = input.data.parameters.find(p => p.key === input.parameterKeys[0])!
+    const second = input.data.parameters.find(p => p.key === input.parameterKeys[1])!
+    const cell = input.cohortRows[0].cells.find(c => c.bezeichnung === second.bezeichnung)!
+    cell.slope = -8
+    const configs = {
+      [first.key]: toFitConfig(defaultFitSettings(), first),
+      [second.key]: toFitConfig(defaultFitSettings('theil_sen'), second),
+    }
+    for (const threshold of [5, 10]) {
+      const workbook = XLSX.read(workspaceWorkbookBytes({ ...input, fitConfigByParameterKey: configs,
+        rapidEgfrThresholdByParameterKey: { [first.key]: 5, [second.key]: threshold },
+      }), { type: 'array' })
+      const settings = records(workbook, 'settings')
+      expect(JSON.parse(String(settings[0].fit_config)).fitModel).toBe('ols')
+      expect(JSON.parse(String(settings[1].fit_config)).fitModel).toBe('theil-sen')
+      expect(settings[1].rapid_egfr_threshold).toBe(threshold)
+      expect(records(workbook, 'cohort').find(row => row.Parameter === second.bezeichnung)?.rapid_progression).toBe(threshold === 5 ? 'yes' : '')
+    }
+  })
   it('preserves UTC import dates in a negative-offset timezone', () => {
     const previous = process.env.TZ
     process.env.TZ = 'America/Los_Angeles'

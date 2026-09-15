@@ -12,6 +12,60 @@ function fixture(): WorkspaceData {
 }
 
 describe('real-data trajectories workspace', () => {
+  it('keeps column settings independent and restores inheritance on reset', () => {
+    const data = fixture()
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: Marker · unit-0' }))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: Marker · unit-1' }))
+    fireEvent.change(screen.getByLabelText('Edit analysis settings for'), { target: { value: data.parameters[0].key } })
+    fireEvent.change(screen.getByLabelText('Fit model'), { target: { value: 'theil-sen' } })
+    fireEvent.click(screen.getByLabelText('Censor after kidney transplant'))
+    expect(screen.getAllByText(/Theil–Sen: 1 unit-0\/year/)).toHaveLength(2)
+    expect(screen.getAllByText(/OLS: 1 unit-1\/year/)).toHaveLength(2)
+
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
+    const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
+    expect(within(chart).getByText('Dashed: individual Theil–Sen lines from the prepared analyses.')).toBeInTheDocument()
+    expect(chart.querySelector('svg')!.getAttribute('data-export-context')).toContain('individual Theil–Sen fits')
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+
+    fireEvent.change(screen.getByLabelText('Edit analysis settings for'), { target: { value: '' } })
+    expect(screen.getByLabelText('Censor after kidney transplant')).not.toBeChecked()
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'acute_review' } })
+    expect(screen.getAllByText(/Theil–Sen: 1 unit-0\/year/)).toHaveLength(2)
+    expect(screen.getAllByText('Fit model disabled')).toHaveLength(2)
+
+    fireEvent.change(screen.getByLabelText('Edit analysis settings for'), { target: { value: data.parameters[0].key } })
+    expect(screen.getByLabelText('Fit model')).toHaveValue('theil-sen')
+    expect(screen.getByLabelText('Censor after kidney transplant')).toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Use shared settings' }))
+    expect(screen.getByLabelText('Fit model')).toHaveValue('none')
+    expect(screen.getAllByText('Fit model disabled')).toHaveLength(4)
+    fireEvent.change(screen.getByLabelText('Edit analysis settings for'), { target: { value: '' } })
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'general_exploration' } })
+    expect(screen.getAllByText(/OLS: 1 unit-0\/year/)).toHaveLength(2)
+  })
+
+  it('applies a column preset only to that column and retains it across views and selection changes', () => {
+    const data = fixture()
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.change(screen.getByLabelText('Edit analysis settings for'), { target: { value: data.parameters[0].key } })
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'ckd_progression' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
+    expect(screen.getByLabelText('Aggregation')).toHaveValue('quarterly-median')
+    fireEvent.change(screen.getByLabelText('Edit analysis settings for'), { target: { value: data.parameters[1].key } })
+    expect(screen.getByLabelText('Aggregation')).toHaveValue('raw')
+    fireEvent.click(screen.getByRole('button', { name: 'Choose parameters' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('checkbox', { name: 'Marker · unit-0' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Choose parameters' }))
+    fireEvent.click(within(screen.getByRole('dialog')).getByRole('checkbox', { name: 'Marker · unit-0' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
+    fireEvent.change(screen.getByLabelText('Edit analysis settings for'), { target: { value: data.parameters[0].key } })
+    expect(screen.getByLabelText('Analysis preset')).toHaveValue('ckd_progression')
+    expect(screen.getByLabelText('Aggregation')).toHaveValue('quarterly-median')
+  })
+
   it('preserves negative measurements in the shared domain', () => {
     const data = fixture()
     data.rows = data.rows.map(row => row.einheit === 'unit-0' ? { ...row, wertNum: row.patientId === 'ID-A' ? -3 : 2 } : row)

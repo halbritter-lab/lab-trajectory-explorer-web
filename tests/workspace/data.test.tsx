@@ -4,9 +4,40 @@ import { useAppStore } from '../../src/ui/state/store'
 import { useWorkspaceData, workspaceSpecs, importWorkspaceFile } from '../../src/workspace/workspace-data'
 import type { LabRow } from '../../src/core/types'
 import * as XLSX from 'xlsx'
+import { buildCohortRows } from '../../src/core/cohort/screening'
+import { episodesForSeries } from '../../src/core/aki/akiAware'
+import { defaultFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
 
 const row = (patch: Partial<LabRow> = {}): LabRow => ({ patientId: 'A:01', labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl', wert: '1', wertNum: 1, wertOperator: '=', loinc: null, patientSex: 'm', patientAgeAtLab: 50, ...patch })
 beforeEach(() => useAppStore.getState().reset())
+it.each([false, true])('applies each column AKI window to exclusions, summaries and fit lines (prepared inputs: %s)', preparedInputs => {
+  const measurements = [
+    ['2019-01-01', 1], ['2019-06-01', 1.1], ['2020-01-01', 1.05], ['2020-07-30', 1.15],
+    ['2020-08-01', 2.4], ['2020-08-10', 1.8], ['2020-10-01', 1.2], ['2021-06-01', 1.3],
+  ] as const
+  const rows = ['Kreatinin', 'Creatinine'].flatMap(bezeichnung => measurements.map(([date, value]) => row({
+    bezeichnung, labDatum: new Date(`${date}T00:00:00Z`), wertNum: value, wert: String(value),
+  })))
+  useAppStore.getState().setDataset(rows)
+  const { result } = renderHook(useWorkspaceData)
+  const data = result.current
+  const parameters = ['Kreatinin', 'Creatinine'].map(name => data.parameters.find(p => p.bezeichnung === name)!)
+  const inputData = { ...data, analysis: { ...data.analysis, fitInputs: preparedInputs ? parameters.map(parameter => ({
+    id: `aki:${parameter.key}`, patientId: 'A:01', seriesKey: parameter, kind: 'aki-aware' as const,
+    exclusionDays: 30, episodes: episodesForSeries(rows, 'A:01', parameter.bezeichnung, parameter.einheit),
+  })) : [] } }
+  const configs = Object.fromEntries(parameters.map((parameter, index) => [parameter.key, toFitConfig({
+    ...defaultFitSettings(), exclusions: { excludeAkiWindows: true, akiExclusionDays: index === 0 ? 0 : 30 },
+  }, parameter)]))
+  const specs = workspaceSpecs(inputData, parameters.map(p => p.key), configs)
+  const [zeroDay, thirtyDay] = buildCohortRows(data.rows, ['A:01'], specs)[0].cells
+  expect(zeroDay.excludedIdx).toEqual([4])
+  expect(thirtyDay.excludedIdx).toEqual([4, 5])
+  expect(zeroDay.nFitted).toBe(7)
+  expect(thirtyDay.nFitted).toBe(6)
+  expect(zeroDay.slope).toBeGreaterThan(thirtyDay.slope)
+  expect(zeroDay.fitLines[0].at(-1)!.value).toBeGreaterThan(thirtyDay.fitLines[0].at(-1)!.value)
+})
 it('exposes explicit birth anchors and marks manual or inferred anchors as estimated', () => {
   useAppStore.getState().setDataset([row({ patientBirthDate: new Date('1970-08-15') })])
   const { result } = renderHook(useWorkspaceData)

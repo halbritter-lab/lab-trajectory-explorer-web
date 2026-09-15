@@ -32,6 +32,44 @@ async function upload(page: Page) {
   await expect(page.locator('.workspace-dataset')).toContainText('3 patients')
 }
 
+test('column analysis settings stay independent and export on desktop and mobile', async ({ page }, testInfo) => {
+  await upload(page)
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await page.getByText('Display and analysis', { exact: true }).click()
+  const scope = page.getByLabel('Edit analysis settings for')
+  const key = await scope.locator('option').nth(1).getAttribute('value')
+  await scope.selectOption(key!)
+  await page.getByText('Advanced pipeline settings', { exact: true }).click()
+  await page.getByLabel('Fit model', { exact: true }).selectOption('theil-sen')
+  await page.getByLabel('Rapid decline threshold').fill('7.5')
+  await scope.selectOption('')
+  await page.getByLabel('Analysis preset', { exact: true }).selectOption('acute_review')
+  await scope.selectOption(key!)
+  await expect(page.getByLabel('Fit model', { exact: true })).toHaveValue('theil-sen')
+  await expect(page.getByLabel('Rapid decline threshold')).toHaveValue('7.5')
+  await expect(page.getByLabel('AKI exclusion days')).toBeDisabled()
+
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    const panel = page.locator('.wt-analysis-card')
+    await panel.scrollIntoViewIfNeeded()
+    const overflow = await panel.evaluate(element => element.scrollWidth > element.clientWidth)
+    expect(overflow).toBe(false)
+    await panel.screenshot({ path: testInfo.outputPath(`analysis-${width}.png`) })
+  }
+  const downloadEvent = page.waitForEvent('download')
+  await page.getByRole('button', { name: /Export cohort/ }).click()
+  const download = await downloadEvent
+  const workbook = XLSX.read(await readFile((await download.path())!), { type: 'buffer' })
+  const settings = XLSX.utils.sheet_to_json<{ parameter_key: string; fit_config: string; rapid_egfr_threshold: number }>(workbook.Sheets.settings)
+  const own = settings.find(row => row.parameter_key === key)!
+  expect(JSON.parse(own.fit_config).fitModel).toBe('theil-sen')
+  expect(own.rapid_egfr_threshold).toBe(7.5)
+  expect(settings.filter(row => row.parameter_key !== key).every(row => JSON.parse(row.fit_config).fitModel === 'none')).toBe(true)
+  await page.getByRole('button', { name: 'Use shared settings' }).click()
+  await expect(page.getByLabel('Fit model', { exact: true })).toHaveValue('none')
+})
+
 test('real workbook: quality, derivation, many parameters, shared scope and actual exports', async ({ page }) => {
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
