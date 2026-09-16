@@ -332,5 +332,37 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: eGFR [ml/min/1.73m²]' }))
     expect(screen.getByText('rapid ↓')).toBeInTheDocument()
   })
-})
 
+  it('sorts cohort table by patient ID, latest value, slope, and duration', () => {
+    const data = fixture()
+    // Give ID-A and ID-B distinct values so sort order is verifiable
+    data.rows = data.rows.map(row => {
+      if (row.patientId === 'ID-A' && row.einheit === 'unit-0') {
+        const year = row.labDatum!.getUTCFullYear() - 2020
+        return { ...row, wertNum: 50 - year * 10 } // slope -10, latest 30
+      }
+      if (row.patientId === 'ID-B' && row.einheit === 'unit-0') {
+        const year = row.labDatum!.getUTCFullYear() - 2020
+        return { ...row, wertNum: 20 + year * 5 } // slope +5, latest 30
+      }
+      return row
+    })
+    render(<TrajectoriesWorkspace data={data} />)
+    // Default sort: ID A -> Z
+    const getPatientRows = () => screen.getAllByRole('row').slice(1).map(r => within(r).getByRole('button', { name: /Open patient/ }).textContent)
+    expect(getPatientRows()).toEqual(['ID-A', 'ID-B'])
+
+    // Sort by ID descending
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'id:desc' } })
+    expect(getPatientRows()).toEqual(['ID-B', 'ID-A'])
+
+    // Sort by Slope (steep decline first): ID-A (-10) should come before ID-B (+5)
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: `${data.parameters[0].key}:slope` } })
+    expect(getPatientRows()).toEqual(['ID-A', 'ID-B'])
+
+    // Clicking header sort toggles between metrics
+    const headerSortBtn = screen.getByTitle(`Sort by ${data.parameters[0].label}`)
+    fireEvent.click(headerSortBtn)
+    expect(screen.getByLabelText('Sort by')).toHaveValue(`${data.parameters[0].key}:absSlope`)
+  })
+})

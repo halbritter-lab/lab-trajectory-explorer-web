@@ -189,10 +189,45 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
     const patient = data.patients.find(p => p.id === row.patientId)
     return (!selectedOnly || selected.includes(row.patientId)) && (!group || groupValue(row.patientId) === group) && `${row.patientId} ${patient?.label ?? ''}`.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
   }).sort((a, b) => {
-    const index = keys.indexOf(sort)
+    if (sort === 'id') return comparePatientIds(a.patientId, b.patientId)
+    if (sort === 'id:desc') return comparePatientIds(b.patientId, a.patientId)
+    const [paramKey, rawMetric] = sort.includes(':') ? sort.split(':') : [sort, 'latest']
+    const metric = rawMetric || 'latest'
+    const index = keys.indexOf(paramKey)
     if (index < 0) return comparePatientIds(a.patientId, b.patientId)
-    const left = a.cells[index].points.at(-1)?.value, right = b.cells[index].points.at(-1)?.value
-    return left === undefined ? right === undefined ? comparePatientIds(a.patientId, b.patientId) : 1 : right === undefined ? -1 : right - left || comparePatientIds(a.patientId, b.patientId)
+    const cellA = a.cells[index]
+    const cellB = b.cells[index]
+    let valA: number | undefined
+    let valB: number | undefined
+    let ascending = false
+
+    if (metric === 'slope') {
+      valA = Number.isFinite(cellA?.slope) ? cellA.slope : undefined
+      valB = Number.isFinite(cellB?.slope) ? cellB.slope : undefined
+      ascending = true
+    } else if (metric === 'absSlope') {
+      valA = Number.isFinite(cellA?.slope) ? Math.abs(cellA.slope) : undefined
+      valB = Number.isFinite(cellB?.slope) ? Math.abs(cellB.slope) : undefined
+      ascending = false
+    } else if (metric === 'n') {
+      valA = cellA?.nNumeric ?? 0
+      valB = cellB?.nNumeric ?? 0
+      ascending = false
+    } else if (metric === 'duration') {
+      valA = cellA?.spanDays ?? 0
+      valB = cellB?.spanDays ?? 0
+      ascending = false
+    } else {
+      valA = cellA?.points.at(-1)?.value
+      valB = cellB?.points.at(-1)?.value
+      ascending = false
+    }
+
+    if (valA === undefined && valB === undefined) return comparePatientIds(a.patientId, b.patientId)
+    if (valA === undefined) return 1
+    if (valB === undefined) return -1
+    const diff = ascending ? valA - valB : valB - valA
+    return diff || comparePatientIds(a.patientId, b.patientId)
   })
   const visible = filtered.map(row => groupBy ? { ...row, groupValue: groupValue(row.patientId) } : row)
   const zoomDomains = specs.map((_, index): SparkDomain => {
@@ -288,7 +323,25 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
         <label>Search patients<input value={query} onChange={event => setQuery(event.target.value)} placeholder="ID or name" /></label>
         <label>Group by<select value={groupBy} onChange={event => { setGroupBy(event.target.value); setGroup('') }}><option value="">No grouping</option>{attributes.map(attribute => <option key={attribute}>{attribute}</option>)}</select></label>
         <label>Filter group<select value={group} disabled={!groupBy} onChange={event => setGroup(event.target.value)}><option value="">All groups</option>{groupBy && groups.map(value => <option key={value} value={value}>{groupLabel(value)}</option>)}</select></label>
-        <label>Sort by<select value={keys.includes(sort) ? sort : 'id'} onChange={event => setSort(event.target.value)}><option value="id">Patient ID</option>{parameters.map(p => <option key={p.key} value={p.key}>Latest value: {p.label} ↓</option>)}</select></label>
+        <label>Sort by
+          <select
+            aria-label="Sort by"
+            value={keys.some(k => sort.startsWith(k)) ? (sort.includes(':') ? sort : `${sort}:latest`) : (sort === 'id:desc' ? 'id:desc' : 'id')}
+            onChange={event => setSort(event.target.value)}
+          >
+            <option value="id">Patient ID (A → Z)</option>
+            <option value="id:desc">Patient ID (Z → A)</option>
+            {parameters.map(p => (
+              <optgroup key={p.key} label={p.label}>
+                <option value={`${p.key}:latest`}>Latest value: {p.label} ↓</option>
+                <option value={`${p.key}:slope`}>Slope: {p.label} (steep decline first) ↑</option>
+                <option value={`${p.key}:absSlope`}>Absolute slope: {p.label} ↓</option>
+                <option value={`${p.key}:n`}>Most measurements: {p.label} ↓</option>
+                <option value={`${p.key}:duration`}>Longest duration: {p.label} ↓</option>
+              </optgroup>
+            ))}
+          </select>
+        </label>
       </div>
       <div className="wt-toolbar"><label><input type="checkbox" checked={selectedOnly} onChange={event => setSelectedOnly(event.target.checked)} /> Selected patients only</label><span>{selected.length} selected · {visible.length} in the shared scope</span><button onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])} disabled={!patientIds.length}>Select visible patients</button><button onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div>
     </section>
@@ -316,7 +369,35 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
     {mode === 'table' && parameters.length > 0 && <div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Choose parameters …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><span className="wt-muted">{scaleMode === 'shared' ? 'Shared parameter scales.' : 'Zoomed visible-value scales.'} Time since first measurement; patient IDs stay visible while scrolling.</span></div>}
     {!visible.length && <p className="card">No matching patients. Change the search, group filter, or selection.</p>}
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
-    {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table"><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select all visible patients" title="Select all visible patients" ref={element => { if (element) { element.indeterminate = visible.some(r => selected.includes(r.patientId)) && !visible.every(r => selected.includes(r.patientId)) } }} checked={visible.length > 0 && visible.every(r => selected.includes(r.patientId))} onChange={event => setSelected(event.target.checked ? [...new Set([...selected, ...patientIds])] : selected.filter(id => !patientIds.includes(id)))} /></th><th>Patient</th>{parameters.map(p => <th key={p.key} ref={element => { if (element) parameterHeaders.current.set(p.key, element); else parameterHeaders.current.delete(p.key) }}>{p.label}{p.derived ? ' · derived' : ''}</th>)}</tr></thead><tbody>{visible.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selected.includes(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} fit={fitKeys.includes(keys[i])} measurements={measurementsFor(row.patientId, cell)} rapidEgfrThreshold={(columnSettings[keys[i]] ?? fitSettings).rapidEgfrThreshold} /></td>)}</tr>)}</tbody></table></div>}
+    {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table"><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select all visible patients" title="Select all visible patients" ref={element => { if (element) { element.indeterminate = visible.some(r => selected.includes(r.patientId)) && !visible.every(r => selected.includes(r.patientId)) } }} checked={visible.length > 0 && visible.every(r => selected.includes(r.patientId))} onChange={event => setSelected(event.target.checked ? [...new Set([...selected, ...patientIds])] : selected.filter(id => !patientIds.includes(id)))} /></th><th aria-label="Patient"><button type="button" aria-hidden="true" tabIndex={-1} className="wt-sort-header-button" onClick={() => setSort(sort === 'id' ? 'id:desc' : 'id')}>Patient {sort === 'id' ? '↑' : sort === 'id:desc' ? '↓' : ''}</button></th>{parameters.map(p => {
+      const isSorted = sort.startsWith(p.key)
+      const metric = isSorted ? (sort.split(':')[1] || 'latest') : null
+      const metricLabel = metric === 'latest' ? '↓ val' : metric === 'slope' ? '↑ slope' : metric === 'absSlope' ? '↓ |slope|' : metric === 'n' ? '↓ n' : metric === 'duration' ? '↓ dur' : null
+      return (
+        <th key={p.key} aria-label={p.derived ? `${p.label} · derived` : p.label} ref={element => { if (element) parameterHeaders.current.set(p.key, element); else parameterHeaders.current.delete(p.key) }}>
+          <div className="wt-th-content">
+            <span>{p.label}{p.derived ? ' · derived' : ''}</span>
+            <button
+              type="button"
+              aria-hidden="true"
+              tabIndex={-1}
+              className={`wt-sort-header-button ${isSorted ? 'active' : ''}`}
+              title={`Sort by ${p.label}`}
+              onClick={() => {
+                if (sort === `${p.key}:latest`) setSort(`${p.key}:slope`)
+                else if (sort === `${p.key}:slope`) setSort(`${p.key}:absSlope`)
+                else if (sort === `${p.key}:absSlope`) setSort(`${p.key}:n`)
+                else if (sort === `${p.key}:n`) setSort(`${p.key}:duration`)
+                else if (sort === `${p.key}:duration`) setSort('id')
+                else setSort(`${p.key}:latest`)
+              }}
+            >
+              {metricLabel ?? '↕'}
+            </button>
+          </div>
+        </th>
+      )
+    })}</tr></thead><tbody>{visible.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selected.includes(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} fit={fitKeys.includes(keys[i])} measurements={measurementsFor(row.patientId, cell)} rapidEgfrThreshold={(columnSettings[keys[i]] ?? fitSettings).rapidEgfrThreshold} /></td>)}</tr>)}</tbody></table></div>}
     {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <WorkspacePlot key={`${parameter.key}-${groupBy}`} data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} />)}</div>}
     {mode === 'detail' && current && <section><div className="wt-toolbar"><button type="button" className="wt-back-button" aria-label={`Back to ${returnMode}`} onClick={() => {
       if (returnMode === 'table') tablePosition.current.restore = true

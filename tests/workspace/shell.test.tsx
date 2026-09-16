@@ -51,7 +51,7 @@ describe('workspace shell', () => {
     render(<WorkspaceApp />)
     fireEvent.click(screen.getByRole('button', { name: /^Cohort models$/ }))
     expect(screen.queryByRole('button', { name: /calculate/i })).not.toBeInTheDocument()
-    expect(screen.getByText(/not yet connected/)).toBeVisible()
+    expect(screen.getByRole('heading', { level: 1, name: 'Cohort models' })).toBeVisible()
   })
   it('navigates between pages on browser popstate', () => {
     render(<WorkspaceApp />)

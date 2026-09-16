@@ -77,5 +77,8 @@
 .wt-trend-visibility h3 { margin: 0 0 6px; font-size: 15px; }
 .wt-trend-visibility p { margin: 0 0 12px; font-size: 13px; }
 .wt-setting-origin { font-size: 12px; color: #176c68; font-weight: 600; white-space: nowrap; }
+.wt-th-content { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.wt-sort-header-button { background: transparent; border: 1px solid transparent; padding: 2px 6px; font-size: 11px; border-radius: 4px; color: #647a7e; cursor: pointer; line-height: 1.2; }
+.wt-sort-header-button:hover, .wt-sort-header-button.active { border-color: #cbd8d6; background: #f1f7f5; color: #176c68; font-weight: 600; }
 @media (max-width: 700px) { .wt-analysis-selectors, .wt-pipeline-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) { .wt-plot-card { padding: 12px; } .wt-card-heading { gap: 8px; } .wt-workspace { gap: 14px; } }

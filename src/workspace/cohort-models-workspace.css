@@ -1,0 +1,263 @@
+/* Cohort Models Workspace Styling */
+.cohort-models-workspace {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.cohort-model {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.mixed-model-inline-config {
+  background: #fff;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 3px 14px rgba(21, 57, 44, 0.02);
+}
+
+.mixed-model-config-summary {
+  margin-bottom: 16px;
+}
+
+.mixed-model-message {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted, #62757c);
+}
+
+.mixed-model-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  border-top: 1px solid var(--border, #dce4e2);
+  padding-top: 16px;
+}
+
+.mixed-model-config-fieldset {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 8px;
+  background: #fafcfb;
+}
+
+.mixed-model-config-fieldset legend {
+  font-size: 12px;
+  font-weight: 700;
+  color: #355754;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 6px;
+}
+
+.mixed-model-config-fieldset label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.mixed-model-config-fieldset select,
+.mixed-model-config-fieldset input[type="text"],
+.mixed-model-config-fieldset input[type="number"] {
+  padding: 7px 9px;
+  border: 1px solid #cbd8d6;
+  border-radius: 6px;
+  background: white;
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mixed-model-config-check {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.mixed-model-config-check input {
+  margin: 0;
+  accent-color: var(--accent, #176c68);
+}
+
+.mixed-model-config-pairs {
+  margin: 10px 0;
+}
+
+.mixed-model-config-pairs div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.mixed-model-config-pairs dt {
+  color: var(--muted, #62757c);
+}
+
+.mixed-model-config-pairs dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.mixed-model-config-validation {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.mixed-model-config-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #dce4e2);
+  flex-wrap: wrap;
+}
+
+.mixed-model-config-formula {
+  display: block;
+  font-family: monospace;
+  font-size: 12px;
+  background: #f4f7f6;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-top: 6px;
+  overflow-x: auto;
+}
+
+/* Results table */
+.mixed-model-panel {
+  background: #fff;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 3px 14px rgba(21, 57, 44, 0.02);
+}
+
+.mixed-model-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.cohort-model-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cohort-model-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cohort-model-table th,
+.cohort-model-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #dce4e2);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.cohort-model-table th {
+  font-weight: 600;
+  color: #4a6360;
+  background: #f8faf9;
+}
+
+.cohort-model-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.cohort-model-table .group-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.cohort-model-details-cell {
+  background: #f8faf9;
+  padding: 16px !important;
+}
+
+.cohort-model-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 20px;
+  margin: 8px 0;
+}
+
+.cohort-model-details dt {
+  font-size: 11px;
+  color: var(--muted, #62757c);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cohort-model-details dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.cohort-model-detail-item-wide {
+  grid-column: 1 / -1;
+}
+
+/* Projection panel */
+.model-projection-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #dce4e2);
+}
+
+.model-projection-panel fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.model-projection-panel input:not([type="checkbox"]),
+.model-projection-panel select {
+  padding: 7px 9px;
+  border: 1px solid #cbd8d6;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.model-projection-results {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+@media (max-width: 800px) {
+  .mixed-model-options-grid {
+    grid-template-columns: 1fr;
+  }
+}

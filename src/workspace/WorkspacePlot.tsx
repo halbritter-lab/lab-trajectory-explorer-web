@@ -6,6 +6,8 @@ import type { WorkspaceData, WorkspaceParameter } from './workspace-data'
 import { ChartExportActions } from './WorkspaceExports'
 import type { SparkDomain } from './WorkspaceSparkline'
 import { sexLabel } from './workspace-labels'
+import { useAppStore } from '../ui/state/store'
+import { mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
 
 export type WorkspaceAxis = 'baseline' | 'calendar' | 'age'
 export interface WorkspaceDisplay { points: boolean; connect: boolean; events: boolean }
@@ -97,12 +99,35 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)' : 'Years since first measurement of this parameter'
   const hasHighlight = visible.some(p => p.row.patientId === highlight)
   const exportTitle = cohortRows.length === 1 ? `Patient ${cohortRows[0].patientId} · ${parameter.label}` : parameter.label
+
+  const cohortModelResults = useAppStore(s => s.cohortModelResults)
+  const showCohortMixedModelLine = useAppStore(s => s.showCohortMixedModelLine)
+
+  const cohortModelLine = useMemo(() => {
+    if (!showCohortMixedModelLine || !cohortModelResults || (axis !== 'baseline' && axis !== 'age')) return null
+    const stored = cohortModelResults['cohort']
+    if (!stored || stored.result.status !== 'success' || !stored.result.converged) return null
+    if (stored.identity.seriesKey && !stored.identity.seriesKey.startsWith(parameter.bezeichnung)) return null
+    const modelRows = visible.flatMap(series => series.points.map(pt => ({
+      patient_id: String(series.row.patientId),
+      time_since_baseline: pt.x,
+      eGFR: pt.value,
+      baseline_age_centered: 0,
+    })))
+    if (modelRows.length === 0) return null
+    const meanPoints = mixedModelMeanLinePoints(stored.result, modelRows, {
+      baselineAgeCentered: 0,
+      ageAxisBaselineAge: axis === 'age' ? (xMin + xMax) / 2 : null,
+    })
+    return meanPoints.filter(pt => Number.isFinite(pt.time_since_baseline) && Number.isFinite(pt.eGFR))
+  }, [showCohortMixedModelLine, cohortModelResults, parameter.bezeichnung, axis, visible, xMin, xMax])
+
   return <section className="wt-plot-card" aria-label={`Chart ${parameter.label}`}>
     <div className="wt-card-heading"><h3>{parameter.label}</h3><ChartExportActions getSvg={() => svg.current} title={exportTitle} /></div>
     {groupBy && <div className="wt-legend" role="group" aria-label={`Groups for ${parameter.label}`}>{groups.map(group => <button key={group} aria-pressed={!hiddenGroups.includes(group)} onClick={() => setHiddenGroups(previous => previous.includes(group) ? previous.filter(g => g !== group) : [...previous, group])}><span style={{ color: groupColor(group) }}>● </span>{groupLabel(group)}{hiddenGroups.includes(group) ? ' (hidden)' : ''}</button>)}</div>}
     <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? ` · ${visible.length} of ${cohortRows.length} trajectories` : ''}{withoutValues > 0 ? ` · ${withoutValues} without numeric measurements` : ''}{withoutAge > 0 ? ` · ${withoutAge} additional trajectories without age data` : ''}</p>
     {axis === 'age' && <p className="wt-muted">{cohortRows.length === 1 ? visible[0]?.ageEstimated ? 'Age: estimated birth-date anchor.' : visible.length ? 'Age: recorded birth date.' : 'Age unavailable.' : `${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors; other ages use recorded birth dates.`}</p>}
-    {!visible.length ? <p>No trajectories can be plotted. Check measurements, ages, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-y-min={yMin} data-y-max={yMax} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? fitModel === 'none' ? '; Fit model disabled' : `; ${uncertain} uncertain individual ${modelLabel} fits; ${noFit} without a fit` : ''}`}>
+    {!visible.length ? <p>No trajectories can be plotted. Check measurements, ages, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-y-min={yMin} data-y-max={yMax} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? fitModel === 'none' ? '; Fit model disabled' : `; ${uncertain} uncertain individual ${modelLabel} fits; ${noFit} without a fit` : ''}${cohortModelLine ? '; Cohort mixed model mean line' : ''}`}>
       <title>{parameter.label} · {axisLabel}</title>
       <desc>Measurements for the selected patients. Press Enter or Space to open a trajectory. Research use only.</desc>
       <defs><clipPath id={clip}><rect x="65" y="20" width="565" height="230" /></clipPath></defs>
@@ -122,9 +147,23 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
           {display.events && data.events.filter(event => event.patientId === series.row.patientId).map((event, i) => { const position = series.xValue(event.date); return position === null ? null : <line key={i} x1={x(position)} x2={x(position)} y1="30" y2="240" stroke="#936221" strokeDasharray="2 5"><title>Patient {event.patientId}: {event.title}, {formatWorkspaceDate(event.date)}</title></line> })}
         </g>
       })}
+      {cohortModelLine && cohortModelLine.length > 1 && (
+        <g clipPath={`url(#${clip})`} className="wt-cohort-model-line">
+          <polyline
+            points={cohortModelLine.map(p => `${x(axis === 'age' && p.age !== undefined ? p.age : p.time_since_baseline)},${y(p.eGFR)}`).join(' ')}
+            fill="none"
+            stroke="#0f172a"
+            strokeWidth={3}
+            strokeDasharray="8 4"
+          >
+            <title>Cohort mixed model mean trajectory</title>
+          </polyline>
+        </g>
+      )}
     </svg>}
     {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length})</summary>{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId} · {formatWorkspaceDate(event.date)} · {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` · ${event.description}` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
     {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}
+    {cohortModelLine && <p className="wt-muted">Dark dashed line: fitted population mixed-model trajectory.</p>}
     {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurements or less than one year of follow-up. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
     {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Hollow points marked &lt; or &gt; are bounds, not exact measurements. The existing fit uses their numeric limits.</p>}
