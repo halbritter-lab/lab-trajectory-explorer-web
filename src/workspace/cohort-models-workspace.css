@@ -261,3 +261,271 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Model Studio & Presets Styling */
+.cm-studio-card {
+  display: grid;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+}
+
+.cm-primary-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.cm-preset-section {
+  display: grid;
+  gap: 8px;
+}
+
+.cm-preset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cm-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  background: #f8fafc;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cm-preset-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.cm-preset-btn.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+}
+
+.cm-preset-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+/* Covariates & Factor Chips */
+.cm-factors-container {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.cm-factors-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cm-factors-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.cm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cm-chip-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cm-chip select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.cm-chip-remove {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.cm-chip-remove:hover {
+  color: #ef4444;
+}
+
+.cm-add-factor-wrap select {
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+/* Random effects toggle */
+.cm-random-effects-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.cm-random-effects-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* Formula & Sample Info */
+.cm-formula-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #0f172a;
+  border-radius: 8px;
+  color: #f8fafc;
+  font-size: 13px;
+}
+
+.cm-formula-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #38bdf8;
+}
+
+.cm-sample-meta {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Fit Action Bar */
+.cm-studio-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 6px;
+}
+
+.cm-fit-button {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+/* Plot Card */
+.cm-plot-card {
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+}
+
+.cm-plot-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.cm-plot-header h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.cm-plot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cm-slope-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1.5px solid;
+  border-radius: 16px;
+  font-size: 12px;
+  background: #ffffff;
+}
+
+.cm-badge-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.cm-plot-svg-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cm-plot-svg {
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  display: block;
+}
+
+.cm-axis-text {
+  font-size: 11px;
+  fill: #64748b;
+  font-family: inherit;
+}
+
+.cm-watermark-text {
+  font-size: 12px;
+  fill: #475569;
+  font-weight: 500;
+}
+

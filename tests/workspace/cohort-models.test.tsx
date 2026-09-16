@@ -7,12 +7,12 @@ import type { WorkspaceData } from '../../src/workspace/workspace-data'
 
 
 
-vi.mock('../../src/ui/cohort/CohortModelPanel', () => ({
-  CohortModelPanel: (props: any) => (
-    <div data-testid="cohort-model-panel">
-      <span>Mocked CohortModelPanel</span>
+vi.mock('../../src/ui/cohort/CohortModelTable', () => ({
+  CohortModelTable: (props: any) => (
+    <div data-testid="cohort-model-table">
+      <span>Mocked CohortModelTable</span>
       <span>Series: {props.seriesKey}</span>
-      <span>Patients: {props.patientIds.length}</span>
+      <span>Entities: {props.entities?.length ?? 0}</span>
     </div>
   ),
 }))
@@ -109,7 +109,7 @@ describe('CohortModelsWorkspace', () => {
     expect(onBrowseData).toHaveBeenCalledTimes(1)
   })
 
-  it('renders model parameter and grouping controls when data is loaded', async () => {
+  it('renders model parameter, presets, and plot preview when data is loaded', async () => {
     const onBrowseTrajectories = vi.fn()
     render(
       <CohortModelsWorkspace
@@ -126,23 +126,69 @@ describe('CohortModelsWorkspace', () => {
     expect(paramSelect).toBeInTheDocument()
     expect(paramSelect.value).toBe('eGFR||mL/min/1.73m²')
 
-    // Grouping dropdown includes attributes from patientAttributes and rows
+    // Preset buttons
+    expect(screen.getByRole('button', { name: /Standard \(Overall\)/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Subgroup comparison/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Demographic adjustment/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Group interaction/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Custom model/i })).toBeInTheDocument()
+
+    // Navigation button
+    fireEvent.click(screen.getByRole('button', { name: /View trajectories/i }))
+    expect(onBrowseTrajectories).toHaveBeenCalledTimes(1)
+
+    // Formula strip is visible
+    expect(screen.getByText(/time_since_baseline \+ \(1 \+ time_since_baseline \| patient_id\)/)).toBeInTheDocument()
+
+    // Trajectory plot preview is rendered
+    expect(screen.getByRole('heading', { name: 'Model Trajectory Preview' })).toBeInTheDocument()
+    expect(screen.getByLabelText(/Model trajectory preview for eGFR/i)).toBeInTheDocument()
+
+    // Lazy CohortModelTable is rendered
+    await waitFor(() => {
+      expect(screen.getByTestId('cohort-model-table')).toBeInTheDocument()
+    })
+    expect(screen.getByText(/Series: eGFR\|\|mL\/min\/1\.73m²/)).toBeInTheDocument()
+    expect(screen.getByText(/Entities: 1/)).toBeInTheDocument()
+  })
+
+  it('switches to subgroup comparison preset and updates grouping', () => {
+    render(
+      <CohortModelsWorkspace
+        data={dataset}
+        onBrowseTrajectories={vi.fn()}
+        onBrowseData={vi.fn()}
+      />
+    )
+
+    const subgroupBtn = screen.getByRole('button', { name: /Subgroup comparison/i })
+    fireEvent.click(subgroupBtn)
+
+    // Grouping dropdown appears when in subgroup comparison preset
     const groupSelect = screen.getByLabelText('Model grouping') as HTMLSelectElement
     expect(groupSelect).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'No grouping (Whole cohort)' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'genotype' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'sex' })).toBeInTheDocument()
 
-    // Navigation button
-    fireEvent.click(screen.getByRole('button', { name: /View trajectories/i }))
-    expect(onBrowseTrajectories).toHaveBeenCalledTimes(1)
+    // genotype is the first available attribute alphabetically
+    expect(groupSelect.value).toBe('genotype')
+  })
 
-    // Lazy CohortModelPanel is rendered
-    await waitFor(() => {
-      expect(screen.getByTestId('cohort-model-panel')).toBeInTheDocument()
-    })
-    expect(screen.getByText(/Series: eGFR\|\|mL\/min\/1\.73m²/)).toBeInTheDocument()
-    expect(screen.getByText(/Patients: 2/)).toBeInTheDocument()
+  it('switches to demographic adjustment preset and adds demographic covariates', () => {
+    render(
+      <CohortModelsWorkspace
+        data={dataset}
+        onBrowseTrajectories={vi.fn()}
+        onBrowseData={vi.fn()}
+      />
+    )
+
+    const demoBtn = screen.getByRole('button', { name: /Demographic adjustment/i })
+    fireEvent.click(demoBtn)
+
+    // Formula reflects demographic adjustment
+    expect(screen.getByText(/baseline_age_centered/)).toBeInTheDocument()
   })
 
   it('shows overlay checkbox when successful cohort models exist', async () => {
