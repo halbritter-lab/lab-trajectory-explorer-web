@@ -60,15 +60,16 @@ function CellSummary({
             ? `${modelLabel}: ${formatWorkspaceNumber(cell.slope)} ${cell.einheit ?? ''}/year · R² ${formatWorkspaceNumber(cell.r2)}`
             : 'No fit available'}
       </span>
+      {Number.isFinite(cell.ciLow) && Number.isFinite(cell.ciHigh) && <span title="Uncertainty in the estimated slope; not a prediction interval for future measurements">95% slope CI [{formatWorkspaceNumber(cell.ciLow)}, {formatWorkspaceNumber(cell.ciHigh)}] {cell.einheit ?? ''}/year</span>}
       <span>
         {cell.nFitted !== cell.nNumeric
           ? `${cell.nFitted} fitted of ${cell.nNumeric} measurements · ${cell.fittedSpanDays} days`
           : `${cell.nFitted} fitted measurements · ${cell.fittedSpanDays} days`}
       </span>
       {quality && <span className={quality.caveat ? 'wt-warning' : 'wt-muted'}>{qualityText}{quality.caveat ? ' · uncertain slope' : ''}</span>}
-      {endpoint && <span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span>}
       {rapid && <span className="wt-badge wt-badge-rapid" title={`Rapid decline: slope < -${rapidEgfrThreshold} /year`}>rapid ↓</span>}
     </>}
+    {endpoint && <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p></details></>}
     {cell.akiChip && <span className="wt-badge wt-badge-aki" title={cell.akiSummary}>{cell.akiChip}</span>}
     {fit && cell.excludedIdx.length > 0 && <span className="wt-muted">{cell.excludedIdx.length} excluded by censoring/AKI</span>}
   </div>

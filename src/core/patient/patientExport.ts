@@ -1,10 +1,9 @@
 import type { LabRow, PatientId } from '../types'
-import { buildCohortRows, slopeUnit, EXPORT_DISCLAIMER_ROWS, type CohortSeriesSpec } from '../cohort/screening'
+import { buildCohortRows, cohortExportRecords, EXPORT_DISCLAIMER_ROWS, type CohortSeriesSpec, type CohortExportRecord } from '../cohort/screening'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../egfr/series'
 import type { SlopeMode } from '../stats/summarize'
 import type { ClinicalEvent } from '../events/events'
 import { clinicalEventAffectsFit } from '../events/fitExclusions'
-import { isUnstableSlope } from '../stats/slopeQuality'
 
 /** One row per measurement for a single patient. Includes synthesised eGFR rows
  * when the caller passes display rows with computed eGFR appended. */
@@ -19,33 +18,7 @@ export interface PatientMeasurementRecord {
 }
 
 /** One row per configured series, carrying its fitted slope and quality flag. */
-export interface PatientSlopeRecord {
-  PatientID: PatientId
-  Bezeichnung: string
-  Einheit: string
-  Mode: string
-  /** Which model produced the slope; `Mode` is the SlopeMode, not the fit. */
-  fit_model: string
-  n: number
-  span_days: number
-  slope: number | ''
-  slope_unit: string
-  r2: number | ''
-  ci_low: number | ''
-  ci_high: number | ''
-  reason: string
-  /** See CohortExportRecord.unstable_slope. */
-  unstable_slope: string
-  /** 'yes' when this patient's demographics had to be resolved from
-   * contradictory input, else ''. See CohortExportRecord.demographics_conflict —
-   * same flag, threaded per-patient instead of per-row since this export
-   * already scopes to one patient. */
-  demographics_conflict: string
-  aki: string
-  endpoint_percent_decline: number | ''
-  endpoint_observed_ckd_g5: string
-  endpoint_projected_age_to_ckd_g5: number | ''
-}
+export type PatientSlopeRecord = Omit<CohortExportRecord, 'slope_mode' | 'rapid_progression' | 'group'> & { Mode: string }
 
 function isoDate(d: Date): string {
   // Local calendar date (yyyy-mm-dd) without timezone shifting.
@@ -115,27 +88,10 @@ export function patientSlopeRecords(
   if (specs.length === 0) return []
   const cohortRow = buildCohortRows(rows, [patientId], specs)[0]
   if (!cohortRow) return []
-  const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
-  return cohortRow.cells.map((c, i) => ({
-    PatientID: patientId,
-    Bezeichnung: c.bezeichnung,
-    Einheit: c.einheit ?? '',
-    Mode: specs[i].mode,
-    fit_model: c.fitModel,
-    n: c.nNumeric,
-    span_days: c.spanDays,
-    slope: numOrBlank(c.slope),
-    slope_unit: slopeUnit(c.einheit),
-    r2: numOrBlank(c.r2),
-    ci_low: numOrBlank(c.ciLow),
-    ci_high: numOrBlank(c.ciHigh),
-    reason: c.reason ?? '',
-    unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
+  return cohortExportRecords([cohortRow]).map(({ slope_mode, rapid_progression: _rapid, group: _group, ...record }) => ({
+    ...record,
+    Mode: slope_mode,
     demographics_conflict: hasDemographicsConflict ? 'yes' : '',
-    aki: c.akiChip,
-    endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
-    endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',
-    endpoint_projected_age_to_ckd_g5: c.endpoints.projectedAgeToCkdG5.value ?? '',
   }))
 }
 

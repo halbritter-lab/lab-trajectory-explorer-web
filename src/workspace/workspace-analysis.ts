@@ -32,7 +32,7 @@ export const ANALYSIS_CATALOG: AnalysisCatalogPreset[] = [
     id: 'ckd_progression',
     name: 'CKD progression',
     category: 'Nephrology',
-    description: 'Quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, G5 endpoints, OLS trend.',
+    description: 'Quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, G4/G5 endpoints on raw data, OLS trend.',
     buildConfig: ckdProgressionConfig,
   },
   {
@@ -58,11 +58,7 @@ export interface WorkspaceFitSettings {
     excludeAkiWindows: boolean
     akiExclusionDays: number
   }
-  endpoints: {
-    percentDecline: boolean
-    observedCkdG5: boolean
-    projectedAgeToCkdG5: boolean
-  }
+  endpoints: FitConfig['endpoints']
   rapidEgfrThreshold: number
 }
 
@@ -84,7 +80,9 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
       },
       endpoints: {
         percentDecline: true,
+        observedCkdG4: true,
         observedCkdG5: true,
+        confirmationDays: 90,
         projectedAgeToCkdG5: true,
       },
       rapidEgfrThreshold: 5.0,
@@ -108,7 +106,9 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
       },
       endpoints: {
         percentDecline: false,
+        observedCkdG4: false,
         observedCkdG5: false,
+        confirmationDays: 90,
         projectedAgeToCkdG5: false,
       },
       rapidEgfrThreshold: 5.0,
@@ -132,7 +132,9 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
       },
       endpoints: {
         percentDecline: false,
+        observedCkdG4: false,
         observedCkdG5: false,
+        confirmationDays: 90,
         projectedAgeToCkdG5: false,
       },
       rapidEgfrThreshold: 5.0,
@@ -156,7 +158,9 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
     },
     endpoints: {
       percentDecline: false,
+      observedCkdG4: false,
       observedCkdG5: false,
+      confirmationDays: 90,
       projectedAgeToCkdG5: false,
     },
     rapidEgfrThreshold: 5.0,
@@ -187,33 +191,4 @@ export function toFitConfig(
   }
 }
 
-import type { CkdEndpoints } from '../core/endpoints/ckdEndpoints'
-import { projectedG5Label } from '../ui/qualityLabels'
-
-export function endpointBadge(endpoints: CkdEndpoints, hasFit: boolean): { label: string; title: string } | null {
-  const labelParts: string[] = []
-  const titleParts: string[] = []
-  const decline = endpoints.percentDecline.value
-  if (hasFit && decline !== null) {
-    const change = -decline
-    labelParts.push(`${change > 0 ? '+' : ''}${change.toFixed(0)}%`)
-    titleParts.push(`total eGFR change ${change.toFixed(1)}% from baseline (not per year)`)
-  }
-  if (endpoints.observedCkdG5.met) {
-    labelParts.push('CKD G5')
-    const confirmed = endpoints.observedCkdG5.confirmedDate?.toISOString().slice(0, 10)
-    titleParts.push(confirmed ? `observed CKD G5 confirmed ${confirmed}` : 'observed CKD G5')
-  } else if (hasFit && endpoints.projectedAgeToCkdG5.value !== null) {
-    const age = endpoints.projectedAgeToCkdG5.value
-    labelParts.push(`G5 @ ${age.toFixed(1)}y`)
-    titleParts.push(`projected age to CKD G5 ${age.toFixed(1)} years`)
-  } else {
-    const unavailable = projectedG5Label(endpoints)
-    if (unavailable) {
-      labelParts.push(unavailable.label)
-      titleParts.push(unavailable.title)
-    }
-  }
-  return labelParts.length > 0 ? { label: labelParts.join(' · '), title: titleParts.join(' · ') } : null
-}
-
+export { endpointBadge } from '../ui/endpointLabels'

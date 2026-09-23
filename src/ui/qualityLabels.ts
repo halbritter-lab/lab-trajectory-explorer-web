@@ -100,8 +100,8 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
       return {
         label: 'G5 now',
         title:
-          'The latest eGFR is already below 15, but without a confirmed persistent period, ' +
-          'so neither observed CKD G5 nor a projection applies.',
+          'The fitted curve reaches 15 at or before the latest measurement, ' +
+          'so there is no future crossing to project. This does not establish an observed event.',
         caveat,
       }
     case 'missing_age':

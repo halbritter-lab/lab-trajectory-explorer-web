@@ -102,7 +102,11 @@ export function WorkspaceApp() {
         <p>Individual analyses support OLS, Theil–Sen, rolling OLS, segmented OLS and no fit. Choose a shared preset or override settings for one parameter column. Advanced settings control clinical-event censoring, AKI exclusions and time aggregation. General exploration defaults to OLS without these exclusions or aggregation. Slope and R² describe the fitted data; quality notices refer to the measurements actually used by the fit.</p>
         <p>Derived eGFR values use the chosen formula, creatinine source and resolved demographics. The Data preview explains unavailable values before applying a calculation. Select the source parameter as well to include its imported measurements in the export.</p>
         <p>Cohort models allow fitting population-level linear mixed models (WebR / lme4) and evaluating trend projections directly within this workspace.</p>
-        <h2>Reference &amp; Theory</h2>
+          <h2>Reference &amp; Theory</h2>
+          <h3>Observed endpoints and individual prediction</h3>
+          <p>G4 uses eGFR below 30 and G5 below 15 mL/min/1.73m². A first low measurement starts a candidate. A later low measurement confirms it after the configured minimum interval (default 90 days). Recovery before confirmation restarts the candidate; recovery afterwards is shown separately and preserves the event. Event date and confirmation date remain distinct.</p>
+          <p>Endpoints and individual endpoint prediction use all dated numeric measurements, including later recovery, independently of display-fit censoring and aggregation. Prediction extends the global fitted curve, using OLS or the selected Theil–Sen estimator. New measurements can change a prediction but do not revoke an already confirmed event in that history.</p>
+          <p>Theil–Sen requires at least three measurements and two distinct dates. Its intercept is median(value) minus slope × median(time); 95% slope confidence bounds quantify slope uncertainty, not the range of future individual measurements.</p>
         <details><summary>Full application reference — includes features not available here</summary><Methodology /></details>
       </section>}
     </main>

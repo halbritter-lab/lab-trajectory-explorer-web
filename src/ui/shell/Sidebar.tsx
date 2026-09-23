@@ -519,6 +519,7 @@ export function Sidebar() {
             <div className="sidebar-subgroup-title">Endpoints</div>
             {([
               ['percentDecline', 'Percent eGFR decline'],
+              ['observedCkdG4', 'Observed CKD G4'],
               ['observedCkdG5', 'Observed CKD G5'],
               ['projectedAgeToCkdG5', 'Projected age to CKD G5'],
             ] as Array<[Exclude<keyof FitConfig['endpoints'], 'confirmationDays'>, string]>).map(([key, label]) => (
@@ -526,12 +527,16 @@ export function Sidebar() {
                 <input
                   type="checkbox"
                   aria-label={label}
-                  checked={primaryFitConfig.endpoints[key]}
+                  checked={primaryFitConfig.endpoints[key] ?? false}
                   onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { endpoints: { [key]: e.target.checked } })}
                 />
                 {label}
               </label>
             ))}
+            <label>Minimum confirmation interval (days)
+              <input type="number" min={1} step={1} aria-label="Minimum confirmation interval (days)" value={primaryFitConfig.endpoints.confirmationDays ?? 90} onChange={e => setSeriesFitConfig(activeFitSeriesIndex, { endpoints: { confirmationDays: Math.max(1, Math.floor(Number(e.target.value) || 90)) } })} />
+            </label>
+            <p className="sidebar-hint">G4/G5 endpoints and prediction use all dated numeric measurements. Prediction extends the fitted curve. Recovery after confirmation preserves the event.</p>
           </section>
 
           {patientIds.length > 0 && (

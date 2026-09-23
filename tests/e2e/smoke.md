@@ -116,6 +116,25 @@ The projection form stays within the mobile dialog; result columns can scroll.
 
 ## Real-data workspace
 
+Approved method update, verified 2026-09-23:
+
+- Unit/component suite: 873 tests in 101 files passed; production build passed.
+- Complete production-browser suite: 78 checks passed in Chromium, Firefox and
+  WebKit, with `CI=1 CROSS_BROWSER=1`, two workers, 60-second timeout and no retries.
+- After bounding long endpoint detail text, the final build and all three
+  endpoint browser workflows passed again, including the 390px layout check.
+- The added workflow imports raw eGFR, changes the confirmation interval from
+  90 to 30 days, checks event/confirmation/recovery details without enabling a
+  display trend, downloads and inspects workbook provenance, then restores 90
+  days and verifies the G5 result disappears for this unconfirmed history.
+- Independent review found three issues: legacy patient-export omissions,
+  hidden raw percent change when no display fit exists, and nonfinite input
+  reaching the prediction fit. Each was reproduced by a failing test and fixed;
+  the final unit suite includes all three regressions.
+
+Algorithm definitions and intentionally changed numerical output are recorded
+in `docs/method-algorithms.md`; research-data acceptance remains pending.
+
 Current completion checks, verified 2026-09-23:
 
 - Opt into local saving after import, demographics and derivation; reload,

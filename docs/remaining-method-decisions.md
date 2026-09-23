@@ -1,8 +1,11 @@
 # Method decisions and remaining acceptance
 
 Prepared 2026-09-23; updated after the project owner's decision walkthrough.
-The decisions below are approved requirements, not a claim of implementation.
-The technical workspace package at `d88493c` leaves the numerical core unchanged.
+The decisions below are approved requirements. Numerical implementation began
+after `09fb02b`; the earlier technical workspace package at `d88493c` did not
+change them. Current algorithm details and limitations are recorded in
+[implemented method algorithms](method-algorithms.md); verification and acceptance
+are tracked separately in the [backlog](workspace-completion-backlog.md).
 
 ## Approved requirements
 
@@ -71,12 +74,11 @@ Implementation, tests and research acceptance remain separate checklist items.
 ## Historical comparison used in the decision walkthrough
 
 The following describes the pre-change code and alternatives presented to the
-owner. The approved requirements above resolve the choices; implementation is
-still pending.
+owner. The approved requirements above resolve these choices.
 
 ## Observed G4/G5 events — issue #4
 
-The current observed-G5 code checks a value below 15, confirmation at least
+The pre-change observed-G5 code checked a value below 15, confirmation at least
 90 days later and no subsequent recovery. The following synthetic sequence
 illustrates why a first-event definition needs a separate decision:
 

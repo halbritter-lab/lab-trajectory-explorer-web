@@ -61,8 +61,12 @@ imported parameter names and patient attributes retain their original values.
 
 - Stored data preparation is not full project management: named projects, saved
   view/column configurations and saved fitted models are not included.
-- Endpoint definitions, legacy individual projection anchors and Theil-Sen
-  conventions remain separate decisions. No numerical core contract was changed.
+- Owner-approved G4/G5 definitions, fitted-curve individual prediction and
+  Python-compatible Theil-Sen conventions are documented in the
+  [algorithm reference](method-algorithms.md). Endpoints use raw dated numeric
+  measurements independently of optional display-fit preparation. The minimum
+  confirmation interval is configurable (default 90 days); recovery after
+  confirmation remains visible without revoking the event.
 - Research use only; no clinical decision support or event-time model.
 
 The current worklist is the [completion backlog](workspace-completion-backlog.md).
@@ -71,6 +75,17 @@ Historical requirements are tracked in the
 [feature inventory](../prototypes/analysis-workspace/feature-audit.md).
 
 ## Acceptance record
+
+Approved-method implementation verified 2026-09-23: 873 unit/component tests in
+101 files passed, production build passed, and the full production browser suite
+passed 78 checks across Chromium, Firefox and WebKit without retries. Tests
+include configurable confirmation, retained recovery evidence, fitted-curve raw
+prediction, Theil-Sen reference bounds and actual workbook provenance. Three
+independent review findings were reproduced and fixed before the final checks.
+See [method algorithms](method-algorithms.md) for the intentional numerical changes.
+After the final endpoint-text width adjustment, production build and the endpoint
+workflow passed again on all three browsers, including the 390px layout check.
+The following records precede this method update.
 
 Verified 2026-09-23:
 

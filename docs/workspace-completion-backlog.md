@@ -20,12 +20,18 @@ charts, local data resumption, explicit unreliable-fit markers, per-measurement
 exclusion explanations, chart/ZIP exports, navigation guidance and narrow-screen
 layouts. Sorting and the no-group option also received regression fixes.
 The review findings on stale-tab storage and clear/import races were reproduced
-and corrected. Numerical methods and clinical endpoint definitions are unchanged.
+and corrected. The subsequently approved numerical changes are now implemented
+with explicit regression cases and documentation in [method algorithms](method-algorithms.md).
 
 The approved method decisions and remaining acceptance needs are recorded in
-[method decisions](remaining-method-decisions.md). Numerical implementation of
-these newly approved decisions remains pending. Remote PR/issue
+[method decisions](remaining-method-decisions.md). Final verification of this
+method package is recorded below. Remote PR/issue
 bodies remain historical; this package updates repository documentation only.
+
+Method-package verification: 873 unit/component tests in 101 files, production
+build and 78 production-browser checks across Chromium, Firefox and WebKit
+passed. Three independent review findings were reproduced and corrected.
+Research-data acceptance remains open; see [dated test record](../tests/e2e/smoke.md).
 
 ## 1. Reconcile status and verify correctness
 
@@ -101,12 +107,12 @@ Update numerical contracts and parity expectations explicitly during implementat
 - [x] Select all-data individual prediction continuing the fitted curve.
 - [x] Select Theil-Sen minimum three observations, Python intercept convention
   and Python-reference slope confidence bounds.
-- [ ] Implement independent observed G4/G5 endpoints and confirmation settings
+- [x] Implement independent observed G4/G5 endpoints and confirmation settings
   consistently in calculations, labels and exports, with recovery shown separately.
-- [ ] Implement fitted-curve individual prediction using all dated numeric data;
+- [x] Implement fitted-curve individual prediction using all dated numeric data;
   make its relationship to existing optional preparation settings explicit.
-- [ ] Implement the approved Theil-Sen contract and update parity fixtures.
-- [ ] Document every substantive algorithm and decision in methodology, settings
+- [x] Implement the approved Theil-Sen contract and update parity fixtures.
+- [x] Document every substantive algorithm and decision in methodology, settings
   help and export provenance; include worked examples, boundary behavior and tests.
 - [ ] Accept factor models and projections with representative research data and
   questions; synthetic fixtures do not establish this acceptance.

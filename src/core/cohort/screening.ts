@@ -136,7 +136,8 @@ export function buildCohortRows(
       }
       const excludedIdx = [...excluded].sort((a, b) => a - b)
       const endpointSettings = endpointSettingsFor(spec.einheit ?? null, spec.fitConfig?.endpoints)
-      const endpointPoints = seriesRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: ageAtDate(row.labDatum!, seriesRows) }))
+      const endpointRows = seriesRows.filter(row => Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
+      const endpointPoints = endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: ageAtDate(row.labDatum!, endpointRows) }))
       const endpointModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
       const endpointFit = endpointModel === 'theil-sen' ? fitTheilSen(endpointPoints) : fitGlobal(endpointPoints)
       const fitLines = points.length < 2 || spec.mode === 'rolling'
@@ -259,7 +260,24 @@ export interface CohortExportRecord {
    * threshold, else '' (and '' for non-eGFR series or when the flag is off). */
   rapid_progression: string
   endpoint_percent_decline: number | ''
+  endpoint_observed_ckd_g4: string
   endpoint_observed_ckd_g5: string
+  endpoint_confirmation_days: number
+  endpoint_input_policy: string
+  endpoint_prediction_anchor: string
+  endpoint_prediction_model: string
+  endpoint_g4_first_date: string
+  endpoint_g4_confirmed_date: string
+  endpoint_g4_recovery_date: string
+  endpoint_g4_first_value: number | ''
+  endpoint_g4_confirmed_value: number | ''
+  endpoint_g4_recovery_value: number | ''
+  endpoint_g5_first_date: string
+  endpoint_g5_confirmed_date: string
+  endpoint_g5_recovery_date: string
+  endpoint_g5_first_value: number | ''
+  endpoint_g5_confirmed_value: number | ''
+  endpoint_g5_recovery_value: number | ''
   endpoint_projected_age_to_ckd_g5: number | ''
 }
 
@@ -277,9 +295,12 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
   { note: 'Slopes are per year (value-units/yr; eGFR in mL/min/1.73m2/yr).' },
   { note: 'eGFR is computed from creatinine + demographics (adult-only); AKI episodes use the KDIGO creatinine criterion only (urine output not evaluated).' },
   { note: 'All derived values are algorithmic estimates requiring independent clinical verification.' },
+  { note: 'Observed G4 <30 and G5 <15 use all dated numeric eGFR measurements. Confirmation interval is recorded per result. Recovery before confirmation resets the candidate; later recovery preserves the event.' },
+  { note: 'Individual endpoint prediction extends a global fitted curve on all dated numeric measurements, independently of display-fit exclusions and aggregation. Theil-Sen requires three points, uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
+const endpointDate = (date: Date | null): string => date?.toISOString().slice(0, 10) ?? ''
 
 /** Flatten cohort rows into export records (one per patient × series). Pass the
  * rapid-progression threshold (mL/min/1.73m²/yr) to populate rapid_progression;
@@ -320,7 +341,24 @@ export function cohortExportRecords(
           threshold: rapidThreshold,
         }) ? 'yes' : '',
         endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
+        endpoint_observed_ckd_g4: c.endpoints.observedCkdG4.met ? 'yes' : '',
         endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',
+        endpoint_confirmation_days: c.endpoints.confirmationDays,
+        endpoint_input_policy: 'all dated numeric measurements',
+        endpoint_prediction_anchor: 'fitted curve',
+        endpoint_prediction_model: c.fitModel,
+        endpoint_g4_first_date: endpointDate(c.endpoints.observedCkdG4.firstDate),
+        endpoint_g4_confirmed_date: endpointDate(c.endpoints.observedCkdG4.confirmedDate),
+        endpoint_g4_recovery_date: endpointDate(c.endpoints.observedCkdG4.recoveryDate),
+        endpoint_g4_first_value: c.endpoints.observedCkdG4.firstValue ?? '',
+        endpoint_g4_confirmed_value: c.endpoints.observedCkdG4.confirmedValue ?? '',
+        endpoint_g4_recovery_value: c.endpoints.observedCkdG4.recoveryValue ?? '',
+        endpoint_g5_first_date: endpointDate(c.endpoints.observedCkdG5.firstDate),
+        endpoint_g5_confirmed_date: endpointDate(c.endpoints.observedCkdG5.confirmedDate),
+        endpoint_g5_recovery_date: endpointDate(c.endpoints.observedCkdG5.recoveryDate),
+        endpoint_g5_first_value: c.endpoints.observedCkdG5.firstValue ?? '',
+        endpoint_g5_confirmed_value: c.endpoints.observedCkdG5.confirmedValue ?? '',
+        endpoint_g5_recovery_value: c.endpoints.observedCkdG5.recoveryValue ?? '',
         endpoint_projected_age_to_ckd_g5: c.endpoints.projectedAgeToCkdG5.value ?? '',
       })
     }

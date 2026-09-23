@@ -93,7 +93,7 @@ export interface FitPipelineResult {
   }
 }
 
-const emptyEndpoints = { percentDecline: false, observedCkdG5: false, projectedAgeToCkdG5: false }
+const emptyEndpoints = { percentDecline: false, observedCkdG4: false, observedCkdG5: false, projectedAgeToCkdG5: false, confirmationDays: 90 }
 
 export function generalExplorationConfig(parameter: FitConfig['parameter']): FitConfig {
   return {
@@ -127,7 +127,7 @@ export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConf
     exclusions: { excludeAkiWindows: true, akiExclusionDays: 30 },
     timeBalancing: 'quarterly-median',
     fitModel: 'ols',
-    endpoints: { percentDecline: true, observedCkdG5: true, projectedAgeToCkdG5: true },
+    endpoints: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: true, confirmationDays: 90 },
   }
 }
 

@@ -12,6 +12,12 @@ function fixture(): WorkspaceData {
 }
 
 describe('real-data trajectories workspace', () => {
+  it('shows Theil-Sen slope confidence bounds with the displayed trend', () => {
+    render(<TrajectoriesWorkspace data={fixture()} />)
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'theil_sen' } })
+    fireEvent.click(screen.getByLabelText('Theil–Sen, slope and R²: Marker · unit-0'))
+    expect(screen.getAllByText(/95% slope CI/)).toHaveLength(2)
+  })
   it('identifies event-excluded measurements in patient detail without refitting', () => {
     const data = fixture()
     data.events = [{ patientId: 'ID-A', type: 'kidney_transplant', date: new Date('2021-01-01'), endDate: null, title: 'Transplant', description: null, intent: null, warning: '' }]

@@ -7,6 +7,17 @@ interfaces are still evolving before 1.0.
 
 ### Added
 
+- Independent observed G4/G5 events with configurable confirmation interval
+  (default 90 days), separate first-crossing/confirmation dates and later recovery
+  evidence. Recovery before confirmation restarts the candidate; recovery after
+  confirmation preserves the event. Endpoint exports record configuration and dates.
+- Theil-Sen 95% slope confidence bounds, Python separate-median intercept and
+  three-observation minimum, with expanded full-field reference parity tests.
+- Individual endpoint prediction now extends the fitted curve on all dated
+  numeric measurements, including recovery, independently of optional display-fit
+  preparation. This intentionally changes the previous latest-measurement anchor.
+  See `docs/method-algorithms.md` for numerical contracts and worked examples.
+
 - Workspace analysis presets and independent column settings; cohort-model studio
   with covariates, grouped fits, reference-trajectory preview and projections.
 - Opt-in workspace storage for seven days, including source data, events,

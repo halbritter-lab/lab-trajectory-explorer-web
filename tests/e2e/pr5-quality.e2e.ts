@@ -113,7 +113,9 @@ test('keeps AKI visible when lower-priority badges collapse into more', async ({
   await expect(row.locator('.aki-badge')).toBeVisible()
   await expect(row.locator('.more-badge')).toBeVisible()
   const hiddenTitle = await row.locator('.more-badge').getAttribute('title')
-  expect(hiddenTitle).toContain('G5 n < 3')
+  // Raw endpoint inputs retain >=3 observations; quarterly display-fit bins
+  // must not determine the endpoint's sample count.
+  expect(hiddenTitle).toContain('G5 < 1 yr')
   expect(hiddenTitle).not.toContain('AKI')
   expect(problems).toEqual([])
 })

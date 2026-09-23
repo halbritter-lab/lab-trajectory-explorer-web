@@ -1,7 +1,9 @@
 # Endpoint analysis readiness — implementation status updated 2026-09-23
 
-This is a technical inventory and decision record, not an approved endpoint
-definition or a change to application methodology.
+This is a technical inventory. Owner-approved observed-event and prediction
+definitions are recorded in [method decisions](remaining-method-decisions.md)
+and [algorithm documentation](method-algorithms.md). Event-time models remain a
+separate, unapproved extension.
 
 Current cross-document status: [requirements reconciliation](requirements-reconciliation.md).
 
@@ -26,15 +28,13 @@ See the configurable trend projection design and implementation plan.
 - The bundled workbook contains 216 lab rows, 8 event rows and 8 attribute rows.
   Attributes include genotype, inheritance and cohort. These are demo/test data;
   they do not establish representativeness for a research cohort.
-- `src/core/endpoints/ckdEndpoints.ts` currently projects from the latest
-  measured value using the fitted annual slope, anchored to the latest age.
-  This is not necessarily the threshold intersection of the fitted regression
-  line, because the last measurement can differ from its fitted value.
-- Observed G5 currently defaults to a value below 15 and confirmation at least
-  90 days later. The algorithm rejects a candidate if any later measurement
-  recovers above the threshold, even after confirmation. It also records the
-  last qualifying confirmation date, rather than the earliest one. Neither
-  behavior should silently define a first-event analysis.
+- Individual endpoint prediction now continues the global fitted curve on all
+  dated numeric measurements, including recovery. The latest age provides the
+  age anchor; the latest measured value no longer shifts the fitted line.
+- Observed G4/G5 use strict thresholds below 30/15 and a configurable minimum
+  confirmation interval (default 90 days). The first crossing and earliest
+  confirmation are separate dates; recovery before confirmation restarts the
+  candidate, while later recovery preserves the event and is shown separately.
 - Existing clinical events are transplant, dialysis or other. Their fit
   exclusions are measurement-selection rules; they are not an event-time
   dataset with follow-up status, competing events and censoring reasons.
@@ -73,10 +73,12 @@ analyses](https://pmc.ncbi.nlm.nih.gov/articles/PMC2394262/).
 ## Issue mapping
 
 - #4: factors (#11) and mixed-model threshold projections (#12) are integrated.
-  Observed G4/G5 definitions, legacy individual projections and optional
-  event-time work remain open; technical integration does not close the issue.
-- #6: numeric coverage supplied by merged PR #10; estimator
-  conventions remain unresolved as recorded in that issue.
+  Observed G4/G5 and individual projection choices have since been approved;
+  optional event-time work and research acceptance remain open. Technical
+  integration does not close the issue.
+- #6: estimator conventions are now approved and implemented with full
+  Python fixture parity, including intercept and 95% slope confidence bounds.
+  The remote issue text may predate this decision record.
 - #2: real-data integration, configurable analyses, cohort models, projections,
   plot exports and local data storage are implemented in the workspace. Research
   dataset and first-user acceptance remain open; see the completion backlog.

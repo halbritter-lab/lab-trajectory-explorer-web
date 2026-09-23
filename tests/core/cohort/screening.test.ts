@@ -242,6 +242,15 @@ describe('buildCohortRows cell overlays', () => {
     expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('non_declining_fit')
   })
 
+  it('ignores nonfinite measurements consistently in endpoint fitting and evaluation', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²' }
+    const fitConfig = ckdProgressionConfig(parameter)
+    const rows = [60, 50, 25].map((wertNum, i) => row({ ...parameter, labDatum: new Date(Date.UTC(2020, 0, 1) + i * 365.25 * 86400000), wertNum, patientAgeAtLab: 50 + i }))
+    const spec: CohortSeriesSpec = { ...parameter, mode: 'global', fitConfig }
+    const expected = buildCohortRows(rows, [1], [spec])[0].cells[0].endpoints
+    rows.push(row({ ...parameter, labDatum: d('2021-06-01'), wertNum: Infinity, patientAgeAtLab: 51.5 }))
+    expect(buildCohortRows(rows, [1], [spec])[0].cells[0].endpoints).toEqual(expected)
+  })
   it('does not compute CKD endpoints for non-eGFR units even when endpoint toggles are enabled', () => {
     const fitConfig = ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
     const cell = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig }])[0].cells[0]

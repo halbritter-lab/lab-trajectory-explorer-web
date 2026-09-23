@@ -66,7 +66,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
       </div>
         <span className="wt-muted">
           {fitSettings.presetId === 'ckd_progression'
-            ? 'CKD progression: quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, G5 endpoints, OLS trend.'
+            ? 'CKD progression: quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, OLS display trend. G4/G5 endpoints and prediction use raw measurements.'
             : fitSettings.presetId === 'theil_sen'
               ? 'Theil–Sen: non-parametric median slope, unweighted, resistant to outliers.'
               : fitSettings.presetId === 'acute_review'
@@ -184,6 +184,12 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
           <div className="wt-pipeline-group">
             <h4>eGFR endpoints & thresholds</h4>
             <p className="wt-muted">Applies only to parameters with eGFR units.</p>
+            <p className="wt-muted">Endpoints and prediction use all dated numeric measurements, including recovery. Display-fit exclusions and aggregation do not apply to them. Prediction extends the fitted curve.</p>
+            <label><input type="checkbox" aria-label="Observed CKD G4" checked={fitSettings.endpoints.observedCkdG4 ?? false} onChange={e => updateSettings({ endpoints: { ...fitSettings.endpoints, observedCkdG4: e.target.checked } })} />Observed CKD G4</label>
+            <label>Minimum confirmation interval (days)
+              <input type="number" min={1} step={1} aria-label="Minimum confirmation interval (days)" value={fitSettings.endpoints.confirmationDays ?? 90} onChange={e => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: Math.max(1, Math.floor(Number(e.target.value) || 90)) } })} />
+            </label>
+            <p className="wt-muted">G4: below 30; G5: below 15 mL/min/1.73m². Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event.</p>
             <label>
               <input
                 type="checkbox"
