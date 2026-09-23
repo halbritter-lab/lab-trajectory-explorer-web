@@ -13,18 +13,20 @@ to the checkout containing the Python `analyses` package, then run:
 python -B -c "import json; from scripts.gen_goldens import gen_theil_sen, OUT_DIR; (OUT_DIR / 'theil_sen.json').write_text(json.dumps(gen_theil_sen(), indent=2), encoding='utf-8')"
 ```
 
-The parity test verifies **slope, reason, and R² on the shared input domain**.
-The fixture retains every Python output field for inspection. This does not
-establish full estimator parity:
+The fixture was extended on 2026-09-23 using the same Python reference, with
+two-point, interior confidence-rank and tied-time/value cases. The parity test
+now verifies **all estimator fields**: slope, intercept, reason, R² and both
+95% slope confidence bounds. Direct tests additionally cover input ordering.
 
 | Convention | Web | Python reference |
 | --- | --- | --- |
-| Minimum point count | 2 | 3 |
-| Intercept | `median(y - slope*x)` | `median(y) - slope*median(x)` |
-| Slope CI | Unavailable (`NaN`) | Non-parametric confidence bounds |
+| Minimum point count | 3 | 3 |
+| Intercept | `median(y) - slope*median(x)` | `median(y) - slope*median(x)` |
+| Slope CI | Non-parametric 95% confidence bounds | Non-parametric 95% confidence bounds |
 
 For the four-point case `[0, 0, 4, 9]` at years `[0, 1, 2, 3]`, both slopes
-are 3.5, but the intercepts are −2.25 (web) and −3.25 (Python). Two-point
-behavior and the other web conventions are covered by direct tests in
-`tests/core/stats/theilSen.test.ts`. Production behavior is unchanged; resolving
-these differences remains a separate statistics decision for issue #6.
+are 3.5 and both intercepts are −3.25. The former web intercept was −2.25;
+this intentional numerical change follows the owner's approved decision for
+issue #6. Two-point fits are now unavailable. See
+[algorithm details](../../docs/method-algorithms.md) for rank formulas and
+limitations. Numerical agreement is not research-data acceptance.

@@ -131,7 +131,9 @@ export function Methodology() {
           to a minority of outlying points. Appropriate when isolated extreme values — an AKI spike,
           a suspected lab error, a single post-operative measurement — would tilt an OLS line, and
           you would rather not remove them by hand. It costs statistical efficiency when the data
-          are in fact clean.
+          are in fact clean. At least three observations and two distinct dates are required.
+          The intercept is median(value) minus slope times median(time). The reported 95% bounds
+          describe uncertainty in the slope, not a prediction interval for individual values.
         </li>
         <li>
           <strong>Rolling OLS</strong> — a separate OLS fit inside a sliding window. Appropriate
@@ -160,9 +162,8 @@ export function Methodology() {
         <li>
           <strong>Parity against the reference implementation</strong> — automated tests assert
           this port against golden values generated from the Python <code>analyses</code> package.
-          Covers OLS, rolling OLS and segmented OLS. <strong>Theil-Sen is not covered</strong>: it
-          has no golden and no numeric test, so it rests on its standard definition alone and
-          should be treated as the least verified of the five.
+          Covers OLS, rolling OLS, segmented OLS and Theil-Sen. The Theil-Sen checks include
+          the slope, separate-median intercept, 95% slope bounds and unavailable-fit cases.
         </li>
         <li>
           <strong>External comparison against an established clinical workflow</strong> — a manual
@@ -171,8 +172,7 @@ export function Methodology() {
         </li>
       </ul>
       <p>
-        In short: OLS has both checks, rolling and segmented OLS have the automated one, Theil-Sen
-        has neither. Verify before relying on the latter.
+        Automated numerical agreement does not replace acceptance with representative research data.
       </p>
 
       <h4>Clinical Events and Exclusion Display</h4>

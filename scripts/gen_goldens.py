@@ -125,10 +125,7 @@ def gen_ols() -> list[dict]:
 
 
 def gen_theil_sen() -> list[dict]:
-    """Python reference outputs; web parity currently covers slope/reason/r2 only.
-
-    See tests/parity/theilSen.parity.test.ts for the scope and known differences.
-    """
+    """Python reference outputs for every Theil-Sen estimator field."""
     cases = [
         ("rising", [0, 0.5, 2, 4], [7, 8, 11, 15]),
         ("falling", [0, 0.5, 2, 4], [7, 6, 3, -1]),
@@ -137,6 +134,9 @@ def gen_theil_sen() -> list[dict]:
         ("odd_pair_count", [0, 1, 2], [0, 2, 10]),
         ("even_pair_count", [0, 1, 2, 3], [0, 0, 4, 9]),
         ("repeated_dates", [0, 0, 1, 2], [0, 10, 2, 8]),
+        ("two_points", [0, 2], [7, 3]),
+        ("interior_ci_ranks", list(range(12)), [9, 8, 12, 14, 11, 18, 19, 17, 24, 23, 25, 31]),
+        ("tied_x_and_y", [0, 0, 1, 2, 2, 3, 4, 5, 5, 6, 7, 8], [1, 1, 3, 3, 4, 4, 4, 8, 8, 9, 11, 10]),
         ("empty", [], []),
         ("one_point", [0], [7]),
         ("identical_dates", [0, 0, 0], [7, 9, 11]),

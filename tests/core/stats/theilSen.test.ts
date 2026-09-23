@@ -41,35 +41,33 @@ describe('fitTheilSen numeric behavior', () => {
   })
 
   it('selects the middle of three pairwise slopes for three points', () => {
-    // Pairwise slopes: 2, 5, 8. Residuals at slope 5: 0, -3, 0.
+    // Pairwise slopes: 2, 5, 8; separate-median intercept: 2 - 5*1.
     const fit = fitTheilSen(points([0, 1, 2], [0, 2, 10]))
     expect(fit.slope).toBeCloseTo(5, 12)
-    expect(fit.intercept).toBeCloseTo(0, 12)
+    expect(fit.intercept).toBeCloseTo(-3, 12)
   })
 
-  it('averages the two middle slopes and residuals for four points', () => {
+  it('uses the separate-median Python intercept for four points', () => {
     // Sorted slopes: 0, 2, 3, 4, 4.5, 5 -> 3.5.
-    // Sorted residuals: -3.5, -3, -1.5, 0 -> -2.25.
-    // This is the median-residual intercept, not median(y) - slope*median(x)
-    // (-3.25), which is the local Python/SciPy reference's default.
+    // median(y) - slope*median(x) = 2 - 3.5*1.5 = -3.25.
     const fit = fitTheilSen(points([0, 1, 2, 3], [0, 0, 4, 9]))
     expect(fit.slope).toBeCloseTo(3.5, 12)
-    expect(fit.intercept).toBeCloseTo(-2.25, 12)
+    expect(fit.intercept).toBeCloseTo(-3.25, 12)
   })
 
   it('skips zero-duration pairs while retaining repeated-date observations', () => {
-    // Valid slopes: -8, -1, 2, 4, 6 -> 2; residuals: 0, 10, 0, 4 -> 2.
+    // Valid slopes: -8, -1, 2, 4, 6 -> 2; intercept: 5 - 2*0.5 = 4.
     // Deduplicating the first date would change the estimate.
     const fit = fitTheilSen(points([0, 0, 1, 2], [0, 10, 2, 8]))
     expect(fit.slope).toBeCloseTo(2, 12)
-    expect(fit.intercept).toBeCloseTo(2, 12)
+    expect(fit.intercept).toBeCloseTo(4, 12)
     expect(fit.reason).toBeNull()
   })
 
   it.each([
     { name: 'empty input', years: [], values: [], reason: 'n_below_threshold' },
     { name: 'one point', years: [0], values: [7], reason: 'n_below_threshold' },
-    { name: 'two identical timestamps', years: [0, 0], values: [7, 9], reason: 'identical_timestamps' },
+    { name: 'two identical timestamps', years: [0, 0], values: [7, 9], reason: 'n_below_threshold' },
     { name: 'three identical timestamps', years: [0, 0, 0], values: [7, 9, 11], reason: 'identical_timestamps' },
   ])('returns an unavailable fit for $name', ({ years, values, reason }) => {
     expect(fitTheilSen(points(years, values))).toEqual({
@@ -82,16 +80,15 @@ describe('fitTheilSen numeric behavior', () => {
     })
   })
 
-  it('supports two distinct dates, unlike the fitOls numeric kernel', () => {
-    // Characterize the existing web convention; Python Theil-Sen requires n>=3.
+  it('requires three observations even for two distinct dates', () => {
     const fit = fitTheilSen(points([0, 2], [7, 3]))
     expect(fit).toEqual({
-      slope: -2,
-      intercept: 7,
+      slope: Number.NaN,
+      intercept: Number.NaN,
       r2: Number.NaN,
       ciLow: Number.NaN,
       ciHigh: Number.NaN,
-      reason: null,
+      reason: 'n_below_threshold',
     })
     expect(fitOls([0, 2], [7, 3]).reason).toBe('n_below_threshold')
   })
@@ -102,17 +99,17 @@ describe('fitTheilSen numeric behavior', () => {
     }
   })
 
-  it('returns null reason but unavailable CI and R² for a successful fit', () => {
+  it('returns slope confidence bounds but no OLS R² for a successful fit', () => {
     const years = [0, 1, 2, 3]
     const values = [0, 0, 4, 9]
     const robust = fitTheilSen(points(years, values))
     const ols = fitOls(years, values)
     expect(robust.reason).toBeNull()
     expect(ols.reason).toBeNull()
-    expect(robust.ciLow).toBeNaN()
-    expect(robust.ciHigh).toBeNaN()
+    expect(robust.ciLow).toBe(0)
+    expect(robust.ciHigh).toBe(5)
     expect(robust.r2).toBeNaN()
-    // Missing robust uncertainty must not be mistaken for a zero-width CI.
+    // Robust slope bounds are distinct from OLS regression uncertainty.
     expect(Number.isFinite(ols.ciLow)).toBe(true)
     expect(Number.isFinite(ols.ciHigh)).toBe(true)
     expect(ols.ciLow).toBeLessThan(ols.ciHigh)
