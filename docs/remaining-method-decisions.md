@@ -1,8 +1,78 @@
-# Remaining method decisions
+# Method decisions and remaining acceptance
 
-Prepared 2026-09-23. These examples clarify existing implementation differences;
-they do not select a new statistical or endpoint policy. The autonomous workspace
-completion package leaves the numerical core unchanged.
+Prepared 2026-09-23; updated after the project owner's decision walkthrough.
+The decisions below are approved requirements, not a claim of implementation.
+The technical workspace package at `d88493c` leaves the numerical core unchanged.
+
+## Approved requirements
+
+### Observed events and recovery
+
+Evaluate G4 and G5 independently, using default eGFR thresholds of strictly
+below 30 and below 15 ml/min/1.73 m² respectively. The owner clarified that
+the requested configurable setting is the confirmation interval; this decision
+does not additionally require configurable observed-event value thresholds.
+
+For each endpoint, process dated measurements in chronological order:
+
+1. The first value below the threshold starts an unconfirmed candidate.
+2. A subsequent value below the same threshold confirms that candidate if at
+   least the configured minimum number of days has elapsed. Default: 90 days.
+   Earlier low values do not move the candidate date or restart the interval.
+3. A value at or above the threshold before confirmation interrupts the
+   candidate. A later low value starts a new candidate and confirmation interval.
+4. Record the candidate's first crossing as the event date and the earliest
+   qualifying later measurement as the confirmation date. Retain the associated
+   measurements; a candidate alone is not a confirmed event.
+5. Once confirmed, preserve the event, its dates and associated measurements.
+   Show subsequent recovery separately; it does not revoke or redate the event.
+
+Examples (G5, default interval): January 14, May 13, November 20 gives a January
+event date, May confirmation and separately visible November recovery.
+January 14, March 20, May 13 interrupts the January candidate; May starts a new
+candidate requiring its own later confirmation.
+
+### Individual prediction
+
+Use all dated numeric measurements initially, including later recovery values.
+Do not truncate the prediction input at an observed event or discard recovery
+values to preserve an earlier prediction. Future changes to input selection need
+an explicit documented policy. When connecting this rule to existing optional
+censoring, AKI exclusions and aggregation, document the effective input policy;
+do not silently describe a filtered or aggregated fit as using all measurements.
+
+Continue the fitted trend line rather than shifting its origin to the latest
+measurement. For a linear fit `y(t) = intercept + slope*t`, a target `q` is
+crossed at model time `(q - intercept) / slope` when a crossing exists in the
+intended direction and time domain. New data may change a recalculated prediction;
+the already confirmed observed event remains unchanged.
+
+### Theil-Sen
+
+- Require at least three usable observations. With fewer, keep measurements
+  visible but do not compute a Theil-Sen trend.
+- Use the Python reference convention:
+  `intercept = median(y) - slope * median(x)`.
+- Include slope confidence bounds using the Python reference algorithm and
+  confidence-level convention. These describe uncertainty in the estimated
+  slope, not a prediction interval for future individual measurements.
+
+### Required documentation and implementation acceptance
+
+All substantive decisions and algorithms must be documented. For each numerical
+change, update this decision record, the user-facing methodology, relevant
+configuration help and export provenance together. Specify inputs, units,
+defaults, configurable settings, formulas or algorithm steps, missing/duplicate
+data handling, boundary cases and limitations, with worked examples and tests.
+Record any remaining edge-case decisions rather than silently inventing a rule.
+Update parity fixtures deliberately and describe changes from prior outputs.
+Implementation, tests and research acceptance remain separate checklist items.
+
+## Historical comparison used in the decision walkthrough
+
+The following describes the pre-change code and alternatives presented to the
+owner. The approved requirements above resolve the choices; implementation is
+still pending.
 
 ## Observed G4/G5 events — issue #4
 
@@ -17,11 +87,8 @@ illustrates why a first-event definition needs a separate decision:
 | 2020-09-01 | 12 | Becomes the recorded confirmation date |
 | 2020-11-01 | 20 | Invalidates that candidate despite the earlier confirmation |
 
-Decide whether a confirmed event remains recorded after recovery; whether its
-date is the first crossing or the first qualifying confirmation; and which
-threshold/confirmation definitions apply independently to G4 and G5. Keep both
-crossing and confirmation dates in the output if both are required. Existing
-projection presets do not answer these observed-event questions.
+Decision: preserve confirmed events after recovery, retain both dates, and use
+the independently evaluated endpoints and configurable interval specified above.
 
 Evidence: [implementation](../src/core/endpoints/ckdEndpoints.ts),
 [current tests](../tests/core/endpoints/ckdEndpoints.test.ts),
@@ -40,8 +107,8 @@ For a target value of 15:
 | Fitted value at year 2, 27.5 | (27.5 - 15) / 17.5 = 0.7143 |
 
 The legacy individual endpoint uses the latest-measurement anchor; the newer
-mixed-model projection contract uses the fitted curve. Decide whether to keep
-both explicitly named behaviors or migrate the individual path. A migration
+mixed-model projection contract uses the fitted curve. The owner selected
+migration of the individual path to the fitted curve. This migration
 changes existing numbers and needs corresponding export/methodology updates.
 
 ## Theil-Sen conventions — issue #6
@@ -55,8 +122,8 @@ changes existing numbers and needs corresponding export/methodology updates.
 For x = [0, 1, 2, 3] and y = [0, 0, 4, 9], both slopes are 3.5;
 the intercept is -2.25 on the web and -3.25 in the Python reference. Agreement
 on slope alone therefore does not establish agreement on plotted lines or
-threshold crossings. Select the intended estimator contract before changing
-minimum counts, intercepts or interval outputs.
+threshold crossings. The owner selected the Python convention for minimum
+counts, intercepts and slope confidence bounds as recorded above.
 
 Evidence and reproducible fixture provenance:
 [Theil-Sen reference record](../tests/goldens/theil_sen.md).

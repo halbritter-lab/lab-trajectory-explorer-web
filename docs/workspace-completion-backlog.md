@@ -22,8 +22,9 @@ layouts. Sorting and the no-group option also received regression fixes.
 The review findings on stale-tab storage and clear/import races were reproduced
 and corrected. Numerical methods and clinical endpoint definitions are unchanged.
 
-The next project-owner inputs are listed with concrete examples in
-[remaining method decisions](remaining-method-decisions.md). Remote PR/issue
+The approved method decisions and remaining acceptance needs are recorded in
+[method decisions](remaining-method-decisions.md). Numerical implementation of
+these newly approved decisions remains pending. Remote PR/issue
 bodies remain historical; this package updates repository documentation only.
 
 ## 1. Reconcile status and verify correctness
@@ -91,17 +92,22 @@ from recreating deleted data or overwriting a newer snapshot.
 
 ## 4. Explicit statistical and endpoint decisions (#4, #6)
 
-Prepare concrete examples and implementation choices for project-owner review
-before changing numerical contracts. Existing parity conventions remain in force.
+The owner approved the choices in the [decision record](remaining-method-decisions.md).
+Update numerical contracts and parity expectations explicitly during implementation.
 
-- [ ] Observed G4/G5: define thresholds, confirmation interval, event date,
-  later recovery and earliest-versus-last qualifying confirmation. Then implement
-  independent endpoints consistently in labels, calculations and exports.
-- [ ] Legacy individual projection: compare last-measurement and fitted-curve
-  anchors on the same data; decide and document the intended behavior.
-- [ ] Theil-Sen: decide two-versus-three point minimum, intercept convention and
-  slope confidence bounds using existing Python fixtures and targeted examples.
-  Update parity tests and methodology only after the convention is selected.
+- [x] Decide and document observed-event persistence, first-crossing and first
+  confirmation dates, interruption before confirmation, and configurable minimum
+  confirmation interval (90 days by default); G4/G5 defaults remain below 30/15.
+- [x] Select all-data individual prediction continuing the fitted curve.
+- [x] Select Theil-Sen minimum three observations, Python intercept convention
+  and Python-reference slope confidence bounds.
+- [ ] Implement independent observed G4/G5 endpoints and confirmation settings
+  consistently in calculations, labels and exports, with recovery shown separately.
+- [ ] Implement fitted-curve individual prediction using all dated numeric data;
+  make its relationship to existing optional preparation settings explicit.
+- [ ] Implement the approved Theil-Sen contract and update parity fixtures.
+- [ ] Document every substantive algorithm and decision in methodology, settings
+  help and export provenance; include worked examples, boundary behavior and tests.
 - [ ] Accept factor models and projections with representative research data and
   questions; synthetic fixtures do not establish this acceptance.
 
