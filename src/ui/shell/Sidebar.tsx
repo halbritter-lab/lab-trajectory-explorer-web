@@ -521,7 +521,7 @@ export function Sidebar() {
               ['percentDecline', 'Percent eGFR decline'],
               ['observedCkdG5', 'Observed CKD G5'],
               ['projectedAgeToCkdG5', 'Projected age to CKD G5'],
-            ] as Array<[keyof FitConfig['endpoints'], string]>).map(([key, label]) => (
+            ] as Array<[Exclude<keyof FitConfig['endpoints'], 'confirmationDays'>, string]>).map(([key, label]) => (
               <label className="sidebar-check" key={key}>
                 <input
                   type="checkbox"

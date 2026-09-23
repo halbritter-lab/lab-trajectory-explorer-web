@@ -33,8 +33,10 @@ export interface FitConfig {
   fitModel: FitModel
   endpoints: {
     percentDecline: boolean
+    observedCkdG4?: boolean
     observedCkdG5: boolean
     projectedAgeToCkdG5: boolean
+    confirmationDays?: number
   }
 }
 

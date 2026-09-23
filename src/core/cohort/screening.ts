@@ -1,5 +1,6 @@
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
 import type { SeriesPoint } from '../stats/series'
+import { fitGlobal, fitTheilSen } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
@@ -13,8 +14,7 @@ import { isEgfrUnit } from '../analysis/rapidEgfrDeclineModule'
 import type { ClinicalEvent } from '../events/events'
 import { clinicalEventAffectsFit, filterFitPointsByClinicalEvents } from '../events/fitExclusions'
 import type { FitConfig } from '../fitPipeline/types'
-import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings, type EndpointPoint } from '../endpoints/ckdEndpoints'
-import { balanceSeriesPoints } from '../stats/timeBalancing'
+import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from '../endpoints/ckdEndpoints'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 
@@ -136,7 +136,9 @@ export function buildCohortRows(
       }
       const excludedIdx = [...excluded].sort((a, b) => a - b)
       const endpointSettings = endpointSettingsFor(spec.einheit ?? null, spec.fitConfig?.endpoints)
-      const endpointPoints = endpointPointsForSeries(seriesRows, clinicalEvents, spec.fitConfig, episodes, exclusionDays, spec.mode)
+      const endpointPoints = seriesRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: ageAtDate(row.labDatum!, seriesRows) }))
+      const endpointModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
+      const endpointFit = endpointModel === 'theil-sen' ? fitTheilSen(endpointPoints) : fitGlobal(endpointPoints)
       const fitLines = points.length < 2 || spec.mode === 'rolling'
         ? []
         : buildSlopeLines(
@@ -182,7 +184,8 @@ export function buildCohortRows(
         excludedIdx,
         endpoints: computeCkdEndpoints({
           points: endpointPoints,
-          slopePerYear: match?.slope ?? Number.NaN,
+          slopePerYear: endpointModel === 'none' ? Number.NaN : endpointFit.slope,
+          intercept: endpointModel === 'none' ? Number.NaN : endpointFit.intercept,
           enabled: endpointSettings,
         }),
       }
@@ -204,43 +207,14 @@ function endpointSettingsFor(einheit: string | null, endpoints?: Partial<CkdEndp
   if (!isEgfrUnit(einheit)) return disabledEndpointSettings
   return {
     percentDecline: endpoints?.percentDecline ?? false,
+    observedCkdG4: endpoints?.observedCkdG4 ?? false,
     observedCkdG5: endpoints?.observedCkdG5 ?? false,
     projectedAgeToCkdG5: endpoints?.projectedAgeToCkdG5 ?? false,
+    confirmationDays: endpoints?.confirmationDays,
   }
 }
 
 const MS_PER_YEAR = 365.25 * 86_400_000
-
-function endpointPointsForSeries(
-  rows: LabRow[],
-  clinicalEvents: ClinicalEvent[],
-  fitConfig: FitConfig | undefined,
-  episodes: AkiEpisode[],
-  exclusionDays: number,
-  mode: SlopeMode,
-): EndpointPoint[] {
-  const indexed = rows
-    .filter((r) => r.wertNum !== null && r.labDatum !== null)
-    .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
-    .map((row, index) => ({ row, index, point: { date: row.labDatum!, value: row.wertNum! } }))
-  const eventExcluded = new Set(
-    filterFitPointsByClinicalEvents(
-      indexed.map((item) => item.point),
-      clinicalEvents,
-      fitConfig?.censoring,
-    ).excludedIdx,
-  )
-  let included = indexed.filter((item) => !eventExcluded.has(item.index))
-  if ((mode === 'aki-aware' || fitConfig?.exclusions.excludeAkiWindows) && included.length > 0) {
-    const kept = new Set(fitAkiAware(included.map((item) => item.point), exclusionDays, episodes).keptIdx)
-    included = included.filter((_, index) => kept.has(index))
-  }
-  const balanced = balanceSeriesPoints(included.map((item) => item.point), fitConfig?.timeBalancing)
-  return balanced.map((point) => ({
-    ...point,
-    ageYears: ageAtDate(point.date, included.map((item) => item.row)),
-  }))
-}
 
 function ageAtDate(date: Date, rows: LabRow[]): number | null {
   const anchors = rows

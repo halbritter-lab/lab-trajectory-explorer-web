@@ -208,7 +208,7 @@ describe('buildCohortRows cell overlays', () => {
     expect(cell.fitLines[0][1].date.toISOString().slice(0, 10)).toBe('2021-01-01')
   })
 
-  it('computes CKD endpoints from included eGFR points only after kidney transplant censoring', () => {
+  it('keeps all data in endpoint prediction even when the display fit censors transplant recovery', () => {
     const rows: LabRow[] = [
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2021-01-01'), wertNum: 45, patientAgeAtLab: 61 }),
@@ -236,9 +236,10 @@ describe('buildCohortRows cell overlays', () => {
     const cell = buildCohortRows(rows, [1], [spec])[0].cells[0]
 
     expect(cell.excludedIdx).toEqual([3])
-    expect(cell.endpoints.percentDecline.value).toBeCloseTo(50)
-    expect(cell.endpoints.percentDecline.latestValue).toBe(30)
-    expect(cell.endpoints.projectedAgeToCkdG5.value).toBeCloseTo(63, 1)
+    expect(cell.slope).toBeLessThan(0)
+    expect(cell.endpoints.percentDecline.value).toBeCloseTo(-100/3)
+    expect(cell.endpoints.percentDecline.latestValue).toBe(80)
+    expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('non_declining_fit')
   })
 
   it('does not compute CKD endpoints for non-eGFR units even when endpoint toggles are enabled', () => {

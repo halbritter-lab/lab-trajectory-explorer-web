@@ -68,3 +68,9 @@ Interface: endpoint settings include independent G4 switch and positive whole-da
 
 Pre-flight: Task1 preserves OlsFit for Task2; Task2 result/settings extensions feed Task3 labels and exports. Task3 must propagate settings through both workspace and original UI. No interface conflict.
 Ruling: Work in the current feature branch, as requested by the ongoing branch-completion task. No separate worktree or plan-approval pause is needed under the user's autonomous execution instruction.
+
+Task1: complete in f68e481; 13 expected failures before implementation, then 73/73 focused statistics/parity tests passed, including independently regenerated Python tied-rank fixtures.
+Ruling: Skill bookkeeping helpers are Bash scripts, unavailable in this PowerShell environment; this committed ledger records the same task/ruling/test evidence directly.
+Ruling: Conflicting same-timestamp endpoint values cannot confirm persistence; any value at/above threshold interrupts an unconfirmed candidate. This prevents dependence on import ordering; if a different aggregation is wanted, its algorithm and tests must change.
+Ruling: Raw measurements drive observed endpoints and percent change as well as predictions, so aggregation cannot erase a recovery or fabricate a confirmation date. Prepared display fits remain separate; outputs must label that distinction.
+Task2: endpoint/cohort tests 46/46 passed after 4 expected regression failures; UI/export wiring is next. Existing observed-event precedence and no-future-crossing guards are retained.
