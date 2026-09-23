@@ -8,6 +8,11 @@ import type { SparkDomain } from './WorkspaceSparkline'
 import { sexLabel } from './workspace-labels'
 import { useAppStore } from '../ui/state/store'
 import { mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
+import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
+import { mixedModelRowsFromCohortInputs } from '../core/mixedModel/cohortDataset'
+import { prepareMixedModelFactors } from '../core/mixedModel/factors'
+import { workspaceSpecs } from './workspace-data'
+import { currentWorkspaceModels } from './workspace-model-results'
 
 export type WorkspaceAxis = 'baseline' | 'calendar' | 'age'
 export interface WorkspaceDisplay { points: boolean; connect: boolean; events: boolean }
@@ -73,6 +78,35 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const modelLabel = { ols: 'OLS', 'theil-sen': 'Theil–Sen', 'rolling-ols': 'Rolling OLS', 'segmented-ols': 'Segmented OLS', none: 'No fit' }[fitModel]
   const withoutValues = prepared.filter(p => !p.cell?.points.length).length
   const withoutAge = prepared.filter(p => p.cell?.points.length && !p.points.length).length
+  const cohortModelResults = useAppStore(s => s.cohortModelResults)
+  const showCohortMixedModelLine = useAppStore(s => s.showCohortMixedModelLine)
+  const mixedModelConfig = useAppStore(s => s.mixedModelConfig)
+
+  const cohortModelLine = useMemo(() => {
+    if (!showCohortMixedModelLine || !cohortModelResults || (axis !== 'baseline' && axis !== 'age')) return null
+    // The model workspace fits the full dataset using its own preparation.
+    // Display filters must not change the model's population or time origin.
+    const spec = workspaceSpecs(data, [parameter.key])[0]
+    if (!spec) return null
+    const preparedModel = prepareMixedModelFactors(mixedModelRowsFromCohortInputs(data.rows,
+      data.patients.map(p => p.id), spec), mixedModelConfig, data.patientAttributes, data.rows)
+    const current = currentWorkspaceModels(cohortModelResults,
+      [{ entity: { kind: 'cohort' }, ...preparedModel }],
+      data.parameters.findIndex(p => p.key === parameter.key), parameter.key,
+      mixedModelFitConfigHash(spec, mixedModelConfig))
+    const stored = current.cohort
+    if (!stored || stored.result.status !== 'success') return null
+    const ages = [...new Map(preparedModel.rows.map(row => [row.patient_id, row.baseline_age])).values()]
+      .filter((age): age is number => age !== undefined && Number.isFinite(age))
+    const baselineAge = ages.length ? ages.reduce((sum, age) => sum + age, 0) / ages.length : null
+    if (axis === 'age' && baselineAge === null) return null
+    const meanPoints = mixedModelMeanLinePoints(stored.result, preparedModel.rows, {
+      baselineAgeCentered: 0,
+      ageAxisBaselineAge: axis === 'age' ? baselineAge : null,
+    })
+    return meanPoints.filter(pt => Number.isFinite(pt.time_since_baseline) && Number.isFinite(pt.eGFR))
+  }, [showCohortMixedModelLine, cohortModelResults, data, parameter.key, axis, mixedModelConfig])
+
   let xMin = Infinity, xMax = -Infinity, yMin = Infinity, yMax = -Infinity
   for (const series of visible) {
     for (const p of series.points) { xMin = Math.min(xMin, p.x); xMax = Math.max(xMax, p.x); yMin = Math.min(yMin, p.value); yMax = Math.max(yMax, p.value) }
@@ -83,6 +117,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const x = series.xValue(event.date)
       if (x !== null && Number.isFinite(x)) { xMin = Math.min(xMin, x); xMax = Math.max(xMax, x) }
     }
+  }
+  for (const point of cohortModelLine ?? []) {
+    const position = axis === 'age' ? point.age : point.time_since_baseline
+    if (position !== undefined) { xMin = Math.min(xMin, position); xMax = Math.max(xMax, position) }
+    if (scaleMode === 'zoom') { yMin = Math.min(yMin, point.eGFR); yMax = Math.max(yMax, point.eGFR) }
   }
   if (!Number.isFinite(xMin)) { xMin = 0; xMax = 1; yMin = 0; yMax = 1 }
   if (xMin === xMax) { const pad = axis === 'calendar' ? 86_400_000 : .5; xMin -= pad; xMax += pad }
@@ -100,27 +139,6 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const hasHighlight = visible.some(p => p.row.patientId === highlight)
   const exportTitle = cohortRows.length === 1 ? `Patient ${cohortRows[0].patientId} · ${parameter.label}` : parameter.label
 
-  const cohortModelResults = useAppStore(s => s.cohortModelResults)
-  const showCohortMixedModelLine = useAppStore(s => s.showCohortMixedModelLine)
-
-  const cohortModelLine = useMemo(() => {
-    if (!showCohortMixedModelLine || !cohortModelResults || (axis !== 'baseline' && axis !== 'age')) return null
-    const stored = cohortModelResults['cohort']
-    if (!stored || stored.result.status !== 'success' || !stored.result.converged) return null
-    if (stored.identity.seriesKey && !stored.identity.seriesKey.startsWith(parameter.bezeichnung)) return null
-    const modelRows = visible.flatMap(series => series.points.map(pt => ({
-      patient_id: String(series.row.patientId),
-      time_since_baseline: pt.x,
-      eGFR: pt.value,
-      baseline_age_centered: 0,
-    })))
-    if (modelRows.length === 0) return null
-    const meanPoints = mixedModelMeanLinePoints(stored.result, modelRows, {
-      baselineAgeCentered: 0,
-      ageAxisBaselineAge: axis === 'age' ? (xMin + xMax) / 2 : null,
-    })
-    return meanPoints.filter(pt => Number.isFinite(pt.time_since_baseline) && Number.isFinite(pt.eGFR))
-  }, [showCohortMixedModelLine, cohortModelResults, parameter.bezeichnung, axis, visible, xMin, xMax])
 
   return <section className="wt-plot-card" aria-label={`Chart ${parameter.label}`}>
     <div className="wt-card-heading"><h3>{parameter.label}</h3><ChartExportActions getSvg={() => svg.current} title={exportTitle} /></div>
@@ -137,12 +155,13 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       {visible.map(series => {
         const color = groupColor(series.group)
         const active = series.row.patientId === highlight
+        const uncertainFit = Boolean(showFit && slopeQualityLabel(series.cell)?.caveat && Number.isFinite(series.cell.slope))
         return <g key={String(series.row.patientId)} clipPath={`url(#${clip})`} opacity={hasHighlight && !active ? .25 : 1}>
-          <g role="button" tabIndex={0} aria-label={`Open patient ${series.row.patientId}, ${parameter.label}`} onClick={() => onOpen(series.row.patientId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(series.row.patientId) } }} className="wt-chart-person">
+          <g role="button" tabIndex={0} aria-label={`Open patient ${series.row.patientId}, ${parameter.label}`} aria-description={uncertainFit ? "Uncertain slope: limited fitted measurements or follow-up. Dotted fit line." : undefined} onClick={() => onOpen(series.row.patientId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(series.row.patientId) } }} className="wt-chart-person">
             <title>Patient {series.row.patientId} · {groupLabel(series.group)}</title>
             {display.connect && <polyline points={series.points.map(p => `${x(p.x)},${y(p.value)}`).join(' ')} fill="none" stroke={color} strokeWidth={active ? 3 : 1.5} />}
             {series.points.filter(p => display.points || display.connect && (series.points.length === 1 || boundedPrefix(p.operator))).map((p, i) => <g key={i}><circle cx={x(p.x)} cy={y(p.value)} r={active ? 4 : 3} fill={boundedPrefix(p.operator) ? 'white' : color} stroke={color}><title>{`${formatWorkspaceDate(p.date)}: ${boundedPrefix(p.operator)}${formatWorkspaceNumber(p.value)} ${parameter.einheit ?? ''}`}</title></circle>{boundedPrefix(p.operator) && <text x={x(p.x) + 5} y={y(p.value) - 5} fill={color}>{p.operator}</text>}</g>)}
-            {showFit && series.cell.fitLines.map((line, i) => <polyline key={i} points={line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} strokeDasharray="6 4" strokeWidth="2" />)}
+            {showFit && series.cell.fitLines.map((line, i) => <polyline key={i} points={line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} data-fit-quality={uncertainFit ? "uncertain" : "supported"} strokeDasharray={uncertainFit ? "2 4" : "6 4"} strokeWidth="2" />)}
           </g>
           {display.events && data.events.filter(event => event.patientId === series.row.patientId).map((event, i) => { const position = series.xValue(event.date); return position === null ? null : <line key={i} x1={x(position)} x2={x(position)} y1="30" y2="240" stroke="#936221" strokeDasharray="2 5"><title>Patient {event.patientId}: {event.title}, {formatWorkspaceDate(event.date)}</title></line> })}
         </g>
@@ -163,8 +182,8 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     </svg>}
     {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length})</summary>{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId} · {formatWorkspaceDate(event.date)} · {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` · ${event.description}` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
     {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}
-    {cohortModelLine && <p className="wt-muted">Dark dashed line: fitted population mixed-model trajectory.</p>}
-    {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurements or less than one year of follow-up. Even R² = 1 can be based on only two points.</p>}
+    {cohortModelLine && <p className="wt-muted">Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.{axis === 'age' ? ' Age axis: mean baseline age of fitted patients plus elapsed model time.' : ''}</p>}
+    {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurements or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
     {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Hollow points marked &lt; or &gt; are bounds, not exact measurements. The existing fit uses their numeric limits.</p>}
     {!display.points && !display.connect && <p>Measurement points and connecting lines are hidden.</p>}

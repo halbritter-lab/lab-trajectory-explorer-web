@@ -5,6 +5,7 @@ import { DataWorkspace } from './DataWorkspace'
 import { TrajectoriesWorkspace } from './TrajectoriesWorkspace'
 import { CohortModelsWorkspace } from './CohortModelsWorkspace'
 import { useWorkspaceData } from './workspace-data'
+import { useWorkspaceStorage } from './workspace-storage'
 
 type Page = 'Data' | 'Trajectories' | 'Cohort models' | 'Methods'
 const datasetKeys = new WeakMap<LabRow[], number>()
@@ -17,6 +18,7 @@ function datasetKey(rows: LabRow[]): number {
 
 export function WorkspaceApp() {
   const data = useWorkspaceData()
+  const storageStatus = useWorkspaceStorage(s => s.status)
   const [page, setPage] = useState<Page>('Data')
   const [requestedPerson, setRequestedPerson] = useState<{ id: PatientId; rows: LabRow[] } | null>(null)
   const mainRef = useRef<HTMLElement>(null)
@@ -68,8 +70,9 @@ export function WorkspaceApp() {
     <div className="workspace-dataset" role="status">
       <span>{hasData ? data.fileName ?? 'Loaded dataset' : 'No data loaded yet'}</span>
       {hasData && <span>{data.patients.length} patients · {data.parameters.length} parameters · {data.rawRows.length} source measurements</span>}
-      <span>This session only</span>
+      <span>{storageStatus === 'saved' ? 'Saved on this device' : storageStatus === 'saving' ? 'Saving …' : storageStatus === 'error' ? 'Check local storage in Data' : 'This session only'}</span>
     </div>
+    <p className="workspace-guide">Data: prepare and check inputs · Trajectories: compare individual courses · Cohort models: estimate population associations</p>
     <main id="workspace-main" className="workspace-main" ref={mainRef} tabIndex={-1}>
       <section hidden={page !== 'Data'} aria-label="Data workspace">
         <DataWorkspace onBrowse={id => {
@@ -86,7 +89,7 @@ export function WorkspaceApp() {
           : <div className="card"><h1>Compare trajectories</h1><p>Load a file or the demo data first. Then compare patients and multiple parameters in the table, individual view and overlay.</p><button type="button" className="primary" onClick={() => go('Data')}>Load data</button></div>}
       </section>
       <section hidden={page !== 'Cohort models'} aria-label="Cohort model workspace">
-        <CohortModelsWorkspace
+        <CohortModelsWorkspace key={datasetKey(data.rawRows)}
           data={data}
           onBrowseTrajectories={() => go('Trajectories')}
           onBrowseData={() => go('Data')}
@@ -96,7 +99,7 @@ export function WorkspaceApp() {
         <h1>Methods and interpretation</h1>
         <h2>Available in this workspace</h2>
         <p>Start with Data to review measurements and demographics, then preview and apply a derived eGFR series. Use Trajectories to compare parameters across patients or inspect one patient. The same patient and parameter selection controls the table, overlay and workbook export.</p>
-        <p>Optional individual trend lines use ordinary least squares (OLS) on the available numeric measurements. This general exploration configuration does not exclude AKI windows, censor measurements at clinical events, or aggregate measurements over time. Slope and R² describe the fitted data; quality notices flag limited support for a slope.</p>
+        <p>Individual analyses support OLS, Theil–Sen, rolling OLS, segmented OLS and no fit. Choose a shared preset or override settings for one parameter column. Advanced settings control clinical-event censoring, AKI exclusions and time aggregation. General exploration defaults to OLS without these exclusions or aggregation. Slope and R² describe the fitted data; quality notices refer to the measurements actually used by the fit.</p>
         <p>Derived eGFR values use the chosen formula, creatinine source and resolved demographics. The Data preview explains unavailable values before applying a calculation. Select the source parameter as well to include its imported measurements in the export.</p>
         <p>Cohort models allow fitting population-level linear mixed models (WebR / lme4) and evaluating trend projections directly within this workspace.</p>
         <h2>Reference &amp; Theory</h2>

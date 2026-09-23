@@ -116,6 +116,24 @@ The projection form stays within the mobile dialog; result columns can scroll.
 
 ## Real-data workspace
 
+Current completion checks, verified 2026-09-23:
+
+- Opt into local saving after import, demographics and derivation; reload,
+  verify preparation, delete and reload again. A stale second tab must not
+  recreate the deleted snapshot. A failed replacement retains saved data.
+- Download the model preview as SVG/PNG and inspect the exported context.
+  Export a patient ZIP; verify distinct chart names and patient-scoped workbook.
+- Import an exclusion event and inspect the affected patient measurement row.
+- Exercise 200 synthetic patients, 12 parameters and 19,200 measurements;
+  search and export the selected patient. Check the model preview at 390px.
+
+The complete production-browser suite passed 72 checks across Chromium, Firefox
+and WebKit. After the final measurement-exclusion addition, all 36 workspace
+checks passed again on those engines with no retries. Unit/component suite:
+857 tests in 100 files passed; production build passed. A real WebR demo fit
+was exercised separately. Representative research-data and first-user acceptance
+remain pending. Earlier dated checkpoints follow.
+
 1. Open `/workspace.html`; confirm English navigation and session-only status.
 2. Load demo data or a workbook with labs, attributes and events. Review import
    diagnostics and edit demographics using the displayed age reference date.

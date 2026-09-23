@@ -1,8 +1,9 @@
-import { useId, useMemo } from 'react'
+import { useId, useMemo, useRef } from 'react'
 import type { PatientGroup } from '../core/grouping/grouping'
 import type { StoredMixedModelResult } from '../ui/state/store'
 import { mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
 import type { MixedModelSpikeRow } from '../core/mixedModel/types'
+import { ChartExportActions } from './WorkspaceExports'
 import { formatWorkspaceNumber } from './WorkspacePlot'
 
 interface Props {
@@ -13,6 +14,7 @@ interface Props {
   groupColors: Map<string, string>
   groupValuesByPatient: Map<string, string>
   cohortModelResults: Record<string, StoredMixedModelResult> | null
+  modelRowsByEntity: Record<string, MixedModelSpikeRow[]>
   isFitting?: boolean
   onFit?: () => void
 }
@@ -28,9 +30,11 @@ export function CohortModelPlotPreview({
   groupColors,
   groupValuesByPatient,
   cohortModelResults,
+  modelRowsByEntity,
   isFitting,
   onFit,
 }: Props) {
+  const svg = useRef<SVGSVGElement>(null)
   const clipId = useId().replace(/:/g, '')
 
   // Calculate coordinates and bounds
@@ -42,9 +46,14 @@ export function CohortModelPlotPreview({
       group: groupValuesByPatient.get(r.patient_id) ?? null,
     }))
 
-    let maxX = Math.max(1, ...rawPoints.map(p => p.time))
-    let minY = rawPoints.length > 0 ? Math.min(...rawPoints.map(p => p.value)) : 0
-    let maxY = rawPoints.length > 0 ? Math.max(...rawPoints.map(p => p.value)) : 100
+    let maxX = 1
+    let minY = rawPoints.length ? Infinity : 0
+    let maxY = rawPoints.length ? -Infinity : 100
+    for (const point of rawPoints) {
+      maxX = Math.max(maxX, point.time)
+      minY = Math.min(minY, point.value)
+      maxY = Math.max(maxY, point.value)
+    }
 
     // Add fitted line endpoints to domain
     const lines: Array<{ key: string; label: string; color: string; points: Array<{ x: number; y: number }>; slope?: number }> = []
@@ -53,8 +62,8 @@ export function CohortModelPlotPreview({
     if (cohortModelResults) {
       // 1. Whole cohort
       const cohortResult = cohortModelResults['cohort']
-      if (cohortResult?.result.status === 'success') {
-        const linePoints = mixedModelMeanLinePoints(cohortResult.result, spikeRows)
+      if (cohortResult?.result.status === 'success' && cohortResult.result.converged) {
+        const linePoints = mixedModelMeanLinePoints(cohortResult.result, modelRowsByEntity.cohort ?? [])
         if (linePoints.length >= 2) {
           const p1 = { x: linePoints[0].time_since_baseline, y: linePoints[0].eGFR }
           const p2 = { x: linePoints[linePoints.length - 1].time_since_baseline, y: linePoints[linePoints.length - 1].eGFR }
@@ -77,8 +86,8 @@ export function CohortModelPlotPreview({
       for (const group of groups) {
         const groupKey = `group:${group.value}`
         const groupResult = cohortModelResults[groupKey]
-        if (groupResult?.result.status === 'success') {
-          const groupSpikeRows = spikeRows.filter(r => groupValuesByPatient.get(r.patient_id) === group.value)
+        if (groupResult?.result.status === 'success' && groupResult.result.converged) {
+          const groupSpikeRows = modelRowsByEntity[groupKey] ?? []
           const linePoints = mixedModelMeanLinePoints(groupResult.result, groupSpikeRows)
           if (linePoints.length >= 2) {
             const p1 = { x: linePoints[0].time_since_baseline, y: linePoints[0].eGFR }
@@ -110,7 +119,7 @@ export function CohortModelPlotPreview({
       yDomain: { min: Math.floor((minY - yPad) * 10) / 10, max: Math.ceil((maxY + yPad) * 10) / 10 },
       slopeBadges: badges,
     }
-  }, [spikeRows, groups, groupColors, groupValuesByPatient, cohortModelResults])
+  }, [spikeRows, groups, groupColors, groupValuesByPatient, cohortModelResults, modelRowsByEntity])
 
   const W = 680
   const H = 240
@@ -138,10 +147,11 @@ export function CohortModelPlotPreview({
           <h3>Model Trajectory Preview</h3>
           <p className="muted">
             {parameterLabel}{unitLabel} over time (years since baseline).
-            {hasFits ? ' Dashed lines represent fitted population mean slopes.' : ' Run model to estimate slope.'}
+            {hasFits ? ' Dashed lines show fitted reference profiles: numeric factors at fitted centers, categorical factors at reference levels.' : ' Run model to estimate slope.'}
           </p>
         </div>
         <div className="cm-plot-actions">
+          <ChartExportActions getSvg={() => svg.current} title={`Model trajectory · ${parameterLabel}${unitLabel}`} />
           {slopeBadges.map(b => (
             <span key={b.label} className="cm-slope-badge" style={{ borderColor: b.color }}>
               <span className="cm-badge-swatch" style={{ background: b.color }} />
@@ -158,6 +168,9 @@ export function CohortModelPlotPreview({
 
       <div className="cm-plot-svg-wrap">
         <svg
+          ref={svg}
+          data-export-context="Years since baseline; reference profiles at fitted numeric centers and categorical reference levels; only current converged fits are shown"
+          data-export-legend={JSON.stringify(fittedLines.map(line => ({ label: line.label, color: line.color })))}
           className="cm-plot-svg"
           viewBox={`0 0 ${W} ${H}`}
           role="img"

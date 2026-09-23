@@ -1,9 +1,9 @@
 import { useState } from 'react'
-import { downloadBlob, svgStringToPngBlob } from '../io/export'
+import { downloadBlob, svgStringToPngBlob, zipBytes } from '../io/export'
 import { exportChartSvg, safeExportFilename, workspaceWorkbookBytes, type WorkspaceExportInput } from './workspace-export'
 import './exports-workspace.css'
 
-export function WorkspaceExportActions(props: WorkspaceExportInput) {
+export function WorkspaceExportActions(props: WorkspaceExportInput & { getCharts?: () => Array<{ title: string; svg: SVGSVGElement }> }) {
   const [error,setError] = useState<string | null>(null)
   const empty = props.parameterKeys.length === 0 || props.patientIds.length === 0 || (props.patientId !== undefined && !props.patientIds.includes(props.patientId))
   function download() {
@@ -14,8 +14,22 @@ export function WorkspaceExportActions(props: WorkspaceExportInput) {
       downloadBlob(bytes,safeExportFilename(title,'xlsx'),'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     } catch (cause) {setError(cause instanceof Error ? cause.message : 'The workbook could not be exported.')}
   }
+  function downloadBundle() {
+    setError(null)
+    try {
+      const files: Record<string, Uint8Array> = {
+        [safeExportFilename(`Patient-${props.patientId}`, 'xlsx')]: workspaceWorkbookBytes(props),
+      }
+      for (const [index, chart] of (props.getCharts?.() ?? []).entries()) {
+        // Numbering preserves distinct charts even when sanitised labels collide.
+        files[`${index + 1}-${safeExportFilename(chart.title, 'svg')}`] = new TextEncoder().encode(exportChartSvg(chart.svg, chart.title).svg)
+      }
+      downloadBlob(zipBytes(files), safeExportFilename(`Patient-${props.patientId}-bundle`, 'zip'), 'application/zip')
+    } catch (cause) { setError(cause instanceof Error ? cause.message : 'The patient bundle could not be exported.') }
+  }
   return <div className="workspace-export-actions">
     <button type="button" disabled={empty} onClick={download}>Export {props.patientId === undefined ? 'cohort' : 'patient'} (XLSX)</button>
+    {props.patientId !== undefined && props.getCharts && <button type="button" disabled={empty} onClick={downloadBundle}>Export patient bundle (ZIP)</button>}
     {empty && <span>Select patients and parameters first.</span>}
     {error && <p role="alert">Export failed: {error}</p>}
   </div>

@@ -11,6 +11,7 @@ import { readWorkbook } from '../io/readWorkbook'
 import { importWorkspaceFile, useWorkspaceData } from './workspace-data'
 import { sexLabel } from './workspace-labels'
 import './data-workspace.css'
+import { WorkspaceStorageControls } from './WorkspaceStorageControls'
 
 export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) => void }) {
   const data = useWorkspaceData()
@@ -78,7 +79,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
   const missingAge = data.patients.filter(p => p.baselineAge === null).length
   return <div className="data-workspace stack">
     <header className="page-heading"><div><p className="eyebrow">DATA · QUALITY · DERIVATION</p><h1>Prepare data</h1><p className="muted">Import lab values, review patient details and inspect calculations.</p></div><button disabled={!data.rawRows.length} onClick={() => onBrowse()}>Open trajectories →</button></header>
-    <section className="card"><h2>1 · Import a dataset</h2><p>CSV or Excel; sheets containing lab values, events and attributes are read together. All data stays in this session.</p>
+    <section className="card"><h2>1 · Import a dataset</h2><p>CSV or Excel; sheets containing lab values, events and attributes are read together. Data is processed in your browser.</p>
       <div className="data-import-grid"><label className="field">Lab values / workbook<input aria-label="Import lab values" type="file" accept=".csv,.xlsx,.xls" disabled={busy} onChange={e => { const file = e.target.files?.[0]; e.target.value = ''; if (file) void importWorkspaceFile(file) }} /></label><button disabled={busy} onClick={() => void importWorkspaceFile()}>Load demo data</button></div>
       <div className="actions">{['labs', 'events', 'attributes'].map((name, i) => <a key={name} download={`template_${name}.csv`} href={`${import.meta.env.BASE_URL}template_${name}.csv`}>{['Lab template', 'Event template', 'Attribute template'][i]}</a>)}</div>
       {busy && <p role="status">Checking file …</p>}
@@ -86,6 +87,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
       {data.rawRows.length > 0 && <><p><strong>{data.fileName ?? 'Dataset'}</strong></p><div className="data-metrics"><span><strong>{data.patients.length}</strong> patients</span><span><strong>{data.rawRows.length}</strong> imported values</span><span><strong>{data.parameters.filter(p => !p.derived).length}</strong> Parameter–unit combinations</span><span><strong>{data.events.length}</strong> events</span></div>
         <p className="muted">{data.rawRows.filter(r => !r.labDatum).length} values without a date · {data.rawRows.filter(r => r.wertNum === null).length} values without a numeric measurement · {data.rawRows.filter(r => !r.bezeichnung).length} values without a parameter name</p>
         <div className="data-import-grid">{(['events', 'attributes'] as const).map(kind => <label className="field" key={kind}>{kind === 'events' ? 'Replace events' : 'Replace attributes'}<input type="file" accept=".csv,.xlsx,.xls" disabled={busy} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void supplementary(f, kind) }} /></label>)}</div><p className="muted">Supplementary files replace the corresponding table. Attributes: one row per patientId; additional columns can be freely named.</p></>}
+      <WorkspaceStorageControls hasData={data.rawRows.length > 0} />
     </section>
     {data.rawRows.length > 0 && <><section className="card"><h2>2 · Demographics and data quality</h2><p>{missingSex} patients without resolved sex · {missingAge} without age at the first lab date · {resolution.conflicts.length} conflicts</p>
       {!!resolution.conflicts.length && <details><summary>Conflicts and their resolution</summary><ul>{resolution.conflicts.map((c, i) => <li key={i}>{describeConflict(c)}</li>)}</ul></details>}

@@ -12,6 +12,25 @@ function fixture(): WorkspaceData {
 }
 
 describe('real-data trajectories workspace', () => {
+  it('identifies event-excluded measurements in patient detail without refitting', () => {
+    const data = fixture()
+    data.events = [{ patientId: 'ID-A', type: 'kidney_transplant', date: new Date('2021-01-01'), endDate: null, title: 'Transplant', description: null, intent: null, warning: '' }]
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByLabelText('Censor after kidney transplant'))
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
+    const table = screen.getByRole('table', { name: 'Measurements Marker · unit-0', hidden: true })
+    expect(within(table).getAllByText('Excluded: Transplant')).toHaveLength(2)
+    expect(within(table).getByText('Available before time aggregation')).toBeInTheDocument()
+  })
+  it('sorts parameter names containing colons without splitting their identity', () => {
+    const data = fixture()
+    data.parameters = data.parameters.map(p => ({ ...p, bezeichnung: 'Study: marker', key: JSON.stringify(['Study: marker', p.einheit]) }))
+    data.rows = data.rows.map(row => ({ ...row, bezeichnung: 'Study: marker', wertNum: row.patientId === 'ID-A' ? 10 : 100 }))
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: `${data.parameters[0].key}:latest` } })
+    const rows = screen.getAllByRole('row').slice(1)
+    expect(within(rows[0]).getByRole('button', { name: 'Open patient ID-B' })).toBeInTheDocument()
+  })
   it('keeps column settings independent and restores inheritance on reset', () => {
     const data = fixture()
     render(<TrajectoriesWorkspace data={data} />)

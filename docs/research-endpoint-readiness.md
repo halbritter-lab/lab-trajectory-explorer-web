@@ -1,4 +1,4 @@
-# Endpoint analysis readiness — updated 2026-09-14
+# Endpoint analysis readiness — implementation status updated 2026-09-23
 
 This is a technical inventory and decision record, not an approved endpoint
 definition or a change to application methodology.
@@ -77,8 +77,9 @@ analyses](https://pmc.ncbi.nlm.nih.gov/articles/PMC2394262/).
   event-time work remain open; technical integration does not close the issue.
 - #6: numeric coverage supplied by merged PR #10; estimator
   conventions remain unresolved as recorded in that issue.
-- #2: the workplace prototype defines the new navigation; real-data integration,
-  plot export and workflow acceptance remain open.
+- #2: real-data integration, configurable analyses, cohort models, projections,
+  plot exports and local data storage are implemented in the workspace. Research
+  dataset and first-user acceptance remain open; see the completion backlog.
 
 Next acceptance step: evaluate the factor dialog and fitted export with a
 representative research dataset. Existing automated checks establish technical

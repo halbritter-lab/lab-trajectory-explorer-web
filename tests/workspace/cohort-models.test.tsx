@@ -173,6 +173,8 @@ describe('CohortModelsWorkspace', () => {
 
     // genotype is the first available attribute alphabetically
     expect(groupSelect.value).toBe('genotype')
+    fireEvent.change(groupSelect, { target: { value: '' } })
+    expect(groupSelect.value).toBe('')
   })
 
   it('switches to demographic adjustment preset and adds demographic covariates', () => {
@@ -191,7 +193,7 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getByText(/baseline_age_centered/)).toBeInTheDocument()
   })
 
-  it('shows overlay checkbox when successful cohort models exist', async () => {
+  it('does not offer an overlay for an unrelated stored result', async () => {
     useAppStore.setState({
       cohortModelResults: {
         'eGFR||mL/min/1.73m²': {
@@ -216,11 +218,6 @@ describe('CohortModelsWorkspace', () => {
       />
     )
 
-    const overlayCheck = screen.getByLabelText('Show cohort model line in overlay') as HTMLInputElement
-    expect(overlayCheck).toBeInTheDocument()
-    expect(overlayCheck.checked).toBe(false)
-
-    fireEvent.click(overlayCheck)
-    expect(useAppStore.getState().showCohortMixedModelLine).toBe(true)
+    expect(screen.queryByLabelText('Show cohort model line in overlay')).not.toBeInTheDocument()
   })
 })

@@ -1,6 +1,7 @@
 import { expect, test, type Page } from '@playwright/test'
 import { readFile } from 'node:fs/promises'
 import * as XLSX from 'xlsx'
+import { unzipSync, strFromU8 } from 'fflate'
 
 test.use({ timezoneId: 'America/Los_Angeles' })
 
@@ -31,6 +32,152 @@ async function upload(page: Page) {
   await page.getByLabel('Import lab values').setInputFiles({ name: 'research.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: researchWorkbook() })
   await expect(page.locator('.workspace-dataset')).toContainText('3 patients')
 }
+
+test('workspace saves the complete data preparation, resumes and removes the saved copy', async ({ page }, testInfo) => {
+  await upload(page)
+  await page.getByText('Review and edit patients (3)', { exact: true }).click()
+  await page.getByRole('button', { name: 'Edit demographics: C-03' }).click()
+  await page.getByRole('dialog').getByLabel('Age at reference date').fill('40')
+  await page.getByRole('button', { name: 'Save', exact: true }).click()
+  await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
+  await page.getByRole('button', { name: 'Apply calculation' }).click()
+  await page.getByRole('checkbox', { name: 'Remember on this device' }).check()
+  await expect(page.locator('.workspace-dataset')).toContainText('Saved on this device')
+  await page.reload()
+  await expect(page.locator('.workspace-dataset')).toContainText('research.xlsx')
+  await expect(page.locator('.workspace-dataset')).toContainText('13 parameters')
+  await expect(page.getByRole('checkbox', { name: 'Remember on this device' })).toBeChecked()
+  await expect(page.getByLabel('eGFR formula')).toHaveValue('ckd-epi-2021')
+  await expect(page.getByText('12 computed values in preview', { exact: true })).toBeVisible()
+  await expect(page.getByText('1 events', { exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await expect(page.getByRole('option', { name: 'studyArm', exact: true })).toBeAttached()
+  await page.getByRole('button', { name: 'Data', exact: true }).click()
+  // A rejected file must not overwrite the saved, usable dataset.
+  await page.getByLabel('Import lab values').setInputFiles({ name: 'bad.csv', mimeType: 'text/csv', buffer: Buffer.from('wrong,header\nx,y\n') })
+  await expect(page.getByRole('alert')).toBeVisible()
+  await page.reload()
+  await expect(page.locator('.workspace-dataset')).toContainText('research.xlsx')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    await page.locator('.workspace-storage').scrollIntoViewIfNeeded()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`storage-${width}.png`) })
+  }
+  await page.getByRole('button', { name: 'Clear saved data' }).click()
+  await expect(page.getByRole('checkbox', { name: 'Remember on this device' })).not.toBeChecked()
+  await expect(page.locator('.workspace-dataset')).toContainText('research.xlsx')
+  await page.reload()
+  await expect(page.locator('.workspace-dataset')).toContainText('No data loaded yet')
+})
+
+test('model preview exports actual SVG and PNG with chart context', async ({ page }, testInfo) => {
+  await upload(page)
+  await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
+  const preview = page.locator('.cm-plot-card')
+  for (const format of ['SVG', 'PNG']) {
+    const pending = page.waitForEvent('download')
+    await preview.getByRole('button', { name: `Download ${format}` }).click()
+    const download = await pending
+    const bytes = await readFile((await download.path())!)
+    if (format === 'SVG') {
+      expect(bytes.toString()).toContain('Research use only')
+      expect(bytes.toString()).toContain('Years since baseline')
+    } else {
+      expect([...bytes.subarray(0, 8)]).toEqual([137, 80, 78, 71, 13, 10, 26, 10])
+      expect(bytes.length).toBeGreaterThan(1000)
+    }
+  }
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    await preview.scrollIntoViewIfNeeded()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await preview.screenshot({ path: testInfo.outputPath(`model-preview-${width}.png`) })
+  }
+})
+
+test('another tab cannot recreate a cleared workspace snapshot', async ({ page, context }) => {
+  await upload(page)
+  await page.getByRole('checkbox', { name: 'Remember on this device' }).check()
+  await expect(page.locator('.workspace-dataset')).toContainText('Saved on this device')
+  const second = await context.newPage()
+  await second.goto('/workspace.html')
+  await expect(second.locator('.workspace-dataset')).toContainText('research.xlsx')
+  await page.getByRole('button', { name: 'Clear saved data' }).click()
+  await expect(page.locator('.workspace-dataset')).toContainText('This session only')
+  await second.getByText('Review and edit patients (3)', { exact: true }).click()
+  await second.getByRole('button', { name: 'Edit demographics: A-01' }).click()
+  await second.getByRole('dialog').getByLabel('Age at reference date').fill('42')
+  await second.getByRole('button', { name: 'Save', exact: true }).click()
+  await expect(second.getByRole('alert')).toContainText('another tab')
+  await expect(second.getByRole('checkbox', { name: 'Remember on this device' })).not.toBeChecked()
+  await page.reload()
+  await expect(page.locator('.workspace-dataset')).toContainText('No data loaded yet')
+})
+
+test('patient bundle contains the selected patient workbook and chart SVGs', async ({ page }) => {
+  await upload(page)
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await page.getByRole('button', { name: 'Choose parameters' }).click()
+  await page.getByRole('button', { name: 'All parameters', exact: true }).click()
+  await page.getByRole('button', { name: 'Apply', exact: true }).click()
+  await page.getByRole('button', { name: 'Open patient A-01', exact: true }).click()
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export patient bundle (ZIP)' }).click()
+  const download = await pending
+  const files = unzipSync(await readFile((await download.path())!))
+  const charts = Object.keys(files).filter(name => name.endsWith('.svg'))
+  expect(charts).toHaveLength(12)
+  for (const chart of charts) {
+    expect(strFromU8(files[chart])).toContain('Patient A-01')
+    expect(strFromU8(files[chart])).toContain('Research use only')
+  }
+  const workbook = XLSX.read(files[Object.keys(files).find(name => name.endsWith('.xlsx'))!], { type: 'array' })
+  const measurements = XLSX.utils.sheet_to_json<{ PatientID: string }>(workbook.Sheets.measurements)
+  expect(measurements).toHaveLength(48)
+  expect(measurements.every(row => row.PatientID === 'A-01')).toBe(true)
+})
+
+test('patient measurements identify the clinical event responsible for an exclusion', async ({ page }) => {
+  await upload(page)
+  await page.getByLabel('Replace events').setInputFiles({ name: 'events.csv', mimeType: 'text/csv', buffer: Buffer.from('patientId,type,date,title\nA-01,kidney_transplant,2021-01-01,Study transplant\n') })
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await page.getByText('Display and analysis', { exact: true }).click()
+  await page.getByText('Advanced pipeline settings', { exact: true }).click()
+  await page.getByLabel('Censor after kidney transplant').check()
+  await page.getByRole('button', { name: 'Open patient A-01', exact: true }).click()
+  await page.getByText('Show measurements (4)', { exact: true }).first().click()
+  const table = page.getByRole('table', { name: 'Measurements Creatinine [mg/dl]', exact: true })
+  await expect(table.getByRole('cell', { name: 'Excluded: Study transplant', exact: true })).toHaveCount(3)
+  await expect(table.getByRole('cell', { name: 'Available before time aggregation', exact: true })).toHaveCount(1)
+})
+
+test('large synthetic cohort remains searchable and exports the filtered scope', async ({ page }, testInfo) => {
+  test.setTimeout(90000)
+  const labs = Array.from({ length: 200 }, (_, patient) =>
+    Array.from({ length: 12 }, (_, parameter) =>
+      Array.from({ length: 8 }, (_, year) => ({ patientId: `P-${patient}`, labDate: `${2015 + year}-01-01`, testName: `Marker ${parameter}`, unit: 'u', value: 100 - year + parameter, sex: 'f', ageAtLab: 40 + year })))).flat(2)
+  const workbook = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(labs), 'labs')
+  const started = Date.now()
+  await page.goto('/workspace.html')
+  await page.getByLabel('Import lab values').setInputFiles({ name: 'large.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) })
+  await expect(page.locator('.workspace-dataset')).toContainText('200 patients')
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await page.getByRole('button', { name: 'Choose parameters' }).click()
+  await page.getByRole('button', { name: 'All parameters', exact: true }).click()
+  await page.getByRole('button', { name: 'Apply', exact: true }).click()
+  await page.getByLabel('Search patients').fill('P-199')
+  await expect(page.getByRole('button', { name: 'Open patient P-199', exact: true })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Open patient P-1', exact: true })).toHaveCount(0)
+  await testInfo.attach('large-cohort-timing', { body: JSON.stringify({ patients: 200, parameters: 12, measurements: 19200, importBrowseSearchMs: Date.now() - started }), contentType: 'application/json' })
+  const pending = page.waitForEvent('download')
+  await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
+  const exported = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
+  const measurements = XLSX.utils.sheet_to_json<{ PatientID: string }>(exported.Sheets.measurements)
+  expect(measurements).toHaveLength(96)
+  expect(measurements.every(row => row.PatientID === 'P-199')).toBe(true)
+})
 
 test('column analysis settings stay independent and export on desktop and mobile', async ({ page }, testInfo) => {
   await upload(page)

@@ -5,11 +5,20 @@ Run `pnpm dev --host 127.0.0.1`, then open
 `http://127.0.0.1:5173/workspace.html`.
 For production-build checks, run `pnpm build` and `pnpm preview`.
 
-The workspace reuses the existing import, demographics, eGFR and OLS functions.
+The workspace reuses the existing import, demographics, eGFR and analysis functions.
 It has its own entry point; the original application at `index.html` and the
 synthetic design prototype remain available for comparison.
-Data stays in the current browser session. Reloading or switching to the original
-application requires another import. The application language is English;
+Data stays in the browser. By default it lasts only for the current session.
+Under Data, **Remember on this device** opts into an unencrypted local snapshot
+of source labs, events, attributes, manual demographics and derivation settings.
+The snapshot expires seven days after the last data change. Reopening restores
+that data preparation; analysis/view choices and fitted models reset. The original
+application uses its own saved dataset and does not restore this workspace copy.
+**Clear saved data** removes the local copy while retaining the current session;
+**Clear dataset** confirms and removes both. Storage errors remain visible and
+imports still work. A stale tab cannot overwrite a newer or deleted snapshot;
+its next save stops and explains how to resume or explicitly save its own data.
+The application language is English;
 imported parameter names and patient attributes retain their original values.
 
 ## First complete workflow
@@ -29,23 +38,59 @@ imported parameter names and patient attributes retain their original values.
 5. Export the selected patient scope as XLSX, or download individual charts as
    SVG/PNG. Displayed metrics and exports reuse the same prepared analysis.
 
+## Analysis and model workflows
+
+- Individual analyses support OLS, Theil-Sen, rolling OLS, segmented OLS and no fit.
+  Shared presets and per-column overrides include event censoring, AKI exclusion,
+  time aggregation and rapid-decline settings. The table and exports use the same
+  prepared summaries. Uncertain individual fits have dotted lines in the overlay
+  and an accessible description, in addition to the overall warning count.
+  Patient measurement rows explain existing event/AKI exclusions and identify
+  values available before time aggregation; this does not introduce another fit.
+- Cohort models fit the existing browser-based WebR model, with configurable
+  factors, grouped fits, result tables and profile/threshold projections. Chart
+  results must match the current response, unit, data, preparation and model
+  configuration, and must have converged. Changing response or data hides stale
+  curves. Overlay filters do not refit or redefine the full-cohort reference line.
+  On an age axis, the reference uses mean fitted baseline age plus model time.
+- The model preview exports SVG/PNG. Individual views also export a ZIP containing
+  the scoped patient workbook and currently available SVG charts, with metadata
+  and research framing. Distinct charts retain distinct names in the archive.
+
 ## Scope boundaries
 
-- Individual fits initially use the existing general OLS configuration. The full
-  editor for fit presets, exclusions, time balancing and additional metrics is
-  the next integration package.
-- **Cohort models** explicitly shows that real model fitting is not yet connected
-  to this workspace. Integration of the existing models and trend projections is
-  a separate complete workflow.
-- No automatic patient-data persistence or restoration. Saved projects are not
-  part of this package.
-- Research use only; no clinical decision support or time-to-event analysis.
+- Stored data preparation is not full project management: named projects, saved
+  view/column configurations and saved fitted models are not included.
+- Endpoint definitions, legacy individual projection anchors and Theil-Sen
+  conventions remain separate decisions. No numerical core contract was changed.
+- Research use only; no clinical decision support or event-time model.
 
-Remaining requirements are tracked in the
+The current worklist is the [completion backlog](workspace-completion-backlog.md).
+Historical requirements are tracked in the
 [requirements reconciliation](requirements-reconciliation.md) and
 [feature inventory](../prototypes/analysis-workspace/feature-audit.md).
 
 ## Acceptance record
+
+Verified 2026-09-23:
+
+- `pnpm test --maxWorkers=2 --minWorkers=1`: 857 tests across 100 files passed.
+- `pnpm build`: TypeScript and production bundling passed.
+- With `CI=1` and `CROSS_BROWSER=1`, the complete Playwright suite passed
+  72 checks in Chromium, Firefox and WebKit. After adding per-measurement
+  exclusion explanations, all 36 workspace checks passed again against the
+  final production build (`--workers=2 --timeout=60000 --retries=0`).
+- Browser coverage includes prepared-data resumption/deletion, stale-tab storage,
+  failed replacement, actual SVG/PNG/ZIP/workbook downloads, event exclusions,
+  narrow screens and a synthetic 200-patient/19,200-measurement cohort.
+  A real WebR demo fit was also exercised separately.
+- Independent code review reproduced and resolved stale-tab persistence and
+  clear/import races. Numerical core files and parity contracts are unchanged.
+
+These checks establish technical regression coverage. Representative research
+data, first-user acceptance and the decisions in the
+[current backlog](workspace-completion-backlog.md) remain outstanding.
+The dated records below describe earlier checkpoints.
 
 Verified 2026-09-14 before the English-language correction:
 

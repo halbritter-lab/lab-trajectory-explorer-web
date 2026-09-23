@@ -90,7 +90,7 @@ export function workspaceWorkbookBytes(input: WorkspaceExportInput): Uint8Array 
   return sheetsToXlsxBytes(workspaceWorkbookSheets(input))
 }
 
-export function safeExportFilename(title: string, extension: 'xlsx'|'svg'|'png'): string {
+export function safeExportFilename(title: string, extension: 'xlsx'|'svg'|'png'|'zip'): string {
   const safe = title.normalize('NFKC').replace(/[\u0000-\u001f\u007f\\/:*?"<>|]/g,'-').replace(/^\.+|[. ]+$/g,'').trim().slice(0,100) || 'export'
   return `lab-trajectory-${safe}-${fileStamp()}.${extension}`
 }

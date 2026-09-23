@@ -1,5 +1,12 @@
 # Anforderungen, Entscheidungen und offene Probleme
 
+> Historical record. Current implementation status and outstanding work are tracked
+> in the [workspace completion backlog](workspace-completion-backlog.md) (updated 2026-09-23).
+> Real-data import, configurable individual analyses, cohort models/projections,
+> local data storage and workspace chart exports are implemented. Older statements
+> below describe the earlier design/review stage, not today's missing features.
+
+
 Abgleich vom 14.09.2026. Dieser Index verbindet frühere Analysen, GitHub-Issues,
 Umsetzungsnachweise und den aktuellen UI-Entwurf. Er ersetzt keine Fachdefinition
 und erklärt technisch integrierte Funktionen nicht automatisch für abgenommen.

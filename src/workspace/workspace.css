@@ -78,3 +78,6 @@ dialog::backdrop { background: #1b333d66; }
   .equal { grid-template-columns: 1fr; }
   dialog { padding: 18px; }
 }
+
+.workspace-guide { max-width: 1600px; margin: 16px auto 0; padding: 0 32px; color: #425e65; font-size: 13px; }
+@media (max-width: 700px) { .workspace-guide { padding: 0 16px; } }

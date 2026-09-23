@@ -17,6 +17,7 @@ import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mi
 import { validateMixedModelRows } from '../core/mixedModel/validation'
 import type { CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
+import { currentWorkspaceModels } from './workspace-model-results'
 import './cohort-models-workspace.css'
 
 const CohortModelTable = lazy(() =>
@@ -41,9 +42,6 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const cohortModelProgress = useAppStore(s => s.cohortModelProgress)
   const runCohortModels = useAppStore(s => s.runCohortModels)
 
-  const hasSuccessfulModel = Boolean(
-    cohortModelResults && Object.values(cohortModelResults).some(s => s.result.status === 'success')
-  )
 
   const eligibleParameters = useMemo(() => {
     return (data.parameters ?? []).filter(p =>
@@ -164,6 +162,10 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     }))
   }, [data.rows, patientIds, cohortGroups, spec, mixedModelConfig, data.patientAttributes])
 
+  const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
+    paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])
+  const hasSuccessfulModel = Object.keys(currentModels).length > 0
+
   const entityLabels = useMemo(() => {
     const map = new Map<string, string>([['cohort', 'Whole cohort']])
     for (const group of cohortGroups) map.set(`group:${group.value}`, group.value)
@@ -177,7 +179,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   }, [cohortGroups, cohortGroupColorMap])
 
   // Preset switching logic
-  function selectPreset(newPreset: CohortModelPreset, targetAttr?: string) {
+  function selectPreset(newPreset: CohortModelPreset, targetAttr?: string | null) {
     setPreset(newPreset)
 
     if (newPreset === 'unadjusted') {
@@ -189,7 +191,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         randomEffects: 'intercept_slope',
       })
     } else if (newPreset === 'stratified') {
-      const attr = targetAttr ?? groupByAttribute ?? availableGroupByAttributes[0] ?? null
+      const attr = targetAttr !== undefined ? targetAttr : groupByAttribute ?? availableGroupByAttributes[0] ?? null
       setGroupByAttribute(attr)
       setMixedModelConfig({
         timeAxis: 'time_since_baseline',
@@ -345,7 +347,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                 onChange={e => {
                   const val = e.target.value || null
                   setGroupByAttribute(val)
-                  if (preset === 'stratified') selectPreset('stratified', val ?? undefined)
+                  if (preset === 'stratified') selectPreset('stratified', val)
                 }}
               >
                 <option value="">No grouping (Whole cohort)</option>
@@ -359,10 +361,11 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
         {/* Preset Selector */}
         <div className="cm-preset-section">
-          <div className="cm-preset-bar" role="tablist" aria-label="Model presets">
+          <div className="cm-preset-bar" role="group" aria-label="Model presets">
             <button
               type="button"
               className={`cm-preset-btn ${preset === 'unadjusted' ? 'active' : ''}`}
+              aria-pressed={preset === 'unadjusted'}
               onClick={() => selectPreset('unadjusted')}
             >
               <span>🔬 Standard (Overall)</span>
@@ -370,6 +373,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             <button
               type="button"
               className={`cm-preset-btn ${preset === 'stratified' ? 'active' : ''}`}
+              aria-pressed={preset === 'stratified'}
               onClick={() => selectPreset('stratified')}
             >
               <span>👥 Subgroup comparison</span>
@@ -377,6 +381,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             <button
               type="button"
               className={`cm-preset-btn ${preset === 'demographic' ? 'active' : ''}`}
+              aria-pressed={preset === 'demographic'}
               onClick={() => selectPreset('demographic')}
             >
               <span>⚖️ Demographic adjustment</span>
@@ -384,6 +389,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             <button
               type="button"
               className={`cm-preset-btn ${preset === 'interaction' ? 'active' : ''}`}
+              aria-pressed={preset === 'interaction'}
               onClick={() => selectPreset('interaction')}
             >
               <span>🧬 Group interaction</span>
@@ -535,7 +541,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           groups={cohortGroups}
           groupColors={cohortGroupColorMap}
           groupValuesByPatient={groupValuesByPatient}
-          cohortModelResults={cohortModelResults}
+          cohortModelResults={currentModels}
+          modelRowsByEntity={Object.fromEntries(entities.map(item => [item.entity.kind === 'cohort' ? 'cohort' : `group:${item.entity.value}`, item.rows]))}
           isFitting={cohortModelRunning}
           onFit={handleFitAll}
         />

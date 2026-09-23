@@ -1,5 +1,12 @@
 # Vollständiger Branch Review: feat/workspace-real-data
 
+> Historical record. Current implementation status and outstanding work are tracked
+> in the [workspace completion backlog](workspace-completion-backlog.md) (updated 2026-09-23).
+> Real-data import, configurable individual analyses, cohort models/projections,
+> local data storage and workspace chart exports are implemented. Older statements
+> below describe the earlier design/review stage, not today's missing features.
+
+
 Stand: 16. September 2026
 Branch: `feat/workspace-real-data` (Basis: `main` @ `609e257`)
 

@@ -4,9 +4,27 @@ import * as XLSX from 'xlsx'
 import * as exports from '../../src/io/export'
 import { WorkspaceExportActions, ChartExportActions } from '../../src/workspace/WorkspaceExports'
 import { exportFixture } from './export-fixture'
+import { unzipSync, strFromU8 } from 'fflate'
 
 vi.mock('../../src/io/export',async importOriginal => ({...await importOriginal<typeof exports>(),downloadBlob:vi.fn(),svgStringToPngBlob:vi.fn()}))
 beforeEach(() => {vi.clearAllMocks()})
+
+it('bundles the patient workbook with distinct attributed SVG files', () => {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg')
+  svg.setAttribute('viewBox', '0 0 400 200')
+  svg.append(document.createElementNS(svg.namespaceURI, 'circle'))
+  render(<WorkspaceExportActions {...exportFixture()} patientId="001-A" getCharts={() => [{ title: 'Marker/u', svg }, { title: 'Marker:u', svg }]} />)
+  fireEvent.click(screen.getByRole('button', { name: 'Export patient bundle (ZIP)' }))
+  const [bytes, filename, mime] = vi.mocked(exports.downloadBlob).mock.calls[0]
+  expect(filename).toMatch(/\.zip$/)
+  expect(mime).toBe('application/zip')
+  const files = unzipSync(bytes as Uint8Array)
+  const charts = Object.keys(files).filter(name => name.endsWith('.svg'))
+  expect(charts).toHaveLength(2)
+  for (const name of charts) expect(strFromU8(files[name])).toContain('Research use only')
+  const book = XLSX.read(files[Object.keys(files).find(name => name.endsWith('.xlsx'))!], { type: 'array' })
+  expect(XLSX.utils.sheet_to_json(book.Sheets.measurements)).toHaveLength(2)
+})
 
 it('downloads real scoped workbook bytes and explains empty selections', () => {
   const input = exportFixture()

@@ -8,6 +8,7 @@ import { WorkspacePlot, boundedPrefix, measurementText, formatWorkspaceDate, for
 import './trajectories-workspace.css'
 import { WorkspaceSparkline, type SparkDomain } from './WorkspaceSparkline'
 import { sexLabel } from './workspace-labels'
+import { measurementFitStatus } from './measurement-fit-status'
 import type { FitConfig } from '../core/fitPipeline/types'
 import { isRapidEgfrDecline } from '../core/analysis/rapidEgfrDeclineModule'
 import { WorkspaceAnalysisSettings } from './WorkspaceAnalysisSettings'
@@ -106,6 +107,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
     return next
   })
 
+  const workspaceElement = useRef<HTMLDivElement>(null)
   const dialog = useRef<HTMLDialogElement>(null)
   const pickerButton = useRef<HTMLButtonElement>(null)
   const tableScroller = useRef<HTMLDivElement>(null)
@@ -191,7 +193,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   }).sort((a, b) => {
     if (sort === 'id') return comparePatientIds(a.patientId, b.patientId)
     if (sort === 'id:desc') return comparePatientIds(b.patientId, a.patientId)
-    const [paramKey, rawMetric] = sort.includes(':') ? sort.split(':') : [sort, 'latest']
+    const separator = sort.lastIndexOf(':')
+    const [paramKey, rawMetric] = separator >= 0 ? [sort.slice(0, separator), sort.slice(separator + 1)] : [sort, 'latest']
     const metric = rawMetric || 'latest'
     const index = keys.indexOf(paramKey)
     if (index < 0) return comparePatientIds(a.patientId, b.patientId)
@@ -313,12 +316,15 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   const closePicker = () => { dialog.current?.close?.(); setDraftKeys(null); pickerButton.current?.focus() }
   const toggleFit = (key: string) => setFitKeys(previous => previous.includes(key) ? previous.filter(k => k !== key) : [...previous, key])
   if (!data.patients.length) return <section className="card"><h1>Patients and trajectories</h1><p>No data loaded yet. Import a CSV or Excel file, or load demo data under Data.</p></section>
-    return <div className="wt-workspace">
+    return <div className="wt-workspace" ref={workspaceElement}>
     <header className="page-heading"><p className="eyebrow">PATIENTS & TRAJECTORIES</p><h1>Explore trajectories</h1><p>{data.patients.length} patients · {data.parameters.length} parameters · {data.fileName ?? 'Loaded data'}</p></header>
     {parameterNotice && <p className="notice" role="status">{parameterNotice}</p>}
     {unavailable.length > 0 && <p className="notice" role="status">Unavailable selected parameters: {unavailable.join(', ')}. The derivation is disabled or currently produces no computable values. The selection is retained for recalculation; unavailable parameters are excluded from exports.</p>}
     <section className="card wt-controls" aria-label="Shared selection">
-      <div className="wt-toolbar"><button ref={pickerButton} onClick={() => { setParameterQuery(''); setDraftKeys([...keys]) }}>Choose parameters</button><span>{parameters.length} parameters selected</span><WorkspaceExportActions data={data} parameterKeys={keys} patientIds={patientIds} cohortRows={visible} fitConfigByParameterKey={fitConfigs} rapidEgfrThresholdByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).rapidEgfrThreshold]))} {...(mode === 'detail' && current ? { patientId: current.patientId } : {})} /></div>
+      <div className="wt-toolbar"><button ref={pickerButton} onClick={() => { setParameterQuery(''); setDraftKeys([...keys]) }}>Choose parameters</button><span>{parameters.length} parameters selected</span><WorkspaceExportActions data={data} parameterKeys={keys} patientIds={patientIds} cohortRows={visible} fitConfigByParameterKey={fitConfigs} rapidEgfrThresholdByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).rapidEgfrThreshold]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
+        getCharts: () => [...(workspaceElement.current?.querySelectorAll<SVGSVGElement>('.wt-plot-card svg.wt-plot') ?? [])].map(svg => ({
+          svg, title: `Patient ${current.patientId} · ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
+        })) } : {})} /></div>
       <div className="wt-control-grid">
         <label>Search patients<input value={query} onChange={event => setQuery(event.target.value)} placeholder="ID or name" /></label>
         <label>Group by<select value={groupBy} onChange={event => { setGroupBy(event.target.value); setGroup('') }}><option value="">No grouping</option>{attributes.map(attribute => <option key={attribute}>{attribute}</option>)}</select></label>
@@ -417,7 +423,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
       if (typeof window !== 'undefined' && window.history?.replaceState) window.history.replaceState({ page: 'Trajectories', mode: 'detail', patientId: nextId, returnMode }, '')
     }}>Next patient</button><span>{currentIndex + 1} / {visible.length}</span></div><div className="wt-plot-grid">{parameters.map((parameter, index) => {
       const measurements = measurementsFor(current.patientId, parameter)
-      return <div key={parameter.key}><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary cell={current.cells[index]} fit={fitKeys.includes(parameter.key)} measurements={measurements} rapidEgfrThreshold={(columnSettings[parameter.key] ?? fitSettings).rapidEgfrThreshold} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
+      const fitStatus = measurementFitStatus(measurements, current.cells[index], data.events.filter(event => event.patientId === current.patientId), fitConfigs[parameter.key])
+      return <div key={parameter.key}><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary cell={current.cells[index]} fit={fitKeys.includes(parameter.key)} measurements={measurements} rapidEgfrThreshold={(columnSettings[parameter.key] ?? fitSettings).rapidEgfrThreshold} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` · ${event.description}` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section></section>}
     {draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} />{p.label}</label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}
   </div>

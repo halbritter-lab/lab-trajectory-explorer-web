@@ -7,6 +7,16 @@ interfaces are still evolving before 1.0.
 
 ### Added
 
+- Workspace analysis presets and independent column settings; cohort-model studio
+  with covariates, grouped fits, reference-trajectory preview and projections.
+- Opt-in workspace storage for seven days, including source data, events,
+  attributes, manual demographic edits and derivation settings; safe deletion,
+  restore diagnostics and protection against stale writes from another tab.
+- Model-preview SVG/PNG export and patient ZIP bundles with workbook and charts.
+- Individual uncertain-fit markers, navigation guidance and narrow-screen model
+  layouts. Model previews and overlays reject stale or non-converged results and
+  use model elapsed time correctly on age axes. Sorting supports colons in names.
+
 - English real-data workspace at `/workspace.html`: import and demographic review,
   previewed eGFR derivations, multi-parameter patient graph table, individual
   trajectories, configurable spaghetti overlays, and scoped XLSX/SVG/PNG exports.

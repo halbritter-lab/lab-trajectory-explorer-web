@@ -1,6 +1,7 @@
 /* Cohort Models Workspace Styling */
 .cohort-models-workspace {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 20px;
   min-width: 0;
 }
@@ -529,3 +530,17 @@
   font-weight: 500;
 }
 
+/* Keep long response names, formulas and result tables within narrow screens. */
+.cohort-models-workspace .page-heading > div,
+.cm-plot-header > div,
+.cm-studio-card > *,
+.cm-formula-strip > div { min-width: 0; }
+.cm-studio-card, .cm-preset-section { grid-template-columns: minmax(0, 1fr); }
+.cm-primary-controls label { display: grid; gap: 6px; min-width: 0; }
+.cm-formula-code { overflow-wrap: anywhere; }
+.cm-plot-header { flex-wrap: wrap; }
+.cohort-model-table-wrap { min-width: 0; overflow-x: auto; }
+@media (max-width: 600px) {
+  .cm-primary-controls { grid-template-columns: minmax(0, 1fr); }
+  .cm-plot-header { flex-direction: column; }
+}
