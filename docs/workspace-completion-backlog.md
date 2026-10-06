@@ -49,8 +49,9 @@ Research-data acceptance remains open; see [dated test record](../tests/e2e/smok
 - [x] Verify result invalidation across parameter, unit, patient selection,
   events, demographic edits, analysis settings and model-factor changes, including
   the model preview, result table, projection and exports.
-- [ ] Reconcile PR #16's description with the final implementation when preparing
+- [x] Reconcile PR #16's description with the final implementation when preparing
   its review. Do not close issues based on stale checkboxes or green CI alone.
+  Done 2026-10-06; #6 closed against its scope checklist, #2 and #4 remain open.
 
 Completion evidence: each requirement has a current code/test reference or an
 explicit outstanding decision. Confirmed defects have a reproducer and regression.
@@ -115,7 +116,8 @@ Update numerical contracts and parity expectations explicitly during implementat
 - [x] Document every substantive algorithm and decision in methodology, settings
   help and export provenance; include worked examples, boundary behavior and tests.
 - [ ] Accept factor models and projections with representative research data and
-  questions; synthetic fixtures do not establish this acceptance.
+  questions; synthetic fixtures do not establish this acceptance. Checklist:
+  [research-data acceptance](research-acceptance.md).
 
 ## 5. Retained extensions needing separate scope
 
@@ -138,9 +140,13 @@ or record an explicit deferral. Do not silently mark them complete.
 
 - [x] Run unit/component tests, production build and browser regression suite
   against the final work packages; perform code review and record actual results.
-- [ ] Complete representative research-data and first-user acceptance.
-- [ ] Resolve the stacked PR order (#15 then #16), update the target to main,
-  and integrate reviewed work according to the release process.
+- [ ] Complete representative research-data and first-user acceptance using the
+  [acceptance checklist](research-acceptance.md).
+- [x] Resolve the stacked PR order (#15 then #16), update the target to main,
+  and integrate reviewed work according to the release process. 2026-10-06: a
+  final review against main found ten issues, fixed in `31f7aa0` with
+  regression tests; #16 merged as `99f9bb9` (contains #15). CI passed on the
+  PR head and on main. Nothing was published.
 - [ ] Prepare version/changelog and complete-workflow release scope.
 - [ ] Obtain release acceptance, then publish and verify deployment only when
   authorized. A merge or successful CI is not publication approval.
