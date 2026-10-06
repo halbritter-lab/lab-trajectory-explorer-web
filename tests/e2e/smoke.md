@@ -243,5 +243,7 @@ single-interface checklist are unchanged. The current branch passed all 29
 automated Chromium browser tests (`pnpm test:e2e`), covering the automated
 subset of current workspace paths. The manual steps above were not rerun for
 P3; their dated verification remains the 2026-10-06 production-build check.
-Independent P3 review is pending.
+Independent whole-P3 review is complete: its one finding was an inaccurate
+HbA1c 7 % projection example in `docs/architecture.md`, corrected in the
+follow-up documentation commit.
 

@@ -92,7 +92,10 @@ and the architecture guide, core-layering test and settings-parser tests
 (`e50a04b`). The earlier P3 checkpoint recorded 750 unit tests, a build,
 29 browser tests and both real-webR verification scripts. The current branch
 has since passed 29/29 automated Chromium browser tests. P3 smoke checklist
-and changelog close-out are recorded here; independent P3 review is pending.
+and changelog close-out are recorded here. Independent whole-P3 review is
+complete: it found one documentation error in the HbA1c 7 % projection example
+(`docs/architecture.md`), corrected in the follow-up documentation commit; no
+numeric code changed.
 
 Then P4–P7 as above. Owner review pending: UI-reference sentences changed on
 the methodology page (P2) and the new cohort-model sentence on time origin and

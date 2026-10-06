@@ -56,8 +56,9 @@ preset only when users need a selectable fit policy.
 This example adds a projection target for an HbA1c outcome measured in `%`.
 The target is a crossing of a fitted line, not a clinical prognosis. The
 existing projection helper uses `direction: 'below'` for values strictly below
-the threshold. At exactly 7, a non-flat line reports a crossing at the
-reference time. Pick and test any other boundary convention explicitly.
+the threshold. At exactly 7, a falling line reports a crossing at the
+reference time, a rising line reports `away`, and a flat line reports `flat`.
+Pick and test any other boundary convention explicitly.
 
 1. Create `src/core/domains/diabetes/`. Put names, accepted units and any
    conversion policy in that folder. Match the imported HbA1c series by both
