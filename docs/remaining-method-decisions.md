@@ -7,6 +7,56 @@ change them. Current algorithm details and limitations are recorded in
 [implemented method algorithms](method-algorithms.md); verification and acceptance
 are tracked separately in the [backlog](workspace-completion-backlog.md).
 
+## Decisions of 2026-10-06 (full repository review)
+
+Taken by the project owner after a full review with synthetic cases. Where they
+conflict with older entries below, these take precedence. Defaults marked
+*(proposed)* were chosen during implementation on the owner's instruction to
+proceed and remain open to the owner's revision.
+
+- **Python reference no longer binding.** The TypeScript core may deviate from
+  the Python `analyses` package. Golden fixtures remain as regression tests;
+  every deliberate numeric change is documented here, in
+  [method algorithms](method-algorithms.md) and the changelog, and the affected
+  fixtures are updated with the reason.
+- **Endpoints stop at kidney replacement therapy.** Endpoint input (observed
+  G4/G5, percent decline, individual G5 projection) is truncated at the first
+  kidney transplant or chronic dialysis start. A dated acute-dialysis interval
+  is excluded only for its duration. The start of a transplant or chronic
+  dialysis itself counts as *kidney failure reached* on that date. This
+  replaces the earlier "use all dated measurements, including later recovery"
+  rule for individual prediction below.
+- **Individual G5 projection.** No projected crossing beyond 20 years after
+  the last measurement *(proposed horizon)*; no projected crossing when the
+  slope confidence interval includes zero. The "unlikely" wording is replaced
+  by a neutral statement of what was or was not computed.
+- **Confirmed percent-decline endpoints.** 40 % and 57 % eGFR decline (57 %
+  corresponds to doubling of serum creatinine). Baseline: mean of the values
+  within the first 90 days of follow-up *(proposed)*. Confirmation uses the
+  same configurable minimum interval as G4/G5.
+- **Maximum confirmation window.** A confirming value must follow the
+  candidate within 12 months *(proposed)*; this applies to G4/G5 and percent
+  decline alike.
+- **Censored values** (`<x`, `>x`) are excluded from fits and endpoints and
+  shown as such; they are not fitted as exact values *(proposed)*.
+- **KDIGO threshold comparisons** use a small numeric tolerance, so a rise of
+  exactly 0.3 mg/dl or exactly 1.5× is detected. Episode clustering and staging
+  are unchanged for now.
+- **AKI detection and eGFR derivation** convert serum creatinine in µmol/l to
+  mg/dl instead of silently ignoring it.
+- **Cohort models** may apply the analysis preset's censoring and AKI
+  exclusions. Whether they do, and how many measurements were excluded, is
+  shown in the interface and recorded in exports.
+- **Mixed models.** Stricter minimum data requirements, singular fits flagged
+  and their projections withheld, and the time origin and dropout assumptions
+  documented on the methodology page. The earlier methodology wording may be
+  replaced.
+- **Not changed for now:** AKI episode merging and staging; the rapid-decline
+  flag; quarterly calendar-median aggregation (made visible only).
+- **Architecture.** Analyses become modular: domain rules (nephrology) live in
+  modules on top of a generic core. The workspace becomes the only interface;
+  the legacy interface at `index.html` is removed.
+
 ## Approved requirements
 
 ### Observed events and recovery
