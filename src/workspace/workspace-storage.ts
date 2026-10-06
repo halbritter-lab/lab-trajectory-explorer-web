@@ -32,10 +32,11 @@ interface StorageStatus {
   enabled: boolean
   status: 'session' | 'saving' | 'saved' | 'error'
   message: string | null
-  /** Data saved by the former interface was found and removed at start-up. */
-  legacyDataRemoved: boolean
+  /** Data saved by the former interface found at start-up: removed, or found
+   * but not (completely) removable. Shown once as a notice. */
+  legacyData: 'none' | 'removed' | 'removal-failed'
 }
-export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyDataRemoved: false }))
+export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyData: 'none' }))
 
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 const nullableText = (v: unknown) => v === null || typeof v === 'string'
@@ -113,29 +114,41 @@ async function defaultDatabaseMayExist(): Promise<boolean> {
   return (await indexedDB.databases()).some(db => db.name === DEFAULT_IDB_DATABASE)
 }
 
+export interface LegacyStorageOutcome {
+  /** Former-interface keys (dataset, settings, …) were present. */
+  formerInterfaceData: boolean
+  /** State of a workspace copy the previous release left in the shared database. */
+  legacyWorkspaceCopy: SnapshotState | null
+}
+
 /**
  * Remove everything earlier versions kept in the shared default database,
  * regardless of age: the former interface's `lab-explorer:dataset` and
  * `lab-explorer:settings`, and any other `lab-explorer:*` key. A usable,
  * unexpired workspace copy is first moved to this app's own database (once:
- * the source is deleted). Returns whether former-interface data was removed.
+ * the source is deleted); it replaces a dedicated copy only if that one is
+ * expired or invalid. Findings are recorded in `outcome` before anything is
+ * deleted, so they survive a failing deletion.
  */
-export async function migrateLegacyStorage(): Promise<boolean> {
-  if (!await defaultDatabaseMayExist()) return false
+export async function migrateLegacyStorage(
+  outcome: LegacyStorageOutcome = { formerInterfaceData: false, legacyWorkspaceCopy: null },
+): Promise<LegacyStorageOutcome> {
+  if (!await defaultDatabaseMayExist()) return outcome
   const legacyKeys = (await keys()).filter((key): key is string => typeof key === 'string' && key.startsWith(LEGACY_KEY_PREFIX))
-  let removedFormerInterfaceData = false
-  for (const key of legacyKeys) {
-    if (key === WORKSPACE_STORAGE_KEY) {
-      const value: unknown = await get(key)
-      // Never replace a copy that already exists in the dedicated database.
-      if (classifySnapshot(value) === 'usable') await update(WORKSPACE_STORAGE_KEY, previous => previous ?? value, workspaceIdbStore())
-    } else {
-      removedFormerInterfaceData = true
+  outcome.formerInterfaceData = legacyKeys.some(key => key !== WORKSPACE_STORAGE_KEY)
+  if (legacyKeys.includes(WORKSPACE_STORAGE_KEY)) {
+    const value: unknown = await get(WORKSPACE_STORAGE_KEY)
+    outcome.legacyWorkspaceCopy = classifySnapshot(value)
+    if (outcome.legacyWorkspaceCopy === 'usable') {
+      await update(WORKSPACE_STORAGE_KEY, previous => previous !== undefined && classifySnapshot(previous) === 'usable' ? previous : value, workspaceIdbStore())
     }
-    await del(key)
   }
-  return removedFormerInterfaceData
+  for (const key of legacyKeys) await del(key)
+  return outcome
 }
+
+const EXPIRED_MESSAGE = 'The saved workspace expired after seven days and was removed. Import your file to continue.'
+const INVALID_MESSAGE = 'The saved workspace could not be read (invalid or from an unsupported version) and was removed. Import your file to continue.'
 
 let writes: Promise<void> = Promise.resolve()
 let revision = 0
@@ -160,6 +173,11 @@ function save(): Promise<void> {
   if (!useAppStore.getState().rows.length) return setWorkspaceRemember(false)
   const currentRevision = ++revision
   const value = snapshot()
+  // Never write a copy the next start would reject and delete.
+  if (!validSnapshot(value)) {
+    reportError('This dataset cannot be saved on this device because it contains values the saved format does not accept. It stays available in this tab; export your data to keep it.')
+    return Promise.resolve()
+  }
   useWorkspaceStorage.setState({ status: 'saving', message: null })
   return enqueue(async () => {
     if (currentRevision !== revision || !useWorkspaceStorage.getState().enabled) return
@@ -206,22 +224,29 @@ export async function startWorkspaceStorage(): Promise<() => void> {
   await writes
   lastWriteToken = undefined
   claimPending = false
-  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyDataRemoved: false })
+  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyData: 'none' })
+  const legacy: LegacyStorageOutcome = { formerInterfaceData: false, legacyWorkspaceCopy: null }
+  let legacyCleanupFailed = false
   try {
-    if (await migrateLegacyStorage()) useWorkspaceStorage.setState({ legacyDataRemoved: true })
+    await migrateLegacyStorage(legacy)
   } catch (error) {
     // Clean-up of the shared database must never block this app's own data.
+    legacyCleanupFailed = true
     console.warn('Could not clean up data saved by an earlier version.', error)
   }
+  if (legacy.formerInterfaceData) useWorkspaceStorage.setState({ legacyData: legacyCleanupFailed ? 'removal-failed' : 'removed' })
   try {
     const value: unknown = await get(WORKSPACE_STORAGE_KEY, workspaceIdbStore())
     const state = value === undefined ? null : classifySnapshot(value)
     if (state === 'expired') {
       await deleteIfUnchanged(value)
-      useWorkspaceStorage.setState({ message: 'The saved workspace expired after seven days and was removed. Import your file to continue.' })
+      useWorkspaceStorage.setState({ message: EXPIRED_MESSAGE })
     } else if (state === 'invalid') {
       await deleteIfUnchanged(value)
-      useWorkspaceStorage.setState({ message: 'The saved workspace could not be read (invalid or from an unsupported version) and was removed. Import your file to continue.' })
+      useWorkspaceStorage.setState({ message: INVALID_MESSAGE })
+    } else if (state === null && (legacy.legacyWorkspaceCopy === 'expired' || legacy.legacyWorkspaceCopy === 'invalid')) {
+      // An unusable copy left by the previous release was removed during migration.
+      useWorkspaceStorage.setState({ message: legacy.legacyWorkspaceCopy === 'expired' ? EXPIRED_MESSAGE : INVALID_MESSAGE })
     } else if (state === 'usable' && validSnapshot(value)) {
       lastWriteToken = value.writeToken
       useAppStore.getState().replaceDataset({ rows: value.rows,

@@ -30,18 +30,22 @@ export function parseWert(raw: string | null): ParsedWert {
   }
   normalized = normalized.replace(/,/g, '.')
 
+  // Digits that overflow a double (e.g. "1e400") would become ±Infinity and
+  // break every later computation; they are reported as unparseable instead.
+  const finite = (value: number, operator: ParsedWert['operator']): ParsedWert =>
+    Number.isFinite(value) ? { value, operator, raw } : { value: null, operator: 'unparseable', raw }
   let m: RegExpMatchArray | null
   if ((m = normalized.match(LESS_THAN_RE))) {
-    return { value: parseFloat(m[1]), operator: '<', raw }
+    return finite(parseFloat(m[1]), '<')
   }
   if ((m = normalized.match(GREATER_THAN_RE))) {
-    return { value: parseFloat(m[1]), operator: '>', raw }
+    return finite(parseFloat(m[1]), '>')
   }
   if (RANGE_RE.test(normalized)) {
     return { value: null, operator: 'range', raw }
   }
   if (PLAIN_NUMBER_RE.test(normalized)) {
-    return { value: parseFloat(normalized), operator: '=', raw }
+    return finite(parseFloat(normalized), '=')
   }
   return { value: null, operator: 'unparseable', raw }
 }

@@ -178,7 +178,7 @@ describe('storage left by earlier versions', () => {
     await restart()
     expect(useAppStore.getState()).toMatchObject({ fileName: 'earlier.csv', patientAttributes: { A: { genotype: 'G1' } } })
     expect(useAppStore.getState().analysisSettings.egfr.formula).toBe('mdrd-4')
-    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', legacyDataRemoved: false })
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', legacyData: 'none' })
     expect(await getDb(WORKSPACE_STORAGE_KEY)).toBeUndefined()
     expect((await get(WORKSPACE_STORAGE_KEY)).writeToken).toBe('previous-release')
     // Saving continues in the dedicated database with the migrated token.
@@ -193,6 +193,8 @@ describe('storage left by earlier versions', () => {
     expect(useAppStore.getState().rows).toHaveLength(0)
     expect(await getDb(WORKSPACE_STORAGE_KEY)).toBeUndefined()
     expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+    // The user learns why the earlier copy did not come back.
+    expect(useWorkspaceStorage.getState().message).toMatch(/expired after seven days and was removed/)
 
     useAppStore.getState().replaceDataset({ rows: [row], fileName: 'current.csv' })
     await setWorkspaceRemember(true)
@@ -208,13 +210,58 @@ describe('storage left by earlier versions', () => {
     await setDb('another-app:state', 'keep me')
     await restart()
     expect(useAppStore.getState().rows).toHaveLength(0)
-    expect(useWorkspaceStorage.getState().legacyDataRemoved).toBe(true)
+    expect(useWorkspaceStorage.getState().legacyData).toBe('removed')
     expect(await keys()).toEqual(['another-app:state'])
     render(<WorkspaceApp />)
     expect(screen.getByText(/or settings saved on this device by the former version of Lab Trajectory Explorer were removed/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByText(/former version/)).not.toBeInTheDocument()
     await restart()
-    expect(useWorkspaceStorage.getState().legacyDataRemoved).toBe(false)
+    expect(useWorkspaceStorage.getState().legacyData).toBe('none')
+  })
+  it('reports an unreadable copy in the shared database like one in the dedicated database', async () => {
+    await setDb(WORKSPACE_STORAGE_KEY, { ...previousSnapshot(), rows: 'broken' })
+    await restart()
+    expect(useWorkspaceStorage.getState().message).toMatch(/could not be read .* and was removed/)
+    expect(await getDb(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+  })
+  it('replaces an expired or invalid dedicated copy with a usable earlier copy', async () => {
+    for (const stale of [{ ...previousSnapshot(), writeToken: 'stale', savedAt: Date.now() - DATASET_TTL_MS - 1 }, { version: 1, savedAt: Date.now(), rows: 'broken' }]) {
+      await set(WORKSPACE_STORAGE_KEY, stale)
+      await setDb(WORKSPACE_STORAGE_KEY, previousSnapshot())
+      await restart()
+      expect(useAppStore.getState().fileName).toBe('earlier.csv')
+      expect(useAppStore.getState().rows).toHaveLength(1)
+      expect((await get(WORKSPACE_STORAGE_KEY)).writeToken).toBe('previous-release')
+      expect(await getDb(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+      await setWorkspaceRemember(false)
+    }
+  })
+  it('still tells the user about former-interface data when removing it fails', async () => {
+    await setDb('lab-explorer:dataset', { rows: [row], savedAt: Date.now() })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const realDelete = IDBObjectStore.prototype.delete
+    const failing = vi.spyOn(IDBObjectStore.prototype, 'delete').mockImplementation(function (this: IDBObjectStore, key: IDBValidKey | IDBKeyRange) {
+      if (this.transaction.db.name === 'keyval-store') throw new DOMException('blocked', 'InvalidStateError')
+      return realDelete.call(this, key)
+    })
+    await restart()
+    failing.mockRestore()
+    expect(useWorkspaceStorage.getState().legacyData).toBe('removal-failed')
+    expect(warn).toHaveBeenCalled()
+    render(<WorkspaceApp />)
+    expect(screen.getByText(/could not be removed/)).toBeInTheDocument()
   })
 })
+
+describe('saving only what can be restored', () => {
+  it('does not write a snapshot it would reject on the next start', async () => {
+    useAppStore.getState().replaceDataset({ rows: [{ ...row, wertNum: Number.POSITIVE_INFINITY }] })
+    await setWorkspaceRemember(true)
+    expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+    expect(useWorkspaceStorage.getState().status).toBe('error')
+    expect(useWorkspaceStorage.getState().message).toMatch(/cannot be saved/)
+    expect(useAppStore.getState().rows).toHaveLength(1)
+  })
+})
+

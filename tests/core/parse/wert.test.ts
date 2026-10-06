@@ -53,4 +53,12 @@ describe('parseWert', () => {
     const raw = '<' + String.fromCharCode(0x00a0) + '30'
     expect(parseWert(raw)).toEqual({ value: 30, operator: '<', raw })
   })
+  it('treats numbers that overflow to infinity as unparseable', () => {
+    // A non-finite value would later fail the saved-workspace check and be deleted.
+    expect(parseWert('1e400')).toEqual({ value: null, operator: 'unparseable', raw: '1e400' })
+    expect(parseWert('-1e400')).toEqual({ value: null, operator: 'unparseable', raw: '-1e400' })
+    const huge = '<' + '9'.repeat(400)
+    expect(parseWert(huge)).toEqual({ value: null, operator: 'unparseable', raw: huge })
+    expect(parseWert('1e3')).toEqual({ value: 1000, operator: '=', raw: '1e3' })
+  })
 })

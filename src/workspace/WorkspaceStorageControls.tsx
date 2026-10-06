@@ -14,11 +14,14 @@ export function WorkspaceStorageControls({ hasData }: { hasData: boolean }) {
       useAppStore.getState().reset()
     } finally { useAppStore.setState({ busy: false }) }
   }
-  const legacyDataRemoved = useWorkspaceStorage(s => s.legacyDataRemoved)
+  const legacyData = useWorkspaceStorage(s => s.legacyData)
   return <div className="workspace-storage">
-    {legacyDataRemoved && <div className="notice amber" role="status">
-      <p>Data or settings saved on this device by the former version of Lab Trajectory Explorer were removed: that version has been replaced and its saved copies are no longer read. Import your file again to continue. To keep a dataset between visits, use “Remember on this device” below.</p>
-      <button type="button" onClick={() => useWorkspaceStorage.setState({ legacyDataRemoved: false })}>Dismiss</button>
+    {legacyData !== 'none' && <div className="notice amber" role="status">
+      <p>{legacyData === 'removed'
+        ? 'Data or settings saved on this device by the former version of Lab Trajectory Explorer were removed: that version has been replaced and its saved copies are no longer read. Import your file again to continue.'
+        : 'Data or settings saved on this device by the former version of Lab Trajectory Explorer could not be removed. They are no longer read; to delete them, clear this site\'s data in your browser settings.'}
+        {' '}To keep a dataset between visits, use “Remember on this device” below.</p>
+      <button type="button" onClick={() => useWorkspaceStorage.setState({ legacyData: 'none' })}>Dismiss</button>
     </div>}
     <label><input type="checkbox" checked={enabled} disabled={!hasData && !enabled}
       onChange={event => void setWorkspaceRemember(event.target.checked)} /> Remember on this device</label>
