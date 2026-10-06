@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { filterFitPointsByClinicalEvents } from '../../../src/core/events/fitExclusions'
+import { clinicalEventExclusionReason, filterFitPointsByClinicalEvents } from '../../../src/core/events/fitExclusions'
 import type { ClinicalEvent } from '../../../src/core/events/events'
 import type { SeriesPoint } from '../../../src/core/stats/series'
 import { ckdProgressionConfig, generalExplorationConfig } from '../../../src/core/fitPipeline/types'
@@ -72,5 +72,27 @@ describe('filterFitPointsByClinicalEvents', () => {
 
     expect(result.points).toEqual(points)
     expect(result.excludedIdx).toEqual([])
+  })
+})
+
+describe('clinicalEventExclusionReason', () => {
+  const censoring = ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: null }).censoring
+  it('names the event policy that excludes a point and agrees with the filter', () => {
+    const cases: [ClinicalEvent, string | null][] = [
+      [event({ type: 'kidney_transplant' }), 'post_kidney_transplant'],
+      [event({ type: 'dialysis', intent: 'chronic' }), 'post_chronic_dialysis'],
+      [event({ type: 'dialysis', intent: 'acute', endDate: d('2020-06-01') }), 'acute_dialysis'],
+      [event({ type: 'dialysis', intent: 'unknown', endDate: d('2020-06-01') }), 'unknown_dialysis_interval'],
+      [event({ type: 'dialysis', intent: 'acute' }), null],
+      [event({ type: 'other' }), null],
+    ]
+    for (const [ev, reason] of cases) {
+      expect(clinicalEventExclusionReason(d('2020-01-01'), ev, censoring)).toBe(reason)
+      const excluded = filterFitPointsByClinicalEvents(points, [ev], censoring).excludedIdx
+      expect(excluded.includes(1)).toBe(reason !== null)
+    }
+    expect(clinicalEventExclusionReason(d('2019-01-01'), event({ type: 'kidney_transplant' }), censoring)).toBeNull()
+    const off = generalExplorationConfig({ bezeichnung: 'eGFR', einheit: null }).censoring
+    expect(clinicalEventExclusionReason(d('2020-01-01'), event({ type: 'kidney_transplant' }), off)).toBeNull()
   })
 })

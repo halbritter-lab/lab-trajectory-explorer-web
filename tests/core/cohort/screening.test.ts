@@ -167,6 +167,20 @@ describe('buildCohortRows cell overlays', () => {
     expect(cell.excludedIdx).toEqual([])
     expect(cell.akiChip.startsWith('AKI')).toBe(true)
   })
+  it('exposes the AKI episodes and per-point exclusion reasons behind excludedIdx', () => {
+    const g = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }])[0].cells[0]
+    expect(g.akiEpisodes.map((e) => e.stage)).toEqual([2])
+    expect(g.pointExclusionReasons.every((reasons) => reasons.length === 0)).toBe(true)
+
+    const fitConfig = ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+    fitConfig.timeBalancing = 'raw'
+    const transplant: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', date: d('2021-01-01T00:00:00Z'), title: 'Tx', description: null, endDate: null, intent: null, warning: '' }
+    const cell = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig, clinicalEvents: [transplant] }])[0].cells[0]
+    expect(cell.excludedIdx).toEqual([4, 5, 7])
+    expect(cell.pointExclusionReasons).toEqual([[], [], [], [], ['aki'], ['aki'], [], ['post_kidney_transplant']])
+    // Same aligned contract: non-empty exactly at excludedIdx.
+    expect(cell.pointExclusionReasons.flatMap((r, i) => r.length ? [i] : [])).toEqual(cell.excludedIdx)
+  })
   it('rolling mode has no mini fit lines', () => {
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'rolling' }
     const cell = buildCohortRows(spiky, [1], [spec])[0].cells[0]

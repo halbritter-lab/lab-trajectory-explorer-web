@@ -12,8 +12,8 @@ import { formatAkiChip, formatAkiEpisodeSummary } from '../aki/summary'
 import { rapidEgfrDeclineFlagForCell } from '../analysis/rapidEgfrDeclineModule'
 import { isEgfrUnit } from '../analysis/rapidEgfrDeclineModule'
 import type { ClinicalEvent } from '../events/events'
-import { clinicalEventAffectsFit, filterFitPointsByClinicalEvents } from '../events/fitExclusions'
-import type { FitConfig } from '../fitPipeline/types'
+import { clinicalEventAffectsFit, clinicalEventExclusionReason, filterFitPointsByClinicalEvents } from '../events/fitExclusions'
+import type { ExclusionReason, FitConfig } from '../fitPipeline/types'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from '../endpoints/ckdEndpoints'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
@@ -62,7 +62,15 @@ export interface CohortCell {
   akiSummary: string
   fitLines: LinePoint[][]
   akiBands: DateBand[]
+  /** AKI episodes shown for this series (creatinine-derived, also for eGFR
+   * columns), in detection order. Display context; the fit only uses them when
+   * AKI-window exclusion is configured. */
+  akiEpisodes: AkiEpisode[]
   excludedIdx: number[]
+  /** Reasons each point in `points` is excluded from the fit, aligned by index;
+   * an empty array means the point is available to the fit. Non-empty exactly
+   * for the indices in `excludedIdx`. */
+  pointExclusionReasons: ExclusionReason[][]
   endpoints: CkdEndpoints
 }
 
@@ -128,10 +136,19 @@ export function buildCohortRows(
         episodes = fitInput?.episodes ?? episodesForSeries(prows, pid, spec.bezeichnung, spec.einheit ?? null)
       }
       const excluded = new Set(filterFitPointsByClinicalEvents(points, clinicalEvents, spec.fitConfig?.censoring).excludedIdx)
+      const pointExclusionReasons: ExclusionReason[][] = points.map((point, i) => {
+        if (!excluded.has(i)) return []
+        const reasons = clinicalEvents
+          .map((event) => clinicalEventExclusionReason(point.date, event, spec.fitConfig?.censoring))
+          .filter((reason): reason is ExclusionReason => reason !== null)
+        return [...new Set(reasons)]
+      })
       if ((spec.mode === 'aki-aware' || spec.fitConfig?.exclusions.excludeAkiWindows) && points.length > 0) {
         const kept = new Set(fitAkiAware(points, exclusionDays, episodes).keptIdx)
         points.forEach((_, i) => {
-          if (!kept.has(i)) excluded.add(i)
+          if (kept.has(i)) return
+          excluded.add(i)
+          pointExclusionReasons[i].push('aki')
         })
       }
       const excludedIdx = [...excluded].sort((a, b) => a - b)
@@ -187,7 +204,9 @@ export function buildCohortRows(
         akiSummary: formatAkiEpisodeSummary(akiStages),
         fitLines,
         akiBands: akiExclusionBands(episodes, exclusionDays),
+        akiEpisodes: episodes,
         excludedIdx,
+        pointExclusionReasons,
         endpoints: computeCkdEndpoints({
           points: endpointPoints,
           slopePerYear: endpointFit.slope,
