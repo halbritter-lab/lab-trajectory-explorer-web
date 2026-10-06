@@ -1,25 +1,19 @@
 import type { CohortCell } from '../core/cohort/screening'
-import type { ClinicalEvent } from '../core/events/events'
-import { filterFitPointsByClinicalEvents } from '../core/events/fitExclusions'
-import type { FitConfig } from '../core/fitPipeline/types'
 import type { LabRow } from '../core/types'
+import { exclusionReasonLabel } from './workspace-labels'
 
-/** Explain existing prepared exclusions without rerunning the statistical fit. */
-export function measurementFitStatus(rows: LabRow[], cell: CohortCell, events: ClinicalEvent[], config: FitConfig): string[] {
-  const reasons = new Map<number, string[]>()
-  for (const event of events) {
-    for (const index of filterFitPointsByClinicalEvents(cell.points, [event], config.censoring).excludedIdx) {
-      reasons.set(index, [...(reasons.get(index) ?? []), event.title])
-    }
-  }
-  const excluded = new Set(cell.excludedIdx)
+/** Explain the prepared exclusions per measurement row without rerunning any
+ * filter: reasons come from the core's per-point exclusion record, so event
+ * censoring and AKI windows are reported from the same source as the fit. */
+export function measurementFitStatus(rows: LabRow[], cell: CohortCell): string[] {
   // Cell points follow the same dated/numeric, stable date order as these rows.
   let numericIndex = 0
   return rows.map(row => {
     if (!row.labDatum || row.wertNum === null) return 'Unavailable: missing date or numeric value'
     const index = numericIndex++
     if (cell.fitModel === 'none') return 'Fit disabled'
-    if (excluded.has(index)) return `Excluded: ${reasons.get(index)?.join('; ') || 'AKI exclusion window'}`
+    const reasons = cell.pointExclusionReasons[index] ?? []
+    if (reasons.length) return `Excluded: ${reasons.map(exclusionReasonLabel).join('; ')}`
     return 'Available before time aggregation'
   })
 }

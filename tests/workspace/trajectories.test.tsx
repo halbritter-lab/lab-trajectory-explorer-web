@@ -25,7 +25,7 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(screen.getByLabelText('Censor after kidney transplant'))
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
     const table = screen.getByRole('table', { name: 'Measurements Marker · unit-0', hidden: true })
-    expect(within(table).getAllByText('Excluded: Transplant')).toHaveLength(2)
+    expect(within(table).getAllByText('Excluded: after kidney transplant')).toHaveLength(2)
     expect(within(table).getByText('Available before time aggregation')).toBeInTheDocument()
   })
   it('sorts parameter names containing colons without splitting their identity', () => {
@@ -392,6 +392,84 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByLabelText('Sort by')).toHaveValue(`${data.parameters[0].key}:absSlope`)
   })
 
+  it('explains an uncertain slope accessibly in the table and visibly in the patient view', () => {
+    const data = fixture()
+    data.rows = data.rows.filter(row => !(row.patientId === 'ID-A' && row.labDatum?.getUTCFullYear() === 2021))
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: Marker · unit-0' }))
+    const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
+    const note = within(row).getByText('n < 3 · uncertain slope')
+    expect(note.getAttribute('title')).toMatch(/Two points/)
+    // Keyboard and touch users reach the explanation through a disclosure, not a tooltip.
+    const why = within(row).getByText('Why is the slope uncertain?')
+    expect(why.closest('details')).toHaveTextContent(/interpret with caution/)
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
+    const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
+    const card = chart.parentElement!
+    expect(within(card).getByRole('note')).toHaveTextContent(/n < 3 · uncertain slope.*interpret with caution/)
+  })
+
+  it('shows no slope-quality caveat once the fit model is off', () => {
+    const data = fixture()
+    data.rows = data.rows.filter(row => !(row.patientId === 'ID-A' && row.labDatum?.getUTCFullYear() !== 2020))
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: Marker · unit-0' }))
+    expect(screen.getAllByText(/n < 3/).length).toBeGreaterThan(0)
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'acute_review' } })
+    for (const summary of document.querySelectorAll('.wt-cell-summary')) expect(summary.textContent).not.toMatch(/n < 3|< 1 year/)
+  })
+
+  it('states fitted and total counts when exclusions remove measurements from the fit', () => {
+    const data = fixture()
+    data.events = [{ patientId: 'ID-A', type: 'kidney_transplant', date: new Date('2022-01-01'), endDate: null, title: 'Transplant', description: null, intent: null, warning: '' }]
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByLabelText('Censor after kidney transplant'))
+    fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: Marker · unit-0' }))
+    const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
+    expect(within(row).getByText(/^2 fitted of 3 measurements · \d+ days$/)).toBeInTheDocument()
+    const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
+    expect(within(other).getAllByText(/^3 fitted measurements · \d+ days$/).length).toBeGreaterThan(0)
+  })
+
+  it('does not mark excluded measurements when no fit model is set', () => {
+    const data = fixture()
+    data.events = [{ patientId: 'ID-A', type: 'kidney_transplant', date: new Date('2021-01-01'), endDate: null, title: 'Transplant', description: null, intent: null, warning: '' }]
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByLabelText('Censor after kidney transplant'))
+    fireEvent.change(screen.getByLabelText('Fit model'), { target: { value: 'none' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
+    const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
+    expect(within(chart).queryAllByTestId('excluded-point')).toHaveLength(0)
+    expect(within(chart).queryByText(/Grey open circles/)).not.toBeInTheDocument()
+    expect(chart.querySelector('svg')!.getAttribute('data-export-context')).not.toContain('excluded')
+  })
+
+  it('opens a patient from an overlay trajectory with the Space key', () => {
+    render(<TrajectoriesWorkspace data={fixture()} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
+    fireEvent.keyDown(screen.getAllByRole('button', { name: /Open patient ID-B, Marker/ })[0], { key: ' ' })
+    expect(screen.getByRole('heading', { name: 'Patient ID-B' })).toBeInTheDocument()
+  })
+
+  it('explains the empty state when no patients are loaded', () => {
+    const data = { ...fixture(), patients: [], rows: [], rawRows: [] }
+    render(<TrajectoriesWorkspace data={data} />)
+    expect(screen.getByRole('heading', { name: 'Patients and trajectories' })).toBeInTheDocument()
+    expect(screen.getByText(/No data loaded yet/)).toBeInTheDocument()
+  })
+
+  it('pins the endpoint badge text and title for a projected G5 age', () => {
+    const parameter = { key: JSON.stringify(['eGFR', 'mL/min/1.73m²']), label: 'eGFR [mL/min/1.73m²]', bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', derived: false }
+    const rows: LabRow[] = [60, 45, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2020 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 60 + i }))
+    const data = { rawRows: rows, rows, fileName: 'g5.csv', parameters: [parameter], patients: [{ id: 'P1', label: 'P1', attributes: {}, baselineAge: 60 }], events: [], patientAttributes: {}, analysis: { fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'ckd_progression' } })
+    // Deliberately exact: wording changes to this badge must update this test.
+    const badge = document.querySelector('.wt-badge-endpoint')!
+    expect(badge).toHaveTextContent(/^-50% · G5 @ 63\.0y$/)
+    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from baseline (not per year) · projected age to CKD G5 63.0 years; fitted curve using all dated numeric measurements')
+  })
+
   it('reverses a metric sort and keeps patients without a value last', () => {
     const data = fixture()
     data.rows = data.rows.map(row => row.einheit === 'unit-0' ? { ...row, wertNum: row.patientId === 'ID-A' ? 10 : 100 } : row)
@@ -469,6 +547,18 @@ describe('AKI display in workspace charts', () => {
     const offSeries = within(other).getByTestId('aki-marker')
     expect(offSeries).toHaveAttribute('data-on-measurement', 'false')
     expect(offSeries.querySelector('title')!.textContent).toContain('no measurement of this parameter on that date')
+  })
+
+  it('marks AKI-excluded measurements even while AKI display is off, with reasons in the measurement table', () => {
+    render(<TrajectoriesWorkspace data={creatinineFixture(['P1'])} />)
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'ckd_progression' } })
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient P1' }))
+    expect(screen.getByLabelText('AKI windows and episodes')).not.toBeChecked()
+    const chart = screen.getByRole('region', { name: 'Chart Kreatinin [mg/dl]' })
+    expect(within(chart).getAllByTestId('excluded-point')).toHaveLength(2)
+    expect(within(chart).queryAllByTestId('aki-marker')).toHaveLength(0)
+    const table = screen.getByRole('table', { name: 'Measurements Kreatinin [mg/dl]', hidden: true })
+    expect(within(table).getAllByText('Excluded: AKI window')).toHaveLength(2)
   })
 
   it('marks episodes for every overlay trajectory but windows and labels only for the highlighted one', () => {

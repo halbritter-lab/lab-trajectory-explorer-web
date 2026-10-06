@@ -60,6 +60,23 @@ describe('workspace workbook', () => {
     expect(records(workbook,'demographics')[0]).toMatchObject({warnings:'Conflicting recorded sex',birth_anchor:'1969-05-06',age_estimated:true})
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('SECRET')
   })
+  it('flags a demographic conflict for a patient ID containing colons', () => {
+    const input = exportFixture()
+    const rename = <T,>(value: T): T => value === '001-A' ? 'P:001' as T : value
+    const data = input.data
+    data.rows = data.rows.map(row => ({ ...row, patientId: rename(row.patientId) }))
+    data.rawRows = data.rawRows.map(row => ({ ...row, patientId: rename(row.patientId) }))
+    data.patients = data.patients.map(patient => ({ ...patient, id: rename(patient.id) }))
+    input.cohortRows = input.cohortRows.map(row => ({ ...row, patientId: rename(row.patientId) }))
+    input.patientIds = ['P:001']
+    data.analysis.messages = [
+      { id: 'demographics:sex_tie:P:001', severity: 'warning', text: 'Conflicting recorded sex' },
+      { id: 'demographics:sex_tie:P', severity: 'warning', text: 'Another patient' },
+    ]
+    const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
+    expect(records(workbook, 'cohort')[0]).toMatchObject({ PatientID: 'P:001', demographics_conflict: 'yes' })
+    expect(records(workbook, 'demographics')[0]).toMatchObject({ patientId: 'P:001', warnings: 'Conflicting recorded sex' })
+  })
   it('roundtrips the visible scope with actual prepared summaries and derived provenance', () => {
     const input = exportFixture()
     input.cohortRows[0].cells[0].slope = 123.456 // Proves the supplied displayed summary is reused.

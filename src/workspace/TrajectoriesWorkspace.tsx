@@ -34,11 +34,14 @@ function CellSummary({
   fit,
   measurements,
   rapidEgfrThreshold = 5,
+  detailed = false,
 }: {
   cell: CohortCell
   fit: boolean
   measurements: LabRow[]
   rapidEgfrThreshold?: number
+  /** Patient view: the slope-quality explanation is shown as text, not hidden. */
+  detailed?: boolean
 }) {
   const last = cell.points[cell.points.length - 1]
   const lastSource = measurements.filter(row => row.labDatum && row.wertNum !== null).at(-1)
@@ -83,7 +86,13 @@ function CellSummary({
           ? `${cell.nFitted} fitted of ${cell.nNumeric} measurements · ${cell.fittedSpanDays} days`
           : `${cell.nFitted} fitted measurements · ${cell.fittedSpanDays} days`}
       </span>
-      {quality && <span className={quality.caveat ? 'wt-warning' : 'wt-muted'}>{qualityText}{quality.caveat ? ' · uncertain slope' : ''}</span>}
+      {quality && (detailed
+        ? <p role="note" className={`wt-quality-note ${quality.caveat ? 'wt-warning' : 'wt-muted'}`}><strong>{qualityText}{quality.caveat ? ' · uncertain slope' : ''}</strong>: {quality.title}</p>
+        : <>
+          <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityText}{quality.caveat ? ' · uncertain slope' : ''}</span>
+          {/* Tooltips are unreachable by keyboard and touch; the disclosure is not. */}
+          <details className="wt-quality-details"><summary>{quality.caveat ? 'Why is the slope uncertain?' : 'Why is there no slope?'}</summary><p>{quality.title}</p></details>
+        </>)}
       {rapid && <span className="wt-badge wt-badge-rapid" title={`Rapid decline: slope < -${rapidEgfrThreshold} /year`}>rapid ↓</span>}
     </>}
     {endpoint && <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p></details></>}
@@ -443,8 +452,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
       if (typeof window !== 'undefined' && window.history?.replaceState) window.history.replaceState({ page: 'Trajectories', mode: 'detail', patientId: nextId, returnMode }, '')
     }}>Next patient</button><span>{currentIndex + 1} / {visible.length}</span></div><div className="wt-plot-grid">{parameters.map((parameter, index) => {
       const measurements = measurementsFor(current.patientId, parameter)
-      const fitStatus = measurementFitStatus(measurements, current.cells[index], data.events.filter(event => event.patientId === current.patientId), fitConfigs[parameter.key])
-      return <div key={parameter.key}><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary cell={current.cells[index]} fit={fitKeys.includes(parameter.key)} measurements={measurements} rapidEgfrThreshold={(columnSettings[parameter.key] ?? fitSettings).rapidEgfrThreshold} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
+      const fitStatus = measurementFitStatus(measurements, current.cells[index])
+      return <div key={parameter.key}><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed cell={current.cells[index]} fit={fitKeys.includes(parameter.key)} measurements={measurements} rapidEgfrThreshold={(columnSettings[parameter.key] ?? fitSettings).rapidEgfrThreshold} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` · ${event.description}` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section></section>}
     {draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} />{p.label}</label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}
   </div>

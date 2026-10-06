@@ -179,7 +179,7 @@ test('patient measurements identify the clinical event responsible for an exclus
   await page.getByRole('button', { name: 'Open patient A-01', exact: true }).click()
   await page.getByText('Show measurements (4)', { exact: true }).first().click()
   const table = page.getByRole('table', { name: 'Measurements Creatinine [mg/dl]', exact: true })
-  await expect(table.getByRole('cell', { name: 'Excluded: Study transplant', exact: true })).toHaveCount(3)
+  await expect(table.getByRole('cell', { name: 'Excluded: after kidney transplant', exact: true })).toHaveCount(3)
   await expect(table.getByRole('cell', { name: 'Available before time aggregation', exact: true })).toHaveCount(1)
 })
 

@@ -74,7 +74,8 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const group = groupBy ? patient?.attributes[groupBy] || 'Not recorded' : 'All patients'
       const points = (cell?.points ?? []).flatMap((point, index) => {
         const x = xValue(point.date)
-        const exclusions: ExclusionReason[] = cell?.pointExclusionReasons?.[index] ?? []
+        // Exclusions only mean something for a fit; with no fit model nothing is marked.
+        const exclusions: ExclusionReason[] = cell && cell.fitModel !== 'none' ? cell.pointExclusionReasons?.[index] ?? [] : []
         return x === null || !Number.isFinite(x) || !Number.isFinite(point.value) ? [] : [{ ...point, x, exclusions, operator: sourceRows.get(row.patientId)?.[index]?.wertOperator ?? '=' as WertOperator }]
       })
       // Episodes are creatinine-derived and reach every column of the patient.

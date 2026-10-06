@@ -87,3 +87,7 @@
 .wt-aki-swatch { display: inline-block; width: 14px; height: 10px; margin-right: 2px; vertical-align: -1px; background: #b4231826; border: 1px solid #b4231840; }
 .wt-sort-direction { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; align-self: end; }
 .wt-sort-direction button[aria-pressed=true] { background: #e9f3ef; border-color: #689793; color: #145d59; font-weight: 600; }
+.wt-cell-summary .wt-quality-details { margin: 0; font-size: 11px; max-width: 240px; white-space: normal; }
+.wt-cell-summary .wt-quality-details summary { padding: 0; font-size: 11px; }
+.wt-cell-summary .wt-quality-details p { margin: 4px 0; line-height: 1.4; }
+.wt-quality-note { margin: 4px 0; line-height: 1.45; }

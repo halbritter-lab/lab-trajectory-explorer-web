@@ -41,18 +41,29 @@ test('shows the same slope-quality caveat in the cohort table and the patient vi
   await showOnlyParameter(page, /^Kreatinin \[mg\/dl\]$/)
 
   for (const [patient, label] of [['3', 'n < 3'], ['5', 'Follow-up < 1 year'], ['12', 'Follow-up < 1 year']] as const) {
-    const caveat = patientRow(page, patient).locator('.wt-cell-summary .wt-warning')
+    const caveat = patientRow(page, patient).locator('.wt-cell-summary span.wt-warning')
     await expect(caveat).toHaveText(`${label} · uncertain slope`)
+    expect(await caveat.getAttribute('title')).toMatch(/caution|unstable|Two points/i)
+    // The same explanation is reachable without a pointer.
+    const why = patientRow(page, patient).getByText('Why is the slope uncertain?', { exact: true })
+    await why.click()
+    await expect(why.locator('xpath=..')).toContainText(/interpret with caution/)
   }
 
   await page.getByRole('button', { name: 'Open patient 3', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Patient 3', exact: true })).toBeVisible()
-  await expect(page.locator('.wt-plot-grid .wt-cell-summary .wt-warning')).toHaveText('n < 3 · uncertain slope')
+  const note = page.locator('.wt-plot-grid').getByRole('note')
+  await expect(note).toContainText('n < 3 · uncertain slope')
+  await expect(note).toContainText('interpret with caution')
   await expect(page.locator('.wt-plot-grid svg [data-fit-quality="uncertain"]')).toHaveCount(1)
 
   await page.getByRole('button', { name: 'Back to table', exact: true }).click()
   await page.getByLabel('Analysis preset').selectOption('acute_review')
   await expect(page.locator('.wt-cell-summary .wt-warning')).toHaveCount(0)
+  // The August 2026 defect class: no quality caveat may survive a disabled fit.
+  for (const summary of await page.locator('.wt-cell-summary').all()) {
+    expect(await summary.innerText()).not.toMatch(/n < 3|< 1 year/)
+  }
   await expect(page.locator('.wt-cell-summary').first()).toContainText('Fit model disabled')
   expect(problems).toEqual([])
 })
