@@ -391,6 +391,7 @@ function lme4FitCode(modelCall: string, config: MixedModelConfig): string {
     if (is.null(mm_optimizer)) mm_optimizer <- "lme4-default"
     mm_out <- list(
       converged = (is.null(mm_opt_conv) || identical(mm_opt_conv, 0L) || identical(mm_opt_conv, 0)) && length(mm_nonconv_messages) == 0,
+      singular = lme4::isSingular(mm_fit, tol = 1e-4),
       warnings = unname(unique(c(mm_warnings, as.character(mm_lme4_messages)))),
       fixedEffects = list(
         intercept = mm_intercept,
@@ -442,11 +443,26 @@ function nlmeFitCode(modelCall: string, config: MixedModelConfig): string {
     if ("Corr" %in% colnames(mm_vc) && "time_since_baseline" %in% rownames(mm_vc)) {
       mm_corr <- suppressWarnings(as.numeric(mm_vc["time_since_baseline", "Corr"]))
     }
+    # nlme has no isSingular equivalent. Compare the two eigenvalue standard
+    # deviations of the patient intercept/slope covariance, using the same
+    # relative 1e-4 scale as lme4::isSingular. Missing/invalid covariance
+    # information is conservatively treated as singular.
+    mm_nlme_singular <- function(intercept_sd, slope_sd, corr, tol = 1e-4) {
+      if (!all(is.finite(c(intercept_sd, slope_sd, corr))) ||
+          intercept_sd <= 0 || slope_sd <= 0 || abs(corr) > 1) return(TRUE)
+      mm_cov <- matrix(c(intercept_sd^2, intercept_sd*slope_sd*corr,
+                         intercept_sd*slope_sd*corr, slope_sd^2), nrow = 2)
+      mm_eigenvalues <- eigen(mm_cov, symmetric = TRUE, only.values = TRUE)$values
+      if (!all(is.finite(mm_eigenvalues)) || max(mm_eigenvalues) <= 0) return(TRUE)
+      sqrt(max(0, min(mm_eigenvalues)) / max(mm_eigenvalues)) < tol
+    }
     # nlme::lme raises an error (not a warning) on hard non-convergence, so any
     # convergence problem that survives as a warning is the signal here.
     mm_conv_warnings <- mm_warnings[grepl("converg", mm_warnings, ignore.case = TRUE)]
     mm_out <- list(
       converged = length(mm_conv_warnings) == 0,
+      singular = mm_nlme_singular(mm_named_number(mm_stddev, "(Intercept)"),
+                                  mm_named_number(mm_stddev, "time_since_baseline"), mm_corr),
       warnings = unname(unique(mm_warnings)),
       fixedEffects = list(
         intercept = mm_intercept,

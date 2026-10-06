@@ -5,6 +5,7 @@ import type { MixedModelWorkerRequest } from './workerProtocol'
 
 export interface FitExtractionResult {
   converged: unknown
+  singular: unknown
   warnings: unknown
   fixedEffects: unknown
   fixedEffectTerms?: unknown
@@ -24,6 +25,9 @@ export function normalizeExtractedFitResult(
 ): MixedModelSuccess {
   if (typeof extracted.converged !== 'boolean') {
     throw new ResultExtractionError('webR fit result field converged must be boolean.')
+  }
+  if (typeof extracted.singular !== 'boolean') {
+    throw new ResultExtractionError('webR fit result field singular must be boolean.')
   }
   const warnings = normalizeWarnings(extracted.warnings)
   if (!isStringRecord(extracted.packageVersions)) {
@@ -61,6 +65,7 @@ export function normalizeExtractedFitResult(
       packageVersions: extracted.packageVersions,
     },
     converged: extracted.converged,
+    singular: extracted.singular,
     warnings,
     nPatients: new Set(request.rows.map((row) => row.patient_id)).size,
     nMeasurements: request.rows.length,

@@ -62,7 +62,7 @@ export function CohortModelPlotPreview({
     if (cohortModelResults) {
       // 1. Whole cohort
       const cohortResult = cohortModelResults['cohort']
-      if (cohortResult?.result.status === 'success' && cohortResult.result.converged) {
+      if (cohortResult?.result.status === 'success' && cohortResult.result.converged && !cohortResult.result.singular) {
         const linePoints = mixedModelMeanLinePoints(cohortResult.result, modelRowsByEntity.cohort ?? [])
         if (linePoints.length >= 2) {
           const p1 = { x: linePoints[0].time_since_baseline, y: linePoints[0].value }
@@ -86,7 +86,7 @@ export function CohortModelPlotPreview({
       for (const group of groups) {
         const groupKey = `group:${group.value}`
         const groupResult = cohortModelResults[groupKey]
-        if (groupResult?.result.status === 'success' && groupResult.result.converged) {
+        if (groupResult?.result.status === 'success' && groupResult.result.converged && !groupResult.result.singular) {
           const groupSpikeRows = modelRowsByEntity[groupKey] ?? []
           const linePoints = mixedModelMeanLinePoints(groupResult.result, groupSpikeRows)
           if (linePoints.length >= 2) {
@@ -169,7 +169,7 @@ export function CohortModelPlotPreview({
       <div className="cm-plot-svg-wrap">
         <svg
           ref={svg}
-          data-export-context="Years since baseline; reference profiles at fitted numeric centers and categorical reference levels; only current converged fits are shown"
+          data-export-context="Years since baseline; reference profiles at fitted numeric centers and categorical reference levels; only current converged non-singular fits are shown"
           data-export-legend={JSON.stringify(fittedLines.map(line => ({ label: line.label, color: line.color })))}
           className="cm-plot-svg"
           viewBox={`0 0 ${W} ${H}`}

@@ -272,7 +272,7 @@ export const useAppStore = create<AppState>((set, get) => ({
         const projectionSettings = Object.fromEntries(Object.entries(s.projectionSettings).filter(([key, applied]) => {
           const entityKey = JSON.parse(key)[2] as string
           const stored = cohortModelResults[entityKey]
-          return stored?.result.status === 'success' && stored.result.converged && mixedModelIdentityEquals(applied.sourceIdentity, stored.identity)
+          return stored?.result.status === 'success' && stored.result.converged && !stored.result.singular && mixedModelIdentityEquals(applied.sourceIdentity, stored.identity)
         }))
         return { cohortModelResults, projectionSettings }
       })
@@ -286,7 +286,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setShowCohortMixedModelLine: (value) => set({ showCohortMixedModelLine: value }),
   setProjectionSettings: (seriesIndex, seriesKey, entityKey, applied) => set((s) => {
     const stored = s.cohortModelResults?.[entityKey]
-    if (!stored || stored.result.status !== 'success' || !stored.result.converged ||
+    if (!stored || stored.result.status !== 'success' || !stored.result.converged || stored.result.singular ||
       applied.sourceIdentity.seriesIndex !== seriesIndex || applied.sourceIdentity.seriesKey !== seriesKey ||
       !mixedModelIdentityEquals(stored.identity, applied.sourceIdentity)) return {}
     return { projectionSettings: { ...s.projectionSettings, [projectionSettingsKey(seriesIndex, seriesKey, entityKey)]: structuredClone(applied) } }

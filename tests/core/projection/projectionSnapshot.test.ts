@@ -60,6 +60,7 @@ it('refuses nonconverged, mismatched and stale-row sources', () => {
   const {result,identity} = source()
   const settings = createDefaultProjectionSettings(result,response)
   expect(() => buildProjectionSnapshot({...result,converged:false},identity,response,rows,settings)).toThrow()
+  expect(() => buildProjectionSnapshot({...result,singular:true},identity,response,rows,settings)).toThrow(/singular/i)
   expect(() => buildProjectionSnapshot(result,{...identity,datasetHash:'stale'},response,rows,settings)).toThrow()
   expect(() => buildProjectionSnapshot(result,identity,response,[],settings)).toThrow()
 })

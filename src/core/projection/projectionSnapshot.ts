@@ -74,6 +74,7 @@ export function projectionCategoryChoices(result: MixedModelSuccess, preparedRow
 
 export function buildProjectionSnapshot(result: MixedModelSuccess, identity: MixedModelResultIdentity, sourceResponse: ProjectionResponse, preparedRows: readonly MixedModelSpikeRow[], settings: ProjectionSettings): ProjectionSnapshot {
   if (result.status !== 'success' || !result.converged) throw new Error('Projection requires a successful converged source fit.')
+  if (result.singular) throw new Error('Projection is withheld for a singular random-effects fit.')
   if (result.metadata.datasetHash !== identity.datasetHash || result.metadata.fitConfigHash !== identity.fitConfigHash ||
       result.nPatients !== identity.nPatients || result.nMeasurements !== identity.nMeasurements || hashMixedModelInput(preparedRows) !== identity.datasetHash) throw new Error('Projection source fit or prepared rows are stale.')
   const errors = validateProjectionSettings(settings,sourceResponse)

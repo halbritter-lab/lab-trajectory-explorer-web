@@ -194,7 +194,8 @@ export function CohortModelTable({
     const result = stored.result
     if (result.status === 'success') {
       const slope = formatSlope(result.fixedEffects.timeSinceBaseline, seriesUnit)
-      return result.converged ? slope : `${slope} (did not converge)`
+      const flags = [!result.converged && 'did not converge', result.singular && 'singular fit; projection withheld'].filter(Boolean)
+      return flags.length ? `${slope} (${flags.join('; ')})` : slope
     }
     return `Fit failed: ${result.message}`
   }
@@ -202,7 +203,7 @@ export function CohortModelTable({
   useEffect(() => {
     for (const row of entityRows) {
       const stored = storedFor(row)
-      if (!stored || stored.result.status !== 'success' || !stored.result.converged) continue
+      if (!stored || stored.result.status !== 'success' || !stored.result.converged || stored.result.singular) continue
       const applied = projectionSettings[projectionSettingsKey(seriesIndex,seriesKey,row.key)]
       if (!applied || !mixedModelIdentityEquals(applied.sourceIdentity,stored.identity)) {
         setProjectionSettings(seriesIndex,seriesKey,row.key,{sourceIdentity:stored.identity,settings:createDefaultProjectionSettings(stored.result,sourceResponse)})
@@ -216,14 +217,14 @@ export function CohortModelTable({
     const applied = projectionSettings[projectionSettingsKey(seriesIndex,seriesKey,row.key)]
     let projection: ProjectionSnapshot | undefined
     let projectionError: string | undefined
-    if (stored.result.status === 'success' && stored.result.converged && applied && mixedModelIdentityEquals(applied.sourceIdentity,stored.identity)) {
+    if (stored.result.status === 'success' && stored.result.converged && !stored.result.singular && applied && mixedModelIdentityEquals(applied.sourceIdentity,stored.identity)) {
       try { projection = buildProjectionSnapshot(stored.result,stored.identity,sourceResponse,row.rows,applied.settings) }
       catch (error) { projectionError = error instanceof Error ? error.message : 'Projection settings or source fit are invalid.' }
     }
     return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError}]
   })
   const hasDirtyEditor = exportable.some((model) => dirtyEditors.has(model.key))
-  const initializing = exportable.some((model) => model.result.status === 'success' && model.result.converged && !model.projection)
+  const initializing = exportable.some((model) => model.result.status === 'success' && model.result.converged && !model.result.singular && !model.projection)
   function exportModels() {
     if (hasDirtyEditor || initializing || running) return
     const current = useAppStore.getState().cohortModelResults
@@ -333,7 +334,7 @@ export function CohortModelTable({
                                 if (dirty) next.add(row.key)
                                 else next.delete(row.key)
                                 return next
-                              })} /> : <p>Projection unavailable: a current converged fit is required.</p>
+                              })} /> : <p>{success.singular ? 'Projection unavailable: the random-effects fit is singular.' : 'Projection unavailable: a current converged fit is required.'}</p>
                           })()}
                         </td>
                       </tr>

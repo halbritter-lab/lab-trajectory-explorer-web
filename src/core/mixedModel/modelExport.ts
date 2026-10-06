@@ -41,7 +41,7 @@ export function mixedModelExportSheets(
   const exclusions: object[] = []
   const projections: object[] = []
   for (const { entity, result, identity, sourceResponse, projection } of models) {
-    if (projection && (projection.sourceResult !== result || result.status !== 'success' || !result.converged || !mixedModelIdentityEquals(projection.sourceIdentity, identity as MixedModelResultIdentity))) {
+    if (projection && (projection.sourceResult !== result || result.status !== 'success' || !result.converged || result.singular || !mixedModelIdentityEquals(projection.sourceIdentity, identity as MixedModelResultIdentity))) {
       throw new Error('Projection snapshot must match the current source result and identity.')
     }
     const separator = identity.seriesKey.lastIndexOf('|')
@@ -80,7 +80,7 @@ export function mixedModelExportSheets(
       packageVersions: JSON.stringify(result.metadata.packageVersions ?? {}),
       warnings: result.warnings.join('; '),
       ...(result.status === 'success'
-        ? { patients: result.nPatients, measurements: result.nMeasurements, converged: result.converged }
+        ? { patients: result.nPatients, measurements: result.nMeasurements, converged: result.converged, singular: result.singular }
         : { message: result.message }),
     })
     if (config) mixedModelFactors(config).forEach((factor, index) => {

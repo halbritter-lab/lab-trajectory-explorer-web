@@ -26,6 +26,7 @@ function success(intercept: number): MixedModelSuccess {
       fitConfigHash: 'fit12345',
     },
     converged: true,
+    singular: false,
     warnings: [],
     nPatients: 1,
     nMeasurements: 2,

@@ -33,9 +33,10 @@ function success(slope: number, converged = true): MixedModelSuccess {
       fitConfigHash: 'fit12345',
     },
     converged,
+    singular: false,
     warnings: [],
-    nPatients: 3,
-    nMeasurements: 6,
+    nPatients: 10,
+    nMeasurements: 30,
     fixedEffects: { intercept: 60, timeSinceBaseline: slope },
     fixedEffectConfidenceIntervals: { timeSinceBaseline: [slope - 0.5, slope + 0.5] },
     randomEffects: { interceptSd: 4.2, slopeSd: null, interceptSlopeCorrelation: null },
@@ -45,18 +46,19 @@ function success(slope: number, converged = true): MixedModelSuccess {
 
 function eligibleRows(prefix: string): MixedModelSpikeRow[] {
   const rows: MixedModelSpikeRow[] = []
-  for (const [index, suffix] of (['a', 'b', 'c'] as const).entries()) {
-    const id = `${prefix}${suffix}`
+  for (const index of Array.from({length:10},(_,index)=>index)) {
+    const id = `${prefix}${index}`
     const baselineAge = 50 + index
     rows.push({ patient_id: id, value: 60, time_since_baseline: 0, baseline_age: baselineAge, baseline_age_centered: index - 1 })
     rows.push({ patient_id: id, value: 55, time_since_baseline: 1, baseline_age: baselineAge, baseline_age_centered: index - 1 })
+    rows.push({ patient_id: id, value: 50, time_since_baseline: 2, baseline_age: baselineAge, baseline_age_centered: index - 1 })
   }
   return rows
 }
 
 const cohortRows = eligibleRows('c')
 const groupARows = eligibleRows('a')
-// 1-patient group: fails the pooled validity gate (>= 3 patients).
+// 1-patient group: fails the pooled validity gate (>= 10 patients).
 const groupBRows: MixedModelSpikeRow[] = [
   { patient_id: 'b1', value: 50, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: 0 },
   { patient_id: 'b1', value: 45, time_since_baseline: 2, baseline_age: 60, baseline_age_centered: 0 },
@@ -146,7 +148,7 @@ describe('CohortModelTable', () => {
     expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveClass('cohort-model-status')
     const bCheckbox = within(rowByEntity('group:B')).getByRole('checkbox')
     expect(bCheckbox).toBeDisabled()
-    expect(within(rowByEntity('group:B')).getByTestId('cohort-model-status')).toHaveTextContent('Mixed model fitting requires at least 3 patients.')
+    expect(within(rowByEntity('group:B')).getByTestId('cohort-model-status')).toHaveTextContent('Mixed model fitting requires at least 10 patients.')
   })
 
   it('fits all selected eligible units via the store and never the ineligible one', async () => {
@@ -262,4 +264,13 @@ it('shows all stored coefficients and enables export only after a fit', async ()
   await userEvent.click(screen.getAllByRole('button',{name:'Details'})[0])
   expect(screen.getByRole('table',{name:'Fixed effect coefficients'})).toHaveTextContent('Slope \u00d7 genotype: B (reference A)')
   expect(screen.getByText('Boundary singular fit')).toBeInTheDocument()
+})
+
+it('labels a singular fit and withholds its projection while keeping model export available', async () => {
+  renderTable({runJob:async () => ({...success(-2),singular:true})})
+  await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
+  await waitFor(() => expect(screen.getAllByTestId('cohort-model-status')[0]).toHaveTextContent(/singular/i))
+  expect(screen.getByRole('button',{name:'Export models (xlsx)'})).toBeEnabled()
+  await userEvent.click(screen.getAllByRole('button',{name:'Details'})[0])
+  expect(screen.getByText(/Projection unavailable:.*singular/i)).toBeInTheDocument()
 })

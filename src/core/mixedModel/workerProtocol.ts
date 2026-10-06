@@ -39,6 +39,7 @@ function isMixedModelResult(value: unknown): value is MixedModelResult {
 
 function isMixedModelSuccess(result: Record<string, unknown>): boolean {
   if (typeof result.converged !== 'boolean') return false
+  if (typeof result.singular !== 'boolean') return false
   if (!Array.isArray(result.warnings) || !result.warnings.every((warning) => typeof warning === 'string')) return false
   if (!isFiniteNumber(result.nPatients) || !isFiniteNumber(result.nMeasurements)) return false
   if (

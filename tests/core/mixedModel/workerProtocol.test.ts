@@ -11,6 +11,7 @@ describe('isMixedModelWorkerResponse', () => {
         status: 'success',
         metadata: {},
         converged: true,
+        singular: false,
         warnings: [],
         nPatients: 3,
         nMeasurements: 6,
@@ -22,6 +23,8 @@ describe('isMixedModelWorkerResponse', () => {
     }
 
     expect(isMixedModelWorkerResponse(successResponse)).toBe(true)
+    expect(isMixedModelWorkerResponse({...successResponse,result:{...successResponse.result,singular:true}})).toBe(true)
+    expect(isMixedModelWorkerResponse({...successResponse,result:{...successResponse.result,singular:undefined}})).toBe(false)
     const adjusted = {...successResponse,result:{...successResponse.result,metadata:{modelConfig:{...DEFAULT_MIXED_MODEL_CONFIG,factors:[{key:'genotype',kind:'categorical',effect:'level',reference:'A'}]}}}}
     expect(isMixedModelWorkerResponse(adjusted)).toBe(false)
     expect(isMixedModelWorkerResponse({...adjusted,result:{...adjusted.result,fixedEffectTerms:[]}})).toBe(false)
@@ -77,6 +80,7 @@ describe('isMixedModelWorkerResponse', () => {
           fitConfigHash: 'fit',
         },
         converged: true,
+        singular: false,
         warnings: [],
         nPatients: 3,
         nMeasurements: 6,

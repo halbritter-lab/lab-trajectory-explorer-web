@@ -7,7 +7,7 @@ import type { MixedModelSuccess } from '../../../src/core/mixedModel/types'
 import type { ProjectionSnapshot } from '../../../src/core/projection/projectionSnapshot'
 
 it('exports explicit response and disabled projection provenance, rejecting an older result object', () => {
-  const result = {status:'success', converged:true, metadata:{}, warnings:['Fit warning'], fixedEffects:{intercept:80,timeSinceBaseline:5}, fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as MixedModelSuccess
+  const result = {status:'success', converged:true, singular:false, metadata:{}, warnings:['Fit warning'], fixedEffects:{intercept:80,timeSinceBaseline:5}, fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as MixedModelSuccess
   const identity = {seriesKey:'ambiguous|key|unit'} as ProjectionSnapshot['sourceIdentity']
   const target = {id:'custom',label:'Study boundary',outcome:'Protein|marker',unit:'mg/L',threshold:100,direction:'above' as const,enabled:false}
   const projection = {sourceResult:result,sourceIdentity:identity,sourceResponse:{outcome:'Protein|marker',unit:'mg/L'},settings:{targets:[target],profile:{},referenceTimeYears:2,horizonYears:20},line:{status:'ready',intercept:80,slopePerYear:5},rows:[{target,status:'disabled',reason:null,modelTimeYears:null,remainingYears:null}],warnings:result.warnings,categoryChoices:{}} satisfies ProjectionSnapshot
@@ -16,6 +16,8 @@ it('exports explicit response and disabled projection provenance, rejecting an o
   expect(XLSX.utils.sheet_to_json(workbook.Sheets.projections)).toEqual([expect.objectContaining({outcome:'Protein|marker',outcome_unit:'mg/L',status:'disabled',enabled:false,reference_time_years:2,time_uncertainty:'not estimated'})])
   expect(XLSX.utils.sheet_to_json(workbook.Sheets.models)).toEqual([expect.objectContaining({outcome:'Protein|marker',outcome_unit:'mg/L'})])
   expect(() => mixedModelExportSheets([{entity:'Whole cohort',result:{...result},identity,projection}])).toThrow(/current|source|snapshot/i)
+  const singularResult = {...result,singular:true}
+  expect(() => mixedModelExportSheets([{entity:'Whole cohort',result:singularResult,identity,projection:{...projection,sourceResult:singularResult}}])).toThrow(/projection/i)
   const empty = {...projection,settings:{...projection.settings,targets:[]},rows:[]}
   expect(mixedModelExportSheets([{entity:'Whole cohort',result,identity,projection:empty}]).find((sheet) => sheet.name === 'projections')?.rows).toEqual([expect.objectContaining({status:'no_targets',outcome:'Protein|marker',outcome_unit:'mg/L'})])
   const unavailable = {...projection,line:{status:'unavailable' as const,reason:'Missing coefficient'},rows:[{...projection.rows[0],status:'unavailable_profile' as const,reason:'Missing coefficient'}]}
@@ -25,7 +27,7 @@ it('exports explicit response and disabled projection provenance, rejecting an o
 describe('mixed model export', () => {
   it('exports fitted configuration, every term, reference, exclusions, centers and disclaimer', () => {
     const config = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'genotype',kind:'categorical' as const,effect:'level_slope' as const,reference:'A'}, {key:'baseline_age',kind:'numeric' as const,effect:'level_slope' as const}, {key:'dose',kind:'numeric' as const,effect:'level_slope' as const}]}
-    const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:null,packageVersions:{},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,tolerance:null,datasetId:'test',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:'fitted formula',datasetHash:'fitted hash',preparation:{nPatientsBefore:4,nMeasurementsBefore:12,presetExclusionPolicy:'apply' as const,excludedByPreset:2,centers:{factor_1_:62},excludedPatients:[{patientId:'p4',reasons:['Missing sex']}]}},nPatients:3,nMeasurements:9,converged:true,warnings:['singular'],fixedEffectTerms:[{term:'time_since_baseline:factor_0_B',estimate:-2,confidenceInterval:[-3,-1]}],fixedEffects:{intercept:60,timeSinceBaseline:-1},fixedEffectConfidenceIntervals:{timeSinceBaseline:null},randomEffects:{interceptSd:null,slopeSd:null,interceptSlopeCorrelation:null},residualSd:null} satisfies MixedModelSuccess
+    const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:null,packageVersions:{},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,tolerance:null,datasetId:'test',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:'fitted formula',datasetHash:'fitted hash',preparation:{nPatientsBefore:4,nMeasurementsBefore:12,presetExclusionPolicy:'apply' as const,excludedByPreset:2,centers:{factor_1_:62},excludedPatients:[{patientId:'p4',reasons:['Missing sex']}]}},nPatients:3,nMeasurements:9,converged:true,singular:true,warnings:['singular'],fixedEffectTerms:[{term:'time_since_baseline:factor_0_B',estimate:-2,confidenceInterval:[-3,-1]}],fixedEffects:{intercept:60,timeSinceBaseline:-1},fixedEffectConfidenceIntervals:{timeSinceBaseline:null},randomEffects:{interceptSd:null,slopeSd:null,interceptSlopeCorrelation:null},residualSd:null} satisfies MixedModelSuccess
     const storedIdentity = {seriesKey:'eGFR (CKD-EPI 2021)|ml/min/1.73m2'}
     const fitted: MixedModelSuccess = {...result,fixedEffectTerms:[
       ...result.fixedEffectTerms,
@@ -45,6 +47,7 @@ describe('mixed model export', () => {
     expect(XLSX.utils.sheet_to_json(workbook.Sheets.coefficients)).toEqual(expect.arrayContaining([expect.objectContaining({estimate:-2,ci_lower:-3,ci_upper:-1})]))
     expect(XLSX.utils.sheet_to_json(workbook.Sheets.models)).toEqual(expect.arrayContaining([expect.objectContaining({series_key:storedIdentity.seriesKey,outcome:'eGFR (CKD-EPI 2021)',outcome_unit:'ml/min/1.73m2'})]))
     expect(XLSX.utils.sheet_to_json(workbook.Sheets.models)).toEqual(expect.arrayContaining([expect.objectContaining({preset_exclusion_policy:'apply',excluded_by_preset:2})]))
+    expect(XLSX.utils.sheet_to_json(workbook.Sheets.models)).toEqual(expect.arrayContaining([expect.objectContaining({singular:true,converged:true})]))
     expect(XLSX.utils.sheet_to_json(workbook.Sheets.coefficients)).toEqual(expect.arrayContaining([
       expect.objectContaining({term:'time_since_baseline:factor_0_B',unit:'ml/min/1.73m2 per year'}),
       expect.objectContaining({term:'factor_0_B',unit:'ml/min/1.73m2'}),

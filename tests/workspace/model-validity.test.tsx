@@ -13,7 +13,7 @@ import { workspaceGroupableAttributes, workspaceModelEntities } from '../../src/
 import type { ClinicalEvent } from '../../src/core/events/events'
 
 const success: MixedModelSuccess = {
-  status: 'success', converged: true, warnings: [], nPatients: 3, nMeasurements: 9,
+  status: 'success', converged: true, singular: false, warnings: [], nPatients: 3, nMeasurements: 9,
   fixedEffects: { intercept: 60, timeSinceBaseline: -2 },
   fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.5, -1.5] },
   randomEffects: { interceptSd: 4, slopeSd: null, interceptSlopeCorrelation: null }, residualSd: 2,
@@ -152,6 +152,12 @@ describe('workspace model validity', () => {
   it('does not draw a non-converged preview as a valid trajectory', () => {
     const view = render(<Harness studio />)
     act(() => seedResult({ converged: false }))
+    view.rerender(<Harness studio />)
+    expect(screen.queryByText(/Whole cohort fitted trajectory/)).not.toBeInTheDocument()
+  })
+  it('does not draw a singular preview as a valid trajectory', () => {
+    const view = render(<Harness studio />)
+    act(() => seedResult({ singular: true }))
     view.rerender(<Harness studio />)
     expect(screen.queryByText(/Whole cohort fitted trajectory/)).not.toBeInTheDocument()
   })

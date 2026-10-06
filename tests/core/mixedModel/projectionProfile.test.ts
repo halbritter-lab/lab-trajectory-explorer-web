@@ -37,6 +37,10 @@ it('rejects nonconvergence, nonfinite coefficients and derived overflow', () => 
   expect(resolveProjectionProfile(result,{genotype:'A',dose:Number.MAX_VALUE}).status).toBe('unavailable')
 })
 
+it('withholds a profile when the fitted random effects are singular', () => {
+  expect(resolveProjectionProfile({...fitted(),singular:true},{genotype:'A',dose:10})).toMatchObject({status:'unavailable',reason:expect.stringContaining('singular')})
+})
+
 it('applies level-only factors without taking their slope terms', () => {
   const result = fitted()
   result.metadata.modelConfig!.factors!.forEach(factor => {factor.effect = 'level'})

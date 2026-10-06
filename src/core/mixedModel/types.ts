@@ -50,6 +50,8 @@ export interface MixedModelSuccess {
   status: 'success'
   metadata: MixedModelMetadata
   converged: boolean
+  /** Random-effects covariance is at the boundary/rank deficient; independent of optimizer convergence. */
+  singular: boolean
   warnings: string[]
   nPatients: number
   nMeasurements: number

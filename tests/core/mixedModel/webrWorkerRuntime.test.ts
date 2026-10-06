@@ -37,6 +37,7 @@ const baseRequest: MixedModelWorkerRequest = {
 
 const validFitJson = JSON.stringify({
   converged: true,
+  singular: false,
   warnings: [],
   fixedEffects: { intercept: 60, timeSinceBaseline: -2 },
   fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.8, -1.2] },
@@ -183,6 +184,7 @@ describe('webR worker runtime behavior', () => {
 
     // converged must not be flipped to FALSE purely by a singular-fit note...
     expect(fitCode).toContain('mm_nonconv_messages <- mm_lme4_messages[!grepl("singular"')
+    expect(fitCode).toContain('singular = lme4::isSingular(mm_fit, tol = 1e-4)')
     expect(fitCode).toContain('length(mm_nonconv_messages) == 0')
     // ...but the singular message is still surfaced as a warning.
     expect(fitCode).toContain('as.character(mm_lme4_messages)')
@@ -206,6 +208,8 @@ describe('webR worker runtime behavior', () => {
     expect(fitCode).toContain('nlme::lme(')
     expect(fitCode).not.toContain('converged = TRUE')
     expect(fitCode).toContain('mm_conv_warnings <- mm_warnings[grepl("converg"')
+    expect(fitCode).toContain('singular = mm_nlme_singular(')
+    expect(fitCode).toContain('eigen(mm_cov, symmetric = TRUE, only.values = TRUE)$values')
     expect(fitCode).toContain('mm_named_number(mm_stddev, "Residual")')
     expect(fitCode).toContain('mm_named_number(mm_stddev, "(Intercept)")')
     expect(fitCode).toContain('nlme::intervals(mm_fit, which = "fixed")')

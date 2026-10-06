@@ -15,6 +15,7 @@ export function defaultProjectionProfile(result: MixedModelSuccess): ProjectionP
 export function resolveProjectionProfile(result: MixedModelSuccess, profile: ProjectionProfile): ProfileLine {
   const unavailable = (reason: string): ProfileLine => ({status:'unavailable',reason})
   if (result.status !== 'success' || !result.converged) return unavailable('A converged fit is required.')
+  if (result.singular) return unavailable('Projection is withheld because the random-effects fit is singular.')
   const config = result.metadata.modelConfig ?? DEFAULT_MIXED_MODEL_CONFIG
   const validation = validateMixedModelConfig(config)
   if (!validation.ok) return unavailable(validation.message)

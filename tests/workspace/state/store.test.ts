@@ -41,6 +41,7 @@ const mixedModelResult: MixedModelResult = {
     fitConfigHash: 'fit',
   },
   converged: true,
+  singular: false,
   warnings: [],
   nPatients: 3,
   nMeasurements: 6,
@@ -236,6 +237,15 @@ describe('useAppStore - cohort model runs and projections', () => {
     const settings = { targets: [], profile: {}, referenceTimeYears: 0, horizonYears: 20 }
     useAppStore.getState().setProjectionSettings(0, mixedModelIdentity.seriesKey, 'cohort', { sourceIdentity: { ...mixedModelIdentity, datasetHash: 'stale' }, settings })
     useAppStore.getState().setProjectionSettings(1, mixedModelIdentity.seriesKey, 'cohort', { sourceIdentity: mixedModelIdentity, settings })
+    expect(useAppStore.getState().projectionSettings).toEqual({})
+  })
+
+  it('rejects projection settings for a singular fit', () => {
+    seedResults()
+    useAppStore.setState({cohortModelResults:{cohort:{result:{...mixedModelResult,singular:true},identity:mixedModelIdentity}}})
+    useAppStore.getState().setProjectionSettings(0,mixedModelIdentity.seriesKey,'cohort',{
+      sourceIdentity:mixedModelIdentity,settings:{targets:[],profile:{},referenceTimeYears:0,horizonYears:20},
+    })
     expect(useAppStore.getState().projectionSettings).toEqual({})
   })
 

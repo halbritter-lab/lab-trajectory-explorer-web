@@ -58,6 +58,7 @@ const metadata: MixedModelMetadata = {
 
 const validExtraction = {
   converged: true,
+  singular: false,
   warnings: [],
   fixedEffects: { intercept: 60, timeSinceBaseline: -2 },
   fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.8, -1.2] },
@@ -83,6 +84,7 @@ describe('webR worker fit extraction validation', () => {
     expect(normalizeExtractedFitResult(request, metadata, validExtraction)).toMatchObject({
       status: 'success',
       converged: true,
+      singular: false,
       warnings: [],
       randomEffects: { interceptSd: null, slopeSd: 0.5, interceptSlopeCorrelation: null },
       fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.8, -1.2] },
@@ -117,6 +119,11 @@ describe('webR worker fit extraction validation', () => {
     ).toThrow(/residualSd/)
   })
 
+  it('preserves a singular result separately from convergence and requires a boolean diagnostic', () => {
+    expect(normalizeExtractedFitResult(request,metadata,{...validExtraction,singular:true})).toMatchObject({converged:true,singular:true})
+    expect(() => normalizeExtractedFitResult(request,metadata,{...validExtraction,singular:undefined})).toThrow(/singular/)
+  })
+
   it('drops NA (null) warning elements instead of failing the fit', () => {
     expect(
       normalizeExtractedFitResult(request, metadata, {
@@ -143,6 +150,7 @@ describe('webR worker fit extraction validation', () => {
       formulaKey: mixedModelFormulaKey(BASELINE_AGE_MIXED_MODEL_CONFIG),
     }, metadata, {
       converged: true,
+      singular: false,
       warnings: [],
       fixedEffects: { intercept: 60, timeSinceBaseline: -3, baselineAge: -0.4 },
       fixedEffectConfidenceIntervals: { timeSinceBaseline: [-3.6, -2.4] },

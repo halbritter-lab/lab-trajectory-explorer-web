@@ -21,7 +21,7 @@ export function currentWorkspaceModels(
   for (const item of entities) {
     const key = entityKey(item.entity)
     const stored = results?.[key]
-    if (!stored || stored.result.status !== 'success' || !stored.result.converged) continue
+    if (!stored || stored.result.status !== 'success' || !stored.result.converged || stored.result.singular) continue
     const identity = buildMixedModelResultIdentity({ seriesIndex, seriesKey, fitConfigHash,
       rows: item.rows, patientIds: item.rows.map(row => row.patient_id),
       preparation: item.preparation, groupValue: entityGroupValue(item.entity) })

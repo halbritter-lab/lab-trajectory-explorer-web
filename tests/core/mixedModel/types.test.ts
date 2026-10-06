@@ -21,6 +21,7 @@ describe('mixed model result contracts', () => {
         fitConfigHash: 'def',
       },
       converged: true,
+      singular: false,
       warnings: [],
       nPatients: 4,
       nMeasurements: 16,
