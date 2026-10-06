@@ -116,3 +116,32 @@ it('reports readable reasons and birth-date problems for supplementary files', a
   await waitFor(() => expect(useAppStore.getState().events).toHaveLength(1))
   expect(screen.getByText('extra.csv · P-01 · rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other; row not imported.')).toBeInTheDocument()
 })
+it('lists loaded and rejected events from a separate event upload', async () => {
+  useAppStore.getState().setDataset([row])
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const file = (text: string) => ({ name: 'events.csv', arrayBuffer: async () => new TextEncoder().encode(text).buffer })
+  fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('patientId,type,date,title,intent,endDate\nP-01,dialysis,2020-03-01,Acute HD,acute,2020-03-10\nP-01,surgery,2020-04-01,Other\nP-01,other,bad,Visit\n')] } })
+  await waitFor(() => expect(useAppStore.getState().events).toHaveLength(1))
+  fireEvent.click(screen.getByText('Loaded events (1)'))
+  const loaded = screen.getByRole('table', { name: 'Loaded events' })
+  expect(within(loaded).getByRole('cell', { name: 'Acute HD' })).toBeInTheDocument()
+  expect(within(loaded).getByRole('cell', { name: '2020-03-10' })).toBeInTheDocument()
+  expect(within(loaded).getByRole('cell', { name: 'exclude dialysis interval' })).toBeInTheDocument()
+  const rejected = screen.getByRole('table', { name: 'Rejected events' })
+  expect(within(rejected).getAllByRole('row')).toHaveLength(3)
+  expect(within(rejected).getByText(/Event type "surgery" is not one of/)).toBeInTheDocument()
+  // A clean replacement clears the rejected list.
+  fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('patientId,type,date,title\nP-01,other,2020-05-01,Visit\n')] } })
+  await waitFor(() => expect(useAppStore.getState().events[0].title).toBe('Visit'))
+  expect(screen.queryByRole('table', { name: 'Rejected events' })).not.toBeInTheDocument()
+})
+it('offers the demo files next to the empty templates', () => {
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const demo = screen.getByRole('group', { name: 'Demo files' })
+  for (const [name, file] of [['Demo workbook', 'test_labs.xlsx'], ['Demo events', 'test_events.csv'], ['Demo attributes', 'test_attributes.csv']]) {
+    const link = within(demo).getByRole('link', { name })
+    expect(link).toHaveAttribute('download', file)
+    expect(link.getAttribute('href')).toMatch(new RegExp(`${file.replace('.', '\.')}$`))
+  }
+  expect(within(screen.getByRole('group', { name: 'Templates' })).getAllByRole('link')).toHaveLength(3)
+})

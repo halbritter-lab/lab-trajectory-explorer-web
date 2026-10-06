@@ -4,7 +4,7 @@ import type { SlopeMode } from '../../core/stats/summarize'
 import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analysis/registry'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
 import type { FormulaName, Source } from '../../core/egfr/series'
-import type { ClinicalEvent } from '../../core/events/events'
+import type { ClinicalEvent, RejectedClinicalEvent } from '../../core/events/events'
 import {
   acuteReviewConfig,
   ckdProgressionConfig,
@@ -95,6 +95,8 @@ export interface AppState {
   egfrSource: Source | null
   manualDemographics: Record<string, ManualDemographics>
   events: ClinicalEvent[]
+  /** Event rows rejected by the latest event import (session only). */
+  rejectedEvents: RejectedClinicalEvent[]
   showEvents: boolean
   /** Generic per-patient attribute maps keyed by patientIdKey. Domain-neutral:
    * attribute names (e.g. "genotype") carry no special meaning to the app. */
@@ -187,7 +189,7 @@ const defaultSeries = (): SeriesConfig => ({
 type AppData = Pick<AppState,
   | 'mixedModelSeriesIndex' | 'mixedModelSeriesKey' | 'projectionSettings'
   | 'rows' | 'fileName' | 'selectedPatientId' | 'selectedPatientIds' | 'view' | 'returnToCohort' | 'cohortPatientMode' | 'seriesConfigs' | 'egfrFormula'
-  | 'analysisSettings' | 'egfrSource' | 'manualDemographics' | 'events' | 'showEvents' | 'patientAttributes' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
+  | 'analysisSettings' | 'egfrSource' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'showEvents' | 'patientAttributes' | 'cohortSort' | 'showAki' | 'showMethodology' | 'persist' | 'cohortZoom'
   | 'cohortDisplayMode' | 'cohortOverlayXAxis' | 'connectPoints' | 'mixedModelConfig' | 'cohortGroupByAttribute' | 'cohortModelResults' | 'cohortModelRunning' | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'mixedModelDialogOpen' | 'rapidEgfrThreshold' | 'busy' | 'notice'>
 
 function analysisSettingsState(analysisSettings: AnalysisSettings) {
@@ -216,6 +218,7 @@ const initialState = (): AppData => {
     ...analysisSettingsState(analysisSettings),
     manualDemographics: {},
     events: [],
+    rejectedEvents: [],
     showEvents: true,
     patientAttributes: {},
     cohortSort: { key: 'id', dir: 'asc' },

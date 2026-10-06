@@ -83,3 +83,7 @@
 .wt-sort-header-button:hover, .wt-sort-header-button.active { border-color: #cbd8d6; background: #f1f7f5; color: #176c68; font-weight: 600; }
 @media (max-width: 700px) { .wt-analysis-selectors, .wt-pipeline-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) { .wt-plot-card { padding: 12px; } .wt-card-heading { gap: 8px; } .wt-workspace { gap: 14px; } }
+.wt-plot-key svg { vertical-align: -1px; margin-right: 2px; }
+.wt-aki-swatch { display: inline-block; width: 14px; height: 10px; margin-right: 2px; vertical-align: -1px; background: #b4231826; border: 1px solid #b4231840; }
+.wt-sort-direction { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; align-self: end; }
+.wt-sort-direction button[aria-pressed=true] { background: #e9f3ef; border-color: #689793; color: #145d59; font-weight: 600; }

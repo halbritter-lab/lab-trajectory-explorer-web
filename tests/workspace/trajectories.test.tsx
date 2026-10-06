@@ -391,4 +391,77 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(headerSortBtn)
     expect(screen.getByLabelText('Sort by')).toHaveValue(`${data.parameters[0].key}:absSlope`)
   })
+
+  it('reverses a metric sort and keeps patients without a value last', () => {
+    const data = fixture()
+    data.rows = data.rows.map(row => row.einheit === 'unit-0' ? { ...row, wertNum: row.patientId === 'ID-A' ? 10 : 100 } : row)
+    render(<TrajectoriesWorkspace data={data} />)
+    const order = () => screen.getAllByRole('row').slice(1).map(r => within(r).getByRole('button', { name: /Open patient/ }).textContent)
+    expect(screen.queryByRole('button', { name: 'Reverse order' })).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: `${data.parameters[0].key}:latest` } })
+    expect(order()).toEqual(['ID-B', 'ID-A'])
+    expect(screen.getByRole('group', { name: 'Sort direction' })).toHaveTextContent('Highest first')
+    fireEvent.click(screen.getByRole('button', { name: 'Reverse order' }))
+    expect(screen.getByRole('button', { name: 'Reverse order' })).toHaveAttribute('aria-pressed', 'true')
+    expect(order()).toEqual(['ID-A', 'ID-B'])
+    expect(screen.getByRole('group', { name: 'Sort direction' })).toHaveTextContent('Lowest first')
+    expect(screen.getByTitle(`Sort by ${data.parameters[0].label}`)).toHaveTextContent('↑ val')
+    // Choosing another metric starts from that metric's default direction.
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: `${data.parameters[0].key}:n` } })
+    expect(screen.getByRole('button', { name: 'Reverse order' })).toHaveAttribute('aria-pressed', 'false')
+  })
+
+  it('draws excluded measurements as grey open circles with a reason and a key', () => {
+    const data = fixture()
+    data.events = [{ patientId: 'ID-A', type: 'kidney_transplant', date: new Date('2021-01-01'), endDate: null, title: 'Transplant', description: null, intent: null, warning: '' }]
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByLabelText('Censor after kidney transplant'))
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
+    const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
+    const excluded = within(chart).getAllByTestId('excluded-point')
+    expect(excluded).toHaveLength(2)
+    expect(excluded.every(point => point.getAttribute('data-exclusion') === 'post_kidney_transplant')).toBe(true)
+    expect(excluded[0].querySelector('title')!.textContent).toContain('excluded from the fit: after kidney transplant')
+    expect(within(chart).getByText(/Grey open circles: 2 measurements excluded from the fit \(after kidney transplant\)/)).toBeInTheDocument()
+    expect(chart.querySelector('svg')!.getAttribute('data-export-context')).toContain('2 measurements excluded from the fit')
+  })
+})
+
+function creatinineFixture(patientIds: string[]): WorkspaceData {
+  const spike = [['2019-01-01', 1.0], ['2019-06-01', 1.1], ['2020-01-01', 1.05], ['2020-07-30', 1.15], ['2020-08-01', 2.4], ['2020-08-10', 1.8], ['2020-10-01', 1.2], ['2021-06-01', 1.3]] as const
+  const parameter = { key: JSON.stringify(['Kreatinin', 'mg/dl']), label: 'Kreatinin [mg/dl]', bezeichnung: 'Kreatinin', einheit: 'mg/dl', derived: false }
+  const patients = patientIds.map(id => ({ id, label: id, attributes: {}, baselineAge: 50 }))
+  const rows: LabRow[] = patientIds.flatMap(id => spike.map(([date, value]) => ({ patientId: id, labDatum: new Date(`${date}T00:00:00Z`), bezeichnung: 'Kreatinin', einheit: 'mg/dl', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: null, patientAgeAtLab: 50 })))
+  return { rawRows: rows, rows, fileName: 'aki.csv', parameters: [parameter], patients, events: [], patientAttributes: {}, analysis: { fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
+}
+
+describe('AKI display in workspace charts', () => {
+  it('shows AKI windows and labelled episode markers in the individual chart only on request', () => {
+    render(<TrajectoriesWorkspace data={creatinineFixture(['P1'])} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient P1' }))
+    const chart = screen.getByRole('region', { name: 'Chart Kreatinin [mg/dl]' })
+    expect(within(chart).queryAllByTestId('aki-marker')).toHaveLength(0)
+    fireEvent.click(screen.getByLabelText('AKI windows and episodes'))
+    expect(within(chart).getAllByTestId('aki-marker')).toHaveLength(1)
+    expect(within(chart).getByText('AKI II')).toBeInTheDocument()
+    expect(within(chart).getAllByTestId('aki-band')).toHaveLength(1)
+    expect(within(chart).getByText(/AKI episode at the creatinine peak/)).toBeInTheDocument()
+    // AKI display is context only; nothing is excluded until the analysis excludes AKI windows.
+    expect(within(chart).queryAllByTestId('excluded-point')).toHaveLength(0)
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'ckd_progression' } })
+    expect(within(chart).getAllByTestId('excluded-point').map(point => point.getAttribute('data-exclusion'))).toEqual(['aki', 'aki'])
+  })
+
+  it('marks episodes for every overlay trajectory but windows and labels only for the highlighted one', () => {
+    render(<TrajectoriesWorkspace data={creatinineFixture(['P1', 'P2'])} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
+    fireEvent.click(screen.getByLabelText('AKI windows and episodes'))
+    const chart = screen.getByRole('region', { name: 'Chart Kreatinin [mg/dl]' })
+    expect(within(chart).getAllByTestId('aki-marker')).toHaveLength(2)
+    expect(within(chart).queryAllByTestId('aki-band')).toHaveLength(0)
+    expect(within(chart).queryByText('AKI II')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByLabelText('Highlight patient'), { target: { value: '1' } })
+    expect(within(chart).getAllByTestId('aki-band')).toHaveLength(1)
+    expect(within(chart).getAllByText('AKI II')).toHaveLength(1)
+  })
 })

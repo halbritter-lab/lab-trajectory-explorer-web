@@ -88,7 +88,7 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
   if (useAppStore.getState().busy) return
   useAppStore.setState({ busy: true, notice: null })
   try {
-    const dataset = file ? loadDatasetFromWorkbook(await file.arrayBuffer()) : { ...await loadBundledFixtureData(), diagnostics: [] }
+    const dataset = file ? loadDatasetFromWorkbook(await file.arrayBuffer()) : { ...await loadBundledFixtureData(), diagnostics: [], rejectedEvents: [] }
     if (!dataset.rows.length) throw new Error('No usable lab values in this file.')
     const ids = [...new Set(dataset.rows.map(r => r.patientId))].sort(comparePatientIds)
     const rejected = dataset.diagnostics.filter(d => d.severity === 'rejected').length
@@ -96,7 +96,7 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
     // defaults commit together, so observers never see new rows with old overrides.
     useAppStore.getState().clearMixedModelResult()
     useAppStore.setState({
-      ...useAppStore.getInitialState(), rows: dataset.rows, events: dataset.events,
+      ...useAppStore.getInitialState(), rows: dataset.rows, events: dataset.events, rejectedEvents: dataset.rejectedEvents,
       patientAttributes: dataset.patientAttributes, fileName: file?.name ?? 'test_labs.xlsx (Demo)',
       selectedPatientId: ids[0] ?? null, selectedPatientIds: ids, view: 'cohort',
       notice: { kind: 'info', text: `${dataset.rows.length} lab values, ${dataset.events.length} events and ${Object.keys(dataset.patientAttributes).length} attribute rows loaded. ${rejected} rows rejected; ${dataset.diagnostics.length - rejected} warnings.`, details: dataset.diagnostics },

@@ -15,3 +15,5 @@
 .data-workspace dialog { width: min(520px, calc(100vw - 32px)); }
 .data-workspace dialog .field { display: grid; gap: 6px; margin: 18px 0; }
 @media (max-width: 700px) { .data-import-grid { grid-template-columns: 1fr; } .data-workspace .card { padding: 16px; } }
+.data-event-tables table { min-width: 640px; }
+.data-event-tables .table-scroll { max-height: min(24rem, 50vh); overflow: auto; }

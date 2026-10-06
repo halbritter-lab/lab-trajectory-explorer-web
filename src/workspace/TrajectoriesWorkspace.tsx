@@ -4,7 +4,7 @@ import { comparePatientIds, type LabRow, type PatientId } from '../core/types'
 import { slopeQualityLabel } from '../ui/qualityLabels'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
 import { WorkspaceExportActions } from './WorkspaceExports'
-import { WorkspacePlot, boundedPrefix, measurementText, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis } from './WorkspacePlot'
+import { DEFAULT_WORKSPACE_DISPLAY, WorkspacePlot, boundedPrefix, measurementText, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from './WorkspacePlot'
 import './trajectories-workspace.css'
 import { WorkspaceSparkline, type SparkDomain } from './WorkspaceSparkline'
 import { sexLabel } from './workspace-labels'
@@ -22,6 +22,12 @@ function parseSortKey(sort: string): { paramKey: string; metric: string } {
     ? { paramKey: sort.slice(0, separator), metric: sort.slice(separator + 1) || 'latest' }
     : { paramKey: sort, metric: 'latest' }
 }
+
+/** Default direction per metric: slopes ascending (steepest decline first),
+ * everything else descending (largest first). The direction toggle reverses it. */
+const metricAscendingByDefault = (metric: string) => metric === 'slope'
+const metricArrow = (ascending: boolean) => ascending ? '↑' : '↓'
+const metricShortLabel: Record<string, string> = { latest: 'val', slope: 'slope', absSlope: '|slope|', n: 'n', duration: 'dur' }
 
 function CellSummary({
   cell,
@@ -82,7 +88,7 @@ function CellSummary({
     </>}
     {endpoint && <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p></details></>}
     {cell.akiChip && <span className="wt-badge wt-badge-aki" title={cell.akiSummary}>{cell.akiChip}</span>}
-    {fit && cell.excludedIdx.length > 0 && <span className="wt-muted">{cell.excludedIdx.length} excluded by censoring/AKI</span>}
+    {cell.excludedIdx.length > 0 && <span className="wt-muted">{cell.excludedIdx.length} excluded from the fit by censoring/AKI</span>}
   </div>
 }
 
@@ -95,14 +101,16 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   const [selectedOnly, setSelectedOnly] = useState(false)
   const [groupBy, setGroupBy] = useState('')
   const [group, setGroup] = useState('')
-  const [sort, setSort] = useState('id')
+  const [sort, setSortKey] = useState('id')
+  const [sortReversed, setSortReversed] = useState(false)
+  const setSort = (next: string) => { setSortKey(next); setSortReversed(false) }
   const [mode, setMode] = useState<'table' | 'overlay' | 'detail'>('table')
   const [patientId, setPatientId] = useState<PatientId | null>(null)
   const [returnMode, setReturnMode] = useState<'table' | 'overlay'>('table')
   const [axis, setAxis] = useState<WorkspaceAxis>('baseline')
   const [scaleMode, setScaleMode] = useState<'shared' | 'zoom'>('shared')
   const [highlight, setHighlight] = useState<PatientId | null>(null)
-  const [display, setDisplay] = useState({ points: true, connect: true, events: false })
+  const [display, setDisplay] = useState<WorkspaceDisplay>(DEFAULT_WORKSPACE_DISPLAY)
   const [fitKeys, setFitKeys] = useState<string[]>([])
   const [fitSettings, setFitSettings] = useState<WorkspaceFitSettings>(() => defaultFitSettings('general_exploration'))
 
@@ -212,29 +220,24 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
     const cellB = b.cells[index]
     let valA: number | undefined
     let valB: number | undefined
-    let ascending = false
 
     if (metric === 'slope') {
       valA = Number.isFinite(cellA?.slope) ? cellA.slope : undefined
       valB = Number.isFinite(cellB?.slope) ? cellB.slope : undefined
-      ascending = true
     } else if (metric === 'absSlope') {
       valA = Number.isFinite(cellA?.slope) ? Math.abs(cellA.slope) : undefined
       valB = Number.isFinite(cellB?.slope) ? Math.abs(cellB.slope) : undefined
-      ascending = false
     } else if (metric === 'n') {
       valA = cellA?.nNumeric ?? 0
       valB = cellB?.nNumeric ?? 0
-      ascending = false
     } else if (metric === 'duration') {
       valA = cellA?.spanDays ?? 0
       valB = cellB?.spanDays ?? 0
-      ascending = false
     } else {
       valA = cellA?.points.at(-1)?.value
       valB = cellB?.points.at(-1)?.value
-      ascending = false
     }
+    const ascending = metricAscendingByDefault(metric) !== sortReversed
 
     if (valA === undefined && valB === undefined) return comparePatientIds(a.patientId, b.patientId)
     if (valA === undefined) return 1
@@ -256,6 +259,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
     return { min: min - pad, max: max + pad, days: sparkDomains[index].days }
   })
   const patientIds = visible.map(row => row.patientId)
+  const activeSort = sort === 'id' || sort === 'id:desc' ? null : parseSortKey(sort)
+  const activeMetric = activeSort && keys.includes(activeSort.paramKey) ? activeSort.metric : null
+  const sortAscending = activeMetric ? metricAscendingByDefault(activeMetric) !== sortReversed : true
   const current = visible.find(row => row.patientId === patientId) ?? visible[0]
   const currentIndex = visible.findIndex(row => row.patientId === current?.patientId)
   const open = (id: PatientId) => {
@@ -358,6 +364,10 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
             ))}
           </select>
         </label>
+        {activeMetric && <div className="wt-sort-direction" role="group" aria-label="Sort direction">
+          <button type="button" aria-pressed={sortReversed} onClick={() => setSortReversed(previous => !previous)}>Reverse order</button>
+          <span className="wt-muted" role="status">{metricArrow(sortAscending)} {sortAscending ? 'Lowest first' : 'Highest first'}{activeMetric === 'slope' && !sortReversed ? ' (steepest decline first)' : ''}; patients without a value last</span>
+        </div>}
       </div>
       <div className="wt-toolbar"><label><input type="checkbox" checked={selectedOnly} onChange={event => setSelectedOnly(event.target.checked)} /> Selected patients only</label><span>{selected.length} selected · {visible.length} in the shared scope</span><button onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])} disabled={!patientIds.length}>Select visible patients</button><button onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div>
     </section>
@@ -381,14 +391,14 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
         scope={settingsScope} onScopeChange={setSettingsScope} onChange={changeSettings} onReset={resetColumnSettings}
         fitKeys={fitKeys} onToggleFit={toggleFit} />
     </details>
-    {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={display[key]} onChange={event => setDisplay(previous => ({ ...previous, [key]: event.target.checked }))} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}</div></section>}
+    {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events', 'aki'] as const).map(key => <label key={key}><input type="checkbox" checked={display[key]} onChange={event => setDisplay(previous => ({ ...previous, [key]: event.target.checked }))} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : key === 'events' ? 'Events' : 'AKI windows and episodes'}</label>)}</div></section>}
     {mode === 'table' && parameters.length > 0 && <div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Choose parameters …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><span className="wt-muted">{scaleMode === 'shared' ? 'Shared parameter scales.' : 'Zoomed visible-value scales.'} Time since first measurement; patient IDs stay visible while scrolling.</span></div>}
     {!visible.length && <p className="card">No matching patients. Change the search, group filter, or selection.</p>}
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
     {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table"><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select all visible patients" title="Select all visible patients" ref={element => { if (element) { element.indeterminate = visible.some(r => selected.includes(r.patientId)) && !visible.every(r => selected.includes(r.patientId)) } }} checked={visible.length > 0 && visible.every(r => selected.includes(r.patientId))} onChange={event => setSelected(event.target.checked ? [...new Set([...selected, ...patientIds])] : selected.filter(id => !patientIds.includes(id)))} /></th><th aria-label="Patient"><button type="button" aria-hidden="true" tabIndex={-1} className="wt-sort-header-button" onClick={() => setSort(sort === 'id' ? 'id:desc' : 'id')}>Patient {sort === 'id' ? '↑' : sort === 'id:desc' ? '↓' : ''}</button></th>{parameters.map(p => {
       const parsedSort = parseSortKey(sort)
       const metric = parsedSort.paramKey === p.key ? parsedSort.metric : null
-      const metricLabel = metric === 'latest' ? '↓ val' : metric === 'slope' ? '↑ slope' : metric === 'absSlope' ? '↓ |slope|' : metric === 'n' ? '↓ n' : metric === 'duration' ? '↓ dur' : null
+      const metricLabel = metric && metricShortLabel[metric] ? `${metricArrow(metricAscendingByDefault(metric) !== sortReversed)} ${metricShortLabel[metric]}` : null
       return (
         <th key={p.key} aria-label={p.derived ? `${p.label} · derived` : p.label} ref={element => { if (element) parameterHeaders.current.set(p.key, element); else parameterHeaders.current.delete(p.key) }}>
           <div className="wt-th-content">

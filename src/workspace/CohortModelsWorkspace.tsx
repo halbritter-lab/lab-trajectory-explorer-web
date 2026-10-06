@@ -3,7 +3,6 @@ import { useAppStore } from '../ui/state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceSpecs } from './workspace-data'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
-import { normaliseSex } from '../core/egfr/formulas'
 import { patientIdKey } from '../core/types'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
 import {
@@ -12,12 +11,12 @@ import {
   type MixedModelFactor,
   mixedModelFactors,
 } from '../core/mixedModel/config'
-import { mixedModelRowsByGroup, mixedModelRowsFromCohortInputs } from '../core/mixedModel/cohortDataset'
+import { mixedModelRowsFromCohortInputs } from '../core/mixedModel/cohortDataset'
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mixedModel/factors'
 import { validateMixedModelRows } from '../core/mixedModel/validation'
 import type { CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
-import { currentWorkspaceModels } from './workspace-model-results'
+import { currentWorkspaceModels, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import './cohort-models-workspace.css'
 
 const CohortModelTable = lazy(() =>
@@ -59,24 +58,10 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
   const patientIds = useMemo(() => (data.patients ?? []).map(p => p.id), [data.patients])
 
-  const groupableAttributes = useMemo(() => {
-    const merged: Record<string, Record<string, string>> = {}
-    for (const r of (data.rows ?? [])) {
-      if (r.patientSex === null) continue
-      const key = patientIdKey(r.patientId)
-      if (merged[key] === undefined) merged[key] = { sex: r.patientSex }
-    }
-    for (const [key, attributes] of Object.entries(data.patientAttributes ?? {})) {
-      if (!attributes) continue
-      const normalisedSex = normaliseSex(attributes.sex)
-      merged[key] = {
-        ...merged[key],
-        ...attributes,
-        ...(normalisedSex !== null ? { sex: normalisedSex } : {}),
-      }
-    }
-    return merged
-  }, [data.rows, data.patientAttributes])
+  const groupableAttributes = useMemo(
+    () => workspaceGroupableAttributes(data.rows ?? [], data.patientAttributes ?? {}),
+    [data.rows, data.patientAttributes],
+  )
 
   const availableGroupByAttributes = useMemo(() => {
     const cohortKeys = new Set(patientIds.map(patientIdKey))
@@ -144,23 +129,10 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
   const formulaText = useMemo(() => mixedModelFormula(mixedModelConfig), [mixedModelConfig])
 
-  const entities = useMemo<CohortModelEntityRows[]>(() => {
-    if (!spec) return []
-    const list: CohortModelEntityRows[] = [
-      { entity: { kind: 'cohort' }, rows: mixedModelRowsFromCohortInputs(data.rows ?? [], patientIds, spec) },
-    ]
-    if (cohortGroups.length > 0) {
-      const byGroup = mixedModelRowsByGroup(data.rows ?? [], cohortGroups, spec)
-      for (const group of cohortGroups) {
-        const groupRows = byGroup[group.value]
-        if (groupRows) list.push({ entity: { kind: 'group', value: group.value }, rows: groupRows })
-      }
-    }
-    return list.map(item => ({
-      entity: item.entity,
-      ...prepareMixedModelFactors(item.rows, mixedModelConfig, data.patientAttributes ?? {}, data.rows ?? []),
-    }))
-  }, [data.rows, patientIds, cohortGroups, spec, mixedModelConfig, data.patientAttributes])
+  const entities = useMemo<CohortModelEntityRows[]>(
+    () => spec ? workspaceModelEntities(data.rows ?? [], patientIds, spec, mixedModelConfig, data.patientAttributes ?? {}, cohortGroups) : [],
+    [data.rows, patientIds, cohortGroups, spec, mixedModelConfig, data.patientAttributes],
+  )
 
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
     paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])

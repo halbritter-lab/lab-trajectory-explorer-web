@@ -192,6 +192,7 @@ describe('loadDatasetFromWorkbook', () => {
     const dataset = loadDatasetFromWorkbook(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }))
     expect(dataset.events).toHaveLength(1)
     expect(dataset.patientAttributes['1']).toEqual({ genotype: 'A' })
+    expect(dataset.rejectedEvents.map((item) => [item.event.title, item.reason])).toEqual([['Start', 'invalid_date']])
     expect(dataset.diagnostics).toEqual(expect.arrayContaining([
       { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
       { sheet: 'events', patientId: 999, severity: 'warning', reason: 'Patient 999 has no lab values in this dataset; the event is kept.' },

@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useAppStore } from '../../src/ui/state/store'
 import { useWorkspaceData, workspaceSpecs, type WorkspaceData } from '../../src/workspace/workspace-data'
@@ -10,6 +10,8 @@ import { prepareMixedModelFactors } from '../../src/core/mixedModel/factors'
 import { buildMixedModelResultIdentity, mixedModelFitConfigHash } from '../../src/core/mixedModel/resultIdentity'
 import type { MixedModelSuccess } from '../../src/core/mixedModel/types'
 import type { LabRow } from '../../src/core/types'
+import { groupPatients } from '../../src/core/grouping/grouping'
+import { workspaceGroupableAttributes, workspaceModelEntities } from '../../src/workspace/workspace-model-results'
 
 const success: MixedModelSuccess = {
   status: 'success', converged: true, warnings: [], nPatients: 3, nMeasurements: 9,
@@ -19,13 +21,13 @@ const success: MixedModelSuccess = {
   metadata: { engine: 'webr-lme4', formula: 'eGFR ~ time_since_baseline + (1 | patient_id)', runtimeVersion: '4.6.0', packageVersions: {}, browserUserAgent: 'test', wasmAssetSource: 'cdn', optimizer: 'nloptwrap', reml: true, tolerance: 1e-6, datasetId: 'test', datasetHash: 'test', randomSeed: null, fitConfigHash: 'test' },
 }
 let data: WorkspaceData
-function Harness({ axis = 'baseline', studio = false }: { axis?: 'baseline' | 'age'; studio?: boolean }) {
+function Harness({ axis = 'baseline', studio = false, groupBy = '' }: { axis?: 'baseline' | 'age'; studio?: boolean; groupBy?: string }) {
   data = useWorkspaceData()
   if (studio) return <CohortModelsWorkspace data={data} onBrowseData={() => {}} onBrowseTrajectories={() => {}} />
   const parameter = data.parameters[0]
   return <WorkspacePlot data={data} parameter={parameter} parameterIndex={0}
     cohortRows={buildCohortRows(data.rows, data.patients.map(p => p.id), workspaceSpecs(data, [parameter.key]))}
-    axis={axis} groupBy="" highlight={null} display={{ points: true, connect: true, events: false }}
+    axis={axis} groupBy={groupBy} highlight={null} display={{ points: true, connect: true, events: false, aki: false }}
     showFit onOpen={() => {}} sharedDomain={{ min: 0, max: 100, days: 731 }} scaleMode="shared" />
 }
 function seedResult(patch: Partial<MixedModelSuccess> = {}) {
@@ -46,7 +48,38 @@ beforeEach(() => {
   })))
   useAppStore.getState().setDataset(rows, 'test.csv')
 })
+function seedGroupResult(attribute: string, value: string) {
+  const config = useAppStore.getState().mixedModelConfig
+  const spec = workspaceSpecs(data, [data.parameters[0].key])[0]
+  const ids = data.patients.map(p => p.id)
+  const groups = groupPatients(ids, workspaceGroupableAttributes(data.rows, data.patientAttributes), attribute)
+  const entity = workspaceModelEntities(data.rows, ids, spec, config, data.patientAttributes, groups)
+    .find(item => item.entity.kind === 'group' && item.entity.value === value)!
+  const identity = buildMixedModelResultIdentity({ seriesIndex: 0, seriesKey: data.parameters[0].key,
+    rows: entity.rows, patientIds: entity.rows.map(r => r.patient_id), preparation: entity.preparation,
+    fitConfigHash: mixedModelFitConfigHash(spec, config), groupValue: value })
+  useAppStore.setState({ cohortModelResults: { ...useAppStore.getState().cohortModelResults, [`group:${value}`]: { result: success, identity } }, showCohortMixedModelLine: true })
+}
 describe('workspace model validity', () => {
+  it('draws per-group model lines only for groups fitted under the overlay grouping', () => {
+    useAppStore.getState().setPatientAttributes({ A: { arm: 'X' }, B: { arm: 'X' }, C: { arm: 'Y' } })
+    const view = render(<Harness groupBy="arm" />)
+    act(() => seedGroupResult('arm', 'X'))
+    view.rerender(<Harness groupBy="arm" />)
+    const lines = view.container.querySelectorAll('.wt-group-model-line')
+    expect([...lines].map(line => line.getAttribute('data-group'))).toEqual(['X'])
+    expect(screen.getByTestId('group-model-legend')).toHaveTextContent('fitted separately per group (X)')
+    expect(view.container.querySelector('svg')!.getAttribute('data-export-context')).toContain('Group mixed model mean lines: X')
+    // Hiding the group in the legend hides its model line too.
+    fireEvent.click(within(screen.getByRole('group', { name: /^Groups for/ })).getByRole('button', { name: /X/ }))
+    expect(view.container.querySelector('.wt-group-model-line')).toBeNull()
+    // Without grouping, or grouped by another attribute, group results are not shown.
+    view.rerender(<Harness groupBy="" />)
+    expect(view.container.querySelector('.wt-group-model-line')).toBeNull()
+    view.rerender(<Harness groupBy="sex" />)
+    expect(view.container.querySelector('.wt-group-model-line')).toBeNull()
+  })
+
   it('shows an exactly matching model and rejects a different unit', () => {
     const view = render(<Harness />)
     act(() => seedResult())
