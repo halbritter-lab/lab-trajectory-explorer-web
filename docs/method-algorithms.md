@@ -26,6 +26,9 @@ observed endpoint. A bound does not supply an age anchor or mixed-model time
 origin. For example, exact 60 and `<10` on 2020-01-01 followed by exact 50 on
 2021-01-01 fits the two exact values, while all three remain visible. The
 numeric limits are shown as limits and are not estimates of the unknown values.
+If a series has only one exact value and a fit exclusion window removes it,
+`nFitted` is zero; a disabled fit also reports zero regardless of how many
+exact and bounded values are visible. Raw counts remain unchanged.
 
 Regression evidence: [censored measurement tests](../tests/core/censoredMeasurements.test.ts)
 and [workspace chart/table tests](../tests/workspace/trajectories.test.tsx).

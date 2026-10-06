@@ -113,3 +113,8 @@ unit tests (90 files), build passed, 29/29 Chromium tests. A concurrent unit
 run with build/e2e had five unrelated storage/model UI failures, including a
 timeout; the standalone unit rerun passed. Existing React `act` warnings remain
 in storage tests. Remaining P4 endpoint/KRT and KDIGO/µmol/l packages are open.
+Follow-up review fix: the `<2` exact-point summary path now applies fit
+exclusion windows before reporting `nFitted`, and disabled fits report zero
+even with one exact point plus a bound. Two tests failed before the fix and
+pass after it. Sequential verification: 44/44 focused tests, 764/764 full unit
+tests (90 files), production build passed. Other P4 scope remains open.

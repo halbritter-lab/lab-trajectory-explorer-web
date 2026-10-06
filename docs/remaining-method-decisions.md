@@ -44,6 +44,9 @@ proceed and remain open to the owner's revision.
   no fit or endpoint; a bound cannot start, confirm, interrupt or recover an
   observed event. Derived eGFR may display a reversed bound but is excluded
   downstream. This numeric policy is implemented in the first P4 package.
+  `nFitted` counts fit-eligible points after windows; it is zero if the sole
+  exact point is excluded or the fit model is disabled, while `nNumeric` still
+  reports the original dated numeric row count.
 - **KDIGO threshold comparisons** use a small numeric tolerance, so a rise of
   exactly 0.3 mg/dl or exactly 1.5× is detected. Episode clustering and staging
   are unchanged for now.

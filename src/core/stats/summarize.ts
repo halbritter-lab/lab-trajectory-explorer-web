@@ -138,10 +138,11 @@ export function summarizeByBezeichnung(
     let summary: SeriesSummary
     if (nNumeric === 0) {
       summary = { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'no_numeric_values' }
-    } else if (allPoints.length < 2) {
-      summary = { ...base, ...emptyFit, nFitted: fitPoints.length, fittedSpanDays: 0, reason: 'n_below_threshold' }
     } else if (fitModel === 'none') {
       summary = { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'n_below_threshold' }
+    } else if (allPoints.length < 2) {
+      fitPoints = applyExclusionWindows(fitPoints, fitExclusions).kept
+      summary = { ...base, ...emptyFit, nFitted: fitPoints.length, fittedSpanDays: 0, reason: 'n_below_threshold' }
     } else if (mode === 'global-robust') {
       fitPoints = applyExclusionWindows(fitPoints, fitExclusions).kept
       fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)

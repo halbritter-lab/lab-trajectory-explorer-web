@@ -12,6 +12,9 @@ interfaces are still evolving before 1.0.
   and label the exclusion in import warnings, plots, tables and exports. Fits
   and endpoint values can change for datasets containing bounded values; exact
   observations on the same date remain eligible.
+- Correct the fitted count when a series has fewer than two exact rows: fit
+  exclusion windows now remove those rows before counting, and disabled fits
+  report zero. Raw measurement counts are unchanged.
 
 ### Added
 

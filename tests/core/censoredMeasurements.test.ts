@@ -82,4 +82,24 @@ describe('bounded measurements', () => {
     ]
     expect(episodesForSeries(rows, 1, 'eGFR', 'mL/min/1.73m2')).toHaveLength(1)
   })
+
+  it('reports zero fitted points when the only exact value lies in a fit exclusion window', () => {
+    const rows = [row('2020-01-01', 60), row('2021-01-01', 50, '<')]
+    const summary = summarizeByBezeichnung(rows, 1, 'global', {
+      exclusionWindows: () => ({ exclusions: [{ start: date('2020-01-01'), end: date('2020-01-02') }] }),
+    })[0]
+    expect(summary.nNumeric).toBe(2)
+    expect(summary.nFitted).toBe(0)
+    expect(summary.reason).toBe('n_below_threshold')
+  })
+
+  it('reports zero fitted points for a disabled fit with one exact value and one bound', () => {
+    const rows = [row('2020-01-01', 60), row('2021-01-01', 50, '>')]
+    const fitConfig = generalExplorationConfig({ bezeichnung: 'eGFR', einheit: 'mL/min/1.73m2' })
+    fitConfig.fitModel = 'none'
+    expect(summarizeByBezeichnung(rows, 1, 'global', { fitModel: 'none' })[0].nFitted).toBe(0)
+    const cell = buildCohortRows(rows, [1], [{ bezeichnung: 'eGFR', einheit: 'mL/min/1.73m2', mode: 'global', fitConfig }])[0].cells[0]
+    expect(cell.nNumeric).toBe(2)
+    expect(cell.nFitted).toBe(0)
+  })
 })
