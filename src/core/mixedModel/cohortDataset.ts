@@ -18,15 +18,38 @@ interface ModelPoint {
   age: number | null
 }
 
+export type PresetExclusionPolicy = 'apply' | 'skip'
+
+/** Counts only eligible exact dated rows removed by the union of preset windows. */
+export function prepareMixedModelCohortRows(
+  allRows: readonly LabRow[],
+  patientIds: readonly PatientId[],
+  spec: CohortSeriesSpec,
+  exclusionPolicy: PresetExclusionPolicy = 'apply',
+): { rows: MixedModelSpikeRow[]; excludedByPreset: number } {
+  return buildMixedModelRows(allRows, patientIds, spec, exclusionPolicy)
+}
+
 export function mixedModelRowsFromCohortInputs(
   allRows: readonly LabRow[],
   patientIds: readonly PatientId[],
   spec: CohortSeriesSpec,
 ): MixedModelSpikeRow[] {
+  return buildMixedModelRows(allRows, patientIds, spec, 'apply').rows
+}
+
+function buildMixedModelRows(
+  allRows: readonly LabRow[],
+  patientIds: readonly PatientId[],
+  spec: CohortSeriesSpec,
+  exclusionPolicy: PresetExclusionPolicy,
+): { rows: MixedModelSpikeRow[]; excludedByPreset: number } {
   // Honor the cohort's "no fit" configuration: when fitting is disabled the
   // displayed cohort slope is intentionally blank, so the mixed model must not
   // silently fit rows the rest of the UI is not showing.
-  if (spec.fitConfig?.fitModel === 'none') return []
+  if (spec.fitConfig?.fitModel === 'none') return { rows: [], excludedByPreset: 0 }
+
+  let excludedByPreset = 0
 
   const patientSeries: Array<{ patientKey: string; selected: ModelPoint[]; baselineAge: number | null }> = []
   const ids = [...new Set(patientIds)].sort(comparePatientIds)
@@ -59,8 +82,12 @@ export function mixedModelRowsFromCohortInputs(
       age: Number.isFinite(row.patientAgeAtLab) ? row.patientAgeAtLab : null,
     }))
     // The same censoring and exclusion windows as the cohort cell's fit.
-    const windows = seriesExclusions(seriesContextFor(spec, patientId, patientRows, cache))
-    const included = applyExclusionWindows(points, [...windows.censoring, ...windows.exclusions]).kept
+    const windows = exclusionPolicy === 'apply'
+      ? seriesExclusions(seriesContextFor(spec, patientId, patientRows, cache))
+      : { censoring: [], exclusions: [] }
+    const exclusion = applyExclusionWindows(points, [...windows.censoring, ...windows.exclusions])
+    excludedByPreset += exclusion.excludedIdx.length
+    const included = exclusion.kept
 
     const balanced = balanceSeriesPoints(included, spec.fitConfig?.timeBalancing).map((point) => ({
       ...point,
@@ -108,7 +135,7 @@ export function mixedModelRowsFromCohortInputs(
     }
   }
 
-  return out
+  return { rows: out, excludedByPreset }
 }
 
 /** Build mixed-model rows for each group by reusing the single-cohort row

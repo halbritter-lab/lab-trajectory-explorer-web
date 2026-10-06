@@ -3,6 +3,7 @@ import { hashMixedModelInput, hashString, roundTo10Decimals } from './validation
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelConfigHashInput, type MixedModelConfig } from './config'
 import { MIXED_MODEL_FORMULA, MIXED_MODEL_TOLERANCE, type MixedModelPreparationSummary, type MixedModelSpikeRow, type MixedModelSuccess } from './types'
 import type { CohortSeriesSpec } from '../cohort/screening'
+import type { PresetExclusionPolicy } from './cohortDataset'
 
 export interface MixedModelResultIdentity {
   seriesIndex: number
@@ -37,6 +38,7 @@ export interface MixedModelMeanLinePoint {
 export function mixedModelFitConfigHash(
   spec: CohortSeriesSpec,
   config: MixedModelConfig = DEFAULT_MIXED_MODEL_CONFIG,
+  presetExclusionPolicy: PresetExclusionPolicy = 'apply',
 ): string {
   return hashString(JSON.stringify({
     engine: 'webr-lme4',
@@ -44,6 +46,7 @@ export function mixedModelFitConfigHash(
     reml: true,
     tolerance: MIXED_MODEL_TOLERANCE,
     model: mixedModelConfigHashInput(config),
+    presetExclusionPolicy,
     series: {
       bezeichnung: spec.bezeichnung,
       einheit: spec.einheit ?? null,
@@ -90,7 +93,7 @@ export function buildMixedModelResultIdentity({
     // Only attach the key for grouped fits so pooled identities keep their exact
     // shape (the equality check still distinguishes defined vs. undefined).
     ...(groupValue !== undefined ? { groupValue } : {}),
-    ...(preparation !== undefined && (Object.keys(preparation.centers).length > 0 || preparation.excludedPatients.length > 0) ? { preparationHash: hashString(JSON.stringify({
+    ...(preparation !== undefined && (Object.keys(preparation.centers).length > 0 || preparation.excludedPatients.length > 0 || preparation.presetExclusionPolicy !== undefined) ? { preparationHash: hashString(JSON.stringify({
       ...preparation,
       centers: Object.fromEntries(Object.entries(preparation.centers).sort(([a], [b]) => a.localeCompare(b))),
       excludedPatients: [...preparation.excludedPatients].sort((a, b) => compareCanonicalPatientIds(a.patientId, b.patientId)),

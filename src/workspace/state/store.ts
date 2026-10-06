@@ -10,6 +10,7 @@ import { mixedModelIdentityEquals, type MixedModelResultIdentity } from '../../c
 import type { AppliedProjectionSettings } from '../../core/projection/projectionSnapshot'
 import { runCohortMixedModels } from '../../core/mixedModel/cohortModelFit'
 import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEntity'
+import type { PresetExclusionPolicy } from '../../core/mixedModel/cohortDataset'
 import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import type { ImportDiagnostic } from '../../io/loadDataset'
 
@@ -66,6 +67,7 @@ export interface AppState {
   patientAttributes: Record<string, Record<string, string>>
   analysisSettings: AnalysisSettings
   mixedModelConfig: MixedModelConfig
+  presetExclusionPolicy: PresetExclusionPolicy
   /** Cohort mixed-model results keyed by entity (`'cohort'` for the pooled fit,
    * `'group:<value>'` per group), or null when nothing has been fit. Single
    * source of truth read by the results table and the charts. */
@@ -89,6 +91,7 @@ export interface AppState {
   setPatientAttributes: (byPatient: Record<string, Record<string, string>>) => void
   analysisResult: () => AnalysisResult
   setMixedModelConfig: (config: MixedModelConfig) => void
+  setPresetExclusionPolicy: (policy: PresetExclusionPolicy) => void
   runCohortModels: (params: RunCohortModelsParams) => Promise<void>
   setShowCohortMixedModelLine: (value: boolean) => void
   setProjectionSettings: (seriesIndex: number, seriesKey: string, entityKey: string, applied: AppliedProjectionSettings) => void
@@ -99,7 +102,7 @@ export interface AppState {
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'patientAttributes'
-  | 'analysisSettings' | 'mixedModelConfig' | 'cohortModelResults' | 'cohortModelRunning'
+  | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'cohortModelResults' | 'cohortModelRunning'
   | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
 
 const initialState = (): AppData => ({
@@ -111,6 +114,7 @@ const initialState = (): AppData => ({
   patientAttributes: {},
   analysisSettings: defaultAnalysisSettings(),
   mixedModelConfig: DEFAULT_MIXED_MODEL_CONFIG,
+  presetExclusionPolicy: 'apply',
   cohortModelResults: null,
   cohortModelRunning: false,
   cohortModelProgress: null,
@@ -234,6 +238,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     mixedModelConfig: config,
     ...clearedMixedModelResults(),
   }),
+  setPresetExclusionPolicy: (policy) => set((state) => policy === state.presetExclusionPolicy ? state : ({
+    presetExclusionPolicy: policy,
+    ...clearedMixedModelResults(),
+  })),
   runCohortModels: async ({ entities, seriesIndex, seriesKey, fitConfigHash, config, formula, runJob = runMixedModelWorkerJob }) => {
     abortActiveCohortModelRun()
     const controller = new AbortController()

@@ -12,7 +12,7 @@ import {
   type MixedModelFactor,
   mixedModelFactors,
 } from '../core/mixedModel/config'
-import { mixedModelRowsFromCohortInputs } from '../core/mixedModel/cohortDataset'
+import { prepareMixedModelCohortRows } from '../core/mixedModel/cohortDataset'
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mixedModel/factors'
 import { validateMixedModelRows } from '../core/mixedModel/validation'
 import type { CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
@@ -35,6 +35,8 @@ interface Props {
 export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData }: Props) {
   const mixedModelConfig = useAppStore(s => s.mixedModelConfig)
   const setMixedModelConfig = useAppStore(s => s.setMixedModelConfig)
+  const presetExclusionPolicy = useAppStore(s => s.presetExclusionPolicy)
+  const setPresetExclusionPolicy = useAppStore(s => s.setPresetExclusionPolicy)
   const showCohortMixedModelLine = useAppStore(s => s.showCohortMixedModelLine)
   const setShowCohortMixedModelLine = useAppStore(s => s.setShowCohortMixedModelLine)
   const cohortModelResults = useAppStore(s => s.cohortModelResults)
@@ -118,21 +120,22 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     return (data.parameters ?? []).findIndex(p => p.key === activeParamKey)
   }, [data.parameters, activeParamKey])
 
-  const mixedModelRows = useMemo(
-    () => spec ? mixedModelRowsFromCohortInputs(data.rows ?? [], patientIds, spec) : [],
-    [data.rows, patientIds, spec],
+  const modelSample = useMemo(
+    () => spec ? prepareMixedModelCohortRows(data.rows ?? [], patientIds, spec, presetExclusionPolicy) : { rows: [], excludedByPreset: 0 },
+    [data.rows, patientIds, spec, presetExclusionPolicy],
   )
+  const mixedModelRows = modelSample.rows
 
   const fitConfigHash = useMemo(
-    () => spec ? mixedModelFitConfigHash(spec, mixedModelConfig) : '',
-    [spec, mixedModelConfig],
+    () => spec ? mixedModelFitConfigHash(spec, mixedModelConfig, presetExclusionPolicy) : '',
+    [spec, mixedModelConfig, presetExclusionPolicy],
   )
 
   const formulaText = useMemo(() => mixedModelFormula(mixedModelConfig), [mixedModelConfig])
 
   const entities = useMemo<CohortModelEntityRows[]>(
-    () => spec ? workspaceModelEntities(data.rows ?? [], patientIds, spec, mixedModelConfig, data.patientAttributes ?? {}, cohortGroups) : [],
-    [data.rows, patientIds, cohortGroups, spec, mixedModelConfig, data.patientAttributes],
+    () => spec ? workspaceModelEntities(data.rows ?? [], patientIds, spec, mixedModelConfig, data.patientAttributes ?? {}, cohortGroups, presetExclusionPolicy) : [],
+    [data.rows, patientIds, cohortGroups, spec, mixedModelConfig, data.patientAttributes, presetExclusionPolicy],
   )
 
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
@@ -484,6 +487,11 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         )}
 
         {/* Formula strip and sample coverage */}
+        <label className="mixed-model-config-check">
+          <input type="checkbox" checked={presetExclusionPolicy === 'apply'} onChange={event => setPresetExclusionPolicy(event.target.checked ? 'apply' : 'skip')} />
+          Apply preset event and AKI exclusions
+        </label>
+        <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>
         <div className="cm-formula-strip">
           <div>
             <span>Model: </span>

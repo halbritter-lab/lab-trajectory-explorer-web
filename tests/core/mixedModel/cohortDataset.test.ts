@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { mixedModelRowsFromCohortInputs } from '../../../src/core/mixedModel/cohortDataset'
+import { mixedModelRowsFromCohortInputs, prepareMixedModelCohortRows } from '../../../src/core/mixedModel/cohortDataset'
 import type { AkiEpisode } from '../../../src/core/domains/nephrology/aki/kdigo'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 import { akiFitInput } from '../../../src/core/domains/nephrology/aki/akiModule'
@@ -27,6 +27,14 @@ function row(p: Partial<LabRow>): LabRow {
 }
 
 describe('mixedModelRowsFromCohortInputs', () => {
+  it('counts overlapping transplant and AKI exclusions once and can skip both windows', () => {
+    const transplant: ClinicalEvent = { patientId: 7, type: 'kidney_transplant', date: d('2020-02-01T00:00:00Z'), title: 'Transplant', description: null, endDate: null, intent: null, warning: '' }
+    const episode: AkiEpisode = { date: d('2020-02-01T00:00:00Z'), baselineDate: d('2020-01-01T00:00:00Z'), baselineValue: 1, peakValue: 2, peakDate: d('2020-02-01T00:00:00Z'), criterion: 'absolute_0_3_mg_dl_48h', stage: 1 }
+    const spec: CohortSeriesSpec = { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', mode: 'aki-aware', clinicalEventsByPatient: { 7: [transplant] }, fitInputs: [akiFitInput(7, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' }, [episode], 45)] }
+    const rows = [row({ labDatum: d('2020-01-01T00:00:00Z'), wertNum: 60 }), row({ labDatum: d('2020-02-01T00:00:00Z'), wertNum: 50 }), row({ labDatum: d('2020-03-01T00:00:00Z'), wertNum: 40 })]
+    expect(prepareMixedModelCohortRows(rows, [7], spec, 'apply')).toMatchObject({ excludedByPreset: 2, rows: [{ value: 60 }] })
+    expect(prepareMixedModelCohortRows(rows, [7], spec, 'skip')).toMatchObject({ excludedByPreset: 0, rows: [{ value: 60 }, { value: 50 }, { value: 40 }] })
+  })
   it('uses included raw fit points and years since first included point', () => {
     const spec: CohortSeriesSpec = { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', mode: 'global' }
     const rows = [

@@ -75,6 +75,8 @@ export function mixedModelExportSheets(
       ...(result.metadata.formula === undefined ? {} : { formula: mixedModelFormulaForOutcome(result.metadata.formula, mixedModelOutcomeLabel(outcome, outcomeUnit)) }),
       modelConfig: JSON.stringify(config ?? null),
       preparation: JSON.stringify(preparation ?? null),
+      preset_exclusion_policy: preparation?.presetExclusionPolicy ?? 'apply',
+      excluded_by_preset: preparation?.excludedByPreset ?? 0,
       packageVersions: JSON.stringify(result.metadata.packageVersions ?? {}),
       warnings: result.warnings.join('; '),
       ...(result.status === 'success'

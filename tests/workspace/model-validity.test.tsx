@@ -5,13 +5,12 @@ import { useWorkspaceData, workspaceSpecs, type WorkspaceData } from '../../src/
 import { WorkspacePlot } from '../../src/workspace/WorkspacePlot'
 import { CohortModelsWorkspace } from '../../src/workspace/CohortModelsWorkspace'
 import { buildCohortRows } from '../../src/core/cohort/screening'
-import { mixedModelRowsFromCohortInputs } from '../../src/core/mixedModel/cohortDataset'
-import { prepareMixedModelFactors } from '../../src/core/mixedModel/factors'
 import { buildMixedModelResultIdentity, mixedModelFitConfigHash } from '../../src/core/mixedModel/resultIdentity'
 import type { MixedModelSuccess } from '../../src/core/mixedModel/types'
 import type { LabRow } from '../../src/core/types'
 import { groupPatients } from '../../src/core/grouping/grouping'
 import { workspaceGroupableAttributes, workspaceModelEntities } from '../../src/workspace/workspace-model-results'
+import type { ClinicalEvent } from '../../src/core/events/events'
 
 const success: MixedModelSuccess = {
   status: 'success', converged: true, warnings: [], nPatients: 3, nMeasurements: 9,
@@ -33,7 +32,7 @@ function Harness({ axis = 'baseline', studio = false, groupBy = '' }: { axis?: '
 function seedResult(patch: Partial<MixedModelSuccess> = {}) {
   const config = useAppStore.getState().mixedModelConfig
   const spec = workspaceSpecs(data, [data.parameters[0].key])[0]
-  const prepared = prepareMixedModelFactors(mixedModelRowsFromCohortInputs(data.rows, data.patients.map(p => p.id), spec), config, data.patientAttributes, data.rows)
+  const prepared = workspaceModelEntities(data.rows, data.patients.map(p => p.id), spec, config, data.patientAttributes, [])[0]
   const identity = buildMixedModelResultIdentity({ seriesIndex: 0, seriesKey: data.parameters[0].key,
     rows: prepared.rows, patientIds: prepared.rows.map(r => r.patient_id), preparation: prepared.preparation,
     fitConfigHash: mixedModelFitConfigHash(spec, config) })
@@ -61,6 +60,32 @@ function seedGroupResult(attribute: string, value: string) {
   useAppStore.setState({ cohortModelResults: { ...useAppStore.getState().cohortModelResults, [`group:${value}`]: { result: success, identity } }, showCohortMixedModelLine: true })
 }
 describe('workspace model validity', () => {
+  it('reports pooled and grouped preset exclusions separately from factor preparation', () => {
+    render(<Harness />)
+    const transplant: ClinicalEvent = { patientId: 'A', type: 'kidney_transplant', date: new Date('2021-01-01T00:00:00Z'), title: 'Transplant', description: null, endDate: null, intent: null, warning: '' }
+    const spec = { ...workspaceSpecs(data, [data.parameters[0].key])[0], fitConfig: undefined, clinicalEventsByPatient: { A: [transplant] } }
+    const ids = data.patients.map(p => p.id)
+    const groups = [{ value: 'A', patientIds: ['A'] }, { value: 'BC', patientIds: ['B', 'C'] }]
+    const entities = workspaceModelEntities(data.rows, ids, spec, useAppStore.getState().mixedModelConfig, {}, groups)
+    expect(entities.map(entity => entity.preparation?.excludedByPreset)).toEqual([2, 2, 0])
+    expect(entities.map(entity => entity.preparation?.nMeasurementsBefore)).toEqual([7, 1, 6])
+    expect(entities.every(entity => entity.preparation?.presetExclusionPolicy === 'apply')).toBe(true)
+    const skipped = workspaceModelEntities(data.rows, ids, spec, useAppStore.getState().mixedModelConfig, {}, groups, 'skip')
+    expect(skipped.map(entity => entity.preparation?.excludedByPreset)).toEqual([0, 0, 0])
+    expect(skipped.map(entity => entity.rows.length)).toEqual([9, 3, 6])
+  })
+  it('invalidates a fitted result when preset exclusions are switched off', () => {
+    const view = render(<Harness studio />)
+    expect(screen.getByText(/Preset windows: applied; 0 eligible measurements excluded/)).toBeInTheDocument()
+    act(() => seedResult())
+    view.rerender(<Harness studio />)
+    expect(screen.getByText(/Whole cohort fitted trajectory/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('checkbox', { name: /Apply preset event and AKI exclusions/i }))
+    expect(screen.getByText(/Preset windows: skipped; 0 eligible measurements excluded/)).toBeInTheDocument()
+    expect(screen.queryByText(/Whole cohort fitted trajectory/)).not.toBeInTheDocument()
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+    expect(useAppStore.getState().projectionSettings).toEqual({})
+  })
   it('draws per-group model lines only for groups fitted under the overlay grouping', () => {
     useAppStore.getState().setPatientAttributes({ A: { arm: 'X' }, B: { arm: 'X' }, C: { arm: 'Y' } })
     const view = render(<Harness groupBy="arm" />)

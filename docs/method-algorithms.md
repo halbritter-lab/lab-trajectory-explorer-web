@@ -33,6 +33,20 @@ exact and bounded values are visible. Raw counts remain unchanged.
 Regression evidence: [censored measurement tests](../tests/core/censoredMeasurements.test.ts)
 and [workspace chart/table tests](../tests/workspace/trajectories.test.tsx).
 
+## Cohort mixed-model preset exclusions (P5)
+
+The cohort-model exclusion checkbox starts on. When on, the selected series
+preset's clinical-event censoring and AKI windows remove eligible exact dated
+measurements before time balancing. When off, those windows are skipped for
+cohort mixed-model rows only. A series with `fitModel: none` still supplies no
+mixed-model rows. The per-entity count is the number of eligible exact dated
+rows inside the union of the active event and AKI windows; overlapping windows
+count a row once. Time balancing, chronic run-in, and missing-factor removal
+are separate later stages and do not increase this count. The policy and count
+are stored with each fitted entity, displayed in the model workspace, and
+exported in the `models` worksheet. Changing the policy invalidates fitted
+results and their projections.
+
 ## KDIGO creatinine AKI and eGFR source conversion (2026-10-06)
 
 AKI detection accepts the same eligible serum-creatinine name and unit pairs as

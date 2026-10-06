@@ -7,6 +7,12 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Cohort mixed models now let users apply or skip the selected preset's event
+  censoring and AKI windows. Application remains the default. The workspace
+  and model workbook report each entity's distinct eligible measurements
+  removed by these windows, separately from balancing and factor exclusions;
+  changing the choice invalidates prior fits and projections.
+
 - Withhold individual G5 crossings beyond 20 years after the latest eligible
   measurement or when endpoint-fit slope confidence bounds include zero or are
   unavailable. Export the endpoint-fit bounds, horizon and distinct reasons;

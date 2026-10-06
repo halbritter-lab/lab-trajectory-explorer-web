@@ -95,7 +95,11 @@ proceed and remain open to the owner's revision.
   use one selected name/unit pair. Implemented in this P4 package.
 - **Cohort models** may apply the analysis preset's censoring and AKI
   exclusions. Whether they do, and how many measurements were excluded, is
-  shown in the interface and recorded in exports.
+  shown in the interface and recorded in exports. Implemented in P5 package 1:
+  application defaults on, the count uses eligible exact dated measurements
+  removed by the union of event and AKI windows, and switching the policy
+  invalidates fitted models and projections. Later time balancing, run-in and
+  factor removals are not included in that count.
 - **Mixed models.** Stricter minimum data requirements, singular fits flagged
   and their projections withheld, and the time origin and dropout assumptions
   documented on the methodology page. The earlier methodology wording may be

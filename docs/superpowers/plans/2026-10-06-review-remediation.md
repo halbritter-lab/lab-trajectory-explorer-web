@@ -85,6 +85,22 @@ checklist update, changelog.
 
 ## Progress (2026-10-06)
 
+P5 package 1: Cohort models now expose an apply/skip choice for active preset
+event and AKI windows, defaulting to apply. Eligible exact dated rows removed
+by overlapping windows are counted once per pooled or grouped entity before
+balancing, chronic run-in and factor removal. The choice and counts flow through
+sample preview, entity status, result preparation and workbook export; changing
+the choice clears stored fits, overlays and projection settings and changes
+the fit identity. `fitModel: none` still produces no rows. Existing numeric
+goldens are unaffected because the default keeps their input policy and the
+new choice does not alter individual numeric kernels. Red-green tests covered
+on/off with overlapping transplant and AKI windows, pooled/grouped counts,
+stale results, visible choice and workbook fields. Sequential verification:
+803/803 unit tests in 90 files, production build, 29/29 Chromium checks and
+both real-webR verification scripts passed. The pre-existing React `act`
+warnings remain in storage tests. P5 minimum-data and singular-fit policy
+remains for a separate package.
+
 Final P4 individual G5 projection package: endpoint-only OLS/Theil-Sen slope
 confidence bounds now control whether an individual crossing is reported.
 Intervals touching zero and unavailable/inverted bounds have distinct withheld

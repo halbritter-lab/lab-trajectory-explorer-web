@@ -76,6 +76,14 @@ export function Methodology() {
 
       <h4>Fit Pipeline</h4>
       <p>
+        Cohort models have a separate checkbox for applying the active preset&apos;s event censoring
+        and AKI exclusion windows. It starts on. Turning it off retains eligible exact dated
+        measurements in those windows for the model; a disabled series fit still supplies no
+        model rows. The Cohort models preview, each model status, and the workbook record the
+        selected policy and the number removed by the union of those windows. This count is
+        taken before time balancing, chronic run-in removal, and missing-factor exclusions.
+      </p>
+      <p>
         Each parameter column uses the shared fit configuration unless it has its own override.
         Presets such as general exploration,
         CKD progression, and acute review are named defaults over the same explicit pipeline:

@@ -14,6 +14,8 @@ export interface MixedModelSpikeRow {
 }
 
 export interface MixedModelPreparationSummary {
+  presetExclusionPolicy?: 'apply' | 'skip'
+  excludedByPreset?: number
   nPatientsBefore: number
   nMeasurementsBefore: number
   excludedPatients: Array<{ patientId: string; reasons: string[] }>

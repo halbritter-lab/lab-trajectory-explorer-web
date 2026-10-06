@@ -105,7 +105,7 @@ export function CohortModelTable({
           }
         })
         // Always keep the pooled cohort row; drop empty groups (no model rows).
-        .filter((row) => row.entity.kind === 'cohort' || row.rows.length > 0 || (row.preparation?.nMeasurementsBefore ?? 0) > 0),
+        .filter((row) => row.entity.kind === 'cohort' || row.rows.length > 0 || (row.preparation?.nMeasurementsBefore ?? 0) > 0 || (row.preparation?.excludedByPreset ?? 0) > 0),
     [entities, entityLabels, entityColors, config],
   )
 
@@ -303,6 +303,7 @@ export function CohortModelTable({
                       <td>{success ? formatSlope(success.fixedEffects.timeSinceBaseline, seriesUnit) : '—'}</td>
                       <td>{success ? formatValue(success.fixedEffects.intercept, seriesUnit) : '—'}</td>
                       <td className="cohort-model-status" data-testid="cohort-model-status">{statusText(row)}
+                        <div>Preset windows {row.preparation?.presetExclusionPolicy === 'skip' ? 'skipped' : 'applied'}: {row.preparation?.excludedByPreset ?? 0} eligible measurements excluded</div>
                         {(row.preparation?.excludedPatients.length ?? 0) > 0 && <details><summary>Excluded patients ({row.preparation!.excludedPatients.length})</summary><ul>{row.preparation!.excludedPatients.map((patient) => <li key={patient.patientId}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul></details>}
                       </td>
                       <td>

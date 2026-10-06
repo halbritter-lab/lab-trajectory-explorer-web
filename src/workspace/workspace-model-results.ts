@@ -1,6 +1,6 @@
 import { entityGroupValue, entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { buildMixedModelResultIdentity, mixedModelIdentityEquals } from '../core/mixedModel/resultIdentity'
-import { mixedModelRowsByGroup, mixedModelRowsFromCohortInputs } from '../core/mixedModel/cohortDataset'
+import { prepareMixedModelCohortRows, type PresetExclusionPolicy } from '../core/mixedModel/cohortDataset'
 import { prepareMixedModelFactors } from '../core/mixedModel/factors'
 import { mixedModelFactorColumn, mixedModelFactors, mixedModelFormula, mixedModelFormulaForOutcome, type MixedModelConfig } from '../core/mixedModel/config'
 import type { CohortSeriesSpec } from '../core/cohort/screening'
@@ -65,21 +65,25 @@ export function workspaceModelEntities(
   config: MixedModelConfig,
   patientAttributes: Record<string, Record<string, string>>,
   groups: readonly PatientGroup[],
+  exclusionPolicy: PresetExclusionPolicy = 'apply',
 ): CohortModelEntityRows[] {
-  const list: Array<{ entity: CohortModelEntityRows['entity']; rows: CohortModelEntityRows['rows'] }> = [
-    { entity: { kind: 'cohort' }, rows: mixedModelRowsFromCohortInputs(rows, patientIds, spec) },
+  const list: Array<{ entity: CohortModelEntityRows['entity']; rows: CohortModelEntityRows['rows']; excludedByPreset: number }> = [
+    { entity: { kind: 'cohort' }, ...prepareMixedModelCohortRows(rows, patientIds, spec, exclusionPolicy) },
   ]
   if (groups.length > 0) {
-    const byGroup = mixedModelRowsByGroup(rows, groups, spec)
     for (const group of groups) {
-      const groupRows = byGroup[group.value]
-      if (groupRows) list.push({ entity: { kind: 'group', value: group.value }, rows: groupRows })
+      const prepared = prepareMixedModelCohortRows(rows, group.patientIds, spec, exclusionPolicy)
+      if (prepared.rows.length > 0 || prepared.excludedByPreset > 0) list.push({ entity: { kind: 'group', value: group.value }, ...prepared })
     }
   }
-  return list.map(item => ({
-    entity: item.entity,
-    ...prepareMixedModelFactors(item.rows, config, patientAttributes, rows),
-  }))
+  return list.map(item => {
+    const prepared = prepareMixedModelFactors(item.rows, config, patientAttributes, rows)
+    return {
+      entity: item.entity,
+      rows: prepared.rows,
+      preparation: { ...prepared.preparation, presetExclusionPolicy: exclusionPolicy, excludedByPreset: item.excludedByPreset },
+    }
+  })
 }
 
 /** Display only: user-provided attribute labels never enter the executable
