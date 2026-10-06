@@ -35,8 +35,8 @@
     "fake-indexeddb": "^6.2.5",
     "jsdom": "^29.1.1",
     "typescript": "^5.6.3",
-    "vite": "^6.0.3",
-    "vitest": "^2.1.8"
+    "vite": "^6.4.3",
+    "vitest": "^4.1.11"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
