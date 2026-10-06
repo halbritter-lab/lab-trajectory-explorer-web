@@ -28,7 +28,7 @@ function researchWorkbook(): Buffer {
 }
 
 async function upload(page: Page) {
-  await page.goto('/workspace.html')
+  await page.goto('/')
   await page.getByLabel('Import lab values').setInputFiles({ name: 'research.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: researchWorkbook() })
   await expect(page.locator('.workspace-dataset')).toContainText('3 patients')
 }
@@ -36,7 +36,7 @@ async function upload(page: Page) {
 test('approved endpoint rules: configurable confirmation, visible recovery and workbook provenance', async ({ page }, testInfo) => {
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([14, 13, 20].map((value, i) => ({ patientId: 'P-1', labDate: ['2020-01-01', '2020-02-01', '2020-05-01'][i], testName: 'eGFR', unit: 'mL/min/1.73m²', value, ageAtLab: 60, sex: 'f' }))), 'labs')
-  await page.goto('/workspace.html')
+  await page.goto('/')
   await page.getByLabel('Import lab values').setInputFiles({ name: 'endpoints.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) })
   await expect(page.locator('.workspace-dataset')).toContainText('1 patients')
   await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
@@ -132,7 +132,7 @@ test('another tab cannot recreate a cleared workspace snapshot', async ({ page, 
   await page.getByRole('checkbox', { name: 'Remember on this device' }).check()
   await expect(page.locator('.workspace-dataset')).toContainText('Saved on this device')
   const second = await context.newPage()
-  await second.goto('/workspace.html')
+  await second.goto('/')
   await expect(second.locator('.workspace-dataset')).toContainText('research.xlsx')
   await page.getByRole('button', { name: 'Clear saved data' }).click()
   await expect(page.locator('.workspace-dataset')).toContainText('This session only')
@@ -191,7 +191,7 @@ test('large synthetic cohort remains searchable and exports the filtered scope',
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet(labs), 'labs')
   const started = Date.now()
-  await page.goto('/workspace.html')
+  await page.goto('/')
   await page.getByLabel('Import lab values').setInputFiles({ name: 'large.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) })
   await expect(page.locator('.workspace-dataset')).toContainText('200 patients')
   await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
@@ -253,7 +253,8 @@ test('real workbook: quality, derivation, many parameters, shared scope and actu
   page.on('pageerror', error => errors.push(error.message))
   await upload(page)
   await page.getByText(/import diagnostics — show details/).click()
-  await expect(page.getByText(/Event date "bad-date" is not a recognised date/)).toBeVisible()
+  await expect(page.getByRole('listitem').filter({ hasText: /Event date "bad-date" is not a recognised date/ })).toBeVisible()
+  await expect(page.getByRole('table', { name: 'Rejected events' })).toContainText('Rejected visit')
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
   await expect(page.getByText('8 computed values in preview', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Apply calculation' }).click()
@@ -367,7 +368,7 @@ test('workspace stays within a narrow viewport and replacement resets selections
 })
 
 test('review fixes: active views, stable value scales, visible derivation and scoped methods', async ({ page }) => {
-  await page.goto('/workspace.html')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Load demo data', exact: true }).click()
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
   await page.getByRole('button', { name: 'Apply calculation' }).click()
@@ -396,13 +397,12 @@ test('review fixes: active views, stable value scales, visible derivation and sc
   await expect(chart).toHaveAttribute('data-export-context', /Zoom/i)
   await page.getByRole('button', { name: 'Methods', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Available in this workspace' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Theory & Methods' })).not.toBeVisible()
-  await page.getByText('Full application reference', { exact: false }).click()
   await expect(page.getByRole('heading', { name: 'Theory & Methods' })).toBeVisible()
+  await expect(page.getByText('Full application reference', { exact: false })).toHaveCount(0)
 })
 
 test('back navigation: explicit in-app back button and browser history integration', async ({ page }) => {
-  await page.goto('/workspace.html')
+  await page.goto('/')
   await page.getByRole('button', { name: 'Load demo data', exact: true }).click()
   await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
   await expect(page.getByRole('table')).toBeVisible()

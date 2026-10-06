@@ -42,9 +42,11 @@ export function WorkspaceApp() {
     }
     const onPopState = (event: PopStateEvent) => {
       const state = event.state as { page?: Page } | null
-      const targetPage = state?.page ?? 'Data'
+      // In-page anchors (such as the methodology section links) add history
+      // entries without app state; they must not leave the current page.
+      if (!state?.page) return
       setRequestedPerson(null)
-      setPage(targetPage)
+      setPage(state.page)
     }
     window.addEventListener('popstate', onPopState)
     return () => window.removeEventListener('popstate', onPopState)
@@ -58,7 +60,7 @@ export function WorkspaceApp() {
   return <div className="workspace-app">
     <a className="skip-link" href="#workspace-main">Skip to content</a>
     <header className="workspace-header">
-      <div className="workspace-brand"><span aria-hidden="true" className="workspace-logo">↗</span><div><strong>Lab Trajectory Explorer</strong><span>Workspace · Preview</span></div></div>
+      <div className="workspace-brand"><span aria-hidden="true" className="workspace-logo">↗</span><div><strong>Lab Trajectory Explorer</strong><span>Longitudinal lab data · research use only</span></div></div>
       <nav aria-label="Main navigation" className="workspace-nav">
         {(['Data', 'Trajectories', 'Cohort models'] as const).map(name => <button type="button" key={name}
           aria-current={page === name ? 'page' : undefined} onClick={() => go(name)}>
@@ -107,7 +109,7 @@ export function WorkspaceApp() {
           <p>G4 uses eGFR below 30 and G5 below 15 mL/min/1.73m². A first low measurement starts a candidate. A later low measurement confirms it after the configured minimum interval (default 90 days). Recovery before confirmation restarts the candidate; recovery afterwards is shown separately and preserves the event. Event date and confirmation date remain distinct.</p>
           <p>Endpoints and individual endpoint prediction use all dated numeric measurements, including later recovery, independently of display-fit censoring and aggregation. Prediction extends the global fitted curve, using OLS or the selected Theil–Sen estimator. New measurements can change a prediction but do not revoke an already confirmed event in that history.</p>
           <p>Theil–Sen requires at least three measurements and two distinct dates. Its intercept is median(value) minus slope × median(time); 95% slope confidence bounds quantify slope uncertainty, not the range of future individual measurements.</p>
-        <details><summary>Full application reference — includes features not available here</summary><Methodology /></details>
+        <Methodology />
       </section>}
     </main>
     <footer className="workspace-footer">Research use only · Not a medical device or a basis for clinical decisions. Computed values and trends are algorithmic estimates.</footer>

@@ -16,7 +16,7 @@ import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mi
 import { validateMixedModelRows } from '../core/mixedModel/validation'
 import type { CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
-import { currentWorkspaceModels, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
+import { currentWorkspaceModels, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import './cohort-models-workspace.css'
 
 const CohortModelTable = lazy(() =>
@@ -477,12 +477,17 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         <div className="cm-formula-strip">
           <div>
             <span>Model: </span>
-            <span className="cm-formula-code">{spec?.bezeichnung ?? 'Outcome'} ~ {formulaText.replace(/^eGFR ~ /, '')}</span>
+            <span className="cm-formula-code" aria-label="Readable formula">{readableMixedModelFormula(mixedModelConfig, spec?.bezeichnung ?? 'Outcome')}</span>
           </div>
           <div className="cm-sample-meta">
             Complete cases: {sampleSummary.rows.length > 0 ? new Set(sampleSummary.rows.map(r => r.patient_id)).size : 0} patients / {data.patients.length} ({sampleSummary.rows.length} measurements)
           </div>
         </div>
+        <p className="muted cm-population-note">Time: years since each patient's first retained measurement. Missing selected factors exclude the patient from this model only; no imputation.</p>
+        {sampleSummary.preparation.excludedPatients.length > 0 && <details className="cm-excluded-patients">
+          <summary>Excluded patients ({sampleSummary.preparation.excludedPatients.length})</summary>
+          <ul aria-label="Patients excluded from the model">{sampleSummary.preparation.excludedPatients.map(patient => <li key={String(patient.patientId)}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul>
+        </details>}
 
         {/* Studio Footer with Primary Fit Action */}
         <div className="cm-studio-footer">

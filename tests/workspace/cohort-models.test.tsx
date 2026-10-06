@@ -138,7 +138,7 @@ describe('CohortModelsWorkspace', () => {
     expect(onBrowseTrajectories).toHaveBeenCalledTimes(1)
 
     // Formula strip is visible
-    expect(screen.getByText(/time_since_baseline \+ \(1 \+ time_since_baseline \| patient_id\)/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Readable formula')).toHaveTextContent(/Time \(years\) \+ \(1 \+ Time \(years\) \| Patient\)/)
 
     // Trajectory plot preview is rendered
     expect(screen.getByRole('heading', { name: 'Model Trajectory Preview' })).toBeInTheDocument()
@@ -190,7 +190,8 @@ describe('CohortModelsWorkspace', () => {
     fireEvent.click(demoBtn)
 
     // Formula reflects demographic adjustment
-    expect(screen.getByText(/baseline_age_centered/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Readable formula')).toHaveTextContent('"Baseline age (centered)"')
+    expect(screen.getByLabelText('Readable formula')).toHaveTextContent('"Sex"')
   })
 
   it('does not offer an overlay for an unrelated stored result', async () => {

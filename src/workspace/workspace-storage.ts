@@ -1,11 +1,12 @@
 import { create } from 'zustand'
 import { del, get, update } from 'idb-keyval'
-import { DATASET_TTL_MS } from '../io/persistence'
 import { useAppStore } from './state/store'
-import { comparePatientIds } from '../core/types'
 import type { AnalysisContext, AnalysisSettings } from '../core/analysis/types'
 
 export const WORKSPACE_STORAGE_KEY = 'lab-explorer:workspace:v1'
+/** Saved workspaces contain patient data and are kept unencrypted, so they
+ * expire seven days after the last data change. */
+export const DATASET_TTL_MS = 7 * 24 * 60 * 60 * 1000
 interface Snapshot extends AnalysisContext {
   version: 1
   writeToken: string
@@ -133,12 +134,10 @@ export async function startWorkspaceStorage(): Promise<() => void> {
         useWorkspaceStorage.setState({ message: 'The saved workspace expired after seven days. Import your file to continue.' })
       } else {
         lastWriteToken = value.writeToken
-        const ids = [...new Set(value.rows.map(row => row.patientId))].sort(comparePatientIds)
-        useAppStore.getState().clearMixedModelResult()
-        useAppStore.setState({ ...useAppStore.getInitialState(), rows: value.rows,
+        useAppStore.getState().replaceDataset({ rows: value.rows,
           events: value.events, patientAttributes: value.patientAttributes,
           manualDemographics: value.manualDemographics, analysisSettings: value.analysisSettings,
-          fileName: value.fileName, selectedPatientId: ids[0] ?? null, selectedPatientIds: ids, view: 'cohort' })
+          fileName: value.fileName })
         useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null })
       }
     }

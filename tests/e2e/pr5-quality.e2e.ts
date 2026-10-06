@@ -14,52 +14,50 @@ function collectBrowserProblems(page: Page): string[] {
 async function loadDemo(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: 'Load demo data' }).click()
-  await expect(page.getByText(/Loaded 216 rows/)).toBeVisible()
-}
-
-async function selectSeries(page: Page, query: string, optionName: RegExp): Promise<void> {
-  const input = page.getByRole('combobox', { name: 'Series 1 parameter' })
-  await input.click()
-  await input.fill(query)
-  const option = page.getByRole('option', { name: optionName }).first()
-  await expect(option).toBeVisible()
-  await option.click()
+  await expect(page.getByText(/216 lab values/)).toBeVisible()
 }
 
 async function uploadCsv(page: Page, name: string, csv: string): Promise<void> {
   await page.goto('/')
-  await page.locator('main input[type=file]').setInputFiles({
-    name,
-    mimeType: 'text/csv',
-    buffer: Buffer.from(csv),
-  })
+  await page.getByLabel('Import lab values').setInputFiles({ name, mimeType: 'text/csv', buffer: Buffer.from(csv) })
 }
 
-test('shows the same slope-quality caveat in the cohort and patient plot', async ({ page }) => {
+/** Open Trajectories with exactly one parameter column and its fit shown. */
+async function showOnlyParameter(page: Page, label: RegExp, fit = true): Promise<void> {
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await page.getByRole('button', { name: 'Choose parameters' }).click()
+  await page.getByRole('button', { name: 'No parameters', exact: true }).click()
+  await page.getByRole('dialog').getByRole('checkbox', { name: label }).check()
+  await page.getByRole('button', { name: 'Apply', exact: true }).click()
+  await page.getByText('Display and analysis', { exact: true }).click()
+  if (fit) await page.getByRole('checkbox', { name: /slope and R²/ }).check()
+}
+
+const patientRow = (page: Page, id: string) => page.getByRole('button', { name: `Open patient ${id}`, exact: true }).locator('xpath=ancestor::tr')
+
+test('shows the same slope-quality caveat in the cohort table and the patient view', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   await loadDemo(page)
-  await page.getByRole('button', { name: 'Cohort', exact: true }).click()
-  await selectSeries(page, 'Kreatinin mg/dl', /^Kreatinin \(mg\/dl\)$/)
+  await showOnlyParameter(page, /^Kreatinin \[mg\/dl\]$/)
 
-  for (const [patient, label] of [['3', 'n < 3'], ['5', '< 1 yr'], ['12', '< 1 yr']] as const) {
-    const row = page.getByRole('button', { name: patient, exact: true }).locator('xpath=ancestor::tr')
-    const badge = row.locator('.quality-badge', { hasText: label })
-    await expect(badge).toBeVisible()
-    await expect(badge).toHaveClass(/quality-badge-caveat/)
-    expect(await badge.getAttribute('title')).toMatch(/caution|unstable|Two points/i)
+  for (const [patient, label] of [['3', 'n < 3'], ['5', 'Follow-up < 1 year'], ['12', 'Follow-up < 1 year']] as const) {
+    const caveat = patientRow(page, patient).locator('.wt-cell-summary .wt-warning')
+    await expect(caveat).toHaveText(`${label} · uncertain slope`)
   }
 
-  await page.getByRole('button', { name: '3', exact: true }).click()
-  await expect(page.locator('.plot-quality-note')).toContainText('n < 3')
-  await expect(page.locator('.plot-quality-note')).toContainText('interpret with caution')
+  await page.getByRole('button', { name: 'Open patient 3', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Patient 3', exact: true })).toBeVisible()
+  await expect(page.locator('.wt-plot-grid .wt-cell-summary .wt-warning')).toHaveText('n < 3 · uncertain slope')
+  await expect(page.locator('.wt-plot-grid svg [data-fit-quality="uncertain"]')).toHaveCount(1)
 
-  await page.getByRole('button', { name: 'Cohort', exact: true }).click()
-  await page.getByRole('combobox', { name: 'Fit preset' }).selectOption({ label: 'Acute review' })
-  await expect(page.locator('.quality-badge')).toHaveCount(0)
+  await page.getByRole('button', { name: 'Back to table', exact: true }).click()
+  await page.getByLabel('Analysis preset').selectOption('acute_review')
+  await expect(page.locator('.wt-cell-summary .wt-warning')).toHaveCount(0)
+  await expect(page.locator('.wt-cell-summary').first()).toContainText('Fit model disabled')
   expect(problems).toEqual([])
 })
 
-test('renders every unavailable-G5 reason in its patient row', async ({ page }) => {
+test('renders every G5 projection outcome in its patient row', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   const csv = [
     'patientId,labDate,testName,unit,value,ageAtLab',
@@ -80,43 +78,40 @@ test('renders every unavailable-G5 reason in its patient row', async ({ page }) 
   ].join('\n')
 
   await uploadCsv(page, 'g5-reasons.csv', csv)
-  await expect(page.getByText(/Loaded 14 rows/)).toBeVisible()
-  await selectSeries(page, 'eGFR', /^eGFR \(ml\/min\/1\.73m2\)$/)
-  await page.getByRole('combobox', { name: 'Fit preset' }).selectOption({ label: 'CKD progression' })
+  await expect(page.locator('.workspace-dataset')).toContainText('5 patients')
+  await showOnlyParameter(page, /^eGFR \[ml\/min\/1\.73m2\]$/, false)
+  await page.getByLabel('Analysis preset').selectOption('ckd_progression')
 
   const expected = new Map([
-    ['1', 'G5 unlikely'],
-    ['2', 'G5 now'],
-    ['3', 'G5 no age'],
-    ['4', 'G5 n < 3'],
-    ['5', 'G5 < 1 yr'],
+    ['1', /G5 (unlikely|not projected)/],
+    ['2', /G5 now/],
+    ['3', /G5 no age/],
+    ['4', /G5 n < 3/],
+    ['5', /G5 < 1 yr/],
   ])
   for (const [patient, label] of expected) {
-    const row = page.getByRole('button', { name: patient, exact: true }).locator('xpath=ancestor::tr')
-    const badge = row.locator('.endpoint-badge')
-    await expect(badge).toContainText(label)
+    const badge = patientRow(page, patient).locator('.wt-badge-endpoint')
+    await expect(badge).toHaveText(label)
     expect(await badge.getAttribute('title')).toBeTruthy()
   }
   expect(problems).toEqual([])
 })
 
-test('keeps AKI visible when lower-priority badges collapse into more', async ({ page }) => {
+test('keeps the AKI chip visible next to endpoint badges', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   await loadDemo(page)
-  await page.getByRole('combobox', { name: 'Compute eGFR' }).selectOption({ label: 'CKD-EPI 2021' })
-  await page.getByRole('combobox', { name: 'Fit preset' }).selectOption({ label: 'CKD progression' })
-  await page.getByRole('button', { name: 'Cohort', exact: true }).click()
-  await selectSeries(page, 'eGFR', /^ƒ eGFR \(CKD-EPI 2021, computed\)/)
-  await page.getByRole('checkbox', { name: 'Show AKI episodes' }).check()
+  await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
+  await page.getByRole('button', { name: 'Apply calculation' }).click()
+  await showOnlyParameter(page, /^eGFR \(CKD-EPI 2021, computed\)/, false)
+  await page.getByLabel('Analysis preset').selectOption('ckd_progression')
 
-  const row = page.getByRole('button', { name: '12', exact: true }).locator('xpath=ancestor::tr')
-  await expect(row.locator('.aki-badge')).toBeVisible()
-  await expect(row.locator('.more-badge')).toBeVisible()
-  const hiddenTitle = await row.locator('.more-badge').getAttribute('title')
+  const row = patientRow(page, '12')
+  await expect(row.locator('.wt-badge-aki')).toBeVisible()
+  await expect(row.locator('.wt-badge-endpoint')).toBeVisible()
   // Raw endpoint inputs retain >=3 observations; quarterly display-fit bins
   // must not determine the endpoint's sample count.
-  expect(hiddenTitle).toContain('G5 < 1 yr')
-  expect(hiddenTitle).not.toContain('AKI')
+  await expect(row.locator('.wt-badge-endpoint')).toContainText('G5 < 1 yr')
+  await expect(row.locator('.wt-badge-endpoint')).not.toContainText('AKI')
   expect(problems).toEqual([])
 })
 
@@ -128,45 +123,31 @@ const sexValuesCsv = [
   '4,2024-01-01,Kreatinin,mg/dl,1.3,unknown,53',
 ].join('\n')
 
-test('surfaces unreadable sex values and clears the warning after manual correction', async ({ page }) => {
+test('surfaces unreadable sex values and clears them after manual correction', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   await uploadCsv(page, 'sex-values.csv', sexValuesCsv)
-  await page.getByRole('combobox', { name: 'Compute eGFR' }).selectOption({ label: 'CKD-EPI 2021' })
-  const warning = page.locator('.sidebar-warning')
-  await expect(warning).toContainText('"1", "unknown"')
-  await expect(warning).not.toContainText('female,')
+  await expect(page.getByText('2 patients without resolved sex', { exact: false })).toBeVisible()
+  await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
+  await expect(page.getByText('2: Sex missing or unresolved')).toBeVisible()
 
-  await page.getByRole('checkbox', { name: 'Show missing demographics' }).check()
+  await page.getByText('Review and edit patients (4)', { exact: true }).click()
   for (const patient of ['3', '4']) {
-    await page.getByRole('button', { name: `Enter demographics for patient ${patient}` }).click()
-    await page.getByRole('combobox', { name: `Manual sex for patient ${patient}` }).selectOption('w')
-    await page.getByRole('button', { name: 'Apply demographics' }).click()
+    await page.getByRole('button', { name: `Edit demographics: ${patient}` }).click()
+    await page.getByRole('dialog').getByLabel('Sex').selectOption('w')
+    await page.getByRole('button', { name: 'Save', exact: true }).click()
   }
-  await expect(warning).toHaveCount(0)
+  await expect(page.getByText('0 patients without resolved sex', { exact: false })).toBeVisible()
+  await expect(page.getByText(/Sex missing or unresolved/)).toHaveCount(0)
   expect(problems).toEqual([])
 })
 
-test('shows a grey no-fit badge for a single measurement', async ({ page }) => {
+test('shows a grey, not amber, no-fit note for a single measurement', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   await uploadCsv(page, 'sex-values.csv', sexValuesCsv)
-  await page.getByRole('button', { name: 'One', exact: true }).click()
-  await selectSeries(page, 'Kreatinin', /^Kreatinin \(mg\/dl\)$/)
-  const badge = page.locator('.plot-quality-note .quality-badge')
-  await expect(badge).toHaveText('n < 3')
-  await expect(badge).not.toHaveClass(/quality-badge-caveat/)
-  const style = await badge.evaluate((element) => {
-    const computed = getComputedStyle(element)
-    return {
-      backgroundColor: computed.backgroundColor,
-      color: computed.color,
-      borderStyle: computed.borderStyle,
-    }
-  })
-  expect(style).toEqual({
-    backgroundColor: 'rgb(248, 250, 252)',
-    color: 'rgb(71, 85, 105)',
-    borderStyle: 'dashed',
-  })
+  await showOnlyParameter(page, /^Kreatinin \[mg\/dl\]$/)
+  const note = patientRow(page, '1').locator('.wt-cell-summary').getByText('n < 3', { exact: true })
+  await expect(note).toHaveClass('wt-muted')
+  await expect(patientRow(page, '1').locator('.wt-warning')).toHaveCount(0)
   expect(problems).toEqual([])
 })
 
@@ -177,27 +158,24 @@ test('rejects ambiguous normalized CSV headers visibly', async ({ page }) => {
     '1,1,2024-01-01,Kreatinin,mg/dl,1.0',
   ].join('\n')
   await uploadCsv(page, 'ambiguous.csv', ambiguous)
-  await expect(page.getByText(/Ambiguous columns: "Patient ID" and "patient_id"/)).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText(/Ambiguous columns: "Patient ID" and "patient_id"/)
   expect(problems).toEqual([])
 })
 
-test('downloads all three empty templates with stable filenames', async ({ page }) => {
+test('downloads the empty templates and demo files with stable filenames', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   await page.goto('/')
-  const [labs] = await Promise.all([
-    page.waitForEvent('download'),
-    page.getByRole('link', { name: 'Download empty template' }).click(),
-  ])
-  expect(labs.suggestedFilename()).toBe('template_labs.csv')
-
-  await loadDemo(page)
   for (const [link, file] of [
-    ['Download events template', 'template_events.csv'],
-    ['Download attributes template', 'template_attributes.csv'],
+    ['Lab template', 'template_labs.csv'],
+    ['Event template', 'template_events.csv'],
+    ['Attribute template', 'template_attributes.csv'],
+    ['Demo workbook', 'test_labs.xlsx'],
+    ['Demo events', 'test_events.csv'],
+    ['Demo attributes', 'test_attributes.csv'],
   ] as const) {
     const [download] = await Promise.all([
       page.waitForEvent('download'),
-      page.getByRole('link', { name: link }).click(),
+      page.getByRole('link', { name: link, exact: true }).click(),
     ])
     expect(download.suggestedFilename()).toBe(file)
   }
@@ -211,17 +189,21 @@ test('reports a patient whose ages fit no single birth date', async ({ page }) =
     '1,2022-07-20,Kreatinin,mg/dl,1.2,w,46',
     '1,2023-03-02,Kreatinin,mg/dl,1.4,w,64',
   ].join('\n'))
+  await expect(page.getByText('1 conflicts', { exact: false })).toBeVisible()
+  await page.getByText('Conflicts and their resolution', { exact: true }).click()
   await expect(page.getByText(/no single birth date/i)).toBeVisible()
 })
 
 test('keeps methodology usable on a mobile viewport', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   await loadDemo(page)
-  await page.getByRole('button', { name: 'Theory & Methods' }).click()
   await page.setViewportSize({ width: 390, height: 844 })
-  await page.getByRole('button', { name: 'Toggle sidebar' }).click()
-  await expect(page.getByRole('heading', { name: 'Theory & Methods' })).toBeInViewport()
+  await page.getByRole('button', { name: 'Methods', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Methods and interpretation' })).toBeInViewport()
+  await expect(page.getByRole('heading', { name: 'Theory & Methods' })).toBeVisible()
+  await page.getByRole('link', { name: 'Methodology Reference' }).click()
   await expect(page.getByRole('heading', { name: 'Choosing a Fit Model' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Methodology Reference' })).toBeInViewport()
   const geometry = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,

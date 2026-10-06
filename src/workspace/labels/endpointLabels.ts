@@ -1,7 +1,7 @@
 import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
 import { projectedG5Label } from './qualityLabels'
 
-/** Shared result copy for original UI and workspace; dates come from the result.
+/** Endpoint badge copy for the trajectory table and exports; dates come from the result.
  * Percent change uses raw measurements, not the display fit, but needs two of
  * them: with one, baseline and latest coincide and "0%" would read as stable. */
 export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number): { label: string; title: string } | null {

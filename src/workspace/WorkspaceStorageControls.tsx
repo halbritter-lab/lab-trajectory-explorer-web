@@ -11,7 +11,6 @@ export function WorkspaceStorageControls({ hasData }: { hasData: boolean }) {
     try {
       await setWorkspaceRemember(false)
       if (useWorkspaceStorage.getState().status === 'error') return
-      useAppStore.getState().clearMixedModelResult()
       useAppStore.getState().reset()
     } finally { useAppStore.setState({ busy: false }) }
   }

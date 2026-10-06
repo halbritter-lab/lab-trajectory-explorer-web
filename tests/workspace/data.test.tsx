@@ -18,7 +18,7 @@ it.each([false, true])('applies each column AKI window to exclusions, summaries 
   const rows = ['Kreatinin', 'Creatinine'].flatMap(bezeichnung => measurements.map(([date, value]) => row({
     bezeichnung, labDatum: new Date(`${date}T00:00:00Z`), wertNum: value, wert: String(value),
   })))
-  useAppStore.getState().setDataset(rows)
+  useAppStore.getState().replaceDataset({ rows: rows })
   const { result } = renderHook(useWorkspaceData)
   const data = result.current
   const parameters = ['Kreatinin', 'Creatinine'].map(name => data.parameters.find(p => p.bezeichnung === name)!)
@@ -39,7 +39,7 @@ it.each([false, true])('applies each column AKI window to exclusions, summaries 
   expect(zeroDay.fitLines[0].at(-1)!.value).toBeGreaterThan(thirtyDay.fitLines[0].at(-1)!.value)
 })
 it('exposes explicit birth anchors and marks manual or inferred anchors as estimated', () => {
-  useAppStore.getState().setDataset([row({ patientBirthDate: new Date('1970-08-15') })])
+  useAppStore.getState().replaceDataset({ rows: [row({ patientBirthDate: new Date('1970-08-15') })] })
   const { result } = renderHook(useWorkspaceData)
   expect(result.current.patients[0]).toMatchObject({ birthAnchor: new Date('1970-08-15'), ageEstimated: false, baselineAge: 49 })
   act(() => useAppStore.getState().setPatientAttributes({ 'A:01': { birthDate: '1965-05-01' } }))
@@ -47,14 +47,14 @@ it('exposes explicit birth anchors and marks manual or inferred anchors as estim
   act(() => useAppStore.getState().setManualDemographics('A:01', { age: 60 }))
   expect(result.current.patients[0].ageEstimated).toBe(true)
   expect(result.current.patients[0].birthAnchor).not.toEqual(new Date('1965-05-01'))
-  act(() => { useAppStore.getState().reset(); useAppStore.getState().setDataset([row({ patientAgeAtLab: null })]) })
+  act(() => { useAppStore.getState().reset(); useAppStore.getState().replaceDataset({ rows: [row({ patientAgeAtLab: null })] }) })
   expect(result.current.patients[0]).toMatchObject({ birthAnchor: null, ageEstimated: false })
-  act(() => useAppStore.getState().setDataset([row()]))
+  act(() => useAppStore.getState().replaceDataset({ rows: [row()] }))
   expect(result.current.patients[0].birthAnchor).toBeInstanceOf(Date)
   expect(result.current.patients[0].ageEstimated).toBe(true)
 })
 it('keeps arbitrary parameter/unit identities separate and memoizes unrelated state changes', () => {
-  useAppStore.getState().setDataset([row(), row({ bezeichnung: 'A|B', einheit: 'C' }), row({ bezeichnung: 'A', einheit: 'B|C' })], 'input.csv')
+  useAppStore.getState().replaceDataset({ rows: [row(), row({ bezeichnung: 'A|B', einheit: 'C' }), row({ bezeichnung: 'A', einheit: 'B|C' })], fileName: 'input.csv' })
   const { result } = renderHook(useWorkspaceData)
   const original = result.current
   expect(new Set(original.parameters.map(p => p.key)).size).toBe(3)
@@ -67,7 +67,7 @@ it('keeps arbitrary parameter/unit identities separate and memoizes unrelated st
 })
 it('resolves missing demographics and recomputes derived rows without modifying imported values', () => {
   const raw = [row({ patientSex: null, patientAgeAtLab: null })]
-  useAppStore.getState().setDataset(raw)
+  useAppStore.getState().replaceDataset({ rows: raw })
   useAppStore.getState().setEgfrFormula('ekfc-2021')
   const { result } = renderHook(useWorkspaceData)
   expect(result.current.rows).toHaveLength(1)
@@ -79,7 +79,7 @@ it('resolves missing demographics and recomputes derived rows without modifying 
   expect(result.current.rows).toHaveLength(1)
 })
 it('loads real CSV, resets overrides after replacement, and preserves data on failed imports', async () => {
-  useAppStore.getState().setDataset([row()])
+  useAppStore.getState().replaceDataset({ rows: [row()] })
   useAppStore.getState().setManualDemographics('A:01', { age: 80 })
   const observedOverrides: unknown[] = []
   const unsubscribe = useAppStore.subscribe((state, previous) => {
@@ -110,7 +110,7 @@ it('loads an actual workbook with attributes, reports conflicts, and scopes clin
   expect(workspaceSpecs(result.current, result.current.parameters.map(p => p.key))[0].clinicalEventsByPatient).toEqual({})
 })
 it('runs the rolling and segmented fit paths selected in the workspace', () => {
-  useAppStore.getState().setDataset([row({}), row({ labDatum: new Date('2021-01-01'), wertNum: 2 }), row({ labDatum: new Date('2022-01-01'), wertNum: 3 })])
+  useAppStore.getState().replaceDataset({ rows: [row({}), row({ labDatum: new Date('2021-01-01'), wertNum: 2 }), row({ labDatum: new Date('2022-01-01'), wertNum: 3 })] })
   const { result } = renderHook(useWorkspaceData)
   const [parameter] = result.current.parameters
   const modes = (['ols', 'theil-sen', 'rolling-ols', 'segmented-ols'] as const).map(fitModel => {

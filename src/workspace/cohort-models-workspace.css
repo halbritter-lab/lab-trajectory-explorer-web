@@ -539,10 +539,36 @@
 .cm-primary-controls label { display: grid; gap: 6px; min-width: 0; }
 .cm-formula-code { overflow-wrap: anywhere; }
 .cm-plot-header { flex-wrap: wrap; }
-.cohort-model-table-wrap { min-width: 0; overflow-x: auto; }
+.cohort-model-table-wrap { position: relative; min-width: 0; overflow-x: auto; }
 @media (max-width: 600px) {
   .cm-primary-controls { grid-template-columns: minmax(0, 1fr); }
   .cm-plot-header { flex-direction: column; }
 }
 .cohort-model-status { overflow-wrap: normal; word-break: normal; white-space: normal; }
 .cohort-model-details-toggle { font-size: 12px; }
+.cm-population-note { margin: 8px 0 0; font-size: 13px; }
+.cm-excluded-patients { margin: 8px 0 0; font-size: 13px; }
+.cm-excluded-patients ul { max-height: 180px; overflow-y: auto; padding-left: 20px; }
+/* Projection editor inside the results table: keep it within the viewport even
+   when the table itself scrolls horizontally (ported from the former dialog). */
+.cohort-model-table .cohort-model-details-cell { white-space: normal; }
+.cohort-model-details dd { min-width: 0; max-width: 100%; overflow-wrap: anywhere; word-break: break-word; white-space: normal; }
+.model-projection-panel { display: block; min-width: 0; max-width: 100%; text-align: left; white-space: normal; overflow-wrap: anywhere; }
+.model-projection-panel fieldset { min-width: 0; }
+.model-projection-panel label { display: inline-flex; flex-direction: column; align-items: flex-start; gap: .3rem; max-width: 100%; margin: 0 .75rem .5rem 0; }
+.model-projection-panel label:has(input[type="checkbox"]) { flex-direction: row; align-items: center; }
+.model-projection-panel input:not([type="checkbox"]), .model-projection-panel select { width: 11rem; max-width: 100%; }
+.model-projection-panel button { margin: 0 .5rem .5rem 0; }
+.model-projection-results { max-width: 100%; }
+.model-projection-results .cohort-model-table th, .model-projection-results .cohort-model-table td { width: auto; min-width: 6rem; white-space: normal; }
+@media (max-width: 720px) {
+  .mixed-model-panel { padding: 14px; }
+  .cohort-model-table { min-width: 32rem; }
+  .model-projection-panel { max-width: calc(100vw - 6rem); }
+  .cohort-model-table th:nth-child(2), .cohort-model-table td:nth-child(2) { position: sticky; left: 0; z-index: 1; background: #fff; }
+}
+/* Active covariates wrap instead of widening the page on narrow screens. */
+.cm-factors-container { grid-template-columns: minmax(0, 1fr); }
+.cm-random-effects-toggle { flex-wrap: wrap; gap: 6px 14px; min-width: 0; }
+.cm-chip { flex-wrap: wrap; max-width: 100%; min-width: 0; }
+.cm-chip select { max-width: 100%; min-width: 0; }

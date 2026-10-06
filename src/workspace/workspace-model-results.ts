@@ -2,7 +2,7 @@ import { entityGroupValue, entityKey, type CohortModelEntityRows } from '../core
 import { buildMixedModelResultIdentity, mixedModelIdentityEquals } from '../core/mixedModel/resultIdentity'
 import { mixedModelRowsByGroup, mixedModelRowsFromCohortInputs } from '../core/mixedModel/cohortDataset'
 import { prepareMixedModelFactors } from '../core/mixedModel/factors'
-import type { MixedModelConfig } from '../core/mixedModel/config'
+import { mixedModelFactorColumn, mixedModelFactors, mixedModelFormula, type MixedModelConfig } from '../core/mixedModel/config'
 import type { CohortSeriesSpec } from '../core/cohort/screening'
 import type { PatientGroup } from '../core/grouping/grouping'
 import { normaliseSex } from '../core/egfr/formulas'
@@ -80,4 +80,18 @@ export function workspaceModelEntities(
     entity: item.entity,
     ...prepareMixedModelFactors(item.rows, config, patientAttributes, rows),
   }))
+}
+
+/** Display only: user-provided attribute labels never enter the executable
+ * formula, which uses positional column names such as factor_0_. */
+export function readableMixedModelFormula(config: MixedModelConfig, outcome: string): string {
+  const labels = new Map<string, string>([
+    ['time_since_baseline', 'Time (years)'],
+    ['patient_id', 'Patient'],
+  ])
+  mixedModelFactors(config).forEach((factor, index) => {
+    const label = factor.key === 'baseline_age' ? 'Baseline age (centered)' : factor.key === 'sex' ? 'Sex' : factor.key
+    labels.set(mixedModelFactorColumn(factor, index), JSON.stringify(label))
+  })
+  return mixedModelFormula(config).replace(/^eGFR/, () => outcome).replace(/baseline_age_centered|factor_\d+_|time_since_baseline|patient_id/g, (token) => labels.get(token) ?? token)
 }

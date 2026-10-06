@@ -4,8 +4,7 @@ import { clear, del, get, set } from 'idb-keyval'
 import { WorkspaceApp } from '../../src/workspace/WorkspaceApp'
 import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
-import { startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_STORAGE_KEY } from '../../src/workspace/workspace-storage'
-import { DATASET_TTL_MS } from '../../src/io/persistence'
+import { DATASET_TTL_MS, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_STORAGE_KEY } from '../../src/workspace/workspace-storage'
 
 const row: LabRow = { patientId: 'A', labDatum: new Date('2020-01-01'), bezeichnung: 'Marker', einheit: 'u', wert: '60', wertNum: 60, wertOperator: '=', loinc: null, patientSex: 'm', patientAgeAtLab: 50 }
 let stop: (() => void) | undefined
@@ -19,7 +18,7 @@ afterEach(async () => { stop?.(); await act(async () => { await setWorkspaceReme
 
 describe('workspace local storage', () => {
   it('allows opting into storage from Data', async () => {
-    useAppStore.getState().setDataset([row], 'input.csv')
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
     render(<WorkspaceApp />)
     expect(screen.getByRole('checkbox', { name: 'Remember on this device' })).not.toBeChecked()
     expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
@@ -32,7 +31,7 @@ describe('workspace local storage', () => {
     expect(useAppStore.getState().rows).toHaveLength(1)
   })
   it('restores labs, events, attributes, manual edits and derivation settings together', async () => {
-    useAppStore.getState().setDataset([row], 'input.csv')
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
     useAppStore.setState({
       events: [{ patientId: 'A', type: 'other', date: new Date('2020-02-01'), endDate: null, title: 'Study', description: null, intent: null, warning: '' }],
       patientAttributes: { A: { genotype: 'G1' } }, manualDemographics: { A: { age: 42, sex: 'w' } },
@@ -53,7 +52,7 @@ describe('workspace local storage', () => {
     expect(useWorkspaceStorage.getState().enabled).toBe(true)
   })
   it('clears current and saved data only after confirming the dataset reset', async () => {
-    useAppStore.getState().setDataset([row])
+    useAppStore.getState().replaceDataset({ rows: [row] })
     await setWorkspaceRemember(true)
     render(<WorkspaceApp />)
     const confirm = vi.spyOn(window, 'confirm').mockReturnValue(false)
@@ -67,7 +66,7 @@ describe('workspace local storage', () => {
     expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
   })
   it('saves supplementary changes and leaves no queued save after opting out', async () => {
-    useAppStore.getState().setDataset([row])
+    useAppStore.getState().replaceDataset({ rows: [row] })
     await setWorkspaceRemember(true)
     useAppStore.setState({ patientAttributes: { A: { genotype: 'updated' } } })
     await waitFor(() => expect(useWorkspaceStorage.getState().status).toBe('saved'))
@@ -79,7 +78,7 @@ describe('workspace local storage', () => {
     expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
   })
   it('expires saved data without refreshing the timestamp during restore', async () => {
-    useAppStore.getState().setDataset([row])
+    useAppStore.getState().replaceDataset({ rows: [row] })
     await setWorkspaceRemember(true)
     const saved = await get(WORKSPACE_STORAGE_KEY)
     stop?.(); useAppStore.getState().reset()
@@ -90,7 +89,7 @@ describe('workspace local storage', () => {
     expect(useWorkspaceStorage.getState().message).toMatch(/expired/)
   })
   it('rejects malformed saved dates without replacing the live data', async () => {
-    useAppStore.getState().setDataset([row])
+    useAppStore.getState().replaceDataset({ rows: [row] })
     await setWorkspaceRemember(true)
     const saved = await get(WORKSPACE_STORAGE_KEY)
     stop?.()
@@ -101,7 +100,7 @@ describe('workspace local storage', () => {
     expect(useWorkspaceStorage.getState().enabled).toBe(false)
   })
   it('cannot recreate a snapshot removed by another tab', async () => {
-    useAppStore.getState().setDataset([row])
+    useAppStore.getState().replaceDataset({ rows: [row] })
     await setWorkspaceRemember(true)
     await del(WORKSPACE_STORAGE_KEY)
     useAppStore.getState().setManualDemographics('A', { age: 41 })
@@ -111,7 +110,7 @@ describe('workspace local storage', () => {
     expect(useWorkspaceStorage.getState().message).toMatch(/another tab/)
   })
   it('does not overwrite a newer snapshot written by another tab', async () => {
-    useAppStore.getState().setDataset([row])
+    useAppStore.getState().replaceDataset({ rows: [row] })
     await setWorkspaceRemember(true)
     const newer = { ...await get(WORKSPACE_STORAGE_KEY), writeToken: 'another-tab', fileName: 'newer.csv' }
     await set(WORKSPACE_STORAGE_KEY, newer)
@@ -121,7 +120,7 @@ describe('workspace local storage', () => {
     expect(useWorkspaceStorage.getState().enabled).toBe(false)
   })
   it('keeps live data usable and reports a failed save', async () => {
-    useAppStore.getState().setDataset([row])
+    useAppStore.getState().replaceDataset({ rows: [row] })
     vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementationOnce(() => { throw new DOMException('quota', 'QuotaExceededError') })
     await setWorkspaceRemember(true)
     expect(useWorkspaceStorage.getState().status).toBe('error')
@@ -135,7 +134,7 @@ describe('workspace local storage', () => {
     vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementationOnce(() => { throw new DOMException('blocked', 'SecurityError') })
     stop = await startWorkspaceStorage()
     expect(useWorkspaceStorage.getState().status).toBe('error')
-    useAppStore.getState().setDataset([row])
+    useAppStore.getState().replaceDataset({ rows: [row] })
     expect(useAppStore.getState().rows).toHaveLength(1)
   })
 })

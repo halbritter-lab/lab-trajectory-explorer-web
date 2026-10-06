@@ -10,13 +10,14 @@ export default defineConfig({
   base: './',
   build: {
     rollupOptions: {
-      input: { app: 'index.html', workspace: 'workspace.html' },
+      // public/workspace.html is a static redirect for links to the former
+      // second entry point; index.html is the only application entry.
+      input: { app: 'index.html' },
       output: {
-        // Split the two large vendor libraries into their own chunks so the
-        // main bundle stays lean and they cache independently.
+        // Keep the large spreadsheet library in its own chunk so the main
+        // bundle stays lean and it caches independently.
         manualChunks: {
           xlsx: ['xlsx'],
-          plot: ['@observablehq/plot'],
         },
       },
     },

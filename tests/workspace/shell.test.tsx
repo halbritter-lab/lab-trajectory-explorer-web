@@ -45,15 +45,18 @@ describe('workspace shell', () => {
     result.rerender(<WorkspaceApp />)
     expect(screen.getByLabelText('Patient search')).toHaveValue('')
   })
-  it('distinguishes workspace methods from the optional full application reference', () => {
+  it('shows the workspace guide followed by the full methodology reference', () => {
     render(<WorkspaceApp />)
     fireEvent.click(screen.getByRole('button', { name: /^Methods$/ }))
     expect(screen.getByRole('heading', { name: 'Available in this workspace' })).toBeVisible()
-    expect(screen.getByText('Methods content')).not.toBeVisible()
-    fireEvent.click(screen.getByText('Full application reference — includes features not available here'))
-    // jsdom does not toggle native details on click; the full reference must be
-    // nested within that explicitly named disclosure, not the primary guide.
-    expect(screen.getByText('Methods content').closest('details')).not.toBeNull()
+    expect(screen.getByText('Methods content')).toBeVisible()
+    expect(screen.getByText('Methods content').closest('details')).toBeNull()
+    expect(screen.queryByText(/Full application reference/)).not.toBeInTheDocument()
+  })
+  it('presents a single interface without a preview label', () => {
+    render(<WorkspaceApp />)
+    expect(screen.getByText('Lab Trajectory Explorer')).toBeVisible()
+    expect(screen.queryByText(/Preview/)).not.toBeInTheDocument()
   })
   it('does not offer a synthetic fit for loaded research data', () => {
     render(<WorkspaceApp />)
@@ -73,6 +76,10 @@ describe('workspace shell', () => {
 
     // Popstate forward to Methods
     fireEvent(window, new PopStateEvent('popstate', { state: { page: 'Methods' } }))
+    expect(screen.getByRole('heading', { name: 'Available in this workspace' })).toBeVisible()
+
+    // An in-page anchor entry carries no app state and keeps the current page.
+    fireEvent(window, new PopStateEvent('popstate', { state: null }))
     expect(screen.getByRole('heading', { name: 'Available in this workspace' })).toBeVisible()
   })
 })

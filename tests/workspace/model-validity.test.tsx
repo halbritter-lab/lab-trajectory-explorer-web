@@ -46,7 +46,7 @@ beforeEach(() => {
     wert: String(60 - year * 2), wertNum: 60 - year * 2, wertOperator: '=', loinc: null,
     patientSex: 'm', patientAgeAtLab: 50 + year,
   })))
-  useAppStore.getState().setDataset(rows, 'test.csv')
+  useAppStore.getState().replaceDataset({ rows: rows, fileName: 'test.csv' })
 })
 function seedGroupResult(attribute: string, value: string) {
   const config = useAppStore.getState().mixedModelConfig
@@ -103,7 +103,7 @@ describe('workspace model validity', () => {
   })
   it('removes preview lines after changing the response or measurement data', () => {
     const originalRows = useAppStore.getState().rows
-    useAppStore.getState().setDataset([...originalRows, ...originalRows.map(r => ({ ...r, bezeichnung: 'Other' }))])
+    useAppStore.getState().replaceDataset({ rows: [...originalRows, ...originalRows.map(r => ({ ...r, bezeichnung: 'Other' }))] })
     const view = render(<Harness studio />)
     act(() => seedResult())
     view.rerender(<Harness studio />)

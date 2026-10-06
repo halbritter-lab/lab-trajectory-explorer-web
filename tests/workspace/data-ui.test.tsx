@@ -13,7 +13,7 @@ afterEach(cleanup)
 const row: LabRow = { patientId: 'P-01', labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl', wert: '1', wertNum: 1, wertOperator: '=', loinc: null, patientSex: null, patientAgeAtLab: null }
 it('presents readable sex labels while retaining the recorded codes', () => {
   const raw = ([null, 'w', 'm', 'd'] as const).map((patientSex, i) => ({ ...row, patientId: `P-${i}`, patientSex }))
-  useAppStore.getState().setDataset(raw)
+  useAppStore.getState().replaceDataset({ rows: raw })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.click(screen.getByText('Review and edit patients (4)'))
   const table = screen.getByRole('table')
@@ -23,7 +23,7 @@ it('presents readable sex labels while retaining the recorded codes', () => {
   expect(screen.getByText('Parameter–unit combinations')).toBeInTheDocument()
 })
 it('keeps Apply before the complete keyboard-scrollable computed preview', () => {
-  useAppStore.getState().setDataset(Array.from({ length: 118 }, (_, i) => ({ ...row, patientId: `P-${i}`, patientSex: 'm' as const, patientAgeAtLab: 50 })))
+  useAppStore.getState().replaceDataset({ rows: Array.from({ length: 118 }, (_, i) => ({ ...row, patientId: `P-${i}`, patientSex: 'm' as const, patientAgeAtLab: 50 })) })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ekfc-2021' } })
   fireEvent.click(screen.getByText('Inspect computed values (118)'))
@@ -33,25 +33,25 @@ it('keeps Apply before the complete keyboard-scrollable computed preview', () =>
   const apply = screen.getByRole('button', { name: 'Apply calculation' })
   expect(apply.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   fireEvent.click(apply)
-  expect(useAppStore.getState().displayRows()).toHaveLength(236)
+  expect(useAppStore.getState().analysisResult().rows).toHaveLength(236)
 })
 it('blocks derivation when its output collides with an imported computed series', () => {
-  useAppStore.getState().setDataset([
+  useAppStore.getState().replaceDataset({ rows: [
     { ...row, patientSex: 'm', patientAgeAtLab: 50 },
     { ...row, bezeichnung: 'eGFR (EKFC 2021, computed)', einheit: 'ml/min/1,73m²', wert: '90', wertNum: 90 },
-  ])
+  ] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ekfc-2021' } })
   expect(screen.getByRole('alert')).toHaveTextContent('already exists as an imported parameter')
   expect(screen.getByRole('button', { name: 'Apply calculation' })).toBeDisabled()
-  expect(useAppStore.getState().displayRows()).toHaveLength(2)
+  expect(useAppStore.getState().analysisResult().rows).toHaveLength(2)
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
   expect(screen.getByRole('button', { name: 'Apply calculation' })).toBeEnabled()
   fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
-  expect(useAppStore.getState().displayRows()).toHaveLength(3)
+  expect(useAppStore.getState().analysisResult().rows).toHaveLength(3)
 })
 it('shows missing demographics and corrects them at the explicit baseline date', () => {
-  useAppStore.getState().setDataset([row], 'actual.csv')
+  useAppStore.getState().replaceDataset({ rows: [row], fileName: 'actual.csv' })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.click(screen.getByText('Review and edit patients (1)'))
   fireEvent.click(screen.getByRole('button', { name: 'Edit demographics: P-01' }))
@@ -64,7 +64,7 @@ it('shows missing demographics and corrects them at the explicit baseline date',
   expect(useAppStore.getState().rows[0].patientSex).toBeNull()
 })
 it('imports separate attributes and events and keeps existing attributes on an invalid upload', async () => {
-  useAppStore.getState().setDataset([row])
+  useAppStore.getState().replaceDataset({ rows: [row] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   const file = (text: string) => ({ name: 'extra.csv', arrayBuffer: async () => new TextEncoder().encode(text).buffer })
   fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('patientId,cohort,sex\nP-01,Group X,w\n')] } })
@@ -78,19 +78,19 @@ it('imports separate attributes and events and keeps existing attributes on an i
   expect(useAppStore.getState().events[0]).toMatchObject({ patientId: 'P-01', title: 'Visit' })
 })
 it('previews EKFC without applying it, then applies and turns derivation off', () => {
-  useAppStore.getState().setDataset([{ ...row, patientSex: 'm', patientAgeAtLab: 50 }])
+  useAppStore.getState().replaceDataset({ rows: [{ ...row, patientSex: 'm', patientAgeAtLab: 50 }] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ekfc-2021' } })
   expect(screen.getByText('1 computed values in preview')).toBeInTheDocument()
   fireEvent.click(screen.getByText('Inspect computed values (1)'))
   expect(screen.getByText(/^\d+\.\d ml\/min/)).toBeInTheDocument()
   expect(screen.getByLabelText('Creatinine source')).toHaveTextContent('Kreatinin')
-  expect(useAppStore.getState().displayRows()).toHaveLength(1)
+  expect(useAppStore.getState().analysisResult().rows).toHaveLength(1)
   fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
-  expect(useAppStore.getState().displayRows()).toHaveLength(2)
+  expect(useAppStore.getState().analysisResult().rows).toHaveLength(2)
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'off' } })
   fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
-  expect(useAppStore.getState().displayRows()).toHaveLength(1)
+  expect(useAppStore.getState().analysisResult().rows).toHaveLength(1)
 })
 it('lists lab import diagnostics from a German CSV, with summaries not attributed to a patient', async () => {
   render(<DataWorkspace onBrowse={vi.fn()} />)
@@ -106,7 +106,7 @@ it('lists lab import diagnostics from a German CSV, with summaries not attribute
   ]))
 })
 it('reports readable reasons and birth-date problems for supplementary files', async () => {
-  useAppStore.getState().setDataset([row])
+  useAppStore.getState().replaceDataset({ rows: [row] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   const file = (text: string) => ({ name: 'extra.csv', arrayBuffer: async () => new TextEncoder().encode(text).buffer })
   fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('patientId,birthDate\nP-01,1980-02-30\n')] } })
@@ -117,7 +117,7 @@ it('reports readable reasons and birth-date problems for supplementary files', a
   expect(screen.getByText('extra.csv · P-01 · rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other; row not imported.')).toBeInTheDocument()
 })
 it('lists loaded and rejected events from a separate event upload', async () => {
-  useAppStore.getState().setDataset([row])
+  useAppStore.getState().replaceDataset({ rows: [row] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   const file = (text: string) => ({ name: 'events.csv', arrayBuffer: async () => new TextEncoder().encode(text).buffer })
   fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('patientId,type,date,title,intent,endDate\nP-01,dialysis,2020-03-01,Acute HD,acute,2020-03-10\nP-01,surgery,2020-04-01,Other\nP-01,other,bad,Visit\n')] } })
