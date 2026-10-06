@@ -174,7 +174,10 @@ export function Methodology() {
         </li>
       </ul>
       <p>
-        Automated numerical agreement does not replace acceptance with representative research data.
+        In short: OLS has both checks; rolling OLS, segmented OLS and Theil-Sen have the automated
+        one only and are less verified than OLS. The observed G4/G5 and endpoint prediction rules
+        below are this application's own research definitions: unit tests cover them, but neither
+        check above applies. None of this replaces acceptance with representative research data.
       </p>
 
       <h4>Observed G4/G5 event algorithm</h4>
