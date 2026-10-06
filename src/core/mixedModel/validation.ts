@@ -27,6 +27,7 @@ export type MixedModelValidationResult =
     }
 
 const DATA_VALIDATION_STAGE = 'data-validation' as const
+const MIN_QUALIFYING_PATIENTS = 10
 
 export function validateMixedModelRows(
   rows: readonly MixedModelSpikeRow[],
@@ -88,11 +89,15 @@ export function validateMixedModelRows(
     }
   }
 
-  if (patientRows.size < 3) {
-    return failure('INSUFFICIENT_PATIENTS', 'Mixed model fitting requires at least 3 patients.')
+  if (patientRows.size < MIN_QUALIFYING_PATIENTS) {
+    return failure('INSUFFICIENT_PATIENTS', `Mixed model fitting requires at least ${MIN_QUALIFYING_PATIENTS} patients.`)
   }
 
-  let repeatedPatientCount = 0
+  // A random patient slope needs enough distinct times to identify a slope
+  // within each qualifying patient. These floors are input guards, not a
+  // statistical power or model-adequacy guarantee.
+  const minimumDistinctTimes = config.randomEffects === 'intercept_slope' ? 3 : 2
+  let qualifyingPatientCount = 0
   let singleMeasurementPatientCount = 0
   let noTimeVariationPatientCount = 0
   const modelablePatientIds = new Set<string>()
@@ -102,18 +107,18 @@ export function validateMixedModelRows(
       continue
     }
     const distinctTimes = new Set(rowsForPatient.map((row) => row.time_since_baseline))
-    if (distinctTimes.size < 2) {
+    if (distinctTimes.size < minimumDistinctTimes) {
       noTimeVariationPatientCount += 1
       continue
     }
-    repeatedPatientCount += 1
+    qualifyingPatientCount += 1
     modelablePatientIds.add(patientId)
   }
 
-  if (repeatedPatientCount < 3) {
+  if (qualifyingPatientCount < MIN_QUALIFYING_PATIENTS) {
     return failure(
       'INSUFFICIENT_REPEATED_MEASURES',
-      'Mixed model fitting requires at least 3 patients with at least 2 repeated measurements.',
+      `Mixed model fitting requires at least ${MIN_QUALIFYING_PATIENTS} patients with at least ${minimumDistinctTimes} distinct measurement times each.`,
     )
   }
 
@@ -137,7 +142,7 @@ export function validateMixedModelRows(
   }
   if (noTimeVariationPatientCount > 0) {
     warnings.push(
-      `${noTimeVariationPatientCount} patient${noTimeVariationPatientCount === 1 ? ' has' : 's have'} fewer than 2 distinct time_since_baseline values and contribute${noTimeVariationPatientCount === 1 ? 's' : ''} limited within-patient time information.`,
+      `${noTimeVariationPatientCount} patient${noTimeVariationPatientCount === 1 ? ' has' : 's have'} fewer than ${minimumDistinctTimes} distinct time_since_baseline values and contribute${noTimeVariationPatientCount === 1 ? 's' : ''} limited within-patient time information.`,
     )
   }
   if (duplicatePatientTimeRowCount > 0) {

@@ -6,7 +6,7 @@ const config: MixedModelConfig = { ...DEFAULT_MIXED_MODEL_CONFIG, factors: [
   { key: 'unsafe key; stop()', kind: 'categorical', effect: 'level_slope', reference: 'A' },
   { key: 'baseline_age', kind: 'numeric', effect: 'level' },
 ] }
-const rows = ['a','b','c','d'].flatMap((patient_id, i) => [0,1,2].map(time_since_baseline => ({
+const rows = Array.from({length:10},(_,i)=>`p${i+1}`).flatMap((patient_id, i) => [0,1,2].map(time_since_baseline => ({
   patient_id, time_since_baseline, value: 60-i-time_since_baseline,
   baseline_age: 40+i, baseline_age_centered: i-1.5,
   factorValues: { factor_0_: i % 2 ? 'B' : 'A', baseline_age_centered: i-1.5 },

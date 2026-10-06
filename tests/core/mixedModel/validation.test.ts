@@ -15,17 +15,15 @@ const BASELINE_AGE_CONFIG: MixedModelConfig = {
   randomEffects: 'intercept_slope',
 }
 
-const rows: MixedModelSpikeRow[] = [
-  { patient_id: '1', value: 60, time_since_baseline: 0 },
-  { patient_id: '1', value: 58, time_since_baseline: 1 },
-  { patient_id: '2', value: 62, time_since_baseline: 0 },
-  { patient_id: '2', value: 59, time_since_baseline: 1 },
-  { patient_id: '3', value: 57, time_since_baseline: 0 },
-  { patient_id: '3', value: 54, time_since_baseline: 1 },
-]
+const rows: MixedModelSpikeRow[] = Array.from({ length: 10 }, (_, index) =>
+  [0, 1, 2].map((time_since_baseline) => ({
+    patient_id: String(index + 1), value: 60 - index - time_since_baseline,
+    time_since_baseline,
+  })),
+).flat()
 
 describe('validateMixedModelRows', () => {
-  it('accepts at least 3 patients with repeated finite measurements and time variation', () => {
+  it('accepts 10 patients with three distinct times for a random slope', () => {
     expect(validateMixedModelRows(rows, NO_COVARIATE_CONFIG)).toEqual({ ok: true, warnings: [] })
   })
 
@@ -69,21 +67,52 @@ describe('validateMixedModelRows', () => {
     })
   })
 
-  it('rejects fewer than 3 patients', () => {
-    expect(validateMixedModelRows(rows.filter((row) => row.patient_id !== '3'), NO_COVARIATE_CONFIG)).toMatchObject({
+  it('rejects nine patients even when all have three distinct times', () => {
+    expect(validateMixedModelRows(rows.filter((row) => row.patient_id !== '10'), NO_COVARIATE_CONFIG)).toMatchObject({
       ok: false,
       code: 'INSUFFICIENT_PATIENTS',
+      message: 'Mixed model fitting requires at least 10 patients.',
     })
   })
 
   it('rejects patients with fewer than 2 rows', () => {
     expect(validateMixedModelRows(
-      rows.filter((row) => !(row.patient_id === '3' && row.time_since_baseline === 1)),
+      rows.filter((row) => !(row.patient_id === '10' && row.time_since_baseline !== 0)),
       NO_COVARIATE_CONFIG,
     )).toMatchObject({
       ok: false,
       code: 'INSUFFICIENT_REPEATED_MEASURES',
     })
+  })
+
+  it('does not count a singleton tenth patient toward the repeated-patient minimum', () => {
+    const ninePlusSingleton = [...rows.filter(row => row.patient_id !== '10'),
+      { patient_id: '10', value: 50, time_since_baseline: 0 }]
+    expect(validateMixedModelRows(ninePlusSingleton, NO_COVARIATE_CONFIG)).toMatchObject({
+      ok: false, code: 'INSUFFICIENT_REPEATED_MEASURES',
+      message: 'Mixed model fitting requires at least 10 patients with at least 3 distinct measurement times each.',
+    })
+  })
+
+  it('requires two distinct times per patient for a random intercept', () => {
+    const twoTimeRows = rows.filter(row => row.time_since_baseline !== 2)
+    const interceptConfig: MixedModelConfig = { ...NO_COVARIATE_CONFIG, randomEffects: 'intercept' }
+    expect(validateMixedModelRows(twoTimeRows, interceptConfig)).toEqual({ ok: true, warnings: [] })
+    expect(validateMixedModelRows(twoTimeRows, NO_COVARIATE_CONFIG)).toMatchObject({
+      ok: false, code: 'INSUFFICIENT_REPEATED_MEASURES',
+    })
+    expect(validateMixedModelRows([...twoTimeRows, { ...twoTimeRows[0], time_since_baseline: 0 }], interceptConfig)).toEqual({
+      ok: true, warnings: ['1 duplicate patient/time row was retained for mixed model fitting.'],
+    })
+  })
+
+  it('warns when an extra patient has only two times for a random slope', () => {
+    expect(validateMixedModelRows([...rows,
+      { patient_id: '11', value: 51, time_since_baseline: 0 },
+      { patient_id: '11', value: 50, time_since_baseline: 1 },
+    ], NO_COVARIATE_CONFIG)).toEqual({ ok: true, warnings: [
+      '1 patient has fewer than 3 distinct time_since_baseline values and contributes limited within-patient time information.',
+    ] })
   })
 
   it('accepts an otherwise fit-ready cohort when an extra patient has only one measurement', () => {
@@ -100,17 +129,13 @@ describe('validateMixedModelRows', () => {
 
   it('accepts an otherwise fit-ready cohort when an extra patient has no time variation', () => {
     const result = validateMixedModelRows(
-      [
-        ...rows,
-        { patient_id: '045-1315', value: 51, time_since_baseline: 0 },
-        { patient_id: '045-1315', value: 50, time_since_baseline: 0 },
-      ],
+      [...rows, { patient_id: '045-1315', value: 51, time_since_baseline: 0 }, { patient_id: '045-1315', value: 50, time_since_baseline: 0 }],
       NO_COVARIATE_CONFIG,
     )
 
     expect(result).toEqual({
       ok: true,
-      warnings: ['1 patient has fewer than 2 distinct time_since_baseline values and contributes limited within-patient time information.'],
+      warnings: ['1 patient has fewer than 3 distinct time_since_baseline values and contributes limited within-patient time information.'],
     })
   })
 
@@ -131,15 +156,9 @@ describe('validateMixedModelRows', () => {
     })
   })
 
-  it('rejects cohorts with fewer than 3 patients that have within-patient time variation', () => {
-    const noTimeVariationRows: MixedModelSpikeRow[] = [
-      { patient_id: '1', value: 60, time_since_baseline: 0 },
-      { patient_id: '1', value: 59, time_since_baseline: 0 },
-      { patient_id: '2', value: 62, time_since_baseline: 0 },
-      { patient_id: '2', value: 59, time_since_baseline: 1 },
-      { patient_id: '3', value: 57, time_since_baseline: 0 },
-      { patient_id: '3', value: 54, time_since_baseline: 1 },
-    ]
+  it('rejects ten patients when one has only two distinct times despite duplicate rows', () => {
+    const noTimeVariationRows = [...rows.filter(row => !(row.patient_id === '10' && row.time_since_baseline === 2)),
+      { patient_id: '10', value: 50, time_since_baseline: 1 }]
 
     expect(validateMixedModelRows(noTimeVariationRows, NO_COVARIATE_CONFIG)).toMatchObject({
       ok: false,
@@ -151,40 +170,22 @@ describe('validateMixedModelRows', () => {
   })
 
   it('uses exact time values for within-patient time variation', () => {
-    const exactTimeVariationRows: MixedModelSpikeRow[] = [
-      { patient_id: '1', value: 60, time_since_baseline: 0 },
-      { patient_id: '1', value: 58, time_since_baseline: 0.00000000001 },
-      { patient_id: '2', value: 62, time_since_baseline: 0 },
-      { patient_id: '2', value: 59, time_since_baseline: 1 },
-      { patient_id: '3', value: 57, time_since_baseline: 0 },
-      { patient_id: '3', value: 54, time_since_baseline: 1 },
-    ]
+    const exactTimeVariationRows = rows.map(row => row.patient_id === '10' && row.time_since_baseline === 2
+      ? { ...row, time_since_baseline: 0.00000000001 } : row)
 
     expect(validateMixedModelRows(exactTimeVariationRows, NO_COVARIATE_CONFIG)).toEqual({ ok: true, warnings: [] })
   })
 
   it('does not require baseline age by default', () => {
-    const result = validateMixedModelRows([
-      { patient_id: 'p1', value: 70, time_since_baseline: 0 },
-      { patient_id: 'p1', value: 68, time_since_baseline: 1 },
-      { patient_id: 'p2', value: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: -5 },
-      { patient_id: 'p2', value: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: -5 },
-      { patient_id: 'p3', value: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 5 },
-      { patient_id: 'p3', value: 53, time_since_baseline: 1, baseline_age: 70, baseline_age_centered: 5 },
-    ])
+    const result = validateMixedModelRows(rows)
 
     expect(result).toEqual({ ok: true, warnings: [] })
   })
 
   it('requires baseline age when baseline_age covariate is selected', () => {
-    const result = validateMixedModelRows([
-      { patient_id: 'p1', value: 70, time_since_baseline: 0 },
-      { patient_id: 'p1', value: 68, time_since_baseline: 1 },
-      { patient_id: 'p2', value: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: -5 },
-      { patient_id: 'p2', value: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: -5 },
-      { patient_id: 'p3', value: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 5 },
-      { patient_id: 'p3', value: 53, time_since_baseline: 1, baseline_age: 70, baseline_age_centered: 5 },
-    ], BASELINE_AGE_CONFIG)
+    const result = validateMixedModelRows(rows.map(row => row.patient_id === '1' ? row : {
+      ...row, baseline_age: 60, baseline_age_centered: 0,
+    }), BASELINE_AGE_CONFIG)
 
     expect(result).toMatchObject({
       ok: false,

@@ -6,12 +6,12 @@ import { validateMixedModelRows } from '../../../src/core/mixedModel/validation'
 describe('syntheticMixedModelRows', () => {
   it('provides a deterministic valid random-slope fixture', () => {
     const rows = syntheticMixedModelRows()
-    expect(MIXED_MODEL_SYNTHETIC_DATASET_ID).toBe('synthetic-random-slope-v1')
-    expect(rows).toHaveLength(16)
-    expect(new Set(rows.map((row) => row.patient_id))).toEqual(new Set(['p1', 'p2', 'p3', 'p4']))
+    expect(MIXED_MODEL_SYNTHETIC_DATASET_ID).toBe('synthetic-random-slope-v2')
+    expect(rows).toHaveLength(40)
+    expect(new Set(rows.map((row) => row.patient_id))).toEqual(new Set(Array.from({length:10},(_,i)=>`p${i+1}`)))
     expect(validateMixedModelRows(rows)).toEqual({ ok: true, warnings: [] })
     expect(validateMixedModelRows(rows, DEFAULT_MIXED_MODEL_CONFIG)).toEqual({ ok: true, warnings: [] })
-    expect(rows).toEqual([
+    expect(rows.slice(0, 16)).toEqual([
       { patient_id: 'p1', value: 65, time_since_baseline: 0, baseline_age: 50, baseline_age_centered: -15 },
       { patient_id: 'p1', value: 62.7, time_since_baseline: 1, baseline_age: 50, baseline_age_centered: -15 },
       { patient_id: 'p1', value: 60.4, time_since_baseline: 2, baseline_age: 50, baseline_age_centered: -15 },

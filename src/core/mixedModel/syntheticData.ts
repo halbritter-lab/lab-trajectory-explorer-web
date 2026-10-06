@@ -1,12 +1,18 @@
 import type { MixedModelSpikeRow } from './types'
 
-export const MIXED_MODEL_SYNTHETIC_DATASET_ID = 'synthetic-random-slope-v1'
+export const MIXED_MODEL_SYNTHETIC_DATASET_ID = 'synthetic-random-slope-v2'
 
 const PATIENT_PARAMETERS = [
   { patient_id: 'p1', intercept: 65, slope: -2.3, baseline_age: 50 },
   { patient_id: 'p2', intercept: 58, slope: -1.4, baseline_age: 60 },
   { patient_id: 'p3', intercept: 72, slope: -3.1, baseline_age: 70 },
   { patient_id: 'p4', intercept: 61, slope: -2.0, baseline_age: 80 },
+  { patient_id: 'p5', intercept: 68, slope: -1.8, baseline_age: 45 },
+  { patient_id: 'p6', intercept: 63, slope: -2.5, baseline_age: 50 },
+  { patient_id: 'p7', intercept: 70, slope: -1.6, baseline_age: 55 },
+  { patient_id: 'p8', intercept: 59, slope: -2.7, baseline_age: 75 },
+  { patient_id: 'p9', intercept: 66, slope: -2.1, baseline_age: 80 },
+  { patient_id: 'p10', intercept: 57, slope: -1.2, baseline_age: 85 },
 ] as const
 
 const TIMES = [0, 1, 2, 3] as const
