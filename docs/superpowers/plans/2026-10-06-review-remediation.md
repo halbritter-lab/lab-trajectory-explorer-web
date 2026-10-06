@@ -134,3 +134,11 @@ boundaries and passed unchanged, so no golden numeric values moved. Final
 sequential verification after the marker-unit follow-up: 52/52 focused tests,
 773/773 unit tests (90 files), production build and 29/29 Chromium tests.
 Existing React `act` warnings remain in the storage unit tests.
+Independent review follow-up: the user-facing AKI methodology still described
+mg/dl as its only input after the SI-unit implementation. It now names both
+eligible units, the 88.42 conversion, exact-row selection and 1e-12 tolerance.
+The adjacent stage-I description also now includes the 0.3 mg/dl absolute
+criterion, which the detector and method algorithms already applied. A focused
+rendered-copy test failed before the fix and passed afterward. Sequential
+verification: 25/25 focused tests, 774/774 unit tests (90 files), and
+production build passed. The existing storage-test React `act` warnings remain.

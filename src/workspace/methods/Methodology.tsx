@@ -378,9 +378,9 @@ export function Methodology() {
 
       <h4>AKI Detection (KDIGO Criteria)</h4>
       <p>
-        Acute Kidney Injury episodes are detected automatically on serum creatinine series (unit
-        mg/dl) using the KDIGO 2012 creatinine criteria. Only creatinine-based criteria are
-        implemented:
+        AKI detection accepts serum creatinine in mg/dl or µmol/l; µmol/l values are divided by
+        88.42 before KDIGO comparisons. Only dated exact numeric values are used. Episodes are detected
+        automatically using the KDIGO 2012 creatinine criteria; urine output is not evaluated:
       </p>
       <ul>
         <li>
@@ -391,10 +391,16 @@ export function Methodology() {
           baseline within any 7-day window.
         </li>
       </ul>
+      <p>
+        KDIGO thresholds use an inclusive 1e-12 numeric tolerance in the compared quantity
+        (mg/dl for absolute values, unitless for ratios), so a rise exactly on a decimal boundary
+        is not missed through floating-point rounding.
+      </p>
       <p>AKI episodes are staged by the ratio of peak creatinine to the reference baseline:</p>
       <ul>
         <li>
-          <strong>Stage I</strong> — peak/baseline ≥ 1.5× and &lt; 2.0×.
+          <strong>Stage I</strong> — rise ≥ 0.3 mg/dl or peak/baseline ≥ 1.5×, unless a higher stage
+          applies.
         </li>
         <li>
           <strong>Stage II</strong> — peak/baseline ≥ 2.0× and &lt; 3.0×.
