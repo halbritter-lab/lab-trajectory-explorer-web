@@ -101,7 +101,7 @@ describe('clinical events', () => {
 
   it('throws when required structured columns are missing', () => {
     expect(() => normalizeClinicalEvents([{ patientId: 1, type: 'other' }])).toThrow(
-      'Event file missing required column(s): patientId, type, date, title.',
+      'Event file missing required column(s): date, title. Columns found: patientId, type.',
     )
   })
 

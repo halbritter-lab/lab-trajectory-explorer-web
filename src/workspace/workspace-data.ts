@@ -8,6 +8,7 @@ import type { FitConfig } from '../core/fitPipeline/types'
 import { generalExplorationConfig } from '../core/fitPipeline/types'
 import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../ui/data/loadDataset'
 import { resolveBirthAnchor } from '../core/demographics/resolveAge'
+import { parseAttributeDate } from '../core/demographics/resolve'
 
 export interface WorkspaceParameter { key: string; label: string; bezeichnung: string; einheit: string | null; derived: boolean }
 export interface WorkspacePatient { id: PatientId; label: string; attributes: Record<string, string>; baselineAge: number | null; birthAnchor?: Date | null; ageEstimated?: boolean }
@@ -55,7 +56,7 @@ export function useWorkspaceData(): WorkspaceData {
       patientAttributes[patientIdKey(id)] = resolvedAttributes
       const rawPatientRows = rawBuckets.get(id) ?? []
       const dateText = attributes[patientIdKey(id)]?.birthDate
-      const attributeDate = dateText ? new Date(dateText.length <= 10 ? `${dateText}T00:00:00.000Z` : dateText) : null
+      const attributeDate = parseAttributeDate(dateText)
       const manualAge = manualDemographics[patientIdKey(id)]?.age
       const { birthAnchor } = resolveBirthAnchor({ patientId: id, attributeBirthDate: attributeDate, manualAge,
         rows: rawPatientRows.map(r => ({ labDatum: r.labDatum, ageAtLab: r.patientAgeAtLab, birthDate: r.patientBirthDate })) })

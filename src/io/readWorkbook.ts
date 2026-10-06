@@ -15,16 +15,50 @@ export interface WorkbookSheets {
   getSheet(sheet: string | number): RawRow[]
 }
 
+/** Zip containers (xlsx, xlsb, ods) and OLE compound files (xls). */
+function isBinarySpreadsheet(bytes: Uint8Array): boolean {
+  const zip = bytes[0] === 0x50 && bytes[1] === 0x4b
+  const ole = bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0
+  return zip || ole
+}
+
+/**
+ * Decode CSV/text bytes. UTF-16 is recognised by its byte-order mark; otherwise
+ * UTF-8 is tried strictly (a UTF-8 BOM is dropped) and Windows-1252, the usual
+ * encoding of German Excel CSV exports, is the fallback. Returns null for
+ * anything that does not look like text, so it is left to SheetJS.
+ */
+export function decodeText(bytes: Uint8Array): string | null {
+  if (bytes[0] === 0xff && bytes[1] === 0xfe) return new TextDecoder('utf-16le').decode(bytes)
+  if (bytes[0] === 0xfe && bytes[1] === 0xff) return new TextDecoder('utf-16be').decode(bytes)
+  if (bytes.subarray(0, 4096).includes(0)) return null
+  try {
+    return new TextDecoder('utf-8', { fatal: true }).decode(bytes)
+  } catch {
+    return new TextDecoder('windows-1252').decode(bytes)
+  }
+}
+
 /**
  * Inspect an xlsx or csv file (as an ArrayBuffer or Uint8Array) and return its
  * sheet names along with a getter for raw rows of any sheet.
+ *
+ * CSV and other text input is decoded here and parsed with `raw: true`, so every
+ * cell reaches the loaders as its verbatim text. Left to itself SheetJS infers
+ * types from CSV text: it reads the decimal comma in "1,5" as a thousands
+ * separator (15), drops leading zeros from IDs, turns ranges such as "10-20"
+ * into dates, reads 03/01/2024 month-first and decodes UTF-8 as Latin-1.
+ * Binary workbooks keep their typed cells (numbers, dates, text).
  */
 export function readWorkbookSheets(data: ArrayBuffer | Uint8Array): WorkbookSheets {
   const arr =
     data instanceof Uint8Array
       ? data
       : new Uint8Array(data as ArrayBuffer)
-  const wb = XLSX.read(arr, { type: 'array', cellDates: true })
+  const text = isBinarySpreadsheet(arr) ? null : decodeText(arr)
+  const wb = text === null
+    ? XLSX.read(arr, { type: 'array', cellDates: true })
+    : XLSX.read(text, { type: 'string', raw: true })
   return {
     sheetNames: wb.SheetNames,
     getSheet(sheet: string | number): RawRow[] {

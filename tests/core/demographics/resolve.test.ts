@@ -76,6 +76,14 @@ describe('resolveDemographics', () => {
     expect(out.conflicts.map((c) => c.kind)).toEqual(['age_source_disagreement', 'sex_source_disagreement'])
   })
 
+  it.each(['03.02.1980', '03/02/1980', 'Sun Feb 03 1980 01:00:00 GMT+0100 (Central European Standard Time)'])(
+    'reads attribute birth dates written as %s like the lab importer does',
+    (birthDate) => {
+      const out = resolveDemographics([row(1, '2022-01-15', 'w', null)], { '1': { birthDate } }, {})
+      expect(out.rows[0].patientAgeAtLab).toBe(41)
+    },
+  )
+
   // resolveBirthAnchor guards labDatum against Invalid Date before it infers
   // an anchor; the row rewrite below it must use the same guard, or a row with
   // an unreadable date silently loses the age it stated and drops out of the

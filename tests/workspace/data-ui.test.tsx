@@ -92,3 +92,16 @@ it('previews EKFC without applying it, then applies and turns derivation off', (
   fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
   expect(useAppStore.getState().displayRows()).toHaveLength(1)
 })
+it('lists lab import diagnostics from a German CSV, with summaries not attributed to a patient', async () => {
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const csv = 'patientId;labDate;testName;unit;value\n0012;03/01/2024;Kreatinin;mg/dl;<0,3\n0012;2021-02-30;Kreatinin;mg/dl;1,2\n'
+  fireEvent.change(screen.getByLabelText('Import lab values'), { target: { files: [{ name: 'labs.csv', arrayBuffer: async () => new TextEncoder().encode(csv).buffer }] } })
+  await waitFor(() => expect(useAppStore.getState().rows).toHaveLength(1))
+  expect(screen.getByText(/1 rows rejected; 2 warnings\./)).toBeInTheDocument()
+  const items = screen.getAllByRole('listitem').map(item => item.textContent)
+  expect(items).toEqual(expect.arrayContaining([
+    'Sheet1 · 0012 · rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
+    'Sheet1 · Warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
+    'Sheet1 · Warning: Kreatinin [mg/dl]: 1 censored value (1 "<").',
+  ]))
+})

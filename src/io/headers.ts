@@ -70,18 +70,28 @@ export function cell<K extends string>(
   return header === undefined ? undefined : row[header]
 }
 
+/** "Columns found: a, b." for error messages, so a user can see at once whether
+ * a header was misspelt or the whole line was read as one column. */
+export function describeFoundColumns(headers: Iterable<string>): string {
+  const found = [...headers]
+  return found.length > 0 ? `Columns found: ${found.join(', ')}.` : 'No columns were found.'
+}
+
 /**
  * Ensure all required column concepts are present in the resolved mapping.
- * Throws a clear user-facing error if any are missing.
+ * Throws a clear user-facing error naming the missing columns and, when the
+ * file's headers are passed, the columns that were found.
  */
 export function checkRequiredColumns<K extends string>(
   resolved: ResolvedColumns<K>,
   required: readonly K[],
   fileLabel: string,
+  foundHeaders?: Iterable<string>,
 ): void {
   const missing = required.filter((concept) => resolved[concept] === undefined)
   if (missing.length > 0) {
-    throw new Error(`${fileLabel} missing required column(s): ${required.join(', ')}.`)
+    const found = foundHeaders === undefined ? '' : ` ${describeFoundColumns(foundHeaders)}`
+    throw new Error(`${fileLabel} missing required column(s): ${missing.join(', ')}.${found}`)
   }
 }
 

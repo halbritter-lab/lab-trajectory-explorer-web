@@ -67,6 +67,7 @@ import {
   EVENTS_COLUMN_ALIASES,
   REQUIRED_EVENTS_COLUMNS,
 } from '../../io/headers'
+import { parseImportDate } from '../parse/dates'
 
 const clinicalEventTypes = new Set<string>([
   'kidney_transplant',
@@ -76,7 +77,17 @@ const clinicalEventTypes = new Set<string>([
 const dialysisIntents = new Set<string>(['acute', 'chronic', 'unknown'])
 
 export function normalizeClinicalEvents(rows: RawRow[]): RawClinicalEvent[] {
-  if (rows.length === 0) return []
+  return normalizeClinicalEventsWithNotes(rows).events
+}
+
+/** `normalizeClinicalEvents` plus counts of dates that need a note on import:
+ * DD/MM/YYYY dates read day-first and numbers read as Excel serial dates. */
+export function normalizeClinicalEventsWithNotes(rows: RawRow[]): {
+  events: RawClinicalEvent[]
+  dayFirstDates: number
+  serialDates: number
+} {
+  if (rows.length === 0) return { events: [], dayFirstDates: 0, serialDates: 0 }
 
   const headers = collectHeaders(rows)
   const columns = resolveColumns(headers, EVENTS_COLUMN_ALIASES)
@@ -90,9 +101,22 @@ export function normalizeClinicalEvents(rows: RawRow[]): RawClinicalEvent[] {
   ) {
     throw new Error('Legacy annotation schema is no longer supported. Use patientId,type,date,title.')
   }
-  checkRequiredColumns(columns, REQUIRED_EVENTS_COLUMNS, 'Event file')
+  checkRequiredColumns(columns, REQUIRED_EVENTS_COLUMNS, 'Event file', headers)
 
-  return rows.map((row) => ({
+  let dayFirstDates = 0
+  let serialDates = 0
+  const parseDate = (value: unknown): Date | null => {
+    const parsed = parseImportDate(value)
+    if (parsed.kind === 'empty') return null
+    // An invalid date stays an Invalid Date, so validation rejects the row
+    // as invalid_date rather than as missing_required.
+    if (parsed.kind === 'invalid') return new Date(Number.NaN)
+    if (parsed.via === 'slash-day-first') dayFirstDates++
+    if (parsed.via === 'excel-serial') serialDates++
+    return parsed.date
+  }
+
+  const events = rows.map((row) => ({
     patientId: parsePatientId(cell(row, columns, 'patientId')),
     type: parseText(cell(row, columns, 'type')) ?? '',
     date: parseDate(cell(row, columns, 'date')),
@@ -101,6 +125,7 @@ export function normalizeClinicalEvents(rows: RawRow[]): RawClinicalEvent[] {
     endDate: parseDate(cell(row, columns, 'endDate')),
     intent: parseText(cell(row, columns, 'intent')) ?? '',
   }))
+  return { events, dayFirstDates, serialDates }
 }
 
 export function validateClinicalEvents(
@@ -223,52 +248,6 @@ function parseText(value: unknown): string | null {
   if (value === null || value === undefined) return null
   const text = String(value).trim()
   return text === '' ? null : text
-}
-
-function parseDate(value: unknown): Date | null {
-  if (value === null || value === undefined || value === '') return null
-  if (value instanceof Date) return value
-  if (typeof value === 'string') return parseStringDate(value)
-  if (typeof value === 'string' || typeof value === 'number') {
-    const parsed = new Date(value)
-    return parsed
-  }
-  return null
-}
-
-function parseStringDate(value: string): Date {
-  const text = value.trim()
-  const isoDate = /^(\d{4})-(\d{2})-(\d{2})$/.exec(text)
-  if (isoDate) {
-    return utcDate(Number(isoDate[1]), Number(isoDate[2]), Number(isoDate[3]))
-  }
-
-  const germanDate = /^(\d{2})\.(\d{2})\.(\d{4})$/.exec(text)
-  if (germanDate) {
-    return utcDate(
-      Number(germanDate[3]),
-      Number(germanDate[2]),
-      Number(germanDate[1]),
-    )
-  }
-
-  const parsed = new Date(text)
-  if (Number.isNaN(parsed.getTime())) return parsed
-  return new Date(
-    Date.UTC(parsed.getUTCFullYear(), parsed.getUTCMonth(), parsed.getUTCDate()),
-  )
-}
-
-function utcDate(year: number, month: number, day: number): Date {
-  const date = new Date(Date.UTC(year, month - 1, day))
-  if (
-    date.getUTCFullYear() !== year ||
-    date.getUTCMonth() !== month - 1 ||
-    date.getUTCDate() !== day
-  ) {
-    return new Date(Number.NaN)
-  }
-  return date
 }
 
 function isValidOptionalDate(value: Date | null): boolean {

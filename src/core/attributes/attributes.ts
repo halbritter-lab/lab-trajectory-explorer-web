@@ -33,6 +33,7 @@ export interface PatientAttributesResult {
 
 import {
   collectHeaders,
+  describeFoundColumns,
   normaliseHeader,
   resolveColumns,
 } from '../../io/headers'
@@ -45,7 +46,7 @@ export function normalizePatientAttributes(rows: RawRow[]): RawPatientAttributes
   const headers = collectHeaders(rows)
   const resolved = resolveColumns(headers, { patientId: ['patientId', 'PatientID'] })
   if (resolved.patientId === undefined) {
-    throw new Error('Patient attributes file missing required column: patientId.')
+    throw new Error(`Patient attributes file missing required column: patientId. ${describeFoundColumns(headers)}`)
   }
   const patientIdHeader = resolved.patientId
 

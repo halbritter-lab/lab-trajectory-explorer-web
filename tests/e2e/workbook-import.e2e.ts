@@ -31,3 +31,17 @@ test('uploads a workbook and exposes rejected events and attribute warnings', as
   await page.getByRole('option', { name: /^Creatinine \(mg\/dl\)$/ }).click()
   await expect(page.getByRole('button', { name: '1', exact: true })).toBeVisible()
 })
+
+test('reads a German semicolon CSV as text and lists its import diagnostics', async ({ page }) => {
+  // Windows-1252 bytes, as Excel writes "CSV (semicolon-separated)" on German systems.
+  const csv = 'patientId;labDate;testName;unit;value\n0012;03/01/2024;Kreatinin;µmol/l;88\n0012;15.02.2024;Kreatinin;umol/L;1,5\n12;2021-02-30;Kreatinin;µmol/l;90\n12;01.03.2024;Kreatinin;µmol/l;<20\n'
+  await page.goto('/workspace.html')
+  await page.getByLabel('Import lab values').setInputFiles({ name: 'labs.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'latin1') })
+  await expect(page.locator('.workspace-dataset')).toContainText('2 patients')
+  await expect(page.getByText(/3 lab values.*1 rows rejected; 3 warnings\./)).toBeVisible()
+  await page.getByText(/import diagnostics — show details/).click()
+  await expect(page.getByText('Sheet1 · 12 · rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.')).toBeVisible()
+  await expect(page.getByText(/read day-first/)).toBeVisible()
+  await expect(page.getByText('Sheet1 · Warning: Kreatinin: unit spellings "µmol/l" (2), "umol/L" (1) were merged as "µmol/l".')).toBeVisible()
+  await expect(page.getByText(/Kreatinin \[µmol\/l\]: 1 censored value/)).toBeVisible()
+})

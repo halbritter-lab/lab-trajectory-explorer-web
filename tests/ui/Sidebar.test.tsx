@@ -338,7 +338,7 @@ describe('Sidebar patient attributes import', () => {
 
     await userEvent.upload(screen.getByLabelText('Patient attributes'), file)
 
-    expect(await screen.findByText('Patient attributes file missing required column: patientId.')).toBeInTheDocument()
+    expect(await screen.findByText('Patient attributes file missing required column: patientId. Columns found: genotype, inheritance.')).toBeInTheDocument()
     expect(useAppStore.getState().patientAttributes).toEqual({})
   })
 })

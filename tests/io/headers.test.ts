@@ -95,7 +95,13 @@ describe('checkRequiredColumns', () => {
         ['patientId', 'labDate', 'testName'],
         'Event file',
       ),
-    ).toThrow('Event file missing required column(s): patientId, labDate, testName.')
+    ).toThrow('Event file missing required column(s): labDate, testName.')
+  })
+
+  it('names the columns that were found when given the headers', () => {
+    expect(() =>
+      checkRequiredColumns({ patientId: 'PatientID' }, ['patientId', 'labDate'], 'Event file', ['PatientID', 'Datum;Wert']),
+    ).toThrow('Event file missing required column(s): labDate. Columns found: PatientID, Datum;Wert.')
   })
 })
 

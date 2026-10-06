@@ -1,5 +1,6 @@
 import type { LabRow, WertOperator } from '../types'
 import { ckdEpi2021, ekfc2021, mdrd4, normaliseSex, type EgfrInput } from './formulas'
+import { unitKey } from '../parse/units'
 
 export const COMPUTED_BEZEICHNUNG_SUFFIX = ', computed)'
 export const MGDL_PER_UMOLL = 88.42
@@ -19,12 +20,11 @@ const FORMULA_BEZ: Record<FormulaName, string> = {
 const OP_FLIP: Record<string, WertOperator> = { '<': '>', '>': '<', '=': '=' }
 const SERUM_UNITS = ['mg/dl', 'µmol/l'] as const
 
+/** Comparison form of a unit: the import's unit key (case, spacing and
+ * micro-sign spelling ignored), so "mg/dL", "umol/L" and "μmol / l" are
+ * recognised as mg/dl and µmol/l. */
 export function normaliseUnit(einheit: string | null): string {
-  if (einheit == null) return ''
-  const s = einheit.replace(/ /g, ' ').trim().toLowerCase().replace(/μ/g, 'µ')
-  if (s === 'mg/dl') return 'mg/dl'
-  if (s === 'µmol/l' || s === 'umol/l') return 'µmol/l'
-  return s
+  return einheit == null ? '' : unitKey(einheit)
 }
 
 function isCreatinineName(bez: string | null): boolean {
