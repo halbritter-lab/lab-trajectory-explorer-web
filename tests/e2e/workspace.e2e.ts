@@ -53,6 +53,8 @@ test('2000-patient table navigation updates in under two seconds without losing 
   await expect(page.getByRole('heading', { name: 'Patient P-0051' })).toBeFocused()
   await page.getByRole('button', { name: 'Back to table' }).click()
   await expect(page.getByRole('button', { name: 'Open patient P-0051' })).toBeFocused()
+  await page.setViewportSize({ width: 390, height: 800 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
 })
 
 test('approved endpoint rules: configurable confirmation, visible recovery and workbook provenance', async ({ page }, testInfo) => {
