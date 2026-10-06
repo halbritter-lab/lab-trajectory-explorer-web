@@ -14,7 +14,12 @@ export function WorkspaceStorageControls({ hasData }: { hasData: boolean }) {
       useAppStore.getState().reset()
     } finally { useAppStore.setState({ busy: false }) }
   }
+  const legacyDataRemoved = useWorkspaceStorage(s => s.legacyDataRemoved)
   return <div className="workspace-storage">
+    {legacyDataRemoved && <div className="notice amber" role="status">
+      <p>Data saved on this device by the former version of Lab Trajectory Explorer was removed: that version has been replaced and its saved copies are no longer read. Import your file again to continue. To keep a dataset between visits, use “Remember on this device” below.</p>
+      <button type="button" onClick={() => useWorkspaceStorage.setState({ legacyDataRemoved: false })}>Dismiss</button>
+    </div>}
     <label><input type="checkbox" checked={enabled} disabled={!hasData && !enabled}
       onChange={event => void setWorkspaceRemember(event.target.checked)} /> Remember on this device</label>
     <p className="muted">Optional, unencrypted browser storage for seven days after the last data change. Saves lab values, events, attributes, demographic edits and derivation settings. Analysis views and model results reset when reopening.</p>

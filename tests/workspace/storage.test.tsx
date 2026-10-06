@@ -1,15 +1,21 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { clear, del, get, set } from 'idb-keyval'
+import { clear as clearDb, del as delDb, get as getDb, set as setDb, keys } from 'idb-keyval'
 import { WorkspaceApp } from '../../src/workspace/WorkspaceApp'
 import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
-import { DATASET_TTL_MS, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_STORAGE_KEY } from '../../src/workspace/workspace-storage'
+import { DATASET_TTL_MS, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
+
+// The workspace keeps its copy in its own database; the default database is
+// where earlier versions saved and other apps on the origin may still save.
+const get = (key: string) => getDb(key, workspaceIdbStore())
+const set = (key: string, value: unknown) => setDb(key, value, workspaceIdbStore())
+const del = (key: string) => delDb(key, workspaceIdbStore())
 
 const row: LabRow = { patientId: 'A', labDatum: new Date('2020-01-01'), bezeichnung: 'Marker', einheit: 'u', wert: '60', wertNum: 60, wertOperator: '=', loinc: null, patientSex: 'm', patientAgeAtLab: 50 }
 let stop: (() => void) | undefined
 beforeEach(async () => {
-  await clear(); useAppStore.getState().reset()
+  await clearDb(); await clearDb(workspaceIdbStore()); useAppStore.getState().reset()
   HTMLDialogElement.prototype.close = function () { this.removeAttribute('open') }
   HTMLDialogElement.prototype.showModal = function () { this.setAttribute('open', '') }
   stop = await startWorkspaceStorage()
@@ -88,7 +94,7 @@ describe('workspace local storage', () => {
     expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
     expect(useWorkspaceStorage.getState().message).toMatch(/expired/)
   })
-  it('rejects malformed saved dates without replacing the live data', async () => {
+  it('removes a malformed saved copy without replacing the live data', async () => {
     useAppStore.getState().replaceDataset({ rows: [row] })
     await setWorkspaceRemember(true)
     const saved = await get(WORKSPACE_STORAGE_KEY)
@@ -96,8 +102,23 @@ describe('workspace local storage', () => {
     await set(WORKSPACE_STORAGE_KEY, { ...saved, rows: [{ ...row, labDatum: 'not a date' }] })
     stop = await startWorkspaceStorage()
     expect(useAppStore.getState().rows[0].labDatum).toEqual(new Date('2020-01-01'))
-    expect(useWorkspaceStorage.getState().status).toBe('error')
     expect(useWorkspaceStorage.getState().enabled).toBe(false)
+    expect(useWorkspaceStorage.getState().message).toMatch(/could not be read .* and was removed/)
+    expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+  })
+  it('checks expiry before the schema, so an expired copy of any shape is removed as expired', async () => {
+    stop?.()
+    await set(WORKSPACE_STORAGE_KEY, { version: 0, savedAt: Date.now() - DATASET_TTL_MS - 1, rows: 'unsupported' })
+    stop = await startWorkspaceStorage()
+    expect(useWorkspaceStorage.getState().message).toMatch(/expired after seven days and was removed/)
+    expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+  })
+  it('removes an unsupported version even if it is recent', async () => {
+    stop?.()
+    await set(WORKSPACE_STORAGE_KEY, { version: 2, savedAt: Date.now(), writeToken: 'x', rows: [row] })
+    stop = await startWorkspaceStorage()
+    expect(useAppStore.getState().rows).toHaveLength(0)
+    expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
   })
   it('cannot recreate a snapshot removed by another tab', async () => {
     useAppStore.getState().replaceDataset({ rows: [row] })
@@ -131,10 +152,69 @@ describe('workspace local storage', () => {
   })
   it('starts without saved data when browser storage access fails', async () => {
     stop?.()
-    vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementationOnce(() => { throw new DOMException('blocked', 'SecurityError') })
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const blocked = vi.spyOn(IDBDatabase.prototype, 'transaction').mockImplementation(() => { throw new DOMException('blocked', 'SecurityError') })
     stop = await startWorkspaceStorage()
+    blocked.mockRestore()
     expect(useWorkspaceStorage.getState().status).toBe('error')
+    expect(warn).toHaveBeenCalled()
     useAppStore.getState().replaceDataset({ rows: [row] })
     expect(useAppStore.getState().rows).toHaveLength(1)
+  })
+
+})
+
+describe('storage left by earlier versions', () => {
+  // A snapshot as the previous release wrote it to idb-keyval's default database.
+  const previousSnapshot = () => ({
+    version: 1, writeToken: 'previous-release', savedAt: Date.now() - 60_000, rows: [row], fileName: 'earlier.csv',
+    events: [], patientAttributes: { A: { genotype: 'G1' } }, manualDemographics: {},
+    analysisSettings: { egfr: { formula: 'mdrd-4', source: null }, aki: { showOverlays: true, exclusionDays: 30 }, rapidEgfrDecline: { threshold: 5 } },
+  })
+  async function restart() { stop?.(); useAppStore.getState().reset(); stop = await startWorkspaceStorage() }
+
+  it('moves a usable workspace copy from the shared database once and removes the source', async () => {
+    await setDb(WORKSPACE_STORAGE_KEY, previousSnapshot())
+    await restart()
+    expect(useAppStore.getState()).toMatchObject({ fileName: 'earlier.csv', patientAttributes: { A: { genotype: 'G1' } } })
+    expect(useAppStore.getState().analysisSettings.egfr.formula).toBe('mdrd-4')
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', legacyDataRemoved: false })
+    expect(await getDb(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+    expect((await get(WORKSPACE_STORAGE_KEY)).writeToken).toBe('previous-release')
+    // Saving continues in the dedicated database with the migrated token.
+    useAppStore.getState().setManualDemographics('A', { age: 44 })
+    await waitFor(() => expect(useWorkspaceStorage.getState().status).toBe('saved'))
+    expect((await get(WORKSPACE_STORAGE_KEY)).manualDemographics.A).toEqual({ age: 44 })
+    expect(await getDb(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+  })
+  it('does not migrate an expired copy and never overwrites the dedicated copy', async () => {
+    await setDb(WORKSPACE_STORAGE_KEY, { ...previousSnapshot(), savedAt: Date.now() - DATASET_TTL_MS - 1 })
+    await restart()
+    expect(useAppStore.getState().rows).toHaveLength(0)
+    expect(await getDb(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+    expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'current.csv' })
+    await setWorkspaceRemember(true)
+    await setDb(WORKSPACE_STORAGE_KEY, previousSnapshot())
+    await restart()
+    expect(useAppStore.getState().fileName).toBe('current.csv')
+    expect(await getDb(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+  })
+  it('removes the former interface data regardless of age, tells the user once and leaves other apps alone', async () => {
+    await setDb('lab-explorer:dataset', { rows: [row], fileName: 'old.xlsx', savedAt: Date.now() })
+    await setDb('lab-explorer:settings', { cohortZoom: 'm' })
+    await setDb('lab-explorer:something-else', 1)
+    await setDb('another-app:state', 'keep me')
+    await restart()
+    expect(useAppStore.getState().rows).toHaveLength(0)
+    expect(useWorkspaceStorage.getState().legacyDataRemoved).toBe(true)
+    expect(await keys()).toEqual(['another-app:state'])
+    render(<WorkspaceApp />)
+    expect(screen.getByText(/saved on this device by the former version of Lab Trajectory Explorer was removed/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
+    expect(screen.queryByText(/former version/)).not.toBeInTheDocument()
+    await restart()
+    expect(useWorkspaceStorage.getState().legacyDataRemoved).toBe(false)
   })
 })

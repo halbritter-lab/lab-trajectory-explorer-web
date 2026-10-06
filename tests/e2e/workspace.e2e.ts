@@ -437,3 +437,33 @@ test('back navigation: explicit in-app back button and browser history integrati
   await page.goBack()
   await expect(page.getByRole('table')).toBeVisible()
 })
+
+test('removes data saved by the former interface once and says so', async ({ page }) => {
+  await page.goto('/')
+  await page.evaluate(() => new Promise<void>((resolve, reject) => {
+    // Recreate what the former interface left in idb-keyval's shared database.
+    const request = indexedDB.open('keyval-store')
+    request.onupgradeneeded = () => request.result.createObjectStore('keyval')
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const tx = request.result.transaction('keyval', 'readwrite')
+      tx.objectStore('keyval').put({ rows: [], fileName: 'old.xlsx', savedAt: 0 }, 'lab-explorer:dataset')
+      tx.objectStore('keyval').put({ cohortZoom: 'm' }, 'lab-explorer:settings')
+      tx.objectStore('keyval').put('keep', 'another-app:state')
+      tx.oncomplete = () => { request.result.close(); resolve() }
+    }
+  }))
+  await page.reload()
+  await expect(page.getByText(/by the former version of Lab Trajectory Explorer was removed/)).toBeVisible()
+  const remaining = await page.evaluate(() => new Promise<IDBValidKey[]>((resolve) => {
+    const request = indexedDB.open('keyval-store')
+    request.onsuccess = () => {
+      const keys = request.result.transaction('keyval').objectStore('keyval').getAllKeys()
+      keys.onsuccess = () => { request.result.close(); resolve(keys.result) }
+    }
+  }))
+  expect(remaining).toEqual(['another-app:state'])
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Load demo data' })).toBeVisible()
+  await expect(page.getByText(/former version/)).toHaveCount(0)
+})

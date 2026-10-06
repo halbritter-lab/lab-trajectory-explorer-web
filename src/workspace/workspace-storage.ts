@@ -1,9 +1,20 @@
 import { create } from 'zustand'
-import { del, get, update } from 'idb-keyval'
+import { createStore, del, get, keys, update, type UseStore } from 'idb-keyval'
 import { useAppStore } from './state/store'
 import type { AnalysisContext, AnalysisSettings } from '../core/analysis/types'
 
 export const WORKSPACE_STORAGE_KEY = 'lab-explorer:workspace:v1'
+/** Keys of earlier versions start with this prefix in idb-keyval's shared
+ * default database (`keyval-store`), which other apps on the same origin
+ * (for example other GitHub Pages projects) can also use. */
+const LEGACY_KEY_PREFIX = 'lab-explorer:'
+const DEFAULT_IDB_DATABASE = 'keyval-store'
+let dedicatedStore: UseStore | undefined
+/** This app's own IndexedDB database, so its data is never mixed with, read
+ * or cleared by another app on the same origin. Opened lazily. */
+export function workspaceIdbStore(): UseStore {
+  return dedicatedStore ??= createStore('lab-trajectory-explorer', 'keyval')
+}
 /** Saved workspaces contain patient data and are kept unencrypted, so they
  * expire seven days after the last data change. */
 export const DATASET_TTL_MS = 7 * 24 * 60 * 60 * 1000
@@ -18,8 +29,10 @@ interface StorageStatus {
   enabled: boolean
   status: 'session' | 'saving' | 'saved' | 'error'
   message: string | null
+  /** Data saved by the former interface was found and removed at start-up. */
+  legacyDataRemoved: boolean
 }
-export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null }))
+export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyDataRemoved: false }))
 
 const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 const nullableText = (v: unknown) => v === null || typeof v === 'string'
@@ -54,6 +67,61 @@ function validSnapshot(value: unknown): value is Snapshot {
     && typeof settings.rapidEgfrDecline.threshold === 'number' && Number.isFinite(settings.rapidEgfrDecline.threshold)
 }
 
+type SnapshotState = 'usable' | 'expired' | 'invalid'
+/** Expiry is checked before the schema, so an expired copy is always removed
+ * as expired, whatever shape an older version saved it in. */
+function classifySnapshot(value: unknown): SnapshotState {
+  if (!record(value) || typeof value.savedAt !== 'number' || !Number.isFinite(value.savedAt)) return 'invalid'
+  if (Date.now() - value.savedAt > DATASET_TTL_MS) return 'expired'
+  return validSnapshot(value) ? 'usable' : 'invalid'
+}
+
+/** Delete the saved copy only if it is still the one that was read, so a copy
+ * another tab saved in the meantime survives. Same transaction as the check. */
+function deleteIfUnchanged(read: unknown): Promise<void> {
+  const token = record(read) ? read.writeToken : undefined
+  const savedAt = record(read) ? read.savedAt : undefined
+  return workspaceIdbStore()('readwrite', store => new Promise<void>((resolve, reject) => {
+    const request = store.get(WORKSPACE_STORAGE_KEY)
+    request.onsuccess = () => {
+      const current: unknown = request.result
+      if (current !== undefined && (!record(current) || current.writeToken === token && current.savedAt === savedAt)) store.delete(WORKSPACE_STORAGE_KEY)
+      resolve()
+    }
+    request.onerror = () => reject(request.error)
+  }))
+}
+
+async function defaultDatabaseMayExist(): Promise<boolean> {
+  // Avoid creating idb-keyval's shared database just to look inside it.
+  if (typeof indexedDB.databases !== 'function') return true
+  return (await indexedDB.databases()).some(db => db.name === DEFAULT_IDB_DATABASE)
+}
+
+/**
+ * Remove everything earlier versions kept in the shared default database,
+ * regardless of age: the former interface's `lab-explorer:dataset` and
+ * `lab-explorer:settings`, and any other `lab-explorer:*` key. A usable,
+ * unexpired workspace copy is first moved to this app's own database (once:
+ * the source is deleted). Returns whether former-interface data was removed.
+ */
+export async function migrateLegacyStorage(): Promise<boolean> {
+  if (!await defaultDatabaseMayExist()) return false
+  const legacyKeys = (await keys()).filter((key): key is string => typeof key === 'string' && key.startsWith(LEGACY_KEY_PREFIX))
+  let removedFormerInterfaceData = false
+  for (const key of legacyKeys) {
+    if (key === WORKSPACE_STORAGE_KEY) {
+      const value: unknown = await get(key)
+      // Never replace a copy that already exists in the dedicated database.
+      if (classifySnapshot(value) === 'usable') await update(WORKSPACE_STORAGE_KEY, previous => previous ?? value, workspaceIdbStore())
+    } else {
+      removedFormerInterfaceData = true
+    }
+    await del(key)
+  }
+  return removedFormerInterfaceData
+}
+
 let writes: Promise<void> = Promise.resolve()
 let revision = 0
 let unsubscribe: (() => void) | undefined
@@ -86,7 +154,7 @@ function save(): Promise<void> {
       await update<Snapshot>(WORKSPACE_STORAGE_KEY, previous => {
         if (!claimPending && previous?.writeToken !== lastWriteToken) throw new StorageConflict()
         return value
-      })
+      }, workspaceIdbStore())
       lastWriteToken = value.writeToken
       claimPending = false
       if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null })
@@ -107,7 +175,7 @@ export async function setWorkspaceRemember(enabled: boolean): Promise<void> {
   const currentRevision = ++revision
   await enqueue(async () => {
     try {
-      await del(WORKSPACE_STORAGE_KEY)
+      await del(WORKSPACE_STORAGE_KEY, workspaceIdbStore())
       lastWriteToken = undefined
       claimPending = false
       if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null })
@@ -123,23 +191,29 @@ export async function startWorkspaceStorage(): Promise<() => void> {
   await writes
   lastWriteToken = undefined
   claimPending = false
-  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null })
+  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyDataRemoved: false })
   try {
-    const value: unknown = await get(WORKSPACE_STORAGE_KEY)
-    if (value !== undefined) {
-      if (!validSnapshot(value)) {
-        reportError('The saved workspace is invalid or uses an unsupported version. Import your file or clear the saved copy.')
-      } else if (Date.now() - value.savedAt > DATASET_TTL_MS) {
-        await del(WORKSPACE_STORAGE_KEY)
-        useWorkspaceStorage.setState({ message: 'The saved workspace expired after seven days. Import your file to continue.' })
-      } else {
-        lastWriteToken = value.writeToken
-        useAppStore.getState().replaceDataset({ rows: value.rows,
-          events: value.events, patientAttributes: value.patientAttributes,
-          manualDemographics: value.manualDemographics, analysisSettings: value.analysisSettings,
-          fileName: value.fileName })
-        useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null })
-      }
+    if (await migrateLegacyStorage()) useWorkspaceStorage.setState({ legacyDataRemoved: true })
+  } catch (error) {
+    // Clean-up of the shared database must never block this app's own data.
+    console.warn('Could not clean up data saved by an earlier version.', error)
+  }
+  try {
+    const value: unknown = await get(WORKSPACE_STORAGE_KEY, workspaceIdbStore())
+    const state = value === undefined ? null : classifySnapshot(value)
+    if (state === 'expired') {
+      await deleteIfUnchanged(value)
+      useWorkspaceStorage.setState({ message: 'The saved workspace expired after seven days and was removed. Import your file to continue.' })
+    } else if (state === 'invalid') {
+      await deleteIfUnchanged(value)
+      useWorkspaceStorage.setState({ message: 'The saved workspace could not be read (invalid or from an unsupported version) and was removed. Import your file to continue.' })
+    } else if (state === 'usable' && validSnapshot(value)) {
+      lastWriteToken = value.writeToken
+      useAppStore.getState().replaceDataset({ rows: value.rows,
+        events: value.events, patientAttributes: value.patientAttributes,
+        manualDemographics: value.manualDemographics, analysisSettings: value.analysisSettings,
+        fileName: value.fileName })
+      useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null })
     }
   } catch {
     reportError('Local storage is unavailable. You can still import and work in this tab.')
