@@ -11,7 +11,7 @@ const workerScript = `self.onmessage = async ({data:q}) => {
   const intercept = q.rows[0].value < 80 ? 60 : 80;
   const slope = intercept === 60 ? -3 : 5;
   const result = {
-    status:'success',converged:true,warnings:[],
+    status:'success',converged:true,singular:false,warnings:[],
     metadata:{engine:q.engine,formula:q.formula,modelConfig:q.config,preparation:q.preparation,
       runtimeVersion:'browser-fixture',packageVersions:{},browserUserAgent:'playwright',
       wasmAssetSource:'local-dev',optimizer:null,reml:true,tolerance:null,datasetId:q.datasetId,
@@ -29,11 +29,11 @@ test('projects a custom nonrenal target and downloads the applied settings', asy
   await context.route('**/__projection_hash', route => route.fulfill({body:hashMixedModelInput(route.request().postDataJSON())}))
   await context.route(/webr\.worker[^/]*\.(?:ts|js)(?:\?.*)?$/, route => route.fulfill({contentType:'application/javascript',body:workerScript}))
   const wb = XLSX.utils.book_new()
-  const labs = Array.from({length:9},(_,i) => [0,1,2].map(year => ({patientId:i+1,labDate:`${2020+year}-01-01`,testName:'Study marker',unit:'U/L',value:80+5*year+i}))).flat()
+  const labs = Array.from({length:10},(_,i) => [0,1,2].map(year => ({patientId:i+1,labDate:`${2020+year}-01-01`,testName:'Study marker',unit:'U/L',value:80+5*year+i}))).flat()
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(labs),'labs')
   await page.goto('/')
   await page.getByLabel('Import lab values').setInputFiles({name:'projection-study.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:XLSX.write(wb,{type:'buffer',bookType:'xlsx'})})
-  await expect(page.locator('.workspace-dataset')).toContainText('9 patients')
+  await expect(page.locator('.workspace-dataset')).toContainText('10 patients')
   await page.getByRole('button',{name:'Cohort models',exact:true}).click()
   await expect(page.getByLabel('Model parameter')).toHaveValue(JSON.stringify(['Study marker','U/L']))
   // The results table and its projection editor are the former dialog content.
@@ -84,13 +84,13 @@ test('uses renal presets and the selected fitted genotype profile in exports', a
   await context.route('**/__projection_hash', route => route.fulfill({body:hashMixedModelInput(route.request().postDataJSON())}))
   await context.route(/webr\.worker[^/]*\.(?:ts|js)(?:\?.*)?$/, route => route.fulfill({contentType:'application/javascript',body:workerScript}))
   const wb = XLSX.utils.book_new()
-  const ids = Array.from({length:9},(_,i) => i+1)
+  const ids = Array.from({length:10},(_,i) => i+1)
   const labs = ids.flatMap(id => [0,1,2].map(year => ({patientId:id,labDate:`${2020+year}-01-01`,testName:'eGFR',unit:'ml/min/1.73m2',value:60+6*(id%2)-3*year})))
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(labs),'labs')
   XLSX.utils.book_append_sheet(wb,XLSX.utils.json_to_sheet(ids.map(id => ({patientId:id,genotype:id%2?'B':'A'}))),'attributes')
   await page.goto('/')
   await page.getByLabel('Import lab values').setInputFiles({name:'projection-genotype.xlsx',mimeType:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',buffer:XLSX.write(wb,{type:'buffer',bookType:'xlsx'})})
-  await expect(page.locator('.workspace-dataset')).toContainText('9 patients')
+  await expect(page.locator('.workspace-dataset')).toContainText('10 patients')
   await page.getByRole('button',{name:'Cohort models',exact:true}).click()
   const studio = page.getByRole('region',{name:'Model Studio'})
   await studio.getByRole('button',{name:/Custom model/}).click()
