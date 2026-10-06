@@ -1,7 +1,8 @@
 import { expect, it } from 'vitest'
 import { buildMixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
 import { fitted } from '../mixedModel/projectionProfile.fixture'
-import { buildProjectionSnapshot, createDefaultProjectionSettings, projectionCategoryChoices, validateProjectionSettings } from '../../../src/core/projection/projectionSnapshot'
+import { buildProjectionSnapshot, projectionCategoryChoices, validateProjectionSettings } from '../../../src/core/projection/projectionSnapshot'
+import { createDefaultProjectionSettings } from '../../../src/core/analysis/projection'
 import { projectionTargetPresets } from '../../../src/core/domains/nephrology/projectionPresets'
 const response = {outcome:'eGFR',unit:'ml/min/1,73m²'}
 const rows = [{patient_id:'a',value:60,time_since_baseline:0,factorValues:{factor_0_:'A',factor_1_:0}},{patient_id:'b',value:50,time_since_baseline:1,factorValues:{factor_0_:'B:factor_10_',factor_1_:2}}]

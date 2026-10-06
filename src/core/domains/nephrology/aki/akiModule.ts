@@ -85,15 +85,21 @@ function preparedInput(ctx: SeriesContext): ExclusionWindowContribution | undefi
   return ctx.fitInputs.find((input) => input.kind === 'exclusion-windows' && input.reason === AKI_EXCLUSION_REASON)
 }
 
+/** Length of a column's AKI windows: the column's own (legacy spec override,
+ * then fit configuration), else the dataset contribution's, else the default.
+ * The same length shapes the excluded windows and the drawn bands. */
+function akiWindowDays(ctx: SeriesContext): number {
+  return ctx.exclusionDays ?? ctx.fitConfig?.exclusions.akiExclusionDays ?? preparedInput(ctx)?.lengthDays ?? DEFAULT_AKI_EXCLUSION_DAYS
+}
+
 /** AKI windows applied to one column: when its slope mode is 'aki-aware' or
- * its fit configuration excludes AKI windows. The window length is the
- * column's own (legacy spec override, then fit configuration), else the
- * dataset contribution's, else the default. Prepared dataset contributions are
- * used when present; otherwise episodes are detected from the patient's rows. */
+ * its fit configuration excludes AKI windows. Prepared dataset contributions
+ * are used when present; otherwise episodes are detected from the patient's
+ * rows. */
 function akiExclusions(ctx: SeriesContext): SeriesContribution['exclusions'] {
   if (ctx.mode !== 'aki-aware' && !ctx.fitConfig?.exclusions.excludeAkiWindows) return undefined
   const prepared = preparedInput(ctx)
-  const days = ctx.exclusionDays ?? prepared?.lengthDays ?? ctx.fitConfig?.exclusions.akiExclusionDays ?? DEFAULT_AKI_EXCLUSION_DAYS
+  const days = akiWindowDays(ctx)
   if (prepared) {
     const windows = prepared.lengthDays === undefined ? prepared.windows : windowsWithLength(prepared.windows, days)
     return windows.map((window) => ({ ...window, reason: AKI_EXCLUSION_REASON }))
@@ -105,7 +111,7 @@ function akiExclusions(ctx: SeriesContext): SeriesContribution['exclusions'] {
  * for every series of the patient (creatinine-derived), whether or not the
  * column excludes them from its fit. */
 function akiOverlays(ctx: SeriesContext, episodes: readonly AkiEpisode[]): SeriesOverlay[] {
-  const bandDays = ctx.exclusionDays ?? preparedInput(ctx)?.lengthDays ?? DEFAULT_AKI_EXCLUSION_DAYS
+  const bandDays = akiWindowDays(ctx)
   const markers: SeriesOverlay[] = episodes.map((episode) => {
     const stage = ROMAN[episode.stage] ?? episode.stage
     return {

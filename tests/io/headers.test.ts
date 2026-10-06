@@ -5,7 +5,7 @@ import {
   collectHeaders,
   normaliseHeader,
   resolveColumns,
-} from '../../src/io/headers'
+} from '../../src/core/parse/headers'
 
 describe('normaliseHeader', () => {
   it('trims, lowercases, and strips non-alphanumeric characters', () => {

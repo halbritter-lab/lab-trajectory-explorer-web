@@ -1,7 +1,8 @@
 import type { AnalysisModule, EndpointContext, ModuleExportCell, SeriesKey } from '../../../analysis/types'
-import type { FitConfig } from '../../../fitPipeline/types'
+import type { CkdEndpointConfig } from '../fitConfig'
 import { isEgfrUnit } from '../analytes'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from './ckdEndpoints'
+import { projectionTargetPresets as renalProjectionTargets } from '../projectionPresets'
 
 export const CKD_ENDPOINTS_MODULE_ID = 'ckdEndpoints'
 
@@ -12,7 +13,7 @@ const DISABLED: CkdEndpointSettings = {
 }
 
 /** Endpoints configured by the column, for eGFR series only. */
-function endpointSettingsFor(series: SeriesKey, endpoints?: Partial<FitConfig['endpoints']>): CkdEndpointSettings {
+function endpointSettingsFor(series: SeriesKey, endpoints?: Partial<CkdEndpointConfig>): CkdEndpointSettings {
   if (!isEgfrUnit(series.einheit)) return DISABLED
   return {
     percentDecline: endpoints?.percentDecline ?? false,
@@ -40,6 +41,8 @@ export const ckdEndpointsModule = {
   label: 'CKD endpoints',
   description: 'Percent eGFR decline, observed CKD G4/G5 and projected age at CKD G5.',
   appliesTo: (series: SeriesKey) => isEgfrUnit(series.einheit),
+  // The G4 and G5 boundaries as targets for eGFR mixed-model projections.
+  projectionTargets: renalProjectionTargets,
   endpoints: (ctx: EndpointContext): CkdEndpoints => {
     const enabled = endpointSettingsFor(ctx.seriesKey, ctx.fitConfig?.endpoints)
     // Ages and the all-data fit only feed the G5 projection; skip both otherwise.

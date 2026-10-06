@@ -2,8 +2,6 @@ import { create } from 'zustand'
 import type { LabRow } from '../../core/types'
 import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analysis/registry'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
-import type { FitConfig } from '../../core/fitPipeline/types'
-import type { SlopeMode } from '../../core/stats/summarize'
 import type { FormulaName, Source } from '../../core/domains/nephrology/egfr/series'
 import type { ClinicalEvent, RejectedClinicalEvent } from '../../core/events/events'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormulaKey, type MixedModelConfig } from '../../core/mixedModel/config'
@@ -158,13 +156,6 @@ function computeStoreAnalysisResult(
   })
   analysisCache = { rows, settings, manual, attributes, events, result }
   return result
-}
-
-export function modeForFitModel(fitModel: FitConfig['fitModel']): SlopeMode {
-  if (fitModel === 'theil-sen') return 'global-robust'
-  if (fitModel === 'rolling-ols') return 'rolling'
-  if (fitModel === 'segmented-ols') return 'gap-split'
-  return 'global'
 }
 
 /** The in-flight cohort-model run, so any result-invalidating change can abort

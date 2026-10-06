@@ -1,4 +1,11 @@
-import type { PatientId, Sex } from '../types'
+import type { LabRow, PatientId, Sex } from '../types'
+
+/** Demographics entered by hand for one patient; they take precedence over
+ * imported values. */
+export interface ManualDemographics {
+  sex?: LabRow['patientSex']
+  age?: number
+}
 
 /** An inclusive range of candidate birth dates. `lo > hi` means the constraints
  * that produced it contradict each other — check with `isEmptyInterval`. */

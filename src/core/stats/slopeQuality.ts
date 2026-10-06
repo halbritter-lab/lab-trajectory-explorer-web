@@ -1,4 +1,4 @@
-import type { FitConfig } from '../fitPipeline/types'
+import type { FitModel } from '../fitPipeline/types'
 import type { SeriesSummary } from './summarize'
 
 /** The reason codes the core produces. Imported rather than re-declared so a
@@ -12,7 +12,7 @@ export interface SlopeQualityInput {
   /** Whole days between the first and last points consumed by the scalar fit. */
   fittedSpanDays: number
   /** 'none' means no fit was requested, so there is no slope to qualify. */
-  fitModel: FitConfig['fitModel']
+  fitModel: FitModel
 }
 
 /**

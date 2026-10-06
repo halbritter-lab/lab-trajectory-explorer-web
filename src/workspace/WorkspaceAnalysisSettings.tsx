@@ -1,10 +1,16 @@
-import type { FitModel, TimeBalancing, UnknownDialysisPolicy } from '../core/fitPipeline/types'
+import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
+import type { UnknownDialysisPolicy } from '../core/domains/nephrology/fitConfig'
 import type { WorkspaceParameter } from './workspace-data'
 import { defaultFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
 import { ConfirmationDaysInput } from './ConfirmationDaysInput'
 import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
 import { RAPID_EGFR_DECLINE_MODULE_ID } from '../core/domains/nephrology/rapidEgfrDeclineModule'
-import { columnSettingModules, type ColumnModuleSettings, type RegisteredAnalysisModule } from '../core/analysis/registry'
+import { columnSettingModules, fitPresetById, fitPresetCatalog, type ColumnModuleSettings, type RegisteredAnalysisModule } from '../core/analysis/registry'
+import { FIT_PRESET_CATEGORY_LABELS, type FitPresetDefinition } from '../core/analysis/fitConfig'
+
+/** Catalog presets grouped by category, in catalog order. */
+const PRESET_GROUPS = [...new Set(fitPresetCatalog.map(preset => preset.category))]
+  .map(category => [category, fitPresetCatalog.filter(preset => preset.category === category)] as [FitPresetDefinition['category'], FitPresetDefinition[]])
 
 /** Column settings of the eGFR endpoint group; every other module with column
  * settings gets its own group after the built-in ones. */
@@ -74,14 +80,9 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             value={fitSettings.presetId}
             onChange={event => applyPreset(event.target.value)}
           >
-            <optgroup label="Standard / General">
-              <option value="general_exploration">General exploration (unweighted OLS)</option>
-              <option value="theil_sen">Theil–Sen robust trend (outlier resistant)</option>
-            </optgroup>
-            <optgroup label="Nephrology (CKD / AKI)">
-              <option value="ckd_progression">CKD progression (quarterly medians, censoring, AKI exclusion)</option>
-              <option value="acute_review">Acute review (day-level raw points, no fit)</option>
-            </optgroup>
+            {PRESET_GROUPS.map(([category, presets]) => <optgroup key={category} label={FIT_PRESET_CATEGORY_LABELS[category]}>
+              {presets.map(preset => <option key={preset.id} value={preset.id}>{preset.optionLabel}</option>)}
+            </optgroup>)}
             {fitSettings.presetId === 'custom' && (
               <optgroup label="Custom">
                 <option value="custom">Custom configuration</option>
@@ -100,15 +101,10 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
         {scope && overrides[scope] && <button type="button" onClick={onReset}>Use shared settings</button>}
       </div>
         <span className="wt-muted">
-          {fitSettings.presetId === 'ckd_progression'
-            ? 'CKD progression: quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, OLS display trend. G4/G5 endpoints and prediction use raw measurements.'
-            : fitSettings.presetId === 'theil_sen'
-              ? 'Theil–Sen: non-parametric median slope, unweighted, resistant to outliers.'
-              : fitSettings.presetId === 'acute_review'
-                ? 'Acute review: day-level measurements without trend fit, focusing on KDIGO AKI.'
-                : fitSettings.presetId === 'custom'
-                  ? 'Custom: tailored fit model, event censoring, exclusions, time balancing, or endpoints.'
-                  : 'General exploration: global OLS per patient and parameter, unweighted individual measurements, no AKI or event exclusions, and no time aggregation. Slopes are per year. Changing the axis affects the display, not the calculation.'}
+          {fitPresetById(fitSettings.presetId)?.summary
+            ?? (fitSettings.presetId === 'custom'
+              ? 'Custom: tailored fit model, event censoring, exclusions, time balancing, or endpoints.'
+              : fitPresetById('general_exploration')!.summary)}
         </span>
       <details className="wt-advanced-settings">
         <summary>Advanced pipeline settings</summary>

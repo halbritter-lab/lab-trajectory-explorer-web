@@ -1,6 +1,7 @@
 import * as XLSX from 'xlsx'
+import type { RawRow } from '../core/types'
 
-export type RawRow = Record<string, unknown>
+export type { RawRow } from '../core/types'
 
 /** Normalise an Excel Date (which SheetJS creates as local-midnight) to a
  * midnight-UTC Date by reinterpreting the local Y/M/D components as UTC.

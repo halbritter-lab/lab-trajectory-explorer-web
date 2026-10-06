@@ -8,6 +8,9 @@ export interface ParsedWert {
 
 export type Sex = 'm' | 'w' | 'd'
 
+/** One spreadsheet row as read from a file: header → cell value. */
+export type RawRow = Record<string, unknown>
+
 export type PatientId = number | string
 
 export function patientIdKey(patientId: PatientId): string {

@@ -1,4 +1,4 @@
-import type { RawRow } from '../../io/readWorkbook'
+import type { RawRow } from '../types'
 import { patientIdKey, type LabRow, type PatientId } from '../types'
 
 export interface RawPatientAttributes {
@@ -37,7 +37,7 @@ import {
   describeFoundColumns,
   normaliseHeader,
   resolveColumns,
-} from '../../io/headers'
+} from '../parse/headers'
 
 /** Parse raw workbook rows into per-row patient id + attribute map. Attribute
  * columns are every column other than `patientId`; empty cells are omitted. */

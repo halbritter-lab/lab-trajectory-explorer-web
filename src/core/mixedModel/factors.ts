@@ -1,4 +1,4 @@
-import { normaliseSex } from '../domains/nephrology/egfr/formulas'
+import { normaliseSex } from '../demographics/sex'
 import { patientIdKey, type LabRow } from '../types'
 import { mixedModelFactorColumn, mixedModelFactors, type MixedModelConfig } from './config'
 import type { MixedModelPreparationSummary, MixedModelSpikeRow } from './types'

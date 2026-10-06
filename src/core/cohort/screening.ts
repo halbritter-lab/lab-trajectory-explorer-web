@@ -10,7 +10,7 @@ import { collectSeriesContributions, seriesContextFor, seriesRowsFor } from './s
 import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ClinicalEvent } from '../events/events'
 import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows'
-import type { FitConfig } from '../fitPipeline/types'
+import type { FitConfig } from '../analysis/fitConfig'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 

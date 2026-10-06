@@ -1,44 +1,25 @@
-import type { ClinicalEvent } from '../events/events'
-import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS } from '../domains/nephrology/constants'
+/**
+ * Generic fit-pipeline types: the estimator, the time aggregation and the
+ * domain-neutral part of a column's fit configuration. Domain modules add
+ * their own sections; core/analysis/fitConfig.ts composes the column
+ * configuration the app uses.
+ */
 
-export type FitPreset = 'general_exploration' | 'ckd_progression' | 'acute_review' | 'custom'
 export type FitXAxis = 'age' | 'calendar_time' | 'time_since_baseline'
 export type TimeBalancing = 'raw' | 'monthly-median' | 'quarterly-median'
 export type FitModel = 'none' | 'ols' | 'theil-sen' | 'rolling-ols' | 'segmented-ols'
-export type UnknownDialysisPolicy = 'flag-only' | 'exclude-dated-interval' | 'censor-from-start'
-export type ExclusionReason =
-  | 'aki'
-  | 'acute_dialysis'
-  | 'unknown_dialysis_interval'
-  | 'post_chronic_dialysis'
-  | 'post_kidney_transplant'
 
-export interface FitConfig {
+/** The domain-neutral part of a column's fit configuration. */
+export interface BaseFitConfig {
   parameter: {
     bezeichnung: string
     einheit: string | null
   }
-  preset: FitPreset
+  /** Identifier of the preset the configuration came from, or 'custom'. */
+  preset: string
   xAxis: FitXAxis
-  censoring: {
-    censorAfterKidneyTransplant: boolean
-    censorAfterChronicDialysis: boolean
-    excludeAcuteDialysisPeriods: boolean
-    unknownDialysisPolicy: UnknownDialysisPolicy
-  }
-  exclusions: {
-    excludeAkiWindows: boolean
-    akiExclusionDays: number
-  }
   timeBalancing: TimeBalancing
   fitModel: FitModel
-  endpoints: {
-    percentDecline: boolean
-    observedCkdG4?: boolean
-    observedCkdG5: boolean
-    projectedAgeToCkdG5: boolean
-    confirmationDays?: number
-  }
 }
 
 export interface BaseFitPoint {
@@ -46,7 +27,8 @@ export interface BaseFitPoint {
   value: number
   operator: '=' | '<' | '>'
   included: boolean
-  exclusionReasons: ExclusionReason[]
+  /** Module reason codes (see the modules' exclusionReasonLabels). */
+  exclusionReasons: string[]
   sourceRowIndex: number
   aggregate?: {
     period: 'month' | 'quarter'
@@ -75,9 +57,9 @@ export interface FitLinePoint {
 
 export type FitLineSegment = [FitLinePoint, FitLinePoint]
 
-export interface FitPipelineResult {
-  config: FitConfig
-  events: ClinicalEvent[]
+export interface FitPipelineResult<C extends BaseFitConfig = BaseFitConfig, E = unknown> {
+  config: C
+  events: E[]
   rawPoints: FitPoint[]
   fitPoints: FitPoint[]
   excludedPoints: FitPoint[]
@@ -85,79 +67,11 @@ export interface FitPipelineResult {
   summary: {
     nRaw: number
     nIncluded: number
-    nExcludedByReason: Record<ExclusionReason, number>
+    nExcludedByReason: Record<string, number>
     nTimeBins: number
     followupYears: number
     medianGapDays: number | null
     maxGapDays: number | null
     clusteredMeasurementsFlag: boolean
   }
-}
-
-const emptyEndpoints = { percentDecline: false, observedCkdG4: false, observedCkdG5: false, projectedAgeToCkdG5: false, confirmationDays: DEFAULT_CONFIRMATION_DAYS }
-
-export function generalExplorationConfig(parameter: FitConfig['parameter']): FitConfig {
-  return {
-    parameter,
-    preset: 'general_exploration',
-    xAxis: 'calendar_time',
-    censoring: {
-      censorAfterKidneyTransplant: false,
-      censorAfterChronicDialysis: false,
-      excludeAcuteDialysisPeriods: false,
-      unknownDialysisPolicy: 'flag-only',
-    },
-    exclusions: { excludeAkiWindows: false, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
-    timeBalancing: 'raw',
-    fitModel: 'ols',
-    endpoints: { ...emptyEndpoints },
-  }
-}
-
-export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConfig {
-  return {
-    parameter,
-    preset: 'ckd_progression',
-    xAxis: 'age',
-    censoring: {
-      censorAfterKidneyTransplant: true,
-      censorAfterChronicDialysis: true,
-      excludeAcuteDialysisPeriods: true,
-      unknownDialysisPolicy: 'exclude-dated-interval',
-    },
-    exclusions: { excludeAkiWindows: true, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
-    timeBalancing: 'quarterly-median',
-    fitModel: 'ols',
-    endpoints: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: true, confirmationDays: DEFAULT_CONFIRMATION_DAYS },
-  }
-}
-
-export function acuteReviewConfig(parameter: FitConfig['parameter']): FitConfig {
-  return {
-    parameter,
-    preset: 'acute_review',
-    xAxis: 'calendar_time',
-    censoring: {
-      censorAfterKidneyTransplant: false,
-      censorAfterChronicDialysis: false,
-      excludeAcuteDialysisPeriods: false,
-      unknownDialysisPolicy: 'flag-only',
-    },
-    exclusions: { excludeAkiWindows: false, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
-    timeBalancing: 'raw',
-    fitModel: 'none',
-    endpoints: { ...emptyEndpoints },
-  }
-}
-
-const precedence: ExclusionReason[] = [
-  'post_kidney_transplant',
-  'post_chronic_dialysis',
-  'acute_dialysis',
-  'unknown_dialysis_interval',
-  'aki',
-]
-
-export function primaryExclusionReason(reasons: readonly ExclusionReason[]): ExclusionReason | null {
-  return precedence.find((reason) => reasons.includes(reason)) ?? null
 }

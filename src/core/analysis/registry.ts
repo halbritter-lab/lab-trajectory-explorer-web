@@ -19,6 +19,9 @@ import type {
   ModuleExportCell,
   SettingsModule,
 } from './types'
+import { STANDARD_PRESETS, type FitPresetDefinition } from './fitConfig'
+import { NEPHROLOGY_PRESETS } from '../domains/nephrology/fitConfig'
+import type { ProjectionTarget } from '../projection/linearProjection'
 import type { ClinicalEvent } from '../events/events'
 import type { LabRow } from '../types'
 
@@ -35,6 +38,13 @@ export const analysisModules = [
 ] as const
 
 type RegisteredModule = (typeof analysisModules)[number]
+
+/** Every selectable analysis preset: the standard ones, then each domain's. */
+export const fitPresetCatalog: readonly FitPresetDefinition[] = [...STANDARD_PRESETS, ...NEPHROLOGY_PRESETS]
+
+export function fitPresetById(id: string): FitPresetDefinition | undefined {
+  return fitPresetCatalog.find((preset) => preset.id === id)
+}
 
 /** Stored analysis settings: one entry per module with settings, keyed by
  * module id. Derived from the registry, so a new module's settings type
@@ -114,6 +124,14 @@ export function columnSettingModules(modules: readonly RegisteredAnalysisModule[
 /** Modules that draw chart overlays, in registry order. */
 export function overlayModules(modules: readonly RegisteredAnalysisModule[] = analysisModules): RegisteredAnalysisModule[] {
   return modules.filter((module) => module.overlayPresentation !== undefined)
+}
+
+/** Projection targets every module offers for a fitted outcome. */
+export function projectionTargetPresets(
+  response: { outcome: string; unit: string },
+  modules: readonly RegisteredAnalysisModule[] = analysisModules,
+): ProjectionTarget[] {
+  return modules.flatMap((module) => module.projectionTargets?.(response) ?? [])
 }
 
 /** Readable label of an exclusion reason, from the module that produces it. */

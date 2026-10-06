@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { mixedModelFactors } from '../../core/mixedModel/config'
 import { validateProjectionSettings, type ProjectionSettings, type ProjectionSnapshot } from '../../core/projection/projectionSnapshot'
-import { projectionTargetPresets } from '../../core/domains/nephrology/projectionPresets'
+import { projectionTargetPresets } from '../../core/analysis/registry'
 
 export interface ModelProjectionPanelProps {
   snapshot: ProjectionSnapshot

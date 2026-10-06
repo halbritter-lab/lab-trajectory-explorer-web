@@ -7,7 +7,7 @@ import {
 } from '../../../src/core/mixedModel/resultIdentity'
 import { DEFAULT_MIXED_MODEL_CONFIG } from '../../../src/core/mixedModel/config'
 import { hashMixedModelInput } from '../../../src/core/mixedModel/validation'
-import { ckdProgressionConfig } from '../../../src/core/fitPipeline/types'
+import { ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
 import type { CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { MixedModelSpikeRow, MixedModelSuccess } from '../../../src/core/mixedModel/types'
 

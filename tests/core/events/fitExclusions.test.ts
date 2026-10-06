@@ -2,7 +2,8 @@ import { describe, expect, it } from 'vitest'
 import { clinicalEventExclusionReason, filterFitPointsByClinicalEvents } from '../../../src/core/domains/nephrology/censoring'
 import type { ClinicalEvent } from '../../../src/core/events/events'
 import type { SeriesPoint } from '../../../src/core/stats/series'
-import { ckdProgressionConfig, generalExplorationConfig } from '../../../src/core/fitPipeline/types'
+import { ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
+import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 
 const d = (s: string) => new Date(s)
 

@@ -22,7 +22,8 @@ import type {
 import { validateMixedModelRows } from '../../core/mixedModel/validation'
 import { useAppStore, type StoredMixedModelResult } from '../state/store'
 import { projectionSettingsKey } from '../state/store'
-import { buildProjectionSnapshot, createDefaultProjectionSettings, type ProjectionResponse, type ProjectionSnapshot } from '../../core/projection/projectionSnapshot'
+import { buildProjectionSnapshot, type ProjectionResponse, type ProjectionSnapshot } from '../../core/projection/projectionSnapshot'
+import { createDefaultProjectionSettings } from '../../core/analysis/projection'
 import { ModelProjectionPanel } from './ModelProjectionPanel'
 
 const FALLBACK_COLOR = '#475569'

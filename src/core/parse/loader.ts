@@ -1,10 +1,10 @@
 import { patientIdKey, type LabRow, type PatientId, type WertOperator } from '../types'
-import type { RawRow } from '../../io/readWorkbook'
+import type { RawRow } from '../types'
 import { parseWert } from './wert'
 import { countDateRead, dateReadNotes, describeDateProblem, noDateReads, parseImportDate } from './dates'
 import { planUnitHarmonisation } from './units'
-import { normaliseSex } from '../domains/nephrology/egfr/formulas'
-export { REQUIRED_COLUMNS } from '../../io/headers'
+import { normaliseSex } from '../demographics/sex'
+export { REQUIRED_COLUMNS } from './headers'
 import {
   COLUMN_ALIASES,
   REQUIRED_COLUMNS,
@@ -12,7 +12,7 @@ import {
   collectHeaders,
   describeFoundColumns,
   resolveColumns,
-} from '../../io/headers'
+} from './headers'
 
 /** One import finding for the lab sheet. `scope: 'sheet'` marks a summary over
  * many rows (patientId is then null) rather than a statement about one row. */

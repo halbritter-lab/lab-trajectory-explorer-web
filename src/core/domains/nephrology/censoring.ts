@@ -1,12 +1,12 @@
 import type { SeriesPoint } from '../../stats/series'
 import type { ClinicalEvent, ClinicalEventEffectInfo } from '../../events/events'
-import type { ExclusionReason, FitConfig } from '../../fitPipeline/types'
+import type { ClinicalEventCensoringConfig, ExclusionReason } from './fitConfig'
 import { applyExclusionWindows, exclusionReasonsAt, windowContains, type ReasonedExclusionWindow } from '../../exclusions/windows'
 
 /** Reasons a clinical event can remove a measurement from a fit. */
 export type ClinicalEventExclusionReason = Exclude<ExclusionReason, 'aki'>
 
-export type ClinicalEventCensoring = FitConfig['censoring']
+export type ClinicalEventCensoring = ClinicalEventCensoringConfig
 
 /**
  * The date range `event` removes from fits under `censoring`, with its

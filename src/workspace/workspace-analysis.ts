@@ -1,191 +1,50 @@
-import type { FitConfig, FitModel, FitPreset, TimeBalancing, UnknownDialysisPolicy } from '../core/fitPipeline/types'
-import { ckdProgressionConfig, generalExplorationConfig, acuteReviewConfig } from '../core/fitPipeline/types'
-import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
-import { defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
+import type { FitConfig } from '../core/analysis/fitConfig'
+import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
+import { defaultColumnModuleSettings, fitPresetById, fitPresetCatalog, type ColumnModuleSettings } from '../core/analysis/registry'
 
-export interface AnalysisCatalogPreset {
-  id: string
-  name: string
-  category: 'Standard' | 'Nephrology' | 'Custom'
-  description: string
-  buildConfig: (parameter: { bezeichnung: string; einheit: string | null }) => FitConfig
-}
-
-export const ANALYSIS_CATALOG: AnalysisCatalogPreset[] = [
-  {
-    id: 'general_exploration',
-    name: 'General exploration',
-    category: 'Standard',
-    description: 'Unweighted global OLS on all numeric measurements, no event censoring, no time balancing.',
-    buildConfig: generalExplorationConfig,
-  },
-  {
-    id: 'theil_sen',
-    name: 'Theil–Sen robust trend',
-    category: 'Standard',
-    description: 'Non-parametric median slope; resistant to outliers, unweighted, no event censoring.',
-    buildConfig: (param) => ({
-      ...generalExplorationConfig(param),
-      preset: 'custom',
-      fitModel: 'theil-sen',
-    }),
-  },
-  {
-    id: 'ckd_progression',
-    name: 'CKD progression',
-    category: 'Nephrology',
-    description: 'Quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, G4/G5 endpoints on raw data, OLS trend.',
-    buildConfig: ckdProgressionConfig,
-  },
-  {
-    id: 'acute_review',
-    name: 'Acute review',
-    category: 'Nephrology',
-    description: 'Day-level raw measurements without trend fit, focusing on KDIGO AKI episodes.',
-    buildConfig: acuteReviewConfig,
-  },
-]
+/** The analysis presets offered in the workspace (core catalog). */
+export const ANALYSIS_CATALOG = fitPresetCatalog
 
 export interface WorkspaceFitSettings {
   presetId: string
   fitModel: FitModel
   timeBalancing: TimeBalancing
-  censoring: {
-    censorAfterKidneyTransplant: boolean
-    censorAfterChronicDialysis: boolean
-    excludeAcuteDialysisPeriods: boolean
-    unknownDialysisPolicy: UnknownDialysisPolicy
-  }
-  exclusions: {
-    excludeAkiWindows: boolean
-    akiExclusionDays: number
-  }
+  censoring: FitConfig['censoring']
+  exclusions: FitConfig['exclusions']
   endpoints: FitConfig['endpoints']
   /** The column's own module settings (e.g. its rapid-decline threshold). */
   moduleSettings: ColumnModuleSettings
 }
 
+const PRESET_PARAMETER = { bezeichnung: '', einheit: null }
+
+/** A preset's settings, built by the core preset (unknown ids fall back to
+ * general exploration), plus default module settings. */
 export function defaultFitSettings(presetId: string = 'general_exploration'): WorkspaceFitSettings {
-  if (presetId === 'ckd_progression') {
-    return {
-      presetId: 'ckd_progression',
-      fitModel: 'ols',
-      timeBalancing: 'quarterly-median',
-      censoring: {
-        censorAfterKidneyTransplant: true,
-        censorAfterChronicDialysis: true,
-        excludeAcuteDialysisPeriods: true,
-        unknownDialysisPolicy: 'exclude-dated-interval',
-      },
-      exclusions: {
-        excludeAkiWindows: true,
-        akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS,
-      },
-      endpoints: {
-        percentDecline: true,
-        observedCkdG4: true,
-        observedCkdG5: true,
-        confirmationDays: DEFAULT_CONFIRMATION_DAYS,
-        projectedAgeToCkdG5: true,
-      },
-      moduleSettings: defaultColumnModuleSettings(),
-    }
-  }
-
-  if (presetId === 'theil_sen') {
-    return {
-      presetId: 'theil_sen',
-      fitModel: 'theil-sen',
-      timeBalancing: 'raw',
-      censoring: {
-        censorAfterKidneyTransplant: false,
-        censorAfterChronicDialysis: false,
-        excludeAcuteDialysisPeriods: false,
-        unknownDialysisPolicy: 'flag-only',
-      },
-      exclusions: {
-        excludeAkiWindows: false,
-        akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS,
-      },
-      endpoints: {
-        percentDecline: false,
-        observedCkdG4: false,
-        observedCkdG5: false,
-        confirmationDays: DEFAULT_CONFIRMATION_DAYS,
-        projectedAgeToCkdG5: false,
-      },
-      moduleSettings: defaultColumnModuleSettings(),
-    }
-  }
-
-  if (presetId === 'acute_review') {
-    return {
-      presetId: 'acute_review',
-      fitModel: 'none',
-      timeBalancing: 'raw',
-      censoring: {
-        censorAfterKidneyTransplant: false,
-        censorAfterChronicDialysis: false,
-        excludeAcuteDialysisPeriods: false,
-        unknownDialysisPolicy: 'flag-only',
-      },
-      exclusions: {
-        excludeAkiWindows: false,
-        akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS,
-      },
-      endpoints: {
-        percentDecline: false,
-        observedCkdG4: false,
-        observedCkdG5: false,
-        confirmationDays: DEFAULT_CONFIRMATION_DAYS,
-        projectedAgeToCkdG5: false,
-      },
-      moduleSettings: defaultColumnModuleSettings(),
-    }
-  }
-
-  // default: general_exploration
+  const preset = fitPresetById(presetId) ?? fitPresetById('general_exploration')!
+  const config = preset.buildConfig(PRESET_PARAMETER)
   return {
-    presetId: 'general_exploration',
-    fitModel: 'ols',
-    timeBalancing: 'raw',
-    censoring: {
-      censorAfterKidneyTransplant: false,
-      censorAfterChronicDialysis: false,
-      excludeAcuteDialysisPeriods: false,
-      unknownDialysisPolicy: 'flag-only',
-    },
-    exclusions: {
-      excludeAkiWindows: false,
-      akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS,
-    },
-    endpoints: {
-      percentDecline: false,
-      observedCkdG4: false,
-      observedCkdG5: false,
-      confirmationDays: DEFAULT_CONFIRMATION_DAYS,
-      projectedAgeToCkdG5: false,
-    },
+    presetId: preset.id,
+    fitModel: config.fitModel,
+    timeBalancing: config.timeBalancing,
+    censoring: { ...config.censoring },
+    exclusions: { ...config.exclusions },
+    endpoints: { ...config.endpoints },
     moduleSettings: defaultColumnModuleSettings(),
   }
 }
 
+/** The column's fit configuration. Preset identity and x axis come from the
+ * selected catalog preset; edited settings are recorded as 'custom'. */
 export function toFitConfig(
   settings: WorkspaceFitSettings,
   parameter: { bezeichnung: string; einheit: string | null },
 ): FitConfig {
-  const preset: FitPreset = settings.presetId === 'ckd_progression'
-    ? 'ckd_progression'
-    : settings.presetId === 'acute_review'
-      ? 'acute_review'
-      : settings.presetId === 'general_exploration'
-        ? 'general_exploration'
-        : 'custom'
-
+  const preset = fitPresetById(settings.presetId)?.buildConfig(parameter)
   return {
     parameter,
-    preset,
-    xAxis: preset === 'ckd_progression' ? 'age' : 'calendar_time',
+    preset: preset?.preset ?? 'custom',
+    xAxis: preset?.xAxis ?? 'calendar_time',
     censoring: { ...settings.censoring },
     exclusions: { ...settings.exclusions },
     timeBalancing: settings.timeBalancing,

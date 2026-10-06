@@ -20,7 +20,7 @@ import {
   type PatientAttributesResult,
 } from '../core/attributes/attributes'
 import { dateReadNotes, type DateReadCounts } from '../core/parse/dates'
-import { normaliseHeader } from './headers'
+import { normaliseHeader } from '../core/parse/headers'
 
 export interface ImportDiagnostic {
   sheet: string

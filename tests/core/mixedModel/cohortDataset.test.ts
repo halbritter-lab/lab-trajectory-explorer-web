@@ -5,7 +5,7 @@ import type { AnalysisFitInputContribution } from '../../../src/core/analysis/ty
 import { akiFitInput } from '../../../src/core/domains/nephrology/aki/akiModule'
 import type { CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { ClinicalEvent } from '../../../src/core/events/events'
-import { generalExplorationConfig } from '../../../src/core/fitPipeline/types'
+import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 import type { LabRow } from '../../../src/core/types'
 
 const d = (s: string) => new Date(s)

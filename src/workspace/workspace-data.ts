@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
-import { modeForFitModel, useAppStore } from './state/store'
+import { useAppStore } from './state/store'
+import { clinicalEventsByPatient, cohortSeriesSpec } from '../core/cohort/specs'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../core/types'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../core/analysis/types'
 import type { ClinicalEvent } from '../core/events/events'
 import type { CohortSeriesSpec } from '../core/cohort/screening'
-import type { FitConfig } from '../core/fitPipeline/types'
-import { generalExplorationConfig } from '../core/fitPipeline/types'
+import type { FitConfig } from '../core/analysis/fitConfig'
 import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../io/loadDataset'
 import { resolveBirthAnchor } from '../core/demographics/resolveAge'
 import { parseAttributeDate } from '../core/demographics/resolve'
@@ -71,16 +71,10 @@ export function useWorkspaceData(): WorkspaceData {
 
 export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>): CohortSeriesSpec[] {
   const parameters = new Map(data.parameters.map(p => [p.key, p]))
-  const clinicalEventsByPatient: Record<string, ClinicalEvent[]> = Object.create(null)
-  for (const event of data.events) (clinicalEventsByPatient[patientIdKey(event.patientId)] ??= []).push(event)
+  const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), fitInputs: data.analysis?.fitInputs ?? Object.create(null) }
   return parameterKeys.flatMap(key => {
     const parameter = parameters.get(key)
-    if (!parameter) return []
-    const fitConfig = fitConfigByParameterKey?.[key] ?? generalExplorationConfig(parameter)
-    const mode = modeForFitModel(fitConfig.fitModel)
-    return [{ bezeichnung: parameter.bezeichnung, einheit: parameter.einheit, mode,
-      fitConfig, exclusionDays: fitConfig.exclusions.akiExclusionDays,
-      clinicalEventsByPatient, fitInputs: data.analysis?.fitInputs ?? Object.create(null) }]
+    return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], context)] : []
   })
 }
 

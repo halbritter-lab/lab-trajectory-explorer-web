@@ -3,7 +3,7 @@ import { fitOls } from '../../../src/core/stats/ols'
 import { mixedModelRowsFromCohortInputs } from '../../../src/core/mixedModel/cohortDataset'
 import type { CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { ClinicalEvent } from '../../../src/core/events/events'
-import { generalExplorationConfig } from '../../../src/core/fitPipeline/types'
+import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 import type { LabRow } from '../../../src/core/types'
 
 const unit = 'ml/min/1.73m2'

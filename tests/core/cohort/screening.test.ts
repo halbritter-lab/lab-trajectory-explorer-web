@@ -6,7 +6,8 @@ import { akiFitInput } from '../../../src/core/domains/nephrology/aki/akiModule'
 import type { LabRow } from '../../../src/core/types'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 import type { ClinicalEvent } from '../../../src/core/events/events'
-import { ckdProgressionConfig, generalExplorationConfig } from '../../../src/core/fitPipeline/types'
+import { ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
+import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',

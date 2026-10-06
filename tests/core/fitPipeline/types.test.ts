@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { FitLineSegment, FitPipelineResult, FitPoint } from '../../../src/core/fitPipeline/types'
-import { ckdProgressionConfig, generalExplorationConfig, primaryExclusionReason } from '../../../src/core/fitPipeline/types'
+import { ckdProgressionConfig, primaryExclusionReason } from '../../../src/core/domains/nephrology/fitConfig'
+import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 
 const basePoint = {
   date: new Date('2020-01-01T00:00:00Z'),

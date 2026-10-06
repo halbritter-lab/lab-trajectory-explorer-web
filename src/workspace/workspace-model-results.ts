@@ -5,7 +5,7 @@ import { prepareMixedModelFactors } from '../core/mixedModel/factors'
 import { mixedModelFactorColumn, mixedModelFactors, mixedModelFormula, mixedModelFormulaForOutcome, type MixedModelConfig } from '../core/mixedModel/config'
 import type { CohortSeriesSpec } from '../core/cohort/screening'
 import type { PatientGroup } from '../core/grouping/grouping'
-import { normaliseSex } from '../core/domains/nephrology/egfr/formulas'
+import { normaliseSex } from '../core/demographics/sex'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
 import type { StoredMixedModelResult } from './state/store'
 

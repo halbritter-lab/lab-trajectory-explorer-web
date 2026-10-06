@@ -1,5 +1,5 @@
-import type { ManualDemographics } from '../analysis/types'
-import { normaliseSex } from '../domains/nephrology/egfr/formulas'
+import type { ManualDemographics } from './types'
+import { normaliseSex } from './sex'
 import { completedYears } from '../parse/loader'
 import { readAttributeBirthDate } from '../attributes/attributes'
 import { comparePatientIds, patientIdKey, type LabRow } from '../types'

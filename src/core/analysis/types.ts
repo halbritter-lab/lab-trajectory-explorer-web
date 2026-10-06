@@ -16,17 +16,17 @@
 import type { ClinicalEvent } from '../events/events'
 import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ExclusionWindow, ReasonedExclusionWindow } from '../exclusions/windows'
-import type { FitConfig, FitModel } from '../fitPipeline/types'
+import type { ProjectionTarget } from '../projection/linearProjection'
+import type { FitConfig } from './fitConfig'
+import type { FitModel } from '../fitPipeline/types'
 import type { SeriesPoint } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
+import type { ManualDemographics } from '../demographics/types'
 import type { LabRow, PatientId } from '../types'
 
 export type { AnalysisSettings, CellEndpoints, ColumnModuleSettings } from './registry'
 
-export interface ManualDemographics {
-  sex?: LabRow['patientSex']
-  age?: number
-}
+export type { ManualDemographics } from '../demographics/types'
 
 export interface SeriesKey {
   bezeichnung: string
@@ -237,6 +237,8 @@ export interface AnalysisModule<S = undefined, Id extends string = string> {
   /** Readable labels of the exclusion reasons this module produces. */
   exclusionReasonLabels?: Readonly<Record<string, string>>
   overlayPresentation?: OverlayPresentation
+  /** Thresholds offered as projection targets for a fitted model outcome. */
+  projectionTargets?(response: { outcome: string; unit: string }): ProjectionTarget[]
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   exportColumns?: readonly ModuleExportColumn<any>[]
   apply?(ctx: AnalysisContext, settings: S): AnalysisContribution

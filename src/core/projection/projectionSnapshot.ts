@@ -4,7 +4,6 @@ import type { MixedModelResultIdentity } from '../mixedModel/resultIdentity'
 import type { MixedModelSpikeRow, MixedModelSuccess } from '../mixedModel/types'
 import { hashMixedModelInput } from '../mixedModel/validation'
 import { projectLinearThreshold, type ProjectionStatus, type ProjectionTarget } from './linearProjection'
-import { projectionTargetPresets } from '../domains/nephrology/projectionPresets'
 
 export interface ProjectionSettings {
   targets: Array<ProjectionTarget & {enabled:boolean}>
@@ -34,8 +33,11 @@ export interface ProjectionSnapshot {
   }>
 }
 
-export function createDefaultProjectionSettings(result: MixedModelSuccess, response: ProjectionResponse): ProjectionSettings {
-  return {targets:projectionTargetPresets(response).map(target => ({...target,enabled:true})),profile:defaultProjectionProfile(result),referenceTimeYears:0,horizonYears:20}
+/** Default settings: every offered target enabled, the default profile, no
+ * reference offset and a 20-year horizon. Targets come from the modules (see
+ * the registry's projectionTargetPresets). */
+export function defaultProjectionSettings(result: MixedModelSuccess, targets: readonly ProjectionTarget[]): ProjectionSettings {
+  return {targets:targets.map(target => ({...target,enabled:true})),profile:defaultProjectionProfile(result),referenceTimeYears:0,horizonYears:20}
 }
 
 export function validateProjectionSettings(settings: ProjectionSettings, response: ProjectionResponse): string[] {

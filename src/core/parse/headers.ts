@@ -1,4 +1,4 @@
-import type { RawRow } from './readWorkbook'
+import type { RawRow } from '../types'
 
 /** Header spellings are compared case-insensitively and without separators, so
  * "patient id", "Patient_ID" and "PatientID" all resolve to the same concept. */

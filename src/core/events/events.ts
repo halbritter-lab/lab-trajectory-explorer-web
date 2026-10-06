@@ -1,4 +1,4 @@
-import type { RawRow } from '../../io/readWorkbook'
+import type { RawRow } from '../types'
 import type { LabRow, PatientId } from '../types'
 
 export type ClinicalEventType = 'kidney_transplant' | 'dialysis' | 'other'
@@ -69,7 +69,7 @@ import {
   resolveColumns,
   EVENTS_COLUMN_ALIASES,
   REQUIRED_EVENTS_COLUMNS,
-} from '../../io/headers'
+} from '../parse/headers'
 import { countDateRead, describeDateProblem, noDateReads, parseImportDate, type DateReadCounts } from '../parse/dates'
 
 const clinicalEventTypes = new Set<string>([

@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { buildCohortRows, cohortExportRecords, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import { isRapidEgfrDecline } from '../../../src/core/domains/nephrology/rapidEgfrDeclineModule'
 import type { LabRow } from '../../../src/core/types'
-import { acuteReviewConfig, ckdProgressionConfig } from '../../../src/core/fitPipeline/types'
+import { acuteReviewConfig, ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
 import type { ClinicalEvent } from '../../../src/core/events/events'
 
 function row(p: Partial<LabRow>): LabRow {

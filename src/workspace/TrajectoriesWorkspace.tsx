@@ -10,7 +10,7 @@ import './trajectories-workspace.css'
 import { WorkspaceSparkline, type SparkDomain } from './WorkspaceSparkline'
 import { sexLabel } from './workspace-labels'
 import { measurementFitStatus } from './measurement-fit-status'
-import type { FitConfig } from '../core/fitPipeline/types'
+import type { FitConfig } from '../core/analysis/fitConfig'
 import { WorkspaceAnalysisSettings } from './WorkspaceAnalysisSettings'
 import { defaultFitSettings, endpointBadge, toFitConfig, type WorkspaceFitSettings } from './workspace-analysis'
 

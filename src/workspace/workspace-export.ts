@@ -4,7 +4,7 @@ import { patientAttributesExportRows } from '../core/attributes/attributes'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString } from '../io/export'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
-import type { FitConfig } from '../core/fitPipeline/types'
+import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
 
 export interface WorkspaceExportInput {
