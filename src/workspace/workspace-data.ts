@@ -51,7 +51,8 @@ export function useWorkspaceData(): WorkspaceData {
       const resolvedAttributes = { ...attributes[patientIdKey(id)] }
       // Never let an unresolved imported sex masquerade as resolved demographics.
       delete resolvedAttributes.sex
-      const sex = patientRows[0].patientSex
+      // Same rule as the model grouping (workspaceGroupableAttributes): the first row with a sex.
+      const sex = patientRows.find(r => r.patientSex !== null)?.patientSex ?? null
       if (sex) resolvedAttributes.sex = sex
       patientAttributes[patientIdKey(id)] = resolvedAttributes
       const rawPatientRows = rawBuckets.get(id) ?? []

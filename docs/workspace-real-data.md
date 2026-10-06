@@ -66,8 +66,10 @@ imported parameter names and patient attributes retain their original values.
   In the charts, measurements excluded from the fit are grey open circles whose
   tooltip names the reason. **AKI windows and episodes** (plot settings) shades
   the AKI window after each detected episode and marks its creatinine peak
-  ("AKI II"); in the overlay, windows and labels appear for the highlighted
-  patient only.
+  ("AKI II"); in the overlay, episode diamonds appear for every trajectory,
+  windows and labels for the highlighted patient only. A peak without a
+  measurement of the charted parameter within two days is marked on the time
+  axis. The model page lists the reference category of each categorical factor.
 - Cohort models fit the existing browser-based WebR model, with configurable
   factors, grouped fits, result tables and profile/threshold projections. Chart
   results must match the current response, unit, data, preparation and model

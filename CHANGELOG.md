@@ -89,6 +89,13 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
+- Values that overflow to infinity (`1e400`) are reported as unparseable
+  instead of entering fits, and a saved workspace containing values the saved
+  format rejects is no longer written.
+- The patient table explains an uncertain or missing slope in a disclosure,
+  and the individual patient view states the explanation; previously only the
+  short label was shown. The Cohort models page names the reference category
+  of each categorical factor.
 - CSV imports are read as text, so decimal commas (`1,5`), leading-zero patient
   IDs (`0012`), ranges (`10-20`) and UTF-8 or Windows-1252 units (`µmol/l`) reach
   the parsers unchanged. Previously `1,5` was read as 15 without a warning.

@@ -92,7 +92,6 @@ export interface AppState {
   analysisResult: () => AnalysisResult
   setMixedModelConfig: (config: MixedModelConfig) => void
   runCohortModels: (params: RunCohortModelsParams) => Promise<void>
-  clearMixedModelResult: () => void
   setShowCohortMixedModelLine: (value: boolean) => void
   setProjectionSettings: (seriesIndex: number, seriesKey: string, entityKey: string, applied: AppliedProjectionSettings) => void
   reset: () => void
@@ -285,7 +284,6 @@ export const useAppStore = create<AppState>((set, get) => ({
       }
     }
   },
-  clearMixedModelResult: () => set(clearedMixedModelResults()),
   setShowCohortMixedModelLine: (value) => set({ showCohortMixedModelLine: value }),
   setProjectionSettings: (seriesIndex, seriesKey, entityKey, applied) => set((s) => {
     const stored = s.cohortModelResults?.[entityKey]

@@ -229,8 +229,9 @@ export function Methodology() {
         The overlay is a spaghetti plot for each selected parameter across the patients in the
         shared scope. It can use age, calendar date, or years since each patient's first
         measurement as the x-axis. <em>Highlight patient</em> emphasises one trajectory; clicking a
-        trajectory, or pressing Enter on it, opens the individual patient view. AKI windows and
-        episode labels are drawn only for the highlighted trajectory to keep the overlay readable.
+        trajectory, or pressing Enter on it, opens the individual patient view. With AKI display on,
+        episode diamonds are drawn for every trajectory; AKI windows and episode labels only for the
+        highlighted one, to keep the overlay readable.
       </p>
       <p>
         The <em>Connecting lines</em> setting applies to the overlay as well as the individual

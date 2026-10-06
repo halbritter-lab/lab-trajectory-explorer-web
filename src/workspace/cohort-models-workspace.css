@@ -572,3 +572,4 @@
 .cm-random-effects-toggle { flex-wrap: wrap; gap: 6px 14px; min-width: 0; }
 .cm-chip { flex-wrap: wrap; max-width: 100%; min-width: 0; }
 .cm-chip select { max-width: 100%; min-width: 0; }
+.cm-reference-levels { margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere; }

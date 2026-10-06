@@ -148,12 +148,6 @@ describe('useAppStore', () => {
 describe('useAppStore - model invalidation', () => {
   beforeEach(() => useAppStore.getState().reset())
 
-  it('stores and clears all cohort model results', () => {
-    seedResults()
-    expect(useAppStore.getState().cohortModelResults?.['group:A'].result).toBe(mixedModelResult)
-    useAppStore.getState().clearMixedModelResult()
-    expectResultsCleared()
-  })
 
   it('clears results when patient attributes are (re)imported', () => {
     seedResults()

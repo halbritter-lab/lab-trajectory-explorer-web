@@ -72,7 +72,11 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         store.setPatientAttributes(byPatient)
         store.setNotice({ kind: 'info', text: `${valid.length} attribute rows imported; ${rejected.length} rows rejected.`, details: attributeDiagnostics(file.name, validation) })
       }
-    } catch (error) { store.setNotice({ kind: 'error', text: error instanceof Error ? error.message : String(error) }) }
+    } catch (error) {
+      // The listed rejections belonged to the previous file; the kept events have none.
+      if (kind === 'events') useAppStore.setState({ rejectedEvents: [] })
+      store.setNotice({ kind: 'error', text: error instanceof Error ? error.message : String(error) })
+    }
     finally { useAppStore.setState({ busy: false }) }
   }
   function edit(id: PatientId) {

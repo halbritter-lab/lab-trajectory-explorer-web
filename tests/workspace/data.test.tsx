@@ -7,6 +7,7 @@ import * as XLSX from 'xlsx'
 import { buildCohortRows } from '../../src/core/cohort/screening'
 import { episodesForSeries } from '../../src/core/aki/akiAware'
 import { defaultFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
+import { workspaceGroupableAttributes } from '../../src/workspace/workspace-model-results'
 
 const row = (patch: Partial<LabRow> = {}): LabRow => ({ patientId: 'A:01', labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl', wert: '1', wertNum: 1, wertOperator: '=', loinc: null, patientSex: 'm', patientAgeAtLab: 50, ...patch })
 beforeEach(() => useAppStore.getState().reset())
@@ -119,4 +120,14 @@ it('runs the rolling and segmented fit paths selected in the workspace', () => {
     return [spec.mode, buildCohortRows(result.current.rows, ['A:01'], [spec])[0].cells[0].mode]
   })
   expect(modes).toEqual([['global', 'global'], ['global-robust', 'global-robust'], ['rolling', 'rolling'], ['gap-split', 'gap-split']])
+})
+it('gives the overlay and the model grouping the same sex for every patient', () => {
+  useAppStore.getState().replaceDataset({ rows: [
+    row({ patientId: 'A', patientSex: null, labDatum: new Date('2019-01-01') }), row({ patientId: 'A', patientSex: 'w' }),
+    row({ patientId: 'B', patientSex: null }),
+  ], patientAttributes: { B: { sex: 'male' } } })
+  const { result } = renderHook(useWorkspaceData)
+  const model = workspaceGroupableAttributes(result.current.rows, result.current.patientAttributes)
+  for (const patient of result.current.patients) expect(patient.attributes.sex).toBe(model[String(patient.id)]?.sex)
+  expect(result.current.patients.map(patient => patient.attributes.sex)).toEqual(['w', 'm'])
 })

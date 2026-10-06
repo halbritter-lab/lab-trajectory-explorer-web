@@ -194,6 +194,20 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getByLabelText('Readable formula')).toHaveTextContent('"Sex"')
   })
 
+  it('shows which reference category each categorical factor uses', () => {
+    render(<CohortModelsWorkspace data={dataset} onBrowseTrajectories={vi.fn()} onBrowseData={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button', { name: /Demographic adjustment/i }))
+    const references = screen.getByLabelText('Reference categories')
+    const select = screen.getByLabelText('Sex reference') as HTMLSelectElement
+    const [first, second] = [...select.options].map(option => option.value)
+    expect(references).toHaveTextContent(`Sex = ${first} (first level by default; change it next to the factor)`)
+    if (second !== undefined) {
+      fireEvent.change(select, { target: { value: second } })
+      expect(screen.getByLabelText('Reference categories')).toHaveTextContent(`Sex = ${second}`)
+      expect(screen.getByLabelText('Reference categories')).not.toHaveTextContent('first level')
+    }
+  })
+
   it('does not offer an overlay for an unrelated stored result', async () => {
     useAppStore.setState({
       cohortModelResults: {
