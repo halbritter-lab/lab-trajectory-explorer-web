@@ -1,4 +1,4 @@
-import type { CkdEndpoints } from '../core/endpoints/ckdEndpoints'
+import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
 import { projectedG5Label } from './qualityLabels'
 
 /** Shared result copy for original UI and workspace; dates come from the result.

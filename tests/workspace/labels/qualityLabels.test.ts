@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { slopeQualityLabel, projectedG5Label, isUnstableSlope } from '../../src/ui/qualityLabels'
-import type { SlopeQualityInput } from '../../src/ui/qualityLabels'
-import { computeCkdEndpoints, type CkdEndpoints } from '../../src/core/endpoints/ckdEndpoints'
+import { slopeQualityLabel, projectedG5Label, isUnstableSlope } from '../../../src/workspace/labels/qualityLabels'
+import type { SlopeQualityInput } from '../../../src/workspace/labels/qualityLabels'
+import { computeCkdEndpoints, type CkdEndpoints } from '../../../src/core/endpoints/ckdEndpoints'
 
 const ALL_ENDPOINTS = { percentDecline: true, observedCkdG5: true, projectedAgeToCkdG5: true }
 

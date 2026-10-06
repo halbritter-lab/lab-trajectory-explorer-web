@@ -7,7 +7,7 @@ import type { CohortSeriesSpec } from '../core/cohort/screening'
 import type { PatientGroup } from '../core/grouping/grouping'
 import { normaliseSex } from '../core/egfr/formulas'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
-import type { StoredMixedModelResult } from '../ui/state/store'
+import type { StoredMixedModelResult } from './state/store'
 
 /** Apply the same source-identity contract as the result table to chart output. */
 export function currentWorkspaceModels(

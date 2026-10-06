@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { buildCohortRows, type CohortCell } from '../core/cohort/screening'
 import { comparePatientIds, type LabRow, type PatientId } from '../core/types'
-import { slopeQualityLabel } from '../ui/qualityLabels'
+import { slopeQualityLabel } from './labels/qualityLabels'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
 import { WorkspaceExportActions } from './WorkspaceExports'
 import { DEFAULT_WORKSPACE_DISPLAY, WorkspacePlot, boundedPrefix, measurementText, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from './WorkspacePlot'

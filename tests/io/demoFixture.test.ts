@@ -4,7 +4,7 @@ import { resolve } from 'node:path'
 import { readWorkbook } from '../../src/io/readWorkbook'
 import { loadLabRows } from '../../src/core/parse/loader'
 import { resolveDemographics } from '../../src/core/demographics/resolve'
-import { loadDatasetFromWorkbook } from '../../src/ui/data/loadDataset'
+import { loadDatasetFromWorkbook } from '../../src/io/loadDataset'
 
 describe('shipped demo workbook', () => {
   it('carries demographics that resolve without conflict', () => {

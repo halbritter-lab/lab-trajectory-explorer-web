@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useAppStore } from '../../../src/ui/state/store'
+import { useAppStore } from '../../../src/workspace/state/store'
 import type { LabRow } from '../../../src/core/types'
 import { DEFAULT_MIXED_MODEL_CONFIG } from '../../../src/core/mixedModel/config'
 import type { MixedModelResult } from '../../../src/core/mixedModel/types'

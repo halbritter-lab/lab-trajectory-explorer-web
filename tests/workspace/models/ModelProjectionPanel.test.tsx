@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { expect, it, vi } from 'vitest'
-import { ModelProjectionPanel } from '../../src/ui/cohort/ModelProjectionPanel'
-import { buildProjectionSnapshot, type ProjectionSettings, type ProjectionSnapshot } from '../../src/core/projection/projectionSnapshot'
-import { buildMixedModelResultIdentity } from '../../src/core/mixedModel/resultIdentity'
-import { DEFAULT_MIXED_MODEL_CONFIG } from '../../src/core/mixedModel/config'
+import { ModelProjectionPanel } from '../../../src/workspace/models/ModelProjectionPanel'
+import { buildProjectionSnapshot, type ProjectionSettings, type ProjectionSnapshot } from '../../../src/core/projection/projectionSnapshot'
+import { buildMixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
+import { DEFAULT_MIXED_MODEL_CONFIG } from '../../../src/core/mixedModel/config'
 
 const identity = buildMixedModelResultIdentity({seriesIndex:0,seriesKey:'Protein|mg/L',patientIds:[],rows:[],fitConfigHash:'fit'})
 const result = {status:'success',converged:true,nPatients:0,nMeasurements:0,metadata:{datasetHash:identity.datasetHash,fitConfigHash:'fit'},warnings:['Fit warning'],fixedEffects:{intercept:80,timeSinceBaseline:5},fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as ProjectionSnapshot['sourceResult']

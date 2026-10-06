@@ -1,5 +1,5 @@
-import type { CkdEndpoints } from '../core/endpoints/ckdEndpoints'
-import { isUnstableSlope, type SlopeQualityInput } from '../core/stats/slopeQuality'
+import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
+import { isUnstableSlope, type SlopeQualityInput } from '../../core/stats/slopeQuality'
 
 export { isUnstableSlope }
 export type { SlopeQualityInput }

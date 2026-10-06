@@ -191,4 +191,4 @@ export function toFitConfig(
   }
 }
 
-export { endpointBadge } from '../ui/endpointLabels'
+export { endpointBadge } from './labels/endpointLabels'

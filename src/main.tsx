@@ -2,7 +2,7 @@ import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App'
 import { loadDataset, loadSettings, clearDataset } from './io/persistence'
-import { useAppStore } from './ui/state/store'
+import { useAppStore } from './workspace/state/store'
 
 async function boot() {
   try {

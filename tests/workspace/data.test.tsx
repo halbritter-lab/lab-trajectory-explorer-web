@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { beforeEach, expect, it } from 'vitest'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore } from '../../src/workspace/state/store'
 import { useWorkspaceData, workspaceSpecs, importWorkspaceFile } from '../../src/workspace/workspace-data'
 import type { LabRow } from '../../src/core/types'
 import * as XLSX from 'xlsx'

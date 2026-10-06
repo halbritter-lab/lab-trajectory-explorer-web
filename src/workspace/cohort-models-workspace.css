@@ -544,3 +544,5 @@
   .cm-primary-controls { grid-template-columns: minmax(0, 1fr); }
   .cm-plot-header { flex-direction: column; }
 }
+.cohort-model-status { overflow-wrap: normal; word-break: normal; white-space: normal; }
+.cohort-model-details-toggle { font-size: 12px; }

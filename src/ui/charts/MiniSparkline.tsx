@@ -2,7 +2,7 @@ import { memo } from 'react'
 import type { SeriesPoint } from '../../core/stats/series'
 import type { LinePoint } from '../../core/stats/slopeLines'
 import type { DateBand } from '../../core/aki/akiAware'
-import type { ZoomLevel } from '../state/store'
+import type { ZoomLevel } from '../../workspace/state/store'
 
 interface Layout {
   width: number; height: number

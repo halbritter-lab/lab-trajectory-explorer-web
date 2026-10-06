@@ -1,7 +1,7 @@
 import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DataWorkspace } from '../../src/workspace/DataWorkspace'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 
 beforeEach(() => {

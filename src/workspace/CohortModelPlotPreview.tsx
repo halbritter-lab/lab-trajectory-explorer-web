@@ -1,6 +1,6 @@
 import { useId, useMemo, useRef } from 'react'
 import type { PatientGroup } from '../core/grouping/grouping'
-import type { StoredMixedModelResult } from '../ui/state/store'
+import type { StoredMixedModelResult } from './state/store'
 import { mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
 import type { MixedModelSpikeRow } from '../core/mixedModel/types'
 import { ChartExportActions } from './WorkspaceExports'

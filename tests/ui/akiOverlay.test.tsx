@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { SeriesPlot } from '../../src/ui/charts/SeriesPlot'
 import { OnePatientView } from '../../src/ui/patient/OnePatientView'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 
 function kreat(date: string, value: number): LabRow {

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { LabRow, PatientId } from '../core/types'
-import { Methodology } from '../ui/pages/Methodology'
+import { Methodology } from './methods/Methodology'
 import { DataWorkspace } from './DataWorkspace'
 import { TrajectoriesWorkspace } from './TrajectoriesWorkspace'
 import { CohortModelsWorkspace } from './CohortModelsWorkspace'

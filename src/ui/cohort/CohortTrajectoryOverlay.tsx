@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import * as Plot from '@observablehq/plot'
-import { useAppStore, type CohortOverlayXAxis } from '../state/store'
+import { useAppStore, type CohortOverlayXAxis } from '../../workspace/state/store'
 import { cohortOverlayPointsForSeries, isEgfrLike, patientIdFromPlotDatum, type CohortOverlayPoint } from './cohortOverlayData'
 import { akiExclusionBands, episodesForSeries } from '../../core/aki/akiAware'
 import type { CohortSeriesSpec } from '../../core/cohort/screening'

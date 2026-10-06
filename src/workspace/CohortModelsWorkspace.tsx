@@ -1,5 +1,5 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
-import { useAppStore } from '../ui/state/store'
+import { useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceSpecs } from './workspace-data'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
@@ -20,7 +20,7 @@ import { currentWorkspaceModels, workspaceGroupableAttributes, workspaceModelEnt
 import './cohort-models-workspace.css'
 
 const CohortModelTable = lazy(() =>
-  import('../ui/cohort/CohortModelTable').then(module => ({ default: module.CohortModelTable }))
+  import('./models/CohortModelTable').then(module => ({ default: module.CohortModelTable }))
 )
 
 export type CohortModelPreset = 'unadjusted' | 'stratified' | 'demographic' | 'interaction' | 'custom'

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { SeriesStrip } from '../../src/ui/seriesStrip/SeriesStrip'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 
 function row(p: Partial<LabRow>): LabRow {

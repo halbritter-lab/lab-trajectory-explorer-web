@@ -7,7 +7,7 @@ import type { MixedModelResult } from '../../core/mixedModel/types'
 import type { CohortSeriesSpec } from '../../core/cohort/screening'
 import type { PatientGroup } from '../../core/grouping/grouping'
 import type { LabRow, PatientId } from '../../core/types'
-import { CohortModelTable } from './CohortModelTable'
+import { CohortModelTable } from '../../workspace/models/CohortModelTable'
 
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../../core/mixedModel/factors'
 

@@ -3,7 +3,7 @@ import 'fake-indexeddb/auto'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Toolbar } from '../../src/ui/shell/Toolbar'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore } from '../../src/workspace/state/store'
 import { hasSavedDataset, clearDataset } from '../../src/io/persistence'
 import type { LabRow } from '../../src/core/types'
 

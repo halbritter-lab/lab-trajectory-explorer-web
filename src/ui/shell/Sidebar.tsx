@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { useAppStore } from '../state/store'
+import { useAppStore } from '../../workspace/state/store'
 import { allSourceOptions, creatinineSourceOptions, defaultCreatinineSource, isSerumCreatinineSource, type FormulaName } from '../../core/egfr/series'
 import { isUnrecognisedSex } from '../../core/egfr/formulas'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId, type Sex } from '../../core/types'
@@ -8,7 +8,7 @@ import { normalizePatientAttributes, validatePatientAttributes } from '../../cor
 import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
 import { readWorkbook } from '../../io/readWorkbook'
 import { resolveDemographics } from '../../core/demographics/resolve'
-import { ConfirmationDaysInput } from '../ConfirmationDaysInput'
+import { ConfirmationDaysInput } from '../../workspace/ConfirmationDaysInput'
 
 const DEMO_EVENTS_HREF = `${import.meta.env.BASE_URL}test_events.csv`
 const DEMO_ATTRIBUTES_HREF = `${import.meta.env.BASE_URL}test_attributes.csv`

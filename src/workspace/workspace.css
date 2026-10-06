@@ -81,3 +81,10 @@ dialog::backdrop { background: #1b333d66; }
 
 .workspace-guide { max-width: 1600px; margin: 16px auto 0; padding: 0 32px; color: #425e65; font-size: 13px; }
 @media (max-width: 700px) { .workspace-guide { padding: 0 16px; } }
+.visually-hidden { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
+/* Slope reliability. Deliberately not red: an unstable slope is a caveat about
+   confidence, not a clinical alarm like AKI, and must not compete with it. */
+.quality-badge { font-size: 11px; background: #f8fafc; color: #475569; border: 1px dashed #e2e8f0; border-radius: 999px; padding: 1px 8px; white-space: nowrap; font-weight: 600; }
+/* A slope that exists but is fitted over a short window, as opposed to one that
+   could not be fitted at all. Amber marks "present, treat with caution". */
+.quality-badge-caveat { background: #fffbeb; color: #92400e; border-color: #fcd34d; }

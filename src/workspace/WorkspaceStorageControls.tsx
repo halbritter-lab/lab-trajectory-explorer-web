@@ -1,5 +1,5 @@
 import { setWorkspaceRemember, useWorkspaceStorage } from './workspace-storage'
-import { useAppStore } from '../ui/state/store'
+import { useAppStore } from './state/store'
 
 export function WorkspaceStorageControls({ hasData }: { hasData: boolean }) {
   const { enabled, status, message } = useWorkspaceStorage()

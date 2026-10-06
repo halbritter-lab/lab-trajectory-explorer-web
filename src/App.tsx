@@ -1,11 +1,11 @@
 import { useRef } from 'react'
-import { useAppStore } from './ui/state/store'
+import { useAppStore } from './workspace/state/store'
 import { Toolbar } from './ui/shell/Toolbar'
 import { Sidebar } from './ui/shell/Sidebar'
 import { SeriesStrip } from './ui/seriesStrip/SeriesStrip'
 import { OnePatientView } from './ui/patient/OnePatientView'
 import { CohortView } from './ui/cohort/CohortView'
-import { Methodology } from './ui/pages/Methodology'
+import { Methodology } from './workspace/methods/Methodology'
 import './ui/app.css'
 
 const DEMO_WORKBOOK_HREF = `${import.meta.env.BASE_URL}test_labs.xlsx`

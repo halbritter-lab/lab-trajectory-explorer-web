@@ -1,6 +1,6 @@
 import type { LabRow, PatientId } from '../../core/types'
 import { groupValueForPatient } from '../../core/grouping/grouping'
-import type { CohortOverlayXAxis } from '../state/store'
+import type { CohortOverlayXAxis } from '../../workspace/state/store'
 
 const MS_PER_YEAR = 365.25 * 24 * 60 * 60 * 1000
 

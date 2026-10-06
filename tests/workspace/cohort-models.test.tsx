@@ -1,13 +1,13 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CohortModelsWorkspace } from '../../src/workspace/CohortModelsWorkspace'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 import type { WorkspaceData } from '../../src/workspace/workspace-data'
 
 
 
-vi.mock('../../src/ui/cohort/CohortModelTable', () => ({
+vi.mock('../../src/workspace/models/CohortModelTable', () => ({
   CohortModelTable: (props: any) => (
     <div data-testid="cohort-model-table">
       <span>Mocked CohortModelTable</span>

@@ -7,7 +7,7 @@ import {
   mixedModelConfigLabel,
   mixedModelFormula,
 } from '../../src/core/mixedModel/config'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore } from '../../src/workspace/state/store'
 import type { CohortSeriesSpec } from '../../src/core/cohort/screening'
 
 const spec = { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', mode: 'global' } as CohortSeriesSpec

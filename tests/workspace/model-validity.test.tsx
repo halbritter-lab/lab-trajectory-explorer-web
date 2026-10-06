@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore } from '../../src/workspace/state/store'
 import { useWorkspaceData, workspaceSpecs, type WorkspaceData } from '../../src/workspace/workspace-data'
 import { WorkspacePlot } from '../../src/workspace/WorkspacePlot'
 import { CohortModelsWorkspace } from '../../src/workspace/CohortModelsWorkspace'

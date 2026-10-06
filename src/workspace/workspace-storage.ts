@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import { del, get, update } from 'idb-keyval'
 import { DATASET_TTL_MS } from '../io/persistence'
-import { useAppStore } from '../ui/state/store'
+import { useAppStore } from './state/store'
 import { comparePatientIds } from '../core/types'
 import type { AnalysisContext, AnalysisSettings } from '../core/analysis/types'
 

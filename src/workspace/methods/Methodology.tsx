@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import './methodology.css'
 
 const SOURCES = {
   ckdEpi2021: 'https://www.kidney.org/professionals/ckd-epi-creatinine-equation-2021',

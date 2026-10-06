@@ -1,6 +1,6 @@
 import { comparePatientIds } from '../core/types'
 import { describeEventRejection, describeEventWarning, effectForEvent } from '../core/events/events'
-import { useAppStore } from '../ui/state/store'
+import { useAppStore } from './state/store'
 
 const isoDate = (date: Date | null | undefined) => date && Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : '–'
 

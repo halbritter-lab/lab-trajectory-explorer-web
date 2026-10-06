@@ -1,18 +1,18 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { CohortModelTable } from '../../src/ui/cohort/CohortModelTable'
-import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula } from '../../src/core/mixedModel/config'
-import { buildMixedModelResultIdentity } from '../../src/core/mixedModel/resultIdentity'
-import { hashMixedModelInput } from '../../src/core/mixedModel/validation'
-import { useAppStore } from '../../src/ui/state/store'
-import type { RunMixedModelWorkerJobOptions } from '../../src/core/mixedModel/browserClient'
-import type { CohortModelEntityRows } from '../../src/core/mixedModel/cohortModelEntity'
+import { CohortModelTable } from '../../../src/workspace/models/CohortModelTable'
+import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula } from '../../../src/core/mixedModel/config'
+import { buildMixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
+import { hashMixedModelInput } from '../../../src/core/mixedModel/validation'
+import { useAppStore } from '../../../src/workspace/state/store'
+import type { RunMixedModelWorkerJobOptions } from '../../../src/core/mixedModel/browserClient'
+import type { CohortModelEntityRows } from '../../../src/core/mixedModel/cohortModelEntity'
 import type {
   MixedModelResult,
   MixedModelSpikeRow,
   MixedModelSuccess,
-} from '../../src/core/mixedModel/types'
+} from '../../../src/core/mixedModel/types'
 
 function success(slope: number, converged = true): MixedModelSuccess {
   return {

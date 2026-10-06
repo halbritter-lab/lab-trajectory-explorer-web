@@ -9,7 +9,7 @@ import {
   Popover,
 } from 'react-aria-components'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../../core/egfr/series'
-import { useAppStore } from '../state/store'
+import { useAppStore } from '../../workspace/state/store'
 import { cohortSeriesOptions, seriesDisplayLabel } from '../options'
 
 type SeriesOption = {

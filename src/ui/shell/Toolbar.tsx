@@ -1,5 +1,5 @@
 import { useMemo, useRef } from 'react'
-import { useAppStore } from '../state/store'
+import { useAppStore } from '../../workspace/state/store'
 import { patientLabel } from '../options'
 import { comparePatientIds, patientIdKey } from '../../core/types'
 

@@ -16,7 +16,7 @@ vi.mock('../../src/workspace/TrajectoriesWorkspace', () => ({
     return <><label>Patient search<input value={query} onChange={e => setQuery(e.target.value)} /></label><span>Patient: {requestedPatientId}</span></>
   },
 }))
-vi.mock('../../src/ui/pages/Methodology', () => ({ Methodology: () => <p>Methods content</p> }))
+vi.mock('../../src/workspace/methods/Methodology', () => ({ Methodology: () => <p>Methods content</p> }))
 
 describe('workspace shell', () => {
   beforeEach(() => { fixture.rows = [{ patientId: 'alpha' }]; fixture.browseId = 'alpha' })

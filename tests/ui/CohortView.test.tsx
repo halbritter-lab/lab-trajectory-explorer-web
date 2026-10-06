@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { act, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { CohortView } from '../../src/ui/cohort/CohortView'
-import { useAppStore } from '../../src/ui/state/store'
+import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 import { ckdProgressionConfig } from '../../src/core/fitPipeline/types'
 

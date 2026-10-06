@@ -1,7 +1,7 @@
 import type { FitModel, TimeBalancing, UnknownDialysisPolicy } from '../core/fitPipeline/types'
 import type { WorkspaceParameter } from './workspace-data'
 import { defaultFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
-import { ConfirmationDaysInput } from '../ui/ConfirmationDaysInput'
+import { ConfirmationDaysInput } from './ConfirmationDaysInput'
 
 function fitModelLabel(model: FitModel): string {
   if (model === 'none') return 'No fit line'

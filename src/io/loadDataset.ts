@@ -1,6 +1,6 @@
-import { readWorkbook, readWorkbookSheets } from '../../io/readWorkbook'
-import { loadLabRowsWithDiagnostics } from '../../core/parse/loader'
-import type { LabRow, PatientId } from '../../core/types'
+import { readWorkbook, readWorkbookSheets } from './readWorkbook'
+import { loadLabRowsWithDiagnostics } from '../core/parse/loader'
+import type { LabRow, PatientId } from '../core/types'
 import {
   describeEventRejection,
   describeEventWarning,
@@ -10,7 +10,7 @@ import {
   type ClinicalEvent,
   type ClinicalEventValidationResult,
   type RejectedClinicalEvent,
-} from '../../core/events/events'
+} from '../core/events/events'
 import {
   attributeBirthDateFindings,
   describeAttributeRejection,
@@ -18,9 +18,9 @@ import {
   normalizePatientAttributes,
   validatePatientAttributes,
   type PatientAttributesResult,
-} from '../../core/attributes/attributes'
-import { dateReadNotes, type DateReadCounts } from '../../core/parse/dates'
-import { normaliseHeader } from '../../io/headers'
+} from '../core/attributes/attributes'
+import { dateReadNotes, type DateReadCounts } from '../core/parse/dates'
+import { normaliseHeader } from './headers'
 
 export interface ImportDiagnostic {
   sheet: string

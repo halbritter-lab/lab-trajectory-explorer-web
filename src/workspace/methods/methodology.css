@@ -1,0 +1,16 @@
+/* Theory & Methods reference page, embedded under Methods. */
+.methodology-page { max-width: 760px; line-height: 1.6; }
+.methodology-page h2 { margin-top: 0; }
+.methodology-page h3 { font-size: 18px; margin: 18px 0 8px; }
+.methodology-page h4 { margin: 1rem 0 .35rem; font-size: 15px; }
+.methodology-page ul, .methodology-page ol { padding-left: 1.35rem; }
+.methodology-page li { margin-bottom: .4rem; line-height: 1.6; }
+.methodology-page code { font-size: .9em; background: #f1f5f7; padding: 0 3px; border-radius: 3px; overflow-wrap: anywhere; }
+.methodology-section { padding-top: .75rem; margin-top: 1rem; border-top: 1px solid var(--border); scroll-margin-top: 16px; }
+.methodology-nav { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0 .75rem; }
+.methodology-nav a { display: inline-flex; align-items: center; min-height: 1.75rem; padding: 2px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none; }
+.methodology-nav a:hover { border-color: var(--accent); }
+.methodology-steps { padding-left: 1.35rem; }
+.methodology-steps li { margin-bottom: .55rem; }
+.rapid-badge { font-size: 11px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 999px; padding: 1px 8px; white-space: nowrap; font-weight: 600; }
+.rapid-badge-inline { padding: 0 6px; }

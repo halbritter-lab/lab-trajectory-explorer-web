@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as XLSX from 'xlsx'
 import { readWorkbook } from '../../src/io/readWorkbook'
-import { loadDatasetFromWorkbook } from '../../src/ui/data/loadDataset'
+import { loadDatasetFromWorkbook } from '../../src/io/loadDataset'
 import { normalizeClinicalEventsWithNotes } from '../../src/core/events/events'
 
 /**
