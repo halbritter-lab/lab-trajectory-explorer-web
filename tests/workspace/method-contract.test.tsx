@@ -19,7 +19,23 @@ function SettingsHarness() {
 describe('approved method settings and provenance', () => {
   it('shows raw percent change even when no prepared display fit exists', () => {
     const endpoints = computeCkdEndpoints({ points, slopePerYear: Number.NaN, enabled: { percentDecline: true, observedCkdG5: false, projectedAgeToCkdG5: false } })
-    expect(endpointBadge(endpoints, false)?.label).toBe('+43%')
+    expect(endpointBadge(endpoints, points.length)?.label).toBe('+43%')
+  })
+  it('does not show a percent change for a single measurement', () => {
+    const single = points.slice(0, 1)
+    const endpoints = computeCkdEndpoints({ points: single, slopePerYear: Number.NaN, enabled: { percentDecline: true, observedCkdG5: false, projectedAgeToCkdG5: false } })
+    expect(endpointBadge(endpoints, single.length)).toBeNull()
+  })
+  it('keeps a partly typed confirmation interval instead of snapping back to the default', () => {
+    render(<SettingsHarness />)
+    fireEvent.click(screen.getByText('Advanced pipeline settings'))
+    const input = screen.getByLabelText('Minimum confirmation interval (days)')
+    for (const value of ['9', '', '1', '18', '180']) fireEvent.change(input, { target: { value } })
+    expect(input).toHaveValue(180)
+    fireEvent.change(input, { target: { value: '' } })
+    expect(input).toHaveValue(null)
+    fireEvent.blur(input)
+    expect(input).toHaveValue(180)
   })
   it('recalculates observed events when the minimum confirmation interval changes', () => {
     render(<SettingsHarness />)
@@ -32,7 +48,7 @@ describe('approved method settings and provenance', () => {
   })
   it('shows independent G4/G5 dates and subsequent recovery without losing the event', () => {
     const endpoints = computeCkdEndpoints({ points, slopePerYear: 1, enabled: { percentDecline: false, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: false, confirmationDays: 30 } })
-    const badge = endpointBadge(endpoints, true)!
+    const badge = endpointBadge(endpoints, points.length)!
     expect(badge.label).toContain('CKD G4')
     expect(badge.label).toContain('CKD G5')
     expect(badge.label).toContain('G5 recovery')
@@ -42,7 +58,7 @@ describe('approved method settings and provenance', () => {
   })
   it('exports event dates, recovery and effective settings in actual workbook bytes', () => {
     const input = exportFixture()
-    input.cohortRows[0].cells[0].endpoints = computeCkdEndpoints({ points, slopePerYear: 1, enabled: { percentDecline: false, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: false, confirmationDays: 30 } })
+    input.cohortRows[0].cells[0].endpoints = computeCkdEndpoints({ points, slopePerYear: 1, enabled: { percentDecline: false, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: true, confirmationDays: 30 } })
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets.cohort)
     expect(rows[0]).toMatchObject({ endpoint_observed_ckd_g4: 'yes', endpoint_observed_ckd_g5: 'yes', endpoint_g5_first_date: '2020-01-01', endpoint_g5_confirmed_date: '2020-02-01', endpoint_g5_recovery_date: '2020-05-01', endpoint_g5_recovery_value: 20, endpoint_confirmation_days: 30, endpoint_prediction_anchor: 'fitted curve', endpoint_input_policy: 'all dated numeric measurements' })

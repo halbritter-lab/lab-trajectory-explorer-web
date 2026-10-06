@@ -137,9 +137,14 @@ export function buildCohortRows(
       const excludedIdx = [...excluded].sort((a, b) => a - b)
       const endpointSettings = endpointSettingsFor(spec.einheit ?? null, spec.fitConfig?.endpoints)
       const endpointRows = seriesRows.filter(row => Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
-      const endpointPoints = endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: ageAtDate(row.labDatum!, endpointRows) }))
+      // Ages and the all-data fit only feed the G5 projection; skip both otherwise.
+      const projecting = endpointSettings.projectedAgeToCkdG5
+      const ageAnchors = projecting ? ageAnchorsFor(endpointRows) : []
+      const endpointPoints = endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: projecting ? ageAtDate(row.labDatum!, ageAnchors) : null }))
       const endpointModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
-      const endpointFit = endpointModel === 'theil-sen' ? fitTheilSen(endpointPoints) : fitGlobal(endpointPoints)
+      const endpointFit = !projecting || endpointModel === 'none'
+        ? { slope: Number.NaN, intercept: Number.NaN }
+        : endpointModel === 'theil-sen' ? fitTheilSen(endpointPoints) : fitGlobal(endpointPoints)
       const fitLines = points.length < 2 || spec.mode === 'rolling'
         ? []
         : buildSlopeLines(
@@ -185,8 +190,8 @@ export function buildCohortRows(
         excludedIdx,
         endpoints: computeCkdEndpoints({
           points: endpointPoints,
-          slopePerYear: endpointModel === 'none' ? Number.NaN : endpointFit.slope,
-          intercept: endpointModel === 'none' ? Number.NaN : endpointFit.intercept,
+          slopePerYear: endpointFit.slope,
+          intercept: endpointFit.intercept,
           enabled: endpointSettings,
         }),
       }
@@ -217,12 +222,17 @@ function endpointSettingsFor(einheit: string | null, endpoints?: Partial<CkdEndp
 
 const MS_PER_YEAR = 365.25 * 86_400_000
 
-function ageAtDate(date: Date, rows: LabRow[]): number | null {
-  const anchors = rows
+/** Rows carrying an age, oldest first; computed once per series for ageAtDate. */
+function ageAnchorsFor(rows: LabRow[]): LabRow[] {
+  return rows
     .filter((r) => r.labDatum !== null && r.patientAgeAtLab !== null)
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
+}
+
+function ageAtDate(date: Date, anchors: LabRow[]): number | null {
   if (anchors.length === 0) return null
-  const anchor = [...anchors].reverse().find((r) => r.labDatum!.getTime() <= date.getTime()) ?? anchors[0]
+  let anchor = anchors[0]
+  for (const r of anchors) if (r.labDatum!.getTime() <= date.getTime()) anchor = r
   return anchor.patientAgeAtLab! + (date.getTime() - anchor.labDatum!.getTime()) / MS_PER_YEAR
 }
 
@@ -260,9 +270,12 @@ export interface CohortExportRecord {
    * threshold, else '' (and '' for non-eGFR series or when the flag is off). */
   rapid_progression: string
   endpoint_percent_decline: number | ''
-  endpoint_observed_ckd_g4: string
   endpoint_observed_ckd_g5: string
-  endpoint_confirmation_days: number
+  endpoint_projected_age_to_ckd_g5: number | ''
+  // Columns added after the three above are appended, so positional readers of
+  // older exports keep working. Provenance is blank for endpoints not evaluated.
+  endpoint_observed_ckd_g4: string
+  endpoint_confirmation_days: number | ''
   endpoint_input_policy: string
   endpoint_prediction_anchor: string
   endpoint_prediction_model: string
@@ -278,7 +291,6 @@ export interface CohortExportRecord {
   endpoint_g5_first_value: number | ''
   endpoint_g5_confirmed_value: number | ''
   endpoint_g5_recovery_value: number | ''
-  endpoint_projected_age_to_ckd_g5: number | ''
 }
 
 /** Unit string for a slope: the series unit per year (slopes are value-units
@@ -315,6 +327,9 @@ export function cohortExportRecords(
   const out: CohortExportRecord[] = []
   for (const r of rows) {
     for (const c of r.cells) {
+      const evaluated = c.endpoints.evaluated
+      const observedEvaluated = evaluated.observedCkdG4 || evaluated.observedCkdG5
+      const anyEvaluated = observedEvaluated || evaluated.percentDecline || evaluated.projectedAgeToCkdG5
       out.push({
         ...(r.groupValue !== undefined ? { group: r.groupValue } : {}),
         PatientID: r.patientId,
@@ -341,12 +356,13 @@ export function cohortExportRecords(
           threshold: rapidThreshold,
         }) ? 'yes' : '',
         endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
-        endpoint_observed_ckd_g4: c.endpoints.observedCkdG4.met ? 'yes' : '',
         endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',
-        endpoint_confirmation_days: c.endpoints.confirmationDays,
-        endpoint_input_policy: 'all dated numeric measurements',
-        endpoint_prediction_anchor: 'fitted curve',
-        endpoint_prediction_model: c.fitModel,
+        endpoint_projected_age_to_ckd_g5: c.endpoints.projectedAgeToCkdG5.value ?? '',
+        endpoint_observed_ckd_g4: c.endpoints.observedCkdG4.met ? 'yes' : '',
+        endpoint_confirmation_days: observedEvaluated ? c.endpoints.confirmationDays : '',
+        endpoint_input_policy: anyEvaluated ? 'all dated numeric measurements' : '',
+        endpoint_prediction_anchor: evaluated.projectedAgeToCkdG5 ? 'fitted curve' : '',
+        endpoint_prediction_model: evaluated.projectedAgeToCkdG5 ? c.fitModel : '',
         endpoint_g4_first_date: endpointDate(c.endpoints.observedCkdG4.firstDate),
         endpoint_g4_confirmed_date: endpointDate(c.endpoints.observedCkdG4.confirmedDate),
         endpoint_g4_recovery_date: endpointDate(c.endpoints.observedCkdG4.recoveryDate),
@@ -359,7 +375,6 @@ export function cohortExportRecords(
         endpoint_g5_first_value: c.endpoints.observedCkdG5.firstValue ?? '',
         endpoint_g5_confirmed_value: c.endpoints.observedCkdG5.confirmedValue ?? '',
         endpoint_g5_recovery_value: c.endpoints.observedCkdG5.recoveryValue ?? '',
-        endpoint_projected_age_to_ckd_g5: c.endpoints.projectedAgeToCkdG5.value ?? '',
       })
     }
   }

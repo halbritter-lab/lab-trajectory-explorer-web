@@ -1,12 +1,14 @@
 import type { CkdEndpoints } from '../core/endpoints/ckdEndpoints'
 import { projectedG5Label } from './qualityLabels'
 
-/** Shared result copy for original UI and workspace; dates come from the result. */
-export function endpointBadge(endpoints: CkdEndpoints, _hasFit: boolean): { label: string; title: string } | null {
+/** Shared result copy for original UI and workspace; dates come from the result.
+ * Percent change uses raw measurements, not the display fit, but needs two of
+ * them: with one, baseline and latest coincide and "0%" would read as stable. */
+export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number): { label: string; title: string } | null {
   const labels: string[] = []
   const details: string[] = []
   const decline = endpoints.percentDecline.value
-  if (decline !== null) {
+  if (decline !== null && measurementCount >= 2) {
     const change = -decline
     labels.push(`${change > 0 ? '+' : ''}${change.toFixed(0)}%`)
     details.push(`total eGFR change ${change.toFixed(1)}% from baseline (not per year)`)

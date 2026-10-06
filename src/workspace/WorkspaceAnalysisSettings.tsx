@@ -1,6 +1,7 @@
 import type { FitModel, TimeBalancing, UnknownDialysisPolicy } from '../core/fitPipeline/types'
 import type { WorkspaceParameter } from './workspace-data'
 import { defaultFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
+import { ConfirmationDaysInput } from '../ui/ConfirmationDaysInput'
 
 function fitModelLabel(model: FitModel): string {
   if (model === 'none') return 'No fit line'
@@ -187,7 +188,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             <p className="wt-muted">Endpoints and prediction use all dated numeric measurements, including recovery. Display-fit exclusions and aggregation do not apply to them. Prediction extends the fitted curve.</p>
             <label><input type="checkbox" aria-label="Observed CKD G4" checked={fitSettings.endpoints.observedCkdG4 ?? false} onChange={e => updateSettings({ endpoints: { ...fitSettings.endpoints, observedCkdG4: e.target.checked } })} />Observed CKD G4</label>
             <label>Minimum confirmation interval (days)
-              <input type="number" min={1} step={1} aria-label="Minimum confirmation interval (days)" value={fitSettings.endpoints.confirmationDays ?? 90} onChange={e => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: Math.max(1, Math.floor(Number(e.target.value) || 90)) } })} />
+              <ConfirmationDaysInput value={fitSettings.endpoints.confirmationDays ?? 90} onChange={days => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: days } })} />
             </label>
             <p className="wt-muted">G4: below 30; G5: below 15 mL/min/1.73m². Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event.</p>
             <label>

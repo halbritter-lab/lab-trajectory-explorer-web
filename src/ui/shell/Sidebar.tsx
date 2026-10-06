@@ -8,6 +8,7 @@ import { normalizePatientAttributes, validatePatientAttributes } from '../../cor
 import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
 import { readWorkbook } from '../../io/readWorkbook'
 import { resolveDemographics } from '../../core/demographics/resolve'
+import { ConfirmationDaysInput } from '../ConfirmationDaysInput'
 
 const DEMO_EVENTS_HREF = `${import.meta.env.BASE_URL}test_events.csv`
 const DEMO_ATTRIBUTES_HREF = `${import.meta.env.BASE_URL}test_attributes.csv`
@@ -534,7 +535,7 @@ export function Sidebar() {
               </label>
             ))}
             <label>Minimum confirmation interval (days)
-              <input type="number" min={1} step={1} aria-label="Minimum confirmation interval (days)" value={primaryFitConfig.endpoints.confirmationDays ?? 90} onChange={e => setSeriesFitConfig(activeFitSeriesIndex, { endpoints: { confirmationDays: Math.max(1, Math.floor(Number(e.target.value) || 90)) } })} />
+              <ConfirmationDaysInput value={primaryFitConfig.endpoints.confirmationDays ?? 90} onChange={days => setSeriesFitConfig(activeFitSeriesIndex, { endpoints: { confirmationDays: days } })} />
             </label>
             <p className="sidebar-hint">G4/G5 endpoints and prediction use all dated numeric measurements. Prediction extends the fitted curve. Recovery after confirmation preserves the event.</p>
           </section>

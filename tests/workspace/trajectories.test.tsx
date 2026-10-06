@@ -36,6 +36,7 @@ describe('real-data trajectories workspace', () => {
     fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: `${data.parameters[0].key}:latest` } })
     const rows = screen.getAllByRole('row').slice(1)
     expect(within(rows[0]).getByRole('button', { name: 'Open patient ID-B' })).toBeInTheDocument()
+    expect(screen.getByTitle(`Sort by ${data.parameters[0].label}`)).toHaveTextContent('↓ val')
   })
   it('keeps column settings independent and restores inheritance on reset', () => {
     const data = fixture()

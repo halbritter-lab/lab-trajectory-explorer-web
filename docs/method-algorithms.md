@@ -64,7 +64,18 @@ post-event recovery, without display-fit censoring, AKI exclusion or time
 aggregation. It uses global OLS, or Theil-Sen for a robust-trend selection;
 rolling/segmented display fits retain the existing global OLS scalar convention.
 No-fit disables prediction. Percent change likewise describes first to latest
-raw eGFR. Display slopes can therefore differ from the endpoint prediction fit.
+raw eGFR. It is not shown for a single measurement, where first and latest
+coincide; exports keep the computed value. Display slopes can therefore differ
+from the endpoint prediction fit.
+
+Exports record provenance only for endpoints that were evaluated: the
+confirmation interval when G4 or G5 was enabled, the input policy when any
+endpoint was, and the prediction anchor and model when the G5 projection was.
+Blank provenance means the endpoint was not evaluated for that series (for
+example non-eGFR units or a preset with endpoints off), not that it was not met.
+The earlier columns `endpoint_percent_decline`, `endpoint_observed_ckd_g5` and
+`endpoint_projected_age_to_ckd_g5` keep their position; later endpoint columns
+are appended after them.
 
 For `y(t)=a+b*t`, target q is reached at `t=(q-a)/b`, with time in years from
 the first measurement. Future age equals age at the latest measurement plus

@@ -234,6 +234,32 @@ describe('cohortExportRecords', () => {
     expect(rec.endpoint_projected_age_to_ckd_g5).toBeCloseTo(63, 1)
   })
 
+  it('leaves endpoint provenance blank for series whose endpoints were not evaluated', () => {
+    const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global',
+      fitConfig: ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }) }
+    const rows = [row({ labDatum: d('2020-01-01') }), row({ labDatum: d('2021-01-01'), wertNum: 2 }), row({ labDatum: d('2022-01-01'), wertNum: 3 })]
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
+    expect(rec).toMatchObject({ endpoint_confirmation_days: '', endpoint_input_policy: '',
+      endpoint_prediction_anchor: '', endpoint_prediction_model: '' })
+  })
+
+  it('records prediction provenance only when the G5 projection was evaluated', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const fitConfig = ckdProgressionConfig(parameter)
+    fitConfig.endpoints = { ...fitConfig.endpoints, projectedAgeToCkdG5: false }
+    const rows = [60, 45, 30].map((wertNum, i) => row({ ...parameter, labDatum: d(`202${i}-01-01`), wertNum, patientAgeAtLab: 60 + i }))
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig }]))
+    expect(rec).toMatchObject({ endpoint_confirmation_days: 90, endpoint_input_policy: 'all dated numeric measurements',
+      endpoint_prediction_anchor: '', endpoint_prediction_model: '', endpoint_projected_age_to_ckd_g5: '' })
+  })
+
+  it('keeps the original endpoint columns ahead of later additions', () => {
+    const [rec] = cohortExportRecords(buildCohortRows([row({})], [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }]))
+    const keys = Object.keys(rec)
+    expect(keys.slice(keys.indexOf('endpoint_percent_decline'), keys.indexOf('endpoint_percent_decline') + 4))
+      .toEqual(['endpoint_percent_decline', 'endpoint_observed_ckd_g5', 'endpoint_projected_age_to_ckd_g5', 'endpoint_observed_ckd_g4'])
+  })
+
   it('flags patients whose demographics were contradictory', () => {
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }
     const rows = [

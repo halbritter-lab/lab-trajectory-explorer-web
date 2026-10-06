@@ -79,7 +79,7 @@ export function WorkspaceApp() {
           setRequestedPerson(id === undefined ? null : { id, rows: data.rawRows })
           setPage('Trajectories')
           if (typeof window !== 'undefined' && window.history?.pushState) {
-            window.history.pushState({ page: 'Trajectories', mode: id ? 'detail' : 'table', patientId: id ?? null }, '')
+            window.history.pushState({ page: 'Trajectories', mode: id !== undefined ? 'detail' : 'table', patientId: id ?? null }, '')
           }
         }} />
       </section>

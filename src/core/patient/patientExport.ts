@@ -88,9 +88,13 @@ export function patientSlopeRecords(
   if (specs.length === 0) return []
   const cohortRow = buildCohortRows(rows, [patientId], specs)[0]
   if (!cohortRow) return []
-  return cohortExportRecords([cohortRow]).map(({ slope_mode, rapid_progression: _rapid, group: _group, ...record }) => ({
-    ...record,
+  // Rebuild the leading columns explicitly: Mode stays fourth, as in earlier exports.
+  return cohortExportRecords([cohortRow]).map(({ PatientID, Bezeichnung, Einheit, slope_mode, rapid_progression: _rapid, group: _group, ...record }) => ({
+    PatientID,
+    Bezeichnung,
+    Einheit,
     Mode: slope_mode,
+    ...record,
     demographics_conflict: hasDemographicsConflict ? 'yes' : '',
   }))
 }

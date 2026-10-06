@@ -14,6 +14,15 @@ import { isRapidEgfrDecline } from '../core/analysis/rapidEgfrDeclineModule'
 import { WorkspaceAnalysisSettings } from './WorkspaceAnalysisSettings'
 import { defaultFitSettings, endpointBadge, toFitConfig, type WorkspaceFitSettings } from './workspace-analysis'
 
+/** Sort keys are `${parameterKey}:${metric}`; parameter keys are JSON and may
+ * themselves contain ':', so split at the last one. */
+function parseSortKey(sort: string): { paramKey: string; metric: string } {
+  const separator = sort.lastIndexOf(':')
+  return separator >= 0
+    ? { paramKey: sort.slice(0, separator), metric: sort.slice(separator + 1) || 'latest' }
+    : { paramKey: sort, metric: 'latest' }
+}
+
 function CellSummary({
   cell,
   fit,
@@ -36,18 +45,20 @@ function CellSummary({
         ? 'Follow-up < 1 year'
         : quality?.label
 
+  // cell.fitModel is the scalar estimator; rolling and segmented runs are OLS
+  // fits whose path is recorded in cell.mode.
   const modelLabel = cell.fitModel === 'theil-sen'
     ? 'Theil–Sen'
-    : cell.fitModel === 'rolling-ols'
+    : cell.mode === 'rolling'
       ? 'Rolling OLS'
-      : cell.fitModel === 'segmented-ols'
+      : cell.mode === 'gap-split'
         ? 'Segmented OLS'
         : cell.fitModel === 'none'
           ? 'No fit'
           : 'OLS'
 
   const rapid = isRapidEgfrDecline(cell.einheit, cell.slope, rapidEgfrThreshold)
-  const endpoint = endpointBadge(cell.endpoints, Number.isFinite(cell.slope))
+  const endpoint = endpointBadge(cell.endpoints, cell.points.length)
 
   return <div className="wt-cell-summary">
     <strong>{last ? `${boundedPrefix(lastSource?.wertOperator)}${formatWorkspaceNumber(last.value)}` : 'No measurements'}</strong>
@@ -194,9 +205,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   }).sort((a, b) => {
     if (sort === 'id') return comparePatientIds(a.patientId, b.patientId)
     if (sort === 'id:desc') return comparePatientIds(b.patientId, a.patientId)
-    const separator = sort.lastIndexOf(':')
-    const [paramKey, rawMetric] = separator >= 0 ? [sort.slice(0, separator), sort.slice(separator + 1)] : [sort, 'latest']
-    const metric = rawMetric || 'latest'
+    const { paramKey, metric } = parseSortKey(sort)
     const index = keys.indexOf(paramKey)
     if (index < 0) return comparePatientIds(a.patientId, b.patientId)
     const cellA = a.cells[index]
@@ -377,8 +386,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
     {!visible.length && <p className="card">No matching patients. Change the search, group filter, or selection.</p>}
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
     {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table"><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select all visible patients" title="Select all visible patients" ref={element => { if (element) { element.indeterminate = visible.some(r => selected.includes(r.patientId)) && !visible.every(r => selected.includes(r.patientId)) } }} checked={visible.length > 0 && visible.every(r => selected.includes(r.patientId))} onChange={event => setSelected(event.target.checked ? [...new Set([...selected, ...patientIds])] : selected.filter(id => !patientIds.includes(id)))} /></th><th aria-label="Patient"><button type="button" aria-hidden="true" tabIndex={-1} className="wt-sort-header-button" onClick={() => setSort(sort === 'id' ? 'id:desc' : 'id')}>Patient {sort === 'id' ? '↑' : sort === 'id:desc' ? '↓' : ''}</button></th>{parameters.map(p => {
-      const isSorted = sort.startsWith(p.key)
-      const metric = isSorted ? (sort.split(':')[1] || 'latest') : null
+      const parsedSort = parseSortKey(sort)
+      const metric = parsedSort.paramKey === p.key ? parsedSort.metric : null
       const metricLabel = metric === 'latest' ? '↓ val' : metric === 'slope' ? '↑ slope' : metric === 'absSlope' ? '↓ |slope|' : metric === 'n' ? '↓ n' : metric === 'duration' ? '↓ dur' : null
       return (
         <th key={p.key} aria-label={p.derived ? `${p.label} · derived` : p.label} ref={element => { if (element) parameterHeaders.current.set(p.key, element); else parameterHeaders.current.delete(p.key) }}>
@@ -388,7 +397,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
               type="button"
               aria-hidden="true"
               tabIndex={-1}
-              className={`wt-sort-header-button ${isSorted ? 'active' : ''}`}
+              className={`wt-sort-header-button ${metric ? 'active' : ''}`}
               title={`Sort by ${p.label}`}
               onClick={() => {
                 if (sort === `${p.key}:latest`) setSort(`${p.key}:slope`)

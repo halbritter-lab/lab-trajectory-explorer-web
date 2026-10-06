@@ -3,12 +3,12 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { useState } from 'react'
 import { WorkspaceApp } from '../../src/workspace/WorkspaceApp'
 
-const fixture = vi.hoisted(() => ({ rows: [{ patientId: 'alpha' }] }))
+const fixture = vi.hoisted(() => ({ rows: [{ patientId: 'alpha' }], browseId: 'alpha' as string | number }))
 vi.mock('../../src/workspace/workspace-data', () => ({
   useWorkspaceData: () => ({ rawRows: fixture.rows, rows: fixture.rows, patients: fixture.rows, parameters: [], fileName: 'research.csv' }),
 }))
 vi.mock('../../src/workspace/DataWorkspace', () => ({
-  DataWorkspace: ({ onBrowse }: { onBrowse: (id?: string) => void }) => <button onClick={() => onBrowse('alpha')}>Review patient</button>,
+  DataWorkspace: ({ onBrowse }: { onBrowse: (id?: string) => void }) => <button onClick={() => onBrowse(fixture.browseId as string)}>Review patient</button>,
 }))
 vi.mock('../../src/workspace/TrajectoriesWorkspace', () => ({
   TrajectoriesWorkspace: ({ requestedPatientId }: { requestedPatientId?: string }) => {
@@ -19,7 +19,15 @@ vi.mock('../../src/workspace/TrajectoriesWorkspace', () => ({
 vi.mock('../../src/ui/pages/Methodology', () => ({ Methodology: () => <p>Methods content</p> }))
 
 describe('workspace shell', () => {
-  beforeEach(() => { fixture.rows = [{ patientId: 'alpha' }] })
+  beforeEach(() => { fixture.rows = [{ patientId: 'alpha' }]; fixture.browseId = 'alpha' })
+  it('records numeric patient ID 0 as a detail view in browser history', () => {
+    fixture.browseId = 0
+    const pushState = vi.spyOn(window.history, 'pushState')
+    render(<WorkspaceApp />)
+    fireEvent.click(screen.getByRole('button', { name: 'Review patient' }))
+    expect(pushState).toHaveBeenLastCalledWith(expect.objectContaining({ mode: 'detail', patientId: 0 }), '')
+    pushState.mockRestore()
+  })
   it('retains browser state through data navigation and opens the requested person', () => {
     render(<WorkspaceApp />)
     fireEvent.click(screen.getByRole('button', { name: /^Trajectories$/ }))

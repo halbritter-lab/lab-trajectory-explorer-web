@@ -109,3 +109,14 @@ it('loads an actual workbook with attributes, reports conflicts, and scopes clin
   expect(result.current.analysis.messages.some(m => m.id.startsWith('demographics:'))).toBe(true)
   expect(workspaceSpecs(result.current, result.current.parameters.map(p => p.key))[0].clinicalEventsByPatient).toEqual({})
 })
+it('runs the rolling and segmented fit paths selected in the workspace', () => {
+  useAppStore.getState().setDataset([row({}), row({ labDatum: new Date('2021-01-01'), wertNum: 2 }), row({ labDatum: new Date('2022-01-01'), wertNum: 3 })])
+  const { result } = renderHook(useWorkspaceData)
+  const [parameter] = result.current.parameters
+  const modes = (['ols', 'theil-sen', 'rolling-ols', 'segmented-ols'] as const).map(fitModel => {
+    const config = toFitConfig({ ...defaultFitSettings(), fitModel }, parameter)
+    const [spec] = workspaceSpecs(result.current, [parameter.key], { [parameter.key]: config })
+    return [spec.mode, buildCohortRows(result.current.rows, ['A:01'], [spec])[0].cells[0].mode]
+  })
+  expect(modes).toEqual([['global', 'global'], ['global-robust', 'global-robust'], ['rolling', 'rolling'], ['gap-split', 'gap-split']])
+})

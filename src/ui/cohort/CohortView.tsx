@@ -456,7 +456,7 @@ export function CohortView() {
                           title: `Rapid eGFR decline: faster than ${rapidThreshold} mL/min/1.73m²/yr (KDIGO rapid progression)`,
                         })
                       }
-                      const endpoint = endpointBadge(c.endpoints, Number.isFinite(c.slope))
+                      const endpoint = endpointBadge(c.endpoints, c.points.length)
                       if (endpoint) badges.push({ className: 'endpoint-badge', ...endpoint })
                       return (
                         <td key={i}>

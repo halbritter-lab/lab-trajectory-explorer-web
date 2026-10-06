@@ -61,6 +61,11 @@ describe('patientSlopeRecords', () => {
     expect(recs[0].slope as number).toBeCloseTo(0.5, 1) // ~0.5 mg/dl per year
   })
 
+  it('keeps Mode as the fourth slope column', () => {
+    const [rec] = patientSlopeRecords([row({})], 1, [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }])
+    expect(Object.keys(rec).slice(0, 5)).toEqual(['PatientID', 'Bezeichnung', 'Einheit', 'Mode', 'fit_model'])
+  })
+
   it('returns an empty array when no series are configured', () => {
     expect(patientSlopeRecords([row({})], 1, [])).toEqual([])
   })

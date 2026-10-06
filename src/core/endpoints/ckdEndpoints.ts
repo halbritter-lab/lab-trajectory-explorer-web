@@ -33,6 +33,9 @@ export interface CkdEndpoints {
   observedCkdG4: ObservedCkdEvent
   observedCkdG5: ObservedCkdEvent
   confirmationDays: number
+  /** Which endpoints were evaluated. A disabled endpoint reports `met: false` /
+   * `null`, so exports use this to tell "not met" from "never evaluated". */
+  evaluated: { percentDecline: boolean; observedCkdG4: boolean; observedCkdG5: boolean; projectedAgeToCkdG5: boolean }
   projectedAgeToCkdG5: {
     value: number | null
     reason: 'disabled' | 'observed_ckd_g5' | 'no_fit' | 'non_declining_fit' | 'insufficient_points' | 'span_too_short' | 'already_below_threshold' | 'missing_age' | null
@@ -58,6 +61,7 @@ function emptyEndpoints(): CkdEndpoints {
     observedCkdG4: emptyObservedEvent(),
     observedCkdG5: emptyObservedEvent(),
     confirmationDays: 90,
+    evaluated: { percentDecline: false, observedCkdG4: false, observedCkdG5: false, projectedAgeToCkdG5: false },
     projectedAgeToCkdG5: { value: null, reason: 'disabled' },
   }
 }
@@ -127,6 +131,12 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
   const threshold = input.threshold ?? 15
   const confirmationDays = normalizeConfirmationDays(input.confirmationDays ?? input.enabled.confirmationDays)
   out.confirmationDays = confirmationDays
+  out.evaluated = {
+    percentDecline: input.enabled.percentDecline,
+    observedCkdG4: input.enabled.observedCkdG4 ?? false,
+    observedCkdG5: input.enabled.observedCkdG5,
+    projectedAgeToCkdG5: input.enabled.projectedAgeToCkdG5,
+  }
   const points = sortPoints(input.points)
 
   if (input.enabled.percentDecline && points.length > 0) {

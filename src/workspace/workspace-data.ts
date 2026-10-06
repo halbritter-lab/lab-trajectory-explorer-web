@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { useAppStore } from '../ui/state/store'
+import { modeForFitModel, useAppStore } from '../ui/state/store'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../core/types'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../core/analysis/types'
 import type { ClinicalEvent } from '../core/events/events'
@@ -75,7 +75,7 @@ export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fit
     const parameter = parameters.get(key)
     if (!parameter) return []
     const fitConfig = fitConfigByParameterKey?.[key] ?? generalExplorationConfig(parameter)
-    const mode = fitConfig.fitModel === 'theil-sen' ? 'global-robust' as const : 'global' as const
+    const mode = modeForFitModel(fitConfig.fitModel)
     return [{ bezeichnung: parameter.bezeichnung, einheit: parameter.einheit, mode,
       fitConfig, exclusionDays: fitConfig.exclusions.akiExclusionDays,
       clinicalEventsByPatient, fitInputs: data.analysis?.fitInputs ?? Object.create(null) }]
