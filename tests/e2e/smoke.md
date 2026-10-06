@@ -265,4 +265,3 @@ factor script includes healthy random-intercept fits as well as random slopes.
 The manual single-interface steps 1–7 above were not rerun for this close-out.
 Their dated observation remains above; representative research-data and
 first-user acceptance remain pending.
-

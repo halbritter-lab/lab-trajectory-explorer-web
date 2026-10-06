@@ -253,7 +253,6 @@ describe('storage left by earlier versions', () => {
     expect(screen.getByText(/could not be removed/)).toBeInTheDocument()
   })
 })
-
 describe('saving only what can be restored', () => {
   it('does not write a snapshot it would reject on the next start', async () => {
     useAppStore.getState().replaceDataset({ rows: [{ ...row, wertNum: Number.POSITIVE_INFINITY }] })
@@ -264,4 +263,3 @@ describe('saving only what can be restored', () => {
     expect(useAppStore.getState().rows).toHaveLength(1)
   })
 })
-
