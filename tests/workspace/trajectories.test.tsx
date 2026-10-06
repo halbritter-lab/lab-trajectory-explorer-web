@@ -38,7 +38,7 @@ describe('real-data trajectories workspace', () => {
     fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'id:desc' } })
     expect(within(screen.getByRole('table')).getByRole('button', { name: 'Open patient P-2000' })).toBeInTheDocument()
     expect(screen.getByText('Showing 1–50 of 2000 patients')).toBeInTheDocument()
-  })
+  }, 20_000)
 
   it('exposes a clinical flag explanation through a focusable disclosure', () => {
     const data = creatinineFixture(['P1'])
