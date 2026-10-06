@@ -7,6 +7,12 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Limit G4/G5 and confirmed 40%/57% eGFR decline confirmation to 12 UTC calendar
+  months after each candidate, inclusive, with end-of-month clamping and a new
+  candidate on a later crossing. Previously late G4/G5 values could confirm an
+  old crossing, so observed event dates may change. Existing numeric goldens
+  contain no affected confirmation histories and remain unchanged.
+
 - Stop eGFR endpoint evaluation and individual G5 projection at the first
   kidney transplant or chronic dialysis start, and omit measurements during
   complete dated acute dialysis intervals. The same eligible rows feed endpoint
@@ -34,6 +40,12 @@ interfaces are still evolving before 1.0.
   report zero. Raw measurement counts are unchanged.
 
 ### Added
+
+- Add independent confirmed 40% and 57% eGFR decline events using the mean of
+  exact eligible measurements in the first 90 elapsed UTC days. Candidate
+  search starts after that window; badges and workbook exports show the baseline,
+  first crossing, confirmation and recovery evidence. The first-to-latest
+  percent change remains a separate metric.
 
 - Report kidney failure reached at kidney transplant or chronic dialysis start
   with event type and date, independently of lab-confirmed CKD G5, in cohort

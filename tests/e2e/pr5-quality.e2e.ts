@@ -121,9 +121,9 @@ test('keeps the AKI chip visible next to endpoint badges', async ({ page }) => {
   const row = patientRow(page, '12')
   await expect(row.locator('.wt-badge-aki')).toBeVisible()
   await expect(row.locator('.wt-badge-endpoint')).toBeVisible()
-  // Raw endpoint inputs retain >=3 observations; quarterly display-fit bins
-  // must not determine the endpoint's sample count.
-  await expect(row.locator('.wt-badge-endpoint')).toContainText('G5 < 1 yr')
+  // KRT is recorded independently of the AKI badge and withholds future G5 projection.
+  await expect(row.locator('.wt-badge-endpoint')).toContainText('Kidney failure reached')
+  await expect(row.locator('.wt-badge-endpoint')).toContainText('G5 not projected after KRT')
   await expect(row.locator('.wt-badge-endpoint')).not.toContainText('AKI')
   expect(problems).toEqual([])
 })

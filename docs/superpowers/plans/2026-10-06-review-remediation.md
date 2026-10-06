@@ -158,6 +158,30 @@ Review follow-up verification: 35/35 focused tests, 782/782 full unit tests
 across 90 files, TypeScript no-emit check and production build passed. The
 browser suite was last run for the preceding endpoint/KRT package (29/29);
 this focused review fix did not rerun it.
+
+Fourth P4 package: confirmed 40 % and 57 % eGFR decline endpoints use the
+arithmetic mean of eligible exact rows from the first eligible UTC date through
+90 elapsed UTC days inclusive. Candidate search starts after that window, so a
+baseline input cannot also be an event candidate; the cost is withholding early
+confirmed decline dates if the owner intended within-window candidates. A
+nonpositive baseline is unavailable. Threshold equality counts, and 57 % is a
+creatinine-doubling surrogate. All four observed endpoints now require
+confirmation from the configured minimum interval through 12 UTC calendar
+months inclusive, with end-of-month clamping and expired candidates restarted
+at a later crossing. Same-time precedence and recovery are retained. The total
+first-to-latest percent change remains separate. Existing numeric goldens do
+not contain affected event histories; no fixture values were changed.
+TDD covered baseline UTC day 90/91 and duplicate rows, nonpositive baselines,
+exact and just-below thresholds, minimum/maximum confirmation boundaries,
+leap-day and same-date clamping, expired-candidate restart, same-time conflicts,
+source-order values, independent recovery and workbook provenance. The remaining
+P4 G5 projection horizon/CI package is separate.
+Final sequential verification: 792/792 unit tests in 90 files, production
+build, and 29/29 Chromium tests passed. The first Chromium run exposed a stale
+KRT label assertion and a large-cohort import timeout under parallel load;
+the assertion now follows the approved KRT policy, the import passed alone,
+and both complete reruns after that change passed. Existing React `act`
+warnings remain in storage tests.
 Scoped provenance re-review: when a prior lab-confirmed G5 precedes KRT,
 `observed_ckd_g5` remains the projection reason, but no endpoint projection
 fit was run. The cohort export now blanks its prediction anchor and model

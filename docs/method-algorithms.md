@@ -113,7 +113,10 @@ configuration accepts positive whole days. Invalid values fall back to 90.
 A low measurement starts a candidate. A subsequent low measurement confirms it
 at the first timestamp at least the minimum interval later, unless a value at
 or above the threshold intervenes. Such an intervening value clears the
-candidate. Confirmation records the initial crossing and earliest confirmation
+candidate. Confirmation must also occur within 12 UTC calendar months of the
+candidate, inclusive; month addition clamps to the last day of the destination
+month. A later low value expires the old candidate and starts a new one there.
+Confirmation records the initial crossing and earliest confirmation
 dates and values. Subsequent recovery is recorded at its first measurement at
 or above the threshold, without changing the confirmed event. G4 and G5 are
 independent; a G5 recovery need not be a G4 recovery.
@@ -138,8 +141,20 @@ endpoint-eligible exact eGFR. It is not shown for a single eligible measurement,
 coincide; exports keep the computed value. Display slopes can therefore differ
 from the endpoint prediction fit.
 
+Confirmed 40 % and 57 % eGFR decline are separate observed events. The 57 %
+boundary serves as a serum-creatinine doubling surrogate. Their shared baseline
+is the arithmetic mean of eligible exact eGFR rows from the first eligible
+UTC date through 90 elapsed UTC calendar days inclusive; duplicate rows each contribute.
+Only later rows can start a candidate. A baseline of zero or less yields no
+decline event. Equality at either percentage threshold counts; a tiny 1e-12
+percentage tolerance protects exact boundaries from binary rounding. Both use
+the configured minimum elapsed-day interval and the inclusive 12-calendar-month
+maximum. Same-time noncrossing values interrupt candidates, source order selects
+associated qualifying values, and recovery remains visible without revoking a
+confirmed event. The older first-to-latest percent change is a distinct metric.
+
 Exports record provenance only for endpoints that were evaluated: the
-confirmation interval when G4 or G5 was enabled, the input policy when any
+confirmation interval and 12-month maximum when G4, G5 or percent decline was enabled, the input policy when any
 endpoint was, and the prediction anchor and model when the G5 projection was.
 Blank provenance means the endpoint was not evaluated for that series (for
 example non-eGFR units or a preset with endpoints off), not that it was not met.
@@ -147,6 +162,10 @@ KRT type and date have separate export columns. When a future individual
 projection is withheld after KRT, projected age, anchor and model are blank and
 `endpoint_prediction_reason` records `kidney_failure_reached`. A prior observed
 G5 retains its own lab dates alongside the KRT date.
+The decline export columns append the shared mean baseline and, for each 40 %
+and 57 % event, its met flag and first, confirmation and recovery dates and
+eGFR values. Blank event provenance means no confirmed event or no evaluation;
+the endpoint configuration and baseline distinguish those cases.
 The earlier columns `endpoint_percent_decline`, `endpoint_observed_ckd_g5` and
 `endpoint_projected_age_to_ckd_g5` keep their position; later endpoint columns
 are appended after them.

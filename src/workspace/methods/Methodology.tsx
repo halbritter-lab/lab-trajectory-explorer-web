@@ -192,10 +192,12 @@ export function Methodology() {
         check above applies. None of this replaces acceptance with representative research data.
       </p>
 
-      <h4>Observed G4/G5 event algorithm</h4>
+      <h4>Observed G4/G5 and confirmed decline event algorithms</h4>
       <p>For each threshold independently, sort dated numeric eGFR measurements chronologically.
         A value below the threshold starts a candidate. The earliest later low measurement at least
-        the configured minimum interval later confirms it. A value at or above the threshold before
+        the configured minimum interval later, and no more than 12 UTC calendar months later,
+        confirms it. Month addition clamps at the destination month's end (29 February 2020 to
+        28 February 2021). A later low value starts a new candidate. A value at or above the threshold before
         confirmation interrupts the candidate; a subsequent low value starts another candidate.</p>
       <p>Record the initial crossing as the event date and the confirming measurement separately.
         After confirmation, retain both dates and values and show the first subsequent recovery
@@ -205,6 +207,15 @@ export function Methodology() {
       <p>Ignore missing dates and nonfinite values. Conflicting values at the same timestamp do not
         establish persistence: a value at or above threshold interrupts an unconfirmed candidate.
         Tied qualifying values retain source order. Confirmation requires a later timestamp.</p>
+      <p>Confirmed 40% and 57% eGFR decline are independent observed endpoints; 57% is a
+        serum-creatinine doubling surrogate. Their baseline is the arithmetic mean of all eligible
+        exact eGFR measurements from the first eligible date through 90 elapsed UTC days inclusive,
+        counting duplicate rows. Decline candidates begin after this window so a baseline value
+        cannot also be a candidate. A zero or negative baseline makes these events unavailable.
+        Values at exactly 40% or 57% decline cross the respective boundary. They use the same
+        minimum and 12-calendar-month maximum confirmation intervals, same-time conflict rule,
+        and separate recovery evidence as G4/G5. The total first-to-latest percent change shown
+        in the table is a different metric.</p>
       <h4>Individual endpoint prediction algorithm</h4>
       <p>Fit the same endpoint-eligible dated exact numeric measurements, including recovery after
         acute dialysis but excluding transplant and chronic dialysis dates onward, using global OLS

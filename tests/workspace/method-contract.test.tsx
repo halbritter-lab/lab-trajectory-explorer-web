@@ -89,4 +89,21 @@ describe('approved method settings and provenance', () => {
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets.cohort)
     expect(rows[0]).toMatchObject({ endpoint_observed_ckd_g4: 'yes', endpoint_observed_ckd_g5: 'yes', endpoint_g5_first_date: '2020-01-01', endpoint_g5_confirmed_date: '2020-02-01', endpoint_g5_recovery_date: '2020-05-01', endpoint_g5_recovery_value: 20, endpoint_confirmation_days: 30, endpoint_prediction_anchor: 'fitted curve', endpoint_input_policy: 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded' })
   })
+  it('labels and exports both confirmed decline endpoints with baseline and recovery provenance', () => {
+    const declinePoints = [
+      ['2020-01-01', 100], ['2020-04-01', 60], ['2020-07-01', 60],
+      ['2020-08-01', 43], ['2020-11-01', 43], ['2020-12-01', 61],
+    ].map(([date, value]) => ({ date: new Date(`${date}T00:00:00Z`), value: Number(value), ageYears: null }))
+    const endpoints = computeCkdEndpoints({ points: declinePoints, slopePerYear: -1, enabled: { percentDecline: true, observedCkdG5: false, projectedAgeToCkdG5: false } })
+    const badge = endpointBadge(endpoints, declinePoints.length)!
+    expect(badge.label).toContain('40% decline')
+    expect(badge.label).toContain('57% decline')
+    expect(badge.title).toContain('baseline 100')
+    expect(badge.title).toContain('2020-12-01 (61)')
+    const input = exportFixture()
+    input.cohortRows[0].cells[0].endpoints = endpoints
+    const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
+    const [row] = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.cohort)
+    expect(row).toMatchObject({ endpoint_decline_baseline_value: 100, endpoint_observed_decline_40: 'yes', endpoint_decline_40_first_date: '2020-04-01', endpoint_decline_40_confirmed_date: '2020-07-01', endpoint_decline_40_first_value: 60, endpoint_decline_40_recovery_date: '2020-12-01', endpoint_observed_decline_57: 'yes', endpoint_decline_57_first_date: '2020-08-01', endpoint_decline_57_confirmed_date: '2020-11-01', endpoint_decline_57_recovery_value: 61, endpoint_confirmation_max_months: 12 })
+  })
 })

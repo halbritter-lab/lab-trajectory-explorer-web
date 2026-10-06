@@ -39,6 +39,71 @@ describe('computeCkdEndpoints', () => {
       expect(computeCkdEndpoints({ points, slopePerYear: -1, enabled: observed }).observedCkdG5.met).toBe(false)
     }
   })
+  it('confirms at twelve calendar months and restarts an expired G5 candidate', () => {
+    const atBoundary = computeCkdEndpoints({ points: [point('2020-02-29', 14), point('2021-02-28', 13)], slopePerYear: -1, enabled: observed })
+    expect(atBoundary.observedCkdG5).toMatchObject({ met: true, firstDate: d('2020-02-29'), confirmedDate: d('2021-02-28') })
+    const expired = computeCkdEndpoints({ points: [point('2020-02-29', 14), point('2021-03-01', 13), point('2021-06-01', 12)], slopePerYear: -1, enabled: observed })
+    expect(expired.observedCkdG5).toMatchObject({ met: true, firstDate: d('2021-03-01'), confirmedDate: d('2021-06-01') })
+    expect(expired.observedCkdG4.firstDate).toEqual(d('2021-03-01'))
+  })
+  it('includes the entire UTC anniversary day in the maximum confirmation window', () => {
+    const result = computeCkdEndpoints({ points: [
+      { date: new Date('2020-01-01T08:00:00Z'), value: 14, ageYears: null },
+      { date: new Date('2021-01-01T23:00:00Z'), value: 13, ageYears: null },
+    ], slopePerYear: -1, enabled: observed })
+    expect(result.observedCkdG5.met).toBe(true)
+  })
+  it('uses the inclusive first 90 UTC days as a mean baseline and searches candidates from day 91', () => {
+    const result = computeCkdEndpoints({ points: [point('2020-01-01', 100), point('2020-03-31', 50), point('2020-04-01', 45), point('2020-07-01', 44)], slopePerYear: -1, enabled: { ...observed, percentDecline: true } })
+    expect(result.declineBaselineValue).toBe(75)
+    expect(result.observedDecline40).toMatchObject({ met: true, firstDate: d('2020-04-01'), confirmedDate: d('2020-07-01'), firstValue: 45 })
+    expect(result.observedDecline57.met).toBe(false)
+    expect(result.percentDecline.value).toBeCloseTo(56)
+  })
+  it('includes the whole UTC calendar day 90 in the baseline regardless of time of day', () => {
+    const result = computeCkdEndpoints({ points: [
+      { date: new Date('2020-01-01T08:00:00Z'), value: 100, ageYears: null },
+      { date: new Date('2020-03-31T23:00:00Z'), value: 50, ageYears: null },
+      point('2020-04-01', 45), point('2020-07-01', 44),
+    ], slopePerYear: -1, enabled: { ...observed, percentDecline: true } })
+    expect(result.declineBaselineValue).toBe(75)
+    expect(result.observedDecline40.firstDate).toEqual(d('2020-04-01'))
+  })
+  it('counts duplicate baseline rows and exact 40/57 percent boundaries independently', () => {
+    const result = computeCkdEndpoints({ points: [point('2020-01-01', 100), point('2020-01-01', 100), point('2020-04-01', 60), point('2020-07-01', 60), point('2020-08-01', 43), point('2020-11-01', 43), point('2020-12-01', 61)], slopePerYear: -1, enabled: { ...observed, percentDecline: true } })
+    expect(result.declineBaselineValue).toBe(100)
+    expect(result.observedDecline40).toMatchObject({ met: true, firstDate: d('2020-04-01'), confirmedDate: d('2020-07-01'), recoveryDate: d('2020-12-01') })
+    expect(result.observedDecline57).toMatchObject({ met: true, firstDate: d('2020-08-01'), confirmedDate: d('2020-11-01'), recoveryDate: d('2020-12-01') })
+  })
+  it('does not produce decline events from a nonpositive baseline or just-below thresholds', () => {
+    const enabled = { ...observed, percentDecline: true }
+    const nonpositive = computeCkdEndpoints({ points: [point('2020-01-01', 0), point('2020-04-01', -1), point('2020-08-01', -2)], slopePerYear: -1, enabled })
+    expect(nonpositive.observedDecline40.met).toBe(false)
+    expect(nonpositive.observedDecline57.met).toBe(false)
+    const below = computeCkdEndpoints({ points: [point('2020-01-01', 100), point('2020-04-01', 60.0001), point('2020-08-01', 43.0001)], slopePerYear: -1, enabled })
+    expect(below.observedDecline40.met).toBe(false)
+    expect(below.observedDecline57.met).toBe(false)
+  })
+  it('applies minimum and maximum boundaries to decline confirmations and restarts expired candidates', () => {
+    const enabled = { ...observed, percentDecline: true }
+    const points = [point('2020-01-01', 100), point('2020-04-01', 60), point('2021-04-01', 59), point('2021-04-02', 58), point('2021-07-01', 57)]
+    const result = computeCkdEndpoints({ points, slopePerYear: -1, enabled })
+    expect(result.observedDecline40).toMatchObject({ met: true, firstDate: d('2020-04-01'), confirmedDate: d('2021-04-01') })
+    const expired = computeCkdEndpoints({ points: [point('2020-01-01', 100), point('2020-04-01', 60), point('2021-04-02', 59), point('2021-07-01', 58)], slopePerYear: -1, enabled })
+    expect(expired.observedDecline40).toMatchObject({ met: true, firstDate: d('2021-04-02'), confirmedDate: d('2021-07-01') })
+    const short = computeCkdEndpoints({ points: [point('2020-01-01', 100), point('2020-04-01', 60), point('2020-06-29', 59)], slopePerYear: -1, enabled })
+    expect(short.observedDecline40.met).toBe(false)
+  })
+  it('lets same-time noncrossing values interrupt a decline candidate in either source order', () => {
+    for (const values of [[59, 61], [61, 59]]) {
+      const result = computeCkdEndpoints({ points: [point('2020-01-01', 100), point('2020-04-01', 60), ...values.map(value => point('2020-07-01', value))], slopePerYear: -1, enabled: { ...observed, percentDecline: true } })
+      expect(result.observedDecline40.met).toBe(false)
+    }
+  })
+  it('retains source order for tied qualifying decline measurements', () => {
+    const result = computeCkdEndpoints({ points: [point('2020-01-01', 100), point('2020-04-01', 59), point('2020-04-01', 58), point('2020-07-01', 57), point('2020-07-01', 56)], slopePerYear: -1, enabled: { ...observed, percentDecline: true } })
+    expect(result.observedDecline40).toMatchObject({ met: true, firstValue: 59, confirmedValue: 57 })
+  })
   it('projects from the fitted curve rather than the final measurement', () => {
     const points = [60, 50, 25].map((value, i) => ({ date: new Date(d('2020-01-01').getTime() + i*365.25*86400000), value, ageYears: 60+i }))
     const result = computeCkdEndpoints({ points, slopePerYear: -17.5, intercept: 62.5, enabled: { ...observed, projectedAgeToCkdG5: true } })

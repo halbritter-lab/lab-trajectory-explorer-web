@@ -28,6 +28,12 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
       details.push(`${stage} recovery ${event.recoveryDate.toISOString().slice(0, 10)} (${event.recoveryValue}); confirmed event retained`)
     }
   }
+  for (const [threshold, event] of [[40, endpoints.observedDecline40], [57, endpoints.observedDecline57]] as const) {
+    if (!event.met) continue
+    labels.push(`${threshold}% decline`)
+    details.push(`confirmed ${threshold}% eGFR decline: baseline ${endpoints.declineBaselineValue}; event ${event.firstDate?.toISOString().slice(0, 10)} (${event.firstValue}), confirmed ${event.confirmedDate?.toISOString().slice(0, 10)} (${event.confirmedValue}); minimum ${endpoints.confirmationDays} days, maximum 12 calendar months`)
+    if (event.recoveryDate) details.push(`${threshold}% decline recovery ${event.recoveryDate.toISOString().slice(0, 10)} (${event.recoveryValue}); confirmed event retained`)
+  }
   if (!endpoints.observedCkdG5.met) {
     if (endpoints.projectedAgeToCkdG5.value !== null) {
       const age = endpoints.projectedAgeToCkdG5.value

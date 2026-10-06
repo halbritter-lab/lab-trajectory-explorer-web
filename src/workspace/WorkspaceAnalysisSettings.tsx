@@ -220,7 +220,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             <label>Minimum confirmation interval (days)
               <ConfirmationDaysInput value={fitSettings.endpoints.confirmationDays ?? DEFAULT_CONFIRMATION_DAYS} onChange={days => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: days } })} />
             </label>
-            <p className="wt-muted">G4: below {CKD_G4_EGFR_THRESHOLD}; G5: below {CKD_G5_EGFR_THRESHOLD} mL/min/1.73m². Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event.</p>
+            <p className="wt-muted">G4: below {CKD_G4_EGFR_THRESHOLD}; G5: below {CKD_G5_EGFR_THRESHOLD} mL/min/1.73m². Confirm within 12 calendar months of the first crossing. Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event.</p>
             <label>
               <input
                 type="checkbox"
@@ -230,8 +230,9 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
                   endpoints: { ...fitSettings.endpoints, percentDecline: e.target.checked }
                 })}
               />
-              Percent eGFR decline
+              Percent eGFR decline (total change and confirmed 40% / 57% events)
             </label>
+            <p className="wt-muted">Confirmed decline uses the mean of eligible eGFR values in the first 90 elapsed UTC days, inclusive. Candidate events start after that window. A 57% decline is a serum-creatinine doubling surrogate.</p>
             <label>
               <input
                 type="checkbox"

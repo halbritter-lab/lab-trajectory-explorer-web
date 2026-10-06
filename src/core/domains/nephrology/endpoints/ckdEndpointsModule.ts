@@ -26,7 +26,7 @@ function endpointSettingsFor(series: SeriesKey, endpoints?: Partial<CkdEndpointC
 }
 
 const endpointDate = (date: Date | null): string => date?.toISOString().slice(0, 10) ?? ''
-const observedEvaluated = (e: CkdEndpoints) => e.evaluated.observedCkdG4 || e.evaluated.observedCkdG5
+const observedEvaluated = (e: CkdEndpoints) => e.evaluated.observedCkdG4 || e.evaluated.observedCkdG5 || e.evaluated.percentDecline
 const anyEvaluated = (e: CkdEndpoints) => observedEvaluated(e) || e.evaluated.percentDecline || e.evaluated.projectedAgeToCkdG5
 type Cell = ModuleExportCell<CkdEndpoints>
 
@@ -80,5 +80,17 @@ export const ckdEndpointsModule = {
     { key: 'endpoint_g5_first_value', value: (c: Cell) => c.endpoints.observedCkdG5.firstValue ?? '' },
     { key: 'endpoint_g5_confirmed_value', value: (c: Cell) => c.endpoints.observedCkdG5.confirmedValue ?? '' },
     { key: 'endpoint_g5_recovery_value', value: (c: Cell) => c.endpoints.observedCkdG5.recoveryValue ?? '' },
+    { key: 'endpoint_confirmation_max_months', value: (c: Cell) => observedEvaluated(c.endpoints) ? 12 : '' },
+    { key: 'endpoint_decline_baseline_value', value: (c: Cell) => c.endpoints.declineBaselineValue ?? '' },
+    { key: 'endpoint_observed_decline_40', value: (c: Cell) => c.endpoints.observedDecline40.met ? 'yes' : '' },
+    { key: 'endpoint_observed_decline_57', value: (c: Cell) => c.endpoints.observedDecline57.met ? 'yes' : '' },
+    ...([['40', 'observedDecline40'], ['57', 'observedDecline57']] as const).flatMap(([threshold, field]) => [
+      { key: `endpoint_decline_${threshold}_first_date`, value: (c: Cell) => endpointDate(c.endpoints[field].firstDate) },
+      { key: `endpoint_decline_${threshold}_confirmed_date`, value: (c: Cell) => endpointDate(c.endpoints[field].confirmedDate) },
+      { key: `endpoint_decline_${threshold}_recovery_date`, value: (c: Cell) => endpointDate(c.endpoints[field].recoveryDate) },
+      { key: `endpoint_decline_${threshold}_first_value`, value: (c: Cell) => c.endpoints[field].firstValue ?? '' },
+      { key: `endpoint_decline_${threshold}_confirmed_value`, value: (c: Cell) => c.endpoints[field].confirmedValue ?? '' },
+      { key: `endpoint_decline_${threshold}_recovery_value`, value: (c: Cell) => c.endpoints[field].recoveryValue ?? '' },
+    ]),
   ],
 } satisfies AnalysisModule<undefined, 'ckdEndpoints'>

@@ -50,6 +50,18 @@ proceed and remain open to the owner's revision.
 - **Maximum confirmation window.** A confirming value must follow the
   candidate within 12 months *(proposed)*; this applies to G4/G5 and percent
   decline alike.
+  Implemented as 12 UTC calendar months, inclusive, with end-of-month clamping
+  (February 29, 2020 → February 28, 2021). A later crossing expires the old
+  candidate and starts a new one at that measurement. The 40 % and 57 % decline
+  comparisons include equality, while G4/G5 still require values strictly below
+  their boundaries. The decline baseline is the arithmetic mean of every
+  eligible exact eGFR row from the first eligible UTC date through 90 elapsed
+  UTC days inclusive, including the whole final calendar day; duplicate rows
+  count separately. Candidate search begins
+  strictly after that window, so no observation defines the baseline and also
+  establishes a decline event. A nonpositive baseline makes both decline events
+  unavailable. This withholds early confirmed decline dates if the owner
+  intended candidates inside the baseline window and can be revised on review.
 - **Censored values** (`<x`, `>x`) are excluded by row operator from all fits,
   endpoint evaluation and prediction, AKI detection and cohort mixed models.
   Raw values, limits and chart points remain visible; raw numeric counts include

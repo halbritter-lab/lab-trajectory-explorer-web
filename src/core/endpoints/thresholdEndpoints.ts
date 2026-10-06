@@ -14,9 +14,9 @@ export interface EndpointPoint {
   ageYears: number | null
 }
 
-/** Whether a value has crossed the threshold: strictly below it, or strictly
- * above it. */
-export type CrossingDirection = 'below' | 'above'
+/** Whether a value has crossed the threshold. Inclusive above is used for
+ * percent-decline boundaries, with a small rounding tolerance. */
+export type CrossingDirection = 'below' | 'above' | 'above_or_equal'
 
 /** An observed threshold-crossing endpoint, confirmed by a second crossing
  * value at least `confirmationDays` after the first. */
@@ -26,6 +26,7 @@ export interface ThresholdCrossingDefinition {
   threshold: number
   direction: CrossingDirection
   confirmationDays: number
+  maximumConfirmationMonths?: number
 }
 
 export interface ObservedCrossing {
@@ -55,7 +56,17 @@ export function normalizeConfirmationDays(value: number | undefined, fallback: n
 }
 
 const crosses = (value: number, def: Pick<ThresholdCrossingDefinition, 'threshold' | 'direction'>) =>
-  def.direction === 'below' ? value < def.threshold : value > def.threshold
+  def.direction === 'below' ? value < def.threshold : def.direction === 'above_or_equal' ? value >= def.threshold - 1e-12 : value > def.threshold
+
+/** UTC month addition clamps dates such as February 29 to the destination month's last day. */
+function addUtcMonthsClamped(date: Date, months: number): Date {
+  const first = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + months, 1))
+  const lastDay = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 1, 0)).getUTCDate()
+  first.setUTCDate(Math.min(date.getUTCDate(), lastDay))
+  return first
+}
+
+const utcCalendarDay = (date: Date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
 
 /**
  * Process valid, date-sorted points chronologically. The first crossing value
@@ -81,6 +92,8 @@ export function observeThresholdCrossing(points: readonly EndpointPoint[], def: 
     } else if (recovery) {
       candidate = null
     } else if (!candidate) {
+      candidate = point
+    } else if (def.maximumConfirmationMonths !== undefined && utcCalendarDay(point.date) > addUtcMonthsClamped(candidate.date, def.maximumConfirmationMonths).getTime()) {
       candidate = point
     } else if ((point.date.getTime() - candidate.date.getTime()) / MS_PER_DAY >= def.confirmationDays) {
       Object.assign(result, { met: true, firstDate: candidate.date, firstValue: candidate.value, confirmedDate: point.date, confirmedValue: point.value })
@@ -137,7 +150,7 @@ export function projectAgeAtCrossing(input: {
   slopePerYear: number
   intercept: number
   threshold: number
-  direction: CrossingDirection
+  direction: Exclude<CrossingDirection, 'above_or_equal'>
   observed: boolean
 }): ProjectedAgeAtCrossing {
   const { points, slopePerYear, intercept, threshold, direction, observed } = input
