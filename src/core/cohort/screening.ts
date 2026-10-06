@@ -13,6 +13,7 @@ import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows
 import type { FitConfig } from '../analysis/fitConfig'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
+import { CENSORED_VALUE_REASON, isExactMeasurement } from '../measurements/censored'
 
 
 export interface CohortSeriesSpec {
@@ -128,16 +129,17 @@ export function buildCohortRows(
       })
       const match = summaries.find((s) => s.bezeichnung === spec.bezeichnung && s.einheit === (spec.einheit ?? '(no unit)'))
       const allWindows = [...windows.censoring, ...windows.exclusions]
-      const excludedIdx = applyExclusionWindows(points, allWindows).excludedIdx
-      const excluded = new Set(excludedIdx)
+      const excluded = new Set(applyExclusionWindows(points, allWindows).excludedIdx)
+      const excludedIdx = points.flatMap((_, i) => excluded.has(i) || !isExactMeasurement(seriesRows[i]) ? [i] : [])
       const pointExclusionReasons = points.map((point, i) =>
-        excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])
+        [...(!isExactMeasurement(seriesRows[i]) ? [CENSORED_VALUE_REASON] : []), ...(excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])])
       const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
       const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel))
-      const fitLines = points.length < 2 || spec.mode === 'rolling'
+      const exactPoints = points.filter((_, i) => isExactMeasurement(seriesRows[i]))
+      const fitLines = exactPoints.length < 2 || spec.mode === 'rolling'
         ? []
         : buildSlopeLines(
-            points,
+            exactPoints,
             {
               mode: spec.mode,
               gapDays: spec.gapDays ?? 180,
@@ -203,7 +205,7 @@ function ageAtDate(date: Date, anchors: LabRow[]): number | null {
  * (independent of fit exclusions and aggregation) and, on request, ages and
  * the all-data fit with the column's scalar model. */
 function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel']): EndpointContext {
-  const endpointRows = seriesRows.filter(row => Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
+  const endpointRows = seriesRows.filter(row => isExactMeasurement(row) && Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
   const points = (withAges: boolean): EndpointPoint[] => {
     const ageAnchors = withAges ? ageAnchorsFor(endpointRows) : []
     return endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: withAges ? ageAtDate(row.labDatum!, ageAnchors) : null }))
@@ -272,8 +274,9 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
   { note: 'Slopes are per year (value-units/yr; eGFR in mL/min/1.73m2/yr).' },
   { note: 'eGFR is computed from creatinine + demographics (adult-only); AKI episodes use the KDIGO creatinine criterion only (urine output not evaluated).' },
   { note: 'All derived values are algorithmic estimates requiring independent clinical verification.' },
-  { note: 'Observed G4 <30 and G5 <15 use all dated numeric eGFR measurements. Confirmation interval is recorded per result. Recovery before confirmation resets the candidate; later recovery preserves the event.' },
-  { note: 'Individual endpoint prediction extends a global fitted curve on all dated numeric measurements, independently of display-fit exclusions and aggregation. Theil-Sen requires three points, uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
+  { note: 'Bounds (<x, >x), including bounds on derived eGFR, remain visible and count as raw numeric rows but are excluded from fits, endpoints, AKI detection and mixed models. Exact rows on the same date remain eligible.' },
+  { note: 'Observed G4 <30 and G5 <15 use all dated exact numeric eGFR measurements. Confirmation interval is recorded per result. Recovery before confirmation resets the candidate; later recovery preserves the event.' },
+  { note: 'Individual endpoint prediction extends a global fitted curve on all dated exact numeric measurements, independently of display-fit exclusions and aggregation. Theil-Sen requires three points, uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)

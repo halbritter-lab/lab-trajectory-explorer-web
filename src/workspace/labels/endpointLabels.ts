@@ -26,7 +26,7 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
     if (endpoints.projectedAgeToCkdG5.value !== null) {
       const age = endpoints.projectedAgeToCkdG5.value
       labels.push(`G5 @ ${age.toFixed(1)}y`)
-      details.push(`projected age to CKD G5 ${age.toFixed(1)} years; fitted curve using all dated numeric measurements`)
+      details.push(`projected age to CKD G5 ${age.toFixed(1)} years; fitted curve using all dated exact numeric measurements (bounds excluded)`)
     } else {
       const unavailable = projectedG5Label(endpoints)
       if (unavailable) { labels.push(unavailable.label); details.push(unavailable.title) }

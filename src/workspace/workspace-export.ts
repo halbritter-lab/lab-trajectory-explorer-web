@@ -90,6 +90,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Measurements, summaries, events and attributes are restricted to the selected patients and parameters. Events and attributes apply at patient level.'},
       {note:'measurements contains analysis values with resolved demographics and explicitly marked derived values; raw_measurements contains only imported values for the selected parameters. Unselected source measurements are not added.'},
       {note:'Slopes and quality information come directly from the displayed summary; export does not refit the data. n counts raw measurements; n_fitted counts the points actually fitted.'},
+      {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},
     ]},
   ]
 }
@@ -155,7 +156,7 @@ export function exportChartSvg(svg: SVGSVGElement, title: string): {svg:string;w
   const contextLines = wrapChartText(svg.getAttribute('data-export-context') ?? '',Math.max(1,Math.floor((width-24)/12)))
   const legend = chartLegend(svg).map(item => ({...item,lines:wrapChartText(item.label,Math.max(1,Math.floor((width-40)/12)))}))
   const headerHeight = 16 + titleLines.length*20 + contextLines.length*17 + legend.reduce((sum,item) => sum+item.lines.length*17,0)
-  const lines = ['Lab Trajectory Explorer · Research use only.', 'Not for clinical decision-making.'].flatMap(line => wrapChartText(line,Math.max(1,Math.floor((width-24)/11))))
+  const lines = ['Lab Trajectory Explorer · Research use only.', 'Not for clinical decision-making.', 'Bounds (<, >) remain visible but are excluded from calculations.'].flatMap(line => wrapChartText(line,Math.max(1,Math.floor((width-24)/11))))
   const footerHeight = 12 + lines.length*16
   const height = headerHeight + contentHeight + footerHeight
   clone.setAttribute('viewBox',`${x} ${y-headerHeight} ${width} ${height}`)
@@ -167,7 +168,7 @@ export function exportChartSvg(svg: SVGSVGElement, title: string): {svg:string;w
   label.textContent = title
   clone.prepend(label)
   const description = document.createElementNS(svg.namespaceURI,'desc')
-  description.textContent = 'Lab Trajectory Explorer · Research use only. Not for clinical decision-making.'
+  description.textContent = 'Lab Trajectory Explorer · Research use only. Not for clinical decision-making. Bounds (<, >) remain visible but are excluded from calculations.'
   clone.prepend(description)
   const background = document.createElementNS(svg.namespaceURI,'rect')
   background.setAttribute('x',String(x)); background.setAttribute('y',String(y-headerHeight))

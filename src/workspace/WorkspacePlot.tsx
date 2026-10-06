@@ -76,8 +76,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const group = groupBy ? patient?.attributes[groupBy] || 'Not recorded' : 'All patients'
       const points = (cell?.points ?? []).flatMap((point, index) => {
         const x = xValue(point.date)
-        // Exclusions only mean something for a fit; with no fit model nothing is marked.
-        const exclusions: string[] = cell && cell.fitModel !== 'none' ? cell.pointExclusionReasons?.[index] ?? [] : []
+        const exclusions: string[] = (cell?.pointExclusionReasons?.[index] ?? []).filter(reason => cell?.fitModel !== 'none' || reason === 'censored-value')
         return x === null || !Number.isFinite(x) || !Number.isFinite(point.value) ? [] : [{ ...point, x, exclusions, operator: sourceRows.get(row.patientId)?.[index]?.wertOperator ?? '=' as WertOperator }]
       })
       // Module markers (e.g. AKI episodes, which reach every column of the
@@ -264,7 +263,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       : module.presentation.emptyLegend}</p>)}
     {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurements or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
-    {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Hollow points marked &lt; or &gt; are bounds, not exact measurements. The existing fit uses their numeric limits.</p>}
+    {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Bounds marked &lt; or &gt; remain visible at their numeric limits. They are excluded from fits and endpoints.</p>}
     {!display.points && !display.connect && <p>Measurement points and connecting lines are hidden.</p>}
     {groupBy && <p className="wt-muted">The legend only changes the display; selection and exports remain unchanged.</p>}
   </section>

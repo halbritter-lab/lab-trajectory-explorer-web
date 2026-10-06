@@ -6,6 +6,7 @@ import { balanceSeriesPoints } from '../stats/timeBalancing'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
 import type { MixedModelSpikeRow } from './types'
 import { roundTo10Decimals } from './validation'
+import { isExactMeasurement } from '../measurements/censored'
 
 const MS_PER_YEAR = 365.25 * 86_400_000
 const MS_PER_DAY = 86_400_000
@@ -49,6 +50,7 @@ export function mixedModelRowsFromCohortInputs(
         && (row.einheit ?? null) === (spec.einheit ?? null)
         && row.wertNum !== null
         && row.labDatum !== null
+        && isExactMeasurement(row)
       )
       .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
     const points: ModelPoint[] = seriesRows.map((row) => ({

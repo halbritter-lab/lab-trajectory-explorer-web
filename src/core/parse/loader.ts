@@ -244,8 +244,8 @@ function duplicateNote(rows: readonly LabRow[]): string[] {
   return [`${plural(duplicates, 'duplicate lab row')} (same patient, date, test, unit and value) for ${plural(patients.size, 'patient')}; ${duplicates === 1 ? 'it is' : 'they are'} kept and counted as separate measurements.`]
 }
 
-/** Censored ("<", ">") values per parameter. The fits read `wertNum`
- * regardless of the operator, so these are fitted at their limit value. */
+/** Censored ("<", ">") values per parameter remain in the raw data but are
+ * excluded from calculations. */
 function censoredNotes(rows: readonly LabRow[]): string[] {
   const censored = new Map<string, { label: string; less: number; greater: number }>()
   for (const row of rows) {
@@ -258,6 +258,6 @@ function censoredNotes(rows: readonly LabRow[]): string[] {
   }
   return [...censored.values()].map(({ label, less, greater }) => {
     const parts = [less ? `${less} "<"` : null, greater ? `${greater} ">"` : null].filter(Boolean).join(', ')
-    return `${label}: ${plural(less + greater, 'censored value')} (${parts}); fits currently use the limit value as if it had been measured.`
+    return `${label}: ${plural(less + greater, 'censored value')} (${parts}); retained for display and raw counts, excluded from fits, endpoints and AKI detection.`
   })
 }

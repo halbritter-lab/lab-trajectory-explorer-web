@@ -100,3 +100,16 @@ numeric code changed.
 Then P4–P7 as above. Owner review pending: UI-reference sentences changed on
 the methodology page (P2) and the new cohort-model sentence on time origin and
 missing factors.
+
+First P4 package completed: `<x` and `>x` rows stay in raw counts and charts but
+are excluded by row operator from individual/cohort fits and slope lines,
+endpoints and prediction, AKI source selection and detection, and mixed-model
+datasets. Derived eGFR retains its reversed display bound. Import, table,
+chart, export, method and decision text now state the policy. Focused TDD
+regressions cover same-date exact rows, bound-only series, endpoint confirmation,
+AKI, mixed models, derived eGFR and visible labels. Existing goldens did not
+change: bounded operators there test parsing only. Final verification: 762/762
+unit tests (90 files), build passed, 29/29 Chromium tests. A concurrent unit
+run with build/e2e had five unrelated storage/model UI failures, including a
+timeout; the standalone unit rerun passed. Existing React `act` warnings remain
+in storage tests. Remaining P4 endpoint/KRT and KDIGO/µmol/l packages are open.

@@ -5,6 +5,14 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Exclude `<x` and `>x` limits from slopes, endpoint evaluation and prediction,
+  AKI detection and cohort mixed models. Preserve raw counts and chart points,
+  and label the exclusion in import warnings, plots, tables and exports. Fits
+  and endpoint values can change for datasets containing bounded values; exact
+  observations on the same date remain eligible.
+
 ### Added
 
 - Independent observed G4/G5 events with configurable confirmation interval

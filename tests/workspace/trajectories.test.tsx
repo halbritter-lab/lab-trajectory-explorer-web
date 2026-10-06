@@ -12,6 +12,20 @@ function fixture(): WorkspaceData {
 }
 
 describe('real-data trajectories workspace', () => {
+  it('labels bounded values as excluded in chart and measurement table', () => {
+    const data = fixture()
+    const bounded = data.rows.find(row => row.patientId === 'ID-A' && row.einheit === 'unit-0' && row.labDatum?.getUTCFullYear() === 2021)!
+    bounded.wert = '<11'; bounded.wertNum = 11; bounded.wertOperator = '<'
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
+    const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
+    expect(within(chart).getByText(/Bounds marked/)).toBeInTheDocument()
+    expect(chart.querySelector('[data-exclusion="censored-value"]')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Table' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
+    const table = screen.getByRole('table', { name: 'Measurements Marker · unit-0', hidden: true })
+    expect(within(table).getByText('Excluded: censored value (limit, not exact)')).toBeInTheDocument()
+  })
   it('shows Theil-Sen slope confidence bounds with the displayed trend', () => {
     render(<TrajectoriesWorkspace data={fixture()} />)
     fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'theil_sen' } })
@@ -233,7 +247,7 @@ describe('real-data trajectories workspace', () => {
     render(<TrajectoriesWorkspace data={data} />)
     expect(screen.getAllByText('> 12')).toHaveLength(2)
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
-    expect(screen.getByText('01/01/2020: > 10 unit-0')).toBeInTheDocument()
+    expect(screen.getByText(/01\/01\/2020: > 10 unit-0 · excluded from the fit: censored value/)).toBeInTheDocument()
     expect(screen.getAllByText('> 10').length).toBeGreaterThan(0)
     expect(screen.getByRole('columnheader', { name: 'Derived value' })).toBeInTheDocument()
   })
@@ -467,7 +481,7 @@ describe('real-data trajectories workspace', () => {
     // Deliberately exact: wording changes to this badge must update this test.
     const badge = document.querySelector('.wt-badge-endpoint')!
     expect(badge).toHaveTextContent(/^-50% · G5 @ 63\.0y$/)
-    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from baseline (not per year) · projected age to CKD G5 63.0 years; fitted curve using all dated numeric measurements')
+    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from baseline (not per year) · projected age to CKD G5 63.0 years; fitted curve using all dated exact numeric measurements (bounds excluded)')
   })
 
   it('reverses a metric sort and keeps patients without a value last', () => {

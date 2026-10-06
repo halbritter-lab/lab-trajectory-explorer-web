@@ -102,7 +102,7 @@ it('lists lab import diagnostics from a German CSV, with summaries not attribute
   expect(items).toEqual(expect.arrayContaining([
     'Sheet1 · 0012 · rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
     'Sheet1 · Warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
-    'Sheet1 · Warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); fits currently use the limit value as if it had been measured.',
+    'Sheet1 · Warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.',
   ]))
 })
 it('reports readable reasons and birth-date problems for supplementary files', async () => {

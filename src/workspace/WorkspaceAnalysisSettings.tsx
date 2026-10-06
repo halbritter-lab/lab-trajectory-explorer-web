@@ -215,7 +215,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
           <div className="wt-pipeline-group">
             <h4>eGFR endpoints & thresholds</h4>
             <p className="wt-muted">Applies only to parameters with eGFR units.</p>
-            <p className="wt-muted">Endpoints and prediction use all dated numeric measurements, including recovery. Display-fit exclusions and aggregation do not apply to them. Prediction extends the fitted curve.</p>
+            <p className="wt-muted">Endpoints and prediction use all dated exact numeric measurements, including recovery. Values marked &lt; or &gt; are excluded. Display-fit exclusions and aggregation do not apply to them. Prediction extends the fitted curve.</p>
             <label><input type="checkbox" aria-label="Observed CKD G4" checked={fitSettings.endpoints.observedCkdG4 ?? false} onChange={e => updateSettings({ endpoints: { ...fitSettings.endpoints, observedCkdG4: e.target.checked } })} />Observed CKD G4</label>
             <label>Minimum confirmation interval (days)
               <ConfirmationDaysInput value={fitSettings.endpoints.confirmationDays ?? DEFAULT_CONFIRMATION_DAYS} onChange={days => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: days } })} />

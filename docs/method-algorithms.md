@@ -3,6 +3,33 @@
 This reference records numerical contracts and their test evidence. Approved
 requirements and pending work are tracked in [method decisions](remaining-method-decisions.md).
 
+## Bounded measurements (2026-10-06)
+
+Imported `<x` and `>x` rows retain their raw text, numeric limit and operator.
+They remain in measurement tables and charts and count toward raw dated numeric
+counts (`nNumeric`), but never enter individual OLS or Theil-Sen fits, rolling
+or segmented slopes, cohort screening and slope lines, endpoint evaluation or
+prediction, AKI detection, or cohort mixed-model datasets. Derived eGFR from a
+bounded creatinine source retains the reversed inequality for display and is
+also excluded from these calculations. This policy is independent of optional
+clinical-event censoring and AKI fit windows.
+
+Filtering is by row operator before fitting, aggregation and endpoint order,
+not by date. An exact value on the same date as a bound remains eligible. A
+bound alone cannot start, confirm, interrupt or recover an observed endpoint;
+it cannot establish an AKI episode. When multiple creatinine series are
+available for AKI detection, the source with the most eligible exact dated
+values is selected; bounds do not win source selection by inflating row count.
+Bound-only series retain their displayed
+points and raw count but have zero fitted points, no fitted slope or line and no
+observed endpoint. A bound does not supply an age anchor or mixed-model time
+origin. For example, exact 60 and `<10` on 2020-01-01 followed by exact 50 on
+2021-01-01 fits the two exact values, while all three remain visible. The
+numeric limits are shown as limits and are not estimates of the unknown values.
+
+Regression evidence: [censored measurement tests](../tests/core/censoredMeasurements.test.ts)
+and [workspace chart/table tests](../tests/workspace/trajectories.test.tsx).
+
 ## Theil-Sen (2026-09-23)
 
 Inputs are dated numeric observations, sorted without mutating caller data. Time
@@ -35,7 +62,7 @@ References: [SciPy documentation](https://docs.scipy.org/doc/scipy/reference/gen
 
 ## Observed G4/G5 and individual prediction (2026-09-23)
 
-Observed endpoints evaluate dated finite eGFR measurements in chronological
+Observed endpoints evaluate dated finite exact eGFR measurements in chronological
 order, independently of display-fit exclusions and aggregation. G4 is strictly
 below 30 and G5 strictly below 15 mL/min/1.73m². Equality is not below the
 threshold. The default minimum confirmation interval is 90 elapsed UTC days;
@@ -59,7 +86,7 @@ Example: January14, May13, November20 records a January G5 crossing, May
 confirmation and November recovery. January14, March20, May13 has no confirmed
 G5 event yet: May starts a new candidate.
 
-Individual endpoint prediction fits all dated numeric observations, including
+Individual endpoint prediction fits all dated exact numeric observations, including
 post-event recovery, without display-fit censoring, AKI exclusion or time
 aggregation. It uses global OLS, or Theil-Sen for a robust-trend selection;
 rolling/segmented display fits retain the existing global OLS scalar convention.

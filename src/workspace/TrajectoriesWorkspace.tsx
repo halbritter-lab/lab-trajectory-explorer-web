@@ -72,6 +72,9 @@ function CellSummary({
   const flags = cohortCellFlags(cell, patientId, columnSettings)
   const badge = (flag: (typeof flags)[number]) => <span key={flag.id} className={`wt-badge wt-badge-${flag.tone}`} title={flag.title}>{flag.label}</span>
   const endpoint = endpointBadge(cell.endpoints, cell.points.length)
+  const markedReasons = cell.pointExclusionReasons.map(reasons => reasons.filter(reason => cell.fitModel !== 'none' || reason === 'censored-value'))
+  const markedCount = markedReasons.filter(reasons => reasons.length > 0).length
+  const markedLabels = [...new Set(markedReasons.flat())].map(reason => reason === 'censored-value' ? 'censored values' : reason)
 
   return <div className="wt-cell-summary">
     <strong>{last ? `${boundedPrefix(lastSource?.wertOperator)}${formatWorkspaceNumber(last.value)}` : 'No measurements'}</strong>
@@ -101,7 +104,7 @@ function CellSummary({
     </>}
     {endpoint && <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p></details></>}
     {flags.filter(flag => !flag.requiresFit).map(badge)}
-    {cell.fitModel !== 'none' && cell.excludedIdx.length > 0 && <span className="wt-muted">{cell.excludedIdx.length} excluded from the fit by censoring/AKI</span>}
+    {markedCount > 0 && <span className="wt-muted">{markedCount} excluded from the fit ({markedLabels.join(', ')})</span>}
   </div>
 }
 

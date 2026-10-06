@@ -90,6 +90,7 @@ describe('workspace workbook', () => {
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('hidden')
     expect(records(workbook,'parameters')).toEqual(expect.arrayContaining([expect.objectContaining({formula:'ekfc-2021',source_parameter:'Creatinine',source_unit:'mg/dl'})]))
     expect(records(workbook,'about').some(row => String(row.note).includes('Research use only'))).toBe(true)
+    expect(records(workbook,'about').some(row => String(row.note).includes('numeric limits remain'))).toBe(true)
   })
   it('intersects individual selection with visible IDs and rejects empty or missing summaries', () => {
     const input = exportFixture()
@@ -154,6 +155,7 @@ describe('chart serialization', () => {
     svg.append(path)
     const exported = exportChartSvg(svg,'Marker <sample>')
     expect(exported.svg).toContain('Research use only')
+    expect(exported.svg).toContain('Bounds (&lt;, &gt;) remain visible but are excluded from calculations.')
     expect(exported.svg).toContain('Marker &lt;sample&gt;')
     expect(exported.height).toBeGreaterThan(200)
     expect(svg.outerHTML).not.toContain('Research use')

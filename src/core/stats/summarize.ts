@@ -6,6 +6,7 @@ import { rollingSlopes } from './rolling'
 import type { FitModel, TimeBalancing } from '../fitPipeline/types'
 import { applyExclusionWindows, type ExclusionWindow } from '../exclusions/windows'
 import { balanceSeriesPoints } from './timeBalancing'
+import { isExactMeasurement } from '../measurements/censored'
 
 /** How a series is segmented before fitting. 'chronic-ckd' fits after an
  * initial run-in (`cutoffDays`); 'aki-aware' is the global fit with its
@@ -123,7 +124,7 @@ export function summarizeByBezeichnung(
           )
         : 0
     const first = group[0]
-    const allPoints: SeriesPoint[] = numericRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
+    const allPoints: SeriesPoint[] = numericRows.filter(isExactMeasurement).map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
     const windows = exclusionWindows?.({ bezeichnung: first.bezeichnung, einheit: first.einheit ?? null })
     let fitPoints = applyExclusionWindows(allPoints, windows?.censoring ?? []).kept
     const fitExclusions = windows?.exclusions ?? []
@@ -137,7 +138,7 @@ export function summarizeByBezeichnung(
     let summary: SeriesSummary
     if (nNumeric === 0) {
       summary = { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'no_numeric_values' }
-    } else if (nNumeric < 2) {
+    } else if (allPoints.length < 2) {
       summary = { ...base, ...emptyFit, nFitted: fitPoints.length, fittedSpanDays: 0, reason: 'n_below_threshold' }
     } else if (fitModel === 'none') {
       summary = { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'n_below_threshold' }

@@ -202,7 +202,7 @@ describe('import diagnostics', () => {
     expect(data.rows[0]).toMatchObject({ wertNum: 0.3, wertOperator: '<', wert: '<0,3' })
     const reasons = data.diagnostics.map((d) => d.reason)
     expect(reasons).toEqual(expect.arrayContaining([
-      'Kreatinin [mg/dl]: 1 censored value (1 "<"); fits currently use the limit value as if it had been measured.',
+      'Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.',
       expect.stringMatching(/eGFR \[ml\/min\].*2 censored values/),
     ]))
   })

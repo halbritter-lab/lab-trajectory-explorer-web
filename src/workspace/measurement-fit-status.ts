@@ -11,9 +11,10 @@ export function measurementFitStatus(rows: LabRow[], cell: CohortCell): string[]
   return rows.map(row => {
     if (!row.labDatum || row.wertNum === null) return 'Unavailable: missing date or numeric value'
     const index = numericIndex++
-    if (cell.fitModel === 'none') return 'Fit disabled'
     const reasons = cell.pointExclusionReasons[index] ?? []
-    if (reasons.length) return `Excluded: ${reasons.map(exclusionReasonLabel).join('; ')}`
+    const visibleReasons = cell.fitModel === 'none' ? reasons.filter(reason => reason === 'censored-value') : reasons
+    if (visibleReasons.length) return `Excluded: ${visibleReasons.map(exclusionReasonLabel).join('; ')}`
+    if (cell.fitModel === 'none') return 'Fit disabled'
     return 'Available before time aggregation'
   })
 }

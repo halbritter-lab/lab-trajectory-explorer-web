@@ -37,8 +37,13 @@ proceed and remain open to the owner's revision.
 - **Maximum confirmation window.** A confirming value must follow the
   candidate within 12 months *(proposed)*; this applies to G4/G5 and percent
   decline alike.
-- **Censored values** (`<x`, `>x`) are excluded from fits and endpoints and
-  shown as such; they are not fitted as exact values *(proposed)*.
+- **Censored values** (`<x`, `>x`) are excluded by row operator from all fits,
+  endpoint evaluation and prediction, AKI detection and cohort mixed models.
+  Raw values, limits and chart points remain visible; raw numeric counts include
+  them. An exact row on the same date remains eligible. Bound-only series have
+  no fit or endpoint; a bound cannot start, confirm, interrupt or recover an
+  observed event. Derived eGFR may display a reversed bound but is excluded
+  downstream. This numeric policy is implemented in the first P4 package.
 - **KDIGO threshold comparisons** use a small numeric tolerance, so a rise of
   exactly 0.3 mg/dl or exactly 1.5× is detected. Episode clustering and staging
   are unchanged for now.
@@ -87,7 +92,7 @@ candidate requiring its own later confirmation.
 
 ### Individual prediction
 
-Use all dated numeric measurements initially, including later recovery values.
+Use all dated exact numeric measurements initially, including later recovery values.
 Do not truncate the prediction input at an observed event or discard recovery
 values to preserve an earlier prediction. Future changes to input selection need
 an explicit documented policy. When connecting this rule to existing optional

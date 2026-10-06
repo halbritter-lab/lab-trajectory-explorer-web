@@ -109,7 +109,7 @@ export function Methodology() {
         <li>
           <strong>Endpoints</strong> — eGFR series can report total percent decline from baseline,
           independent observed G4 (&lt;30) and G5 (&lt;15), and projected age to G5.
-          Endpoints use all dated numeric eGFR measurements, independently of display-fit
+          Endpoints use all dated exact numeric eGFR measurements, independently of display-fit
           exclusions or aggregation. The minimum confirmation interval defaults to 90 days
           and is configurable as positive whole days.
         </li>
@@ -119,6 +119,10 @@ export function Methodology() {
           excluded from the configured fit.
         </li>
       </ul>
+      <p>Values marked &lt; or &gt; are bounds. They remain visible with their numeric
+        limits and count as raw numeric measurements, but are excluded from slopes,
+        endpoint evaluation and prediction, AKI detection, and cohort mixed models.
+        Exact measurements on the same date remain eligible.</p>
 
       <h4>Choosing a Fit Model</h4>
       <p>
@@ -198,7 +202,7 @@ export function Methodology() {
         establish persistence: a value at or above threshold interrupts an unconfirmed candidate.
         Tied qualifying values retain source order. Confirmation requires a later timestamp.</p>
       <h4>Individual endpoint prediction algorithm</h4>
-      <p>Fit all dated numeric measurements, including recovery, using global OLS or the selected
+      <p>Fit all dated exact numeric measurements, including recovery, using global OLS or the selected
         Theil-Sen estimator. Optional exclusions and aggregation affect display fits, not this
         endpoint prediction. Rolling and segmented selections use global OLS for the scalar
         endpoint prediction; no-fit disables it. With y(t) = a + b × t, crossing time is

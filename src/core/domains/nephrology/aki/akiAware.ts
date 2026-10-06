@@ -1,4 +1,5 @@
 import type { LabRow, OlsFit, PatientId } from '../../../types'
+import { isExactMeasurement } from '../../../measurements/censored'
 import type { SeriesPoint } from '../../../stats/series'
 import { fitOls } from '../../../stats/ols'
 import { datesToYears } from '../../../stats/time'
@@ -75,7 +76,7 @@ export const isCreatinineMgdl = isKdigoCreatinineSeries
  * mg/dl series with the most rows (cross-series, mirrors the Python
  * aki_creatinine_source). Returns [] when no creatinine mg/dl data exists. */
 export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null): AkiEpisode[] {
-  const sub = rows.filter((r) => r.patientId === patientId)
+  const sub = rows.filter((r) => r.patientId === patientId && r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
   let source: LabRow[]
   if (bezeichnung !== null && isCreatinineMgdl(bezeichnung, einheit)) {
     source = sub.filter((r) => r.bezeichnung === bezeichnung && (r.einheit ?? null) === (einheit ?? null))
@@ -90,7 +91,7 @@ export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichn
     source = [...groups.values()].sort((a, b) => b.length - a.length)[0] ?? []
   }
   const points: SeriesPoint[] = source
-    .filter((r) => r.wertNum !== null && r.labDatum !== null)
+    .filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
     .map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
   return points.length > 0 ? findKdigoAkiEpisodes(points) : []
