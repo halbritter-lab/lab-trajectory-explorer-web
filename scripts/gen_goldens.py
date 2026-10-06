@@ -1,7 +1,14 @@
-"""Generate golden fixtures from the Python analyses package for TS parity tests.
+"""Regenerate historical Python reference fixtures for TypeScript regression tests.
 
-Run from the repo root:  python web/scripts/gen_goldens.py
-Writes JSON into web/tests/goldens/.
+Requires a sibling ``analyses`` checkout with its source workbooks (see the
+DATA paths below), plus its Python dependencies. From this repository root,
+put the checkout's parent on ``PYTHONPATH`` and run
+``python scripts/gen_goldens.py``; output goes to ``tests/goldens/``.
+
+The Python package is no longer the binding specification for the web core.
+Do not regenerate fixtures as a routine response to a failing test: an
+intentional numeric change requires the owner decision and provenance process
+described in ``CLAUDE.md`` and ``docs/remaining-method-decisions.md``.
 """
 from __future__ import annotations
 

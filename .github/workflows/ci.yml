@@ -7,9 +7,13 @@ on:
     branches: [main]
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
   test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
       - uses: pnpm/action-setup@v4
@@ -21,8 +25,17 @@ jobs:
       - run: pnpm test
       # tsc -b runs as part of build, so this also type-checks the change.
       - run: pnpm build
+      - name: Get Playwright version
+        id: playwright-version
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - name: Cache Chromium browser
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: ${{ runner.os }}-playwright-chromium-${{ steps.playwright-version.outputs.version }}
       - run: pnpm exec playwright install --with-deps chromium
       - run: pnpm test:e2e
+        timeout-minutes: 20
       - name: Upload Playwright failure artifacts
         if: ${{ failure() }}
         uses: actions/upload-artifact@v4
