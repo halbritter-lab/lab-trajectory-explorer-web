@@ -95,7 +95,7 @@ test('renders every G5 projection outcome in its patient row', async ({ page }) 
 
   // The G5 label is the last token of the endpoint badge; pin it exactly.
   const expected = new Map([
-    ['1', 'G5 unlikely'],
+    ['1', 'G5 not projected'],
     ['2', 'G5 now'],
     ['3', 'G5 no age'],
     ['4', 'G5 n < 3'],

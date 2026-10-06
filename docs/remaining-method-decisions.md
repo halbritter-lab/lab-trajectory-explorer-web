@@ -43,6 +43,12 @@ proceed and remain open to the owner's revision.
   the last measurement *(proposed horizon)*; no projected crossing when the
   slope confidence interval includes zero. The "unlikely" wording is replaced
   by a neutral statement of what was or was not computed.
+  Implemented using the endpoint-only fit's slope bounds, separate from the
+  displayed cohort slope bounds. A finite interval touching zero at either end
+  withholds the projection; missing/nonfinite or inverted bounds withhold it
+  under a separate reason. The 20-year limit is measured from the latest
+  endpoint-eligible measurement using 365.25-day years; exactly 20 years is
+  included. Existing observed G5, KRT and no-fit reasons retain precedence.
 - **Confirmed percent-decline endpoints.** 40 % and 57 % eGFR decline (57 %
   corresponds to doubling of serum creatinine). Baseline: mean of the values
   within the first 90 days of follow-up *(proposed)*. Confirmation uses the

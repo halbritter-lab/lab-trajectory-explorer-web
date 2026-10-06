@@ -36,6 +36,9 @@ export type CkdProjectionReason =
   | 'already_below_threshold'
   | 'missing_age'
   | 'kidney_failure_reached'
+  | 'slope_ci_includes_zero'
+  | 'slope_ci_unavailable'
+  | 'beyond_projection_horizon'
 
 export interface CkdEndpoints {
   kidneyFailureReached: KidneyFailureReached | null
@@ -58,6 +61,8 @@ export interface CkdEndpoints {
   projectedAgeToCkdG5: {
     value: number | null
     reason: CkdProjectionReason | null
+    slopeCiLow?: number | null
+    slopeCiHigh?: number | null
   }
 }
 
@@ -67,6 +72,9 @@ export interface ComputeCkdEndpointsInput {
   slopePerYear: number
   /** Intercept at the first valid point's date; callers pass the raw-data fit. */
   intercept?: number
+  /** Bounds from the endpoint-only fit, never the display fit. */
+  slopeCiLow?: number
+  slopeCiHigh?: number
   enabled: CkdEndpointSettings
   threshold?: number
   confirmationDays?: number
@@ -169,7 +177,20 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
       direction: 'below',
       observed: out.observedCkdG5.met,
     })
-    out.projectedAgeToCkdG5 = { value: projected.value, reason: projected.reason === null ? null : PROJECTION_REASONS[projected.reason] }
+    let reason = projected.reason === null ? null : PROJECTION_REASONS[projected.reason]
+    let value = projected.value
+    if (value !== null) {
+      if (!Number.isFinite(input.slopeCiLow) || !Number.isFinite(input.slopeCiHigh) || input.slopeCiLow! > input.slopeCiHigh!) {
+        reason = 'slope_ci_unavailable'
+      } else if (input.slopeCiLow! <= 0 && input.slopeCiHigh! >= 0) {
+        reason = 'slope_ci_includes_zero'
+      } else {
+        const latest = points[points.length - 1]
+        if (value - latest.ageYears! > 20) reason = 'beyond_projection_horizon'
+      }
+      if (reason) value = null
+    }
+    out.projectedAgeToCkdG5 = { value, reason, slopeCiLow: Number.isFinite(input.slopeCiLow) ? input.slopeCiLow : null, slopeCiHigh: Number.isFinite(input.slopeCiHigh) ? input.slopeCiHigh : null }
   }
 
   return out

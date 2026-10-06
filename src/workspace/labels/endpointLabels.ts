@@ -11,7 +11,7 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
   if (decline !== null && endpoints.endpointPointCount >= 2 && measurementCount >= 2) {
     const change = -decline
     labels.push(`${change > 0 ? '+' : ''}${change.toFixed(0)}%`)
-    details.push(`total eGFR change ${change.toFixed(1)}% from baseline (not per year)`)
+    details.push(`total eGFR change ${change.toFixed(1)}% from first to latest eligible measurement (not per year)`)
   }
   if (endpoints.kidneyFailureReached) {
     const event = endpoints.kidneyFailureReached
@@ -22,7 +22,7 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
   for (const [stage, event] of [['G4', endpoints.observedCkdG4], ['G5', endpoints.observedCkdG5]] as const) {
     if (!event?.met) continue
     labels.push(`CKD ${stage}`)
-    details.push(`observed CKD ${stage}: event ${event.firstDate?.toISOString().slice(0, 10)} (${event.firstValue}), confirmed ${event.confirmedDate?.toISOString().slice(0, 10)} (${event.confirmedValue}); minimum ${endpoints.confirmationDays} days`)
+    details.push(`observed CKD ${stage}: event ${event.firstDate?.toISOString().slice(0, 10)} (${event.firstValue}), confirmed ${event.confirmedDate?.toISOString().slice(0, 10)} (${event.confirmedValue}); minimum ${endpoints.confirmationDays} days, maximum 12 calendar months`)
     if (event.recoveryDate) {
       labels.push(`${stage} recovery`)
       details.push(`${stage} recovery ${event.recoveryDate.toISOString().slice(0, 10)} (${event.recoveryValue}); confirmed event retained`)

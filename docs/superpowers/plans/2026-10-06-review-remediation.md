@@ -85,6 +85,20 @@ checklist update, changelog.
 
 ## Progress (2026-10-06)
 
+Final P4 individual G5 projection package: endpoint-only OLS/Theil-Sen slope
+confidence bounds now control whether an individual crossing is reported.
+Intervals touching zero and unavailable/inverted bounds have distinct withheld
+reasons. The crossing is reported at exactly 20 years after the latest eligible
+measurement and withheld beyond it; observed G5, KRT and no-fit precedence is
+retained. Cohort exports include endpoint-fit bounds, reason and horizon, kept
+separate from display-fit CI columns. Badge and Methods copy use neutral
+wording; the total-change badge now names its first-to-latest basis and G4/G5
+badges name the 12-month confirmation maximum. Existing goldens do not contain
+affected endpoint projection records and were deliberately unchanged. Focused
+red-green tests covered CI, missing bounds and the horizon boundary. Final
+verification: 800/800 unit tests in 90 files, production build and 29/29
+Chromium checks passed. Existing React `act` warnings in storage tests remain.
+
 Done and reviewed: P1 (import), P2 (single interface, dedicated storage).
 P3 implementation committed: steps 1–7 (`deada55`..`e16c2b1`), shared
 clinical-event code arrays with the storage exhaustiveness guard (`c043267`),

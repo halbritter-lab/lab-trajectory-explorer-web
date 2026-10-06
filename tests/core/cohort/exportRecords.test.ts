@@ -234,6 +234,31 @@ describe('cohortExportRecords', () => {
     expect(rec.endpoint_percent_decline).toBeCloseTo(50)
     expect(rec.endpoint_observed_ckd_g5).toBe('')
     expect(rec.endpoint_projected_age_to_ckd_g5).toBeCloseTo(63, 1)
+    expect(rec.endpoint_prediction_slope_ci_low).toBeLessThan(0)
+    expect(rec.endpoint_prediction_slope_ci_high).toBeLessThan(0)
+    expect(rec.endpoint_prediction_max_years).toBe(20)
+  })
+
+  it('exports endpoint-only Theil-Sen confidence bounds and model provenance', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const fitConfig = { ...ckdProgressionConfig(parameter), fitModel: 'theil-sen' as const }
+    const values = [65, 55, 45, 35, 25]
+    const rows = values.map((wertNum, i) => row({ ...parameter, labDatum: d(`${2020 + i}-01-01`), wertNum, patientAgeAtLab: 60 + i }))
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...parameter, mode: 'global-robust', fitConfig }]))
+    expect(rec.endpoint_prediction_model).toBe('theil-sen')
+    expect(rec.endpoint_prediction_slope_ci_low).toBeLessThan(0)
+    expect(rec.endpoint_prediction_slope_ci_high).toBeLessThan(0)
+    expect(rec.endpoint_prediction_reason).toBe('')
+  })
+
+  it('keeps endpoint-fit CI separate from the time-balanced display-fit CI', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const fitConfig = ckdProgressionConfig(parameter)
+    const entries = [['2020-01-01', 60], ['2020-02-01', 54], ['2021-01-01', 50], ['2022-01-01', 40], ['2023-01-01', 30]] as const
+    const rows = entries.map(([date, wertNum]) => row({ ...parameter, labDatum: d(date), wertNum, patientAgeAtLab: 60 }))
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig }]))
+    expect(rec.endpoint_prediction_slope_ci_low).not.toBe(rec.ci_low)
+    expect(rec.endpoint_prediction_slope_ci_high).not.toBe(rec.ci_high)
   })
 
   it('leaves endpoint provenance blank for series whose endpoints were not evaluated', () => {

@@ -107,7 +107,7 @@ export function Methodology() {
           See <em>Choosing a fit model</em> below.
         </li>
         <li>
-          <strong>Endpoints</strong> — eGFR series can report total percent decline from baseline,
+          <strong>Endpoints</strong> — eGFR series can report total percent change from the first to latest eligible measurement,
           independent observed G4 (&lt;30) and G5 (&lt;15), and projected age to G5.
           Endpoints use dated exact numeric eGFR measurements before the first kidney transplant
           or chronic dialysis start and outside complete dated acute dialysis intervals,
@@ -227,7 +227,12 @@ export function Methodology() {
       <p>Require three measurements, at least one year of follow-up, a finite declining fit, a
         future crossing and an age anchor. For values 60, 50, 25 at years 0, 1, 2, OLS gives
         a = 62.5 and b = −17.5: the fitted line reaches 15 about 0.7143 years after year 2.
-        New measurements can change this prediction; they do not revoke a confirmed event.</p>
+        Report a future crossing only within 20 years after the latest eligible measurement,
+        including the boundary. The endpoint fit's slope confidence interval must have finite
+        ordered bounds strictly below zero; missing bounds or an interval that includes zero
+        withhold the crossing. The displayed slope interval may differ because it can use
+        different prepared rows. New measurements can change this prediction; they do not
+        revoke a confirmed event.</p>
       <h4>Clinical Events and Exclusion Display</h4>
       <p>
         Clinical events are patient-level annotations with a date, title, optional end date, and
@@ -314,8 +319,10 @@ export function Methodology() {
           calculated. This is distinct from a fitted trend that is flat or rising.
         </li>
         <li>
-          <strong>G5 unlikely</strong> — the fitted trend is flat or rising, so no age at G5 is
-          projected. This describes the observed window only and is not a prognosis.
+          <strong>G5 not projected</strong> — no future age at G5 was computed. The badge states
+          whether the endpoint fit is flat or rising, its slope confidence interval includes zero
+          or is unavailable, or its crossing lies more than 20 years after the latest eligible
+          measurement. A crossing at exactly 20 years is included.
         </li>
         <li>
           <strong>G5 now</strong> — the fitted curve reaches 15 at or before the latest

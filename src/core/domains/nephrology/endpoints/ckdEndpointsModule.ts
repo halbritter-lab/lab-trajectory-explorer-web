@@ -49,8 +49,8 @@ export const ckdEndpointsModule = {
     // Ages and the endpoint-only fit feed the G5 projection; skip both otherwise.
     const projecting = enabled.projectedAgeToCkdG5
     const kidneyFailureReached = ctx.hasSeriesMeasurements && isEgfrUnit(ctx.seriesKey.einheit) ? firstKidneyFailureEvent(ctx.events) : null
-    const fit = projecting && !kidneyFailureReached ? ctx.fit() : { slope: Number.NaN, intercept: Number.NaN }
-    return computeCkdEndpoints({ points: ctx.points(projecting), slopePerYear: fit.slope, intercept: fit.intercept, enabled,
+    const fit = projecting && !kidneyFailureReached ? ctx.fit() : { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
+    return computeCkdEndpoints({ points: ctx.points(projecting), slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
       kidneyFailureReached })
   },
   // Column order is part of the export format: the first three predate the
@@ -68,6 +68,9 @@ export const ckdEndpointsModule = {
     { key: 'endpoint_prediction_anchor', value: (c: Cell) => c.endpoints.evaluated.projectedAgeToCkdG5 && !c.endpoints.kidneyFailureReached ? 'fitted curve' : '' },
     { key: 'endpoint_prediction_model', value: (c: Cell) => c.endpoints.evaluated.projectedAgeToCkdG5 && !c.endpoints.kidneyFailureReached ? c.fitModel : '' },
     { key: 'endpoint_prediction_reason', value: (c: Cell) => c.endpoints.evaluated.projectedAgeToCkdG5 ? c.endpoints.projectedAgeToCkdG5.reason ?? '' : '' },
+    { key: 'endpoint_prediction_slope_ci_low', value: (c: Cell) => c.endpoints.evaluated.projectedAgeToCkdG5 ? c.endpoints.projectedAgeToCkdG5.slopeCiLow ?? '' : '' },
+    { key: 'endpoint_prediction_slope_ci_high', value: (c: Cell) => c.endpoints.evaluated.projectedAgeToCkdG5 ? c.endpoints.projectedAgeToCkdG5.slopeCiHigh ?? '' : '' },
+    { key: 'endpoint_prediction_max_years', value: (c: Cell) => c.endpoints.evaluated.projectedAgeToCkdG5 ? 20 : '' },
     { key: 'endpoint_g4_first_date', value: (c: Cell) => endpointDate(c.endpoints.observedCkdG4.firstDate) },
     { key: 'endpoint_g4_confirmed_date', value: (c: Cell) => endpointDate(c.endpoints.observedCkdG4.confirmedDate) },
     { key: 'endpoint_g4_recovery_date', value: (c: Cell) => endpointDate(c.endpoints.observedCkdG4.recoveryDate) },

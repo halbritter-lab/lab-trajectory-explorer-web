@@ -97,12 +97,17 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
       }
     case 'non_declining_fit':
       return {
-        label: 'G5 unlikely',
+        label: 'G5 not projected',
         title:
-          'eGFR is not declining over the fitted window, so no age at CKD G5 is projected. ' +
-          'This is a statement about the observed trend, not a prognosis.',
+          'The endpoint fit is flat or rising, so no future age at CKD G5 was computed.',
         caveat,
       }
+    case 'slope_ci_includes_zero':
+      return { label: 'G5 not projected', title: 'The endpoint fit slope confidence interval includes zero, so no future age at CKD G5 was computed.', caveat }
+    case 'slope_ci_unavailable':
+      return { label: 'G5 not projected', title: 'Endpoint fit slope confidence bounds are unavailable, so no future age at CKD G5 was computed.', caveat }
+    case 'beyond_projection_horizon':
+      return { label: 'G5 not projected', title: 'The fitted crossing is more than 20 years after the latest eligible eGFR measurement, so no future age at CKD G5 was reported.', caveat }
     case 'already_below_threshold':
       return {
         label: 'G5 now',

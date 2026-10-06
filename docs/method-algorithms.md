@@ -182,6 +182,17 @@ report no future crossing rather than a future age. Missing values remain
 unavailable, never zero. New measurements may change a prediction; they cannot
 revoke a previously confirmed event within the same measurement history.
 
+The endpoint-only OLS or Theil-Sen fit also supplies slope confidence bounds;
+the cohort display-fit bounds do not control this prediction. A crossing is
+reported only when both bounds are finite and ordered, and the interval is
+strictly below zero. An interval touching or straddling zero gives
+`slope_ci_includes_zero`; unavailable or inverted bounds give
+`slope_ci_unavailable`. The future crossing must occur no more than 20 years
+after the latest endpoint-eligible measurement, using 365.25-day years;
+exactly 20 years is allowed and a later crossing gives
+`beyond_projection_horizon`. The export includes the endpoint slope bounds,
+20-year limit and reason. Observed G5, KRT and no-fit reasons take precedence.
+
 Example: years [0,1,2], values [60,50,25] gives a=62.5, b=-17.5. Target15 is
 reached 0.7142857 years after year2, rather than 0.5714286 from the former
 last-measurement anchor. These intentionally replace the historical web rules;

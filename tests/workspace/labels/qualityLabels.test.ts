@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { slopeQualityLabel, projectedG5Label, isUnstableSlope } from '../../../src/workspace/labels/qualityLabels'
 import type { SlopeQualityInput } from '../../../src/workspace/labels/qualityLabels'
 import { computeCkdEndpoints, type CkdEndpoints } from '../../../src/core/domains/nephrology/endpoints/ckdEndpoints'
+import { endpointBadge } from '../../../src/workspace/labels/endpointLabels'
 
 const ALL_ENDPOINTS = { percentDecline: true, observedCkdG5: true, projectedAgeToCkdG5: true }
 
@@ -13,6 +14,8 @@ function endpointsFor(points: { date: string; value: number; ageYears?: number }
   return computeCkdEndpoints({
     points: points.map((p) => ({ date: new Date(p.date), value: p.value, ageYears: p.ageYears ?? 50 })),
     slopePerYear,
+    slopeCiLow: slopePerYear < 0 ? slopePerYear - 1 : slopePerYear - 0.1,
+    slopeCiHigh: slopePerYear < 0 ? slopePerYear + 1 : slopePerYear + 0.1,
     enabled: ALL_ENDPOINTS,
   })
 }
@@ -85,14 +88,35 @@ describe('slopeQualityLabel', () => {
 })
 
 describe('projectedG5Label', () => {
-  it('says G5 is unlikely when the fit is not declining', () => {
+  it('explains the distinct CI and horizon reasons without prognostic language', () => {
+    for (const [reason, fragment] of [['slope_ci_includes_zero', 'includes zero'], ['slope_ci_unavailable', 'unavailable'], ['beyond_projection_horizon', 'more than 20 years']] as const) {
+      const endpoints = endpointsFor([{ date: '2020-01-01', value: 60 }, { date: '2021-01-01', value: 50 }, { date: '2022-01-01', value: 40 }], -10)
+      endpoints.projectedAgeToCkdG5 = { value: null, reason }
+      const label = projectedG5Label(endpoints)
+      expect(label?.label).toBe('G5 not projected')
+      expect(label?.title).toContain(fragment)
+      expect(label?.title).not.toMatch(/unlikely/i)
+    }
+  })
+  it('states the first-to-latest change and maximum G4/G5 confirmation window', () => {
+    const endpoints = computeCkdEndpoints({ points: [
+      { date: new Date('2020-01-01'), value: 25, ageYears: 60 },
+      { date: new Date('2020-05-01'), value: 20, ageYears: 60.3 },
+      { date: new Date('2021-01-01'), value: 18, ageYears: 61 },
+    ], slopePerYear: -4, enabled: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: false } })
+    const title = endpointBadge(endpoints, 3)?.title
+    expect(title).toContain('from first to latest eligible measurement')
+    expect(title).toContain('observed CKD G4:')
+    expect(title).toContain('maximum 12 calendar months')
+  })
+  it('uses neutral wording when the fit is not declining', () => {
     const endpoints = endpointsFor([
       { date: '2020-01-01', value: 60 },
       { date: '2021-06-01', value: 61 },
       { date: '2023-01-01', value: 60 },
     ], 0.2)
     expect(endpoints.projectedAgeToCkdG5.reason).toBe('non_declining_fit')
-    expect(projectedG5Label(endpoints)?.label).toBe('G5 unlikely')
+    expect(projectedG5Label(endpoints)?.label).toBe('G5 not projected')
   })
 
   it('labels an unavailable projection when there is no fit at all', () => {

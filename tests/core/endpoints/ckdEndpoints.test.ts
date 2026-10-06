@@ -106,7 +106,7 @@ describe('computeCkdEndpoints', () => {
   })
   it('projects from the fitted curve rather than the final measurement', () => {
     const points = [60, 50, 25].map((value, i) => ({ date: new Date(d('2020-01-01').getTime() + i*365.25*86400000), value, ageYears: 60+i }))
-    const result = computeCkdEndpoints({ points, slopePerYear: -17.5, intercept: 62.5, enabled: { ...observed, projectedAgeToCkdG5: true } })
+    const result = computeCkdEndpoints({ points, slopePerYear: -17.5, intercept: 62.5, slopeCiLow: -20, slopeCiHigh: -15, enabled: { ...observed, projectedAgeToCkdG5: true } })
     expect(result.projectedAgeToCkdG5.value).toBeCloseTo(62 + 0.7142857143)
   })
   it('computes percent decline from first to latest included eGFR value', () => {
@@ -159,6 +159,8 @@ describe('computeCkdEndpoints', () => {
       points: [point('2020-01-01', 45, 60), point('2021-01-01', 35, 61), point('2022-01-01', 25, 62)],
       slopePerYear: -10,
       intercept: 45,
+      slopeCiLow: -12,
+      slopeCiHigh: -8,
       enabled: { percentDecline: false, observedCkdG5: true, projectedAgeToCkdG5: true },
     })
 
@@ -186,5 +188,29 @@ describe('computeCkdEndpoints', () => {
     })
 
     expect(endpoints.projectedAgeToCkdG5.reason).toBe('no_fit')
+  })
+
+  it('withholds a crossing when the endpoint slope CI touches zero', () => {
+    const result = computeCkdEndpoints({ points: [point('2020-01-01', 60, 60), point('2021-01-01', 50, 61), point('2022-01-01', 40, 62)], slopePerYear: -10, intercept: 60, slopeCiLow: -12, slopeCiHigh: 0, enabled: { ...observed, projectedAgeToCkdG5: true } })
+    expect(result.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'slope_ci_includes_zero' })
+  })
+  it('distinguishes unavailable endpoint fit bounds', () => {
+    const result = computeCkdEndpoints({ points: [point('2020-01-01', 60, 60), point('2021-01-01', 50, 61), point('2022-01-01', 40, 62)], slopePerYear: -10, intercept: 60, enabled: { ...observed, projectedAgeToCkdG5: true } })
+    expect(result.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'slope_ci_unavailable' })
+  })
+  it('allows exactly 20 years after the latest endpoint measurement but not beyond', () => {
+    const points = [point('2020-01-01', 60, 60), point('2021-01-01', 59, 61), point('2022-01-01', 58, 62)]
+    const elapsed = (points[2].date.getTime() - points[0].date.getTime()) / (365.25 * 86400000)
+    const base = { points, slopePerYear: -1, slopeCiLow: -2, slopeCiHigh: -0.1, enabled: { ...observed, projectedAgeToCkdG5: true } }
+    expect(computeCkdEndpoints({ ...base, intercept: 15 + elapsed + 20 }).projectedAgeToCkdG5.reason).toBeNull()
+    expect(computeCkdEndpoints({ ...base, intercept: 15 + elapsed + 20.001 }).projectedAgeToCkdG5.reason).toBe('beyond_projection_horizon')
+  })
+  it('keeps observed G5, KRT and no-fit reasons ahead of CI gating', () => {
+    const enabled = { ...observed, projectedAgeToCkdG5: true }
+    const observedPoints = [point('2020-01-01', 14, 60), point('2020-05-01', 13, 60.3), point('2021-01-01', 12, 61)]
+    expect(computeCkdEndpoints({ points: observedPoints, slopePerYear: -2, intercept: 14, enabled }).projectedAgeToCkdG5.reason).toBe('observed_ckd_g5')
+    const points = [point('2020-01-01', 60, 60), point('2021-01-01', 50, 61), point('2022-01-01', 40, 62)]
+    expect(computeCkdEndpoints({ points, slopePerYear: -10, intercept: 60, enabled, kidneyFailureReached: { type: 'kidney_transplant', date: d('2023-01-01') } }).projectedAgeToCkdG5.reason).toBe('kidney_failure_reached')
+    expect(computeCkdEndpoints({ points, slopePerYear: Number.NaN, intercept: 60, enabled }).projectedAgeToCkdG5.reason).toBe('no_fit')
   })
 })

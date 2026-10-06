@@ -177,7 +177,7 @@ export interface EndpointContext {
   points(withAges: boolean): EndpointPoint[]
   /** Global fit of those same endpoint-eligible measurements with the scalar model (OLS or
    * Theil-Sen); NaN slope and intercept when the model is 'none'. */
-  fit(): { slope: number; intercept: number }
+  fit(): { slope: number; intercept: number; ciLow: number; ciHigh: number }
 }
 
 /** The fitted cell a module's export columns read. `E` is the module's own

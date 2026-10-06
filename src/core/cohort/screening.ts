@@ -225,7 +225,7 @@ function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRow
     scalarFitModel,
     points,
     fit: () => {
-      if (scalarFitModel === 'none') return { slope: Number.NaN, intercept: Number.NaN }
+      if (scalarFitModel === 'none') return { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
       const all = points(false)
       return scalarFitModel === 'theil-sen' ? fitTheilSen(all) : fitGlobal(all)
     },

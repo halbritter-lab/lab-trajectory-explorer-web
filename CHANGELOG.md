@@ -7,6 +7,14 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Withhold individual G5 crossings beyond 20 years after the latest eligible
+  measurement or when endpoint-fit slope confidence bounds include zero or are
+  unavailable. Export the endpoint-fit bounds, horizon and distinct reasons;
+  replace prognostic "G5 unlikely" copy with neutral wording. Clarify total
+  first-to-latest change and the 12-month G4/G5 confirmation window in badges.
+  Existing numeric goldens have no affected endpoint projection records and
+  remain unchanged.
+
 - Limit G4/G5 and confirmed 40%/57% eGFR decline confirmation to 12 UTC calendar
   months after each candidate, inclusive, with end-of-month clamping and a new
   candidate on a later crossing. Previously late G4/G5 values could confirm an
