@@ -30,10 +30,12 @@ imported parameter names and patient attributes retain their original values.
    entries use the displayed reference date. Open a patient from the quality table.
    CSV files are read as text (UTF-8 or Windows-1252, comma or semicolon) and
    accept decimal commas. Dates may be `YYYY-MM-DD`, `DD.MM.YYYY` or `DD/MM/YYYY`,
-   always read day-first; Excel cells holding a date number are converted.
-   Rows with impossible dates are rejected and listed. Diagnostics also count
-   duplicate rows and censored values (`<`, `>`), and list unit spellings that were
-   merged because they differ only in case, spacing or micro sign.
+   always read day-first; Excel cells holding a date number (1927–2119 for lab
+   and event dates) are converted. Rows with impossible or unreadable dates are
+   rejected and listed. Diagnostics also count duplicate rows, censored values
+   (`<`, `>`) and decimal commas that may be thousands separators, and list unit
+   spellings merged because they differ only in spacing, micro sign or case that
+   does not change an SI prefix.
 3. Choose an eGFR formula and creatinine source, inspect the preview, then apply.
    Source measurements remain intact. Output-name collisions with imported series
    block the derivation instead of silently combining measurements.
