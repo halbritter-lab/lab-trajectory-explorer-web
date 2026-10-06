@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { mixedModelRowsFromCohortInputs } from '../../../src/core/mixedModel/cohortDataset'
 import type { AkiEpisode } from '../../../src/core/domains/nephrology/aki/kdigo'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
+import { akiFitInput } from '../../../src/core/domains/nephrology/aki/akiModule'
 import type { CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { ClinicalEvent } from '../../../src/core/events/events'
 import { generalExplorationConfig } from '../../../src/core/fitPipeline/types'
@@ -114,14 +115,9 @@ describe('mixedModelRowsFromCohortInputs', () => {
       criterion: 'absolute_0_3_mg_dl_48h',
       stage: 1,
     }
-    const fitInputs: AnalysisFitInputContribution[] = [{
-      id: 'aki-aware:7:eGFR:ml/min/1.73m2',
-      patientId: 7,
-      seriesKey: { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' },
-      kind: 'aki-aware',
-      exclusionDays: 45,
-      episodes: [episode],
-    }]
+    const fitInputs: AnalysisFitInputContribution[] = [
+      akiFitInput(7, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' }, [episode], 45),
+    ]
     const spec: CohortSeriesSpec = { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', mode: 'aki-aware', fitInputs }
     const rows = [
       row({ labDatum: d('2020-01-01T00:00:00Z'), wertNum: 60 }),

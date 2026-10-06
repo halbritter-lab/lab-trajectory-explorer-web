@@ -2,6 +2,7 @@ import { akiModule } from '../domains/nephrology/aki/akiModule'
 import { demographicsModule } from './demographicsModule'
 import { egfrModule } from '../domains/nephrology/egfr/egfrModule'
 import { rapidEgfrDeclineModule } from '../domains/nephrology/rapidEgfrDeclineModule'
+import { clinicalEventsModule } from '../domains/nephrology/clinicalEventsModule'
 import type {
   AnalysisContribution,
   AnalysisModule,
@@ -27,7 +28,7 @@ export interface ComputeAnalysisResultOptions {
   modules?: readonly RegisteredAnalysisModule[]
 }
 
-export type RegisteredAnalysisModule = Pick<AnalysisModule<AnalysisSettings>, 'id' | 'label' | 'apply'>
+export type RegisteredAnalysisModule = Pick<AnalysisModule<AnalysisSettings>, 'id' | 'label' | 'apply' | 'series'>
 
 function adaptModule<K extends keyof AnalysisSettings>(
   key: K,
@@ -37,12 +38,14 @@ function adaptModule<K extends keyof AnalysisSettings>(
     id: module.id,
     label: module.label,
     apply: (ctx, settings): AnalysisContribution => module.apply(ctx, settings[key]),
+    series: module.series,
   }
 }
 
 export const analysisModules: readonly RegisteredAnalysisModule[] = [
   demographicsModule,
   adaptModule('egfr', egfrModule),
+  clinicalEventsModule,
   adaptModule('aki', akiModule),
   adaptModule('rapidEgfrDecline', rapidEgfrDeclineModule),
 ]

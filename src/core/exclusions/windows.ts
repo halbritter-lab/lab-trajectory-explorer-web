@@ -31,6 +31,11 @@ export function fixedLengthWindow(start: Date, days: number): ExclusionWindow {
   return { start, end: new Date(Math.floor(start.getTime() + days * MS_PER_DAY)) }
 }
 
+/** The same window starts with another fixed length (see fixedLengthWindow). */
+export function windowsWithLength(windows: readonly ExclusionWindow[], days: number): ExclusionWindow[] {
+  return windows.map((window) => fixedLengthWindow(window.start, days))
+}
+
 /** Reasons of every window containing `date`, without repeats, in window
  * order. Empty when no window contains it. */
 export function exclusionReasonsAt<R extends string>(date: Date, windows: readonly ReasonedExclusionWindow<R>[]): R[] {

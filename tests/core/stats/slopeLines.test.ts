@@ -2,6 +2,12 @@ import { describe, it, expect } from 'vitest'
 import { buildSlopeLines } from '../../../src/core/stats/slopeLines'
 import type { SeriesPoint } from '../../../src/core/stats/series'
 import type { ClinicalEvent } from '../../../src/core/events/events'
+import { clinicalEventExclusionWindows } from '../../../src/core/domains/nephrology/censoring'
+import { akiExclusionWindows } from '../../../src/core/domains/nephrology/aki/akiAware'
+import { findKdigoAkiEpisodes } from '../../../src/core/domains/nephrology/aki/kdigo'
+
+// AKI windows detected on the plotted creatinine points themselves, as the AKI module supplies them.
+const selfDetectedAki = (points: SeriesPoint[], exclusionDays: number) => ({ exclusions: akiExclusionWindows(findKdigoAkiEpisodes(points), exclusionDays) })
 
 const d = (s: string) => new Date(s)
 const pts: SeriesPoint[] = [
@@ -69,7 +75,7 @@ describe('buildSlopeLines', () => {
       gapDays: 180,
       windowDays: 730,
       stepDays: 180,
-      clinicalEvents: [transplant],
+      exclusionWindows: { censoring: clinicalEventExclusionWindows([transplant]) },
     })
 
     expect(lines).toHaveLength(1)
@@ -112,7 +118,7 @@ describe('buildSlopeLines aki-aware', () => {
   ]
   const cfg = { mode: 'aki-aware' as const, gapDays: 180, windowDays: 730, stepDays: 180, exclusionDays: 30 }
   it('returns one line spanning the kept points only', () => {
-    const lines = buildSlopeLines(spiky, cfg)
+    const lines = buildSlopeLines(spiky, { ...cfg, exclusionWindows: selfDetectedAki(spiky, cfg.exclusionDays) })
     expect(lines).toHaveLength(1)
     expect(lines[0][0].date.toISOString().slice(0, 10)).toBe('2019-01-01')
     expect(lines[0][1].date.toISOString().slice(0, 10)).toBe('2021-06-01')
@@ -123,6 +129,6 @@ describe('buildSlopeLines aki-aware', () => {
     ]
     // self-detection finds the 01-04 episode (abs +0.6 within 48 h); the 30 d
     // window drops 01-04 and 01-10, leaving 1 point -> unfittable
-    expect(buildSlopeLines(burst, cfg)).toEqual([])
+    expect(buildSlopeLines(burst, { ...cfg, exclusionWindows: selfDetectedAki(burst, cfg.exclusionDays) })).toEqual([])
   })
 })

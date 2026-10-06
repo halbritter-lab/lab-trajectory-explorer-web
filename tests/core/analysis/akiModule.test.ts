@@ -31,16 +31,17 @@ describe('akiModule', () => {
     expect(out.fitInputs?.[0]).toMatchObject({
       patientId: 1,
       seriesKey: { bezeichnung: 'Kreatinin', einheit: 'mg/dl' },
-      kind: 'aki-aware',
-      exclusionDays: 30,
+      kind: 'exclusion-windows',
+      reason: 'aki',
+      lengthDays: 30,
     })
-    expect(out.fitInputs?.[0].episodes).toHaveLength(1)
+    expect(out.fitInputs?.[0].windows).toHaveLength(1)
     expect(out.overlays).toEqual([])
   })
 
   it('contributes event and band overlays only when showOverlays is true', () => {
     const out = akiModule.apply({ rows: spiky, manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: true, exclusionDays: 30 })
-    expect(out.fitInputs?.[0].episodes).toHaveLength(1)
+    expect(out.fitInputs?.[0].windows).toHaveLength(1)
     expect(out.overlays?.some((o) => o.kind === 'event')).toBe(true)
     expect(out.overlays?.some((o) => o.kind === 'band')).toBe(true)
   })
@@ -54,7 +55,7 @@ describe('akiModule', () => {
     }))
     const out = akiModule.apply({ rows: [...spiky, ...egfrRows], manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: false, exclusionDays: 30 })
     const egfrInput = out.fitInputs?.find((i) => i.seriesKey.bezeichnung.includes('eGFR'))
-    expect(egfrInput?.episodes).toHaveLength(1)
+    expect(egfrInput?.windows).toHaveLength(1)
   })
 
   it('reuses creatinine-derived episodes across non-creatinine series for a patient', () => {
@@ -75,7 +76,7 @@ describe('akiModule', () => {
     const egfrInput = out.fitInputs?.find((i) => i.seriesKey.bezeichnung.includes('eGFR'))
     const cystatinInput = out.fitInputs?.find((i) => i.seriesKey.bezeichnung === 'Cystatin C')
 
-    expect(egfrInput?.episodes).toEqual(cystatinInput?.episodes)
-    expect(egfrInput?.episodes).toBe(cystatinInput?.episodes)
+    expect(egfrInput?.windows).toEqual(cystatinInput?.windows)
+    expect(egfrInput?.windows[0].start).toBe(cystatinInput?.windows[0].start)
   })
 })

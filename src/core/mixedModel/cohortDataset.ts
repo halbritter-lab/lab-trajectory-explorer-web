@@ -1,14 +1,11 @@
-import type { AkiEpisode } from '../domains/nephrology/aki/kdigo'
-import { episodesForSeries, fitAkiAware } from '../domains/nephrology/aki/akiAware'
-import { fitInputForSeries } from '../analysis/types'
 import type { CohortSeriesSpec } from '../cohort/screening'
-import { filterFitPointsByClinicalEvents } from '../domains/nephrology/censoring'
+import { seriesContextFor, seriesExclusions } from '../cohort/seriesContributions'
+import { applyExclusionWindows } from '../exclusions/windows'
 import type { PatientGroup } from '../grouping/grouping'
 import { balanceSeriesPoints } from '../stats/timeBalancing'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
 import type { MixedModelSpikeRow } from './types'
 import { roundTo10Decimals } from './validation'
-import { DEFAULT_AKI_EXCLUSION_DAYS } from '../domains/nephrology/constants'
 
 const MS_PER_YEAR = 365.25 * 86_400_000
 const MS_PER_DAY = 86_400_000
@@ -42,10 +39,10 @@ export function mixedModelRowsFromCohortInputs(
     else rowsByPatient.set(row.patientId, [row])
   }
 
+  const cache = new Map<string, unknown>()
   for (const patientId of ids) {
     const patientRows = rowsByPatient.get(patientId) ?? []
     const patientKey = patientIdKey(patientId)
-    const clinicalEvents = spec.clinicalEventsByPatient?.[patientKey] ?? spec.clinicalEvents ?? []
     const seriesRows = patientRows
       .filter((row) =>
         row.bezeichnung === spec.bezeichnung
@@ -59,21 +56,9 @@ export function mixedModelRowsFromCohortInputs(
       value: row.wertNum!,
       age: Number.isFinite(row.patientAgeAtLab) ? row.patientAgeAtLab : null,
     }))
-    const eventExcluded = new Set(filterFitPointsByClinicalEvents(points, clinicalEvents, spec.fitConfig?.censoring).excludedIdx)
-    let included = points.filter((_, index) => !eventExcluded.has(index))
-
-    if ((spec.mode === 'aki-aware' || spec.fitConfig?.exclusions.excludeAkiWindows) && included.length > 0) {
-      const fitInput = fitInputForSeries(spec.fitInputs ?? [], patientId, {
-        bezeichnung: spec.bezeichnung,
-        einheit: spec.einheit ?? null,
-      })
-      const episodes: AkiEpisode[] = fitInput?.episodes ?? episodesForSeries(patientRows, patientId, spec.bezeichnung, spec.einheit ?? null)
-      const exclusionDays = spec.exclusionDays ?? fitInput?.exclusionDays ?? spec.fitConfig?.exclusions.akiExclusionDays ?? DEFAULT_AKI_EXCLUSION_DAYS
-      const kept = new Set(
-        fitAkiAware(included, exclusionDays, episodes).keptIdx,
-      )
-      included = included.filter((_, index) => kept.has(index))
-    }
+    // The same censoring and exclusion windows as the cohort cell's fit.
+    const windows = seriesExclusions(seriesContextFor(spec, patientId, patientRows, cache))
+    const included = applyExclusionWindows(points, [...windows.censoring, ...windows.exclusions]).kept
 
     const balanced = balanceSeriesPoints(included, spec.fitConfig?.timeBalancing).map((point) => ({
       ...point,

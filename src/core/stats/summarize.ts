@@ -3,15 +3,24 @@ import type { SeriesPoint } from './series'
 import { fitGlobal, fitTheilSen } from './series'
 import { fitSegments } from './segments'
 import { rollingSlopes } from './rolling'
-import { fitAkiAware, episodesForSeries } from '../domains/nephrology/aki/akiAware'
-import { fitInputForSeries } from '../analysis/types'
-import type { AnalysisFitInputContribution } from '../analysis/types'
-import type { ClinicalEvent } from '../events/events'
-import { filterFitPointsByClinicalEvents } from '../domains/nephrology/censoring'
-import type { FitConfig } from '../fitPipeline/types'
+import type { FitModel, TimeBalancing } from '../fitPipeline/types'
+import { applyExclusionWindows, type ExclusionWindow } from '../exclusions/windows'
 import { balanceSeriesPoints } from './timeBalancing'
 
+/** How a series is segmented before fitting. 'chronic-ckd' fits after an
+ * initial run-in (`cutoffDays`); 'aki-aware' is the global fit with its
+ * exclusion windows always supplied by the caller (it differs from 'global'
+ * only in the plotted line, see buildSlopeLines); 'event-driven' splits at
+ * event dates and reports the steepest fittable segment. The domain-flavoured
+ * names are kept because they appear in exports. */
 export type SlopeMode = 'global' | 'gap-split' | 'rolling' | 'global-robust' | 'chronic-ckd' | 'aki-aware' | 'event-driven'
+
+/** Exclusion windows for one series. Censoring windows remove points before
+ * anything else is counted; exclusion windows are left out of the fit. */
+export interface SeriesExclusionWindows {
+  censoring?: readonly ExclusionWindow[]
+  exclusions?: readonly ExclusionWindow[]
+}
 
 export interface SeriesSummary {
   bezeichnung: string
@@ -47,15 +56,12 @@ export interface SummarizeParams {
   stepDays?: number
   minNPerWindow?: number
   minNPerSegment?: number
-  exclusionDays?: number
   cutoffDays?: number
   eventDates?: Date[]
-  clinicalEvents?: ClinicalEvent[]
-  clinicalEventCensoring?: FitConfig['censoring']
-  excludeAkiWindows?: boolean
-  fitModel?: FitConfig['fitModel']
-  timeBalancing?: FitConfig['timeBalancing']
-  fitInputs?: AnalysisFitInputContribution[]
+  fitModel?: FitModel
+  timeBalancing?: TimeBalancing
+  /** Windows per series (by the group's name and unit); none when omitted. */
+  exclusionWindows?: (series: { bezeichnung: string | null; einheit: string | null }) => SeriesExclusionWindows | undefined
 }
 
 const NAN = Number.NaN
@@ -71,8 +77,8 @@ function spanDaysForPoints(points: readonly SeriesPoint[]): number {
  * the global OLS summary. */
 export function scalarFitModelFor(
   mode: SlopeMode,
-  configured: FitConfig['fitModel'] = 'ols',
-): FitConfig['fitModel'] {
+  configured: FitModel = 'ols',
+): FitModel {
   if (configured === 'none') return 'none'
   return mode === 'global-robust' ? 'theil-sen' : 'ols'
 }
@@ -90,7 +96,7 @@ export function summarizeByBezeichnung(
   mode: SlopeMode = 'global',
   params: SummarizeParams = {},
 ): SeriesSummary[] {
-  const { gapDays = 180, windowDays = 730, stepDays = 180, minNPerWindow = 3, minNPerSegment = 3, exclusionDays = 30, cutoffDays = 90, eventDates = [], clinicalEvents = [], clinicalEventCensoring, excludeAkiWindows = false, fitModel = 'ols', timeBalancing = 'raw', fitInputs = [] } = params
+  const { gapDays = 180, windowDays = 730, stepDays = 180, minNPerWindow = 3, minNPerSegment = 3, cutoffDays = 90, eventDates = [], fitModel = 'ols', timeBalancing = 'raw', exclusionWindows } = params
   const sub = rows.filter((r) => r.patientId === patientId)
 
   const order: string[] = []
@@ -118,7 +124,9 @@ export function summarizeByBezeichnung(
         : 0
     const first = group[0]
     const allPoints: SeriesPoint[] = numericRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
-    let fitPoints = filterFitPointsByClinicalEvents(allPoints, clinicalEvents, clinicalEventCensoring).points
+    const windows = exclusionWindows?.({ bezeichnung: first.bezeichnung, einheit: first.einheit ?? null })
+    let fitPoints = applyExclusionWindows(allPoints, windows?.censoring ?? []).kept
+    const fitExclusions = windows?.exclusions ?? []
     const base = {
       bezeichnung: first.bezeichnung ?? '(unnamed)',
       einheit: first.einheit ?? '(no unit)',
@@ -134,12 +142,7 @@ export function summarizeByBezeichnung(
     } else if (fitModel === 'none') {
       summary = { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'n_below_threshold' }
     } else if (mode === 'global-robust') {
-      if (excludeAkiWindows) {
-        const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
-        const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
-        const r = fitAkiAware(fitPoints, exclusionDays, episodes)
-        fitPoints = r.keptIdx.map((i) => fitPoints[i])
-      }
+      fitPoints = applyExclusionWindows(fitPoints, fitExclusions).kept
       fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
       const fit = fitTheilSen(fitPoints)
       const fittedSpanDays = spanDaysForPoints(fitPoints)
@@ -151,12 +154,7 @@ export function summarizeByBezeichnung(
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
       }
     } else if (mode === 'chronic-ckd') {
-      if (excludeAkiWindows) {
-        const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
-        const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
-        const r = fitAkiAware(fitPoints, exclusionDays, episodes)
-        fitPoints = r.keptIdx.map((i) => fitPoints[i])
-      }
+      fitPoints = applyExclusionWindows(fitPoints, fitExclusions).kept
       fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
       const firstDate = fitPoints[0]?.date ?? numericRows[0].labDatum!
       const cutoffMs = firstDate.getTime() + cutoffDays * MS_PER_DAY
@@ -171,27 +169,8 @@ export function summarizeByBezeichnung(
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
         nSegments: points.length > 0 ? 1 : 0,
       }
-    } else if (mode === 'aki-aware') {
-      const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
-      const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
-      const r = fitAkiAware(fitPoints, exclusionDays, episodes)
-      fitPoints = balanceSeriesPoints(r.keptIdx.map((i) => fitPoints[i]), timeBalancing)
-      const fit = fitGlobal(fitPoints)
-      const fittedSpanDays = spanDaysForPoints(fitPoints)
-      summary = {
-        ...base,
-        nFitted: fitPoints.length,
-        fittedSpanDays,
-        slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
-        reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
-      }
     } else if (mode === 'event-driven') {
-      if (excludeAkiWindows) {
-        const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
-        const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
-        const r = fitAkiAware(fitPoints, exclusionDays, episodes)
-        fitPoints = r.keptIdx.map((i) => fitPoints[i])
-      }
+      fitPoints = applyExclusionWindows(fitPoints, fitExclusions).kept
       fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
       const events = eventDates.map((x) => x.getTime()).sort((a, b) => a - b)
       const ranges: Array<[number, number]> = []
@@ -220,12 +199,7 @@ export function summarizeByBezeichnung(
           }
         : { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'n_below_threshold', nSegments: ranges.length }
     } else {
-      if (excludeAkiWindows) {
-        const input = fitInputForSeries(fitInputs, patientId, { bezeichnung: base.bezeichnung, einheit: first.einheit ?? null })
-        const episodes = input?.episodes ?? episodesForSeries(sub, patientId, first.bezeichnung, first.einheit)
-        const r = fitAkiAware(fitPoints, exclusionDays, episodes)
-        fitPoints = r.keptIdx.map((i) => fitPoints[i])
-      }
+      fitPoints = applyExclusionWindows(fitPoints, fitExclusions).kept
       fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
       const fit = fitGlobal(fitPoints)
       const fittedSpanDays = spanDaysForPoints(fitPoints)

@@ -1,27 +1,24 @@
 import type { SeriesPoint } from './series'
 import { fitGlobal, fitTheilSen } from './series'
 import { fitSegments } from './segments'
-import { fitAkiAware } from '../domains/nephrology/aki/akiAware'
-import type { AkiEpisode } from '../domains/nephrology/aki/kdigo'
-import type { ClinicalEvent } from '../events/events'
-import { filterFitPointsByClinicalEvents } from '../domains/nephrology/censoring'
-import type { FitConfig } from '../fitPipeline/types'
+import { fitOls } from './ols'
+import { datesToYears } from './time'
+import type { FitModel, TimeBalancing } from '../fitPipeline/types'
+import { applyExclusionWindows } from '../exclusions/windows'
 import { balanceSeriesPoints } from './timeBalancing'
-import type { SlopeMode } from './summarize'
+import type { SeriesExclusionWindows, SlopeMode } from './summarize'
 
 export interface PlotModeConfig {
   mode: SlopeMode
   gapDays: number
   windowDays: number
   stepDays: number
-  exclusionDays?: number
   cutoffDays?: number
   eventDates?: Date[]
-  clinicalEvents?: ClinicalEvent[]
-  clinicalEventCensoring?: FitConfig['censoring']
-  excludeAkiWindows?: boolean
-  fitModel?: FitConfig['fitModel']
-  timeBalancing?: FitConfig['timeBalancing']
+  fitModel?: FitModel
+  timeBalancing?: TimeBalancing
+  /** Censoring and exclusion windows, as summarizeByBezeichnung applies them. */
+  exclusionWindows?: SeriesExclusionWindows
 }
 
 export interface LinePoint {
@@ -44,20 +41,17 @@ function lineFor(seg: SeriesPoint[], slope: number, intercept: number): LinePoin
 /** Build the slope overlay polyline(s) for the active mode. Each line is two
  * LinePoints (start/end). Global → one line; gap-split → one per fittable
  * segment (falling back to a single global line when no segment is fittable);
- * rolling → the global trend line; aki-aware → one line over the kept points
- * (episodes optionally precomputed for cross-series detection). Returns []
- * when nothing is fittable. */
-export function buildSlopeLines(points: SeriesPoint[], cfg: PlotModeConfig, episodes?: AkiEpisode[]): LinePoint[][] {
+ * rolling → the global trend line; aki-aware → one line over the points
+ * outside the exclusion windows, re-checked after time balancing and fitted
+ * by plain OLS (no two-point rule). Returns [] when nothing is fittable. */
+export function buildSlopeLines(points: SeriesPoint[], cfg: PlotModeConfig): LinePoint[][] {
   if (cfg.fitModel === 'none') return []
-  let numeric = filterFitPointsByClinicalEvents(
+  const exclusions = cfg.exclusionWindows?.exclusions ?? []
+  let numeric = applyExclusionWindows(
     [...points].sort((a, b) => a.date.getTime() - b.date.getTime()),
-    cfg.clinicalEvents,
-    cfg.clinicalEventCensoring,
-  ).points
-  if (cfg.excludeAkiWindows && episodes && numeric.length > 0) {
-    const r = fitAkiAware(numeric, cfg.exclusionDays ?? 30, episodes)
-    numeric = r.keptIdx.map((i) => numeric[i])
-  }
+    cfg.exclusionWindows?.censoring ?? [],
+  ).kept
+  if (numeric.length > 0) numeric = applyExclusionWindows(numeric, exclusions).kept
   numeric = balanceSeriesPoints(numeric, cfg.timeBalancing)
   if (cfg.mode === 'global-robust') {
     const fit = fitTheilSen(numeric)
@@ -89,10 +83,10 @@ export function buildSlopeLines(points: SeriesPoint[], cfg: PlotModeConfig, epis
     })
   }
   if (cfg.mode === 'aki-aware') {
-    const r = fitAkiAware(numeric, cfg.exclusionDays ?? 30, episodes)
-    if (r.fit.reason !== null) return []
-    const kept = r.keptIdx.map((i) => numeric[i])
-    return [lineFor(kept, r.fit.slope, r.fit.intercept)]
+    const kept = applyExclusionWindows(numeric, exclusions).kept
+    const fit = fitOls(datesToYears(kept.map((p) => p.date)), kept.map((p) => p.value))
+    if (fit.reason !== null) return []
+    return [lineFor(kept, fit.slope, fit.intercept)]
   }
   if (cfg.mode === 'gap-split') {
     const segs = fitSegments(numeric, cfg.gapDays, 3)

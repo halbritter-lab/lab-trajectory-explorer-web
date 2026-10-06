@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { formatAkiChip, formatAkiEpisodeSummary, buildCohortRows, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import { episodesForSeries } from '../../../src/core/domains/nephrology/aki/akiAware'
+import { akiFitInput } from '../../../src/core/domains/nephrology/aki/akiModule'
 import type { LabRow } from '../../../src/core/types'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 import type { ClinicalEvent } from '../../../src/core/events/events'
@@ -139,14 +140,9 @@ describe('buildCohortRows cell overlays', () => {
     expect(c.fitLines[0][1].value).toBeLessThan(g.fitLines[0][1].value)
   })
   it('aki-aware mode honours spec exclusionDays when fit inputs are supplied', () => {
-    const fitInputs: AnalysisFitInputContribution[] = [{
-      id: 'aki-aware:1:Kreatinin:mg/dl',
-      patientId: 1,
-      seriesKey: { bezeichnung: 'Kreatinin', einheit: 'mg/dl' },
-      kind: 'aki-aware',
-      exclusionDays: 30,
-      episodes: episodesForSeries(spiky, 1, 'Kreatinin', 'mg/dl'),
-    }]
+    const fitInputs: AnalysisFitInputContribution[] = [
+      akiFitInput(1, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' }, episodesForSeries(spiky, 1, 'Kreatinin', 'mg/dl'), 30),
+    ]
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'aki-aware', exclusionDays: 0, fitInputs }
     const cell = buildCohortRows(spiky, [1], [spec])[0].cells[0]
     expect(cell.excludedIdx).toEqual([4])

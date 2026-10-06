@@ -5,6 +5,7 @@ import { datesToYears } from '../../../stats/time'
 import { findKdigoAkiEpisodes, type AkiEpisode } from './kdigo'
 import { isKdigoCreatinineSeries } from '../analytes'
 import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
+import { fixedLengthWindow, type ReasonedExclusionWindow } from '../../../exclusions/windows'
 
 const MS_PER_DAY = 86_400_000
 
@@ -30,6 +31,12 @@ export function akiExclusionBands(episodes: AkiEpisode[], exclusionDays: number)
     }
   }
   return merged
+}
+
+/** One `[onset, onset + exclusionDays]` window per episode, unmerged and in
+ * episode order: exactly the ranges fitAkiAware drops. */
+export function akiExclusionWindows(episodes: readonly AkiEpisode[], exclusionDays: number): ReasonedExclusionWindow<'aki'>[] {
+  return episodes.map((episode) => ({ reason: 'aki' as const, ...fixedLengthWindow(episode.date, exclusionDays) }))
 }
 
 export interface AkiAwareFit {

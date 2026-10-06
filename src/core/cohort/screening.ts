@@ -4,15 +4,15 @@ import { fitGlobal, fitTheilSen } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
-import { fitInputForSeries } from '../analysis/types'
 import type { AnalysisFitInputContribution } from '../analysis/types'
 import type { AkiEpisode } from '../domains/nephrology/aki/kdigo'
-import { akiExclusionBands, episodesForSeries, fitAkiAware, type DateBand } from '../domains/nephrology/aki/akiAware'
+import { akiExclusionBands, type DateBand } from '../domains/nephrology/aki/akiAware'
+import { AKI_EXCLUSION_REASON, akiEpisodesForSeriesContext } from '../domains/nephrology/aki/akiModule'
+import { seriesContextFor, seriesExclusions } from './seriesContributions'
 import { formatAkiChip, formatAkiEpisodeSummary } from '../domains/nephrology/aki/summary'
 import { rapidEgfrDeclineFlagForCell } from '../domains/nephrology/rapidEgfrDeclineModule'
 import { isEgfrUnit } from '../domains/nephrology/rapidEgfrDeclineModule'
 import type { ClinicalEvent } from '../events/events'
-import { clinicalEventAffectsFit, clinicalEventExclusionWindows } from '../domains/nephrology/censoring'
 import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows'
 import type { ExclusionReason, FitConfig } from '../fitPipeline/types'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from '../domains/nephrology/endpoints/ckdEndpoints'
@@ -105,51 +105,44 @@ export function buildCohortRows(
     if (bucket) bucket.push(r)
     else byPatient.set(r.patientId, [r])
   }
+  // Memo for module series hooks (e.g. AKI episodes per patient creatinine source).
+  const cache = new Map<string, unknown>()
   return ids.map((pid) => {
     const prows = byPatient.get(pid) ?? []
     const cells = specs.map((spec): CohortCell => {
-      const clinicalEvents = spec.clinicalEventsByPatient?.[pid] ?? spec.clinicalEvents ?? []
-      const fitEventDates = spec.eventDatesByPatient?.[pid] ?? spec.eventDates ?? clinicalEvents
-        .filter((event) => clinicalEventAffectsFit(event, spec.fitConfig?.censoring))
-        .map((event) => event.date)
+      const seriesContext = seriesContextFor(spec, pid, prows, cache)
+      const windows = seriesExclusions(seriesContext)
+      const fitEventDates = spec.eventDatesByPatient?.[pid] ?? spec.eventDates ?? windows.censoring.map((window) => window.start)
+      const displayName = (name: string | null) => name ?? '(unnamed)'
+      const displayUnit = (unit: string | null) => unit ?? '(no unit)'
       const summaries = summarizeByBezeichnung(prows, pid, spec.mode, {
         gapDays: spec.gapDays,
         windowDays: spec.windowDays,
         stepDays: spec.stepDays,
         cutoffDays: spec.cutoffDays,
-        exclusionDays: spec.exclusionDays,
         eventDates: fitEventDates,
-        clinicalEvents,
-        clinicalEventCensoring: spec.fitConfig?.censoring,
-        excludeAkiWindows: spec.fitConfig?.exclusions.excludeAkiWindows,
         fitModel: spec.fitConfig?.fitModel,
         timeBalancing: spec.fitConfig?.timeBalancing,
-        fitInputs: spec.fitInputs,
+        // Only the spec's own series is read below; windows are resolved for it.
+        exclusionWindows: (series) =>
+          displayName(series.bezeichnung) === spec.bezeichnung && displayUnit(series.einheit) === displayUnit(spec.einheit ?? null)
+            ? windows
+            : undefined,
       })
       const match = summaries.find((s) => s.bezeichnung === spec.bezeichnung && s.einheit === (spec.einheit ?? '(no unit)'))
       const seriesRows = prows
         .filter((r) => r.bezeichnung === spec.bezeichnung && (r.einheit ?? null) === (spec.einheit ?? null) && r.wertNum !== null && r.labDatum !== null)
         .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
       const points: SeriesPoint[] = seriesRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
-      const fitInput = fitInputForSeries(spec.fitInputs ?? [], pid, { bezeichnung: spec.bezeichnung, einheit: spec.einheit ?? null })
-      const exclusionDays = spec.exclusionDays ?? fitInput?.exclusionDays ?? DEFAULT_AKI_EXCLUSION_DAYS
-      let episodes: AkiEpisode[] = []
-      if (points.length > 0) {
-        episodes = fitInput?.episodes ?? episodesForSeries(prows, pid, spec.bezeichnung, spec.einheit ?? null)
-      }
-      const eventWindows = clinicalEventExclusionWindows(clinicalEvents, spec.fitConfig?.censoring)
-      const excluded = new Set(applyExclusionWindows(points, eventWindows).excludedIdx)
-      const pointExclusionReasons: ExclusionReason[][] = points.map((point, i) =>
-        excluded.has(i) ? exclusionReasonsAt(point.date, eventWindows) : [])
-      if ((spec.mode === 'aki-aware' || spec.fitConfig?.exclusions.excludeAkiWindows) && points.length > 0) {
-        const kept = new Set(fitAkiAware(points, exclusionDays, episodes).keptIdx)
-        points.forEach((_, i) => {
-          if (kept.has(i)) return
-          excluded.add(i)
-          pointExclusionReasons[i].push('aki')
-        })
-      }
-      const excludedIdx = [...excluded].sort((a, b) => a - b)
+      const exclusionDays = spec.exclusionDays
+        ?? seriesContext.fitInputs.find((input) => input.reason === AKI_EXCLUSION_REASON)?.lengthDays
+        ?? DEFAULT_AKI_EXCLUSION_DAYS
+      const episodes: AkiEpisode[] = points.length > 0 ? akiEpisodesForSeriesContext(seriesContext) : []
+      const allWindows = [...windows.censoring, ...windows.exclusions]
+      const excludedIdx = applyExclusionWindows(points, allWindows).excludedIdx
+      const excluded = new Set(excludedIdx)
+      const pointExclusionReasons = points.map((point, i) =>
+        excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) as ExclusionReason[] : [])
       const endpointSettings = endpointSettingsFor(spec.einheit ?? null, spec.fitConfig?.endpoints)
       const endpointRows = seriesRows.filter(row => Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
       // Ages and the all-data fit only feed the G5 projection; skip both otherwise.
@@ -170,15 +163,11 @@ export function buildCohortRows(
               windowDays: spec.windowDays ?? 730,
               stepDays: spec.stepDays ?? 180,
               cutoffDays: spec.cutoffDays ?? 90,
-              exclusionDays,
               eventDates: fitEventDates,
-              clinicalEvents,
-              clinicalEventCensoring: spec.fitConfig?.censoring,
-              excludeAkiWindows: spec.fitConfig?.exclusions.excludeAkiWindows,
               fitModel: spec.fitConfig?.fitModel,
               timeBalancing: spec.fitConfig?.timeBalancing,
+              exclusionWindows: windows,
             },
-            spec.mode === 'aki-aware' || spec.fitConfig?.exclusions.excludeAkiWindows ? episodes : undefined,
           )
       const akiStages = episodes.map((e) => e.stage)
       return {

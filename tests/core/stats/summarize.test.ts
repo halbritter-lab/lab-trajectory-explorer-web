@@ -1,9 +1,19 @@
 import { describe, it, expect } from 'vitest'
 import { summarizeByBezeichnung } from '../../../src/core/stats/summarize'
-import { episodesForSeries } from '../../../src/core/domains/nephrology/aki/akiAware'
+import { akiExclusionWindows, episodesForSeries } from '../../../src/core/domains/nephrology/aki/akiAware'
 import type { LabRow } from '../../../src/core/types'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 import type { ClinicalEvent } from '../../../src/core/events/events'
+import { akiFitInput } from '../../../src/core/domains/nephrology/aki/akiModule'
+import { clinicalEventExclusionWindows } from '../../../src/core/domains/nephrology/censoring'
+import { windowsWithLength } from '../../../src/core/exclusions/windows'
+
+// AKI exclusion windows detected on the patient's creatinine, as the AKI module supplies them.
+const aki = (rows: LabRow[], exclusionDays = 30) => ({
+  exclusionWindows: () => ({ exclusions: akiExclusionWindows(episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl'), exclusionDays) }),
+})
+// Clinical-event censoring windows, as the clinical-events module supplies them.
+const censoredBy = (events: ClinicalEvent[]) => ({ exclusionWindows: () => ({ censoring: clinicalEventExclusionWindows(events) }) })
 
 function akiRow(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -95,7 +105,7 @@ describe('summarizeByBezeichnung aki-aware mode', () => {
   ]
   it('excludes AKI windows from the fit (slope differs from global)', () => {
     const global = summarizeByBezeichnung(rows, 1, 'global')[0]
-    const aware = summarizeByBezeichnung(rows, 1, 'aki-aware')[0]
+    const aware = summarizeByBezeichnung(rows, 1, 'aki-aware', aki(rows))[0]
     expect(aware.nNumeric).toBe(8) // display counts still cover all points
     expect(aware.slope).not.toBeCloseTo(global.slope, 6)
     expect(aware.slope).toBeLessThan(global.slope)
@@ -107,27 +117,23 @@ describe('summarizeByBezeichnung aki-aware mode', () => {
       akiRow({ labDatum: ad('2020-01-02T00:00:00Z'), wertNum: 1.6 }),
       akiRow({ labDatum: ad('2020-01-10T00:00:00Z'), wertNum: 1.4 }),
     ]
-    const aware = summarizeByBezeichnung(burst, 1, 'aki-aware')[0]
+    const aware = summarizeByBezeichnung(burst, 1, 'aki-aware', aki(burst))[0]
     expect(Number.isNaN(aware.slope)).toBe(true)
     expect(aware.reason).toBe('n_below_threshold')
   })
   it('honours the exclusionDays parameter', () => {
     // With a 0-day window only the episode-day points drop out.
-    const zero = summarizeByBezeichnung(rows, 1, 'aki-aware', { exclusionDays: 0 })[0]
-    const thirty = summarizeByBezeichnung(rows, 1, 'aki-aware', { exclusionDays: 30 })[0]
+    const zero = summarizeByBezeichnung(rows, 1, 'aki-aware', aki(rows, 0))[0]
+    const thirty = summarizeByBezeichnung(rows, 1, 'aki-aware', aki(rows, 30))[0]
     expect(zero.slope).not.toBeCloseTo(thirty.slope, 6)
   })
   it('honours the exclusionDays parameter when AKI fit inputs are supplied', () => {
-    const fitInputs: AnalysisFitInputContribution[] = [{
-      id: 'aki-aware:1:Kreatinin:mg/dl',
-      patientId: 1,
-      seriesKey: { bezeichnung: 'Kreatinin', einheit: 'mg/dl' },
-      kind: 'aki-aware',
-      exclusionDays: 30,
-      episodes: episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl'),
-    }]
-    const zero = summarizeByBezeichnung(rows, 1, 'aki-aware', { exclusionDays: 0, fitInputs })[0]
-    const thirty = summarizeByBezeichnung(rows, 1, 'aki-aware', { exclusionDays: 30, fitInputs })[0]
+    const fitInputs: AnalysisFitInputContribution[] = [
+      akiFitInput(1, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' }, episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl'), 30),
+    ]
+    const withLength = (days: number) => ({ exclusionWindows: () => ({ exclusions: windowsWithLength(fitInputs[0].windows, days) }) })
+    const zero = summarizeByBezeichnung(rows, 1, 'aki-aware', withLength(0))[0]
+    const thirty = summarizeByBezeichnung(rows, 1, 'aki-aware', withLength(30))[0]
     expect(zero.slope).not.toBeCloseTo(thirty.slope, 6)
   })
 })
@@ -198,7 +204,7 @@ describe('summarizeByBezeichnung extended preset modes', () => {
     }
 
     const unfiltered = summarizeByBezeichnung(rows, 1, 'global')[0]
-    const filtered = summarizeByBezeichnung(rows, 1, 'global', { clinicalEvents: [transplant] })[0]
+    const filtered = summarizeByBezeichnung(rows, 1, 'global', censoredBy([transplant]))[0]
 
     expect(filtered.nNumeric).toBe(6)
     expect(filtered.reason).toBeNull()
@@ -225,7 +231,7 @@ describe('summarizeByBezeichnung extended preset modes', () => {
       warning: '',
     }
 
-    const summary = summarizeByBezeichnung(rows, 1, 'global', { clinicalEvents: [transplant] })[0]
+    const summary = summarizeByBezeichnung(rows, 1, 'global', censoredBy([transplant]))[0]
 
     expect(summary.nNumeric).toBe(4)
     expect(summary.nFitted).toBe(3)

@@ -6,6 +6,7 @@ import type { LabRow } from '../../src/core/types'
 import * as XLSX from 'xlsx'
 import { buildCohortRows } from '../../src/core/cohort/screening'
 import { episodesForSeries } from '../../src/core/domains/nephrology/aki/akiAware'
+import { akiFitInput } from '../../src/core/domains/nephrology/aki/akiModule'
 import { defaultFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
 import { workspaceGroupableAttributes } from '../../src/workspace/workspace-model-results'
 
@@ -23,10 +24,9 @@ it.each([false, true])('applies each column AKI window to exclusions, summaries 
   const { result } = renderHook(useWorkspaceData)
   const data = result.current
   const parameters = ['Kreatinin', 'Creatinine'].map(name => data.parameters.find(p => p.bezeichnung === name)!)
-  const inputData = { ...data, analysis: { ...data.analysis, fitInputs: preparedInputs ? parameters.map(parameter => ({
-    id: `aki:${parameter.key}`, patientId: 'A:01', seriesKey: parameter, kind: 'aki-aware' as const,
-    exclusionDays: 30, episodes: episodesForSeries(rows, 'A:01', parameter.bezeichnung, parameter.einheit),
-  })) : [] } }
+  const inputData = { ...data, analysis: { ...data.analysis, fitInputs: preparedInputs ? parameters.map(parameter =>
+    akiFitInput('A:01', parameter, episodesForSeries(rows, 'A:01', parameter.bezeichnung, parameter.einheit), 30),
+  ) : [] } }
   const configs = Object.fromEntries(parameters.map((parameter, index) => [parameter.key, toFitConfig({
     ...defaultFitSettings(), exclusions: { excludeAkiWindows: true, akiExclusionDays: index === 0 ? 0 : 30 },
   }, parameter)]))
