@@ -4,7 +4,7 @@ import type { MixedModelResultIdentity } from '../mixedModel/resultIdentity'
 import type { MixedModelSpikeRow, MixedModelSuccess } from '../mixedModel/types'
 import { hashMixedModelInput } from '../mixedModel/validation'
 import { projectLinearThreshold, type ProjectionStatus, type ProjectionTarget } from './linearProjection'
-import { projectionTargetPresets } from './targetPresets'
+import { projectionTargetPresets } from '../domains/nephrology/projectionPresets'
 
 export interface ProjectionSettings {
   targets: Array<ProjectionTarget & {enabled:boolean}>

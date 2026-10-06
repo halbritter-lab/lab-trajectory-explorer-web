@@ -1,8 +1,10 @@
-import type { LabRow, OlsFit, PatientId } from '../types'
-import type { SeriesPoint } from '../stats/series'
-import { fitOls } from '../stats/ols'
-import { datesToYears } from '../stats/time'
+import type { LabRow, OlsFit, PatientId } from '../../../types'
+import type { SeriesPoint } from '../../../stats/series'
+import { fitOls } from '../../../stats/ols'
+import { datesToYears } from '../../../stats/time'
 import { findKdigoAkiEpisodes, type AkiEpisode } from './kdigo'
+import { isKdigoCreatinineSeries } from '../analytes'
+import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
 
 const MS_PER_DAY = 86_400_000
 
@@ -43,7 +45,7 @@ export interface AkiAwareFit {
  * segment over the remainder, years measured from the first kept date.
  * `episodes`: pass precomputed episodes (possibly []) for cross-series
  * detection; undefined runs KDIGO on the points themselves. */
-export function fitAkiAware(points: SeriesPoint[], exclusionDays = 30, episodes?: AkiEpisode[]): AkiAwareFit {
+export function fitAkiAware(points: SeriesPoint[], exclusionDays = DEFAULT_AKI_EXCLUSION_DAYS, episodes?: AkiEpisode[]): AkiAwareFit {
   const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime())
   const eps = episodes ?? findKdigoAkiEpisodes(sorted)
   const windowMs = exclusionDays * MS_PER_DAY
@@ -58,14 +60,8 @@ export function fitAkiAware(points: SeriesPoint[], exclusionDays = 30, episodes?
   return { fit, keptIdx, episodes: eps }
 }
 
-/** Serum creatinine in mg/dl (KDIGO-eligible). Same predicate the cohort
- * screening used; urine series and other units are excluded. */
-export function isCreatinineMgdl(bez: string, einheit: string | null): boolean {
-  const b = bez.toLowerCase()
-  const u = (einheit ?? '').toLowerCase().replace(/μ/g, 'µ')
-  const isCreat = (b.includes('kreatinin') || b.includes('creatinin')) && !b.includes('urin') && !b.includes('harn') && !bez.endsWith('UR')
-  return isCreat && u === 'mg/dl'
-}
+/** Serum creatinine in mg/dl (KDIGO-eligible); see `isKdigoCreatinineSeries`. */
+export const isCreatinineMgdl = isKdigoCreatinineSeries
 
 /** Episodes for aki-aware fits: a creatinine mg/dl series detects on itself;
  * any other analyte (e.g. computed eGFR) uses the same patient's creatinine

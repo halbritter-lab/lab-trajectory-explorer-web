@@ -5,7 +5,7 @@ import { useWorkspaceData, workspaceSpecs, importWorkspaceFile } from '../../src
 import type { LabRow } from '../../src/core/types'
 import * as XLSX from 'xlsx'
 import { buildCohortRows } from '../../src/core/cohort/screening'
-import { episodesForSeries } from '../../src/core/aki/akiAware'
+import { episodesForSeries } from '../../src/core/domains/nephrology/aki/akiAware'
 import { defaultFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
 import { workspaceGroupableAttributes } from '../../src/workspace/workspace-model-results'
 

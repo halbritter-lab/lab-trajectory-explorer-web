@@ -1,45 +1,23 @@
-import type { LabRow, WertOperator } from '../types'
+import type { LabRow, WertOperator } from '../../../types'
 import { ckdEpi2021, ekfc2021, mdrd4, normaliseSex, type EgfrInput } from './formulas'
-import { unitKey } from '../parse/units'
+import { MGDL_PER_UMOLL } from '../constants'
+import {
+  COMPUTED_EGFR_UNIT,
+  computedEgfrName,
+  isSerumCreatinineSeries,
+  normaliseUnit,
+  type FormulaName,
+} from '../analytes'
 
-export const COMPUTED_BEZEICHNUNG_SUFFIX = ', computed)'
-export const MGDL_PER_UMOLL = 88.42
-
-export type FormulaName = 'ckd-epi-2021' | 'mdrd-4' | 'ekfc-2021'
+export { COMPUTED_BEZEICHNUNG_SUFFIX, normaliseUnit, type FormulaName } from '../analytes'
+export { MGDL_PER_UMOLL } from '../constants'
 
 const FORMULA_FN: Record<FormulaName, (i: EgfrInput) => number> = {
   'ckd-epi-2021': ckdEpi2021,
   'mdrd-4': mdrd4,
   'ekfc-2021': ekfc2021,
 }
-const FORMULA_BEZ: Record<FormulaName, string> = {
-  'ckd-epi-2021': `eGFR (CKD-EPI 2021${COMPUTED_BEZEICHNUNG_SUFFIX}`,
-  'mdrd-4': `eGFR (MDRD-4${COMPUTED_BEZEICHNUNG_SUFFIX}`,
-  'ekfc-2021': `eGFR (EKFC 2021${COMPUTED_BEZEICHNUNG_SUFFIX}`,
-}
 const OP_FLIP: Record<string, WertOperator> = { '<': '>', '>': '<', '=': '=' }
-const SERUM_UNITS = ['mg/dl', 'µmol/l'] as const
-
-/** Comparison form of a unit: the import's unit key (case, spacing and
- * micro-sign spelling ignored), so "mg/dL", "umol/L" and "μmol / l" are
- * recognised as mg/dl and µmol/l. */
-export function normaliseUnit(einheit: string | null): string {
-  return einheit == null ? '' : unitKey(einheit)
-}
-
-function isCreatinineName(bez: string | null): boolean {
-  if (bez == null) return false
-  const s = bez.replace(/ /g, ' ').trim().toLowerCase()
-  return s.includes('kreatinin') || s.includes('creatinin')
-}
-
-function isUrineName(bez: string | null): boolean {
-  if (bez == null) return false
-  const s = bez.replace(/ /g, ' ').trim()
-  const low = s.toLowerCase()
-  if (low.includes('urin') || low.includes('harn') || low.includes('urine')) return true
-  return s.endsWith('UR')
-}
 
 export type Source = [string, string]
 
@@ -51,7 +29,7 @@ export function creatinineSourceOptions(rows: LabRow[]): Source[] {
     if (r.bezeichnung == null || r.einheit == null) continue
     const key = `${r.bezeichnung}|${r.einheit}`
     if (seen.has(key)) continue
-    if (isCreatinineName(r.bezeichnung) && !isUrineName(r.bezeichnung) && (SERUM_UNITS as readonly string[]).includes(normaliseUnit(r.einheit))) {
+    if (isSerumCreatinineSeries(r.bezeichnung, r.einheit)) {
       seen.set(key, [r.bezeichnung, r.einheit])
     }
   }
@@ -62,7 +40,7 @@ export function creatinineSourceOptions(rows: LabRow[]): Source[] {
 
 export function isSerumCreatinineSource(source: Source): boolean {
   const [bez, einheit] = source
-  return isCreatinineName(bez) && !isUrineName(bez) && (SERUM_UNITS as readonly string[]).includes(normaliseUnit(einheit))
+  return isSerumCreatinineSeries(bez, einheit)
 }
 
 const PREFERRED_HINTS = ['hp']
@@ -98,7 +76,7 @@ export function appendComputedEgfr(rows: LabRow[], opts: EgfrOptions = {}): LabR
   const [bez, einheit] = source
 
   const fn = FORMULA_FN[formula]
-  const newBez = FORMULA_BEZ[formula]
+  const newBez = computedEgfrName(formula)
   const toMgdl = normaliseUnit(einheit) === 'µmol/l'
 
   const computed: LabRow[] = []
@@ -114,7 +92,7 @@ export function appendComputedEgfr(rows: LabRow[], opts: EgfrOptions = {}): LabR
       patientId: r.patientId,
       labDatum: r.labDatum,
       bezeichnung: newBez,
-      einheit: 'ml/min/1,73m²',
+      einheit: COMPUTED_EGFR_UNIT,
       wert: rounded.toFixed(1).replace('.', ','),
       wertNum: rounded,
       wertOperator: OP_FLIP[r.wertOperator] ?? '=',

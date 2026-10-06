@@ -1,7 +1,13 @@
-import type { SeriesPoint } from '../stats/series'
-
-const MS_PER_HOUR = 3_600_000
-const MS_PER_DAY = 86_400_000
+import type { SeriesPoint } from '../../../stats/series'
+import {
+  KDIGO_ABSOLUTE_RISE_MGDL,
+  KDIGO_ABSOLUTE_WINDOW_MS,
+  KDIGO_RELATIVE_RISE_RATIO,
+  KDIGO_RELATIVE_WINDOW_MS,
+  KDIGO_STAGE_2_RATIO,
+  KDIGO_STAGE_3_ABSOLUTE_MGDL,
+  KDIGO_STAGE_3_RATIO,
+} from '../constants'
 
 export interface AkiEpisode {
   date: Date
@@ -21,9 +27,9 @@ export interface AkiEpisode {
  * detected episodes are unaffected. Mirrors analyses/methods.py:_kdigo_stage. */
 export function kdigoStage(baselineValue: number, peakValue: number): number {
   const ratio = baselineValue > 0 ? peakValue / baselineValue : Infinity
-  if (peakValue >= 4.0 || ratio >= 3.0) return 3
-  if (ratio >= 2.0) return 2
-  if (ratio >= 1.5 || peakValue - baselineValue >= 0.3) return 1
+  if (peakValue >= KDIGO_STAGE_3_ABSOLUTE_MGDL || ratio >= KDIGO_STAGE_3_RATIO) return 3
+  if (ratio >= KDIGO_STAGE_2_RATIO) return 2
+  if (ratio >= KDIGO_RELATIVE_RISE_RATIO || peakValue - baselineValue >= KDIGO_ABSOLUTE_RISE_MGDL) return 1
   return 0
 }
 
@@ -95,18 +101,18 @@ export function findKdigoAkiEpisodes(points: SeriesPoint[]): AkiEpisode[] {
     const vj = values[j]
     // Windows hold only indices < j (j is pushed after querying), and j advances
     // in time, so expiring from the head leaves the in-window prior points.
-    win48.expire(times, tj, 48 * MS_PER_HOUR)
-    win7.expire(times, tj, 7 * MS_PER_DAY)
+    win48.expire(times, tj, KDIGO_ABSOLUTE_WINDOW_MS)
+    win7.expire(times, tj, KDIGO_RELATIVE_WINDOW_MS)
 
     const i48 = win48.argmin()
     let fired = false
-    if (i48 >= 0 && vj - values[i48] >= 0.3) {
+    if (i48 >= 0 && vj - values[i48] >= KDIGO_ABSOLUTE_RISE_MGDL) {
       raw.push({ date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h' })
       fired = true
     }
     if (!fired) {
       const i7 = win7.argmin()
-      if (i7 >= 0 && values[i7] > 0 && vj / values[i7] >= 1.5) {
+      if (i7 >= 0 && values[i7] > 0 && vj / values[i7] >= KDIGO_RELATIVE_RISE_RATIO) {
         raw.push({ date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d' })
       }
     }

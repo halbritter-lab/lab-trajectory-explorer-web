@@ -1,5 +1,5 @@
-import { appendComputedEgfr } from '../egfr/series'
-import type { AnalysisModule, EgfrModuleSettings } from './types'
+import { appendComputedEgfr } from './series'
+import type { AnalysisModule, EgfrModuleSettings } from '../../../analysis/types'
 
 export const egfrModule: AnalysisModule<EgfrModuleSettings> = {
   id: 'egfr',

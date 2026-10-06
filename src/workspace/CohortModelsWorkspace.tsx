@@ -4,6 +4,7 @@ import type { WorkspaceData } from './workspace-data'
 import { workspaceSpecs } from './workspace-data'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
+import { mentionsEgfr } from '../core/domains/nephrology/analytes'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
 import {
   mixedModelFormula,
@@ -49,7 +50,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   }, [data.parameters, data.rows])
 
   const [selectedParamKey, setSelectedParamKey] = useState<string>(() => {
-    const egfrParam = eligibleParameters.find(p => p.bezeichnung.toLowerCase().includes('egfr'))
+    const egfrParam = eligibleParameters.find(p => mentionsEgfr(p.bezeichnung))
     return egfrParam?.key ?? eligibleParameters[0]?.key ?? ''
   })
 

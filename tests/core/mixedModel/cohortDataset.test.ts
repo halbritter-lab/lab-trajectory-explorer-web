@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { mixedModelRowsFromCohortInputs } from '../../../src/core/mixedModel/cohortDataset'
-import type { AkiEpisode } from '../../../src/core/aki/kdigo'
+import type { AkiEpisode } from '../../../src/core/domains/nephrology/aki/kdigo'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 import type { CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { ClinicalEvent } from '../../../src/core/events/events'

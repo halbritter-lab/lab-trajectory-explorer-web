@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest'
 import * as XLSX from 'xlsx'
 import { WorkspaceAnalysisSettings } from '../../src/workspace/WorkspaceAnalysisSettings'
 import { defaultFitSettings, endpointBadge, toFitConfig } from '../../src/workspace/workspace-analysis'
-import { computeCkdEndpoints } from '../../src/core/endpoints/ckdEndpoints'
+import { computeCkdEndpoints } from '../../src/core/domains/nephrology/endpoints/ckdEndpoints'
 import { workspaceWorkbookBytes } from '../../src/workspace/workspace-export'
 import { exportFixture } from './export-fixture'
 

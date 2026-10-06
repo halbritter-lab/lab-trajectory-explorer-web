@@ -1,5 +1,6 @@
 import type { FitConfig, FitModel, FitPreset, TimeBalancing, UnknownDialysisPolicy } from '../core/fitPipeline/types'
 import { ckdProgressionConfig, generalExplorationConfig, acuteReviewConfig } from '../core/fitPipeline/types'
+import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS, DEFAULT_RAPID_EGFR_DECLINE } from '../core/domains/nephrology/constants'
 
 export interface AnalysisCatalogPreset {
   id: string
@@ -76,16 +77,16 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
       },
       exclusions: {
         excludeAkiWindows: true,
-        akiExclusionDays: 30,
+        akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS,
       },
       endpoints: {
         percentDecline: true,
         observedCkdG4: true,
         observedCkdG5: true,
-        confirmationDays: 90,
+        confirmationDays: DEFAULT_CONFIRMATION_DAYS,
         projectedAgeToCkdG5: true,
       },
-      rapidEgfrThreshold: 5.0,
+      rapidEgfrThreshold: DEFAULT_RAPID_EGFR_DECLINE,
     }
   }
 
@@ -102,16 +103,16 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
       },
       exclusions: {
         excludeAkiWindows: false,
-        akiExclusionDays: 30,
+        akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS,
       },
       endpoints: {
         percentDecline: false,
         observedCkdG4: false,
         observedCkdG5: false,
-        confirmationDays: 90,
+        confirmationDays: DEFAULT_CONFIRMATION_DAYS,
         projectedAgeToCkdG5: false,
       },
-      rapidEgfrThreshold: 5.0,
+      rapidEgfrThreshold: DEFAULT_RAPID_EGFR_DECLINE,
     }
   }
 
@@ -128,16 +129,16 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
       },
       exclusions: {
         excludeAkiWindows: false,
-        akiExclusionDays: 30,
+        akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS,
       },
       endpoints: {
         percentDecline: false,
         observedCkdG4: false,
         observedCkdG5: false,
-        confirmationDays: 90,
+        confirmationDays: DEFAULT_CONFIRMATION_DAYS,
         projectedAgeToCkdG5: false,
       },
-      rapidEgfrThreshold: 5.0,
+      rapidEgfrThreshold: DEFAULT_RAPID_EGFR_DECLINE,
     }
   }
 
@@ -154,16 +155,16 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
     },
     exclusions: {
       excludeAkiWindows: false,
-      akiExclusionDays: 30,
+      akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS,
     },
     endpoints: {
       percentDecline: false,
       observedCkdG4: false,
       observedCkdG5: false,
-      confirmationDays: 90,
+      confirmationDays: DEFAULT_CONFIRMATION_DAYS,
       projectedAgeToCkdG5: false,
     },
-    rapidEgfrThreshold: 5.0,
+    rapidEgfrThreshold: DEFAULT_RAPID_EGFR_DECLINE,
   }
 }
 

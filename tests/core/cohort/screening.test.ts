@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { formatAkiChip, formatAkiEpisodeSummary, buildCohortRows, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
-import { episodesForSeries } from '../../../src/core/aki/akiAware'
+import { episodesForSeries } from '../../../src/core/domains/nephrology/aki/akiAware'
 import type { LabRow } from '../../../src/core/types'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 import type { ClinicalEvent } from '../../../src/core/events/events'

@@ -1,4 +1,4 @@
-import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
+import type { CkdEndpoints } from '../../core/domains/nephrology/endpoints/ckdEndpoints'
 import { projectedG5Label } from './qualityLabels'
 
 /** Endpoint badge copy for the trajectory table and exports; dates come from the result.

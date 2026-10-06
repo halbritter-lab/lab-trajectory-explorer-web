@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { creatinineSourceOptions, defaultCreatinineSource, appendComputedEgfr, MGDL_PER_UMOLL, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../../src/core/egfr/series'
+import { creatinineSourceOptions, defaultCreatinineSource, appendComputedEgfr, MGDL_PER_UMOLL, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../../src/core/domains/nephrology/egfr/series'
 import type { LabRow } from '../../../src/core/types'
 
 function row(p: Partial<LabRow>): LabRow {

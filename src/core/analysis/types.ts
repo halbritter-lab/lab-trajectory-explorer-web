@@ -1,6 +1,6 @@
-import type { AkiEpisode } from '../aki/kdigo'
-import type { DateBand } from '../aki/akiAware'
-import type { Source, FormulaName } from '../egfr/series'
+import type { AkiEpisode } from '../domains/nephrology/aki/kdigo'
+import type { DateBand } from '../domains/nephrology/aki/akiAware'
+import type { Source, FormulaName } from '../domains/nephrology/egfr/series'
 import type { ClinicalEvent } from '../events/events'
 import type { LabRow, PatientId } from '../types'
 

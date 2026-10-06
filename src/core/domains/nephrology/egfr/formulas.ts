@@ -1,4 +1,4 @@
-import type { Sex } from '../types'
+import type { Sex } from '../../../types'
 
 export interface EgfrInput {
   scrMgdl: number

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findKdigoAkiEpisodes } from '../../src/core/aki/kdigo'
+import { findKdigoAkiEpisodes } from '../../src/core/domains/nephrology/aki/kdigo'
 import type { SeriesPoint } from '../../src/core/stats/series'
 import goldens from '../goldens/aki.json'
 

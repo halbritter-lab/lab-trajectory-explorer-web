@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LabRow } from '../../../src/core/types'
-import { akiModule } from '../../../src/core/analysis/akiModule'
+import { akiModule } from '../../../src/core/domains/nephrology/aki/akiModule'
 
 function row(date: string, value: number, p: Partial<LabRow> = {}): LabRow {
   return {

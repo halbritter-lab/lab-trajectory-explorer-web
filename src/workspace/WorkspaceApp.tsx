@@ -6,6 +6,7 @@ import { TrajectoriesWorkspace } from './TrajectoriesWorkspace'
 import { CohortModelsWorkspace } from './CohortModelsWorkspace'
 import { useWorkspaceData } from './workspace-data'
 import { useWorkspaceStorage } from './workspace-storage'
+import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
 
 type Page = 'Data' | 'Trajectories' | 'Cohort models' | 'Methods'
 const datasetKeys = new WeakMap<LabRow[], number>()
@@ -106,7 +107,7 @@ export function WorkspaceApp() {
         <p>Cohort models allow fitting population-level linear mixed models (WebR / lme4) and evaluating trend projections directly within this workspace.</p>
           <h2>Reference &amp; Theory</h2>
           <h3>Observed endpoints and individual prediction</h3>
-          <p>G4 uses eGFR below 30 and G5 below 15 mL/min/1.73m². A first low measurement starts a candidate. A later low measurement confirms it after the configured minimum interval (default 90 days). Recovery before confirmation restarts the candidate; recovery afterwards is shown separately and preserves the event. Event date and confirmation date remain distinct.</p>
+          <p>G4 uses eGFR below {CKD_G4_EGFR_THRESHOLD} and G5 below {CKD_G5_EGFR_THRESHOLD} mL/min/1.73m². A first low measurement starts a candidate. A later low measurement confirms it after the configured minimum interval (default {DEFAULT_CONFIRMATION_DAYS} days). Recovery before confirmation restarts the candidate; recovery afterwards is shown separately and preserves the event. Event date and confirmation date remain distinct.</p>
           <p>Endpoints and individual endpoint prediction use all dated numeric measurements, including later recovery, independently of display-fit censoring and aggregation. Prediction extends the global fitted curve, using OLS or the selected Theil–Sen estimator. New measurements can change a prediction but do not revoke an already confirmed event in that history.</p>
           <p>Theil–Sen requires at least three measurements and two distinct dates. Its intercept is median(value) minus slope × median(time); 95% slope confidence bounds quantify slope uncertainty, not the range of future individual measurements.</p>
         <Methodology />

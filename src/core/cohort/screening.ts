@@ -6,20 +6,21 @@ import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '.
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
 import { fitInputForSeries } from '../analysis/types'
 import type { AnalysisFitInputContribution } from '../analysis/types'
-import type { AkiEpisode } from '../aki/kdigo'
-import { akiExclusionBands, episodesForSeries, fitAkiAware, type DateBand } from '../aki/akiAware'
-import { formatAkiChip, formatAkiEpisodeSummary } from '../aki/summary'
-import { rapidEgfrDeclineFlagForCell } from '../analysis/rapidEgfrDeclineModule'
-import { isEgfrUnit } from '../analysis/rapidEgfrDeclineModule'
+import type { AkiEpisode } from '../domains/nephrology/aki/kdigo'
+import { akiExclusionBands, episodesForSeries, fitAkiAware, type DateBand } from '../domains/nephrology/aki/akiAware'
+import { formatAkiChip, formatAkiEpisodeSummary } from '../domains/nephrology/aki/summary'
+import { rapidEgfrDeclineFlagForCell } from '../domains/nephrology/rapidEgfrDeclineModule'
+import { isEgfrUnit } from '../domains/nephrology/rapidEgfrDeclineModule'
 import type { ClinicalEvent } from '../events/events'
 import { clinicalEventAffectsFit, clinicalEventExclusionReason, filterFitPointsByClinicalEvents } from '../events/fitExclusions'
 import type { ExclusionReason, FitConfig } from '../fitPipeline/types'
-import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from '../endpoints/ckdEndpoints'
+import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from '../domains/nephrology/endpoints/ckdEndpoints'
 import { isUnstableSlope } from '../stats/slopeQuality'
+import { DEFAULT_AKI_EXCLUSION_DAYS } from '../domains/nephrology/constants'
 import { groupValueForPatient } from '../grouping/grouping'
 
 export { formatAkiChip, formatAkiEpisodeSummary }
-export { isEgfrUnit, isRapidEgfrDecline, RAPID_EGFR_DECLINE_DEFAULT } from '../analysis/rapidEgfrDeclineModule'
+export { isEgfrUnit, isRapidEgfrDecline, RAPID_EGFR_DECLINE_DEFAULT } from '../domains/nephrology/rapidEgfrDeclineModule'
 
 export interface CohortSeriesSpec {
   bezeichnung: string
@@ -130,7 +131,7 @@ export function buildCohortRows(
         .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
       const points: SeriesPoint[] = seriesRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
       const fitInput = fitInputForSeries(spec.fitInputs ?? [], pid, { bezeichnung: spec.bezeichnung, einheit: spec.einheit ?? null })
-      const exclusionDays = spec.exclusionDays ?? fitInput?.exclusionDays ?? 30
+      const exclusionDays = spec.exclusionDays ?? fitInput?.exclusionDays ?? DEFAULT_AKI_EXCLUSION_DAYS
       let episodes: AkiEpisode[] = []
       if (points.length > 0) {
         episodes = fitInput?.episodes ?? episodesForSeries(prows, pid, spec.bezeichnung, spec.einheit ?? null)

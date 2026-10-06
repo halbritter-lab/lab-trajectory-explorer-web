@@ -2,6 +2,7 @@ import type { FitModel, TimeBalancing, UnknownDialysisPolicy } from '../core/fit
 import type { WorkspaceParameter } from './workspace-data'
 import { defaultFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
 import { ConfirmationDaysInput } from './ConfirmationDaysInput'
+import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
 
 function fitModelLabel(model: FitModel): string {
   if (model === 'none') return 'No fit line'
@@ -188,9 +189,9 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             <p className="wt-muted">Endpoints and prediction use all dated numeric measurements, including recovery. Display-fit exclusions and aggregation do not apply to them. Prediction extends the fitted curve.</p>
             <label><input type="checkbox" aria-label="Observed CKD G4" checked={fitSettings.endpoints.observedCkdG4 ?? false} onChange={e => updateSettings({ endpoints: { ...fitSettings.endpoints, observedCkdG4: e.target.checked } })} />Observed CKD G4</label>
             <label>Minimum confirmation interval (days)
-              <ConfirmationDaysInput value={fitSettings.endpoints.confirmationDays ?? 90} onChange={days => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: days } })} />
+              <ConfirmationDaysInput value={fitSettings.endpoints.confirmationDays ?? DEFAULT_CONFIRMATION_DAYS} onChange={days => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: days } })} />
             </label>
-            <p className="wt-muted">G4: below 30; G5: below 15 mL/min/1.73m². Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event.</p>
+            <p className="wt-muted">G4: below {CKD_G4_EGFR_THRESHOLD}; G5: below {CKD_G5_EGFR_THRESHOLD} mL/min/1.73m². Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event.</p>
             <label>
               <input
                 type="checkbox"

@@ -1,4 +1,5 @@
 import type { ClinicalEvent } from '../events/events'
+import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS } from '../domains/nephrology/constants'
 
 export type FitPreset = 'general_exploration' | 'ckd_progression' | 'acute_review' | 'custom'
 export type FitXAxis = 'age' | 'calendar_time' | 'time_since_baseline'
@@ -93,7 +94,7 @@ export interface FitPipelineResult {
   }
 }
 
-const emptyEndpoints = { percentDecline: false, observedCkdG4: false, observedCkdG5: false, projectedAgeToCkdG5: false, confirmationDays: 90 }
+const emptyEndpoints = { percentDecline: false, observedCkdG4: false, observedCkdG5: false, projectedAgeToCkdG5: false, confirmationDays: DEFAULT_CONFIRMATION_DAYS }
 
 export function generalExplorationConfig(parameter: FitConfig['parameter']): FitConfig {
   return {
@@ -106,7 +107,7 @@ export function generalExplorationConfig(parameter: FitConfig['parameter']): Fit
       excludeAcuteDialysisPeriods: false,
       unknownDialysisPolicy: 'flag-only',
     },
-    exclusions: { excludeAkiWindows: false, akiExclusionDays: 30 },
+    exclusions: { excludeAkiWindows: false, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
     timeBalancing: 'raw',
     fitModel: 'ols',
     endpoints: { ...emptyEndpoints },
@@ -124,10 +125,10 @@ export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConf
       excludeAcuteDialysisPeriods: true,
       unknownDialysisPolicy: 'exclude-dated-interval',
     },
-    exclusions: { excludeAkiWindows: true, akiExclusionDays: 30 },
+    exclusions: { excludeAkiWindows: true, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
     timeBalancing: 'quarterly-median',
     fitModel: 'ols',
-    endpoints: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: true, confirmationDays: 90 },
+    endpoints: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: true, confirmationDays: DEFAULT_CONFIRMATION_DAYS },
   }
 }
 
@@ -142,7 +143,7 @@ export function acuteReviewConfig(parameter: FitConfig['parameter']): FitConfig 
       excludeAcuteDialysisPeriods: false,
       unknownDialysisPolicy: 'flag-only',
     },
-    exclusions: { excludeAkiWindows: false, akiExclusionDays: 30 },
+    exclusions: { excludeAkiWindows: false, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
     timeBalancing: 'raw',
     fitModel: 'none',
     endpoints: { ...emptyEndpoints },

@@ -1,7 +1,8 @@
-import { akiExclusionBands, episodesForSeries, isCreatinineMgdl } from '../aki/akiAware'
-import type { AkiEpisode } from '../aki/kdigo'
-import type { LabRow, PatientId } from '../types'
-import type { AkiModuleSettings, AnalysisModule, AnalysisOverlayContribution, SeriesKey } from './types'
+import { akiExclusionBands, episodesForSeries, isCreatinineMgdl } from './akiAware'
+import type { AkiEpisode } from './kdigo'
+import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
+import type { LabRow, PatientId } from '../../../types'
+import type { AkiModuleSettings, AnalysisModule, AnalysisOverlayContribution, SeriesKey } from '../../../analysis/types'
 
 function distinctNumericSeries(rows: LabRow[]): Array<{ patientId: PatientId; seriesKey: SeriesKey }> {
   const seen = new Map<string, { patientId: PatientId; seriesKey: SeriesKey }>()
@@ -45,7 +46,7 @@ function overlaysForEpisodes(
 export const akiModule: AnalysisModule<AkiModuleSettings> = {
   id: 'aki',
   label: 'AKI',
-  defaultSettings: { showOverlays: false, exclusionDays: 30 },
+  defaultSettings: { showOverlays: false, exclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
   apply: (ctx, settings) => {
     const fitInputs = []
     const overlays: AnalysisOverlayContribution[] = []

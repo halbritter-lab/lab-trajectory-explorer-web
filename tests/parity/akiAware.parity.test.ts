@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { fitAkiAware } from '../../src/core/aki/akiAware'
+import { fitAkiAware } from '../../src/core/domains/nephrology/aki/akiAware'
 import type { SeriesPoint } from '../../src/core/stats/series'
 import goldens from '../goldens/aki_aware.json'
 

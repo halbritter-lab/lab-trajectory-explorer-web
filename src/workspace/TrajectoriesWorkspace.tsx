@@ -10,7 +10,8 @@ import { WorkspaceSparkline, type SparkDomain } from './WorkspaceSparkline'
 import { sexLabel } from './workspace-labels'
 import { measurementFitStatus } from './measurement-fit-status'
 import type { FitConfig } from '../core/fitPipeline/types'
-import { isRapidEgfrDecline } from '../core/analysis/rapidEgfrDeclineModule'
+import { isRapidEgfrDecline } from '../core/domains/nephrology/rapidEgfrDeclineModule'
+import { DEFAULT_RAPID_EGFR_DECLINE } from '../core/domains/nephrology/constants'
 import { WorkspaceAnalysisSettings } from './WorkspaceAnalysisSettings'
 import { defaultFitSettings, endpointBadge, toFitConfig, type WorkspaceFitSettings } from './workspace-analysis'
 
@@ -33,7 +34,7 @@ function CellSummary({
   cell,
   fit,
   measurements,
-  rapidEgfrThreshold = 5,
+  rapidEgfrThreshold = DEFAULT_RAPID_EGFR_DECLINE,
   detailed = false,
 }: {
   cell: CohortCell

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { akiExclusionBands, fitAkiAware, isCreatinineMgdl, episodesForSeries } from '../../../src/core/aki/akiAware'
-import type { AkiEpisode } from '../../../src/core/aki/kdigo'
+import { akiExclusionBands, fitAkiAware, isCreatinineMgdl, episodesForSeries } from '../../../src/core/domains/nephrology/aki/akiAware'
+import type { AkiEpisode } from '../../../src/core/domains/nephrology/aki/kdigo'
 import type { SeriesPoint } from '../../../src/core/stats/series'
 import type { LabRow } from '../../../src/core/types'
 

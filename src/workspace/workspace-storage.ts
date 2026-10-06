@@ -4,7 +4,7 @@ import { useAppStore } from './state/store'
 import type { AnalysisContext, AnalysisSettings } from '../core/analysis/types'
 import type { Sex, WertOperator } from '../core/types'
 import type { ClinicalEventType, ClinicalEventWarning, DialysisIntent } from '../core/events/events'
-import type { FormulaName } from '../core/egfr/series'
+import type { FormulaName } from '../core/domains/nephrology/egfr/series'
 
 export const WORKSPACE_STORAGE_KEY = 'lab-explorer:workspace:v1'
 /** Keys of earlier versions start with this prefix in idb-keyval's shared

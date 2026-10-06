@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ckdEpi2021, ekfc2021, mdrd4, normaliseSex, isUnrecognisedSex } from '../../../src/core/egfr/formulas'
+import { ckdEpi2021, ekfc2021, mdrd4, normaliseSex, isUnrecognisedSex } from '../../../src/core/domains/nephrology/egfr/formulas'
 
 const close = (a: number, b: number, eps = 0.05) => Math.abs(a - b) <= eps
 

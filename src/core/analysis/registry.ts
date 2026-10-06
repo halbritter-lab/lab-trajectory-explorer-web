@@ -1,7 +1,7 @@
-import { akiModule } from './akiModule'
+import { akiModule } from '../domains/nephrology/aki/akiModule'
 import { demographicsModule } from './demographicsModule'
-import { egfrModule } from './egfrModule'
-import { rapidEgfrDeclineModule } from './rapidEgfrDeclineModule'
+import { egfrModule } from '../domains/nephrology/egfr/egfrModule'
+import { rapidEgfrDeclineModule } from '../domains/nephrology/rapidEgfrDeclineModule'
 import type {
   AnalysisContribution,
   AnalysisModule,

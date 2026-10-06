@@ -4,7 +4,7 @@ import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analy
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
 import type { FitConfig } from '../../core/fitPipeline/types'
 import type { SlopeMode } from '../../core/stats/summarize'
-import type { FormulaName, Source } from '../../core/egfr/series'
+import type { FormulaName, Source } from '../../core/domains/nephrology/egfr/series'
 import type { ClinicalEvent, RejectedClinicalEvent } from '../../core/events/events'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormulaKey, type MixedModelConfig } from '../../core/mixedModel/config'
 import type { MixedModelResult } from '../../core/mixedModel/types'

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { computeCkdEndpoints, type EndpointPoint } from '../../../src/core/endpoints/ckdEndpoints'
+import { computeCkdEndpoints, type EndpointPoint } from '../../../src/core/domains/nephrology/endpoints/ckdEndpoints'
 
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`)
 

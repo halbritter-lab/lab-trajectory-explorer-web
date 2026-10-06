@@ -1,11 +1,10 @@
-import type { AnalysisModule, CohortFlagContribution, RapidEgfrDeclineModuleSettings } from './types'
-import type { PatientId } from '../types'
+import type { AnalysisModule, CohortFlagContribution, RapidEgfrDeclineModuleSettings } from '../../analysis/types'
+import type { PatientId } from '../../types'
+import { isEgfrUnit } from './analytes'
+import { DEFAULT_RAPID_EGFR_DECLINE } from './constants'
 
-export const RAPID_EGFR_DECLINE_DEFAULT = 5
-
-export function isEgfrUnit(einheit: string | null): boolean {
-  return einheit != null && einheit.toLowerCase().includes('ml/min')
-}
+export { isEgfrUnit } from './analytes'
+export const RAPID_EGFR_DECLINE_DEFAULT = DEFAULT_RAPID_EGFR_DECLINE
 
 export function isRapidEgfrDecline(einheit: string | null, slope: number, threshold: number): boolean {
   return threshold > 0 && isEgfrUnit(einheit) && Number.isFinite(slope) && slope < -threshold

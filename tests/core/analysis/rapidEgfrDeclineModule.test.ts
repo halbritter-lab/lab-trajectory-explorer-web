@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { rapidEgfrDeclineModule, rapidEgfrDeclineFlagForCell } from '../../../src/core/analysis/rapidEgfrDeclineModule'
+import { rapidEgfrDeclineModule, rapidEgfrDeclineFlagForCell } from '../../../src/core/domains/nephrology/rapidEgfrDeclineModule'
 
 describe('rapidEgfrDeclineModule', () => {
   it('exposes default threshold matching current KDIGO rapid progression default', () => {

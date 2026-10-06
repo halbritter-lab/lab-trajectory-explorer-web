@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { ckdEpi2021, ekfc2021, mdrd4 } from '../../src/core/egfr/formulas'
-import { appendComputedEgfr, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../src/core/egfr/series'
+import { ckdEpi2021, ekfc2021, mdrd4 } from '../../src/core/domains/nephrology/egfr/formulas'
+import { appendComputedEgfr, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../src/core/domains/nephrology/egfr/series'
 import { loadLabRows } from '../../src/core/parse/loader'
 import { readWorkbook } from '../../src/io/readWorkbook'
 import { comparePatientIds } from '../../src/core/types'

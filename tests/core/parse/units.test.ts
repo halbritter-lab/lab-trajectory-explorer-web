@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { unitKey } from '../../../src/core/parse/units'
-import { isSerumCreatinineSource, normaliseUnit } from '../../../src/core/egfr/series'
+import { isSerumCreatinineSource, normaliseUnit } from '../../../src/core/domains/nephrology/egfr/series'
 
 describe('unitKey', () => {
   it('ignores case, spacing and micro-sign spelling', () => {

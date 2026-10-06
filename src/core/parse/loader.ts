@@ -3,7 +3,7 @@ import type { RawRow } from '../../io/readWorkbook'
 import { parseWert } from './wert'
 import { countDateRead, dateReadNotes, describeDateProblem, noDateReads, parseImportDate } from './dates'
 import { planUnitHarmonisation } from './units'
-import { normaliseSex } from '../egfr/formulas'
+import { normaliseSex } from '../domains/nephrology/egfr/formulas'
 export { REQUIRED_COLUMNS } from '../../io/headers'
 import {
   COLUMN_ALIASES,

@@ -3,8 +3,8 @@ import * as XLSX from 'xlsx'
 import { datasetFromArrayBuffer, loadBundledFixtureData, loadDatasetFromWorkbook } from '../../src/io/loadDataset'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { episodesForSeries } from '../../src/core/aki/akiAware'
-import { appendComputedEgfr, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../src/core/egfr/series'
+import { episodesForSeries } from '../../src/core/domains/nephrology/aki/akiAware'
+import { appendComputedEgfr, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../src/core/domains/nephrology/egfr/series'
 
 const FIXTURE = resolve(__dirname, '../../public/test_labs.xlsx')
 const EVENTS = resolve(__dirname, '../../public/test_events.csv')

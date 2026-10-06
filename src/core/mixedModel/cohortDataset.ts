@@ -1,5 +1,5 @@
-import type { AkiEpisode } from '../aki/kdigo'
-import { episodesForSeries, fitAkiAware } from '../aki/akiAware'
+import type { AkiEpisode } from '../domains/nephrology/aki/kdigo'
+import { episodesForSeries, fitAkiAware } from '../domains/nephrology/aki/akiAware'
 import { fitInputForSeries } from '../analysis/types'
 import type { CohortSeriesSpec } from '../cohort/screening'
 import { filterFitPointsByClinicalEvents } from '../events/fitExclusions'
@@ -8,6 +8,7 @@ import { balanceSeriesPoints } from '../stats/timeBalancing'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
 import type { MixedModelSpikeRow } from './types'
 import { roundTo10Decimals } from './validation'
+import { DEFAULT_AKI_EXCLUSION_DAYS } from '../domains/nephrology/constants'
 
 const MS_PER_YEAR = 365.25 * 86_400_000
 const MS_PER_DAY = 86_400_000
@@ -67,7 +68,7 @@ export function mixedModelRowsFromCohortInputs(
         einheit: spec.einheit ?? null,
       })
       const episodes: AkiEpisode[] = fitInput?.episodes ?? episodesForSeries(patientRows, patientId, spec.bezeichnung, spec.einheit ?? null)
-      const exclusionDays = spec.exclusionDays ?? fitInput?.exclusionDays ?? spec.fitConfig?.exclusions.akiExclusionDays ?? 30
+      const exclusionDays = spec.exclusionDays ?? fitInput?.exclusionDays ?? spec.fitConfig?.exclusions.akiExclusionDays ?? DEFAULT_AKI_EXCLUSION_DAYS
       const kept = new Set(
         fitAkiAware(included, exclusionDays, episodes).keptIdx,
       )

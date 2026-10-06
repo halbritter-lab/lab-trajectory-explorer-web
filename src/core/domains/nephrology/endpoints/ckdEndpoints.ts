@@ -1,4 +1,5 @@
-import { fitGlobal } from '../stats/series'
+import { fitGlobal } from '../../../stats/series'
+import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS } from '../constants'
 
 export interface EndpointPoint {
   date: Date
@@ -60,7 +61,7 @@ function emptyEndpoints(): CkdEndpoints {
     percentDecline: { value: null, baselineValue: null, latestValue: null },
     observedCkdG4: emptyObservedEvent(),
     observedCkdG5: emptyObservedEvent(),
-    confirmationDays: 90,
+    confirmationDays: DEFAULT_CONFIRMATION_DAYS,
     evaluated: { percentDecline: false, observedCkdG4: false, observedCkdG5: false, projectedAgeToCkdG5: false },
     projectedAgeToCkdG5: { value: null, reason: 'disabled' },
   }
@@ -77,7 +78,7 @@ function emptyObservedEvent(): ObservedCkdEvent {
 }
 
 export function normalizeConfirmationDays(value: number | undefined): number {
-  return value !== undefined && Number.isFinite(value) && value >= 1 ? Math.floor(value) : 90
+  return value !== undefined && Number.isFinite(value) && value >= 1 ? Math.floor(value) : DEFAULT_CONFIRMATION_DAYS
 }
 
 function observedEvent(points: EndpointPoint[], threshold: number, confirmationDays: number): ObservedCkdEvent {
@@ -128,7 +129,7 @@ function projectedAge(
 
 export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoints {
   const out = emptyEndpoints()
-  const threshold = input.threshold ?? 15
+  const threshold = input.threshold ?? CKD_G5_EGFR_THRESHOLD
   const confirmationDays = normalizeConfirmationDays(input.confirmationDays ?? input.enabled.confirmationDays)
   out.confirmationDays = confirmationDays
   out.evaluated = {
@@ -147,7 +148,7 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
     out.percentDecline.value = baseline.value > 0 ? ((baseline.value - latest.value) / baseline.value) * 100 : null
   }
 
-  if (input.enabled.observedCkdG4) out.observedCkdG4 = observedEvent(points, 30, confirmationDays)
+  if (input.enabled.observedCkdG4) out.observedCkdG4 = observedEvent(points, CKD_G4_EGFR_THRESHOLD, confirmationDays)
   if (input.enabled.observedCkdG5) {
     out.observedCkdG5 = observedEvent(points, threshold, confirmationDays)
   }

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { findKdigoAkiEpisodes, kdigoStage } from '../../../src/core/aki/kdigo'
+import { findKdigoAkiEpisodes, kdigoStage } from '../../../src/core/domains/nephrology/aki/kdigo'
 import type { SeriesPoint } from '../../../src/core/stats/series'
 
 const d = (s: string) => new Date(s)

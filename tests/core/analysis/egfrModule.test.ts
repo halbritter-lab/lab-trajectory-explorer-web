@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LabRow } from '../../../src/core/types'
-import { egfrModule } from '../../../src/core/analysis/egfrModule'
-import { appendComputedEgfr, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../../src/core/egfr/series'
+import { egfrModule } from '../../../src/core/domains/nephrology/egfr/egfrModule'
+import { appendComputedEgfr, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../../src/core/domains/nephrology/egfr/series'
 
 function row(p: Partial<LabRow> = {}): LabRow {
   return {

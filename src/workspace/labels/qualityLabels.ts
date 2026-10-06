@@ -1,5 +1,6 @@
-import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
+import type { CkdEndpoints } from '../../core/domains/nephrology/endpoints/ckdEndpoints'
 import { isUnstableSlope, type SlopeQualityInput } from '../../core/stats/slopeQuality'
+import { CKD_G5_EGFR_THRESHOLD } from '../../core/domains/nephrology/constants'
 
 export { isUnstableSlope }
 export type { SlopeQualityInput }
@@ -100,7 +101,7 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
       return {
         label: 'G5 now',
         title:
-          'The fitted curve reaches 15 at or before the latest measurement, ' +
+          `The fitted curve reaches ${CKD_G5_EGFR_THRESHOLD} at or before the latest measurement, ` +
           'so there is no future crossing to project. This does not establish an observed event.',
         caveat,
       }

@@ -5,7 +5,8 @@ import { patientIdKey, type LabRow, type PatientId } from '../core/types'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString } from '../io/export'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
 import type { FitConfig } from '../core/fitPipeline/types'
-import { isRapidEgfrDecline } from '../core/analysis/rapidEgfrDeclineModule'
+import { isRapidEgfrDecline } from '../core/domains/nephrology/rapidEgfrDeclineModule'
+import { DEFAULT_RAPID_EGFR_DECLINE } from '../core/domains/nephrology/constants'
 
 export interface WorkspaceExportInput {
   data: WorkspaceData
@@ -61,7 +62,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const specs = workspaceSpecs(data,requestedKeys,fitConfigByParameterKey)
   const summaries = cohortExportRecords(prepared,0,conflictKeys).map((record,index) => {
     const cell = prepared[Math.floor(index / selectedParameters.length)].cells[index % selectedParameters.length]
-    const threshold = rapidEgfrThresholdByParameterKey?.[requestedKeys[index % selectedParameters.length]] ?? 5
+    const threshold = rapidEgfrThresholdByParameterKey?.[requestedKeys[index % selectedParameters.length]] ?? DEFAULT_RAPID_EGFR_DECLINE
     const {Bezeichnung,Einheit,...fields} = record
     return {...fields,Parameter:Bezeichnung,Unit:Einheit,n_fitted:cell.nFitted,fitted_span_days:cell.fittedSpanDays,rapid_progression:isRapidEgfrDecline(cell.einheit,cell.slope,threshold) ? 'yes' : ''}
   })
@@ -76,7 +77,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       return {patientId:id,baseline_age:patient?.baselineAge ?? null,birth_anchor:utcDate(patient?.birthAnchor ?? null),age_estimated:patient?.ageEstimated ?? null,manual_override:JSON.stringify(data.manualDemographics[patientIdKey(id)] ?? {}),warnings:warningsFor(id).join('; ')}
     })},
     {name:'parameters',rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : ''}))},
-    {name:'settings',rows:specs.map((spec,index) => ({parameter_key:requestedKeys[index],parameter:spec.bezeichnung,unit:spec.einheit ?? '',mode:spec.mode,fit_config:JSON.stringify(spec.fitConfig ?? {}),rapid_egfr_threshold:rapidEgfrThresholdByParameterKey?.[requestedKeys[index]] ?? 5,analysis_settings:JSON.stringify(data.analysisSettings),patient_ids:JSON.stringify(ids),source_file:data.fileName ?? '',scope:patientId === undefined ? 'visible cohort' : 'selected patient'}))},
+    {name:'settings',rows:specs.map((spec,index) => ({parameter_key:requestedKeys[index],parameter:spec.bezeichnung,unit:spec.einheit ?? '',mode:spec.mode,fit_config:JSON.stringify(spec.fitConfig ?? {}),rapid_egfr_threshold:rapidEgfrThresholdByParameterKey?.[requestedKeys[index]] ?? DEFAULT_RAPID_EGFR_DECLINE,analysis_settings:JSON.stringify(data.analysisSettings),patient_ids:JSON.stringify(ids),source_file:data.fileName ?? '',scope:patientId === undefined ? 'visible cohort' : 'selected patient'}))},
     {name:'about',rows:[...EXPORT_DISCLAIMER_ROWS,
       {note:'Research use only. Not for clinical decision-making.'},
       {note:'Measurements, summaries, events and attributes are restricted to the selected patients and parameters. Events and attributes apply at patient level.'},
