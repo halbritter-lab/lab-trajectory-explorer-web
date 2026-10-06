@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { LabRow } from '../../../src/core/types'
 import { akiModule } from '../../../src/core/domains/nephrology/aki/akiModule'
+import { MGDL_PER_UMOLL } from '../../../src/core/domains/nephrology/constants'
 
 function row(date: string, value: number, p: Partial<LabRow> = {}): LabRow {
   return {
@@ -19,6 +20,19 @@ function row(date: string, value: number, p: Partial<LabRow> = {}): LabRow {
 }
 
 describe('akiModule', () => {
+  it('labels converted µmol/l AKI marker values in mg/dl', () => {
+    const rows = [
+      row('2020-01-01T00:00:00Z', 1 * MGDL_PER_UMOLL, { einheit: 'µmol/l' }),
+      row('2020-01-02T00:00:00Z', 1.5 * MGDL_PER_UMOLL, { einheit: 'µmol/l' }),
+    ]
+    const series = akiModule.series({
+      patientId: 1, seriesKey: { bezeichnung: 'Kreatinin', einheit: 'µmol/l' }, patientRows: rows,
+      points: rows.map((r) => ({ date: r.labDatum!, value: r.wertNum! })), mode: 'global', events: [], fitInputs: [], cache: new Map(),
+    })
+    const marker = series.overlays?.find((overlay) => overlay.kind === 'marker')
+    expect(marker).toMatchObject({ kind: 'marker', label: 'AKI I' })
+    expect(marker?.title).toContain('creatinine peak 1.5 mg/dl')
+  })
   const spiky = [
     row('2020-01-01T00:00:00Z', 1.0),
     row('2020-01-02T00:00:00Z', 1.6),

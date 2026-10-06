@@ -68,17 +68,10 @@ export function isSerumCreatinineSeries(bez: string, einheit: string | null): bo
   return isCreatinineName(bez) && !isUrineName(bez) && (SERUM_CREATININE_UNITS as readonly string[]).includes(normaliseUnit(einheit))
 }
 
-/** Serum creatinine in mg/dl as KDIGO AKI detection uses it. Stricter than
- * `isSerumCreatinineSeries`: the name is not whitespace-normalised, the "UR"
- * suffix is checked on the raw name, and the unit must read exactly "mg/dl"
- * ignoring case (no spacing variants, no µmol/l). Kept separate because AKI
- * episodes, their exclusion windows and the cross-series creatinine source
- * all depend on exactly this choice. */
+/** Serum creatinine eligible for KDIGO AKI detection. Matches the eGFR source
+ * vocabulary; AKI converts µmol/l rows to mg/dl before comparing values. */
 export function isKdigoCreatinineSeries(bez: string, einheit: string | null): boolean {
-  const b = bez.toLowerCase()
-  const u = (einheit ?? '').toLowerCase().replace(/μ/g, 'µ')
-  const isCreat = (b.includes('kreatinin') || b.includes('creatinin')) && !b.includes('urin') && !b.includes('harn') && !bez.endsWith('UR')
-  return isCreat && u === 'mg/dl'
+  return isSerumCreatinineSeries(bez, einheit)
 }
 
 /** eGFR by unit: any unit containing "ml/min" (case-insensitive). Gates the

@@ -99,6 +99,19 @@ describe('appendComputedEgfr', () => {
     expect(umoll[0].wertNum).toBeCloseTo(mgdl[0].wertNum as number, 1)
   })
 
+  it('converts each eligible selected µmol/l spelling and keeps the selected source pair isolated', () => {
+    for (const [name, unit] of [['Kreatinin', 'µmol/l'], ['Creatinine serum', 'umol/L'], ['Kreatinin HP', 'μmol / l']]) {
+      const rows = [
+        row({ bezeichnung: name, einheit: unit, wertNum: 1.2 * MGDL_PER_UMOLL }),
+        row({ bezeichnung: 'Kreatinin alternate', einheit: 'mg/dl', wertNum: 3.0 }),
+      ]
+      expect(creatinineSourceOptions(rows)).toContainEqual([name, unit])
+      const computed = appendComputedEgfr(rows, { source: [name, unit] }).filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))
+      expect(computed).toHaveLength(1)
+      expect(computed[0].wertNum).toBe(73.7) // CKD-EPI 2021, male, age 50, serum creatinine 1.2 mg/dl
+    }
+  })
+
   it('labels rows with the formula-specific computed name (MDRD-4)', () => {
     const out = appendComputedEgfr([row({ wertNum: 1.0 })], { formula: 'mdrd-4' })
     const computed = out.filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))

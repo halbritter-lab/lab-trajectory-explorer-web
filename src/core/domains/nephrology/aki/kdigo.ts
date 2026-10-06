@@ -7,7 +7,13 @@ import {
   KDIGO_STAGE_2_RATIO,
   KDIGO_STAGE_3_ABSOLUTE_MGDL,
   KDIGO_STAGE_3_RATIO,
+  KDIGO_THRESHOLD_TOLERANCE,
 } from '../constants'
+
+/** Inclusive KDIGO boundary despite binary rounding of decimal inputs. */
+function atLeast(value: number, threshold: number): boolean {
+  return value + KDIGO_THRESHOLD_TOLERANCE >= threshold
+}
 
 export interface AkiEpisode {
   date: Date
@@ -23,13 +29,13 @@ export interface AkiEpisode {
  * peak/baseline ratio; absolute peak >= 4.0 overrides to stage 3. Returns 0
  * when the pair is below the KDIGO AKI floor (ratio < 1.5x AND absolute rise
  * < 0.3 mg/dl), so the function is self-guarding rather than relying on callers
- * to pre-filter crossings. Real detector crossings always meet the floor, so
- * detected episodes are unaffected. Mirrors analyses/methods.py:_kdigo_stage. */
+ * to pre-filter crossings. The same numeric tolerance applies to detector
+ * crossings and this floor; episode merging and stage priority are unchanged. */
 export function kdigoStage(baselineValue: number, peakValue: number): number {
   const ratio = baselineValue > 0 ? peakValue / baselineValue : Infinity
-  if (peakValue >= KDIGO_STAGE_3_ABSOLUTE_MGDL || ratio >= KDIGO_STAGE_3_RATIO) return 3
-  if (ratio >= KDIGO_STAGE_2_RATIO) return 2
-  if (ratio >= KDIGO_RELATIVE_RISE_RATIO || peakValue - baselineValue >= KDIGO_ABSOLUTE_RISE_MGDL) return 1
+  if (atLeast(peakValue, KDIGO_STAGE_3_ABSOLUTE_MGDL) || atLeast(ratio, KDIGO_STAGE_3_RATIO)) return 3
+  if (atLeast(ratio, KDIGO_STAGE_2_RATIO)) return 2
+  if (atLeast(ratio, KDIGO_RELATIVE_RISE_RATIO) || atLeast(peakValue - baselineValue, KDIGO_ABSOLUTE_RISE_MGDL)) return 1
   return 0
 }
 
@@ -85,9 +91,10 @@ class MinWindow {
   }
 }
 
-/** Detect KDIGO AKI episodes on a creatinine (mg/dl) series. O(n) via two
- * sliding-window minima (48h absolute, 7d relative). Mirrors
- * analyses/methods.py:find_kdigo_aki_episodes. */
+/** Detect KDIGO AKI episodes on creatinine values already in mg/dl. O(n) via
+ * two sliding-window minima (48h absolute, 7d relative). The window and
+ * clustering algorithm follows the original Python implementation; threshold
+ * comparisons use the owner's numeric tolerance. */
 export function findKdigoAkiEpisodes(points: SeriesPoint[]): AkiEpisode[] {
   if (points.length === 0) return []
   const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime())
@@ -106,13 +113,13 @@ export function findKdigoAkiEpisodes(points: SeriesPoint[]): AkiEpisode[] {
 
     const i48 = win48.argmin()
     let fired = false
-    if (i48 >= 0 && vj - values[i48] >= KDIGO_ABSOLUTE_RISE_MGDL) {
+    if (i48 >= 0 && atLeast(vj - values[i48], KDIGO_ABSOLUTE_RISE_MGDL)) {
       raw.push({ date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h' })
       fired = true
     }
     if (!fired) {
       const i7 = win7.argmin()
-      if (i7 >= 0 && values[i7] > 0 && vj / values[i7] >= KDIGO_RELATIVE_RISE_RATIO) {
+      if (i7 >= 0 && values[i7] > 0 && atLeast(vj / values[i7], KDIGO_RELATIVE_RISE_RATIO)) {
         raw.push({ date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d' })
       }
     }

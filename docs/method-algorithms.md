@@ -33,6 +33,36 @@ exact and bounded values are visible. Raw counts remain unchanged.
 Regression evidence: [censored measurement tests](../tests/core/censoredMeasurements.test.ts)
 and [workspace chart/table tests](../tests/workspace/trajectories.test.tsx).
 
+## KDIGO creatinine AKI and eGFR source conversion (2026-10-06)
+
+AKI detection accepts the same eligible serum-creatinine name and unit pairs as
+eGFR derivation: a name containing “Kreatinin” or “Creatinin”, excluding urine
+names, with mg/dl or µmol/l (including common case, space and micro-sign
+spellings). Only dated exact numeric rows enter detection. Each creatinine
+series detects AKI on itself. For another analyte, the patient's eligible
+creatinine pair with the most exact dated rows is used; ties retain the first
+encountered pair. Rows with different names or units are never pooled into one
+detection series. The selected eGFR derivation source is likewise one exact
+name/unit pair, so other creatinine series do not supply its values.
+
+Both calculations convert a selected µmol/l value to mg/dl by dividing by
+**88.42 µmol/l per mg/dl** before evaluating it. Thus 97.262 and 123.788
+µmol/l correspond to 1.1 and 1.4 mg/dl. AKI tests a rise of at least 0.3
+mg/dl within 48 elapsed hours first; otherwise it tests a ratio of at least
+1.5 to a positive baseline within seven elapsed days. The stage-1 floor and
+stage-2/3 ratio and absolute thresholds use the same inclusive comparison.
+Each numeric threshold comparison permits a **1e-12** tolerance in the
+compared quantity (mg/dl for an absolute value, dimensionless for a ratio).
+This includes mathematically exact decimal boundaries lost to binary rounding;
+1.1 to 1.399999 mg/dl remains below the 0.3 rise threshold. Window times,
+baseline minima, episode clustering, stage priority and exclusion-window
+construction are unchanged. This is automated creatinine screening only;
+urine-output criteria are not evaluated.
+
+Regression evidence: [KDIGO boundary tests](../tests/core/aki/kdigo.test.ts),
+[AKI source tests](../tests/core/aki/akiAware.test.ts) and
+[eGFR source tests](../tests/core/egfr/series.test.ts).
+
 ## Theil-Sen (2026-09-23)
 
 Inputs are dated numeric observations, sorted without mutating caller data. Time

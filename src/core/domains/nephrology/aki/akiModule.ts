@@ -1,4 +1,4 @@
-import { akiExclusionBands, akiExclusionWindows, episodesForSeries, isCreatinineMgdl } from './akiAware'
+import { akiExclusionBands, akiExclusionWindows, episodesForSeries, isAkiCreatinineSource } from './akiAware'
 import type { AkiEpisode } from './kdigo'
 import { formatAkiChip, formatAkiEpisodeSummary } from './summary'
 import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
@@ -65,7 +65,7 @@ export function akiFitInput(patientId: PatientId, seriesKey: SeriesKey, episodes
  * a KDIGO creatinine series detects on itself, every other series of the
  * patient shares the patient's creatinine source. */
 function episodeSourceKey(patientId: PatientId, seriesKey: SeriesKey): string {
-  return isCreatinineMgdl(seriesKey.bezeichnung, seriesKey.einheit)
+  return isAkiCreatinineSource(seriesKey.bezeichnung, seriesKey.einheit)
     ? `${patientId}|${seriesKey.bezeichnung}|${seriesKey.einheit ?? ''}`
     : `${patientId}|creatinine-source`
 }
@@ -119,7 +119,7 @@ function akiOverlays(ctx: SeriesContext, episodes: readonly AkiEpisode[]): Serie
       moduleId: AKI_MODULE_ID,
       date: episode.peakDate,
       label: `AKI ${stage}`,
-      title: `AKI stage ${stage} · onset ${formatDisplayDate(episode.date)} · creatinine peak ${formatDisplayNumber(episode.peakValue)} on ${formatDisplayDate(episode.peakDate)} (baseline ${formatDisplayNumber(episode.baselineValue)})`,
+      title: `AKI stage ${stage} · onset ${formatDisplayDate(episode.date)} · creatinine peak ${formatDisplayNumber(episode.peakValue)} mg/dl on ${formatDisplayDate(episode.peakDate)} (baseline ${formatDisplayNumber(episode.baselineValue)} mg/dl)`,
       snapWithinDays: AKI_MARKER_TOLERANCE_DAYS,
       offMeasurementNote: ' · no measurement of this parameter on that date',
     }
@@ -165,7 +165,7 @@ function akiSeriesContribution(ctx: SeriesContext): SeriesContribution {
 export const akiModule = {
   id: 'aki' as const,
   label: 'AKI',
-  description: 'KDIGO acute kidney injury episodes detected on serum creatinine (mg/dl).',
+  description: 'KDIGO acute kidney injury episodes detected on serum creatinine (mg/dl or µmol/l converted to mg/dl).',
   defaultSettings: { showOverlays: false, exclusionDays: DEFAULT_AKI_EXCLUSION_DAYS } as AkiModuleSettings,
   parseSettings: (value: unknown): AkiModuleSettings | null => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return null

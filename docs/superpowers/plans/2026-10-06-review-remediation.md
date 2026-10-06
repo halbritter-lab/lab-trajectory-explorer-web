@@ -118,3 +118,19 @@ exclusion windows before reporting `nFitted`, and disabled fits report zero
 even with one exact point plus a bound. Two tests failed before the fix and
 pass after it. Sequential verification: 44/44 focused tests, 764/764 full unit
 tests (90 files), production build passed. Other P4 scope remains open.
+
+Second P4 package: KDIGO threshold comparisons now use a 1e-12 tolerance,
+including the stage-1 floor; eligible serum creatinine µmol/l sources are
+converted to mg/dl for direct and cross-series AKI detection. The central
+88.42 conversion also remains in eGFR derivation for every eligible selected
+µmol/l source; the single selected name/unit pair is unchanged. Exact boundary,
+just-below, unit spelling, source isolation and bound-exclusion tests were added.
+Endpoint/KRT and other P4 work remains open. Deferred Minor policy question for
+final review: `summarize.ts` can use dates of excluded bounds in its raw
+span/reason calculation; this matches the existing raw-span convention for
+other exclusions and was intentionally not changed in this AKI package.
+Golden AKI/eGFR parity cases still use mg/dl values away from the changed
+boundaries and passed unchanged, so no golden numeric values moved. Final
+sequential verification after the marker-unit follow-up: 52/52 focused tests,
+773/773 unit tests (90 files), production build and 29/29 Chromium tests.
+Existing React `act` warnings remain in the storage unit tests.

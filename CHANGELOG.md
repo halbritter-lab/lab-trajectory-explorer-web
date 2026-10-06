@@ -7,6 +7,13 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Apply a 1e-12 numeric tolerance at KDIGO creatinine thresholds, including
+  the stage-1 floor, so exact 0.3 mg/dl and 1.5-fold rises survive floating
+  point rounding. AKI detection now converts eligible serum creatinine µmol/l
+  to mg/dl using 88.42 µmol/l per mg/dl. eGFR derivation continues to convert
+  the selected eligible µmol/l source. AKI results and associated exclusion
+  windows can change for previously ignored µmol/l series or exact boundaries;
+  source series remain separate and bound rows remain excluded.
 - Exclude `<x` and `>x` limits from slopes, endpoint evaluation and prediction,
   AKI detection and cohort mixed models. Preserve raw counts and chart points,
   and label the exclusion in import warnings, plots, tables and exports. Fits

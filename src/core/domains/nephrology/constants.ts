@@ -18,13 +18,16 @@ export const KDIGO_ABSOLUTE_RISE_MGDL = 0.3
 export const KDIGO_ABSOLUTE_WINDOW_MS = 48 * MS_PER_HOUR
 export const KDIGO_RELATIVE_RISE_RATIO = 1.5
 export const KDIGO_RELATIVE_WINDOW_MS = 7 * MS_PER_DAY
+/** Small tolerance for decimal KDIGO comparisons after unit conversion.
+ * Applied in the compared quantity's units (mg/dl or a dimensionless ratio). */
+export const KDIGO_THRESHOLD_TOLERANCE = 1e-12
 /** KDIGO AKI staging: peak/baseline ratio for stage 2 and stage 3, and the
  * absolute peak (mg/dl) that is stage 3 regardless of ratio. */
 export const KDIGO_STAGE_2_RATIO = 2.0
 export const KDIGO_STAGE_3_RATIO = 3.0
 export const KDIGO_STAGE_3_ABSOLUTE_MGDL = 4.0
 
-/** Serum creatinine µmol/l per mg/dl used by the eGFR derivation. */
+/** Serum creatinine µmol/l per mg/dl used by eGFR and AKI derivation. */
 export const MGDL_PER_UMOLL = 88.42
 
 /** Default rapid eGFR decline threshold (mL/min/1.73 m² per year). */

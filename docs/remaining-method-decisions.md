@@ -47,11 +47,21 @@ proceed and remain open to the owner's revision.
   `nFitted` counts fit-eligible points after windows; it is zero if the sole
   exact point is excluded or the fit model is disabled, while `nNumeric` still
   reports the original dated numeric row count.
-- **KDIGO threshold comparisons** use a small numeric tolerance, so a rise of
-  exactly 0.3 mg/dl or exactly 1.5× is detected. Episode clustering and staging
-  are unchanged for now.
-- **AKI detection and eGFR derivation** convert serum creatinine in µmol/l to
-  mg/dl instead of silently ignoring it.
+- **KDIGO threshold comparisons** use an inclusive 1e-12 tolerance in the
+  compared quantity (mg/dl for absolute values, dimensionless for ratios), so
+  a rise of exactly 0.3 mg/dl or exactly 1.5× is detected despite binary
+  rounding. The stage-1 floor and stage-2/3 boundaries use the same rule;
+  episode clustering and staging priority are unchanged. A clinically smaller
+  rise such as 0.299999 mg/dl remains below threshold. Implemented in this P4
+  package.
+- **AKI detection and eGFR derivation** accept eligible serum creatinine in
+  mg/dl or µmol/l, converting the latter to mg/dl by division by the central
+  88.42 constant before comparison or formula evaluation. Common micro-sign,
+  case and spacing unit spellings are eligible; urine sources and operator-bound
+  rows remain excluded from AKI. AKI uses the current creatinine pair on its
+  own series or selects the patient's pair with the most eligible exact dated
+  rows for another analyte, without pooling names or units. eGFR continues to
+  use one selected name/unit pair. Implemented in this P4 package.
 - **Cohort models** may apply the analysis preset's censoring and AKI
   exclusions. Whether they do, and how many measurements were excluded, is
   shown in the interface and recorded in exports.

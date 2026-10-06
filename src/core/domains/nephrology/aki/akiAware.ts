@@ -4,8 +4,8 @@ import type { SeriesPoint } from '../../../stats/series'
 import { fitOls } from '../../../stats/ols'
 import { datesToYears } from '../../../stats/time'
 import { findKdigoAkiEpisodes, type AkiEpisode } from './kdigo'
-import { isKdigoCreatinineSeries } from '../analytes'
-import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
+import { isKdigoCreatinineSeries, normaliseUnit } from '../analytes'
+import { DEFAULT_AKI_EXCLUSION_DAYS, MGDL_PER_UMOLL } from '../constants'
 import { fixedLengthWindow, type ReasonedExclusionWindow } from '../../../exclusions/windows'
 
 const MS_PER_DAY = 86_400_000
@@ -68,22 +68,22 @@ export function fitAkiAware(points: SeriesPoint[], exclusionDays = DEFAULT_AKI_E
   return { fit, keptIdx, episodes: eps }
 }
 
-/** Serum creatinine in mg/dl (KDIGO-eligible); see `isKdigoCreatinineSeries`. */
-export const isCreatinineMgdl = isKdigoCreatinineSeries
+/** Eligible serum creatinine source for KDIGO detection. */
+export const isAkiCreatinineSource = isKdigoCreatinineSeries
 
-/** Episodes for aki-aware fits: a creatinine mg/dl series detects on itself;
+/** Episodes for aki-aware fits: an eligible serum creatinine series detects on itself;
  * any other analyte (e.g. computed eGFR) uses the same patient's creatinine
- * mg/dl series with the most rows (cross-series, mirrors the Python
- * aki_creatinine_source). Returns [] when no creatinine mg/dl data exists. */
+ * series with the most exact dated rows. Names and units are never pooled.
+ * Returns [] when no eligible creatinine data exists. */
 export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null): AkiEpisode[] {
   const sub = rows.filter((r) => r.patientId === patientId && r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
   let source: LabRow[]
-  if (bezeichnung !== null && isCreatinineMgdl(bezeichnung, einheit)) {
+  if (bezeichnung !== null && isAkiCreatinineSource(bezeichnung, einheit)) {
     source = sub.filter((r) => r.bezeichnung === bezeichnung && (r.einheit ?? null) === (einheit ?? null))
   } else {
     const groups = new Map<string, LabRow[]>()
     for (const r of sub) {
-      if (r.bezeichnung === null || !isCreatinineMgdl(r.bezeichnung, r.einheit)) continue
+      if (r.bezeichnung === null || !isAkiCreatinineSource(r.bezeichnung, r.einheit)) continue
       const k = `${r.bezeichnung}|${r.einheit ?? ''}`
       if (!groups.has(k)) groups.set(k, [])
       groups.get(k)!.push(r)
@@ -93,6 +93,6 @@ export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichn
   const points: SeriesPoint[] = source
     .filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
-    .map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
+    .map((r) => ({ date: r.labDatum!, value: normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum! / MGDL_PER_UMOLL : r.wertNum! }))
   return points.length > 0 ? findKdigoAkiEpisodes(points) : []
 }
