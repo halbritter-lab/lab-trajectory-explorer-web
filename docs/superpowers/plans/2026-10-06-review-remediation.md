@@ -83,26 +83,16 @@ coherent commits. No AI co-authorship trailers.
 Whole-branch review, `pnpm test`, `pnpm build`, `pnpm test:e2e`, smoke
 checklist update, changelog.
 
-## Progress (paused 2026-10-06 at e16c2b1)
+## Progress (2026-10-06)
 
 Done and reviewed: P1 (import), P2 (single interface, dedicated storage).
-P3 steps 1–7 committed (`deada55`..`e16c2b1`), behaviour-preserving: 750 unit
-tests, build and 29 e2e green; real webR verified with both verify scripts.
-
-Resume P3 with:
-
-- Rest of step 7: clinical-event enums as exported constant arrays in
-  `src/core/events/events.ts`, used by `events.ts` and `workspace-storage.ts`
-  (keep the exhaustiveness guard); confirm no runtime import cycles remain.
-- Step 8: `docs/architecture.md` (layers, module contract, "add HbA1c with a
-  7 % target" walk-through: new `src/core/domains/<domain>/` folder, entry in
-  `analysisModules` in `src/core/analysis/registry.ts`, optional entry in
-  `fitPresetCatalog`); a layering test that scans
-  `src/core/{stats,fitPipeline,exclusions,endpoints,projection,grouping,parse,demographics}`
-  for imports of `domains`, `analysis`, `events`, `io`, `workspace`; a test of
-  `parseAnalysisSettings` against the current saved shape, a missing module and
-  an invalid value.
-- Close-out: smoke checklist and changelog, then an independent review of P3.
+P3 implementation committed: steps 1–7 (`deada55`..`e16c2b1`), shared
+clinical-event code arrays with the storage exhaustiveness guard (`c043267`),
+and the architecture guide, core-layering test and settings-parser tests
+(`e50a04b`). The earlier P3 checkpoint recorded 750 unit tests, a build,
+29 browser tests and both real-webR verification scripts. The current branch
+has since passed 29/29 automated Chromium browser tests. P3 smoke checklist
+and changelog close-out are recorded here; independent P3 review is pending.
 
 Then P4–P7 as above. Owner review pending: UI-reference sentences changed on
 the methodology page (P2) and the new cohort-model sentence on time origin and

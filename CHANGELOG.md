@@ -62,6 +62,12 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Analysis now uses a module registry for per-domain settings, validation,
+  cohort flags and overlays. Nephrology analytes, defaults and censoring rules
+  have one source; presets use shared core builders, and exclusions use generic
+  windows. The mixed-model outcome is named `value`, with its series identified
+  in the displayed formula. These P3 architecture changes preserve numeric
+  results; `docs/architecture.md` documents the module contract and layering.
 - The workspace is now the only interface and is served at `index.html`. The
   former interface (sidebar, series strip, cohort view and model dialog) was
   removed on 2026-10-06; `workspace.html` redirects to `index.html` so older

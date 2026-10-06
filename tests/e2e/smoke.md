@@ -238,3 +238,10 @@ paths are covered by `pnpm test:e2e`. Grouped mixed-model lines in the overlay
 were checked by unit tests and the projection browser tests with an intercepted
 worker, not with a real webR fit.
 
+P3 modular-analysis close-out (2026-10-06): the user-facing paths in this
+single-interface checklist are unchanged. The current branch passed all 29
+automated Chromium browser tests (`pnpm test:e2e`), covering the automated
+subset of current workspace paths. The manual steps above were not rerun for
+P3; their dated verification remains the 2026-10-06 production-build check.
+Independent P3 review is pending.
+
