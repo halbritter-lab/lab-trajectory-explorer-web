@@ -4,7 +4,14 @@ import { useAppStore } from './state/store'
 import type { AnalysisContext } from '../core/analysis/types'
 import { parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
 import type { Sex, WertOperator } from '../core/types'
-import type { ClinicalEventType, ClinicalEventWarning, DialysisIntent } from '../core/events/events'
+import {
+  CLINICAL_EVENT_TYPES,
+  CLINICAL_EVENT_WARNINGS,
+  DIALYSIS_INTENTS,
+  type ClinicalEventType,
+  type ClinicalEventWarning,
+  type DialysisIntent,
+} from '../core/events/events'
 
 export const WORKSPACE_STORAGE_KEY = 'lab-explorer:workspace:v1'
 /** Keys of earlier versions start with this prefix in idb-keyval's shared
@@ -52,9 +59,9 @@ function allValues<T extends string | null>() {
 }
 const SEX_CODES = allValues<Sex>()(['m', 'w', 'd'])
 const OPERATORS = allValues<WertOperator>()(['=', '<', '>', 'range', 'unparseable'])
-const EVENT_TYPES = allValues<ClinicalEventType>()(['kidney_transplant', 'dialysis', 'other'])
-const INTENTS = allValues<DialysisIntent | null>()([null, 'acute', 'chronic', 'unknown'])
-const EVENT_WARNINGS = allValues<ClinicalEventWarning>()(['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval'])
+const EVENT_TYPES = allValues<ClinicalEventType>()(CLINICAL_EVENT_TYPES)
+const INTENTS = allValues<DialysisIntent | null>()([null, ...DIALYSIS_INTENTS])
+const EVENT_WARNINGS = allValues<ClinicalEventWarning>()(CLINICAL_EVENT_WARNINGS)
 const sex = (v: unknown) => v === null || SEX_CODES.includes(v as Sex)
 
 function validSnapshot(value: unknown): value is Snapshot {

@@ -1,5 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
+  CLINICAL_EVENT_TYPES,
+  CLINICAL_EVENT_WARNINGS,
+  DIALYSIS_INTENTS,
   normalizeClinicalEvents,
   validateClinicalEvents,
 } from '../../../src/core/events/events'
@@ -22,6 +25,15 @@ function labRow(id: number): LabRow {
 }
 
 describe('clinical events', () => {
+  it('publishes the supported event codes for import and persistence', () => {
+    expect(new Set(CLINICAL_EVENT_TYPES))
+      .toEqual(new Set(['kidney_transplant', 'dialysis', 'other']))
+    expect(new Set(DIALYSIS_INTENTS))
+      .toEqual(new Set(['acute', 'chronic', 'unknown']))
+    expect(new Set(CLINICAL_EVENT_WARNINGS))
+      .toEqual(new Set(['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval']))
+  })
+
   it('accepts a label title with a tolerant type alias', () => {
     const events = normalizeClinicalEvents([
       { PatientID: 1, Type: 'other', Date: '2024-01-01', label: 'Clinical note' },

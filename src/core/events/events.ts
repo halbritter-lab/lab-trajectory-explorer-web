@@ -8,6 +8,9 @@ export type ClinicalEventWarning =
   | 'unknown_patient'
   | 'unknown_dialysis_intent'
   | 'unresolved_dialysis_interval'
+export const CLINICAL_EVENT_TYPES = ['kidney_transplant', 'dialysis', 'other'] as const satisfies readonly ClinicalEventType[]
+export const DIALYSIS_INTENTS = ['acute', 'chronic', 'unknown'] as const satisfies readonly DialysisIntent[]
+export const CLINICAL_EVENT_WARNINGS = ['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval'] as const satisfies readonly ClinicalEventWarning[]
 export type RejectedClinicalEventReason =
   | 'missing_required'
   | 'invalid_type'
@@ -72,12 +75,8 @@ import {
 } from '../parse/headers'
 import { countDateRead, describeDateProblem, noDateReads, parseImportDate, type DateReadCounts } from '../parse/dates'
 
-const clinicalEventTypes = new Set<string>([
-  'kidney_transplant',
-  'dialysis',
-  'other',
-])
-const dialysisIntents = new Set<string>(['acute', 'chronic', 'unknown'])
+const clinicalEventTypes = new Set<string>(CLINICAL_EVENT_TYPES)
+const dialysisIntents = new Set<string>(DIALYSIS_INTENTS)
 
 export function normalizeClinicalEvents(rows: RawRow[]): RawClinicalEvent[] {
   return normalizeClinicalEventsWithNotes(rows).events
