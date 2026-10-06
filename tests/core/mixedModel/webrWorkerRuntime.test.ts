@@ -215,6 +215,23 @@ describe('webR worker runtime behavior', () => {
     expect(fitCode).toContain('nlme::intervals(mm_fit, which = "fixed")')
   })
 
+  it('uses the intercept-only nlme singular diagnostic without requiring slope covariance', async () => {
+    const config: MixedModelConfig = { ...LEGACY_MIXED_MODEL_CONFIG, randomEffects: 'intercept' }
+    let fitCode = ''
+    const { messages, postRequest } = await setupWorker({
+      evalRString: (code) => {
+        fitCode = code
+        return Promise.resolve(validFitJson)
+      },
+    })
+    postRequest({ ...baseRequest, engine: 'webr-nlme', config,
+      formula: mixedModelFormula(config), formulaKey: mixedModelFormulaKey(config) })
+    await waitForMessages(messages, 1)
+    expect(messages[0].result.status).toBe('success')
+    expect(fitCode).toContain('intercept_sd / residual_sd < tol')
+    expect(fitCode).toContain('mm_named_number(mm_stddev, "Residual"),\n                                  TRUE)')
+  })
+
   it('returns a structured failure for unsupported mixed-model configs', async () => {
     const { messages, postRequest } = await setupWorker()
 

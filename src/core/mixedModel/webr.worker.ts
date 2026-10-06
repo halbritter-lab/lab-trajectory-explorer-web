@@ -443,11 +443,16 @@ function nlmeFitCode(modelCall: string, config: MixedModelConfig): string {
     if ("Corr" %in% colnames(mm_vc) && "time_since_baseline" %in% rownames(mm_vc)) {
       mm_corr <- suppressWarnings(as.numeric(mm_vc["time_since_baseline", "Corr"]))
     }
-    # nlme has no isSingular equivalent. Compare the two eigenvalue standard
-    # deviations of the patient intercept/slope covariance, using the same
-    # relative 1e-4 scale as lme4::isSingular. Missing/invalid covariance
-    # information is conservatively treated as singular.
-    mm_nlme_singular <- function(intercept_sd, slope_sd, corr, tol = 1e-4) {
+    # nlme has no isSingular equivalent. For a random intercept, compare its
+    # standard deviation with the residual scale. For intercept+slope, compare
+    # the two covariance eigenvalue standard deviations. Missing/invalid
+    # covariance information is conservatively treated as singular.
+    mm_nlme_singular <- function(intercept_sd, slope_sd, corr, residual_sd,
+                                 intercept_only, tol = 1e-4) {
+      if (intercept_only) {
+        return(!is.finite(intercept_sd) || !is.finite(residual_sd) ||
+               residual_sd <= 0 || intercept_sd / residual_sd < tol)
+      }
       if (!all(is.finite(c(intercept_sd, slope_sd, corr))) ||
           intercept_sd <= 0 || slope_sd <= 0 || abs(corr) > 1) return(TRUE)
       mm_cov <- matrix(c(intercept_sd^2, intercept_sd*slope_sd*corr,
@@ -462,7 +467,9 @@ function nlmeFitCode(modelCall: string, config: MixedModelConfig): string {
     mm_out <- list(
       converged = length(mm_conv_warnings) == 0,
       singular = mm_nlme_singular(mm_named_number(mm_stddev, "(Intercept)"),
-                                  mm_named_number(mm_stddev, "time_since_baseline"), mm_corr),
+                                  mm_named_number(mm_stddev, "time_since_baseline"), mm_corr,
+                                  mm_named_number(mm_stddev, "Residual"),
+                                  ${config.randomEffects === 'intercept' ? 'TRUE' : 'FALSE'}),
       warnings = unname(unique(mm_warnings)),
       fixedEffects = list(
         intercept = mm_intercept,

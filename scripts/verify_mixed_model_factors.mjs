@@ -63,6 +63,10 @@ try {
     }
     assert.equal(result.nMeasurements, rows.length)
     console.log(JSON.stringify({engine,terms:result.fixedEffectTerms,warnings:result.warnings}))
+    const interceptOnly = await fit(engine, {...config, randomEffects:'intercept'})
+    assert.equal(interceptOnly.status, 'success', JSON.stringify(interceptOnly))
+    assert.equal(interceptOnly.singular, false, `${engine}: a healthy random-intercept fit was marked singular`)
+    console.log(`${engine}: random-intercept fit is non-singular`)
     const deficient = await fit(engine, config, rows.map(row => ({...row, factorValues:{...row.factorValues,factor_1_:row.factorValues.factor_0_ === 'B' ? 1 : 0}})))
     assert.equal(deficient.status, 'fit-error', JSON.stringify(deficient))
     assert.match(deficient.message, /rank deficient/)
