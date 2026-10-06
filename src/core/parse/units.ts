@@ -1,16 +1,33 @@
+// Letters whose case changes meaning at the start of a unit token: SI prefixes
+// (milli/mega, pico/peta, nano, kilo, giga, tera, exa, zepto/zetta, yocto/yotta)
+// and the single-letter units they collide with (gram/giga, metre/molar,
+// second/siemens, tonne/tera). Their case is kept; all other case is folded.
+const CASE_SENSITIVE_FIRST = new Set([...'mMpPnNkKgGtTeEzZyYsS'])
+
 /**
  * Comparison key for unit spellings. Two units with the same key differ only in
- * letter case, whitespace, or how the micro prefix is written (µ U+00B5, μ U+03BC
- * or a plain "u" before a unit letter, as in "umol/l" or "/ul"). Different units
- * keep different keys: nothing here converts mg/dl to µmol/l. A "u" that is not
- * followed by a letter is the enzyme unit U, as in "U/l", and is left alone.
+ * whitespace, how the micro prefix is written (µ U+00B5, μ U+03BC, or a plain
+ * "u" before a unit letter, as in "umol/l" or "/ul"), or in letter case that
+ * cannot change an SI prefix:
+ * - within each letter run, the first letter keeps its case when it is one of
+ *   the prefix-ambiguous letters (so mU/MU, pg/Pg and g/G stay apart) and the
+ *   rest is folded (mg/dl = mg/dL, mmol/l = mmol/L, IU/l = iu/l);
+ * - all-capitals spellings carry no case information, so their multi-letter
+ *   runs are folded too (MG/DL = mg/dl). Single letters keep the rule above
+ *   (G/L = G/l). One consequence: "MU/L" reads as milli-units, the usual meaning.
+ * Different units keep different keys: nothing here converts mg/dl to µmol/l.
+ * A "u" that is not followed by a letter is the enzyme unit U, as in "U/l".
  */
 export function unitKey(unit: string): string {
-  return unit
-    .replace(/\s+/g, '')
-    .toLowerCase()
-    .replace(/μ/g, 'µ')
-    .replace(/(^|[^a-zµ])u(?=[a-z])/g, '$1µ')
+  const s = unit.replace(/\s+/g, '').replace(/\u03bc/g, '\u00b5')
+  const allCaps = !/[a-z]/.test(s)
+  return s
+    .replace(/[A-Za-z\u00b5]+/g, (run) => {
+      if (allCaps && run.length > 1) return run.toLowerCase()
+      const first = CASE_SENSITIVE_FIRST.has(run[0]) ? run[0] : run[0].toLowerCase()
+      return first + run.slice(1).toLowerCase()
+    })
+    .replace(/(^|[^A-Za-z\u00b5])u(?=[A-Za-z])/g, '$1\u00b5')
 }
 
 export interface UnitHarmonisation {
@@ -23,7 +40,8 @@ export interface UnitHarmonisation {
 
 /**
  * Pick one display spelling per (test name, unit key): the most frequent
- * spelling, ties going to the one seen first. Returns a lookup from
+ * spelling; ties go to a spelling with the micro sign µ, then to the one seen
+ * first. Returns a lookup from
  * `[testName, unit]` to the canonical unit, plus one record per group that
  * actually had more than one spelling.
  */
@@ -43,7 +61,9 @@ export function planUnitHarmonisation(
   for (const [key, group] of groups) {
     if (group.counts.size < 2) continue
     const spellings = [...group.counts].map(([unit, count]) => ({ unit, count }))
-    const best = spellings.reduce((a, b) => (b.count > a.count ? b : a))
+    // Most frequent spelling; on a tie the micro sign µ wins, then first seen.
+    const rank = (x: { unit: string; count: number }) => x.count * 2 + (x.unit.includes('\u00b5') ? 1 : 0)
+    const best = spellings.reduce((a, b) => (rank(b) > rank(a) ? b : a))
     canonical.set(key, best.unit)
     merged.push({ testName: group.testName, canonical: best.unit, spellings })
   }

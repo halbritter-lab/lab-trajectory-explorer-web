@@ -1,7 +1,7 @@
 import type { ManualDemographics } from '../analysis/types'
 import { normaliseSex } from '../egfr/formulas'
 import { completedYears } from '../parse/loader'
-import { parseImportDate } from '../parse/dates'
+import { readAttributeBirthDate } from '../attributes/attributes'
 import { comparePatientIds, patientIdKey, type LabRow } from '../types'
 import { resolveBirthAnchor } from './resolveAge'
 import { resolveSex } from './resolveSex'
@@ -21,16 +21,11 @@ interface Resolved {
   constantAge?: number
 }
 
-/** Birth date from the attributes table, read like a lab date (ISO,
- * DD.MM.YYYY, day-first DD/MM/YYYY). Attribute values hold text; an xlsx date
- * cell arrives as the Date's toString() form, which is read as before. */
+/** Birth date from the attributes table, read like a lab-sheet birth date
+ * (see `readAttributeBirthDate`); null when absent or unreadable. */
 export function parseAttributeDate(value: string | undefined): Date | null {
-  if (!value) return null
-  const parsed = parseImportDate(value)
-  if (parsed.kind === 'date') return parsed.date
-  if (value.length <= 10) return null
-  const legacy = new Date(value)
-  return Number.isNaN(legacy.getTime()) ? null : legacy
+  const parsed = readAttributeBirthDate(value)
+  return parsed.kind === 'date' ? parsed.date : null
 }
 
 /**

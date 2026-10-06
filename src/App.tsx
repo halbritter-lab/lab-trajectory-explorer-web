@@ -78,7 +78,7 @@ export function App() {
                     <tbody>{notice.details.map((item, index) => (
                       <tr key={index}>
                         <td>{item.sheet}</td><td>{item.scope === 'sheet' ? 'All' : item.patientId ?? 'Missing'}</td>
-                        <td>{item.severity}</td><td>{/^[a-z_]+$/.test(item.reason) ? item.reason.replaceAll('_', ' ') : item.reason}</td>
+                        <td>{item.severity}</td><td>{item.reason}</td>
                       </tr>
                     ))}</tbody>
                   </table>

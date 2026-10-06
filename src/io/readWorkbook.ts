@@ -15,11 +15,16 @@ export interface WorkbookSheets {
   getSheet(sheet: string | number): RawRow[]
 }
 
-/** Zip containers (xlsx, xlsb, ods) and OLE compound files (xls). */
+const ZIP_SIGNATURES = [[0x50, 0x4b, 0x03, 0x04], [0x50, 0x4b, 0x05, 0x06], [0x50, 0x4b, 0x07, 0x08]]
+const OLE_SIGNATURE = [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]
+
+const startsWith = (bytes: Uint8Array, signature: readonly number[]) =>
+  bytes.length >= signature.length && signature.every((b, i) => bytes[i] === b)
+
+/** Zip containers (xlsx, xlsb, ods) and OLE compound files (xls), by their full
+ * signatures: a CSV whose first header merely starts with "PK" is text. */
 function isBinarySpreadsheet(bytes: Uint8Array): boolean {
-  const zip = bytes[0] === 0x50 && bytes[1] === 0x4b
-  const ole = bytes[0] === 0xd0 && bytes[1] === 0xcf && bytes[2] === 0x11 && bytes[3] === 0xe0
-  return zip || ole
+  return ZIP_SIGNATURES.some((sig) => startsWith(bytes, sig)) || startsWith(bytes, OLE_SIGNATURE)
 }
 
 /**

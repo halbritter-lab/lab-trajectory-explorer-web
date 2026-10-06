@@ -1,7 +1,7 @@
 import { patientIdKey, type LabRow, type PatientId, type WertOperator } from '../types'
 import type { RawRow } from '../../io/readWorkbook'
 import { parseWert } from './wert'
-import { describeDateProblem, parseImportDate } from './dates'
+import { countDateRead, dateReadNotes, describeDateProblem, noDateReads, parseImportDate } from './dates'
 import { planUnitHarmonisation } from './units'
 import { normaliseSex } from '../egfr/formulas'
 export { REQUIRED_COLUMNS } from '../../io/headers'
@@ -84,13 +84,14 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 /**
  * `loadLabRows` plus the import findings:
  * - rows whose lab date is present but not a date (impossible calendar day,
- *   number outside the Excel serial range, unrecognised text) are rejected;
- *   rows with an empty date are kept, as before;
+ *   number outside the plausible Excel serial range, unrecognised text) are
+ *   rejected; rows with an empty date are kept, as before;
  * - unit spellings that differ only in case, spacing or micro-sign spelling are
  *   merged per test name into the most frequent spelling (see `unitKey`);
- * - day-first slash dates, Excel serial dates, unreadable birth dates, exact
- *   duplicate rows and censored ("<", ">") values are reported as warnings.
- *   Duplicates and censored values are kept unchanged.
+ * - day-first slash dates, Excel serial dates, unreadable birth dates, decimal
+ *   commas that could be thousands separators, exact duplicate rows and
+ *   censored ("<", ">") values are reported as warnings. Duplicates and
+ *   censored values are kept unchanged.
  */
 export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
   // Union of all rows' keys rather than just the first row's, so a column left
@@ -115,8 +116,10 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
 
   const rejected: LabImportIssue[] = []
   const birthWarnings = new Map<string, LabImportIssue>()
-  let dayFirstDates = 0
-  let serialDates = 0
+  const labDateReads = noDateReads()
+  const birthDateReads = noDateReads()
+  const birthDatesSeen = new Set<string>()
+  const commaThousands: string[] = []
 
   const out: LabRow[] = []
   for (const r of rawRows) {
@@ -130,8 +133,7 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
       continue
     }
     const labDatum = parsedDate.kind === 'date' ? parsedDate.date : null
-    if (parsedDate.kind === 'date' && parsedDate.via === 'slash-day-first') dayFirstDates++
-    if (parsedDate.kind === 'date' && parsedDate.via === 'excel-serial') serialDates++
+    countDateRead(labDateReads, parsedDate)
     const rawValue = cell(r, columns, 'value')
     const rawWert = toStr(rawValue)
 
@@ -149,6 +151,7 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
       const parsed = parseWert(rawWert)
       wertNum = parsed.value
       wertOperator = parsed.operator
+      if (wertNum !== null && rawWert !== null && COMMA_THOUSANDS_RE.test(rawWert)) commaThousands.push(rawWert)
     }
 
     const patientSexRaw = toStr(cell(r, columns, 'sex'))
@@ -157,13 +160,17 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
     let birthDate: Date | null = null
     if (hasBirth) {
       const rawBirth = cell(r, columns, 'birthDate')
-      const parsedBirth = parseImportDate(rawBirth)
-      if (parsedBirth.kind === 'date') birthDate = parsedBirth.date
-      if (parsedBirth.kind === 'invalid') {
-        const key = JSON.stringify([patientIdKey(patientId), String(rawBirth)])
-        if (!birthWarnings.has(key)) {
-          birthWarnings.set(key, { patientId, severity: 'warning', reason: `${describeDateProblem('Birth date', rawBirth, parsedBirth.problem)}; it is ignored.` })
-        }
+      const parsedBirth = parseImportDate(rawBirth, 'birth')
+      // Birth dates repeat on every row; count and report each value once per patient.
+      const key = JSON.stringify([patientIdKey(patientId), String(rawBirth)])
+      const firstSeen = !birthDatesSeen.has(key)
+      birthDatesSeen.add(key)
+      if (parsedBirth.kind === 'date') {
+        birthDate = parsedBirth.date
+        if (firstSeen) countDateRead(birthDateReads, parsedBirth)
+      }
+      if (parsedBirth.kind === 'invalid' && firstSeen) {
+        birthWarnings.set(key, { patientId, severity: 'warning', reason: `${describeDateProblem('Birth date', rawBirth, parsedBirth.problem, 'birth')}; it is ignored.` })
       }
     }
 
@@ -191,41 +198,57 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
     })
   }
 
-  const notes: LabImportIssue[] = []
-  const note = (reason: string) => notes.push({ patientId: null, severity: 'warning', reason, scope: 'sheet' })
-
-  if (dayFirstDates > 0) {
-    note(`${plural(dayFirstDates, 'lab date')} written as DD/MM/YYYY ${dayFirstDates === 1 ? 'was' : 'were'} read day-first (03/01/2024 = 3 January 2024).`)
-  }
-  if (serialDates > 0) {
-    note(`${plural(serialDates, 'lab date')} stored as ${serialDates === 1 ? 'a number was' : 'numbers were'} read as Excel serial dates (1900 date system).`)
-  }
+  const notes = [...dateReadNotes('lab date', labDateReads), ...dateReadNotes('birth date', birthDateReads)]
 
   const units = planUnitHarmonisation(out)
   for (const row of out) row.einheit = units.canonicalFor(row.bezeichnung, row.einheit)
   for (const group of units.merged) {
     const spellings = group.spellings.map((s) => `"${s.unit}" (${s.count})`).join(', ')
-    note(`${group.testName ?? 'No test name'}: unit spellings ${spellings} were merged as "${group.canonical}".`)
+    notes.push(`${group.testName ?? 'No test name'}: unit spellings ${spellings} were merged as "${group.canonical}".`)
   }
 
+  notes.push(...commaThousandsNote(commaThousands), ...duplicateNote(out), ...censoredNotes(out))
+
+  const sheetNotes = notes.map((reason): LabImportIssue => ({ patientId: null, severity: 'warning', reason, scope: 'sheet' }))
+  return { rows: out, issues: [...rejected, ...birthWarnings.values(), ...sheetNotes] }
+}
+
+// "1,234" or "<1,500": read as decimals, but in an English-locale export the
+// comma may have been a thousands separator.
+const COMMA_THOUSANDS_RE = /^[<>≤≥]?\s*-?\d{1,3},\d{3}$/
+
+function commaThousandsNote(values: string[]): string[] {
+  if (values.length === 0) return []
+  const example = values[0]
+  const decimal = example.replace(',', '.')
+  return [values.length === 1
+    ? `1 value with three digits after a comma, "${example}", was read as a decimal (${decimal}); check that the comma is not a thousands separator.`
+    : `${values.length} values with three digits after a comma, such as "${example}", were read as decimals (${decimal}); check that the comma is not a thousands separator.`]
+}
+
+/** Exact duplicates: same patient, date, test, unit and raw value. */
+function duplicateNote(rows: readonly LabRow[]): string[] {
   const seen = new Set<string>()
   let duplicates = 0
-  const duplicatePatients = new Set<string>()
-  for (const row of out) {
+  const patients = new Set<string>()
+  for (const row of rows) {
     const key = JSON.stringify([patientIdKey(row.patientId), row.labDatum?.getTime() ?? null, row.bezeichnung, row.einheit, row.wert])
     if (seen.has(key)) {
       duplicates++
-      duplicatePatients.add(patientIdKey(row.patientId))
+      patients.add(patientIdKey(row.patientId))
     } else {
       seen.add(key)
     }
   }
-  if (duplicates > 0) {
-    note(`${plural(duplicates, 'duplicate lab row')} (same patient, date, test, unit and value) for ${plural(duplicatePatients.size, 'patient')}; ${duplicates === 1 ? 'it is' : 'they are'} kept and counted as separate measurements.`)
-  }
+  if (duplicates === 0) return []
+  return [`${plural(duplicates, 'duplicate lab row')} (same patient, date, test, unit and value) for ${plural(patients.size, 'patient')}; ${duplicates === 1 ? 'it is' : 'they are'} kept and counted as separate measurements.`]
+}
 
+/** Censored ("<", ">") values per parameter. The fits read `wertNum`
+ * regardless of the operator, so these are fitted at their limit value. */
+function censoredNotes(rows: readonly LabRow[]): string[] {
   const censored = new Map<string, { label: string; less: number; greater: number }>()
-  for (const row of out) {
+  for (const row of rows) {
     if (row.wertOperator !== '<' && row.wertOperator !== '>') continue
     const key = JSON.stringify([row.bezeichnung, row.einheit])
     let entry = censored.get(key)
@@ -233,10 +256,8 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
     if (row.wertOperator === '<') entry.less++
     else entry.greater++
   }
-  for (const { label, less, greater } of censored.values()) {
+  return [...censored.values()].map(({ label, less, greater }) => {
     const parts = [less ? `${less} "<"` : null, greater ? `${greater} ">"` : null].filter(Boolean).join(', ')
-    note(`${label}: ${plural(less + greater, 'censored value')} (${parts}).`)
-  }
-
-  return { rows: out, issues: [...rejected, ...birthWarnings.values(), ...notes] }
+    return `${label}: ${plural(less + greater, 'censored value')} (${parts}); fits currently use the limit value as if it had been measured.`
+  })
 }

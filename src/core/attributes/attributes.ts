@@ -31,6 +31,7 @@ export interface PatientAttributesResult {
   attributeNames: string[]
 }
 
+import { countDateRead, describeDateProblem, noDateReads, parseImportDate, type DateReadCounts, type ImportDateResult } from '../parse/dates'
 import {
   collectHeaders,
   describeFoundColumns,
@@ -170,8 +171,56 @@ function parsePatientId(value: unknown): PatientId | null {
   return null
 }
 
+/** Attribute values are kept as text. An xlsx date cell (already midnight UTC)
+ * becomes its ISO calendar date rather than the Date's toString() form. */
 function parseText(value: unknown): string | null {
   if (value === null || value === undefined) return null
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10)
   const text = String(value).trim()
   return text === '' ? null : text
+}
+
+/** Read an attribute-table birth date like a lab-sheet one (ISO, DD.MM.YYYY,
+ * day-first DD/MM/YYYY, Excel serial). Values saved by earlier versions may
+ * hold a Date's toString() form, which is still accepted. */
+export function readAttributeBirthDate(value: string | undefined): ImportDateResult {
+  if (value === undefined) return { kind: 'empty' }
+  const parsed = parseImportDate(value, 'birth')
+  if (parsed.kind !== 'invalid' || value.length <= 10) return parsed
+  const legacy = new Date(value)
+  return Number.isNaN(legacy.getTime()) ? parsed : { kind: 'date', date: legacy, via: 'date-cell' }
+}
+
+/** Birth-date findings for accepted attribute rows: one warning per unreadable
+ * value (the value is kept but ignored for age) and counts for the day-first
+ * and Excel-serial notes. */
+export function attributeBirthDateFindings(records: readonly PatientAttributeRecord[]): {
+  warnings: { patientId: PatientId; reason: string }[]
+  dateReads: DateReadCounts
+} {
+  const warnings: { patientId: PatientId; reason: string }[] = []
+  const dateReads = noDateReads()
+  for (const record of records) {
+    const value = record.attributes.birthDate
+    const parsed = readAttributeBirthDate(value)
+    countDateRead(dateReads, parsed)
+    if (parsed.kind === 'invalid') {
+      warnings.push({ patientId: record.patientId, reason: `${describeDateProblem('Birth date', value, parsed.problem, 'birth')}; it is ignored.` })
+    }
+  }
+  return { warnings, dateReads }
+}
+
+/** Readable reason for a rejected attribute row. */
+export function describeAttributeRejection({ row, reason }: RejectedPatientAttributeRow): string {
+  return reason === 'missing_patient_id'
+    ? 'Patient ID missing; row not imported.'
+    : `Patient ${row.patientId} already has an attribute row; this later row is not imported.`
+}
+
+/** Readable text for an accepted attribute row's warning; empty when none. */
+export function describeAttributeWarning(record: PatientAttributeRecord): string {
+  return record.warning === 'unknown_patient'
+    ? `Patient ${record.patientId} has no lab values in this dataset; the attributes are kept.`
+    : ''
 }

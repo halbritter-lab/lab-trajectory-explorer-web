@@ -24,6 +24,9 @@ export interface RawClinicalEvent {
   description: string | null
   endDate: Date | null
   intent: string
+  /** Readable explanation when the date or end date cell could not be read,
+   * naming the offending value. */
+  dateIssue?: string
 }
 
 export interface ClinicalEvent {
@@ -67,7 +70,7 @@ import {
   EVENTS_COLUMN_ALIASES,
   REQUIRED_EVENTS_COLUMNS,
 } from '../../io/headers'
-import { parseImportDate } from '../parse/dates'
+import { countDateRead, describeDateProblem, noDateReads, parseImportDate, type DateReadCounts } from '../parse/dates'
 
 const clinicalEventTypes = new Set<string>([
   'kidney_transplant',
@@ -84,10 +87,10 @@ export function normalizeClinicalEvents(rows: RawRow[]): RawClinicalEvent[] {
  * DD/MM/YYYY dates read day-first and numbers read as Excel serial dates. */
 export function normalizeClinicalEventsWithNotes(rows: RawRow[]): {
   events: RawClinicalEvent[]
-  dayFirstDates: number
-  serialDates: number
+  dateReads: DateReadCounts
 } {
-  if (rows.length === 0) return { events: [], dayFirstDates: 0, serialDates: 0 }
+  const dateReads = noDateReads()
+  if (rows.length === 0) return { events: [], dateReads }
 
   const headers = collectHeaders(rows)
   const columns = resolveColumns(headers, EVENTS_COLUMN_ALIASES)
@@ -103,29 +106,33 @@ export function normalizeClinicalEventsWithNotes(rows: RawRow[]): {
   }
   checkRequiredColumns(columns, REQUIRED_EVENTS_COLUMNS, 'Event file', headers)
 
-  let dayFirstDates = 0
-  let serialDates = 0
-  const parseDate = (value: unknown): Date | null => {
-    const parsed = parseImportDate(value)
-    if (parsed.kind === 'empty') return null
-    // An invalid date stays an Invalid Date, so validation rejects the row
-    // as invalid_date rather than as missing_required.
-    if (parsed.kind === 'invalid') return new Date(Number.NaN)
-    if (parsed.via === 'slash-day-first') dayFirstDates++
-    if (parsed.via === 'excel-serial') serialDates++
-    return parsed.date
-  }
-
-  const events = rows.map((row) => ({
-    patientId: parsePatientId(cell(row, columns, 'patientId')),
-    type: parseText(cell(row, columns, 'type')) ?? '',
-    date: parseDate(cell(row, columns, 'date')),
-    title: parseText(cell(row, columns, 'title')) ?? '',
-    description: parseText(cell(row, columns, 'description')),
-    endDate: parseDate(cell(row, columns, 'endDate')),
-    intent: parseText(cell(row, columns, 'intent')) ?? '',
-  }))
-  return { events, dayFirstDates, serialDates }
+  const events = rows.map((row) => {
+    let dateIssue: string | undefined
+    const parseDate = (label: string, value: unknown): Date | null => {
+      const parsed = parseImportDate(value)
+      if (parsed.kind === 'empty') return null
+      // An invalid date stays an Invalid Date, so validation rejects the row
+      // as invalid_date rather than as missing_required.
+      if (parsed.kind === 'invalid') {
+        dateIssue ??= describeDateProblem(label, value, parsed.problem)
+        return new Date(Number.NaN)
+      }
+      countDateRead(dateReads, parsed)
+      return parsed.date
+    }
+    const event: RawClinicalEvent = {
+      patientId: parsePatientId(cell(row, columns, 'patientId')),
+      type: parseText(cell(row, columns, 'type')) ?? '',
+      date: parseDate('Event date', cell(row, columns, 'date')),
+      title: parseText(cell(row, columns, 'title')) ?? '',
+      description: parseText(cell(row, columns, 'description')),
+      endDate: parseDate('End date', cell(row, columns, 'endDate')),
+      intent: parseText(cell(row, columns, 'intent')) ?? '',
+    }
+    if (dateIssue !== undefined) event.dateIssue = dateIssue
+    return event
+  })
+  return { events, dateReads }
 }
 
 export function validateClinicalEvents(
@@ -279,4 +286,47 @@ function warningForEvent(
 
 function formatDate(date: Date): string {
   return date.toISOString().slice(0, 10)
+}
+
+/** Readable reason for a rejected event row, naming the offending value. */
+export function describeEventRejection({ event, reason }: RejectedClinicalEvent): string {
+  switch (reason) {
+    case 'missing_required': {
+      const missing = [
+        event.patientId === null ? 'patientId' : null,
+        event.type === '' ? 'type' : null,
+        event.date === null ? 'date' : null,
+        event.title === '' ? 'title' : null,
+      ].filter(Boolean)
+      return `Required ${missing.length === 1 ? 'value' : 'values'} missing (${missing.join(', ')}); row not imported.`
+    }
+    case 'invalid_type':
+      return `Event type "${event.type}" is not one of ${[...clinicalEventTypes].join(', ')}; row not imported.`
+    case 'invalid_intent':
+      return event.type === 'dialysis'
+        ? `Dialysis intent "${event.intent}" is not one of ${[...dialysisIntents].join(', ')}; row not imported.`
+        : `Intent "${event.intent}" is only allowed for dialysis events; row not imported.`
+    case 'invalid_date':
+      return `${event.dateIssue ?? 'Event date is not a valid date'}; row not imported.`
+    case 'invalid_date_range':
+      return event.type === 'kidney_transplant'
+        ? `A kidney transplant cannot have an end date (${formatDate(event.endDate!)}); row not imported.`
+        : `End date ${formatDate(event.endDate!)} is before the event date ${formatDate(event.date!)}; row not imported.`
+    case 'unsupported_legacy_schema':
+      return 'Legacy annotation schema is no longer supported; use patientId, type, date, title.'
+  }
+}
+
+/** Readable text for an accepted event's warning; empty when there is none. */
+export function describeEventWarning(event: ClinicalEvent): string {
+  switch (event.warning) {
+    case '':
+      return ''
+    case 'unknown_patient':
+      return `Patient ${event.patientId} has no lab values in this dataset; the event is kept.`
+    case 'unknown_dialysis_intent':
+      return 'Dialysis intent is missing or "unknown"; the event is kept with unknown intent.'
+    case 'unresolved_dialysis_interval':
+      return 'Acute dialysis without an end date; no interval is excluded from fits.'
+  }
 }

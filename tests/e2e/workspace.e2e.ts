@@ -253,7 +253,7 @@ test('real workbook: quality, derivation, many parameters, shared scope and actu
   page.on('pageerror', error => errors.push(error.message))
   await upload(page)
   await page.getByText(/import diagnostics — show details/).click()
-  await expect(page.getByText(/invalid_date/)).toBeVisible()
+  await expect(page.getByText(/Event date "bad-date" is not a recognised date/)).toBeVisible()
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
   await expect(page.getByText('8 computed values in preview', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Apply calculation' }).click()

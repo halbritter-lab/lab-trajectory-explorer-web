@@ -31,14 +31,35 @@ describe('parseImportDate', () => {
   })
 
   it('reads numbers as Excel 1900-system serials within 1900–2119', () => {
-    expect(dateOf(1)).toEqual(utc(1900, 1, 1))
-    expect(dateOf(59)).toEqual(utc(1900, 2, 28))
-    expect(dateOf(61)).toEqual(utc(1900, 3, 1))
+    expect(excelSerialToDate(1)).toEqual(utc(1900, 1, 1))
+    expect(excelSerialToDate(59)).toEqual(utc(1900, 2, 28))
+    expect(excelSerialToDate(61)).toEqual(utc(1900, 3, 1))
     expect(dateOf(45000)).toEqual(utc(2023, 3, 15))
     expect(dateOf(80000)).toEqual(utc(2119, 1, 11))
     expect(excelSerialToDate(60)).toBeNull()
-    for (const n of [0, -5, 80001, 45000 * 1000, Number.NaN]) {
+    for (const n of [80001, 45000 * 1000, Number.NaN]) {
       expect(parseImportDate(n)).toEqual({ kind: 'invalid', problem: 'implausible_serial' })
     }
+  })
+
+  it('applies a plausibility floor to measurement dates and rejects bare years', () => {
+    // Lab and event dates: serials before 10000 (1927-05-18) are not plausible.
+    expect(dateOf(10000)).toEqual(utc(1927, 5, 18))
+    for (const n of [0, -5, 1, 61, 5000, 9999]) {
+      expect(parseImportDate(n)).toEqual({ kind: 'invalid', problem: 'implausible_serial' })
+    }
+    expect(parseImportDate(2024)).toEqual({ kind: 'invalid', problem: 'bare_year' })
+  })
+
+  it('accepts old birth dates but still rejects numbers that look like a year', () => {
+    expect(parseImportDate(61, 'birth')).toEqual({ kind: 'date', date: utc(1900, 3, 1), via: 'excel-serial' })
+    expect(parseImportDate(60, 'birth')).toEqual({ kind: 'invalid', problem: 'excel_leap_day' })
+    expect(parseImportDate(1980, 'birth')).toEqual({ kind: 'invalid', problem: 'bare_year' })
+    expect(parseImportDate(0, 'birth')).toEqual({ kind: 'invalid', problem: 'implausible_serial' })
+  })
+
+  it('names month-first slash dates', () => {
+    expect(parseImportDate('01/13/2024')).toEqual({ kind: 'invalid', problem: 'month_first' })
+    expect(parseImportDate('31/02/2024')).toEqual({ kind: 'invalid', problem: 'impossible_date' })
   })
 })

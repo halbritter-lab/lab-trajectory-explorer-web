@@ -2,15 +2,23 @@ import { readWorkbook, readWorkbookSheets } from '../../io/readWorkbook'
 import { loadLabRowsWithDiagnostics } from '../../core/parse/loader'
 import type { LabRow, PatientId } from '../../core/types'
 import {
+  describeEventRejection,
+  describeEventWarning,
   normalizeClinicalEvents,
   normalizeClinicalEventsWithNotes,
   validateClinicalEvents,
   type ClinicalEvent,
+  type ClinicalEventValidationResult,
 } from '../../core/events/events'
 import {
+  attributeBirthDateFindings,
+  describeAttributeRejection,
+  describeAttributeWarning,
   normalizePatientAttributes,
   validatePatientAttributes,
+  type PatientAttributesResult,
 } from '../../core/attributes/attributes'
+import { dateReadNotes, type DateReadCounts } from '../../core/parse/dates'
 import { normaliseHeader } from '../../io/headers'
 
 export interface ImportDiagnostic {
@@ -22,17 +30,31 @@ export interface ImportDiagnostic {
   scope?: 'sheet'
 }
 
-/** Sheet-level notes about how event dates were read. */
-export function eventDateNotes(sheet: string, notes: { dayFirstDates: number; serialDates: number }): ImportDiagnostic[] {
-  const out: ImportDiagnostic[] = []
-  const { dayFirstDates: dayFirst, serialDates: serial } = notes
-  if (dayFirst > 0) {
-    out.push({ sheet, patientId: null, severity: 'warning', scope: 'sheet', reason: `${dayFirst} event ${dayFirst === 1 ? 'date' : 'dates'} written as DD/MM/YYYY ${dayFirst === 1 ? 'was' : 'were'} read day-first (03/01/2024 = 3 January 2024).` })
-  }
-  if (serial > 0) {
-    out.push({ sheet, patientId: null, severity: 'warning', scope: 'sheet', reason: `${serial} event ${serial === 1 ? 'date' : 'dates'} stored as ${serial === 1 ? 'a number was' : 'numbers were'} read as Excel serial dates (1900 date system).` })
-  }
-  return out
+const sheetNote = (sheet: string, reason: string): ImportDiagnostic => ({ sheet, patientId: null, severity: 'warning', scope: 'sheet', reason })
+
+/** Diagnostics for an events table: rejected rows, warnings on accepted rows
+ * and notes on how dates were read. Shared by workbook and separate uploads. */
+export function eventDiagnostics(
+  sheet: string,
+  dateReads: DateReadCounts,
+  { valid, rejected }: ClinicalEventValidationResult,
+): ImportDiagnostic[] {
+  return [
+    ...rejected.map((r): ImportDiagnostic => ({ sheet, patientId: r.event.patientId, severity: 'rejected', reason: describeEventRejection(r) })),
+    ...valid.filter((e) => e.warning).map((e): ImportDiagnostic => ({ sheet, patientId: e.patientId, severity: 'warning', reason: describeEventWarning(e) })),
+    ...dateReadNotes('event date', dateReads).map((reason) => sheetNote(sheet, reason)),
+  ]
+}
+
+/** Diagnostics for an attributes table, including unreadable birth dates. */
+export function attributeDiagnostics(sheet: string, { valid, rejected }: PatientAttributesResult): ImportDiagnostic[] {
+  const birth = attributeBirthDateFindings(valid)
+  return [
+    ...rejected.map((r): ImportDiagnostic => ({ sheet, patientId: r.row.patientId, severity: 'rejected', reason: describeAttributeRejection(r) })),
+    ...valid.filter((r) => r.warning).map((r): ImportDiagnostic => ({ sheet, patientId: r.patientId, severity: 'warning', reason: describeAttributeWarning(r) })),
+    ...birth.warnings.map((w): ImportDiagnostic => ({ sheet, patientId: w.patientId, severity: 'warning', reason: w.reason })),
+    ...dateReadNotes('birth date', birth.dateReads).map((reason) => sheetNote(sheet, reason)),
+  ]
 }
 
 export interface LoadedDataset {
@@ -82,13 +104,9 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer): LoadedDataset {
       const rawEvents = wb.getSheet(eventsSheetName)
       if (rawEvents.length > 0) {
         const normalized = normalizeClinicalEventsWithNotes(rawEvents)
-        const { valid, rejected } = validateClinicalEvents(normalized.events, rows)
-        events = valid
-        for (const { event, reason } of rejected) diagnostics.push({ sheet: eventsSheetName, patientId: event.patientId, severity: 'rejected', reason })
-        for (const event of valid) {
-          if (event.warning) diagnostics.push({ sheet: eventsSheetName, patientId: event.patientId, severity: 'warning', reason: event.warning })
-        }
-        diagnostics.push(...eventDateNotes(eventsSheetName, normalized))
+        const validation = validateClinicalEvents(normalized.events, rows)
+        events = validation.valid
+        diagnostics.push(...eventDiagnostics(eventsSheetName, normalized.dateReads, validation))
       }
     }
 
@@ -96,13 +114,9 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer): LoadedDataset {
     if (attributesSheetName && attributesSheetName !== labsSheetName) {
       const rawAttributes = wb.getSheet(attributesSheetName)
       if (rawAttributes.length > 0) {
-        const normalized = normalizePatientAttributes(rawAttributes)
-        const { byPatient, valid, rejected } = validatePatientAttributes(normalized, rows)
-        patientAttributes = byPatient
-        for (const { row, reason } of rejected) diagnostics.push({ sheet: attributesSheetName, patientId: row.patientId, severity: 'rejected', reason })
-        for (const record of valid) {
-          if (record.warning) diagnostics.push({ sheet: attributesSheetName, patientId: record.patientId, severity: 'warning', reason: record.warning })
-        }
+        const validation = validatePatientAttributes(normalizePatientAttributes(rawAttributes), rows)
+        patientAttributes = validation.byPatient
+        diagnostics.push(...attributeDiagnostics(attributesSheetName, validation))
       }
     }
 

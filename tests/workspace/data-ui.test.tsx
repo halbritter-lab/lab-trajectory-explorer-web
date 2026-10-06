@@ -102,6 +102,17 @@ it('lists lab import diagnostics from a German CSV, with summaries not attribute
   expect(items).toEqual(expect.arrayContaining([
     'Sheet1 · 0012 · rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
     'Sheet1 · Warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
-    'Sheet1 · Warning: Kreatinin [mg/dl]: 1 censored value (1 "<").',
+    'Sheet1 · Warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); fits currently use the limit value as if it had been measured.',
   ]))
+})
+it('reports readable reasons and birth-date problems for supplementary files', async () => {
+  useAppStore.getState().setDataset([row])
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const file = (text: string) => ({ name: 'extra.csv', arrayBuffer: async () => new TextEncoder().encode(text).buffer })
+  fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('patientId,birthDate\nP-01,1980-02-30\n')] } })
+  await waitFor(() => expect(useAppStore.getState().patientAttributes['P-01']).toEqual({ birthDate: '1980-02-30' }))
+  expect(screen.getByText('extra.csv · P-01 · Warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('patientId,type,date,title\nP-01,other,2020-03-01,Visit\nP-01,surgery,2020-04-01,Other\n')] } })
+  await waitFor(() => expect(useAppStore.getState().events).toHaveLength(1))
+  expect(screen.getByText('extra.csv · P-01 · rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other; row not imported.')).toBeInTheDocument()
 })

@@ -193,10 +193,10 @@ describe('loadDatasetFromWorkbook', () => {
     expect(dataset.events).toHaveLength(1)
     expect(dataset.patientAttributes['1']).toEqual({ genotype: 'A' })
     expect(dataset.diagnostics).toEqual(expect.arrayContaining([
-      { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'invalid_date' },
-      { sheet: 'events', patientId: 999, severity: 'warning', reason: 'unknown_patient' },
-      { sheet: 'attributes', patientId: 1, severity: 'rejected', reason: 'duplicate_patient' },
-      { sheet: 'attributes', patientId: 999, severity: 'warning', reason: 'unknown_patient' },
+      { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
+      { sheet: 'events', patientId: 999, severity: 'warning', reason: 'Patient 999 has no lab values in this dataset; the event is kept.' },
+      { sheet: 'attributes', patientId: 1, severity: 'rejected', reason: 'Patient 1 already has an attribute row; this later row is not imported.' },
+      { sheet: 'attributes', patientId: 999, severity: 'warning', reason: 'Patient 999 has no lab values in this dataset; the attributes are kept.' },
     ]))
     expect(dataset.diagnostics).toHaveLength(4)
   })

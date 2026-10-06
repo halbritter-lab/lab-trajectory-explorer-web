@@ -5,10 +5,10 @@ import { resolveDemographics } from '../core/demographics/resolve'
 import { describeConflict } from '../core/demographics/describe'
 import { computeAnalysisResult } from '../core/analysis/registry'
 import { creatinineSourceOptions, defaultCreatinineSource, type FormulaName, type Source } from '../core/egfr/series'
-import { normalizeClinicalEventsWithNotes, validateClinicalEvents } from '../core/events/events'
-import { normalizePatientAttributes, validatePatientAttributes } from '../core/attributes/attributes'
+import { describeEventRejection, normalizeClinicalEventsWithNotes, validateClinicalEvents } from '../core/events/events'
+import { describeAttributeRejection, normalizePatientAttributes, validatePatientAttributes } from '../core/attributes/attributes'
 import { readWorkbook } from '../io/readWorkbook'
-import { eventDateNotes } from '../ui/data/loadDataset'
+import { attributeDiagnostics, eventDiagnostics } from '../ui/data/loadDataset'
 import { importWorkspaceFile, useWorkspaceData } from './workspace-data'
 import { sexLabel } from './workspace-labels'
 import './data-workspace.css'
@@ -53,22 +53,17 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
       if (useAppStore.getState().rows !== originalRows) throw new Error('Dataset replaced during import. Please import the file again.')
       if (kind === 'events') {
         const normalized = normalizeClinicalEventsWithNotes(raw)
-        const { valid, rejected } = validateClinicalEvents(normalized.events, originalRows)
-        if (!valid.length) throw new Error(`No usable events. ${rejected.map(r => r.reason).join(', ')}`)
+        const validation = validateClinicalEvents(normalized.events, originalRows)
+        const { valid, rejected } = validation
+        if (!valid.length) throw new Error(`No usable events. ${[...new Set(rejected.map(describeEventRejection))].join(' ')}`)
         store.setEvents(valid)
-        store.setNotice({ kind: 'info', text: `${valid.length} events imported; ${rejected.length} rows rejected.`, details: [
-          ...rejected.map(r => ({ sheet: file.name, patientId: r.event.patientId, severity: 'rejected' as const, reason: r.reason })),
-          ...valid.filter(r => r.warning).map(r => ({ sheet: file.name, patientId: r.patientId, severity: 'warning' as const, reason: r.warning })),
-          ...eventDateNotes(file.name, normalized),
-        ] })
+        store.setNotice({ kind: 'info', text: `${valid.length} events imported; ${rejected.length} rows rejected.`, details: eventDiagnostics(file.name, normalized.dateReads, validation) })
       } else {
-        const { byPatient, valid, rejected } = validatePatientAttributes(normalizePatientAttributes(raw), originalRows)
-        if (!valid.length) throw new Error(`No usable attributes. ${rejected.map(r => r.reason).join(', ')}`)
+        const validation = validatePatientAttributes(normalizePatientAttributes(raw), originalRows)
+        const { byPatient, valid, rejected } = validation
+        if (!valid.length) throw new Error(`No usable attributes. ${[...new Set(rejected.map(describeAttributeRejection))].join(' ')}`)
         store.setPatientAttributes(byPatient)
-        store.setNotice({ kind: 'info', text: `${valid.length} attribute rows imported; ${rejected.length} rows rejected.`, details: [
-          ...rejected.map(r => ({ sheet: file.name, patientId: r.row.patientId, severity: 'rejected' as const, reason: r.reason })),
-          ...valid.filter(r => r.warning).map(r => ({ sheet: file.name, patientId: r.patientId, severity: 'warning' as const, reason: r.warning })),
-        ] })
+        store.setNotice({ kind: 'info', text: `${valid.length} attribute rows imported; ${rejected.length} rows rejected.`, details: attributeDiagnostics(file.name, validation) })
       }
     } catch (error) { store.setNotice({ kind: 'error', text: error instanceof Error ? error.message : String(error) }) }
     finally { useAppStore.setState({ busy: false }) }
