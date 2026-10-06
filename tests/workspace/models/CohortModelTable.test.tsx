@@ -274,3 +274,27 @@ it('labels a singular fit and withholds its projection while keeping model expor
   await userEvent.click(screen.getAllByRole('button',{name:'Details'})[0])
   expect(screen.getByText(/Projection unavailable:.*singular/i)).toBeInTheDocument()
 })
+
+it.each([
+  ['runtime-load', 'WEBR_INIT_FAILED', 'runtime-error'],
+  ['package-load', 'PACKAGE_UNAVAILABLE', 'unsupported'],
+] as const)('explains how to retry a %s failure after restoring CDN access', async (stage, code, status) => {
+  renderTable({runJob:async () => ({
+    status, engine: 'webr-lme4', stage, code,
+    message: 'Failed to fetch', warnings: [], metadata: {},
+  })})
+  await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
+  await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/internet|connection/i))
+  expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/CDN|package repository/i)
+  expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/retry/i)
+})
+
+it('does not suggest a connection problem for an ordinary model fit failure', async () => {
+  renderTable({runJob:async () => ({
+    status: 'fit-error', engine: 'webr-lme4', stage: 'fit', code: 'MODEL_FIT_FAILED',
+    message: 'Model matrix is rank deficient', warnings: [], metadata: {},
+  })})
+  await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
+  await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('Model matrix is rank deficient'))
+  expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).not.toHaveTextContent(/internet|CDN|connection/i)
+})

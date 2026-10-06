@@ -16,6 +16,7 @@ import {
 } from '../../core/mixedModel/resultIdentity'
 import type {
   MixedModelResult,
+  MixedModelFailure,
   MixedModelSpikeRow,
   MixedModelSuccess,
 } from '../../core/mixedModel/types'
@@ -197,7 +198,7 @@ export function CohortModelTable({
       const flags = [!result.converged && 'did not converge', result.singular && 'singular fit; projection withheld'].filter(Boolean)
       return flags.length ? `${slope} (${flags.join('; ')})` : slope
     }
-    return `Fit failed: ${result.message}`
+    return failureStatusText(result)
   }
 
   useEffect(() => {
@@ -348,6 +349,17 @@ export function CohortModelTable({
       )}
     </section>
   )
+}
+
+function failureStatusText(result: MixedModelFailure): string {
+  const message = `Fit failed: ${result.message}`
+  if (
+    (result.stage === 'runtime-load' && result.code === 'WEBR_INIT_FAILED') ||
+    (result.stage === 'package-load' && result.code === 'PACKAGE_UNAVAILABLE')
+  ) {
+    return `${message} First-time WebR setup downloads the R runtime and packages from a CDN/package repository. Check your internet connection and access to those sources, then retry the fit.`
+  }
+  return message
 }
 
 function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome: string }) {
