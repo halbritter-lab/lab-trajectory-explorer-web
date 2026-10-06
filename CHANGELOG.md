@@ -70,6 +70,10 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
+- Workspace Rolling OLS and Segmented OLS selections now run their own fit paths
+  instead of global OLS. Endpoint export provenance is blank for endpoints that
+  were not evaluated; earlier endpoint columns keep their position and the patient
+  slope sheet keeps Mode fourth. No percent change is shown for one measurement.
 - Workspace plots now share a zero-inclusive parameter scale by default, with
   explicit zoom for inspecting small changes. View selection is visibly active,
   new derived series appear in the selection, and Methods distinguishes the
