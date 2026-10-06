@@ -9,7 +9,7 @@ interfaces are still evolving before 1.0.
 
 - Cohort mixed models now let users apply or skip the selected preset's event
   censoring and AKI windows. Application remains the default. The workspace
-  and model workbook report each entity's distinct eligible measurements
+  and model workbook report each entity's eligible measurement rows
   removed by these windows, separately from balancing and factor exclusions;
   changing the choice invalidates prior fits and projections.
 

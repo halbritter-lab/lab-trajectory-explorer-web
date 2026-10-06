@@ -84,6 +84,19 @@ export function Methodology() {
         taken before time balancing, chronic run-in removal, and missing-factor exclusions.
       </p>
       <p>
+        For each patient, model time zero is the first measurement retained after exclusion
+        windows, time balancing, and any chronic run-in removal. Time is measured in fractional
+        years from that patient&apos;s own first retained date; patients need not enter on the same
+        calendar date. The fitted intercept describes this selected origin, not disease onset.
+      </p>
+      <p>
+        Cohort models use observed eligible measurements and do not model why follow-up ends or
+        visits occur. Interpretation relies on the visit and missing follow-up process being
+        adequately explained by observed information and the fitted model. Dropout related to
+        unobserved worsening can bias the trend. Review follow-up patterns and perform a
+        study-specific sensitivity analysis before drawing clinical conclusions.
+      </p>
+      <p>
         Each parameter column uses the shared fit configuration unless it has its own override.
         Presets such as general exploration,
         CKD progression, and acute review are named defaults over the same explicit pipeline:

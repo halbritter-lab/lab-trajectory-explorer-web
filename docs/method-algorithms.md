@@ -47,6 +47,15 @@ are stored with each fitted entity, displayed in the model workspace, and
 exported in the `models` worksheet. Changing the policy invalidates fitted
 results and their projections.
 
+For each patient, `time_since_baseline` is measured in fractional years from
+that patient's first retained model measurement after exclusion windows, time
+balancing, and any chronic run-in removal. It is not time since a shared
+calendar date or disease onset. The model uses observed eligible visits and
+does not fit a visit or dropout process. A trend can be biased when the chance
+of a later visit or dropout depends on an unobserved outcome; review follow-up
+patterns and use a study-specific sensitivity analysis. The minimum-data gate
+is a technical input guard, not a power calculation or guarantee of adequacy.
+
 ## KDIGO creatinine AKI and eGFR source conversion (2026-10-06)
 
 AKI detection accepts the same eligible serum-creatinine name and unit pairs as
