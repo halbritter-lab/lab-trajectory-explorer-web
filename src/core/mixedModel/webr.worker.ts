@@ -160,13 +160,13 @@ function ensurePackages(webR: WebR, engine: WebREngine): Promise<void> {
 
 async function bindRows(webR: WebR, rows: readonly MixedModelSpikeRow[], config: MixedModelConfig): Promise<void> {
   const patientIds = rows.map((row) => row.patient_id)
-  const egfr = rows.map((row) => row.eGFR)
+  const values = rows.map((row) => row.value)
   const time = rows.map((row) => row.time_since_baseline)
   const baselineAgeCentered = rows.map((row) => row.baseline_age_centered ?? null)
 
   await webR.evalRVoid(`
     mm_patient_id <- jsonlite::fromJSON(${rStringLiteral(JSON.stringify(patientIds))})
-    mm_egfr <- jsonlite::fromJSON(${rStringLiteral(JSON.stringify(egfr))})
+    mm_value <- jsonlite::fromJSON(${rStringLiteral(JSON.stringify(values))})
     mm_time <- jsonlite::fromJSON(${rStringLiteral(JSON.stringify(time))})
     mm_baseline_age_centered <- jsonlite::fromJSON(${rStringLiteral(JSON.stringify(baselineAgeCentered))})
   `)
@@ -302,7 +302,7 @@ function buildFitCode(modelCall: string, extraction: string, config: MixedModelC
   return `
     mm_data <- data.frame(
       patient_id = factor(mm_patient_id),
-      eGFR = as.numeric(mm_egfr),
+      value = as.numeric(mm_value),
       time_since_baseline = as.numeric(mm_time),
       baseline_age_centered = as.numeric(mm_baseline_age_centered)
     )

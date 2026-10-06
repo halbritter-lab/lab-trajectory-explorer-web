@@ -31,7 +31,7 @@ export interface MixedModelResultIdentityInput {
 export interface MixedModelMeanLinePoint {
   time_since_baseline: number
   age?: number
-  eGFR: number
+  value: number
 }
 
 export function mixedModelFitConfigHash(
@@ -156,6 +156,6 @@ export function mixedModelMeanLinePoints(
     ...(context.ageAxisBaselineAge !== null && context.ageAxisBaselineAge !== undefined
       ? { age: roundTo10Decimals(context.ageAxisBaselineAge + time) }
       : {}),
-    eGFR: roundTo10Decimals(intercept + baselineAgeAdjustment + (timeSinceBaseline + slopeAdjustment) * time),
+    value: roundTo10Decimals(intercept + baselineAgeAdjustment + (timeSinceBaseline + slopeAdjustment) * time),
   }))
 }

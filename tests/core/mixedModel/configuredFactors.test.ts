@@ -7,7 +7,7 @@ const config: MixedModelConfig = { ...DEFAULT_MIXED_MODEL_CONFIG, factors: [
   { key: 'baseline_age', kind: 'numeric', effect: 'level' },
 ] }
 const rows = ['a','b','c','d'].flatMap((patient_id, i) => [0,1,2].map(time_since_baseline => ({
-  patient_id, time_since_baseline, eGFR: 60-i-time_since_baseline,
+  patient_id, time_since_baseline, value: 60-i-time_since_baseline,
   baseline_age: 40+i, baseline_age_centered: i-1.5,
   factorValues: { factor_0_: i % 2 ? 'B' : 'A', baseline_age_centered: i-1.5 },
 })))
@@ -17,7 +17,7 @@ it('generates safe factor formulas with explicit interactions and distinct refer
   expect(mixedModelFactors(config)).toEqual(config.factors)
   expect(mixedModelFactorColumn(config.factors![0],0)).toBe('factor_0_')
   expect(mixedModelFactorColumn(config.factors![1],1)).toBe('baseline_age_centered')
-  expect(mixedModelFormula(config)).toBe('eGFR ~ time_since_baseline + factor_0_ + time_since_baseline:factor_0_ + baseline_age_centered + (1 + time_since_baseline | patient_id)')
+  expect(mixedModelFormula(config)).toBe('value ~ time_since_baseline + factor_0_ + time_since_baseline:factor_0_ + baseline_age_centered + (1 + time_since_baseline | patient_id)')
   expect(mixedModelFormulaKey(config)).not.toBe(mixedModelFormulaKey({...config, factors: [{...config.factors![0], reference: 'B'}, config.factors![1]]}))
   expect(mixedModelFormula({...config, covariates: ['baseline_age'], factors: []})).not.toContain('baseline_age_centered')
 })

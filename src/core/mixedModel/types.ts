@@ -4,7 +4,7 @@ export type MixedModelEngine = 'webr-lme4' | 'webr-nlme' | 'pyodide-statsmodels'
 
 export interface MixedModelSpikeRow {
   patient_id: string
-  eGFR: number
+  value: number
   time_since_baseline: number
   /** Raw age at the first included model point for that patient. */
   baseline_age?: number
@@ -100,7 +100,7 @@ export interface CohortSlopeApproximationResult {
   warnings: string[]
 }
 
-export const MIXED_MODEL_FORMULA = 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)'
+export const MIXED_MODEL_FORMULA = 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)'
 export const MIXED_MODEL_TOLERANCE = 1e-6
 // A cold run downloads the webR runtime plus the lme4 package and installs them
 // before fitting, which can take well over 30s on a slow connection. The first

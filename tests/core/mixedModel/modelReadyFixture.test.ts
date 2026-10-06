@@ -81,12 +81,12 @@ describe('controlled mixed-model cohort fixture', () => {
       'p4', 'p4', 'p4',
     ])
     expect(modelRows.filter((r) => r.patient_id === 'p1')).toEqual([
-      { patient_id: 'p1', eGFR: 73, time_since_baseline: 0 },
-      { patient_id: 'p1', eGFR: 70.5, time_since_baseline: 1.0020533881 },
-      { patient_id: 'p1', eGFR: 69, time_since_baseline: 2.0013689254 },
-      { patient_id: 'p1', eGFR: 67.5, time_since_baseline: 3.0006844627 },
+      { patient_id: 'p1', value: 73, time_since_baseline: 0 },
+      { patient_id: 'p1', value: 70.5, time_since_baseline: 1.0020533881 },
+      { patient_id: 'p1', value: 69, time_since_baseline: 2.0013689254 },
+      { patient_id: 'p1', value: 67.5, time_since_baseline: 3.0006844627 },
     ])
-    expect(modelRows.filter((r) => r.patient_id === 'p4').map((r) => r.eGFR)).toEqual([53, 49, 46])
+    expect(modelRows.filter((r) => r.patient_id === 'p4').map((r) => r.value)).toEqual([53, 49, 46])
 
     const slopes = patientSlopes(modelRows)
     expect(slopes).toEqual({
@@ -99,14 +99,14 @@ describe('controlled mixed-model cohort fixture', () => {
   })
 })
 
-function patientSlopes(rows: readonly { patient_id: string; eGFR: number; time_since_baseline: number }[]): Record<string, number> {
+function patientSlopes(rows: readonly { patient_id: string; value: number; time_since_baseline: number }[]): Record<string, number> {
   const grouped = new Map<string, typeof rows>()
   for (const row of rows) grouped.set(row.patient_id, [...(grouped.get(row.patient_id) ?? []), row])
   return Object.fromEntries(
     [...grouped].map(([patientId, patientRows]) => {
       const fit = fitOls(
         patientRows.map((row) => row.time_since_baseline),
-        patientRows.map((row) => row.eGFR),
+        patientRows.map((row) => row.value),
       )
       return [patientId, Number(fit.slope.toFixed(3))]
     }),

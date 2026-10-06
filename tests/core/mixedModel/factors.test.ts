@@ -5,10 +5,10 @@ import type { MixedModelSpikeRow } from '../../../src/core/mixedModel/types'
 import type { LabRow } from '../../../src/core/types'
 
 const rows: MixedModelSpikeRow[] = [
-  { patient_id: '1', time_since_baseline: 0, eGFR: 60, baseline_age: 40, baseline_age_centered: -10 },
-  { patient_id: '1', time_since_baseline: 1, eGFR: 58, baseline_age: 40, baseline_age_centered: -10 },
-  { patient_id: '2', time_since_baseline: 0, eGFR: 70, baseline_age: 60, baseline_age_centered: 10 },
-  { patient_id: '3', time_since_baseline: 0, eGFR: 80, baseline_age: 80, baseline_age_centered: 30 },
+  { patient_id: '1', time_since_baseline: 0, value: 60, baseline_age: 40, baseline_age_centered: -10 },
+  { patient_id: '1', time_since_baseline: 1, value: 58, baseline_age: 40, baseline_age_centered: -10 },
+  { patient_id: '2', time_since_baseline: 0, value: 70, baseline_age: 60, baseline_age_centered: 10 },
+  { patient_id: '3', time_since_baseline: 0, value: 80, baseline_age: 80, baseline_age_centered: 30 },
 ]
 const lab = (id: number, sex: LabRow['patientSex'] = null): LabRow => ({
   patientId: id, patientSex: sex, patientAgeAtLab: 40, labDatum: new Date('2024-01-01'),

@@ -12,19 +12,19 @@ import type { CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import type { MixedModelSpikeRow, MixedModelSuccess } from '../../../src/core/mixedModel/types'
 
 const rows: MixedModelSpikeRow[] = [
-  { patient_id: 'p1', eGFR: 70, time_since_baseline: 0 },
-  { patient_id: 'p1', eGFR: 68, time_since_baseline: 1 },
-  { patient_id: 'p2', eGFR: 60, time_since_baseline: 0 },
-  { patient_id: 'p2', eGFR: 57, time_since_baseline: 1 },
-  { patient_id: 'p3', eGFR: 55, time_since_baseline: 0 },
-  { patient_id: 'p3', eGFR: 51, time_since_baseline: 2 },
+  { patient_id: 'p1', value: 70, time_since_baseline: 0 },
+  { patient_id: 'p1', value: 68, time_since_baseline: 1 },
+  { patient_id: 'p2', value: 60, time_since_baseline: 0 },
+  { patient_id: 'p2', value: 57, time_since_baseline: 1 },
+  { patient_id: 'p3', value: 55, time_since_baseline: 0 },
+  { patient_id: 'p3', value: 51, time_since_baseline: 2 },
 ]
 
 const success: MixedModelSuccess = {
   status: 'success',
   metadata: {
     engine: 'webr-lme4',
-    formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+    formula: 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
     runtimeVersion: '4.6.0',
     packageVersions: { lme4: '2.0.1' },
     browserUserAgent: 'test',
@@ -62,12 +62,12 @@ describe('mixed model result identity', () => {
   })
   it('includes baseline_age in dataset identity when present', () => {
     const base = hashMixedModelInput([
-      { patient_id: 'p1', eGFR: 70, time_since_baseline: 0, baseline_age: 50 },
-      { patient_id: 'p1', eGFR: 68, time_since_baseline: 1, baseline_age: 50 },
+      { patient_id: 'p1', value: 70, time_since_baseline: 0, baseline_age: 50 },
+      { patient_id: 'p1', value: 68, time_since_baseline: 1, baseline_age: 50 },
     ])
     const changed = hashMixedModelInput([
-      { patient_id: 'p1', eGFR: 70, time_since_baseline: 0, baseline_age: 51 },
-      { patient_id: 'p1', eGFR: 68, time_since_baseline: 1, baseline_age: 51 },
+      { patient_id: 'p1', value: 70, time_since_baseline: 0, baseline_age: 51 },
+      { patient_id: 'p1', value: 68, time_since_baseline: 1, baseline_age: 51 },
     ])
 
     expect(changed).not.toBe(base)
@@ -212,7 +212,7 @@ describe('mixed model result identity', () => {
       seriesIndex: 0,
       seriesKey: 'eGFR|ml/min/1.73m2',
       patientIds: ['p1', 'p2', 'p3'],
-      rows: rows.map((row, index) => (index === 0 ? { ...row, eGFR: row.eGFR + 1 } : row)),
+      rows: rows.map((row, index) => (index === 0 ? { ...row, value: row.value + 1 } : row)),
       fitConfigHash: 'fit12345',
     })
 
@@ -224,8 +224,8 @@ describe('mixed model result identity', () => {
 
   it('derives fixed-effect mean line points over the model row time range', () => {
     expect(mixedModelMeanLinePoints(success, rows)).toEqual([
-      { time_since_baseline: 0, eGFR: 62 },
-      { time_since_baseline: 2, eGFR: 57 },
+      { time_since_baseline: 0, value: 62 },
+      { time_since_baseline: 2, value: 57 },
     ])
   })
 
@@ -244,7 +244,7 @@ describe('mixed model result identity', () => {
       ],
     }
     expect(mixedModelMeanLinePoints(result, rows, { baselineAgeCentered: -10 })).toEqual([
-      { time_since_baseline: 0, eGFR: 105 }, { time_since_baseline: 2, eGFR: 103 },
+      { time_since_baseline: 0, value: 105 }, { time_since_baseline: 2, value: 103 },
     ])
   })
 
@@ -263,42 +263,42 @@ describe('mixed model result identity', () => {
     }
 
     expect(mixedModelMeanLinePoints(result, [
-      { patient_id: 'p1', eGFR: 70, time_since_baseline: 0, baseline_age: 50, baseline_age_centered: -10 },
-      { patient_id: 'p1', eGFR: 68, time_since_baseline: 1, baseline_age: 50, baseline_age_centered: -10 },
-      { patient_id: 'p2', eGFR: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: 0 },
-      { patient_id: 'p2', eGFR: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: 0 },
-      { patient_id: 'p3', eGFR: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 10 },
-      { patient_id: 'p3', eGFR: 53, time_since_baseline: 1, baseline_age: 70, baseline_age_centered: 10 },
+      { patient_id: 'p1', value: 70, time_since_baseline: 0, baseline_age: 50, baseline_age_centered: -10 },
+      { patient_id: 'p1', value: 68, time_since_baseline: 1, baseline_age: 50, baseline_age_centered: -10 },
+      { patient_id: 'p2', value: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: 0 },
+      { patient_id: 'p2', value: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: 0 },
+      { patient_id: 'p3', value: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 10 },
+      { patient_id: 'p3', value: 53, time_since_baseline: 1, baseline_age: 70, baseline_age_centered: 10 },
     ], { baselineAgeCentered: 10 })).toEqual([
-      { time_since_baseline: 0, eGFR: 95 },
-      { time_since_baseline: 1, eGFR: 93 },
+      { time_since_baseline: 0, value: 95 },
+      { time_since_baseline: 1, value: 93 },
     ])
   })
 
   it('projects fixed-effect mean line points onto an age axis at the mean baseline age', () => {
     expect(mixedModelMeanLinePoints(success, [
-      { patient_id: 'p1', eGFR: 70, time_since_baseline: 0, baseline_age: 50, baseline_age_centered: -10 },
-      { patient_id: 'p1', eGFR: 68, time_since_baseline: 1, baseline_age: 50, baseline_age_centered: -10 },
-      { patient_id: 'p2', eGFR: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: 0 },
-      { patient_id: 'p2', eGFR: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: 0 },
-      { patient_id: 'p3', eGFR: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 10 },
-      { patient_id: 'p3', eGFR: 53, time_since_baseline: 2, baseline_age: 70, baseline_age_centered: 10 },
+      { patient_id: 'p1', value: 70, time_since_baseline: 0, baseline_age: 50, baseline_age_centered: -10 },
+      { patient_id: 'p1', value: 68, time_since_baseline: 1, baseline_age: 50, baseline_age_centered: -10 },
+      { patient_id: 'p2', value: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: 0 },
+      { patient_id: 'p2', value: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: 0 },
+      { patient_id: 'p3', value: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 10 },
+      { patient_id: 'p3', value: 53, time_since_baseline: 2, baseline_age: 70, baseline_age_centered: 10 },
     ], { ageAxisBaselineAge: 60 })).toEqual([
-      { time_since_baseline: 0, age: 60, eGFR: 62 },
-      { time_since_baseline: 2, age: 62, eGFR: 57 },
+      { time_since_baseline: 0, age: 60, value: 62 },
+      { time_since_baseline: 2, age: 62, value: 57 },
     ])
   })
 
   it('derives fixed-effect mean line points for large row arrays', () => {
     const manyRows: MixedModelSpikeRow[] = Array.from({ length: 200_000 }, (_, index) => ({
       patient_id: `p${index % 3}`,
-      eGFR: 70 - index / 1000,
+      value: 70 - index / 1000,
       time_since_baseline: index / 10,
     }))
 
     expect(mixedModelMeanLinePoints(success, manyRows)).toEqual([
-      { time_since_baseline: 0, eGFR: 62 },
-      { time_since_baseline: 19999.9, eGFR: -49937.75 },
+      { time_since_baseline: 0, value: 62 },
+      { time_since_baseline: 19999.9, value: -49937.75 },
     ])
   })
 })

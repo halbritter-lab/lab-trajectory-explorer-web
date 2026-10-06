@@ -27,7 +27,7 @@ const mixedModelResult: MixedModelResult = {
   status: 'success',
   metadata: {
     engine: 'webr-lme4',
-    formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+    formula: 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
     runtimeVersion: '4.6.0',
     packageVersions: {},
     browserUserAgent: 'test',
@@ -186,8 +186,8 @@ describe('useAppStore - cohort model runs and projections', () => {
   beforeEach(() => useAppStore.getState().reset())
 
   const entityRows = [
-    { patient_id: 'p1', eGFR: 60, time_since_baseline: 0 },
-    { patient_id: 'p1', eGFR: 58, time_since_baseline: 1 },
+    { patient_id: 'p1', value: 60, time_since_baseline: 0 },
+    { patient_id: 'p1', value: 58, time_since_baseline: 1 },
   ]
   const params = {
     seriesIndex: 0,

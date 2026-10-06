@@ -1,5 +1,5 @@
 import { EXPORT_DISCLAIMER_ROWS } from '../cohort/screening'
-import { mixedModelFactorColumn, mixedModelFactors, type MixedModelConfig } from './config'
+import { mixedModelFactorColumn, mixedModelFactors, mixedModelFormulaForOutcome, mixedModelOutcomeLabel, type MixedModelConfig } from './config'
 import type { MixedModelResultIdentity } from './resultIdentity'
 import { mixedModelIdentityEquals } from './resultIdentity'
 import type { ProjectionSnapshot, ProjectionResponse } from '../projection/projectionSnapshot'
@@ -70,6 +70,9 @@ export function mixedModelExportSheets(
       outcome_unit: outcomeUnit || 'unspecified outcome unit',
       status: result.status,
       ...result.metadata,
+      // The executable formula names the outcome column `value`; the export
+      // names the series instead.
+      ...(result.metadata.formula === undefined ? {} : { formula: mixedModelFormulaForOutcome(result.metadata.formula, mixedModelOutcomeLabel(outcome, outcomeUnit)) }),
       modelConfig: JSON.stringify(config ?? null),
       preparation: JSON.stringify(preparation ?? null),
       packageVersions: JSON.stringify(result.metadata.packageVersions ?? {}),

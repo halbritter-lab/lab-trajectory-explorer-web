@@ -17,7 +17,7 @@ describe('mixed model config', () => {
       randomEffects: 'intercept_slope',
     })
     expect(mixedModelFormula(DEFAULT_MIXED_MODEL_CONFIG)).toBe(
-      'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+      'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
     )
   })
 
@@ -26,22 +26,22 @@ describe('mixed model config', () => {
       [
         { timeAxis: 'time_since_baseline', covariates: [], randomEffects: 'intercept' },
         'time_since_baseline__none__intercept',
-        'eGFR ~ time_since_baseline + (1 | patient_id)',
+        'value ~ time_since_baseline + (1 | patient_id)',
       ],
       [
         { timeAxis: 'time_since_baseline', covariates: [], randomEffects: 'intercept_slope' },
         'time_since_baseline__none__intercept_slope',
-        'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+        'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
       ],
       [
         { timeAxis: 'time_since_baseline', covariates: ['baseline_age'], randomEffects: 'intercept' },
         'time_since_baseline__baseline_age__intercept',
-        'eGFR ~ time_since_baseline + baseline_age_centered + (1 | patient_id)',
+        'value ~ time_since_baseline + baseline_age_centered + (1 | patient_id)',
       ],
       [
         { timeAxis: 'time_since_baseline', covariates: ['baseline_age'], randomEffects: 'intercept_slope' },
         'time_since_baseline__baseline_age__intercept_slope',
-        'eGFR ~ time_since_baseline + baseline_age_centered + (1 + time_since_baseline | patient_id)',
+        'value ~ time_since_baseline + baseline_age_centered + (1 + time_since_baseline | patient_id)',
       ],
     ]
 
@@ -82,7 +82,7 @@ describe('mixed model config', () => {
 
   it('builds a compact user-facing label', () => {
     expect(mixedModelConfigLabel(DEFAULT_MIXED_MODEL_CONFIG)).toBe(
-      'eGFR ~ time_since_baseline + random patient intercept/slope',
+      'value ~ time_since_baseline + random patient intercept/slope',
     )
   })
 
@@ -99,7 +99,7 @@ describe('mixed model config', () => {
   it('builds hash input for model config', () => {
     expect(mixedModelConfigHashInput(DEFAULT_MIXED_MODEL_CONFIG)).toEqual({
       formulaKey: 'time_since_baseline__none__intercept_slope',
-      formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+      formula: 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
       config: DEFAULT_MIXED_MODEL_CONFIG,
     })
   })

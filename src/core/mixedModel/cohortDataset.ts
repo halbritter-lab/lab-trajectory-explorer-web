@@ -96,7 +96,7 @@ export function mixedModelRowsFromCohortInputs(
     for (const point of series.selected) {
       out.push({
         patient_id: series.patientKey,
-        eGFR: point.value,
+        value: point.value,
         time_since_baseline: roundYears((point.date.getTime() - baselineDate) / MS_PER_YEAR),
         baseline_age: baselineAge ?? undefined,
         baseline_age_centered: baselineAge !== null && meanBaselineAge !== null

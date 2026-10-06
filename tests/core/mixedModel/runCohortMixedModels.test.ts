@@ -12,7 +12,7 @@ function success(intercept: number): MixedModelSuccess {
     status: 'success',
     metadata: {
       engine: 'webr-lme4',
-      formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+      formula: 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
       runtimeVersion: '4.6.0',
       packageVersions: { lme4: '2.0.1' },
       browserUserAgent: 'test',
@@ -37,16 +37,16 @@ function success(intercept: number): MixedModelSuccess {
 }
 
 const cohortRows = [
-  { patient_id: 'c1', eGFR: 70, time_since_baseline: 0 },
-  { patient_id: 'c2', eGFR: 60, time_since_baseline: 1 },
+  { patient_id: 'c1', value: 70, time_since_baseline: 0 },
+  { patient_id: 'c2', value: 60, time_since_baseline: 1 },
 ]
 const groupARows = [
-  { patient_id: 'a1', eGFR: 70, time_since_baseline: 0 },
-  { patient_id: 'a1', eGFR: 68, time_since_baseline: 1 },
+  { patient_id: 'a1', value: 70, time_since_baseline: 0 },
+  { patient_id: 'a1', value: 68, time_since_baseline: 1 },
 ]
 const groupBRows = [
-  { patient_id: 'b1', eGFR: 60, time_since_baseline: 0 },
-  { patient_id: 'b1', eGFR: 57, time_since_baseline: 1 },
+  { patient_id: 'b1', value: 60, time_since_baseline: 0 },
+  { patient_id: 'b1', value: 57, time_since_baseline: 1 },
 ]
 
 const entities: CohortModelEntityRows[] = [

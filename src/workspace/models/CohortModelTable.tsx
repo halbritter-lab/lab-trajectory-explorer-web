@@ -1,5 +1,5 @@
 import { mixedModelCoefficientTerms, mixedModelExportSheets, mixedModelTermLabel } from '../../core/mixedModel/modelExport'
-import { mixedModelFactors } from '../../core/mixedModel/config'
+import { mixedModelFactors, mixedModelFormulaForOutcome, mixedModelOutcomeLabel } from '../../core/mixedModel/config'
 import { downloadBlob, fileStamp, sheetsToXlsxBytes } from '../../io/export'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
@@ -320,7 +320,7 @@ export function CohortModelTable({
                     {success && isExpanded && (
                       <tr className="cohort-model-details-row" data-testid="cohort-model-details" data-entity={row.key}>
                         <td className="cohort-model-details-cell" data-testid="cohort-model-details-cell" colSpan={8}>
-                          <ModelDetails result={success} />
+                          <ModelDetails result={success} outcome={mixedModelOutcomeLabel(sourceResponse.outcome, sourceResponse.unit)} />
                           {(() => {
                             const snapshot = exportable.find((model) => model.key === row.key)?.projection
                             return snapshot ? <ModelProjectionPanel snapshot={snapshot} showWarnings={false}
@@ -347,7 +347,7 @@ export function CohortModelTable({
   )
 }
 
-function ModelDetails({ result }: { result: MixedModelSuccess }) {
+function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome: string }) {
   const factors = result.metadata.modelConfig ? mixedModelFactors(result.metadata.modelConfig) : []
   return (
     <>
@@ -377,7 +377,7 @@ function ModelDetails({ result }: { result: MixedModelSuccess }) {
       </div>
       <div className="cohort-model-detail-item cohort-model-detail-item-wide" data-testid="cohort-model-detail-formula">
         <dt>Formula</dt>
-        <dd data-testid="cohort-model-detail-value">{result.metadata.formula}</dd>
+        <dd data-testid="cohort-model-detail-value">{mixedModelFormulaForOutcome(result.metadata.formula, outcome)}</dd>
       </div>
       <div className="cohort-model-detail-item">
         <dt>Engine</dt>

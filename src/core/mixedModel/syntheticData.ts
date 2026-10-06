@@ -16,7 +16,7 @@ export function syntheticMixedModelRows(): MixedModelSpikeRow[] {
   return PATIENT_PARAMETERS.flatMap(({ patient_id, intercept, slope, baseline_age }) =>
     TIMES.map((time_since_baseline) => ({
       patient_id,
-      eGFR: roundTo1Decimal(intercept + slope * time_since_baseline),
+      value: roundTo1Decimal(intercept + slope * time_since_baseline),
       time_since_baseline,
       baseline_age,
       baseline_age_centered: baseline_age - meanBaselineAge,

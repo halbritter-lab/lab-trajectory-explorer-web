@@ -79,6 +79,24 @@ export function validateMixedModelConfig(config: MixedModelConfig): MixedModelCo
   return { ok: true }
 }
 
+/** Name of the outcome column in model rows and executable formulas. The
+ * outcome is whatever series the model is fitted to; formulas shown to users
+ * and exported carry that series' name instead (mixedModelFormulaForOutcome). */
+export const MIXED_MODEL_OUTCOME = 'value'
+
+/** Series name with its unit, as displayed and exported formulas name the
+ * outcome, e.g. "Creatinine (mg/dl)". */
+export function mixedModelOutcomeLabel(outcome: string, unit: string | null | undefined): string {
+  return unit ? `${outcome} (${unit})` : outcome
+}
+
+/** The executable formula with the outcome column replaced by the series'
+ * name, e.g. "Creatinine (mg/dl) ~ time_since_baseline + …". */
+export function mixedModelFormulaForOutcome(formula: string, outcome: string): string {
+  const prefix = `${MIXED_MODEL_OUTCOME} ~`
+  return formula.startsWith(prefix) ? `${outcome} ~${formula.slice(prefix.length)}` : formula
+}
+
 export function mixedModelFormulaKey(config: MixedModelConfig): string {
   const validation = validateMixedModelConfig(config)
   if (!validation.ok) return `unsupported__${config.timeAxis}`
@@ -96,7 +114,7 @@ export function mixedModelFormula(config: MixedModelConfig): string {
   })].join(' + ')
   const random =
     config.randomEffects === 'intercept_slope' ? '(1 + time_since_baseline | patient_id)' : '(1 | patient_id)'
-  return `eGFR ~ ${fixed} + ${random}`
+  return `${MIXED_MODEL_OUTCOME} ~ ${fixed} + ${random}`
 }
 
 export function mixedModelConfigLabel(config: MixedModelConfig): string {
@@ -105,7 +123,7 @@ export function mixedModelConfigLabel(config: MixedModelConfig): string {
   const covariate = mixedModelFactors(config).map(factor => ` + ${factor.key === 'baseline_age' ? 'centered baseline age' : factor.key}${factor.effect === 'level_slope' ? ' (level and slope)' : ''}`).join('')
   const random =
     config.randomEffects === 'intercept_slope' ? 'random patient intercept/slope' : 'random patient intercept'
-  return `eGFR ~ time_since_baseline${covariate} + ${random}`
+  return `${MIXED_MODEL_OUTCOME} ~ time_since_baseline${covariate} + ${random}`
 }
 
 export function mixedModelConfigHashInput(config: MixedModelConfig) {

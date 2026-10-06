@@ -19,7 +19,7 @@ function success(slope: number, converged = true): MixedModelSuccess {
     status: 'success',
     metadata: {
       engine: 'webr-lme4',
-      formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+      formula: 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
       runtimeVersion: '4.6.0',
       packageVersions: { lme4: '1.1-35' },
       browserUserAgent: 'vitest',
@@ -48,8 +48,8 @@ function eligibleRows(prefix: string): MixedModelSpikeRow[] {
   for (const [index, suffix] of (['a', 'b', 'c'] as const).entries()) {
     const id = `${prefix}${suffix}`
     const baselineAge = 50 + index
-    rows.push({ patient_id: id, eGFR: 60, time_since_baseline: 0, baseline_age: baselineAge, baseline_age_centered: index - 1 })
-    rows.push({ patient_id: id, eGFR: 55, time_since_baseline: 1, baseline_age: baselineAge, baseline_age_centered: index - 1 })
+    rows.push({ patient_id: id, value: 60, time_since_baseline: 0, baseline_age: baselineAge, baseline_age_centered: index - 1 })
+    rows.push({ patient_id: id, value: 55, time_since_baseline: 1, baseline_age: baselineAge, baseline_age_centered: index - 1 })
   }
   return rows
 }
@@ -58,8 +58,8 @@ const cohortRows = eligibleRows('c')
 const groupARows = eligibleRows('a')
 // 1-patient group: fails the pooled validity gate (>= 3 patients).
 const groupBRows: MixedModelSpikeRow[] = [
-  { patient_id: 'b1', eGFR: 50, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: 0 },
-  { patient_id: 'b1', eGFR: 45, time_since_baseline: 2, baseline_age: 60, baseline_age_centered: 0 },
+  { patient_id: 'b1', value: 50, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: 0 },
+  { patient_id: 'b1', value: 45, time_since_baseline: 2, baseline_age: 60, baseline_age_centered: 0 },
 ]
 
 const entities: CohortModelEntityRows[] = [
@@ -227,7 +227,7 @@ describe('CohortModelTable', () => {
         ...success(-2),
         metadata: {
           ...success(-2).metadata,
-          formula: 'eGFR ~ time_since_baseline + baseline_age_centered + (1 + time_since_baseline | patient_id)',
+          formula: 'value ~ time_since_baseline + baseline_age_centered + (1 + time_since_baseline | patient_id)',
           datasetHash: 'very-long-dataset-hash-without-natural-breakpoints-1234567890abcdef',
           fitConfigHash: 'very-long-fit-config-hash-without-natural-breakpoints-abcdef1234567890',
         },

@@ -31,8 +31,8 @@ const request: MixedModelWorkerRequest = {
   formula: mixedModelFormula(LEGACY_MIXED_MODEL_CONFIG),
   formulaKey: mixedModelFormulaKey(LEGACY_MIXED_MODEL_CONFIG),
   rows: [
-    { patient_id: 'p1', eGFR: 60, time_since_baseline: 0 },
-    { patient_id: 'p1', eGFR: 58, time_since_baseline: 1 },
+    { patient_id: 'p1', value: 60, time_since_baseline: 0 },
+    { patient_id: 'p1', value: 58, time_since_baseline: 1 },
   ],
   datasetId: 'dataset-1',
   fitConfigHash: 'fit-1',

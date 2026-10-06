@@ -18,7 +18,7 @@ const success: MixedModelSuccess = {
   fixedEffects: { intercept: 60, timeSinceBaseline: -2 },
   fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.5, -1.5] },
   randomEffects: { interceptSd: 4, slopeSd: null, interceptSlopeCorrelation: null }, residualSd: 2,
-  metadata: { engine: 'webr-lme4', formula: 'eGFR ~ time_since_baseline + (1 | patient_id)', runtimeVersion: '4.6.0', packageVersions: {}, browserUserAgent: 'test', wasmAssetSource: 'cdn', optimizer: 'nloptwrap', reml: true, tolerance: 1e-6, datasetId: 'test', datasetHash: 'test', randomSeed: null, fitConfigHash: 'test' },
+  metadata: { engine: 'webr-lme4', formula: 'value ~ time_since_baseline + (1 | patient_id)', runtimeVersion: '4.6.0', packageVersions: {}, browserUserAgent: 'test', wasmAssetSource: 'cdn', optimizer: 'nloptwrap', reml: true, tolerance: 1e-6, datasetId: 'test', datasetHash: 'test', randomSeed: null, fitConfigHash: 'test' },
 }
 let data: WorkspaceData
 function Harness({ axis = 'baseline', studio = false, groupBy = '' }: { axis?: 'baseline' | 'age'; studio?: boolean; groupBy?: string }) {

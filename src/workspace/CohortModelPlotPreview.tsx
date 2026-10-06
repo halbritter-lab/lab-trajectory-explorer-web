@@ -42,7 +42,7 @@ export function CohortModelPlotPreview({
     const rawPoints = spikeRows.map(r => ({
       patientId: r.patient_id,
       time: r.time_since_baseline,
-      value: r.eGFR,
+      value: r.value,
       group: groupValuesByPatient.get(r.patient_id) ?? null,
     }))
 
@@ -65,8 +65,8 @@ export function CohortModelPlotPreview({
       if (cohortResult?.result.status === 'success' && cohortResult.result.converged) {
         const linePoints = mixedModelMeanLinePoints(cohortResult.result, modelRowsByEntity.cohort ?? [])
         if (linePoints.length >= 2) {
-          const p1 = { x: linePoints[0].time_since_baseline, y: linePoints[0].eGFR }
-          const p2 = { x: linePoints[linePoints.length - 1].time_since_baseline, y: linePoints[linePoints.length - 1].eGFR }
+          const p1 = { x: linePoints[0].time_since_baseline, y: linePoints[0].value }
+          const p2 = { x: linePoints[linePoints.length - 1].time_since_baseline, y: linePoints[linePoints.length - 1].value }
           const slope = cohortResult.result.fixedEffects.timeSinceBaseline
           lines.push({
             key: 'cohort',
@@ -90,8 +90,8 @@ export function CohortModelPlotPreview({
           const groupSpikeRows = modelRowsByEntity[groupKey] ?? []
           const linePoints = mixedModelMeanLinePoints(groupResult.result, groupSpikeRows)
           if (linePoints.length >= 2) {
-            const p1 = { x: linePoints[0].time_since_baseline, y: linePoints[0].eGFR }
-            const p2 = { x: linePoints[linePoints.length - 1].time_since_baseline, y: linePoints[linePoints.length - 1].eGFR }
+            const p1 = { x: linePoints[0].time_since_baseline, y: linePoints[0].value }
+            const p2 = { x: linePoints[linePoints.length - 1].time_since_baseline, y: linePoints[linePoints.length - 1].value }
             const slope = groupResult.result.fixedEffects.timeSinceBaseline
             const color = groupColors.get(group.value) ?? FALLBACK_POINT_COLOR
             lines.push({

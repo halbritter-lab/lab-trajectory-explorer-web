@@ -16,12 +16,12 @@ const BASELINE_AGE_CONFIG: MixedModelConfig = {
 }
 
 const rows: MixedModelSpikeRow[] = [
-  { patient_id: '1', eGFR: 60, time_since_baseline: 0 },
-  { patient_id: '1', eGFR: 58, time_since_baseline: 1 },
-  { patient_id: '2', eGFR: 62, time_since_baseline: 0 },
-  { patient_id: '2', eGFR: 59, time_since_baseline: 1 },
-  { patient_id: '3', eGFR: 57, time_since_baseline: 0 },
-  { patient_id: '3', eGFR: 54, time_since_baseline: 1 },
+  { patient_id: '1', value: 60, time_since_baseline: 0 },
+  { patient_id: '1', value: 58, time_since_baseline: 1 },
+  { patient_id: '2', value: 62, time_since_baseline: 0 },
+  { patient_id: '2', value: 59, time_since_baseline: 1 },
+  { patient_id: '3', value: 57, time_since_baseline: 0 },
+  { patient_id: '3', value: 54, time_since_baseline: 1 },
 ]
 
 describe('validateMixedModelRows', () => {
@@ -50,7 +50,7 @@ describe('validateMixedModelRows', () => {
   })
 
   it('rejects non-finite eGFR values before fitting', () => {
-    expect(validateMixedModelRows([{ ...rows[0], eGFR: Number.NaN }, ...rows.slice(1)])).toMatchObject({
+    expect(validateMixedModelRows([{ ...rows[0], value: Number.NaN }, ...rows.slice(1)])).toMatchObject({
       ok: false,
       code: 'NON_FINITE_VALUE',
       stage: 'data-validation',
@@ -88,7 +88,7 @@ describe('validateMixedModelRows', () => {
 
   it('accepts an otherwise fit-ready cohort when an extra patient has only one measurement', () => {
     const result = validateMixedModelRows(
-      [...rows, { patient_id: '004-0141', eGFR: 51, time_since_baseline: 0 }],
+      [...rows, { patient_id: '004-0141', value: 51, time_since_baseline: 0 }],
       NO_COVARIATE_CONFIG,
     )
 
@@ -102,8 +102,8 @@ describe('validateMixedModelRows', () => {
     const result = validateMixedModelRows(
       [
         ...rows,
-        { patient_id: '045-1315', eGFR: 51, time_since_baseline: 0 },
-        { patient_id: '045-1315', eGFR: 50, time_since_baseline: 0 },
+        { patient_id: '045-1315', value: 51, time_since_baseline: 0 },
+        { patient_id: '045-1315', value: 50, time_since_baseline: 0 },
       ],
       NO_COVARIATE_CONFIG,
     )
@@ -123,7 +123,7 @@ describe('validateMixedModelRows', () => {
 
   it('uses exact time values for duplicate detection', () => {
     expect(validateMixedModelRows(
-      [...rows, { patient_id: '1', eGFR: 57, time_since_baseline: 0.00000000001 }],
+      [...rows, { patient_id: '1', value: 57, time_since_baseline: 0.00000000001 }],
       NO_COVARIATE_CONFIG,
     )).toEqual({
       ok: true,
@@ -133,12 +133,12 @@ describe('validateMixedModelRows', () => {
 
   it('rejects cohorts with fewer than 3 patients that have within-patient time variation', () => {
     const noTimeVariationRows: MixedModelSpikeRow[] = [
-      { patient_id: '1', eGFR: 60, time_since_baseline: 0 },
-      { patient_id: '1', eGFR: 59, time_since_baseline: 0 },
-      { patient_id: '2', eGFR: 62, time_since_baseline: 0 },
-      { patient_id: '2', eGFR: 59, time_since_baseline: 1 },
-      { patient_id: '3', eGFR: 57, time_since_baseline: 0 },
-      { patient_id: '3', eGFR: 54, time_since_baseline: 1 },
+      { patient_id: '1', value: 60, time_since_baseline: 0 },
+      { patient_id: '1', value: 59, time_since_baseline: 0 },
+      { patient_id: '2', value: 62, time_since_baseline: 0 },
+      { patient_id: '2', value: 59, time_since_baseline: 1 },
+      { patient_id: '3', value: 57, time_since_baseline: 0 },
+      { patient_id: '3', value: 54, time_since_baseline: 1 },
     ]
 
     expect(validateMixedModelRows(noTimeVariationRows, NO_COVARIATE_CONFIG)).toMatchObject({
@@ -152,12 +152,12 @@ describe('validateMixedModelRows', () => {
 
   it('uses exact time values for within-patient time variation', () => {
     const exactTimeVariationRows: MixedModelSpikeRow[] = [
-      { patient_id: '1', eGFR: 60, time_since_baseline: 0 },
-      { patient_id: '1', eGFR: 58, time_since_baseline: 0.00000000001 },
-      { patient_id: '2', eGFR: 62, time_since_baseline: 0 },
-      { patient_id: '2', eGFR: 59, time_since_baseline: 1 },
-      { patient_id: '3', eGFR: 57, time_since_baseline: 0 },
-      { patient_id: '3', eGFR: 54, time_since_baseline: 1 },
+      { patient_id: '1', value: 60, time_since_baseline: 0 },
+      { patient_id: '1', value: 58, time_since_baseline: 0.00000000001 },
+      { patient_id: '2', value: 62, time_since_baseline: 0 },
+      { patient_id: '2', value: 59, time_since_baseline: 1 },
+      { patient_id: '3', value: 57, time_since_baseline: 0 },
+      { patient_id: '3', value: 54, time_since_baseline: 1 },
     ]
 
     expect(validateMixedModelRows(exactTimeVariationRows, NO_COVARIATE_CONFIG)).toEqual({ ok: true, warnings: [] })
@@ -165,12 +165,12 @@ describe('validateMixedModelRows', () => {
 
   it('does not require baseline age by default', () => {
     const result = validateMixedModelRows([
-      { patient_id: 'p1', eGFR: 70, time_since_baseline: 0 },
-      { patient_id: 'p1', eGFR: 68, time_since_baseline: 1 },
-      { patient_id: 'p2', eGFR: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: -5 },
-      { patient_id: 'p2', eGFR: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: -5 },
-      { patient_id: 'p3', eGFR: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 5 },
-      { patient_id: 'p3', eGFR: 53, time_since_baseline: 1, baseline_age: 70, baseline_age_centered: 5 },
+      { patient_id: 'p1', value: 70, time_since_baseline: 0 },
+      { patient_id: 'p1', value: 68, time_since_baseline: 1 },
+      { patient_id: 'p2', value: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: -5 },
+      { patient_id: 'p2', value: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: -5 },
+      { patient_id: 'p3', value: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 5 },
+      { patient_id: 'p3', value: 53, time_since_baseline: 1, baseline_age: 70, baseline_age_centered: 5 },
     ])
 
     expect(result).toEqual({ ok: true, warnings: [] })
@@ -178,12 +178,12 @@ describe('validateMixedModelRows', () => {
 
   it('requires baseline age when baseline_age covariate is selected', () => {
     const result = validateMixedModelRows([
-      { patient_id: 'p1', eGFR: 70, time_since_baseline: 0 },
-      { patient_id: 'p1', eGFR: 68, time_since_baseline: 1 },
-      { patient_id: 'p2', eGFR: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: -5 },
-      { patient_id: 'p2', eGFR: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: -5 },
-      { patient_id: 'p3', eGFR: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 5 },
-      { patient_id: 'p3', eGFR: 53, time_since_baseline: 1, baseline_age: 70, baseline_age_centered: 5 },
+      { patient_id: 'p1', value: 70, time_since_baseline: 0 },
+      { patient_id: 'p1', value: 68, time_since_baseline: 1 },
+      { patient_id: 'p2', value: 60, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: -5 },
+      { patient_id: 'p2', value: 58, time_since_baseline: 1, baseline_age: 60, baseline_age_centered: -5 },
+      { patient_id: 'p3', value: 55, time_since_baseline: 0, baseline_age: 70, baseline_age_centered: 5 },
+      { patient_id: 'p3', value: 53, time_since_baseline: 1, baseline_age: 70, baseline_age_centered: 5 },
     ], BASELINE_AGE_CONFIG)
 
     expect(result).toMatchObject({
@@ -198,19 +198,19 @@ describe('validateMixedModelRows', () => {
 
   it('canonicalizes hashes by patient, time, eGFR, and 10-decimal numeric rounding', () => {
     const canonicalRows: MixedModelSpikeRow[] = [
-      { patient_id: '2', eGFR: 62.00000000004, time_since_baseline: 0 },
-      { patient_id: '1', eGFR: 60, time_since_baseline: 0.00000000004 },
-      { patient_id: '1', eGFR: 58, time_since_baseline: 1 },
+      { patient_id: '2', value: 62.00000000004, time_since_baseline: 0 },
+      { patient_id: '1', value: 60, time_since_baseline: 0.00000000004 },
+      { patient_id: '1', value: 58, time_since_baseline: 1 },
     ]
     const equivalentRows: MixedModelSpikeRow[] = [
-      { patient_id: '1', eGFR: 58, time_since_baseline: 1 },
-      { patient_id: '1', eGFR: 60, time_since_baseline: 0 },
-      { patient_id: '2', eGFR: 62, time_since_baseline: 0 },
+      { patient_id: '1', value: 58, time_since_baseline: 1 },
+      { patient_id: '1', value: 60, time_since_baseline: 0 },
+      { patient_id: '2', value: 62, time_since_baseline: 0 },
     ]
     const differentRoundedRows: MixedModelSpikeRow[] = [
-      { patient_id: '1', eGFR: 58, time_since_baseline: 1 },
-      { patient_id: '1', eGFR: 60, time_since_baseline: 0.00000000006 },
-      { patient_id: '2', eGFR: 62, time_since_baseline: 0 },
+      { patient_id: '1', value: 58, time_since_baseline: 1 },
+      { patient_id: '1', value: 60, time_since_baseline: 0.00000000006 },
+      { patient_id: '2', value: 62, time_since_baseline: 0 },
     ]
 
     expect(hashMixedModelInput(canonicalRows)).toBe(hashMixedModelInput(equivalentRows))
@@ -219,13 +219,13 @@ describe('validateMixedModelRows', () => {
 
   it('canonicalizes runtime null baseline age as missing, not zero', () => {
     const missingBaselineAge: MixedModelSpikeRow[] = [
-      { patient_id: '1', eGFR: 60, time_since_baseline: 0 },
+      { patient_id: '1', value: 60, time_since_baseline: 0 },
     ]
     const nullBaselineAge = [
-      { patient_id: '1', eGFR: 60, time_since_baseline: 0, baseline_age: null },
+      { patient_id: '1', value: 60, time_since_baseline: 0, baseline_age: null },
     ] as unknown as MixedModelSpikeRow[]
     const zeroBaselineAge: MixedModelSpikeRow[] = [
-      { patient_id: '1', eGFR: 60, time_since_baseline: 0, baseline_age: 0 },
+      { patient_id: '1', value: 60, time_since_baseline: 0, baseline_age: 0 },
     ]
 
     expect(hashMixedModelInput(nullBaselineAge)).toBe(hashMixedModelInput(missingBaselineAge))

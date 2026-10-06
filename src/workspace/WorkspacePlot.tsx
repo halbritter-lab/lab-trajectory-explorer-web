@@ -139,7 +139,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const points = mixedModelMeanLinePoints(stored.result, item.rows, {
         baselineAgeCentered: 0,
         ageAxisBaselineAge: axis === 'age' ? baselineAge : null,
-      }).filter(pt => Number.isFinite(pt.time_since_baseline) && Number.isFinite(pt.eGFR) && (axis !== 'age' || pt.age !== undefined))
+      }).filter(pt => Number.isFinite(pt.time_since_baseline) && Number.isFinite(pt.value) && (axis !== 'age' || pt.age !== undefined))
       if (points.length < 2) return []
       // Overlay groups label missing values 'Not recorded'; the model uses UNGROUPED.
       const group = item.entity.kind === 'group' ? (item.entity.value === UNGROUPED ? 'Not recorded' : item.entity.value) : null
@@ -166,7 +166,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   for (const point of visibleModelLines.flatMap(line => line.points)) {
     const position = axis === 'age' ? point.age : point.time_since_baseline
     if (position !== undefined) { xMin = Math.min(xMin, position); xMax = Math.max(xMax, position) }
-    if (scaleMode === 'zoom') { yMin = Math.min(yMin, point.eGFR); yMax = Math.max(yMax, point.eGFR) }
+    if (scaleMode === 'zoom') { yMin = Math.min(yMin, point.value); yMax = Math.max(yMax, point.value) }
   }
   if (!Number.isFinite(xMin)) { xMin = 0; xMax = 1; yMin = 0; yMax = 1 }
   if (xMin === xMax) { const pad = axis === 'calendar' ? 86_400_000 : .5; xMin -= pad; xMax += pad }
@@ -235,7 +235,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         </g>
       })}
       {groupModelLines.map(line => <g key={line.key} clipPath={`url(#${clip})`} className="wt-group-model-line" data-group={line.group!}>
-        <polyline points={line.points.map(p => `${x(axis === 'age' && p.age !== undefined ? p.age : p.time_since_baseline)},${y(p.eGFR)}`).join(' ')}
+        <polyline points={line.points.map(p => `${x(axis === 'age' && p.age !== undefined ? p.age : p.time_since_baseline)},${y(p.value)}`).join(' ')}
           fill="none" stroke={groupColor(line.group!)} strokeWidth={3.5} strokeDasharray="10 3 2 3" strokeLinecap="round">
           <title>Mixed-model mean trajectory · {groupLabel(line.group!)}</title>
         </polyline>
@@ -243,7 +243,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       {pooledModelLine && (
         <g clipPath={`url(#${clip})`} className="wt-cohort-model-line">
           <polyline
-            points={pooledModelLine.points.map(p => `${x(axis === 'age' && p.age !== undefined ? p.age : p.time_since_baseline)},${y(p.eGFR)}`).join(' ')}
+            points={pooledModelLine.points.map(p => `${x(axis === 'age' && p.age !== undefined ? p.age : p.time_since_baseline)},${y(p.value)}`).join(' ')}
             fill="none"
             stroke="#0f172a"
             strokeWidth={3}

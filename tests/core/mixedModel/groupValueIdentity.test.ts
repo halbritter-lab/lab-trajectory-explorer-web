@@ -6,10 +6,10 @@ import {
 import type { MixedModelSpikeRow } from '../../../src/core/mixedModel/types'
 
 const rows: MixedModelSpikeRow[] = [
-  { patient_id: 'p1', eGFR: 70, time_since_baseline: 0 },
-  { patient_id: 'p1', eGFR: 68, time_since_baseline: 1 },
-  { patient_id: 'p2', eGFR: 60, time_since_baseline: 0 },
-  { patient_id: 'p2', eGFR: 57, time_since_baseline: 1 },
+  { patient_id: 'p1', value: 70, time_since_baseline: 0 },
+  { patient_id: 'p1', value: 68, time_since_baseline: 1 },
+  { patient_id: 'p2', value: 60, time_since_baseline: 0 },
+  { patient_id: 'p2', value: 57, time_since_baseline: 1 },
 ]
 
 describe('mixed model result identity groupValue', () => {

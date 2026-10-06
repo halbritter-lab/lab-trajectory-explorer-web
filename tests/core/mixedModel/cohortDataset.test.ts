@@ -36,9 +36,9 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [7], spec)).toEqual([
-      { patient_id: '7', eGFR: 60, time_since_baseline: 0 },
-      { patient_id: '7', eGFR: 59, time_since_baseline: 0.4982888433 },
-      { patient_id: '7', eGFR: 58, time_since_baseline: 1.0020533881 },
+      { patient_id: '7', value: 60, time_since_baseline: 0 },
+      { patient_id: '7', value: 59, time_since_baseline: 0.4982888433 },
+      { patient_id: '7', value: 58, time_since_baseline: 1.0020533881 },
     ])
   })
 
@@ -72,8 +72,8 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [7], spec)).toEqual([
-      { patient_id: '7', eGFR: 59, time_since_baseline: 0 },
-      { patient_id: '7', eGFR: 56, time_since_baseline: 0.0848733744 },
+      { patient_id: '7', value: 59, time_since_baseline: 0 },
+      { patient_id: '7', value: 56, time_since_baseline: 0.0848733744 },
     ])
   })
 
@@ -101,7 +101,7 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [7], spec)).toEqual([
-      { patient_id: '7', eGFR: 60, time_since_baseline: 0 },
+      { patient_id: '7', value: 60, time_since_baseline: 0 },
     ])
   })
 
@@ -127,8 +127,8 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [7], spec)).toEqual([
-      { patient_id: '7', eGFR: 60, time_since_baseline: 0 },
-      { patient_id: '7', eGFR: 54, time_since_baseline: 0.3011635866 },
+      { patient_id: '7', value: 60, time_since_baseline: 0 },
+      { patient_id: '7', value: 54, time_since_baseline: 0.3011635866 },
     ])
   })
 
@@ -155,7 +155,7 @@ describe('mixedModelRowsFromCohortInputs', () => {
     // The 2020-01-01 point is within 90 days of baseline and is dropped; the
     // first kept point (2020-04-15) becomes the new time_since_baseline anchor.
     const result = mixedModelRowsFromCohortInputs(rows, [7], spec)
-    expect(result.map((r) => r.eGFR)).toEqual([60, 50])
+    expect(result.map((r) => r.value)).toEqual([60, 50])
     expect(result[0].time_since_baseline).toBe(0)
     expect(result[1].time_since_baseline).toBeGreaterThan(0)
   })
@@ -182,8 +182,8 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [10, 2, 10], spec)).toEqual([
-      { patient_id: '2', eGFR: 60, time_since_baseline: 0 },
-      { patient_id: '10', eGFR: 70, time_since_baseline: 0 },
+      { patient_id: '2', value: 60, time_since_baseline: 0 },
+      { patient_id: '10', value: 70, time_since_baseline: 0 },
     ])
   })
 })

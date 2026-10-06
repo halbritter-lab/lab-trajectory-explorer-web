@@ -7,7 +7,7 @@ describe('mixed model result contracts', () => {
       status: 'success',
       metadata: {
         engine: 'webr-lme4',
-        formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+        formula: 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
         runtimeVersion: '0.6.0',
         packageVersions: { lme4: '2.0-1' },
         browserUserAgent: 'vitest',
@@ -39,7 +39,7 @@ describe('mixed model result contracts', () => {
       warnings: ['installPackages(lme4) failed'],
       metadata: {
         engine: 'webr-lme4',
-        formula: 'eGFR ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
+        formula: 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)',
       },
     }
 

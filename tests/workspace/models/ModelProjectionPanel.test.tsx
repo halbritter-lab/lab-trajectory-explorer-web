@@ -46,7 +46,7 @@ it('retains disabled targets and supports adding, editing and removing custom de
 })
 
 it('uses fitted category choices and recomputes a nonreference profile without refitting', () => {
-  const rows = [{patient_id:'a',eGFR:80,time_since_baseline:0,factorValues:{factor_0_:'A'}},{patient_id:'b',eGFR:80,time_since_baseline:0,factorValues:{factor_0_:'B'}}]
+  const rows = [{patient_id:'a',value:80,time_since_baseline:0,factorValues:{factor_0_:'A'}},{patient_id:'b',value:80,time_since_baseline:0,factorValues:{factor_0_:'B'}}]
   const sourceIdentity = buildMixedModelResultIdentity({seriesIndex:0,seriesKey:'Protein|mg/L',patientIds:['a','b'],rows,fitConfigHash:'fit'})
   const fitted: ProjectionSnapshot['sourceResult'] = {...result,nPatients:2,nMeasurements:2,metadata:{...result.metadata,datasetHash:sourceIdentity.datasetHash,modelConfig:{...DEFAULT_MIXED_MODEL_CONFIG,factors:[{key:'genotype',kind:'categorical',effect:'level_slope',reference:'A'}]}},fixedEffectTerms:[{term:'(Intercept)',estimate:80,confidenceInterval:null},{term:'time_since_baseline',estimate:5,confidenceInterval:null},{term:'factor_0_B',estimate:10,confidenceInterval:null},{term:'time_since_baseline:factor_0_B',estimate:5,confidenceInterval:null}]}
   function ProfileHarness() {

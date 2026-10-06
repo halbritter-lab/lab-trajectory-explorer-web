@@ -43,8 +43,8 @@ export function validateMixedModelRows(
       return failure('EMPTY_PATIENT_ID', 'Mixed model rows require a non-empty patient_id.')
     }
 
-    if (!Number.isFinite(row.eGFR) || !Number.isFinite(row.time_since_baseline)) {
-      return failure('NON_FINITE_VALUE', 'Mixed model rows require finite eGFR and time_since_baseline values.')
+    if (!Number.isFinite(row.value) || !Number.isFinite(row.time_since_baseline)) {
+      return failure('NON_FINITE_VALUE', 'Mixed model rows require finite outcome values and time_since_baseline values.')
     }
 
     const existingRows = patientRows.get(row.patient_id)
@@ -153,7 +153,7 @@ export function hashMixedModelInput(rows: readonly MixedModelSpikeRow[]): string
   const canonicalRows = rows
     .map((row) => ({
       patient_id: row.patient_id,
-      eGFR: roundTo10Decimals(row.eGFR),
+      value: roundTo10Decimals(row.value),
       time_since_baseline: roundTo10Decimals(row.time_since_baseline),
       baseline_age: canonicalBaselineAge(row.baseline_age),
       baseline_age_centered: canonicalBaselineAge(row.baseline_age_centered),
@@ -163,7 +163,7 @@ export function hashMixedModelInput(rows: readonly MixedModelSpikeRow[]): string
       const patientComparison = a.patient_id.localeCompare(b.patient_id)
       if (patientComparison !== 0) return patientComparison
       if (a.time_since_baseline !== b.time_since_baseline) return a.time_since_baseline - b.time_since_baseline
-      return a.eGFR - b.eGFR
+      return a.value - b.value
     })
 
   return hashString(JSON.stringify(canonicalRows))

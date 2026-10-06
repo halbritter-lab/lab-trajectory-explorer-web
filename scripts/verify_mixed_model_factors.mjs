@@ -28,7 +28,7 @@ const rows = Array.from({ length: 48 }, (_, i) => {
   const slopeOffset = [-0.2,0.1,0.3,-0.3,-0.1,0.2][replicate]
   return Array.from({ length: 6 }, (_, t) => ({
     patient_id: `p${i}`, time_since_baseline: t,
-    eGFR: 70 + 6 * group + 2 * numeric + interceptOffset + (-2 - group + 0.4 * numeric + slopeOffset) * t + [0.2,-0.3,0.1,0.1,-0.3,0.2][t],
+    value: 70 + 6 * group + 2 * numeric + interceptOffset + (-2 - group + 0.4 * numeric + slopeOffset) * t + [0.2,-0.3,0.1,0.1,-0.3,0.2][t],
     factorValues: { factor_0_: group ? 'B' : 'A', factor_1_: numeric },
   }))
 }).flat()

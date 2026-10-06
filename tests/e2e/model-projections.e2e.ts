@@ -8,7 +8,7 @@ import { hashMixedModelInput } from '../../src/core/mixedModel/validation'
 const workerScript = `self.onmessage = async ({data:q}) => {
   const datasetHash = await (await fetch('/__projection_hash',{method:'POST',body:JSON.stringify(q.rows)})).text();
   const adjusted = q.config.factors?.some(f => f.key === 'genotype');
-  const intercept = q.rows[0].eGFR < 80 ? 60 : 80;
+  const intercept = q.rows[0].value < 80 ? 60 : 80;
   const slope = intercept === 60 ? -3 : 5;
   const result = {
     status:'success',converged:true,warnings:[],
