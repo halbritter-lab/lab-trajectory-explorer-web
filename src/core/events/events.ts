@@ -144,6 +144,7 @@ export function validateClinicalEvents(
 
   for (const event of events) {
     const { patientId, date, endDate } = event
+    const normalizedType = event.type.toLowerCase()
     if (
       patientId === null ||
       event.type === '' ||
@@ -153,7 +154,7 @@ export function validateClinicalEvents(
       rejected.push({ event, reason: 'missing_required' })
       continue
     }
-    if (!clinicalEventTypes.has(event.type)) {
+    if (!clinicalEventTypes.has(normalizedType)) {
       rejected.push({ event, reason: 'invalid_type' })
       continue
     }
@@ -162,7 +163,7 @@ export function validateClinicalEvents(
       continue
     }
 
-    const type = event.type as ClinicalEventType
+    const type = normalizedType as ClinicalEventType
     const intent = normalizeIntent(event.intent)
     if (type === 'dialysis') {
       if (!dialysisIntents.has(intent)) {
@@ -266,13 +267,13 @@ export function describeEventRejection({ event, reason }: RejectedClinicalEvent)
     case 'invalid_type':
       return `Event type "${event.type}" is not one of ${[...clinicalEventTypes].join(', ')}; row not imported.`
     case 'invalid_intent':
-      return event.type === 'dialysis'
+      return event.type.toLowerCase() === 'dialysis'
         ? `Dialysis intent "${event.intent}" is not one of ${[...dialysisIntents].join(', ')}; row not imported.`
         : `Intent "${event.intent}" is only allowed for dialysis events; row not imported.`
     case 'invalid_date':
       return `${event.dateIssue ?? 'Event date is not a valid date'}; row not imported.`
     case 'invalid_date_range':
-      return event.type === 'kidney_transplant'
+      return event.type.toLowerCase() === 'kidney_transplant'
         ? `A kidney transplant cannot have an end date (${formatDate(event.endDate!)}); row not imported.`
         : `End date ${formatDate(event.endDate!)} is before the event date ${formatDate(event.date!)}; row not imported.`
     case 'unsupported_legacy_schema':

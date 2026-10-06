@@ -12,6 +12,9 @@
 .data-workspace td, .data-workspace th { text-align: left; padding: 12px; }
 .data-workspace details { margin: 16px 0; }
 .data-workspace summary { cursor: pointer; }
+.data-diagnostics { max-height: min(24rem, 55vh); overflow: auto; overflow-wrap: anywhere; padding-right: 8px; }
+.data-diagnostics li { margin-block: 8px; }
+.data-diagnostics button { margin-bottom: 8px; }
 .data-workspace dialog { width: min(520px, calc(100vw - 32px)); }
 .data-workspace dialog .field { display: grid; gap: 6px; margin: 18px 0; }
 @media (max-width: 700px) { .data-import-grid { grid-template-columns: 1fr; } .data-workspace .card { padding: 16px; } }

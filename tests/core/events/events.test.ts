@@ -213,6 +213,18 @@ describe('clinical events', () => {
     ])
   })
 
+  it('accepts event types regardless of case and stores their canonical spelling', () => {
+    const events = normalizeClinicalEvents([
+      { patientId: 1, type: 'DIALYSIS', date: '2024-01-01', title: 'Start', intent: 'acute' },
+      { patientId: 1, type: 'Kidney_Transplant', date: '2024-02-01', title: 'Transplant' },
+      { patientId: 1, type: 'Other', date: '2024-03-01', title: 'Visit' },
+      { patientId: 1, type: 'Surgery', date: '2024-04-01', title: 'Unknown' },
+    ])
+    const result = validateClinicalEvents(events, [labRow(1)])
+    expect(result.valid.map(event => event.type)).toEqual(['dialysis', 'kidney_transplant', 'other'])
+    expect(result.rejected).toMatchObject([{ event: { type: 'Surgery' }, reason: 'invalid_type' }])
+  })
+
   it('classifies effects without free-text inference', () => {
     expect(
       effectForEvent({
