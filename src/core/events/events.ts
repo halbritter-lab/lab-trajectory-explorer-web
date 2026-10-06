@@ -205,28 +205,6 @@ export function validateClinicalEvents(
   return { valid, rejected }
 }
 
-export function effectForEvent(event: ClinicalEvent): ClinicalEventEffectInfo {
-  if (event.type === 'kidney_transplant') {
-    return { effect: 'censor_from_date', label: 'censor from event date' }
-  }
-  if (event.type === 'other') {
-    return { effect: 'display_only', label: 'display only' }
-  }
-  if (event.intent === 'chronic') {
-    return { effect: 'censor_from_date', label: 'censor from dialysis start' }
-  }
-  if (event.endDate !== null) {
-    return {
-      effect: 'exclude_interval',
-      label:
-        event.intent === 'unknown'
-          ? 'exclude dialysis interval, unknown intent'
-          : 'exclude dialysis interval',
-    }
-  }
-  return { effect: 'warning_no_exclusion', label: 'warning, not excluded from fit' }
-}
-
 function parsePatientId(value: unknown): PatientId | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && value.trim() !== '') {

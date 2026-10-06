@@ -1,9 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
-  effectForEvent,
   normalizeClinicalEvents,
   validateClinicalEvents,
 } from '../../../src/core/events/events'
+import { effectForEvent } from '../../../src/core/domains/nephrology/censoring'
 import type { LabRow } from '../../../src/core/types'
 
 function labRow(id: number): LabRow {

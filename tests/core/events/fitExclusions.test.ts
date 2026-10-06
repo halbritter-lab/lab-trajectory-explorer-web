@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { clinicalEventExclusionReason, filterFitPointsByClinicalEvents } from '../../../src/core/events/fitExclusions'
+import { clinicalEventExclusionReason, filterFitPointsByClinicalEvents } from '../../../src/core/domains/nephrology/censoring'
 import type { ClinicalEvent } from '../../../src/core/events/events'
 import type { SeriesPoint } from '../../../src/core/stats/series'
 import { ckdProgressionConfig, generalExplorationConfig } from '../../../src/core/fitPipeline/types'

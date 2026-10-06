@@ -1,5 +1,6 @@
 import { comparePatientIds } from '../core/types'
-import { describeEventRejection, describeEventWarning, effectForEvent } from '../core/events/events'
+import { describeEventRejection, describeEventWarning } from '../core/events/events'
+import { effectForEvent } from '../core/domains/nephrology/censoring'
 import { useAppStore } from './state/store'
 
 const isoDate = (date: Date | null | undefined) => date && Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : '–'

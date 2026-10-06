@@ -7,7 +7,7 @@ import { fitAkiAware, episodesForSeries } from '../domains/nephrology/aki/akiAwa
 import { fitInputForSeries } from '../analysis/types'
 import type { AnalysisFitInputContribution } from '../analysis/types'
 import type { ClinicalEvent } from '../events/events'
-import { filterFitPointsByClinicalEvents } from '../events/fitExclusions'
+import { filterFitPointsByClinicalEvents } from '../domains/nephrology/censoring'
 import type { FitConfig } from '../fitPipeline/types'
 import { balanceSeriesPoints } from './timeBalancing'
 

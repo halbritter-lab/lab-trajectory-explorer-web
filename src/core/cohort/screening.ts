@@ -12,7 +12,8 @@ import { formatAkiChip, formatAkiEpisodeSummary } from '../domains/nephrology/ak
 import { rapidEgfrDeclineFlagForCell } from '../domains/nephrology/rapidEgfrDeclineModule'
 import { isEgfrUnit } from '../domains/nephrology/rapidEgfrDeclineModule'
 import type { ClinicalEvent } from '../events/events'
-import { clinicalEventAffectsFit, clinicalEventExclusionReason, filterFitPointsByClinicalEvents } from '../events/fitExclusions'
+import { clinicalEventAffectsFit, clinicalEventExclusionWindows } from '../domains/nephrology/censoring'
+import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows'
 import type { ExclusionReason, FitConfig } from '../fitPipeline/types'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from '../domains/nephrology/endpoints/ckdEndpoints'
 import { isUnstableSlope } from '../stats/slopeQuality'
@@ -136,14 +137,10 @@ export function buildCohortRows(
       if (points.length > 0) {
         episodes = fitInput?.episodes ?? episodesForSeries(prows, pid, spec.bezeichnung, spec.einheit ?? null)
       }
-      const excluded = new Set(filterFitPointsByClinicalEvents(points, clinicalEvents, spec.fitConfig?.censoring).excludedIdx)
-      const pointExclusionReasons: ExclusionReason[][] = points.map((point, i) => {
-        if (!excluded.has(i)) return []
-        const reasons = clinicalEvents
-          .map((event) => clinicalEventExclusionReason(point.date, event, spec.fitConfig?.censoring))
-          .filter((reason): reason is ExclusionReason => reason !== null)
-        return [...new Set(reasons)]
-      })
+      const eventWindows = clinicalEventExclusionWindows(clinicalEvents, spec.fitConfig?.censoring)
+      const excluded = new Set(applyExclusionWindows(points, eventWindows).excludedIdx)
+      const pointExclusionReasons: ExclusionReason[][] = points.map((point, i) =>
+        excluded.has(i) ? exclusionReasonsAt(point.date, eventWindows) : [])
       if ((spec.mode === 'aki-aware' || spec.fitConfig?.exclusions.excludeAkiWindows) && points.length > 0) {
         const kept = new Set(fitAkiAware(points, exclusionDays, episodes).keptIdx)
         points.forEach((_, i) => {
