@@ -24,6 +24,12 @@ export interface LinearProjectionResult {
   remainingYears: number | null
 }
 
+/** Time (years from the line's origin) at which `intercept + slope * t`
+ * reaches `threshold`. Not finite for a flat line. */
+export function projectedCrossingTime(intercept: number, slopePerYear: number, threshold: number): number {
+  return (threshold - intercept) / slopePerYear
+}
+
 /** Boundary intersections of a fitted line; not a clinical event-time model. */
 export function projectLinearThreshold(input: LinearProjectionInput): LinearProjectionResult {
   const {intercept:a, slopePerYear:b, referenceTimeYears:r, horizonYears:h, target} = input
@@ -36,7 +42,7 @@ export function projectLinearThreshold(input: LinearProjectionInput): LinearProj
   if (b === 0) return failed('flat')
   if (target.direction === 'below' ? b > 0 : b < 0) return failed('away')
   if (referenceValue === target.threshold) return {status:'crossing',modelTimeYears:r,remainingYears:0}
-  const modelTimeYears = (target.threshold-a)/b
+  const modelTimeYears = projectedCrossingTime(a, b, target.threshold)
   const remainingYears = modelTimeYears-r
   if (!Number.isFinite(modelTimeYears) || !Number.isFinite(remainingYears) || remainingYears < 0) return failed('invalid')
   if (remainingYears > h) return failed('beyond_horizon')

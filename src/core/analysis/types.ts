@@ -8,17 +8,20 @@
  *     messages and dataset-level fit inputs.
  *  2. `series` (patient × column, before fitting): censoring and exclusion
  *     windows, chart overlays and flags.
- *  3. `cellFlags` (patient × column, after fitting): flags that depend on the
+ *  3. `endpoints` (patient × column): endpoint results evaluated with the
+ *     generic evaluators in core/endpoints on all dated measurements.
+ *  4. `cellFlags` (patient × column, after fitting): flags that depend on the
  *     fitted slope and the column's own module settings.
  */
 import type { ClinicalEvent } from '../events/events'
+import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ExclusionWindow, ReasonedExclusionWindow } from '../exclusions/windows'
 import type { FitConfig, FitModel } from '../fitPipeline/types'
 import type { SeriesPoint } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import type { LabRow, PatientId } from '../types'
 
-export type { AnalysisSettings, ColumnModuleSettings } from './registry'
+export type { AnalysisSettings, CellEndpoints, ColumnModuleSettings } from './registry'
 
 export interface ManualDemographics {
   sex?: LabRow['patientSex']
@@ -156,11 +159,36 @@ export interface CellFlagContext {
   fitModel: FitModel
 }
 
+/** One (patient, series column) as a module's `endpoints` hook sees it. */
+export interface EndpointContext {
+  patientId: PatientId
+  seriesKey: SeriesKey
+  mode: SlopeMode
+  fitConfig?: FitConfig
+  /** The estimator of the column's slope; endpoint projections reuse it. */
+  scalarFitModel: FitModel
+  /** Every dated numeric measurement of the series with a finite value,
+   * oldest first; ages (from the nearest earlier age-carrying row) only
+   * when requested. */
+  points(withAges: boolean): EndpointPoint[]
+  /** Global fit of those measurements with the scalar model (OLS or
+   * Theil-Sen); NaN slope and intercept when the model is 'none'. */
+  fit(): { slope: number; intercept: number }
+}
+
+/** The fitted cell a module's export columns read. `E` is the module's own
+ * endpoint result type. */
+export interface ModuleExportCell<E = unknown> {
+  flags: readonly CohortFlag[]
+  endpoints: E
+  fitModel: FitModel
+}
+
 /** A column a module adds to the cohort export, after the generic columns
  * and in registry order. */
-export interface ModuleExportColumn {
+export interface ModuleExportColumn<E = unknown> {
   key: string
-  value: (cell: { flags: readonly CohortFlag[] }) => string | number
+  value(cell: ModuleExportCell<E>): string | number
 }
 
 /** A per-column module setting the workspace renders generically. */
@@ -209,9 +237,13 @@ export interface AnalysisModule<S = undefined, Id extends string = string> {
   /** Readable labels of the exclusion reasons this module produces. */
   exclusionReasonLabels?: Readonly<Record<string, string>>
   overlayPresentation?: OverlayPresentation
-  exportColumns?: readonly ModuleExportColumn[]
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  exportColumns?: readonly ModuleExportColumn<any>[]
   apply?(ctx: AnalysisContext, settings: S): AnalysisContribution
   series?(ctx: SeriesContext): SeriesContribution
+  /** This module's endpoint results for one cell, merged into the cell's
+   * `endpoints` record (keys are the module's endpoint ids). */
+  endpoints?(ctx: EndpointContext): object
   /** Runs only for columns that configure this module's settings. */
   cellFlags?(ctx: CellFlagContext, settings: S): CohortFlag[]
 }

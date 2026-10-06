@@ -8,12 +8,15 @@ import { egfrModule } from '../domains/nephrology/egfr/egfrModule'
 import { clinicalEventsModule } from '../domains/nephrology/clinicalEventsModule'
 import { akiModule } from '../domains/nephrology/aki/akiModule'
 import { rapidEgfrDeclineModule } from '../domains/nephrology/rapidEgfrDeclineModule'
+import { ckdEndpointsModule } from '../domains/nephrology/endpoints/ckdEndpointsModule'
 import type {
   AnalysisModule,
   AnalysisResult,
   CellFlagContext,
   CohortFlag,
+  EndpointContext,
   ManualDemographics,
+  ModuleExportCell,
   SettingsModule,
 } from './types'
 import type { ClinicalEvent } from '../events/events'
@@ -28,6 +31,7 @@ export const analysisModules = [
   clinicalEventsModule,
   akiModule,
   rapidEgfrDeclineModule,
+  ckdEndpointsModule,
 ] as const
 
 type RegisteredModule = (typeof analysisModules)[number]
@@ -39,6 +43,13 @@ export type AnalysisSettings = {
   [M in RegisteredModule as M extends { parseSettings(value: unknown): unknown } ? M['id'] : never]:
     M extends { parseSettings(value: unknown): infer S } ? NonNullable<S> : never
 }
+
+type EndpointResultsOf<M> = M extends { endpoints(ctx: EndpointContext): infer R } ? R : never
+type UnionToIntersection<U> = (U extends unknown ? (u: U) => void : never) extends (i: infer I) => void ? I : never
+
+/** A cohort cell's endpoint results: every endpoint module's results merged,
+ * typed from the registry (today the CKD endpoints). */
+export type CellEndpoints = UnionToIntersection<EndpointResultsOf<RegisteredModule>>
 
 /** A column's own module settings (e.g. its rapid-decline threshold). */
 export type ColumnModuleSettings = Partial<AnalysisSettings>
@@ -128,13 +139,23 @@ export function moduleCellFlags(
     : [])
 }
 
+/** Every endpoint module's results for one cell, merged in registry order. */
+export function moduleEndpoints(ctx: EndpointContext, modules: readonly RegisteredAnalysisModule[] = analysisModules): CellEndpoints {
+  const results: object[] = []
+  for (const module of modules) {
+    const result = module.endpoints?.(ctx)
+    if (result) results.push(result)
+  }
+  return (results.length === 1 ? results[0] : Object.assign({}, ...results)) as CellEndpoints
+}
+
 /** Module export columns for one cell, in registry order. */
 export function moduleExportValues(
-  flags: readonly CohortFlag[],
+  cell: ModuleExportCell<CellEndpoints>,
   modules: readonly RegisteredAnalysisModule[] = analysisModules,
 ): Record<string, string | number> {
   const values: Record<string, string | number> = {}
-  for (const module of modules) for (const column of module.exportColumns ?? []) values[column.key] = column.value({ flags })
+  for (const module of modules) for (const column of module.exportColumns ?? []) values[column.key] = column.value(cell)
   return values
 }
 

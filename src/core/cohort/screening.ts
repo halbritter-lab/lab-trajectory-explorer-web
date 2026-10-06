@@ -4,14 +4,13 @@ import { fitGlobal, fitTheilSen } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
-import type { AnalysisFitInputContribution, CohortFlag, SeriesOverlay } from '../analysis/types'
-import { moduleCellFlags, moduleExportValues, type ColumnModuleSettings } from '../analysis/registry'
+import type { AnalysisFitInputContribution, CohortFlag, EndpointContext, SeriesOverlay } from '../analysis/types'
+import { moduleCellFlags, moduleEndpoints, moduleExportValues, type CellEndpoints, type ColumnModuleSettings } from '../analysis/registry'
 import { collectSeriesContributions, seriesContextFor, seriesRowsFor } from './seriesContributions'
-import { isEgfrUnit } from '../domains/nephrology/analytes'
+import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ClinicalEvent } from '../events/events'
 import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows'
 import type { FitConfig } from '../fitPipeline/types'
-import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from '../domains/nephrology/endpoints/ckdEndpoints'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 
@@ -66,7 +65,8 @@ export interface CohortCell {
    * for the indices in `excludedIdx`. Reasons are module codes; see
    * exclusionReasonLabel. */
   pointExclusionReasons: string[][]
-  endpoints: CkdEndpoints
+  /** Endpoint results of every endpoint module (see CellEndpoints). */
+  endpoints: CellEndpoints
 }
 
 export interface CohortRow {
@@ -132,16 +132,8 @@ export function buildCohortRows(
       const excluded = new Set(excludedIdx)
       const pointExclusionReasons = points.map((point, i) =>
         excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])
-      const endpointSettings = endpointSettingsFor(spec.einheit ?? null, spec.fitConfig?.endpoints)
-      const endpointRows = seriesRows.filter(row => Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
-      // Ages and the all-data fit only feed the G5 projection; skip both otherwise.
-      const projecting = endpointSettings.projectedAgeToCkdG5
-      const ageAnchors = projecting ? ageAnchorsFor(endpointRows) : []
-      const endpointPoints = endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: projecting ? ageAtDate(row.labDatum!, ageAnchors) : null }))
-      const endpointModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
-      const endpointFit = !projecting || endpointModel === 'none'
-        ? { slope: Number.NaN, intercept: Number.NaN }
-        : endpointModel === 'theil-sen' ? fitTheilSen(endpointPoints) : fitGlobal(endpointPoints)
+      const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
+      const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel))
       const fitLines = points.length < 2 || spec.mode === 'rolling'
         ? []
         : buildSlopeLines(
@@ -158,7 +150,6 @@ export function buildCohortRows(
               exclusionWindows: windows,
             },
           )
-      const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
       const slope = match?.slope ?? Number.NaN
       return {
         bezeichnung: spec.bezeichnung,
@@ -182,12 +173,7 @@ export function buildCohortRows(
         overlays: contributions.overlays,
         excludedIdx,
         pointExclusionReasons,
-        endpoints: computeCkdEndpoints({
-          points: endpointPoints,
-          slopePerYear: endpointFit.slope,
-          intercept: endpointFit.intercept,
-          enabled: endpointSettings,
-        }),
+        endpoints,
       }
     })
     const groupValue = attributeName
@@ -195,23 +181,6 @@ export function buildCohortRows(
       : undefined
     return { patientId: pid, cells, ...(groupValue !== undefined ? { groupValue } : {}) }
   })
-}
-
-const disabledEndpointSettings: CkdEndpointSettings = {
-  percentDecline: false,
-  observedCkdG5: false,
-  projectedAgeToCkdG5: false,
-}
-
-function endpointSettingsFor(einheit: string | null, endpoints?: Partial<CkdEndpointSettings>): CkdEndpointSettings {
-  if (!isEgfrUnit(einheit)) return disabledEndpointSettings
-  return {
-    percentDecline: endpoints?.percentDecline ?? false,
-    observedCkdG4: endpoints?.observedCkdG4 ?? false,
-    observedCkdG5: endpoints?.observedCkdG5 ?? false,
-    projectedAgeToCkdG5: endpoints?.projectedAgeToCkdG5 ?? false,
-    confirmationDays: endpoints?.confirmationDays,
-  }
 }
 
 const MS_PER_YEAR = 365.25 * 86_400_000
@@ -228,6 +197,30 @@ function ageAtDate(date: Date, anchors: LabRow[]): number | null {
   let anchor = anchors[0]
   for (const r of anchors) if (r.labDatum!.getTime() <= date.getTime()) anchor = r
   return anchor.patientAgeAtLab! + (date.getTime() - anchor.labDatum!.getTime()) / MS_PER_YEAR
+}
+
+/** Endpoint inputs of one cell: every dated measurement with a finite value
+ * (independent of fit exclusions and aggregation) and, on request, ages and
+ * the all-data fit with the column's scalar model. */
+function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel']): EndpointContext {
+  const endpointRows = seriesRows.filter(row => Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
+  const points = (withAges: boolean): EndpointPoint[] => {
+    const ageAnchors = withAges ? ageAnchorsFor(endpointRows) : []
+    return endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: withAges ? ageAtDate(row.labDatum!, ageAnchors) : null }))
+  }
+  return {
+    patientId,
+    seriesKey: { bezeichnung: spec.bezeichnung, einheit: spec.einheit ?? null },
+    mode: spec.mode,
+    fitConfig: spec.fitConfig,
+    scalarFitModel,
+    points,
+    fit: () => {
+      if (scalarFitModel === 'none') return { slope: Number.NaN, intercept: Number.NaN }
+      const all = points(false)
+      return scalarFitModel === 'theil-sen' ? fitTheilSen(all) : fitGlobal(all)
+    },
+  }
 }
 
 export interface CohortExportRecord {
@@ -259,32 +252,10 @@ export interface CohortExportRecord {
    * be resolved from contradictory input rows, else ''. Populated from the
    * demographics module's conflict messages, keyed by patientIdKey. */
   demographics_conflict: string
-  // Module columns follow here in registry order (e.g. `aki`, the AKI chip;
-  // `rapid_progression`, 'yes' for a rapid eGFR decline under the column's
-  // threshold), then the endpoint columns.
+  // Module columns follow here in registry order: e.g. `aki` (the AKI chip),
+  // `rapid_progression` ('yes' for a rapid eGFR decline under the column's
+  // threshold) and the CKD endpoint columns (`endpoint_*`).
   [moduleColumn: string]: string | number | undefined
-  endpoint_percent_decline: number | ''
-  endpoint_observed_ckd_g5: string
-  endpoint_projected_age_to_ckd_g5: number | ''
-  // Columns added after the three above are appended, so positional readers of
-  // older exports keep working. Provenance is blank for endpoints not evaluated.
-  endpoint_observed_ckd_g4: string
-  endpoint_confirmation_days: number | ''
-  endpoint_input_policy: string
-  endpoint_prediction_anchor: string
-  endpoint_prediction_model: string
-  endpoint_g4_first_date: string
-  endpoint_g4_confirmed_date: string
-  endpoint_g4_recovery_date: string
-  endpoint_g4_first_value: number | ''
-  endpoint_g4_confirmed_value: number | ''
-  endpoint_g4_recovery_value: number | ''
-  endpoint_g5_first_date: string
-  endpoint_g5_confirmed_date: string
-  endpoint_g5_recovery_date: string
-  endpoint_g5_first_value: number | ''
-  endpoint_g5_confirmed_value: number | ''
-  endpoint_g5_recovery_value: number | ''
 }
 
 /** Unit string for a slope: the series unit per year (slopes are value-units
@@ -306,7 +277,6 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
-const endpointDate = (date: Date | null): string => date?.toISOString().slice(0, 10) ?? ''
 
 /** Every badge of a fitted cell: those known before fitting plus those that
  * depend on the fit and the column's module settings (evaluated only for
@@ -337,9 +307,6 @@ export function cohortExportRecords(
   for (const r of rows) {
     for (const [cellIndex, c] of r.cells.entries()) {
       const settings = typeof columnSettings === 'function' ? columnSettings(cellIndex) : columnSettings
-      const evaluated = c.endpoints.evaluated
-      const observedEvaluated = evaluated.observedCkdG4 || evaluated.observedCkdG5
-      const anyEvaluated = observedEvaluated || evaluated.percentDecline || evaluated.projectedAgeToCkdG5
       out.push({
         ...(r.groupValue !== undefined ? { group: r.groupValue } : {}),
         PatientID: r.patientId,
@@ -357,27 +324,7 @@ export function cohortExportRecords(
         reason: c.reason ?? '',
         unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
         demographics_conflict: conflictPatientKeys.has(patientIdKey(r.patientId)) ? 'yes' : '',
-        ...moduleExportValues(cohortCellFlags(c, r.patientId, settings)),
-        endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
-        endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',
-        endpoint_projected_age_to_ckd_g5: c.endpoints.projectedAgeToCkdG5.value ?? '',
-        endpoint_observed_ckd_g4: c.endpoints.observedCkdG4.met ? 'yes' : '',
-        endpoint_confirmation_days: observedEvaluated ? c.endpoints.confirmationDays : '',
-        endpoint_input_policy: anyEvaluated ? 'all dated numeric measurements' : '',
-        endpoint_prediction_anchor: evaluated.projectedAgeToCkdG5 ? 'fitted curve' : '',
-        endpoint_prediction_model: evaluated.projectedAgeToCkdG5 ? c.fitModel : '',
-        endpoint_g4_first_date: endpointDate(c.endpoints.observedCkdG4.firstDate),
-        endpoint_g4_confirmed_date: endpointDate(c.endpoints.observedCkdG4.confirmedDate),
-        endpoint_g4_recovery_date: endpointDate(c.endpoints.observedCkdG4.recoveryDate),
-        endpoint_g4_first_value: c.endpoints.observedCkdG4.firstValue ?? '',
-        endpoint_g4_confirmed_value: c.endpoints.observedCkdG4.confirmedValue ?? '',
-        endpoint_g4_recovery_value: c.endpoints.observedCkdG4.recoveryValue ?? '',
-        endpoint_g5_first_date: endpointDate(c.endpoints.observedCkdG5.firstDate),
-        endpoint_g5_confirmed_date: endpointDate(c.endpoints.observedCkdG5.confirmedDate),
-        endpoint_g5_recovery_date: endpointDate(c.endpoints.observedCkdG5.recoveryDate),
-        endpoint_g5_first_value: c.endpoints.observedCkdG5.firstValue ?? '',
-        endpoint_g5_confirmed_value: c.endpoints.observedCkdG5.confirmedValue ?? '',
-        endpoint_g5_recovery_value: c.endpoints.observedCkdG5.recoveryValue ?? '',
+        ...moduleExportValues({ flags: cohortCellFlags(c, r.patientId, settings), endpoints: c.endpoints, fitModel: c.fitModel }),
       })
     }
   }
