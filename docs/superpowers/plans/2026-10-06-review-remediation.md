@@ -85,6 +85,39 @@ checklist update, changelog.
 
 ## Progress (2026-10-06)
 
+P5–P7 implementation and independent review are complete. P5: cohort models
+can apply or skip preset exclusion windows (default apply), with union-counted
+eligible rows, per-entity display/export provenance and fit invalidation; the
+technical floor is ten qualifying patients with three distinct times for a
+random slope or two for a random intercept; lme4 and nlme flag singular fits
+separately from convergence and withhold model lines/projections. The nlme
+random-intercept diagnostic was corrected after review and verified with a
+real runtime fit. The Methodology page explains time zero and dropout limits.
+
+P6: import event types are case-insensitive, diagnostics are bounded and
+expandable, eGFR sex-code and pediatric notes are contextual, and trajectory
+badges have keyboard/touch disclosures. The patient table pages 50 rows while
+retaining global sorting, scope, detail focus and a separate all-matching
+selection action. The 2000-patient Chromium navigation check passes its
+under-two-second transition assertion. WebR load failures explain CDN/package
+access and retry. Existing export filename, stale-expiry, PNG legend, excluded
+point, model-status and mobile paths were verified rather than duplicated.
+
+P7: CI has explicit read permissions, job/test timeouts and a Playwright-version
+browser cache; Vite 6.4.3 and Vitest 4.1.11 share one locked Vite major.
+Golden-generator instructions and fixture provenance are updated. Final
+sequential verification after integration: 821/821 unit tests in 90 files,
+`pnpm build`, 30/30 Chromium E2E tests, and both real-webR factor/projection
+scripts with lme4 and nlme passed. The first full E2E run exposed two older
+nine-patient projection fixtures below the new input floor; both were updated
+to ten and the complete browser suite passed on rerun. Numeric goldens were
+unchanged because these changes do not alter their modeled data. Existing
+React `act` warnings in storage tests remain. The independent whole-branch
+review found no new major P5–P7 issue after its P5/P6 findings were fixed;
+the three deferred P4 Minor issues below remain for owner policy review.
+Manual smoke steps were not rerun, and representative research-data acceptance
+remains pending. See `tests/e2e/smoke.md` for the evidence boundary.
+
 P5 package 1: Cohort models now expose an apply/skip choice for active preset
 event and AKI windows, defaulting to apply. Eligible exact dated rows removed
 by overlapping windows are counted once per pooled or grouped entity before
@@ -147,9 +180,8 @@ complete: it found one documentation error in the HbA1c 7 % projection example
 (`docs/architecture.md`), corrected in the follow-up documentation commit; no
 numeric code changed.
 
-Then P5–P7 as above. Owner review pending: UI-reference sentences changed on
-the methodology page (P2) and the new cohort-model sentence on time origin and
-missing factors.
+Owner review pending: UI-reference sentences changed on the methodology page
+(P2) and the cohort-model wording on time origin and dropout.
 
 First P4 package completed: `<x` and `>x` rows stay in raw counts and charts but
 are excluded by row operator from individual/cohort fits and slope lines,

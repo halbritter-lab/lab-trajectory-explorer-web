@@ -7,6 +7,14 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- The patient table now pages large cohorts while keeping global sort and
+  export scope, keyboard focus on return from patient detail, and explicit
+  page versus all-matching selection. Event types accept case variations;
+  import diagnostics can be expanded, clinical badges have accessible details,
+  and WebR download failures give connection and retry guidance.
+- CI uses restricted token permissions, bounded jobs and cached Chromium;
+  development dependencies align on patched Vite 6.4.3 and Vitest 4.1.11.
+
 - Cohort mixed models require ten patients with repeated times (three for
   random slopes, two for random intercepts). This technical input guard is not
   a sample-size calculation. Singular fits are flagged separately from

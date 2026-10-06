@@ -256,3 +256,13 @@ and representative research-data acceptance remains pending. Whole-P4 review
 found no major issue on the normal import path; its deferred Minor findings are
 recorded in the [P4 progress plan](../../docs/superpowers/plans/2026-10-06-review-remediation.md#progress-2026-10-06).
 
+P5–P7 final automated close-out (2026-10-06): 821/821 unit tests in 90 files,
+`pnpm build`, and 30/30 Chromium checks passed on the integrated branch. The
+browser checks include a 2000-patient table with a measured navigation
+transition under two seconds, model projection workbook downloads, and 390 px
+layout. Both real-webR verification scripts passed with lme4 and nlme; the
+factor script includes healthy random-intercept fits as well as random slopes.
+The manual single-interface steps 1–7 above were not rerun for this close-out.
+Their dated observation remains above; representative research-data and
+first-user acceptance remain pending.
+
