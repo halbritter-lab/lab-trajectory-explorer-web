@@ -88,7 +88,7 @@ function CellSummary({
     </>}
     {endpoint && <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p></details></>}
     {cell.akiChip && <span className="wt-badge wt-badge-aki" title={cell.akiSummary}>{cell.akiChip}</span>}
-    {cell.excludedIdx.length > 0 && <span className="wt-muted">{cell.excludedIdx.length} excluded from the fit by censoring/AKI</span>}
+    {cell.fitModel !== 'none' && cell.excludedIdx.length > 0 && <span className="wt-muted">{cell.excludedIdx.length} excluded from the fit by censoring/AKI</span>}
   </div>
 }
 
@@ -355,18 +355,18 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
             <option value="id:desc">Patient ID (Z → A)</option>
             {parameters.map(p => (
               <optgroup key={p.key} label={p.label}>
-                <option value={`${p.key}:latest`}>Latest value: {p.label} ↓</option>
-                <option value={`${p.key}:slope`}>Slope: {p.label} (steep decline first) ↑</option>
-                <option value={`${p.key}:absSlope`}>Absolute slope: {p.label} ↓</option>
-                <option value={`${p.key}:n`}>Most measurements: {p.label} ↓</option>
-                <option value={`${p.key}:duration`}>Longest duration: {p.label} ↓</option>
+                <option value={`${p.key}:latest`}>Latest value: {p.label}</option>
+                <option value={`${p.key}:slope`}>Slope: {p.label}</option>
+                <option value={`${p.key}:absSlope`}>Absolute slope: {p.label}</option>
+                <option value={`${p.key}:n`}>Number of measurements: {p.label}</option>
+                <option value={`${p.key}:duration`}>Duration: {p.label}</option>
               </optgroup>
             ))}
           </select>
         </label>
         {activeMetric && <div className="wt-sort-direction" role="group" aria-label="Sort direction">
           <button type="button" aria-pressed={sortReversed} onClick={() => setSortReversed(previous => !previous)}>Reverse order</button>
-          <span className="wt-muted" role="status">{metricArrow(sortAscending)} {sortAscending ? 'Lowest first' : 'Highest first'}{activeMetric === 'slope' && !sortReversed ? ' (steepest decline first)' : ''}; patients without a value last</span>
+          <span className="wt-muted" role="status">{metricArrow(sortAscending)} {sortAscending ? 'Lowest first' : 'Highest first'}{activeMetric === 'slope' && !sortReversed ? ' (steepest decline first)' : ''}{activeMetric === 'n' || activeMetric === 'duration' ? '' : '; patients without a value last'}</span>
         </div>}
       </div>
       <div className="wt-toolbar"><label><input type="checkbox" checked={selectedOnly} onChange={event => setSelectedOnly(event.target.checked)} /> Selected patients only</label><span>{selected.length} selected · {visible.length} in the shared scope</span><button onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])} disabled={!patientIds.length}>Select visible patients</button><button onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div>

@@ -17,7 +17,7 @@ export function WorkspaceStorageControls({ hasData }: { hasData: boolean }) {
   const legacyDataRemoved = useWorkspaceStorage(s => s.legacyDataRemoved)
   return <div className="workspace-storage">
     {legacyDataRemoved && <div className="notice amber" role="status">
-      <p>Data saved on this device by the former version of Lab Trajectory Explorer was removed: that version has been replaced and its saved copies are no longer read. Import your file again to continue. To keep a dataset between visits, use “Remember on this device” below.</p>
+      <p>Data or settings saved on this device by the former version of Lab Trajectory Explorer were removed: that version has been replaced and its saved copies are no longer read. Import your file again to continue. To keep a dataset between visits, use “Remember on this device” below.</p>
       <button type="button" onClick={() => useWorkspaceStorage.setState({ legacyDataRemoved: false })}>Dismiss</button>
     </div>}
     <label><input type="checkbox" checked={enabled} disabled={!hasData && !enabled}

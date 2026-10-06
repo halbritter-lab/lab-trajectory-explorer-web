@@ -70,6 +70,14 @@ describe('workspace model validity', () => {
     expect([...lines].map(line => line.getAttribute('data-group'))).toEqual(['X'])
     expect(screen.getByTestId('group-model-legend')).toHaveTextContent('fitted separately per group (X)')
     expect(view.container.querySelector('svg')!.getAttribute('data-export-context')).toContain('Group mixed model mean lines: X')
+    // Rows filtered to group Y (as Filter group does) drop group X's line.
+    const onlyY = buildCohortRows(data.rows, ['C'], workspaceSpecs(data, [data.parameters[0].key]))
+    view.rerender(<WorkspacePlot data={data} parameter={data.parameters[0]} parameterIndex={0} cohortRows={onlyY}
+      axis="baseline" groupBy="arm" highlight={null} display={{ points: true, connect: true, events: false, aki: false }}
+      showFit onOpen={() => {}} sharedDomain={{ min: 0, max: 100, days: 731 }} scaleMode="shared" />)
+    expect(view.container.querySelector('.wt-group-model-line')).toBeNull()
+    view.rerender(<Harness groupBy="arm" />)
+    expect(view.container.querySelectorAll('.wt-group-model-line')).toHaveLength(1)
     // Hiding the group in the legend hides its model line too.
     fireEvent.click(within(screen.getByRole('group', { name: /^Groups for/ })).getByRole('button', { name: /X/ }))
     expect(view.container.querySelector('.wt-group-model-line')).toBeNull()

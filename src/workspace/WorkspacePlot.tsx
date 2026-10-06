@@ -21,6 +21,7 @@ const ROMAN: Record<number, string> = { 1: 'I', 2: 'II', 3: 'III' }
 const EXCLUDED_COLOR = '#64748b'
 const AKI_COLOR = '#b42318'
 const MS_PER_DAY = 86_400_000
+const AKI_MARKER_TOLERANCE_DAYS = 2
 
 function meanBaselineAge(rows: readonly MixedModelSpikeRow[]): number | null {
   const ages = [...new Map(rows.map(row => [row.patient_id, row.baseline_age])).values()]
@@ -76,14 +77,18 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         const exclusions: ExclusionReason[] = cell?.pointExclusionReasons?.[index] ?? []
         return x === null || !Number.isFinite(x) || !Number.isFinite(point.value) ? [] : [{ ...point, x, exclusions, operator: sourceRows.get(row.patientId)?.[index]?.wertOperator ?? '=' as WertOperator }]
       })
-      // AKI episode peaks sit on the nearest plotted measurement of this series,
-      // so creatinine-derived episodes also mark eGFR columns.
+      // Episodes are creatinine-derived and reach every column of the patient.
+      // A peak sits on this series' measurement only if one exists within
+      // AKI_MARKER_TOLERANCE_DAYS; otherwise a value-free tick marks its date on
+      // the time axis, so the marker never borrows an unrelated value.
       const akiMarkers = (cell?.akiEpisodes ?? []).flatMap(episode => {
-        if (!points.length) return []
         const peak = episode.peakDate.getTime()
-        const nearest = points.reduce((best, p) => Math.abs(p.date.getTime() - peak) < Math.abs(best.date.getTime() - peak) ? p : best, points[0])
-        return [{ x: nearest.x, value: nearest.value, label: `AKI ${ROMAN[episode.stage] ?? episode.stage}`,
-          title: `AKI stage ${ROMAN[episode.stage] ?? episode.stage} · onset ${formatWorkspaceDate(episode.date)} · creatinine peak ${formatWorkspaceNumber(episode.peakValue)} on ${formatWorkspaceDate(episode.peakDate)} (baseline ${formatWorkspaceNumber(episode.baselineValue)})` }]
+        const nearest = points.length ? points.reduce((best, p) => Math.abs(p.date.getTime() - peak) < Math.abs(best.date.getTime() - peak) ? p : best, points[0]) : null
+        const onPoint = nearest !== null && Math.abs(nearest.date.getTime() - peak) <= AKI_MARKER_TOLERANCE_DAYS * MS_PER_DAY
+        const x = onPoint ? nearest.x : xValue(episode.peakDate)
+        if (x === null || !Number.isFinite(x)) return []
+        return [{ x, value: onPoint ? nearest.value : null, label: `AKI ${ROMAN[episode.stage] ?? episode.stage}`,
+          title: `AKI stage ${ROMAN[episode.stage] ?? episode.stage} · onset ${formatWorkspaceDate(episode.date)} · creatinine peak ${formatWorkspaceNumber(episode.peakValue)} on ${formatWorkspaceDate(episode.peakDate)} (baseline ${formatWorkspaceNumber(episode.baselineValue)})${onPoint ? '' : ' · no measurement of this parameter on that date'}` }]
       })
       const akiBands = (cell?.akiBands ?? []).flatMap(band => {
         const start = xValue(band.start), end = xValue(band.end)
@@ -137,7 +142,9 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       return [{ key, group, points }]
     })
   }, [showCohortMixedModelLine, cohortModelResults, data, parameter.key, axis, mixedModelConfig, groupBy])
-  const visibleModelLines = modelLines.filter(line => line.group === null || !hiddenGroups.includes(line.group))
+  // Group lines follow the overlay: only groups currently plotted (after the
+  // group filter) and not hidden in the legend.
+  const visibleModelLines = modelLines.filter(line => line.group === null || groups.includes(line.group) && fullGroups.includes(line.group) && !hiddenGroups.includes(line.group))
   const pooledModelLine = visibleModelLines.find(line => line.group === null)
   const groupModelLines = visibleModelLines.filter(line => line.group !== null)
 
@@ -210,7 +217,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
                 {boundedPrefix(p.operator) && <text x={x(p.x) + 5} y={y(p.value) - 5} fill={excluded ? EXCLUDED_COLOR : color}>{p.operator}</text>}</g>
             })}
             {showFit && series.cell.fitLines.map((line, i) => <polyline key={i} points={line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} data-fit-quality={uncertainFit ? "uncertain" : "supported"} strokeDasharray={uncertainFit ? "2 4" : "6 4"} strokeWidth="2" />)}
-            {display.aki && series.akiMarkers.map((marker, i) => <g key={`aki-${i}`} data-testid="aki-marker"><path d={`M ${x(marker.x)} ${y(marker.value) - 6} l 5 6 l -5 6 l -5 -6 Z`} fill={AKI_COLOR} stroke="white" strokeWidth={1}><title>{marker.title}</title></path>{akiDetail(series.row.patientId) && <text x={x(marker.x)} y={y(marker.value) - 10} textAnchor="middle" fill={AKI_COLOR} fontSize="10">{marker.label}</text>}</g>)}
+            {display.aki && series.akiMarkers.map((marker, i) => {
+              // Off-series episodes sit on the time axis, not on a value.
+              const markerY = marker.value === null ? 244 : y(marker.value)
+              return <g key={`aki-${i}`} data-testid="aki-marker" data-on-measurement={marker.value !== null}><path d={`M ${x(marker.x)} ${markerY - 6} l 5 6 l -5 6 l -5 -6 Z`} fill={marker.value === null ? 'white' : AKI_COLOR} stroke={AKI_COLOR} strokeWidth={1.2}><title>{marker.title}</title></path>{akiDetail(series.row.patientId) && <text x={x(marker.x)} y={markerY - 10} textAnchor="middle" fill={AKI_COLOR} fontSize="10">{marker.label}</text>}</g>
+            })}
           </g>
           {display.events && data.events.filter(event => event.patientId === series.row.patientId).map((event, i) => { const position = series.xValue(event.date); return position === null ? null : <line key={i} x1={x(position)} x2={x(position)} y1="30" y2="240" stroke="#936221" strokeDasharray="2 5"><title>Patient {event.patientId}: {event.title}, {formatWorkspaceDate(event.date)}</title></line> })}
         </g>
@@ -241,7 +252,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groupModelLines.map(line => groupLabel(line.group!)).join(', ')}).{axis === 'age' ? ' Age axis: mean baseline age of each group plus elapsed model time.' : ''}</p>}
     {excludedCount > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> Grey open circles: {excludedCount} measurements excluded from the fit ({excludedReasons.map(exclusionReasonLabel).join('; ')}). They stay visible but do not enter the slope.</p>}
     {display.aki && <p className="wt-muted wt-plot-key">{akiMarkerCount > 0
-      ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={AKI_COLOR} /></svg> AKI episode at the creatinine peak (KDIGO creatinine criterion, automated screening).{' '}<span className="wt-aki-swatch" aria-hidden="true" /> Shaded: AKI window after onset{cohortRows.length > 1 ? ', shown for the highlighted patient' : ''}.</>
+      ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={AKI_COLOR} /></svg> AKI episode at the creatinine peak (KDIGO creatinine criterion, automated screening); an open diamond on the time axis marks a peak without a measurement of this parameter within {AKI_MARKER_TOLERANCE_DAYS} days.{' '}<span className="wt-aki-swatch" aria-hidden="true" /> Shaded: AKI window after onset{cohortRows.length > 1 ? ', shown for the highlighted patient' : ''}.</>
       : 'No AKI episodes detected for the plotted trajectories.'}</p>}
     {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurements or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}

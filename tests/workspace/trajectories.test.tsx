@@ -452,6 +452,25 @@ describe('AKI display in workspace charts', () => {
     expect(within(chart).getAllByTestId('excluded-point').map(point => point.getAttribute('data-exclusion'))).toEqual(['aki', 'aki'])
   })
 
+  it('puts an episode without a same-date measurement on the time axis, not on an unrelated value', () => {
+    const data = creatinineFixture(['P1'])
+    // A second parameter measured only years away from the AKI peak.
+    const marker = { key: JSON.stringify(['CRP', 'mg/l']), label: 'CRP [mg/l]', bezeichnung: 'CRP', einheit: 'mg/l', derived: false }
+    const crp: LabRow[] = ['2018-01-01', '2019-01-01', '2022-06-01'].map((date, i) => ({ patientId: 'P1', labDatum: new Date(`${date}T00:00:00Z`), bezeichnung: 'CRP', einheit: 'mg/l', wert: String(5 + i), wertNum: 5 + i, wertOperator: '=' as const, loinc: null, patientSex: null, patientAgeAtLab: 50 }))
+    data.parameters = [...data.parameters, marker]
+    data.rows = [...data.rows, ...crp]
+    data.rawRows = data.rows
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient P1' }))
+    fireEvent.click(screen.getByLabelText('AKI windows and episodes'))
+    const creatinine = screen.getByRole('region', { name: 'Chart Kreatinin [mg/dl]' })
+    expect(within(creatinine).getByTestId('aki-marker')).toHaveAttribute('data-on-measurement', 'true')
+    const other = screen.getByRole('region', { name: 'Chart CRP [mg/l]' })
+    const offSeries = within(other).getByTestId('aki-marker')
+    expect(offSeries).toHaveAttribute('data-on-measurement', 'false')
+    expect(offSeries.querySelector('title')!.textContent).toContain('no measurement of this parameter on that date')
+  })
+
   it('marks episodes for every overlay trajectory but windows and labels only for the highlighted one', () => {
     render(<TrajectoriesWorkspace data={creatinineFixture(['P1', 'P2'])} />)
     fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))

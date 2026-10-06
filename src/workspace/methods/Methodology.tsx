@@ -445,7 +445,8 @@ export function Methodology() {
         configured threshold (default <strong>5 mL/min/1.73m² per year</strong>, matching the KDIGO
         definition of rapid CKD progression as a sustained decline faster than 5 mL/min/1.73m²/yr)
         is marked <span className="rapid-badge rapid-badge-inline">rapid ↓</span>{' '}
-        in the table and carries a <code>rapid_progression</code> column in the export. The
+        in the table when the fit is shown, and carries a <code>rapid_progression</code> column in
+        the export. The
         threshold is adjustable under Trajectories → Display and analysis (set it to 0 to disable
         the flag). No other clinical
         cut-offs are applied; all other interpretation of the ranking is left to the user, and the

@@ -2,6 +2,9 @@ import { create } from 'zustand'
 import { createStore, del, get, keys, update, type UseStore } from 'idb-keyval'
 import { useAppStore } from './state/store'
 import type { AnalysisContext, AnalysisSettings } from '../core/analysis/types'
+import type { Sex, WertOperator } from '../core/types'
+import type { ClinicalEventType, ClinicalEventWarning, DialysisIntent } from '../core/events/events'
+import type { FormulaName } from '../core/egfr/series'
 
 export const WORKSPACE_STORAGE_KEY = 'lab-explorer:workspace:v1'
 /** Keys of earlier versions start with this prefix in idb-keyval's shared
@@ -40,28 +43,40 @@ const nullableNumber = (v: unknown) => v === null || typeof v === 'number' && Nu
 const validDate = (v: unknown) => v instanceof Date && Number.isFinite(v.getTime())
 const nullableDate = (v: unknown) => v === null || validDate(v)
 const patientId = (v: unknown) => typeof v === 'string' && v.length > 0 || typeof v === 'number' && Number.isFinite(v)
-const sex = (v: unknown) => v === null || ['m', 'w', 'd'].includes(v as string)
+/** Every value a union allows, checked at compile time: adding a code to the
+ * union without listing it here fails the build instead of making every saved
+ * copy that uses it invalid (and therefore deleted) on the next start. */
+function allValues<T extends string | null>() {
+  return <const L extends readonly T[]>(list: L & ([T] extends [L[number]] ? unknown : 'missing union members')) => list as readonly T[]
+}
+const SEX_CODES = allValues<Sex>()(['m', 'w', 'd'])
+const OPERATORS = allValues<WertOperator>()(['=', '<', '>', 'range', 'unparseable'])
+const EVENT_TYPES = allValues<ClinicalEventType>()(['kidney_transplant', 'dialysis', 'other'])
+const INTENTS = allValues<DialysisIntent | null>()([null, 'acute', 'chronic', 'unknown'])
+const EVENT_WARNINGS = allValues<ClinicalEventWarning>()(['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval'])
+const FORMULAS = allValues<FormulaName | 'off'>()(['off', 'ckd-epi-2021', 'mdrd-4', 'ekfc-2021'])
+const sex = (v: unknown) => v === null || SEX_CODES.includes(v as Sex)
 
 function validSnapshot(value: unknown): value is Snapshot {
   if (!record(value) || value.version !== 1 || typeof value.writeToken !== 'string' || !Number.isFinite(value.savedAt) || !nullableText(value.fileName)) return false
   if (!Array.isArray(value.rows) || !value.rows.length || !value.rows.every(row => record(row) && patientId(row.patientId)
     && nullableDate(row.labDatum) && nullableText(row.bezeichnung) && nullableText(row.einheit)
     && nullableText(row.wert) && nullableNumber(row.wertNum) && nullableText(row.loinc)
-    && ['=', '<', '>', 'range', 'unparseable'].includes(row.wertOperator as string)
+    && OPERATORS.includes(row.wertOperator as WertOperator)
     && sex(row.patientSex) && nullableNumber(row.patientAgeAtLab)
     && (row.patientBirthDate === undefined || nullableDate(row.patientBirthDate))
     && (row.patientSexRaw === undefined || nullableText(row.patientSexRaw)))) return false
   if (!Array.isArray(value.events) || !value.events.every(event => record(event) && patientId(event.patientId)
     && validDate(event.date) && nullableDate(event.endDate) && typeof event.title === 'string'
-    && nullableText(event.description) && ['kidney_transplant', 'dialysis', 'other'].includes(event.type as string)
-    && [null, 'acute', 'chronic', 'unknown'].includes(event.intent as string | null)
-    && ['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval'].includes(event.warning as string))) return false
+    && nullableText(event.description) && EVENT_TYPES.includes(event.type as ClinicalEventType)
+    && INTENTS.includes(event.intent as DialysisIntent | null)
+    && EVENT_WARNINGS.includes(event.warning as ClinicalEventWarning))) return false
   if (!record(value.patientAttributes) || !Object.values(value.patientAttributes).every(attrs => record(attrs) && Object.values(attrs).every(v => typeof v === 'string'))) return false
   if (!record(value.manualDemographics) || !Object.values(value.manualDemographics).every(v => record(v)
     && (v.sex === undefined || sex(v.sex)) && (v.age === undefined || typeof v.age === 'number' && Number.isFinite(v.age) && v.age >= 0 && v.age <= 130))) return false
   const settings = value.analysisSettings
   if (!record(settings) || !record(settings.egfr) || !record(settings.aki) || !record(settings.rapidEgfrDecline)) return false
-  return ['off', 'ckd-epi-2021', 'mdrd-4', 'ekfc-2021'].includes(settings.egfr.formula as string)
+  return FORMULAS.includes(settings.egfr.formula as FormulaName | 'off')
     && (settings.egfr.source === null || Array.isArray(settings.egfr.source) && settings.egfr.source.length === 2 && settings.egfr.source.every(v => typeof v === 'string'))
     && typeof settings.aki.showOverlays === 'boolean' && typeof settings.aki.exclusionDays === 'number' && Number.isFinite(settings.aki.exclusionDays) && settings.aki.exclusionDays >= 0
     && typeof settings.rapidEgfrDecline.threshold === 'number' && Number.isFinite(settings.rapidEgfrDecline.threshold)

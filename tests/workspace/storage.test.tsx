@@ -211,7 +211,7 @@ describe('storage left by earlier versions', () => {
     expect(useWorkspaceStorage.getState().legacyDataRemoved).toBe(true)
     expect(await keys()).toEqual(['another-app:state'])
     render(<WorkspaceApp />)
-    expect(screen.getByText(/saved on this device by the former version of Lab Trajectory Explorer was removed/)).toBeInTheDocument()
+    expect(screen.getByText(/or settings saved on this device by the former version of Lab Trajectory Explorer were removed/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Dismiss' }))
     expect(screen.queryByText(/former version/)).not.toBeInTheDocument()
     await restart()

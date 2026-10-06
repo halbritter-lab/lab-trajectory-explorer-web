@@ -454,7 +454,7 @@ test('removes data saved by the former interface once and says so', async ({ pag
     }
   }))
   await page.reload()
-  await expect(page.getByText(/by the former version of Lab Trajectory Explorer was removed/)).toBeVisible()
+  await expect(page.getByText(/by the former version of Lab Trajectory Explorer were removed/)).toBeVisible()
   const remaining = await page.evaluate(() => new Promise<IDBValidKey[]>((resolve) => {
     const request = indexedDB.open('keyval-store')
     request.onsuccess = () => {

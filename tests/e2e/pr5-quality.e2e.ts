@@ -82,16 +82,18 @@ test('renders every G5 projection outcome in its patient row', async ({ page }) 
   await showOnlyParameter(page, /^eGFR \[ml\/min\/1\.73m2\]$/, false)
   await page.getByLabel('Analysis preset').selectOption('ckd_progression')
 
+  // The G5 label is the last token of the endpoint badge; pin it exactly.
   const expected = new Map([
-    ['1', /G5 (unlikely|not projected)/],
-    ['2', /G5 now/],
-    ['3', /G5 no age/],
-    ['4', /G5 n < 3/],
-    ['5', /G5 < 1 yr/],
+    ['1', 'G5 unlikely'],
+    ['2', 'G5 now'],
+    ['3', 'G5 no age'],
+    ['4', 'G5 n < 3'],
+    ['5', 'G5 < 1 yr'],
   ])
   for (const [patient, label] of expected) {
     const badge = patientRow(page, patient).locator('.wt-badge-endpoint')
-    await expect(badge).toHaveText(label)
+    await expect(badge).toBeVisible()
+    expect((await badge.innerText()).split(' · ').at(-1)).toBe(label)
     expect(await badge.getAttribute('title')).toBeTruthy()
   }
   expect(problems).toEqual([])
