@@ -247,3 +247,12 @@ Independent whole-P3 review is complete: its one finding was an inaccurate
 HbA1c 7 % projection example in `docs/architecture.md`, corrected in the
 follow-up documentation commit.
 
+P4 clinical/statistical close-out (2026-10-06): the final sequential automated
+run passed 800/800 unit tests in 90 files, `pnpm build`, and 29/29 Chromium
+checks with `pnpm test:e2e`. These checks cover the automated workspace paths
+and focused endpoint, AKI, import and export regressions; they do not constitute
+a manual run of steps 1–7 above. Those steps retain their dated verification,
+and representative research-data acceptance remains pending. Whole-P4 review
+found no major issue on the normal import path; its deferred Minor findings are
+recorded in the [P4 progress plan](../../docs/superpowers/plans/2026-10-06-review-remediation.md#progress-2026-10-06).
+

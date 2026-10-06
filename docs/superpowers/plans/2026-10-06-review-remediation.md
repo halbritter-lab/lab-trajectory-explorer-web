@@ -99,6 +99,26 @@ red-green tests covered CI, missing bounds and the horizon boundary. Final
 verification: 800/800 unit tests in 90 files, production build and 29/29
 Chromium checks passed. Existing React `act` warnings in storage tests remain.
 
+Whole-P4 review completed after the final package. It found no major issue on
+the normal import path. Deferred Minor findings for owner policy review:
+
+- `endpointEventPolicy` can pair an invalid direct event with an eligible lab
+  from the same UTC day whose timestamp differs; exact-time matching and
+  date-only matching would give different results.
+- `ckdEndpoints` accepts a directly supplied positive slope confidence
+  interval alongside a negative slope. Normal imported data computes these
+  values together, but inconsistent direct inputs need a policy decision.
+- `summarize` can include excluded-bound dates in its raw span and `reason`;
+  this follows the pre-existing raw-span convention for exclusions.
+
+Two P4 policy rulings have known costs: 40 %/57 % decline candidates start
+strictly after the 90-day baseline window, so a decline within that window is
+not reported as a candidate; future individual G5 crossings are withheld once
+KRT is reached, so a possible pre-KRT counterfactual crossing is not shown.
+Neither cost was changed during close-out. The manual single-interface smoke
+steps were not rerun for P4, and representative research-data acceptance is
+still pending; `tests/e2e/smoke.md` distinguishes those from automated evidence.
+
 Done and reviewed: P1 (import), P2 (single interface, dedicated storage).
 P3 implementation committed: steps 1–7 (`deada55`..`e16c2b1`), shared
 clinical-event code arrays with the storage exhaustiveness guard (`c043267`),
@@ -111,7 +131,7 @@ complete: it found one documentation error in the HbA1c 7 % projection example
 (`docs/architecture.md`), corrected in the follow-up documentation commit; no
 numeric code changed.
 
-Then P4–P7 as above. Owner review pending: UI-reference sentences changed on
+Then P5–P7 as above. Owner review pending: UI-reference sentences changed on
 the methodology page (P2) and the new cohort-model sentence on time origin and
 missing factors.
 
