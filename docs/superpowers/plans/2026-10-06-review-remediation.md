@@ -158,6 +158,13 @@ Review follow-up verification: 35/35 focused tests, 782/782 full unit tests
 across 90 files, TypeScript no-emit check and production build passed. The
 browser suite was last run for the preceding endpoint/KRT package (29/29);
 this focused review fix did not rerun it.
+Scoped provenance re-review: when a prior lab-confirmed G5 precedes KRT,
+`observed_ckd_g5` remains the projection reason, but no endpoint projection
+fit was run. The cohort export now blanks its prediction anchor and model
+whenever KRT is present, consistently with the method algorithms. The lab G5
+and KRT fields remain present. Red-green workbook regression passed; sequential
+verification: 35/35 focused tests, 782/782 full unit tests (90 files),
+TypeScript no-emit check and production build. Browser tests were not rerun.
 Independent review follow-up: the user-facing AKI methodology still described
 mg/dl as its only input after the SI-unit implementation. It now names both
 eligible units, the 88.42 conversion, exact-row selection and 1e-12 tolerance.

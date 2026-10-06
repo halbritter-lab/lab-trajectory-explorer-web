@@ -58,13 +58,14 @@ describe('approved method settings and provenance', () => {
   })
   it('labels kidney failure separately from observed G5 and exports the KRT type and date', () => {
     const input = exportFixture()
-    const endpoints = computeCkdEndpoints({ points, slopePerYear: 1, enabled: { percentDecline: false, observedCkdG5: true, projectedAgeToCkdG5: false, confirmationDays: 30 }, kidneyFailureReached: { type: 'chronic_dialysis', date: new Date('2020-06-01') } })
+    const endpoints = computeCkdEndpoints({ points, slopePerYear: 1, enabled: { percentDecline: false, observedCkdG5: true, projectedAgeToCkdG5: true, confirmationDays: 30 }, kidneyFailureReached: { type: 'chronic_dialysis', date: new Date('2020-06-01') } })
+    expect(endpoints.projectedAgeToCkdG5.reason).toBe('observed_ckd_g5')
     expect(endpointBadge(endpoints, points.length)?.label).toContain('Kidney failure reached')
     expect(endpointBadge(endpoints, points.length)?.title).toContain('chronic dialysis on 2020-06-01')
     input.cohortRows[0].cells[0].endpoints = endpoints
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.cohort)
-    expect(rows[0]).toMatchObject({ endpoint_observed_ckd_g5: 'yes', endpoint_kidney_failure_reached: 'yes', endpoint_kidney_failure_type: 'chronic_dialysis', endpoint_kidney_failure_date: '2020-06-01' })
+    expect(rows[0]).toMatchObject({ endpoint_observed_ckd_g5: 'yes', endpoint_kidney_failure_reached: 'yes', endpoint_kidney_failure_type: 'chronic_dialysis', endpoint_kidney_failure_date: '2020-06-01', endpoint_prediction_reason: 'observed_ckd_g5', endpoint_prediction_anchor: '', endpoint_prediction_model: '' })
   })
   it('withholds a future G5 projection after KRT with a neutral label and export reason', () => {
     const input = exportFixture()
