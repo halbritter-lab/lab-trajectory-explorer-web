@@ -227,20 +227,6 @@ export function effectForEvent(event: ClinicalEvent): ClinicalEventEffectInfo {
   return { effect: 'warning_no_exclusion', label: 'warning, not excluded from fit' }
 }
 
-export function eventTooltip(event: ClinicalEvent): string {
-  const parts = [
-    event.title,
-    event.type,
-    formatDate(event.date),
-    event.intent !== null ? `intent: ${event.intent}` : null,
-    event.endDate !== null ? `end: ${formatDate(event.endDate)}` : null,
-    event.description,
-    `effect: ${effectForEvent(event).label}`,
-  ]
-
-  return parts.filter((part): part is string => part !== null && part !== '').join(' · ')
-}
-
 function parsePatientId(value: unknown): PatientId | null {
   if (typeof value === 'number' && Number.isFinite(value)) return value
   if (typeof value === 'string' && value.trim() !== '') {

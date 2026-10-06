@@ -1,4 +1,4 @@
-import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, expect, it, vi } from 'vitest'
 import { DataWorkspace } from '../../src/workspace/DataWorkspace'
 import { useAppStore } from '../../src/workspace/state/store'
@@ -144,4 +144,15 @@ it('offers the demo files next to the empty templates', () => {
     expect(link.getAttribute('href')).toMatch(new RegExp(`${file.replace('.', '\.')}$`))
   }
   expect(within(screen.getByRole('group', { name: 'Templates' })).getAllByRole('link')).toHaveLength(3)
+})
+it('quotes unreadable sex spellings in the eGFR preview until the sex is resolved', () => {
+  const raw = (['female', '1', 'unknown'] as const).map((patientSexRaw, i) => ({ ...row, patientId: `P-${i}`, patientAgeAtLab: 50, patientSexRaw, patientSex: patientSexRaw === 'female' ? 'w' as const : null }))
+  useAppStore.getState().replaceDataset({ rows: raw })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  const warning = screen.getByText(/^Unreadable sex values:/)
+  expect(warning).toHaveTextContent('"1", "unknown"')
+  expect(warning).not.toHaveTextContent('"female"')
+  act(() => useAppStore.getState().setManualDemographics('P-1', { sex: 'm' }))
+  expect(screen.getByText(/^Unreadable sex value:/)).toHaveTextContent('"unknown"')
 })

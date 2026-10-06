@@ -60,18 +60,6 @@ export function creatinineSourceOptions(rows: LabRow[]): Source[] {
   )
 }
 
-export function allSourceOptions(rows: LabRow[]): Source[] {
-  const seen = new Map<string, Source>()
-  for (const r of rows) {
-    if (r.bezeichnung == null || r.einheit == null) continue
-    const key = `${r.bezeichnung}|${r.einheit}`
-    if (!seen.has(key)) seen.set(key, [r.bezeichnung, r.einheit])
-  }
-  return [...seen.values()].sort(
-    (a, b) => a[0].toLowerCase().localeCompare(b[0].toLowerCase()) || normaliseUnit(a[1]).localeCompare(normaliseUnit(b[1])),
-  )
-}
-
 export function isSerumCreatinineSource(source: Source): boolean {
   const [bez, einheit] = source
   return isCreatinineName(bez) && !isUrineName(bez) && (SERUM_UNITS as readonly string[]).includes(normaliseUnit(einheit))

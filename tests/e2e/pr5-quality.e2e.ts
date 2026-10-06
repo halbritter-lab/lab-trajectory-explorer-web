@@ -129,6 +129,9 @@ test('surfaces unreadable sex values and clears them after manual correction', a
   await expect(page.getByText('2 patients without resolved sex', { exact: false })).toBeVisible()
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
   await expect(page.getByText('2: Sex missing or unresolved')).toBeVisible()
+  const warning = page.getByText(/^Unreadable sex values:/)
+  await expect(warning).toContainText('"1", "unknown"')
+  await expect(warning).not.toContainText('"female"')
 
   await page.getByText('Review and edit patients (4)', { exact: true }).click()
   for (const patient of ['3', '4']) {
@@ -138,6 +141,7 @@ test('surfaces unreadable sex values and clears them after manual correction', a
   }
   await expect(page.getByText('0 patients without resolved sex', { exact: false })).toBeVisible()
   await expect(page.getByText(/Sex missing or unresolved/)).toHaveCount(0)
+  await expect(warning).toHaveCount(0)
   expect(problems).toEqual([])
 })
 

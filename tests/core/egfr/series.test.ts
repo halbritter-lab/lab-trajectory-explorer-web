@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { creatinineSourceOptions, allSourceOptions, defaultCreatinineSource, appendComputedEgfr, MGDL_PER_UMOLL, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../../src/core/egfr/series'
+import { creatinineSourceOptions, defaultCreatinineSource, appendComputedEgfr, MGDL_PER_UMOLL, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../../src/core/egfr/series'
 import type { LabRow } from '../../../src/core/types'
 
 function row(p: Partial<LabRow>): LabRow {
@@ -38,20 +38,6 @@ describe('creatinineSourceOptions', () => {
     expect(creatinineSourceOptions(rows)).toEqual([
       ['Kreatinin', 'mg/dl'],
       ['Kreatinin (µmol)', 'µmol/l'],
-    ])
-  })
-})
-
-describe('allSourceOptions', () => {
-  it('lists all distinct source pairs for manual picker override', () => {
-    const rows = [
-      row({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }),
-      row({ bezeichnung: 'Albumin/Kreatinin-Quotient', einheit: 'mg/g' }),
-      row({ bezeichnung: 'Kreatinin', einheit: 'mg/dl', wertNum: 1.2 }),
-    ]
-    expect(allSourceOptions(rows)).toEqual([
-      ['Albumin/Kreatinin-Quotient', 'mg/g'],
-      ['Kreatinin', 'mg/dl'],
     ])
   })
 })
