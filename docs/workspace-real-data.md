@@ -28,6 +28,12 @@ imported parameter names and patient attributes retain their original values.
    show the accepted input schema; arbitrary column mapping is a later extension.
 2. Review import diagnostics and missing or conflicting demographics. Manual age
    entries use the displayed reference date. Open a patient from the quality table.
+   CSV files are read as text (UTF-8 or Windows-1252, comma or semicolon) and
+   accept decimal commas. Dates may be `YYYY-MM-DD`, `DD.MM.YYYY` or `DD/MM/YYYY`,
+   always read day-first; Excel cells holding a date number are converted.
+   Rows with impossible dates are rejected and listed. Diagnostics also count
+   duplicate rows and censored values (`<`, `>`), and list unit spellings that were
+   merged because they differ only in case, spacing or micro sign.
 3. Choose an eGFR formula and creatinine source, inspect the preview, then apply.
    Source measurements remain intact. Output-name collisions with imported series
    block the derivation instead of silently combining measurements.

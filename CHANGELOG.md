@@ -70,6 +70,18 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
+- CSV imports are read as text, so decimal commas (`1,5`), leading-zero patient
+  IDs (`0012`), ranges (`10-20`) and UTF-8 or Windows-1252 units (`µmol/l`) reach
+  the parsers unchanged. Previously `1,5` was read as 15 without a warning.
+  Lab, event and attribute dates accept ISO, `DD.MM.YYYY` and day-first
+  `DD/MM/YYYY` (reported); numbers in date cells are Excel serial dates within
+  1900–2119. Impossible dates such as `2021-02-30` and unreadable lab dates now
+  reject the row with a diagnostic instead of loading it without a date.
+- Lab imports report exact duplicate rows, censored values (`<`, `>`) per
+  parameter and merged unit spellings. Units that differ only in case, spacing
+  or micro-sign form (`mg/dL`, `umol/L`, `μmol/l`) form one parameter; different
+  units are never converted. Missing-column errors name the missing columns and
+  list the columns found.
 - Workspace Rolling OLS and Segmented OLS selections now run their own fit paths
   instead of global OLS. Endpoint export provenance is blank for endpoints that
   were not evaluated; earlier endpoint columns keep their position and the patient
