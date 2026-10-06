@@ -36,9 +36,7 @@ describe('computeAnalysisResult', () => {
     })
 
     expect(result.rows).toBe(rows)
-    expect(result.overlays).toEqual([])
     expect(result.fitInputs).toEqual([])
-    expect(result.cohortFlags).toEqual([])
     expect(result.messages).toEqual([])
   })
 
@@ -55,8 +53,6 @@ describe('computeAnalysisResult', () => {
         },
         apply: () => ({
           messages: [],
-          cohortFlags: [],
-          overlays: [],
           fitInputs: [],
         }),
       },
@@ -76,9 +72,7 @@ describe('computeAnalysisResult', () => {
     })
 
     expect(result.rows).toBe(rows)
-    expect(result.overlays).toEqual([])
     expect(result.fitInputs).toEqual([])
-    expect(result.cohortFlags).toEqual([])
     expect(result.messages).toEqual([])
   })
 

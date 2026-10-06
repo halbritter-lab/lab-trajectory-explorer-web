@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { buildCohortRows, cohortExportRecords, isRapidEgfrDecline, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
+import { buildCohortRows, cohortExportRecords, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
+import { isRapidEgfrDecline } from '../../../src/core/domains/nephrology/rapidEgfrDeclineModule'
 import type { LabRow } from '../../../src/core/types'
 import { acuteReviewConfig, ckdProgressionConfig } from '../../../src/core/fitPipeline/types'
 import type { ClinicalEvent } from '../../../src/core/events/events'
@@ -192,9 +193,10 @@ describe('cohortExportRecords', () => {
       row({ patientId: 1, bezeichnung: spec.bezeichnung, einheit: 'ml/min/1,73m²', labDatum: d('2021-01-01'), wertNum: 70 }),
     ]
     const cohort = buildCohortRows(rows, [1], [spec])
-    expect(cohortExportRecords(cohort, 5)[0].rapid_progression).toBe('yes')
-    expect(cohortExportRecords(cohort, 0)[0].rapid_progression).toBe('') // disabled
-    expect(cohortExportRecords(cohort, 50)[0].rapid_progression).toBe('') // not steep enough
+    const threshold = (value: number) => ({ rapidEgfrDecline: { threshold: value } })
+    expect(cohortExportRecords(cohort, threshold(5))[0].rapid_progression).toBe('yes')
+    expect(cohortExportRecords(cohort, threshold(0))[0].rapid_progression).toBe('') // disabled
+    expect(cohortExportRecords(cohort, threshold(50))[0].rapid_progression).toBe('') // not steep enough
   })
 
   it('adds a leading group column only when rows carry a groupValue', () => {
@@ -268,8 +270,8 @@ describe('cohortExportRecords', () => {
       row({ patientId: 1, labDatum: d('2021-01-01'), wertNum: 2.0 }),
     ]
     const cohort = buildCohortRows(rows, [1], [spec])
-    expect(cohortExportRecords(cohort, 0, new Set(['1']))[0].demographics_conflict).toBe('yes')
-    expect(cohortExportRecords(cohort, 0, new Set())[0].demographics_conflict).toBe('')
+    expect(cohortExportRecords(cohort, undefined, new Set(['1']))[0].demographics_conflict).toBe('yes')
+    expect(cohortExportRecords(cohort, undefined, new Set())[0].demographics_conflict).toBe('')
     expect(cohortExportRecords(cohort)[0].demographics_conflict).toBe('')
   })
 })

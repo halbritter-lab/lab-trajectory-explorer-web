@@ -22,7 +22,7 @@ describe('workspace workbook', () => {
     }
     for (const threshold of [5, 10]) {
       const workbook = XLSX.read(workspaceWorkbookBytes({ ...input, fitConfigByParameterKey: configs,
-        rapidEgfrThresholdByParameterKey: { [first.key]: 5, [second.key]: threshold },
+        moduleSettingsByParameterKey: { [first.key]: { rapidEgfrDecline: { threshold: 5 } }, [second.key]: { rapidEgfrDecline: { threshold } } },
       }), { type: 'array' })
       const settings = records(workbook, 'settings')
       expect(JSON.parse(String(settings[0].fit_config)).fitModel).toBe('ols')

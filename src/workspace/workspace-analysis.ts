@@ -1,6 +1,7 @@
 import type { FitConfig, FitModel, FitPreset, TimeBalancing, UnknownDialysisPolicy } from '../core/fitPipeline/types'
 import { ckdProgressionConfig, generalExplorationConfig, acuteReviewConfig } from '../core/fitPipeline/types'
-import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS, DEFAULT_RAPID_EGFR_DECLINE } from '../core/domains/nephrology/constants'
+import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
+import { defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
 
 export interface AnalysisCatalogPreset {
   id: string
@@ -60,7 +61,8 @@ export interface WorkspaceFitSettings {
     akiExclusionDays: number
   }
   endpoints: FitConfig['endpoints']
-  rapidEgfrThreshold: number
+  /** The column's own module settings (e.g. its rapid-decline threshold). */
+  moduleSettings: ColumnModuleSettings
 }
 
 export function defaultFitSettings(presetId: string = 'general_exploration'): WorkspaceFitSettings {
@@ -86,7 +88,7 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
         confirmationDays: DEFAULT_CONFIRMATION_DAYS,
         projectedAgeToCkdG5: true,
       },
-      rapidEgfrThreshold: DEFAULT_RAPID_EGFR_DECLINE,
+      moduleSettings: defaultColumnModuleSettings(),
     }
   }
 
@@ -112,7 +114,7 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
         confirmationDays: DEFAULT_CONFIRMATION_DAYS,
         projectedAgeToCkdG5: false,
       },
-      rapidEgfrThreshold: DEFAULT_RAPID_EGFR_DECLINE,
+      moduleSettings: defaultColumnModuleSettings(),
     }
   }
 
@@ -138,7 +140,7 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
         confirmationDays: DEFAULT_CONFIRMATION_DAYS,
         projectedAgeToCkdG5: false,
       },
-      rapidEgfrThreshold: DEFAULT_RAPID_EGFR_DECLINE,
+      moduleSettings: defaultColumnModuleSettings(),
     }
   }
 
@@ -164,7 +166,7 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
       confirmationDays: DEFAULT_CONFIRMATION_DAYS,
       projectedAgeToCkdG5: false,
     },
-    rapidEgfrThreshold: DEFAULT_RAPID_EGFR_DECLINE,
+    moduleSettings: defaultColumnModuleSettings(),
   }
 }
 

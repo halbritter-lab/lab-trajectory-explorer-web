@@ -1,23 +1,142 @@
-import { akiModule } from '../domains/nephrology/aki/akiModule'
+/**
+ * The module registry: the one place that lists analysis modules. Core code
+ * reaches domain behaviour only through this list and the contract in
+ * ./types.ts. To add a module, append it here (see docs/architecture.md).
+ */
 import { demographicsModule } from './demographicsModule'
 import { egfrModule } from '../domains/nephrology/egfr/egfrModule'
-import { rapidEgfrDeclineModule } from '../domains/nephrology/rapidEgfrDeclineModule'
 import { clinicalEventsModule } from '../domains/nephrology/clinicalEventsModule'
+import { akiModule } from '../domains/nephrology/aki/akiModule'
+import { rapidEgfrDeclineModule } from '../domains/nephrology/rapidEgfrDeclineModule'
 import type {
-  AnalysisContribution,
   AnalysisModule,
   AnalysisResult,
-  AnalysisSettings,
+  CellFlagContext,
+  CohortFlag,
   ManualDemographics,
+  SettingsModule,
 } from './types'
 import type { ClinicalEvent } from '../events/events'
 import type { LabRow } from '../types'
 
-export const defaultAnalysisSettings = (): AnalysisSettings => ({
-  egfr: { ...egfrModule.defaultSettings },
-  aki: { ...akiModule.defaultSettings },
-  rapidEgfrDecline: { ...rapidEgfrDeclineModule.defaultSettings },
-})
+/** Every analysis module, in pipeline order: dataset contributions of earlier
+ * modules (e.g. derived eGFR rows) are visible to later ones, and windows,
+ * flags and export columns appear in this order. */
+export const analysisModules = [
+  demographicsModule,
+  egfrModule,
+  clinicalEventsModule,
+  akiModule,
+  rapidEgfrDeclineModule,
+] as const
+
+type RegisteredModule = (typeof analysisModules)[number]
+
+/** Stored analysis settings: one entry per module with settings, keyed by
+ * module id. Derived from the registry, so a new module's settings type
+ * appears here when the module is added to the list. */
+export type AnalysisSettings = {
+  [M in RegisteredModule as M extends { parseSettings(value: unknown): unknown } ? M['id'] : never]:
+    M extends { parseSettings(value: unknown): infer S } ? NonNullable<S> : never
+}
+
+/** A column's own module settings (e.g. its rapid-decline threshold). */
+export type ColumnModuleSettings = Partial<AnalysisSettings>
+
+/** Any module, whatever its settings type. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type RegisteredAnalysisModule = AnalysisModule<any, string>
+
+function isSettingsModule(module: RegisteredAnalysisModule): module is SettingsModule<unknown, string> {
+  return module.defaultSettings !== undefined && typeof module.parseSettings === 'function'
+}
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value)
+
+export function defaultAnalysisSettings(): AnalysisSettings {
+  const settings: Record<string, unknown> = {}
+  for (const module of analysisModules as readonly RegisteredAnalysisModule[]) {
+    if (isSettingsModule(module)) settings[module.id] = { ...(module.defaultSettings as object) }
+  }
+  return settings as AnalysisSettings
+}
+
+/**
+ * Validate stored settings module by module. A module missing from the
+ * stored value gets its defaults, so adding a module never invalidates a
+ * saved workspace; a value a module rejects makes the whole value invalid.
+ * Valid module values are kept as stored.
+ */
+export function parseAnalysisSettings(value: unknown): AnalysisSettings | null {
+  if (!isRecord(value)) return null
+  const parsed: Record<string, unknown> = {}
+  for (const module of analysisModules as readonly RegisteredAnalysisModule[]) {
+    if (!isSettingsModule(module)) continue
+    const stored = value[module.id]
+    if (stored === undefined) {
+      parsed[module.id] = { ...(module.defaultSettings as object) }
+      continue
+    }
+    const settings = module.parseSettings(stored)
+    if (settings === null) return null
+    parsed[module.id] = settings
+  }
+  return parsed as AnalysisSettings
+}
+
+/** Default per-column settings: a copy of each column-configurable module's
+ * defaults. */
+export function defaultColumnModuleSettings(): ColumnModuleSettings {
+  const settings: Record<string, unknown> = {}
+  for (const module of analysisModules as readonly RegisteredAnalysisModule[]) {
+    if (module.columnSettingFields?.length && module.defaultSettings !== undefined) settings[module.id] = { ...module.defaultSettings }
+  }
+  return settings as ColumnModuleSettings
+}
+
+/** Modules a column can configure, in registry order. */
+export function columnSettingModules(modules: readonly RegisteredAnalysisModule[] = analysisModules): RegisteredAnalysisModule[] {
+  return modules.filter((module) => (module.columnSettingFields?.length ?? 0) > 0)
+}
+
+/** Modules that draw chart overlays, in registry order. */
+export function overlayModules(modules: readonly RegisteredAnalysisModule[] = analysisModules): RegisteredAnalysisModule[] {
+  return modules.filter((module) => module.overlayPresentation !== undefined)
+}
+
+/** Readable label of an exclusion reason, from the module that produces it. */
+export function exclusionReasonLabel(reason: string, modules: readonly RegisteredAnalysisModule[] = analysisModules): string {
+  for (const module of modules) {
+    const label = module.exclusionReasonLabels?.[reason]
+    if (label !== undefined) return label
+  }
+  return reason
+}
+
+/** Flags that depend on the fitted cell, for one column's module settings.
+ * A module is evaluated only when the column configures it. */
+export function moduleCellFlags(
+  ctx: CellFlagContext,
+  columnSettings: ColumnModuleSettings | undefined,
+  modules: readonly RegisteredAnalysisModule[] = analysisModules,
+): CohortFlag[] {
+  if (!columnSettings) return []
+  const settings = columnSettings as Record<string, unknown>
+  return modules.flatMap((module) => module.cellFlags && settings[module.id] !== undefined
+    ? module.cellFlags(ctx, settings[module.id])
+    : [])
+}
+
+/** Module export columns for one cell, in registry order. */
+export function moduleExportValues(
+  flags: readonly CohortFlag[],
+  modules: readonly RegisteredAnalysisModule[] = analysisModules,
+): Record<string, string | number> {
+  const values: Record<string, string | number> = {}
+  for (const module of modules) for (const column of module.exportColumns ?? []) values[column.key] = column.value({ flags })
+  return values
+}
 
 export interface ComputeAnalysisResultOptions {
   rows: LabRow[]
@@ -28,28 +147,7 @@ export interface ComputeAnalysisResultOptions {
   modules?: readonly RegisteredAnalysisModule[]
 }
 
-export type RegisteredAnalysisModule = Pick<AnalysisModule<AnalysisSettings>, 'id' | 'label' | 'apply' | 'series'>
-
-function adaptModule<K extends keyof AnalysisSettings>(
-  key: K,
-  module: AnalysisModule<AnalysisSettings[K]>,
-): RegisteredAnalysisModule {
-  return {
-    id: module.id,
-    label: module.label,
-    apply: (ctx, settings): AnalysisContribution => module.apply(ctx, settings[key]),
-    series: module.series,
-  }
-}
-
-export const analysisModules: readonly RegisteredAnalysisModule[] = [
-  demographicsModule,
-  adaptModule('egfr', egfrModule),
-  clinicalEventsModule,
-  adaptModule('aki', akiModule),
-  adaptModule('rapidEgfrDecline', rapidEgfrDeclineModule),
-]
-
+/** Run every module's dataset phase in registry order. */
 export function computeAnalysisResult({
   rows,
   manualDemographics,
@@ -59,26 +157,20 @@ export function computeAnalysisResult({
   modules = analysisModules,
 }: ComputeAnalysisResultOptions): AnalysisResult {
   let currentRows = rows
-  const result: AnalysisResult = {
-    rows,
-    messages: [],
-    cohortFlags: [],
-    overlays: [],
-    fitInputs: [],
-  }
+  const result: AnalysisResult = { rows, messages: [], fitInputs: [] }
+  const byId = settings as Record<string, unknown>
 
   for (const module of modules) {
+    if (!module.apply) continue
     const contribution = module.apply(
       { rows: currentRows, manualDemographics, patientAttributes, events },
-      settings,
+      byId[module.id] ?? module.defaultSettings,
     )
     if (contribution.rows) {
       currentRows = contribution.rows
       result.rows = contribution.rows
     }
     if (contribution.messages) result.messages.push(...contribution.messages)
-    if (contribution.cohortFlags) result.cohortFlags.push(...contribution.cohortFlags)
-    if (contribution.overlays) result.overlays.push(...contribution.overlays)
     if (contribution.fitInputs) result.fitInputs.push(...contribution.fitInputs)
   }
 

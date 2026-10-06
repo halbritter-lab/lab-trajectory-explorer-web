@@ -1,4 +1,5 @@
 import { useId, useMemo, useRef, useState } from 'react'
+import { formatDisplayDate, formatDisplayNumber } from '../core/format'
 import type { CohortRow } from '../core/cohort/screening'
 import type { LabRow, PatientId, WertOperator } from '../core/types'
 import { slopeQualityLabel } from './labels/qualityLabels'
@@ -12,16 +13,17 @@ import type { MixedModelSpikeRow } from '../core/mixedModel/types'
 import { groupPatients, UNGROUPED } from '../core/grouping/grouping'
 import { workspaceSpecs } from './workspace-data'
 import { currentWorkspaceModels, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
-import type { ExclusionReason } from '../core/fitPipeline/types'
+import { overlayModules } from '../core/analysis/registry'
 
 export type WorkspaceAxis = 'baseline' | 'calendar' | 'age'
-export interface WorkspaceDisplay { points: boolean; connect: boolean; events: boolean; aki: boolean }
-export const DEFAULT_WORKSPACE_DISPLAY: WorkspaceDisplay = { points: true, connect: true, events: false, aki: false }
-const ROMAN: Record<number, string> = { 1: 'I', 2: 'II', 3: 'III' }
+/** Modules whose overlays the charts can draw, with their presentation. */
+export const OVERLAY_MODULES = overlayModules().map(module => ({ id: module.id, presentation: module.overlayPresentation! }))
+/** Display toggles: measurement marks, events, and one per overlay module,
+ * keyed by module id (e.g. `aki`). */
+export interface WorkspaceDisplay { points: boolean; connect: boolean; events: boolean; [overlayModuleId: string]: boolean }
+export const DEFAULT_WORKSPACE_DISPLAY: WorkspaceDisplay = { points: true, connect: true, events: false, ...Object.fromEntries(OVERLAY_MODULES.map(module => [module.id, false])) }
 const EXCLUDED_COLOR = '#64748b'
-const AKI_COLOR = '#b42318'
 const MS_PER_DAY = 86_400_000
-const AKI_MARKER_TOLERANCE_DAYS = 2
 
 function meanBaselineAge(rows: readonly MixedModelSpikeRow[]): number | null {
   const ages = [...new Map(rows.map(row => [row.patient_id, row.baseline_age])).values()]
@@ -30,8 +32,8 @@ function meanBaselineAge(rows: readonly MixedModelSpikeRow[]): number | null {
 }
 const YEAR = 365.25 * 86_400_000
 const colors = ['#176c68', '#487ca9', '#a15a2c', '#8560a4', '#8c7427', '#b14c73', '#3d797f']
-export const formatWorkspaceNumber = (value: number) => Number.isFinite(value) ? value.toLocaleString('en-GB', { maximumFractionDigits: 2 }) : '—'
-export const formatWorkspaceDate = (date: Date) => date.toLocaleDateString('en-GB', { timeZone: 'UTC' })
+export const formatWorkspaceNumber = formatDisplayNumber
+export const formatWorkspaceDate = formatDisplayDate
 export const boundedPrefix = (operator?: WertOperator) => operator === '<' || operator === '>' ? `${operator} ` : ''
 export function measurementText(row: LabRow): string {
   const prefix = boundedPrefix(row.wertOperator)
@@ -75,27 +77,28 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const points = (cell?.points ?? []).flatMap((point, index) => {
         const x = xValue(point.date)
         // Exclusions only mean something for a fit; with no fit model nothing is marked.
-        const exclusions: ExclusionReason[] = cell && cell.fitModel !== 'none' ? cell.pointExclusionReasons?.[index] ?? [] : []
+        const exclusions: string[] = cell && cell.fitModel !== 'none' ? cell.pointExclusionReasons?.[index] ?? [] : []
         return x === null || !Number.isFinite(x) || !Number.isFinite(point.value) ? [] : [{ ...point, x, exclusions, operator: sourceRows.get(row.patientId)?.[index]?.wertOperator ?? '=' as WertOperator }]
       })
-      // Episodes are creatinine-derived and reach every column of the patient.
-      // A peak sits on this series' measurement only if one exists within
-      // AKI_MARKER_TOLERANCE_DAYS; otherwise a value-free tick marks its date on
-      // the time axis, so the marker never borrows an unrelated value.
-      const akiMarkers = (cell?.akiEpisodes ?? []).flatMap(episode => {
-        const peak = episode.peakDate.getTime()
-        const nearest = points.length ? points.reduce((best, p) => Math.abs(p.date.getTime() - peak) < Math.abs(best.date.getTime() - peak) ? p : best, points[0]) : null
-        const onPoint = nearest !== null && Math.abs(nearest.date.getTime() - peak) <= AKI_MARKER_TOLERANCE_DAYS * MS_PER_DAY
-        const x = onPoint ? nearest.x : xValue(episode.peakDate)
+      // Module markers (e.g. AKI episodes, which reach every column of the
+      // patient) sit on this series' nearest measurement only if one lies within
+      // the marker's snapping distance; otherwise a value-free tick marks the
+      // date on the time axis, so a marker never borrows an unrelated value.
+      const markers = (cell?.overlays ?? []).flatMap(marker => {
+        if (marker.kind !== 'marker') return []
+        const target = marker.date.getTime()
+        const nearest = points.length ? points.reduce((best, p) => Math.abs(p.date.getTime() - target) < Math.abs(best.date.getTime() - target) ? p : best, points[0]) : null
+        const onPoint = nearest !== null && Math.abs(nearest.date.getTime() - target) <= marker.snapWithinDays * MS_PER_DAY
+        const x = onPoint ? nearest.x : xValue(marker.date)
         if (x === null || !Number.isFinite(x)) return []
-        return [{ x, value: onPoint ? nearest.value : null, label: `AKI ${ROMAN[episode.stage] ?? episode.stage}`,
-          title: `AKI stage ${ROMAN[episode.stage] ?? episode.stage} · onset ${formatWorkspaceDate(episode.date)} · creatinine peak ${formatWorkspaceNumber(episode.peakValue)} on ${formatWorkspaceDate(episode.peakDate)} (baseline ${formatWorkspaceNumber(episode.baselineValue)})${onPoint ? '' : ' · no measurement of this parameter on that date'}` }]
+        return [{ moduleId: marker.moduleId, x, value: onPoint ? nearest.value : null, label: marker.label, title: `${marker.title}${onPoint ? '' : marker.offMeasurementNote}` }]
       })
-      const akiBands = (cell?.akiBands ?? []).flatMap(band => {
+      const bands = (cell?.overlays ?? []).flatMap(band => {
+        if (band.kind !== 'band') return []
         const start = xValue(band.start), end = xValue(band.end)
-        return start === null || end === null || !Number.isFinite(start) || !Number.isFinite(end) ? [] : [{ start, end, title: `AKI window ${formatWorkspaceDate(band.start)} to ${formatWorkspaceDate(band.end)} (${Math.round((band.end.getTime() - band.start.getTime()) / MS_PER_DAY)} days)` }]
+        return start === null || end === null || !Number.isFinite(start) || !Number.isFinite(end) ? [] : [{ moduleId: band.moduleId, start, end, title: band.title }]
       })
-      return { row, cell, group, points, akiMarkers, akiBands, xValue, ageEstimated: patient?.ageEstimated ?? anchor === undefined }
+      return { row, cell, group, points, markers, bands, xValue, ageEstimated: patient?.ageEstimated ?? anchor === undefined }
     })
   }, [data.rows, data.patients, cohortRows, parameter, parameterIndex, axis, groupBy])
   const groups = [...new Set(prepared.map(p => p.group))].sort()
@@ -183,9 +186,12 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const markVisible = display.points || display.connect
   const excludedCount = markVisible ? visible.reduce((sum, series) => sum + series.points.filter(p => p.exclusions.length > 0).length, 0) : 0
   const excludedReasons = [...new Set(visible.flatMap(series => series.points.flatMap(p => p.exclusions)))]
-  const akiMarkerCount = display.aki ? visible.reduce((sum, series) => sum + series.akiMarkers.length, 0) : 0
+  const shownOverlays = OVERLAY_MODULES.filter(module => display[module.id])
+  const overlayShown = (moduleId: string) => display[moduleId] ?? false
+  const markerCount = (moduleId: string) => visible.reduce((sum, series) => sum + series.markers.filter(marker => marker.moduleId === moduleId).length, 0)
+  const overlayColor = (moduleId: string) => OVERLAY_MODULES.find(module => module.id === moduleId)?.presentation.color
   // Windows and labels for one trajectory at a time keep the overlay readable.
-  const akiDetail = (patientId: PatientId) => cohortRows.length === 1 || patientId === highlight
+  const overlayDetail = (patientId: PatientId) => cohortRows.length === 1 || patientId === highlight
 
 
   return <section className="wt-plot-card" aria-label={`Chart ${parameter.label}`}>
@@ -193,14 +199,14 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {groupBy && <div className="wt-legend" role="group" aria-label={`Groups for ${parameter.label}`}>{groups.map(group => <button key={group} aria-pressed={!hiddenGroups.includes(group)} onClick={() => setHiddenGroups(previous => previous.includes(group) ? previous.filter(g => g !== group) : [...previous, group])}><span style={{ color: groupColor(group) }}>● </span>{groupLabel(group)}{hiddenGroups.includes(group) ? ' (hidden)' : ''}</button>)}</div>}
     <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? ` · ${visible.length} of ${cohortRows.length} trajectories` : ''}{withoutValues > 0 ? ` · ${withoutValues} without numeric measurements` : ''}{withoutAge > 0 ? ` · ${withoutAge} additional trajectories without age data` : ''}</p>
     {axis === 'age' && <p className="wt-muted">{cohortRows.length === 1 ? visible[0]?.ageEstimated ? 'Age: estimated birth-date anchor.' : visible.length ? 'Age: recorded birth date.' : 'Age unavailable.' : `${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors; other ages use recorded birth dates.`}</p>}
-    {!visible.length ? <p>No trajectories can be plotted. Check measurements, ages, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-y-min={yMin} data-y-max={yMax} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? fitModel === 'none' ? '; Fit model disabled' : `; ${uncertain} uncertain individual ${modelLabel} fits; ${noFit} without a fit` : ''}${excludedCount ? `; ${excludedCount} measurements excluded from the fit (grey open circles)` : ''}${display.aki ? `; AKI windows and episodes shown (${akiMarkerCount} episodes)` : ''}${pooledModelLine ? '; Cohort mixed model mean line' : ''}${groupModelLines.length ? `; Group mixed model mean lines: ${groupModelLines.map(line => groupLabel(line.group!)).join(', ')}` : ''}`}>
+    {!visible.length ? <p>No trajectories can be plotted. Check measurements, ages, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-y-min={yMin} data-y-max={yMax} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? fitModel === 'none' ? '; Fit model disabled' : `; ${uncertain} uncertain individual ${modelLabel} fits; ${noFit} without a fit` : ''}${excludedCount ? `; ${excludedCount} measurements excluded from the fit (grey open circles)` : ''}${shownOverlays.map(module => `; ${module.presentation.exportContext(markerCount(module.id))}`).join('')}${pooledModelLine ? '; Cohort mixed model mean line' : ''}${groupModelLines.length ? `; Group mixed model mean lines: ${groupModelLines.map(line => groupLabel(line.group!)).join(', ')}` : ''}`}>
       <title>{parameter.label} · {axisLabel}</title>
       <desc>Measurements for the selected patients. Press Enter or Space to open a trajectory. Research use only.</desc>
       <defs><clipPath id={clip}><rect x="65" y="20" width="565" height="230" /></clipPath></defs>
       {[0, .5, 1].map(f => { const v = yMin + (yMax - yMin) * f; return <g key={f}><line x1="65" x2="630" y1={y(v)} y2={y(v)} stroke="#dce5e9" /><text x="57" y={y(v) + 4} textAnchor="end">{formatWorkspaceNumber(v)}</text></g> })}
       {[0, .25, .5, .75, 1].map(f => { const v = xMin + (xMax - xMin) * f; return <text key={f} x={x(v)} y="265" textAnchor="middle">{axis === 'calendar' ? formatWorkspaceDate(new Date(v)) : formatWorkspaceNumber(v)}</text> })}
       <text x="345" y="294" textAnchor="middle">{axisLabel}</text>
-      {display.aki && <g clipPath={`url(#${clip})`} className="wt-aki-bands">{visible.filter(series => akiDetail(series.row.patientId)).flatMap(series => series.akiBands.map((band, i) => <rect key={`${String(series.row.patientId)}-${i}`} data-testid="aki-band" x={x(band.start)} width={Math.max(1, x(band.end) - x(band.start))} y="20" height="230" fill={AKI_COLOR} fillOpacity={.1}><title>{band.title}</title></rect>))}</g>}
+      {shownOverlays.map(module => <g key={module.id} clipPath={`url(#${clip})`} className={`wt-${module.id}-bands`}>{visible.filter(series => overlayDetail(series.row.patientId)).flatMap(series => series.bands.filter(band => band.moduleId === module.id).map((band, i) => <rect key={`${String(series.row.patientId)}-${i}`} data-testid={`${module.id}-band`} x={x(band.start)} width={Math.max(1, x(band.end) - x(band.start))} y="20" height="230" fill={module.presentation.color} fillOpacity={.1}><title>{band.title}</title></rect>))}</g>)}
       {visible.map(series => {
         const color = groupColor(series.group)
         const active = series.row.patientId === highlight
@@ -218,10 +224,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
                 {boundedPrefix(p.operator) && <text x={x(p.x) + 5} y={y(p.value) - 5} fill={excluded ? EXCLUDED_COLOR : color}>{p.operator}</text>}</g>
             })}
             {showFit && series.cell.fitLines.map((line, i) => <polyline key={i} points={line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} data-fit-quality={uncertainFit ? "uncertain" : "supported"} strokeDasharray={uncertainFit ? "2 4" : "6 4"} strokeWidth="2" />)}
-            {display.aki && series.akiMarkers.map((marker, i) => {
-              // Off-series episodes sit on the time axis, not on a value.
+            {series.markers.filter(marker => overlayShown(marker.moduleId)).map((marker, i) => {
+              // Off-series markers sit on the time axis, not on a value.
               const markerY = marker.value === null ? 244 : y(marker.value)
-              return <g key={`aki-${i}`} data-testid="aki-marker" data-on-measurement={marker.value !== null}><path d={`M ${x(marker.x)} ${markerY - 6} l 5 6 l -5 6 l -5 -6 Z`} fill={marker.value === null ? 'white' : AKI_COLOR} stroke={AKI_COLOR} strokeWidth={1.2}><title>{marker.title}</title></path>{akiDetail(series.row.patientId) && <text x={x(marker.x)} y={markerY - 10} textAnchor="middle" fill={AKI_COLOR} fontSize="10">{marker.label}</text>}</g>
+              const markerColor = overlayColor(marker.moduleId)
+              return <g key={`${marker.moduleId}-${i}`} data-testid={`${marker.moduleId}-marker`} data-on-measurement={marker.value !== null}><path d={`M ${x(marker.x)} ${markerY - 6} l 5 6 l -5 6 l -5 -6 Z`} fill={marker.value === null ? 'white' : markerColor} stroke={markerColor} strokeWidth={1.2}><title>{marker.title}</title></path>{overlayDetail(series.row.patientId) && <text x={x(marker.x)} y={markerY - 10} textAnchor="middle" fill={markerColor} fontSize="10">{marker.label}</text>}</g>
             })}
           </g>
           {display.events && data.events.filter(event => event.patientId === series.row.patientId).map((event, i) => { const position = series.xValue(event.date); return position === null ? null : <line key={i} x1={x(position)} x2={x(position)} y1="30" y2="240" stroke="#936221" strokeDasharray="2 5"><title>Patient {event.patientId}: {event.title}, {formatWorkspaceDate(event.date)}</title></line> })}
@@ -252,9 +259,9 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {pooledModelLine && <p className="wt-muted">Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.{axis === 'age' ? ' Age axis: mean baseline age of fitted patients plus elapsed model time.' : ''}</p>}
     {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groupModelLines.map(line => groupLabel(line.group!)).join(', ')}).{axis === 'age' ? ' Age axis: mean baseline age of each group plus elapsed model time.' : ''}</p>}
     {excludedCount > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> Grey open circles: {excludedCount} measurements excluded from the fit ({excludedReasons.map(exclusionReasonLabel).join('; ')}). They stay visible but do not enter the slope.</p>}
-    {display.aki && <p className="wt-muted wt-plot-key">{akiMarkerCount > 0
-      ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={AKI_COLOR} /></svg> AKI episode at the creatinine peak (KDIGO creatinine criterion, automated screening); an open diamond on the time axis marks a peak without a measurement of this parameter within {AKI_MARKER_TOLERANCE_DAYS} days.{' '}<span className="wt-aki-swatch" aria-hidden="true" /> Shaded: AKI window after onset{cohortRows.length > 1 ? ', shown for the highlighted patient' : ''}.</>
-      : 'No AKI episodes detected for the plotted trajectories.'}</p>}
+    {shownOverlays.map(module => <p key={module.id} className="wt-muted wt-plot-key">{markerCount(module.id) > 0
+      ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={module.presentation.color} /></svg>{module.presentation.markerLegend}{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${module.presentation.color}26`, borderColor: `${module.presentation.color}40` }} />{module.presentation.bandLegend}{cohortRows.length > 1 ? ', shown for the highlighted patient' : ''}.</>
+      : module.presentation.emptyLegend}</p>)}
     {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurements or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
     {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Hollow points marked &lt; or &gt; are bounds, not exact measurements. The existing fit uses their numeric limits.</p>}

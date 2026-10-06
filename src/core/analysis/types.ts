@@ -1,11 +1,24 @@
-import type { AkiEpisode } from '../domains/nephrology/aki/kdigo'
-import type { DateBand } from '../domains/nephrology/aki/akiAware'
-import type { Source, FormulaName } from '../domains/nephrology/egfr/series'
+/**
+ * The analysis module contract. A module is a domain package (nephrology
+ * today) that plugs into the generic core at a few named seams; the core
+ * never imports a module directly, only this contract and the registry.
+ *
+ * Phases, in the order the app runs them:
+ *  1. `apply` (dataset): once per analysis run; may add derived rows,
+ *     messages and dataset-level fit inputs.
+ *  2. `series` (patient × column, before fitting): censoring and exclusion
+ *     windows, chart overlays and flags.
+ *  3. `cellFlags` (patient × column, after fitting): flags that depend on the
+ *     fitted slope and the column's own module settings.
+ */
 import type { ClinicalEvent } from '../events/events'
 import type { ExclusionWindow, ReasonedExclusionWindow } from '../exclusions/windows'
-import type { FitConfig } from '../fitPipeline/types'
+import type { FitConfig, FitModel } from '../fitPipeline/types'
+import type { SeriesPoint } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import type { LabRow, PatientId } from '../types'
+
+export type { AnalysisSettings, ColumnModuleSettings } from './registry'
 
 export interface ManualDemographics {
   sex?: LabRow['patientSex']
@@ -15,26 +28,6 @@ export interface ManualDemographics {
 export interface SeriesKey {
   bezeichnung: string
   einheit: string | null
-}
-
-export interface EgfrModuleSettings {
-  formula: FormulaName | 'off'
-  source: Source | null
-}
-
-export interface AkiModuleSettings {
-  showOverlays: boolean
-  exclusionDays: number
-}
-
-export interface RapidEgfrDeclineModuleSettings {
-  threshold: number
-}
-
-export interface AnalysisSettings {
-  egfr: EgfrModuleSettings
-  aki: AkiModuleSettings
-  rapidEgfrDecline: RapidEgfrDeclineModuleSettings
 }
 
 export interface AnalysisContext {
@@ -48,26 +41,6 @@ export interface AnalysisMessage {
   id: string
   text: string
   severity: 'info' | 'warning'
-}
-
-export interface CohortFlagContribution {
-  id: string
-  patientId: PatientId
-  seriesKey?: SeriesKey
-  label: string
-  severity?: 'info' | 'warning'
-}
-
-export interface AnalysisOverlayContribution {
-  id: string
-  patientId: PatientId
-  seriesKey?: SeriesKey
-  kind: 'event' | 'band'
-  label: string
-  start: Date
-  end?: Date
-  episode?: AkiEpisode
-  band?: DateBand
 }
 
 /**
@@ -94,9 +67,13 @@ export type AnalysisFitInputContribution = ExclusionWindowContribution
 export interface AnalysisContribution {
   rows?: LabRow[]
   messages?: AnalysisMessage[]
-  cohortFlags?: CohortFlagContribution[]
-  overlays?: AnalysisOverlayContribution[]
   fitInputs?: AnalysisFitInputContribution[]
+}
+
+export interface AnalysisResult {
+  rows: LabRow[]
+  messages: AnalysisMessage[]
+  fitInputs: AnalysisFitInputContribution[]
 }
 
 /** One (patient, series column) as a module's `series` hook sees it. */
@@ -105,6 +82,8 @@ export interface SeriesContext {
   seriesKey: SeriesKey
   /** All analysis rows of this patient, every series. */
   patientRows: readonly LabRow[]
+  /** This series' dated numeric measurements, oldest first. */
+  points: readonly SeriesPoint[]
   mode: SlopeMode
   /** The column's fit configuration, when it has one. */
   fitConfig?: FitConfig
@@ -118,6 +97,46 @@ export interface SeriesContext {
   cache: Map<string, unknown>
 }
 
+/** A shaded date range drawn behind a trajectory. */
+export interface OverlayBand {
+  kind: 'band'
+  moduleId: string
+  start: Date
+  end: Date
+  title: string
+}
+
+/** A dated marker drawn on a trajectory. It sits on this series' measurement
+ * nearest to `date` when one lies within `snapWithinDays`, otherwise on the
+ * time axis with `offMeasurementNote` appended to its title. */
+export interface OverlayMarker {
+  kind: 'marker'
+  moduleId: string
+  date: Date
+  label: string
+  title: string
+  snapWithinDays: number
+  offMeasurementNote: string
+}
+
+export type SeriesOverlay = OverlayBand | OverlayMarker
+
+/** A short badge on a cohort cell (table and export). */
+export interface CohortFlag {
+  id: string
+  moduleId: string
+  patientId: PatientId
+  seriesKey: SeriesKey
+  label: string
+  /** Explanation shown as tooltip. */
+  title: string
+  /** Visual style key; the workspace renders `wt-badge-<tone>`. */
+  tone: string
+  severity?: 'info' | 'warning'
+  /** Shown only together with the fitted trend statistics. */
+  requiresFit?: boolean
+}
+
 /** What a module adds to one (patient, series column) before fitting. */
 export interface SeriesContribution {
   /** Removed from the series before anything else is computed. Their starts
@@ -125,23 +144,82 @@ export interface SeriesContribution {
   censoring?: ReasonedExclusionWindow[]
   /** Left out of the trend fit (and listed as excluded points). */
   exclusions?: ReasonedExclusionWindow[]
+  overlays?: SeriesOverlay[]
+  flags?: CohortFlag[]
 }
 
-export interface AnalysisModule<TSettings> {
-  id: string
+/** The fitted cell a module's `cellFlags` hook sees. */
+export interface CellFlagContext {
+  patientId: PatientId
+  seriesKey: SeriesKey
+  slope: number
+  fitModel: FitModel
+}
+
+/** A column a module adds to the cohort export, after the generic columns
+ * and in registry order. */
+export interface ModuleExportColumn {
+  key: string
+  value: (cell: { flags: readonly CohortFlag[] }) => string | number
+}
+
+/** A per-column module setting the workspace renders generically. */
+export interface ModuleSettingField {
+  key: string
   label: string
-  defaultSettings: TSettings
-  apply: (ctx: AnalysisContext, settings: TSettings) => AnalysisContribution
-  /** Per (patient, series column) hook; see SeriesContribution. */
-  series?: (ctx: SeriesContext) => SeriesContribution
+  ariaLabel: string
+  kind: 'number' | 'boolean'
+  min?: number
+  step?: number
+  /** Column of the export's settings sheet that records the value. */
+  exportKey?: string
 }
 
-export interface AnalysisResult {
-  rows: LabRow[]
-  messages: AnalysisMessage[]
-  cohortFlags: CohortFlagContribution[]
-  overlays: AnalysisOverlayContribution[]
-  fitInputs: AnalysisFitInputContribution[]
+/** How the workspace charts present a module's overlays. */
+export interface OverlayPresentation {
+  /** Label of the display toggle. */
+  toggleLabel: string
+  color: string
+  /** Legend text after the marker symbol. */
+  markerLegend: string
+  /** Legend text after the band swatch. */
+  bandLegend: string
+  /** Legend text when no marker is plotted. */
+  emptyLegend: string
+  /** Chart-export context fragment for `markerCount` plotted markers. */
+  exportContext: (markerCount: number) => string
+}
+
+/**
+ * An analysis module. `S` is its settings type (stored with the workspace
+ * under `id`); modules without settings use `undefined`. Hooks are written in
+ * method syntax so modules with different settings fit one registry list.
+ */
+export interface AnalysisModule<S = undefined, Id extends string = string> {
+  id: Id
+  label: string
+  description?: string
+  /** Series this module contributes to; every series when omitted. */
+  appliesTo?(series: SeriesKey): boolean
+  defaultSettings?: S
+  /** The stored value when it is valid settings for this module, else null. */
+  parseSettings?(value: unknown): S | null
+  /** Settings a column may override, rendered as plain inputs. */
+  columnSettingFields?: readonly ModuleSettingField[]
+  /** Readable labels of the exclusion reasons this module produces. */
+  exclusionReasonLabels?: Readonly<Record<string, string>>
+  overlayPresentation?: OverlayPresentation
+  exportColumns?: readonly ModuleExportColumn[]
+  apply?(ctx: AnalysisContext, settings: S): AnalysisContribution
+  series?(ctx: SeriesContext): SeriesContribution
+  /** Runs only for columns that configure this module's settings. */
+  cellFlags?(ctx: CellFlagContext, settings: S): CohortFlag[]
+}
+
+/** A module whose settings are stored with the workspace. */
+export interface SettingsModule<S, Id extends string = string> extends AnalysisModule<S, Id> {
+  defaultSettings: S
+  parseSettings(value: unknown): S | null
 }
 
 export function seriesKeyEquals(a: SeriesKey, b: SeriesKey): boolean {

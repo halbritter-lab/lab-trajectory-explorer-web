@@ -1,12 +1,12 @@
 import { conflictId, describeConflict } from '../demographics/describe'
 import { resolveDemographics } from '../demographics/resolve'
-import type { AnalysisContext, AnalysisContribution } from './types'
+import type { AnalysisContext, AnalysisContribution, AnalysisModule } from './types'
 
 /** First module in the pipeline: every later module, and every consumer of
  * analysisResult.rows, sees demographics that have already been made consistent
  * per patient. Takes no settings — resolution is not optional. */
 export const demographicsModule = {
-  id: 'demographics',
+  id: 'demographics' as const,
   label: 'Demographics',
   apply: (ctx: AnalysisContext): AnalysisContribution => {
     const { rows, conflicts } = resolveDemographics(
@@ -23,4 +23,4 @@ export const demographicsModule = {
       })),
     }
   },
-}
+} satisfies AnalysisModule<undefined, 'demographics'>

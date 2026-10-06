@@ -36,14 +36,17 @@ describe('akiModule', () => {
       lengthDays: 30,
     })
     expect(out.fitInputs?.[0].windows).toHaveLength(1)
-    expect(out.overlays).toEqual([])
+    expect(out).not.toHaveProperty('overlays')
   })
 
-  it('contributes event and band overlays only when showOverlays is true', () => {
+  it('contributes episode markers and window bands per series, whatever showOverlays says', () => {
     const out = akiModule.apply({ rows: spiky, manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: true, exclusionDays: 30 })
     expect(out.fitInputs?.[0].windows).toHaveLength(1)
-    expect(out.overlays?.some((o) => o.kind === 'event')).toBe(true)
-    expect(out.overlays?.some((o) => o.kind === 'band')).toBe(true)
+    const seriesKey = { bezeichnung: 'Kreatinin', einheit: 'mg/dl' }
+    const points = spiky.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
+    const series = akiModule.series({ patientId: 1, seriesKey, patientRows: spiky, points, mode: 'global', events: [], fitInputs: out.fitInputs ?? [], cache: new Map() })
+    expect(series.overlays?.some((o) => o.kind === 'marker')).toBe(true)
+    expect(series.overlays?.some((o) => o.kind === 'band')).toBe(true)
   })
 
   it('creates cross-series fit inputs for computed eGFR using creatinine-derived episodes', () => {

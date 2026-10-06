@@ -3,6 +3,39 @@ import type { WorkspaceParameter } from './workspace-data'
 import { defaultFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
 import { ConfirmationDaysInput } from './ConfirmationDaysInput'
 import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
+import { RAPID_EGFR_DECLINE_MODULE_ID } from '../core/domains/nephrology/rapidEgfrDeclineModule'
+import { columnSettingModules, type ColumnModuleSettings, type RegisteredAnalysisModule } from '../core/analysis/registry'
+
+/** Column settings of the eGFR endpoint group; every other module with column
+ * settings gets its own group after the built-in ones. */
+const ENDPOINT_GROUP_MODULES = new Set<string>([RAPID_EGFR_DECLINE_MODULE_ID])
+
+/** Plain inputs for modules' column settings, described by the modules. */
+function ModuleSettingInputs({ modules, settings, onChange }: {
+  modules: readonly RegisteredAnalysisModule[]
+  settings: ColumnModuleSettings
+  onChange: (settings: ColumnModuleSettings) => void
+}) {
+  return <>{modules.flatMap(module => (module.columnSettingFields ?? []).map(field => {
+    const current = ((settings as Record<string, Record<string, unknown> | undefined>)[module.id] ?? module.defaultSettings) as Record<string, unknown>
+    const set = (value: unknown) => onChange({ ...settings, [module.id]: { ...current, [field.key]: value } })
+    return field.kind === 'number'
+      ? <label key={`${module.id}.${field.key}`}>{field.label}
+          <input
+            type="number"
+            min={field.min}
+            step={field.step}
+            aria-label={field.ariaLabel}
+            value={current[field.key] as number}
+            onChange={e => set(Math.max(field.min ?? -Infinity, Number(e.target.value) || 0))}
+          />
+        </label>
+      : <label key={`${module.id}.${field.key}`}>
+          <input type="checkbox" aria-label={field.ariaLabel} checked={Boolean(current[field.key])} onChange={e => set(e.target.checked)} />
+          {field.label}
+        </label>
+  }))}</>
+}
 
 function fitModelLabel(model: FitModel): string {
   if (model === 'none') return 'No fit line'
@@ -225,19 +258,16 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
               />
               Projected age to CKD G5
             </label>
-            <label>Rapid decline &gt; (mL/min/1.73m²/year)
-              <input
-                type="number"
-                min={0}
-                step={0.5}
-                aria-label="Rapid decline threshold"
-                value={fitSettings.rapidEgfrThreshold}
-                onChange={e => updateSettings({
-                  rapidEgfrThreshold: Math.max(0, Number(e.target.value) || 0)
-                })}
-              />
-            </label>
+            <ModuleSettingInputs
+              modules={columnSettingModules().filter(module => ENDPOINT_GROUP_MODULES.has(module.id))}
+              settings={fitSettings.moduleSettings}
+              onChange={moduleSettings => updateSettings({ moduleSettings })}
+            />
           </div>
+          {columnSettingModules().filter(module => !ENDPOINT_GROUP_MODULES.has(module.id)).map(module => <div key={module.id} className="wt-pipeline-group">
+            <h4>{module.label}</h4>
+            <ModuleSettingInputs modules={[module]} settings={fitSettings.moduleSettings} onChange={moduleSettings => updateSettings({ moduleSettings })} />
+          </div>)}
         </div>
       </details>
       <section className="wt-trend-visibility" aria-label="Trend visibility">

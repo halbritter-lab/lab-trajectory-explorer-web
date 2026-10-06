@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { formatAkiChip, formatAkiEpisodeSummary, buildCohortRows, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
+import { buildCohortRows, type CohortCell, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
+import { formatAkiChip, formatAkiEpisodeSummary } from '../../../src/core/domains/nephrology/aki/summary'
 import { episodesForSeries } from '../../../src/core/domains/nephrology/aki/akiAware'
 import { akiFitInput } from '../../../src/core/domains/nephrology/aki/akiModule'
 import type { LabRow } from '../../../src/core/types'
@@ -13,6 +14,10 @@ function row(p: Partial<LabRow>): LabRow {
     ...p }
 }
 const d = (s: string) => new Date(s)
+// The AKI module's chip, window bands and episode markers on a cohort cell.
+const akiChip = (cell: CohortCell) => cell.flags.find((flag) => flag.moduleId === 'aki')?.label ?? ''
+const akiBands = (cell: CohortCell) => cell.overlays.filter((overlay) => overlay.moduleId === 'aki' && overlay.kind === 'band')
+const akiMarkers = (cell: CohortCell) => cell.overlays.flatMap((overlay) => overlay.moduleId === 'aki' && overlay.kind === 'marker' ? [overlay] : [])
 
 describe('formatAkiChip', () => {
   it('formats single and repeated stages', () => {
@@ -93,14 +98,14 @@ describe('buildCohortRows', () => {
       row({ patientId: 1, labDatum: d('2020-02-01T00:00:00Z'), wertNum: 1.0 }),
     ]
     const out = buildCohortRows(rows, [1], [spec])
-    expect(out[0].cells[0].akiChip.startsWith('AKI')).toBe(true)
+    expect(akiChip(out[0].cells[0]).startsWith('AKI')).toBe(true)
   })
 
   it('leaves akiChip empty for a non-creatinine column', () => {
     const spec2: CohortSeriesSpec = { bezeichnung: 'HbA1c', einheit: '%', mode: 'global' }
     const rows = [row({ patientId: 1, bezeichnung: 'HbA1c', einheit: '%', wertNum: 6 })]
     const out = buildCohortRows(rows, [1], [spec2])
-    expect(out[0].cells[0].akiChip).toBe('')
+    expect(akiChip(out[0].cells[0])).toBe('')
   })
 })
 
@@ -118,8 +123,8 @@ describe('buildCohortRows cell overlays', () => {
   it('creatinine cell in global mode: bands + chip, fit through everything, nothing excluded', () => {
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }
     const cell = buildCohortRows(spiky, [1], [spec])[0].cells[0]
-    expect(cell.akiBands.length).toBeGreaterThan(0)
-    expect(cell.akiChip.startsWith('AKI')).toBe(true)
+    expect(akiBands(cell).length).toBeGreaterThan(0)
+    expect(akiChip(cell).startsWith('AKI')).toBe(true)
     expect(cell.excludedIdx).toEqual([])
     expect(cell.fitLines).toHaveLength(1)
   })
@@ -151,21 +156,21 @@ describe('buildCohortRows cell overlays', () => {
     const egfr = spiky.map((r) => ({ ...r, bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²', wertNum: 60 - (r.wertNum! - 1) * 20 }))
     const spec: CohortSeriesSpec = { bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²', mode: 'aki-aware' }
     const cell = buildCohortRows([...spiky, ...egfr], [1], [spec])[0].cells[0]
-    expect(cell.akiBands.length).toBeGreaterThan(0)
+    expect(akiBands(cell).length).toBeGreaterThan(0)
     expect(cell.excludedIdx.length).toBeGreaterThan(0)
-    expect(cell.akiChip.startsWith('AKI')).toBe(true)
+    expect(akiChip(cell).startsWith('AKI')).toBe(true)
   })
   it('non-creatinine cell in global mode can show cross-series AKI bands without excluding points', () => {
     const egfr = spiky.map((r) => ({ ...r, bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²', wertNum: 60 - (r.wertNum! - 1) * 20 }))
     const spec: CohortSeriesSpec = { bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²', mode: 'global' }
     const cell = buildCohortRows([...spiky, ...egfr], [1], [spec])[0].cells[0]
-    expect(cell.akiBands.length).toBeGreaterThan(0)
+    expect(akiBands(cell).length).toBeGreaterThan(0)
     expect(cell.excludedIdx).toEqual([])
-    expect(cell.akiChip.startsWith('AKI')).toBe(true)
+    expect(akiChip(cell).startsWith('AKI')).toBe(true)
   })
   it('exposes the AKI episodes and per-point exclusion reasons behind excludedIdx', () => {
     const g = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }])[0].cells[0]
-    expect(g.akiEpisodes.map((e) => e.stage)).toEqual([2])
+    expect(akiMarkers(g).map((marker) => marker.label)).toEqual(['AKI II'])
     expect(g.pointExclusionReasons.every((reasons) => reasons.length === 0)).toBe(true)
 
     const fitConfig = ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })

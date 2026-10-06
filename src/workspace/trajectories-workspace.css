@@ -84,7 +84,7 @@
 @media (max-width: 700px) { .wt-analysis-selectors, .wt-pipeline-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) { .wt-plot-card { padding: 12px; } .wt-card-heading { gap: 8px; } .wt-workspace { gap: 14px; } }
 .wt-plot-key svg { vertical-align: -1px; margin-right: 2px; }
-.wt-aki-swatch { display: inline-block; width: 14px; height: 10px; margin-right: 2px; vertical-align: -1px; background: #b4231826; border: 1px solid #b4231840; }
+.wt-overlay-swatch { display: inline-block; width: 14px; height: 10px; margin-right: 2px; vertical-align: -1px; border: 1px solid; }
 .wt-sort-direction { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; align-self: end; }
 .wt-sort-direction button[aria-pressed=true] { background: #e9f3ef; border-color: #689793; color: #145d59; font-weight: 600; }
 .wt-cell-summary .wt-quality-details { margin: 0; font-size: 11px; max-width: 240px; white-space: normal; }

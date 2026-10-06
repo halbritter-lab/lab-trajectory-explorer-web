@@ -1,10 +1,10 @@
 import { create } from 'zustand'
 import { createStore, del, get, keys, update, type UseStore } from 'idb-keyval'
 import { useAppStore } from './state/store'
-import type { AnalysisContext, AnalysisSettings } from '../core/analysis/types'
+import type { AnalysisContext } from '../core/analysis/types'
+import { parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
 import type { Sex, WertOperator } from '../core/types'
 import type { ClinicalEventType, ClinicalEventWarning, DialysisIntent } from '../core/events/events'
-import type { FormulaName } from '../core/domains/nephrology/egfr/series'
 
 export const WORKSPACE_STORAGE_KEY = 'lab-explorer:workspace:v1'
 /** Keys of earlier versions start with this prefix in idb-keyval's shared
@@ -55,7 +55,6 @@ const OPERATORS = allValues<WertOperator>()(['=', '<', '>', 'range', 'unparseabl
 const EVENT_TYPES = allValues<ClinicalEventType>()(['kidney_transplant', 'dialysis', 'other'])
 const INTENTS = allValues<DialysisIntent | null>()([null, 'acute', 'chronic', 'unknown'])
 const EVENT_WARNINGS = allValues<ClinicalEventWarning>()(['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval'])
-const FORMULAS = allValues<FormulaName | 'off'>()(['off', 'ckd-epi-2021', 'mdrd-4', 'ekfc-2021'])
 const sex = (v: unknown) => v === null || SEX_CODES.includes(v as Sex)
 
 function validSnapshot(value: unknown): value is Snapshot {
@@ -75,12 +74,8 @@ function validSnapshot(value: unknown): value is Snapshot {
   if (!record(value.patientAttributes) || !Object.values(value.patientAttributes).every(attrs => record(attrs) && Object.values(attrs).every(v => typeof v === 'string'))) return false
   if (!record(value.manualDemographics) || !Object.values(value.manualDemographics).every(v => record(v)
     && (v.sex === undefined || sex(v.sex)) && (v.age === undefined || typeof v.age === 'number' && Number.isFinite(v.age) && v.age >= 0 && v.age <= 130))) return false
-  const settings = value.analysisSettings
-  if (!record(settings) || !record(settings.egfr) || !record(settings.aki) || !record(settings.rapidEgfrDecline)) return false
-  return FORMULAS.includes(settings.egfr.formula as FormulaName | 'off')
-    && (settings.egfr.source === null || Array.isArray(settings.egfr.source) && settings.egfr.source.length === 2 && settings.egfr.source.every(v => typeof v === 'string'))
-    && typeof settings.aki.showOverlays === 'boolean' && typeof settings.aki.exclusionDays === 'number' && Number.isFinite(settings.aki.exclusionDays) && settings.aki.exclusionDays >= 0
-    && typeof settings.rapidEgfrDecline.threshold === 'number' && Number.isFinite(settings.rapidEgfrDecline.threshold)
+  // Each analysis module validates its own settings (see parseAnalysisSettings).
+  return parseAnalysisSettings(value.analysisSettings) !== null
 }
 
 type SnapshotState = 'usable' | 'expired' | 'invalid'
@@ -251,7 +246,7 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       lastWriteToken = value.writeToken
       useAppStore.getState().replaceDataset({ rows: value.rows,
         events: value.events, patientAttributes: value.patientAttributes,
-        manualDemographics: value.manualDemographics, analysisSettings: value.analysisSettings,
+        manualDemographics: value.manualDemographics, analysisSettings: parseAnalysisSettings(value.analysisSettings)!,
         fileName: value.fileName })
       useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null })
     }

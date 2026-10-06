@@ -4,24 +4,17 @@ import { fitGlobal, fitTheilSen } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
-import type { AnalysisFitInputContribution } from '../analysis/types'
-import type { AkiEpisode } from '../domains/nephrology/aki/kdigo'
-import { akiExclusionBands, type DateBand } from '../domains/nephrology/aki/akiAware'
-import { AKI_EXCLUSION_REASON, akiEpisodesForSeriesContext } from '../domains/nephrology/aki/akiModule'
-import { seriesContextFor, seriesExclusions } from './seriesContributions'
-import { formatAkiChip, formatAkiEpisodeSummary } from '../domains/nephrology/aki/summary'
-import { rapidEgfrDeclineFlagForCell } from '../domains/nephrology/rapidEgfrDeclineModule'
-import { isEgfrUnit } from '../domains/nephrology/rapidEgfrDeclineModule'
+import type { AnalysisFitInputContribution, CohortFlag, SeriesOverlay } from '../analysis/types'
+import { moduleCellFlags, moduleExportValues, type ColumnModuleSettings } from '../analysis/registry'
+import { collectSeriesContributions, seriesContextFor, seriesRowsFor } from './seriesContributions'
+import { isEgfrUnit } from '../domains/nephrology/analytes'
 import type { ClinicalEvent } from '../events/events'
 import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows'
-import type { ExclusionReason, FitConfig } from '../fitPipeline/types'
+import type { FitConfig } from '../fitPipeline/types'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from '../domains/nephrology/endpoints/ckdEndpoints'
 import { isUnstableSlope } from '../stats/slopeQuality'
-import { DEFAULT_AKI_EXCLUSION_DAYS } from '../domains/nephrology/constants'
 import { groupValueForPatient } from '../grouping/grouping'
 
-export { formatAkiChip, formatAkiEpisodeSummary }
-export { isEgfrUnit, isRapidEgfrDecline, RAPID_EGFR_DECLINE_DEFAULT } from '../domains/nephrology/rapidEgfrDeclineModule'
 
 export interface CohortSeriesSpec {
   bezeichnung: string
@@ -60,19 +53,19 @@ export interface CohortCell {
   ciHigh: number
   reason: SeriesSummary['reason']
   points: SeriesPoint[]
-  akiChip: string
-  akiSummary: string
   fitLines: LinePoint[][]
-  akiBands: DateBand[]
-  /** AKI episodes shown for this series (creatinine-derived, also for eGFR
-   * columns), in detection order. Display context; the fit only uses them when
-   * AKI-window exclusion is configured. */
-  akiEpisodes: AkiEpisode[]
+  /** Module badges known before fitting (e.g. AKI episodes). Badges that
+   * depend on the fit and a column setting come from cohortCellFlags. */
+  flags: CohortFlag[]
+  /** Module chart overlays for this cell (e.g. AKI windows and episodes),
+   * drawn whether or not the fit excludes them. */
+  overlays: SeriesOverlay[]
   excludedIdx: number[]
   /** Reasons each point in `points` is excluded from the fit, aligned by index;
    * an empty array means the point is available to the fit. Non-empty exactly
-   * for the indices in `excludedIdx`. */
-  pointExclusionReasons: ExclusionReason[][]
+   * for the indices in `excludedIdx`. Reasons are module codes; see
+   * exclusionReasonLabel. */
+  pointExclusionReasons: string[][]
   endpoints: CkdEndpoints
 }
 
@@ -85,8 +78,9 @@ export interface CohortRow {
 }
 
 /** One CohortRow per patient; one CohortCell per series spec. The slope cell
- * reuses summarizeByBezeichnung (parity-tested); creatinine mg/dl columns also
- * carry an AKI chip from KDIGO detection. */
+ * reuses summarizeByBezeichnung (parity-tested); every registered module's
+ * series hook adds windows, overlays and flags, and modules with column
+ * settings flag the fitted cell. */
 export function buildCohortRows(
   rows: LabRow[],
   patientIds: PatientId[],
@@ -110,8 +104,11 @@ export function buildCohortRows(
   return ids.map((pid) => {
     const prows = byPatient.get(pid) ?? []
     const cells = specs.map((spec): CohortCell => {
-      const seriesContext = seriesContextFor(spec, pid, prows, cache)
-      const windows = seriesExclusions(seriesContext)
+      const seriesRows = seriesRowsFor(spec, prows)
+      const points: SeriesPoint[] = seriesRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
+      const seriesContext = seriesContextFor(spec, pid, prows, cache, points)
+      const contributions = collectSeriesContributions(seriesContext)
+      const windows = { censoring: contributions.censoring, exclusions: contributions.exclusions }
       const fitEventDates = spec.eventDatesByPatient?.[pid] ?? spec.eventDates ?? windows.censoring.map((window) => window.start)
       const displayName = (name: string | null) => name ?? '(unnamed)'
       const displayUnit = (unit: string | null) => unit ?? '(no unit)'
@@ -130,19 +127,11 @@ export function buildCohortRows(
             : undefined,
       })
       const match = summaries.find((s) => s.bezeichnung === spec.bezeichnung && s.einheit === (spec.einheit ?? '(no unit)'))
-      const seriesRows = prows
-        .filter((r) => r.bezeichnung === spec.bezeichnung && (r.einheit ?? null) === (spec.einheit ?? null) && r.wertNum !== null && r.labDatum !== null)
-        .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
-      const points: SeriesPoint[] = seriesRows.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
-      const exclusionDays = spec.exclusionDays
-        ?? seriesContext.fitInputs.find((input) => input.reason === AKI_EXCLUSION_REASON)?.lengthDays
-        ?? DEFAULT_AKI_EXCLUSION_DAYS
-      const episodes: AkiEpisode[] = points.length > 0 ? akiEpisodesForSeriesContext(seriesContext) : []
       const allWindows = [...windows.censoring, ...windows.exclusions]
       const excludedIdx = applyExclusionWindows(points, allWindows).excludedIdx
       const excluded = new Set(excludedIdx)
       const pointExclusionReasons = points.map((point, i) =>
-        excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) as ExclusionReason[] : [])
+        excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])
       const endpointSettings = endpointSettingsFor(spec.einheit ?? null, spec.fitConfig?.endpoints)
       const endpointRows = seriesRows.filter(row => Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
       // Ages and the all-data fit only feed the G5 projection; skip both otherwise.
@@ -169,17 +158,18 @@ export function buildCohortRows(
               exclusionWindows: windows,
             },
           )
-      const akiStages = episodes.map((e) => e.stage)
+      const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
+      const slope = match?.slope ?? Number.NaN
       return {
         bezeichnung: spec.bezeichnung,
         einheit: spec.einheit,
         mode: spec.mode,
-        fitModel: scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel),
+        fitModel,
         nNumeric: match?.nNumeric ?? 0,
         nFitted: match?.nFitted ?? match?.nNumeric ?? 0,
         fittedSpanDays: match?.fittedSpanDays ?? 0,
         spanDays: match?.spanDays ?? 0,
-        slope: match?.slope ?? Number.NaN,
+        slope,
         r2: match?.r2 ?? Number.NaN,
         ciLow: match?.ciLow ?? Number.NaN,
         ciHigh: match?.ciHigh ?? Number.NaN,
@@ -187,11 +177,9 @@ export function buildCohortRows(
         // 'no_numeric_values' when no summary matched this spec at all.
         reason: match ? match.reason : 'no_numeric_values',
         points,
-        akiChip: formatAkiChip(akiStages),
-        akiSummary: formatAkiEpisodeSummary(akiStages),
         fitLines,
-        akiBands: akiExclusionBands(episodes, exclusionDays),
-        akiEpisodes: episodes,
+        flags: contributions.flags,
+        overlays: contributions.overlays,
         excludedIdx,
         pointExclusionReasons,
         endpoints: computeCkdEndpoints({
@@ -271,10 +259,10 @@ export interface CohortExportRecord {
    * be resolved from contradictory input rows, else ''. Populated from the
    * demographics module's conflict messages, keyed by patientIdKey. */
   demographics_conflict: string
-  aki: string
-  /** 'yes' when this eGFR series declines faster than the rapid-progression
-   * threshold, else '' (and '' for non-eGFR series or when the flag is off). */
-  rapid_progression: string
+  // Module columns follow here in registry order (e.g. `aki`, the AKI chip;
+  // `rapid_progression`, 'yes' for a rapid eGFR decline under the column's
+  // threshold), then the endpoint columns.
+  [moduleColumn: string]: string | number | undefined
   endpoint_percent_decline: number | ''
   endpoint_observed_ckd_g5: string
   endpoint_projected_age_to_ckd_g5: number | ''
@@ -320,19 +308,35 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
 const endpointDate = (date: Date | null): string => date?.toISOString().slice(0, 10) ?? ''
 
-/** Flatten cohort rows into export records (one per patient × series). Pass the
- * rapid-progression threshold (mL/min/1.73m²/yr) to populate rapid_progression;
- * 0 (default) leaves the flag off. `conflictPatientKeys` holds the patientIdKey
- * of every patient whose demographics had to be resolved from contradictory
- * input, so the caveat travels with the exported table. */
+/** Every badge of a fitted cell: those known before fitting plus those that
+ * depend on the fit and the column's module settings (evaluated only for
+ * modules the column configures). */
+export function cohortCellFlags(cell: CohortCell, patientId: PatientId, columnSettings?: ColumnModuleSettings): CohortFlag[] {
+  return [
+    ...cell.flags,
+    ...moduleCellFlags({ patientId, seriesKey: { bezeichnung: cell.bezeichnung, einheit: cell.einheit ?? null }, slope: cell.slope, fitModel: cell.fitModel }, columnSettings),
+  ]
+}
+
+/** Column settings for the export: one value for every column, or one per
+ * column index. */
+export type ExportColumnSettings = ColumnModuleSettings | ((cellIndex: number) => ColumnModuleSettings | undefined)
+
+/** Flatten cohort rows into export records (one per patient × series). Module
+ * columns (e.g. the AKI chip and rapid_progression) come from the cell's
+ * badges; pass each column's module settings to evaluate badges that depend on
+ * them (none are evaluated without settings). `conflictPatientKeys` holds the
+ * patientIdKey of every patient whose demographics had to be resolved from
+ * contradictory input, so the caveat travels with the exported table. */
 export function cohortExportRecords(
   rows: CohortRow[],
-  rapidThreshold = 0,
+  columnSettings?: ExportColumnSettings,
   conflictPatientKeys: ReadonlySet<string> = new Set(),
 ): CohortExportRecord[] {
   const out: CohortExportRecord[] = []
   for (const r of rows) {
-    for (const c of r.cells) {
+    for (const [cellIndex, c] of r.cells.entries()) {
+      const settings = typeof columnSettings === 'function' ? columnSettings(cellIndex) : columnSettings
       const evaluated = c.endpoints.evaluated
       const observedEvaluated = evaluated.observedCkdG4 || evaluated.observedCkdG5
       const anyEvaluated = observedEvaluated || evaluated.percentDecline || evaluated.projectedAgeToCkdG5
@@ -353,14 +357,7 @@ export function cohortExportRecords(
         reason: c.reason ?? '',
         unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
         demographics_conflict: conflictPatientKeys.has(patientIdKey(r.patientId)) ? 'yes' : '',
-        aki: c.akiChip,
-        rapid_progression: rapidEgfrDeclineFlagForCell({
-          patientId: r.patientId,
-          bezeichnung: c.bezeichnung,
-          einheit: c.einheit,
-          slope: c.slope,
-          threshold: rapidThreshold,
-        }) ? 'yes' : '',
+        ...moduleExportValues(cohortCellFlags(c, r.patientId, settings)),
         endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
         endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',
         endpoint_projected_age_to_ckd_g5: c.endpoints.projectedAgeToCkdG5.value ?? '',
