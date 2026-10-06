@@ -10,9 +10,9 @@ All parsing and computation runs in the browser; no data leaves the machine.
 
 ## Develop
 
-The [real-data workspace](docs/workspace-real-data.md) is available at
-`/workspace.html`. It implements the first complete workflow from the UI design;
-the existing interface at `/index.html` remains available during acceptance.
+The application is the [real-data workspace](docs/workspace-real-data.md),
+served at `/` (`index.html`). The former interface was removed on 2026-10-06;
+`/workspace.html` only redirects to `index.html` so older links keep working.
 
 This project uses [pnpm](https://pnpm.io/) (pinned via the `packageManager`
 field; run `corepack enable` once to let Node provision it automatically).

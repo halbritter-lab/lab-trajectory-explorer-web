@@ -41,24 +41,26 @@ export function Methodology() {
         <h3>Quick Guide</h3>
         <ol className="methodology-steps">
           <li>
-            <strong>Load or upload a workbook.</strong> Use the demo dataset or upload lab rows, then
-            select a patient for detail review or switch to the cohort view.
+            <strong>Load or upload a workbook.</strong> Use the demo dataset or upload lab rows under
+            Data, then open Trajectories to compare patients in the table or open one patient.
           </li>
           <li>
-            <strong>Choose the active series.</strong> Pick measured laboratory parameters or enable
-            computed eGFR when creatinine plus demographics are available.
+            <strong>Choose the parameters.</strong> Pick measured laboratory parameters under
+            Trajectories, or derive eGFR under Data when creatinine plus demographics are available.
           </li>
           <li>
             <strong>Set the fit policy before interpreting slopes.</strong> Configure event censoring,
-            AKI exclusions, time balancing, and the fit model in the sidebar. The same policy feeds
-            plots, cohort summaries, and exports.
+            AKI exclusions, time balancing, and the fit model under Trajectories → Display and
+            analysis, shared or per parameter column. The same policy feeds plots, cohort summaries,
+            and exports.
           </li>
           <li>
-            <strong>Inspect individual and cohort views together.</strong> Use the patient plot for
-            event context and the cohort table or overlay for ranking, grouping, and outlier review.
+            <strong>Inspect individual and cohort views together.</strong> Use the individual patient
+            view for event context and the patient table or overlay for ranking, grouping, and outlier
+            review.
           </li>
           <li>
-            <strong>Open the cohort mixed model when an eGFR cohort is active.</strong> Fit the whole
+            <strong>Use Cohort models for population-level estimates.</strong> Fit the whole
             cohort or selected groups, then verify the model status and warnings before using the
             result as exploratory evidence.
           </li>
@@ -74,7 +76,8 @@ export function Methodology() {
 
       <h4>Fit Pipeline</h4>
       <p>
-        Each configured series has its own fit configuration. Presets such as general exploration,
+        Each parameter column uses the shared fit configuration unless it has its own override.
+        Presets such as general exploration,
         CKD progression, and acute review are named defaults over the same explicit pipeline:
         filtering, optional event and AKI exclusions, time balancing, model fitting, endpoint
         derivation, and export. All slopes are expressed{' '}
@@ -215,25 +218,24 @@ export function Methodology() {
       </p>
       <p>
         The UI separates <strong>context display</strong> from <strong>fit exclusion</strong>.
-        Event and AKI labels can be hidden while excluded measurement points still remain marked in
-        red, because red points mean “excluded from the active fit,” not merely “episode label
-        visible.” When point-connecting is disabled, connector lines and red exclusion segments are
-        hidden, but the underlying measurements and excluded-point markers remain visible.
+        Events and AKI windows can be hidden while excluded measurements still remain marked as
+        grey open circles, because that marker means “excluded from the active fit,” not merely
+        “episode label visible.” When measurement points are hidden but connecting lines are shown,
+        excluded measurements remain marked.
       </p>
 
       <h4>Cohort Overlay Plot</h4>
       <p>
-        The cohort overlay is a spaghetti plot for one configured series across the selected
-        patient scope. It can use age, calendar date, or years since each patient's baseline as the
-        x-axis. A single click highlights a trajectory, hover temporarily activates it, and double
-        click opens the patient detail view. Event and AKI labels are drawn only for the active
-        trajectory to keep the cohort view readable.
+        The overlay is a spaghetti plot for each selected parameter across the patients in the
+        shared scope. It can use age, calendar date, or years since each patient's first
+        measurement as the x-axis. <em>Highlight patient</em> emphasises one trajectory; clicking a
+        trajectory, or pressing Enter on it, opens the individual patient view. AKI windows and
+        episode labels are drawn only for the highlighted trajectory to keep the overlay readable.
       </p>
       <p>
-        The <em>Connect data points</em> setting applies to the overlay as well as the detail and
-        mini-graph views. Turning it off removes normal trajectory connectors and red excluded
-        trajectory segments, while preserving all measured points and any red excluded-point
-        markers.
+        The <em>Connecting lines</em> setting applies to the overlay as well as the individual
+        patient charts. Turning it off removes trajectory connectors, while preserving all measured
+        points and any excluded-measurement markers.
       </p>
 
       <h4>Quality Flags</h4>
@@ -258,14 +260,14 @@ export function Methodology() {
         </li>
       </ul>
       <p>
-        These flags are shown, not only exported: the cohort table carries a badge on the affected
-        cell and the patient detail plot repeats it beneath the chart, with the full explanation in
-        the label. The colour says which kind of problem it is, not which threshold was crossed: a
-        dashed grey badge (<span className="quality-badge">n &lt; 3</span>) means no slope was
-        produced at all, an amber one (<span className="quality-badge quality-badge-caveat">n &lt;
-        3</span>, <span className="quality-badge quality-badge-caveat">&lt; 1 yr</span>) means a
-        slope exists but should be treated as unstable. The same <em>n &lt; 3</em> label therefore
-        appears in either colour depending on whether a slope came out of it.
+        These flags are shown, not only exported: when a fit is shown, the patient table states
+        the flag in the affected cell and the individual patient view repeats it beneath the chart;
+        the overlay draws affected fit lines dotted. The colour says which kind of problem it is,
+        not which threshold was crossed: grey text (<span className="wt-muted">n &lt; 3</span>)
+        means no slope was produced at all, an amber note (<span className="wt-warning">n &lt; 3 ·
+        uncertain slope</span>, <span className="wt-warning">Follow-up &lt; 1 year · uncertain
+        slope</span>) means a slope exists but should be treated as unstable. The same <em>n &lt;
+        3</em> label therefore appears in either colour depending on whether a slope came out of it.
       </p>
       <p>
         <strong>The displayed flag is broader than the reason field.</strong> A series of exactly
@@ -281,7 +283,7 @@ export function Methodology() {
 
       <h4>Why an Endpoint Has No Value</h4>
       <p>
-        When no projected age to CKD G5 can be computed, the cohort cell states the reason instead
+        When no projected age to CKD G5 can be computed, the patient table cell states the reason instead
         of staying empty, because an empty cell reads the same whether the patient is stable or the
         data are too thin:
       </p>
@@ -310,9 +312,9 @@ export function Methodology() {
 
       <h4>eGFR (Estimated Glomerular Filtration Rate)</h4>
       <p>
-        eGFR is a computed series derived from serum creatinine and patient demographics. It is
-        flagged with <strong>ƒ</strong> throughout the UI to distinguish it from directly measured
-        values.
+        eGFR is a computed series derived from serum creatinine and patient demographics. Its name
+        contains “computed” and it is marked as derived throughout the UI to distinguish it from
+        directly measured values.
       </p>
       <ul>
         <li>
@@ -403,11 +405,11 @@ export function Methodology() {
         baseline for automated detection that maximises sensitivity.
       </p>
       <p>
-        AKI chips in the cohort table summarise detected stages as Roman numerals (e.g.{' '}
-        <em>AKI I, II</em>). Individual episode markers can appear in single-patient plots and in
-        the cohort overlay when AKI display is enabled. Red measurement points indicate values
-        excluded from the active fit, so they can remain visible even when AKI episode labels are
-        hidden.
+        AKI chips in the patient table summarise detected stages as Roman numerals (e.g.{' '}
+        <em>AKI I, II</em>). Individual episode markers and AKI windows can appear in individual
+        patient charts and in the overlay when <em>AKI windows and episodes</em> is switched on.
+        Grey open circles indicate values excluded from the active fit, so they remain visible even
+        when AKI display is off.
       </p>
       <p><strong>Important limitations of AKI detection:</strong></p>
       <ul>
@@ -434,8 +436,8 @@ export function Methodology() {
 
       <h4>Cohort Screening</h4>
       <p>
-        The cohort table <strong>ranks and sorts</strong> patients by the selected metric (slope,
-        absolute slope, number of values, or observation span).
+        The patient table <strong>ranks and sorts</strong> patients by the selected metric (latest
+        value, slope, absolute slope, number of values, or observation span), in either direction.
       </p>
       <p>
         For eGFR series it also applies a single, explicit clinical flag:{' '}
@@ -444,7 +446,8 @@ export function Methodology() {
         definition of rapid CKD progression as a sustained decline faster than 5 mL/min/1.73m²/yr)
         is marked <span className="rapid-badge rapid-badge-inline">rapid ↓</span>{' '}
         in the table and carries a <code>rapid_progression</code> column in the export. The
-        threshold is adjustable in the sidebar (set it to 0 to disable the flag). No other clinical
+        threshold is adjustable under Trajectories → Display and analysis (set it to 0 to disable
+        the flag). No other clinical
         cut-offs are applied; all other interpretation of the ranking is left to the user, and the
         flag itself is a screening signal, not a diagnosis.
       </p>

@@ -58,8 +58,9 @@ explicit outstanding decision. Confirmed defects have a reproducer and regressio
 
 ## 2. Local storage and resumption
 
-Implemented in `workspace-storage.ts`, with a separate versioned workspace key.
-The legacy application retains its own storage. A snapshot saves source labs,
+Implemented in `workspace-storage.ts`, with a separate versioned workspace key in
+the app's own IndexedDB database. Since the former interface was removed
+(2026-10-06), its saved data is deleted at start-up and the user is told once. A snapshot saves source labs,
 events, attributes, manual demographics and derivation settings together; views
 and model results reset. IndexedDB compare-and-swap tokens prevent stale tabs
 from recreating deleted data or overwriting a newer snapshot.

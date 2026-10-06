@@ -17,17 +17,19 @@ pull request (`.github/workflows/ci.yml`) and again before deploy.
 
 Two things the Vitest suite cannot see, because it runs in jsdom:
 
-- PNG export (`svgStringToPngBlob` needs a real canvas), file downloads, the
-  responsive-width path (guarded off when `ResizeObserver` is undefined), and
-  the cohort overlay's label geometry, which reads `viewBox` /
+- PNG export (`svgStringToPngBlob` needs a real canvas), file downloads,
+  narrow-viewport layout, IndexedDB behaviour across tabs and reloads, and the
+  graph table's jump-to-parameter scrolling, which reads
   `getBoundingClientRect` and gets zeros in jsdom.
 - Anything about how a real workbook behaves end to end.
 
 After `pnpm install`, run `pnpm exec playwright install chromium` once on a new
 machine. `pnpm test:e2e` then runs the stable browser-regression subset in
-Chromium: the PR 5 quality and endpoint labels, badge priority, import warnings,
-template downloads, and the mobile methodology path. CI installs Chromium and
-runs the suite after the unit tests and build.
+Chromium against the workspace at `/` (the only interface since 2026-10-06):
+the PR 5 quality and endpoint labels, AKI and endpoint badges side by side,
+import warnings, template and demo downloads, the mobile methodology path,
+cohort-model factors and projections, local storage, and the `workspace.html`
+redirect. CI installs Chromium and runs the suite after the unit tests and build.
 
 `tests/e2e/smoke.md` remains the broader manual checklist for paths that are too
 expensive or subjective to automate. It carries a "Verified <date>" line per

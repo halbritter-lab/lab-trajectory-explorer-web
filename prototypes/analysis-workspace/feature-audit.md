@@ -5,6 +5,8 @@
 > Real-data import, configurable individual analyses, cohort models/projections,
 > local data storage and workspace chart exports are implemented. Older statements
 > below describe the earlier design/review stage, not today's missing features.
+> The legacy interface ("Original", `src/App.tsx` and `src/ui/`) was removed on
+> 2026-10-06; links into `src/ui` below point to files that no longer exist.
 
 
 Stand: 13.09.2026, Entwurfsbranch `design/analysis-workspace-prototype`,

@@ -1,19 +1,22 @@
 # Real-data workspace
 
-Development branch: `feat/workspace-real-data`, based on the design in PR #15.
-Run `pnpm dev --host 127.0.0.1`, then open
-`http://127.0.0.1:5173/workspace.html`.
+Run `pnpm dev --host 127.0.0.1`, then open `http://127.0.0.1:5173/`.
 For production-build checks, run `pnpm build` and `pnpm preview`.
 
-The workspace reuses the existing import, demographics, eGFR and analysis functions.
-It has its own entry point; the original application at `index.html` and the
-synthetic design prototype remain available for comparison.
+The workspace is the only interface of Lab Trajectory Explorer and is served at
+`index.html`. The former interface was removed on 2026-10-06; `workspace.html`
+remains as a redirect to `index.html` (query and hash are kept) so older links
+work. The synthetic design prototype remains available for comparison.
 Data stays in the browser. By default it lasts only for the current session.
 Under Data, **Remember on this device** opts into an unencrypted local snapshot
 of source labs, events, attributes, manual demographics and derivation settings.
 The snapshot expires seven days after the last data change. Reopening restores
-that data preparation; analysis/view choices and fitted models reset. The original
-application uses its own saved dataset and does not restore this workspace copy.
+that data preparation; analysis/view choices and fitted models reset. The copy is
+kept in the app's own IndexedDB database (`lab-trajectory-explorer`), not in the
+default database other apps on the same origin can share. An expired, invalid or
+unsupported copy is removed at start-up. A still valid copy saved by the previous
+release is moved over once. Data the former interface saved (its dataset and
+settings) is removed at start-up regardless of age, and the Data page says so once.
 **Clear saved data** removes the local copy while retaining the current session;
 **Clear dataset** confirms and removes both. Storage errors remain visible and
 imports still work. A stale tab cannot overwrite a newer or deleted snapshot;
@@ -25,7 +28,9 @@ imported parameter names and patient attributes retain their original values.
 
 1. Under **Data**, import an XLSX/CSV file or load the supplied demo data.
    A workbook can contain `labs`, `attributes` and `events`. Downloadable templates
-   show the accepted input schema; arbitrary column mapping is a later extension.
+   show the accepted input schema, and the demo workbook, events and attributes
+   can be downloaded as examples; arbitrary column mapping is a later extension.
+   Loaded events and rejected event rows are listed with their reason.
 2. Review import diagnostics and missing or conflicting demographics. Manual age
    entries use the displayed reference date. Open a patient from the quality table.
    CSV files are read as text (UTF-8 or Windows-1252, comma or semicolon) and
@@ -38,11 +43,14 @@ imported parameter names and patient attributes retain their original values.
    does not change an SI prefix.
 3. Choose an eGFR formula and creatinine source, inspect the preview, then apply.
    Source measurements remain intact. Output-name collisions with imported series
-   block the derivation instead of silently combining measurements.
+   block the derivation instead of silently combining measurements. Unreadable
+   sex spellings are quoted until a manual entry or attribute resolves them.
 4. Under **Trajectories**, select parameters by name and unit. Search or select
    patients and compare the graph table, individual view and spaghetti overlay.
    Different units remain separate. Horizontal column navigation accommodates many
    parameters, while the page handles vertical scrolling without pagination.
+   Metric sorts (latest value, slope, absolute slope, count, duration) can be
+   reversed; patients without a value stay last.
 5. Export the selected patient scope as XLSX, or download individual charts as
    SVG/PNG. Displayed metrics and exports reuse the same prepared analysis.
 
@@ -55,12 +63,20 @@ imported parameter names and patient attributes retain their original values.
   and an accessible description, in addition to the overall warning count.
   Patient measurement rows explain existing event/AKI exclusions and identify
   values available before time aggregation; this does not introduce another fit.
+  In the charts, measurements excluded from the fit are grey open circles whose
+  tooltip names the reason. **AKI windows and episodes** (plot settings) shades
+  the AKI window after each detected episode and marks its creatinine peak
+  ("AKI II"); in the overlay, windows and labels appear for the highlighted
+  patient only.
 - Cohort models fit the existing browser-based WebR model, with configurable
   factors, grouped fits, result tables and profile/threshold projections. Chart
   results must match the current response, unit, data, preparation and model
   configuration, and must have converged. Changing response or data hides stale
   curves. Overlay filters do not refit or redefine the full-cohort reference line.
   On an age axis, the reference uses mean fitted baseline age plus model time.
+  When the overlay is grouped by the attribute the groups were fitted under, each
+  fitted group also gets its own reference line in the group colour. The model
+  page shows a readable formula and lists patients a factor choice excludes.
 - The model preview exports SVG/PNG. Individual views also export a ZIP containing
   the scoped patient workbook and currently available SVG charts, with metadata
   and research framing. Distinct charts retain distinct names in the archive.

@@ -28,16 +28,15 @@ interfaces are still evolving before 1.0.
   layouts. Model previews and overlays reject stale or non-converged results and
   use model elapsed time correctly on age axes. Sorting supports colons in names.
 
-- English real-data workspace at `/workspace.html`: import and demographic review,
-  previewed eGFR derivations, multi-parameter patient graph table, individual
-  trajectories, configurable spaghetti overlays, and scoped XLSX/SVG/PNG exports.
-  The original application remains available during workflow acceptance.
+- English real-data workspace: import and demographic review, previewed eGFR
+  derivations, multi-parameter patient graph table, individual trajectories,
+  configurable spaghetti overlays, and scoped XLSX/SVG/PNG exports.
 
 - Configurable trend projections from fitted mixed-model profiles: editable
   above/below targets, G4/G5 boundary presets for compatible eGFR series,
   reference time and projection horizon. Results include unavailable reasons
   and clearly identify that time uncertainty is not estimated.
-- Numeric cohort series can now explicitly open the mixed-model dialog. Profile
+- Numeric parameters can be fitted on the Cohort models page. Profile
   and target settings remain session-only; exports include the applied target,
   profile, source response, model identity and projected times.
 
@@ -63,6 +62,26 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- The workspace is now the only interface and is served at `index.html`. The
+  former interface (sidebar, series strip, cohort view and model dialog) was
+  removed on 2026-10-06; `workspace.html` redirects to `index.html` so older
+  links keep working. Ported from the former interface: AKI windows and episode
+  markers in the charts (behind a display toggle), excluded measurements drawn
+  as grey open circles with their reason, per-group mixed-model lines in the
+  overlay, a sort-direction toggle, tables of loaded and rejected events,
+  downloads of the demo workbook, events and attributes, a readable model
+  formula with the patients a factor choice excludes, and the warning that
+  quotes unreadable sex spellings. Deliberately not ported: the S/M/L thumbnail
+  sizes (the graph table has one size and an optional zoomed value scale) and
+  the "show all series" creatinine-source picker (eGFR sources are limited to
+  eligible serum creatinine series).
+- The saved workspace lives in the app's own IndexedDB database instead of the
+  default database other apps on the same origin can share. A valid copy from
+  the previous release is moved once. Data the former interface saved is removed
+  at start-up regardless of age, and the Data page says so once. Expiry is
+  checked before the format, and expired, invalid or unsupported copies are
+  deleted instead of left on disk.
+- Removed the `@observablehq/plot` and `react-aria-components` dependencies.
 - Sex and age are now resolved once per patient before any analysis runs,
   rather than being read from each lab row individually; contradictions
   between rows (or between rows, the attributes table, and a manual entry)
@@ -103,8 +122,8 @@ interfaces are still evolving before 1.0.
   slope sheet keeps Mode fourth. No percent change is shown for one measurement.
 - Workspace plots now share a zero-inclusive parameter scale by default, with
   explicit zoom for inspecting small changes. View selection is visibly active,
-  new derived series appear in the selection, and Methods distinguishes the
-  workspace from features available only in the original application.
+  new derived series appear in the selection, and Methods shows the workspace
+  guide followed by the full methodology reference.
 - Workspace demographic labels are readable, derivation actions remain above
   long previews, and plotted events have an inspectable patient/date/title list.
 - Workbook imports now report rejected event/attribute rows and accepted-row
