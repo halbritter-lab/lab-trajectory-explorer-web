@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { LabRow } from '../../../src/core/types'
-import { computeAnalysisResult } from '../../../src/core/analysis/registry'
+import { computeAnalysisResult, parseAnalysisSettings } from '../../../src/core/analysis/registry'
 import type { AnalysisModule, AnalysisSettings } from '../../../src/core/analysis/types'
 
 function row(p: Partial<LabRow> = {}): LabRow {
@@ -121,5 +121,32 @@ describe('computeAnalysisResult', () => {
 
     expect(result.rows).toEqual([rows[0], computed])
     expect(seenRows).toEqual([2])
+  })
+})
+
+describe('parseAnalysisSettings', () => {
+  const savedSettings = {
+    egfr: { formula: 'mdrd-4', source: ['Kreatinin', 'mg/dl'] },
+    aki: { showOverlays: true, exclusionDays: 30 },
+    rapidEgfrDecline: { threshold: 5 },
+  }
+
+  it('accepts the current saved workspace shape without changing valid values', () => {
+    expect(parseAnalysisSettings(savedSettings)).toEqual(savedSettings)
+  })
+
+  it('fills a missing module with its default settings', () => {
+    const olderSettings = { egfr: savedSettings.egfr, aki: savedSettings.aki }
+    expect(parseAnalysisSettings(olderSettings)).toEqual({
+      ...olderSettings,
+      rapidEgfrDecline: { threshold: 5 },
+    })
+  })
+
+  it('rejects an invalid value in a registered module', () => {
+    expect(parseAnalysisSettings({
+      ...savedSettings,
+      rapidEgfrDecline: { threshold: 'fast' },
+    })).toBeNull()
   })
 })
