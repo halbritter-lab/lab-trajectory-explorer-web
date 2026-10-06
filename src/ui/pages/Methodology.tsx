@@ -104,8 +104,10 @@ export function Methodology() {
         </li>
         <li>
           <strong>Endpoints</strong> — eGFR series can report total percent decline from baseline,
-          observed CKD G5 after persistent eGFR &lt; 15 for at least 90 days, and projected age to
-          CKD G5 when a declining fit and sufficient age data exist.
+          independent observed G4 (&lt;30) and G5 (&lt;15), and projected age to G5.
+          Endpoints use all dated numeric eGFR measurements, independently of display-fit
+          exclusions or aggregation. The minimum confirmation interval defaults to 90 days
+          and is configurable as positive whole days.
         </li>
         <li>
           <strong>Exports</strong> — patient and cohort slope exports use the same event and AKI
@@ -131,7 +133,9 @@ export function Methodology() {
           to a minority of outlying points. Appropriate when isolated extreme values — an AKI spike,
           a suspected lab error, a single post-operative measurement — would tilt an OLS line, and
           you would rather not remove them by hand. It costs statistical efficiency when the data
-          are in fact clean.
+          are in fact clean. At least three observations and two distinct dates are required.
+          The intercept is median(value) minus slope times median(time). The reported 95% bounds
+          describe uncertainty in the slope, not a prediction interval for individual values.
         </li>
         <li>
           <strong>Rolling OLS</strong> — a separate OLS fit inside a sliding window. Appropriate
@@ -160,9 +164,8 @@ export function Methodology() {
         <li>
           <strong>Parity against the reference implementation</strong> — automated tests assert
           this port against golden values generated from the Python <code>analyses</code> package.
-          Covers OLS, rolling OLS and segmented OLS. <strong>Theil-Sen is not covered</strong>: it
-          has no golden and no numeric test, so it rests on its standard definition alone and
-          should be treated as the least verified of the five.
+          Covers OLS, rolling OLS, segmented OLS and Theil-Sen. The Theil-Sen checks include
+          the slope, separate-median intercept, 95% slope bounds and unavailable-fit cases.
         </li>
         <li>
           <strong>External comparison against an established clinical workflow</strong> — a manual
@@ -171,10 +174,36 @@ export function Methodology() {
         </li>
       </ul>
       <p>
-        In short: OLS has both checks, rolling and segmented OLS have the automated one, Theil-Sen
-        has neither. Verify before relying on the latter.
+        In short: OLS has both checks; rolling OLS, segmented OLS and Theil-Sen have the automated
+        one only and are less verified than OLS. The observed G4/G5 and endpoint prediction rules
+        below are this application's own research definitions: unit tests cover them, but neither
+        check above applies. None of this replaces acceptance with representative research data.
       </p>
 
+      <h4>Observed G4/G5 event algorithm</h4>
+      <p>For each threshold independently, sort dated numeric eGFR measurements chronologically.
+        A value below the threshold starts a candidate. The earliest later low measurement at least
+        the configured minimum interval later confirms it. A value at or above the threshold before
+        confirmation interrupts the candidate; a subsequent low value starts another candidate.</p>
+      <p>Record the initial crossing as the event date and the confirming measurement separately.
+        After confirmation, retain both dates and values and show the first subsequent recovery
+        separately. January 14, May 13, November 20 therefore gives a January G5 event, May
+        confirmation and November recovery. January 14, March 20, May 13 instead leaves a new
+        unconfirmed May candidate. These are research endpoint definitions.</p>
+      <p>Ignore missing dates and nonfinite values. Conflicting values at the same timestamp do not
+        establish persistence: a value at or above threshold interrupts an unconfirmed candidate.
+        Tied qualifying values retain source order. Confirmation requires a later timestamp.</p>
+      <h4>Individual endpoint prediction algorithm</h4>
+      <p>Fit all dated numeric measurements, including recovery, using global OLS or the selected
+        Theil-Sen estimator. Optional exclusions and aggregation affect display fits, not this
+        endpoint prediction. Rolling and segmented selections use global OLS for the scalar
+        endpoint prediction; no-fit disables it. With y(t) = a + b × t, crossing time is
+        (target − a) / b, in years from the first measurement. Add the remaining time after the
+        latest measurement to its age. A confirmed G5 event takes precedence over projection.</p>
+      <p>Require three measurements, at least one year of follow-up, a finite declining fit, a
+        future crossing and an age anchor. For values 60, 50, 25 at years 0, 1, 2, OLS gives
+        a = 62.5 and b = −17.5: the fitted line reaches 15 about 0.7143 years after year 2.
+        New measurements can change this prediction; they do not revoke a confirmed event.</p>
       <h4>Clinical Events and Exclusion Display</h4>
       <p>
         Clinical events are patient-level annotations with a date, title, optional end date, and
@@ -265,8 +294,8 @@ export function Methodology() {
           projected. This describes the observed window only and is not a prognosis.
         </li>
         <li>
-          <strong>G5 now</strong> — the latest eGFR is already below 15, but without a confirmed
-          persistent period, so neither the observed endpoint nor a projection applies.
+          <strong>G5 now</strong> — the fitted curve reaches 15 at or before the latest
+          measurement, so no future crossing is projected. This does not establish an observed event.
         </li>
         <li>
           <strong>G5 no age</strong> — no age is recorded for the latest measurement, so the

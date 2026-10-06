@@ -7,6 +7,32 @@ interfaces are still evolving before 1.0.
 
 ### Added
 
+- Independent observed G4/G5 events with configurable confirmation interval
+  (default 90 days), separate first-crossing/confirmation dates and later recovery
+  evidence. Recovery before confirmation restarts the candidate; recovery after
+  confirmation preserves the event. Endpoint exports record configuration and dates.
+- Theil-Sen 95% slope confidence bounds, Python separate-median intercept and
+  three-observation minimum, with expanded full-field reference parity tests.
+- Individual endpoint prediction now extends the fitted curve on all dated
+  numeric measurements, including recovery, independently of optional display-fit
+  preparation. This intentionally changes the previous latest-measurement anchor.
+  See `docs/method-algorithms.md` for numerical contracts and worked examples.
+
+- Workspace analysis presets and independent column settings; cohort-model studio
+  with covariates, grouped fits, reference-trajectory preview and projections.
+- Opt-in workspace storage for seven days, including source data, events,
+  attributes, manual demographic edits and derivation settings; safe deletion,
+  restore diagnostics and protection against stale writes from another tab.
+- Model-preview SVG/PNG export and patient ZIP bundles with workbook and charts.
+- Individual uncertain-fit markers, navigation guidance and narrow-screen model
+  layouts. Model previews and overlays reject stale or non-converged results and
+  use model elapsed time correctly on age axes. Sorting supports colons in names.
+
+- English real-data workspace at `/workspace.html`: import and demographic review,
+  previewed eGFR derivations, multi-parameter patient graph table, individual
+  trajectories, configurable spaghetti overlays, and scoped XLSX/SVG/PNG exports.
+  The original application remains available during workflow acceptance.
+
 - Configurable trend projections from fitted mixed-model profiles: editable
   above/below targets, G4/G5 boundary presets for compatible eGFR series,
   reference time and projection horizon. Results include unavailable reasons
@@ -44,6 +70,16 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
+- Workspace Rolling OLS and Segmented OLS selections now run their own fit paths
+  instead of global OLS. Endpoint export provenance is blank for endpoints that
+  were not evaluated; earlier endpoint columns keep their position and the patient
+  slope sheet keeps Mode fourth. No percent change is shown for one measurement.
+- Workspace plots now share a zero-inclusive parameter scale by default, with
+  explicit zoom for inspecting small changes. View selection is visibly active,
+  new derived series appear in the selection, and Methods distinguishes the
+  workspace from features available only in the original application.
+- Workspace demographic labels are readable, derivation actions remain above
+  long previews, and plotted events have an inspectable patient/date/title list.
 - Workbook imports now report rejected event/attribute rows and accepted-row
   warnings, with expandable sheet, patient, and reason details. Single-sheet
   lab files remain usable even when their sheet is named `events` or `attributes`.

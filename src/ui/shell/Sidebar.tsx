@@ -8,6 +8,7 @@ import { normalizePatientAttributes, validatePatientAttributes } from '../../cor
 import type { FitConfig, FitPreset, FitModel, TimeBalancing, UnknownDialysisPolicy } from '../../core/fitPipeline/types'
 import { readWorkbook } from '../../io/readWorkbook'
 import { resolveDemographics } from '../../core/demographics/resolve'
+import { ConfirmationDaysInput } from '../ConfirmationDaysInput'
 
 const DEMO_EVENTS_HREF = `${import.meta.env.BASE_URL}test_events.csv`
 const DEMO_ATTRIBUTES_HREF = `${import.meta.env.BASE_URL}test_attributes.csv`
@@ -519,19 +520,24 @@ export function Sidebar() {
             <div className="sidebar-subgroup-title">Endpoints</div>
             {([
               ['percentDecline', 'Percent eGFR decline'],
+              ['observedCkdG4', 'Observed CKD G4'],
               ['observedCkdG5', 'Observed CKD G5'],
               ['projectedAgeToCkdG5', 'Projected age to CKD G5'],
-            ] as Array<[keyof FitConfig['endpoints'], string]>).map(([key, label]) => (
+            ] as Array<[Exclude<keyof FitConfig['endpoints'], 'confirmationDays'>, string]>).map(([key, label]) => (
               <label className="sidebar-check" key={key}>
                 <input
                   type="checkbox"
                   aria-label={label}
-                  checked={primaryFitConfig.endpoints[key]}
+                  checked={primaryFitConfig.endpoints[key] ?? false}
                   onChange={(e) => setSeriesFitConfig(activeFitSeriesIndex, { endpoints: { [key]: e.target.checked } })}
                 />
                 {label}
               </label>
             ))}
+            <label>Minimum confirmation interval (days)
+              <ConfirmationDaysInput value={primaryFitConfig.endpoints.confirmationDays ?? 90} onChange={days => setSeriesFitConfig(activeFitSeriesIndex, { endpoints: { confirmationDays: days } })} />
+            </label>
+            <p className="sidebar-hint">G4/G5 endpoints and prediction use all dated numeric measurements. Prediction extends the fitted curve. Recovery after confirmation preserves the event.</p>
           </section>
 
           {patientIds.length > 0 && (

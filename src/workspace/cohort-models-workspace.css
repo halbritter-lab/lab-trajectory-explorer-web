@@ -1,0 +1,546 @@
+/* Cohort Models Workspace Styling */
+.cohort-models-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 20px;
+  min-width: 0;
+}
+
+.cohort-model {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.mixed-model-inline-config {
+  background: #fff;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 3px 14px rgba(21, 57, 44, 0.02);
+}
+
+.mixed-model-config-summary {
+  margin-bottom: 16px;
+}
+
+.mixed-model-message {
+  margin: 4px 0 0;
+  font-size: 13px;
+  color: var(--muted, #62757c);
+}
+
+.mixed-model-options-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  border-top: 1px solid var(--border, #dce4e2);
+  padding-top: 16px;
+}
+
+.mixed-model-config-fieldset {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 8px;
+  background: #fafcfb;
+}
+
+.mixed-model-config-fieldset legend {
+  font-size: 12px;
+  font-weight: 700;
+  color: #355754;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  padding: 0 6px;
+}
+
+.mixed-model-config-fieldset label {
+  display: grid;
+  gap: 5px;
+  font-size: 13px;
+  margin-top: 8px;
+}
+
+.mixed-model-config-fieldset select,
+.mixed-model-config-fieldset input[type="text"],
+.mixed-model-config-fieldset input[type="number"] {
+  padding: 7px 9px;
+  border: 1px solid #cbd8d6;
+  border-radius: 6px;
+  background: white;
+  font: inherit;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mixed-model-config-check {
+  display: flex !important;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.mixed-model-config-check input {
+  margin: 0;
+  accent-color: var(--accent, #176c68);
+}
+
+.mixed-model-config-pairs {
+  margin: 10px 0;
+}
+
+.mixed-model-config-pairs div {
+  display: grid;
+  grid-template-columns: 140px 1fr;
+  gap: 10px;
+  font-size: 13px;
+  padding: 4px 0;
+}
+
+.mixed-model-config-pairs dt {
+  color: var(--muted, #62757c);
+}
+
+.mixed-model-config-pairs dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.mixed-model-config-validation {
+  margin: 12px 0 0;
+  padding: 10px 14px;
+  color: #92400e;
+  background: #fef3c7;
+  border: 1px solid #fde68a;
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.mixed-model-config-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #dce4e2);
+  flex-wrap: wrap;
+}
+
+.mixed-model-config-formula {
+  display: block;
+  font-family: monospace;
+  font-size: 12px;
+  background: #f4f7f6;
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin-top: 6px;
+  overflow-x: auto;
+}
+
+/* Results table */
+.mixed-model-panel {
+  background: #fff;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 3px 14px rgba(21, 57, 44, 0.02);
+}
+
+.mixed-model-panel-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
+.cohort-model-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cohort-model-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.cohort-model-table th,
+.cohort-model-table td {
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border, #dce4e2);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.cohort-model-table th {
+  font-weight: 600;
+  color: #4a6360;
+  background: #f8faf9;
+}
+
+.cohort-model-unit {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.cohort-model-table .group-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.cohort-model-details-cell {
+  background: #f8faf9;
+  padding: 16px !important;
+}
+
+.cohort-model-details {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 12px 20px;
+  margin: 8px 0;
+}
+
+.cohort-model-details dt {
+  font-size: 11px;
+  color: var(--muted, #62757c);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.cohort-model-details dd {
+  margin: 4px 0 0;
+  font-weight: 600;
+}
+
+.cohort-model-detail-item-wide {
+  grid-column: 1 / -1;
+}
+
+/* Projection panel */
+.model-projection-panel {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border, #dce4e2);
+}
+
+.model-projection-panel fieldset {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin: 12px 0;
+  padding: 14px;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.model-projection-panel input:not([type="checkbox"]),
+.model-projection-panel select {
+  padding: 7px 9px;
+  border: 1px solid #cbd8d6;
+  border-radius: 6px;
+  font: inherit;
+}
+
+.model-projection-results {
+  margin-top: 12px;
+  overflow-x: auto;
+}
+
+@media (max-width: 800px) {
+  .mixed-model-options-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Model Studio & Presets Styling */
+.cm-studio-card {
+  display: grid;
+  gap: 16px;
+  background: #ffffff;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+}
+
+.cm-primary-controls {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 16px;
+  align-items: end;
+}
+
+.cm-preset-section {
+  display: grid;
+  gap: 8px;
+}
+
+.cm-preset-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cm-preset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 20px;
+  background: #f8fafc;
+  font-size: 13px;
+  font-weight: 500;
+  color: #334155;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cm-preset-btn:hover {
+  background: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.cm-preset-btn.active {
+  background: #0f172a;
+  border-color: #0f172a;
+  color: #ffffff;
+  font-weight: 600;
+  box-shadow: 0 2px 6px rgba(15, 23, 42, 0.15);
+}
+
+.cm-preset-desc {
+  font-size: 13px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+/* Covariates & Factor Chips */
+.cm-factors-container {
+  display: grid;
+  gap: 10px;
+  padding: 14px 16px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+}
+
+.cm-factors-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.cm-factors-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.cm-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 10px 5px 12px;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 13px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+}
+
+.cm-chip-name {
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.cm-chip select {
+  font-size: 12px;
+  padding: 3px 6px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #f8fafc;
+}
+
+.cm-chip-remove {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 15px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.cm-chip-remove:hover {
+  color: #ef4444;
+}
+
+.cm-add-factor-wrap select {
+  padding: 6px 10px;
+  font-size: 13px;
+  border: 1px dashed #94a3b8;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+}
+
+/* Random effects toggle */
+.cm-random-effects-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 14px;
+  font-size: 13px;
+  color: #475569;
+}
+
+.cm-random-effects-toggle label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+}
+
+/* Formula & Sample Info */
+.cm-formula-strip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #0f172a;
+  border-radius: 8px;
+  color: #f8fafc;
+  font-size: 13px;
+}
+
+.cm-formula-code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 12px;
+  color: #38bdf8;
+}
+
+.cm-sample-meta {
+  font-size: 12px;
+  color: #94a3b8;
+}
+
+/* Fit Action Bar */
+.cm-studio-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding-top: 6px;
+}
+
+.cm-fit-button {
+  padding: 10px 24px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+}
+
+/* Plot Card */
+.cm-plot-card {
+  padding: 20px;
+  background: #ffffff;
+  border: 1px solid var(--border, #dce4e2);
+  border-radius: 12px;
+  box-shadow: 0 2px 10px rgba(15, 23, 42, 0.03);
+}
+
+.cm-plot-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.cm-plot-header h3 {
+  margin: 0 0 4px;
+  font-size: 16px;
+  color: #0f172a;
+}
+
+.cm-plot-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.cm-slope-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border: 1.5px solid;
+  border-radius: 16px;
+  font-size: 12px;
+  background: #ffffff;
+}
+
+.cm-badge-swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.cm-plot-svg-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.cm-plot-svg {
+  width: 100%;
+  height: auto;
+  max-height: 280px;
+  display: block;
+}
+
+.cm-axis-text {
+  font-size: 11px;
+  fill: #64748b;
+  font-family: inherit;
+}
+
+.cm-watermark-text {
+  font-size: 12px;
+  fill: #475569;
+  font-weight: 500;
+}
+
+/* Keep long response names, formulas and result tables within narrow screens. */
+.cohort-models-workspace .page-heading > div,
+.cm-plot-header > div,
+.cm-studio-card > *,
+.cm-formula-strip > div { min-width: 0; }
+.cm-studio-card, .cm-preset-section { grid-template-columns: minmax(0, 1fr); }
+.cm-primary-controls label { display: grid; gap: 6px; min-width: 0; }
+.cm-formula-code { overflow-wrap: anywhere; }
+.cm-plot-header { flex-wrap: wrap; }
+.cohort-model-table-wrap { min-width: 0; overflow-x: auto; }
+@media (max-width: 600px) {
+  .cm-primary-controls { grid-template-columns: minmax(0, 1fr); }
+  .cm-plot-header { flex-direction: column; }
+}

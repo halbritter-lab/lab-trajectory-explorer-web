@@ -6,12 +6,12 @@ import { rapidEgfrDeclineFlagForCell } from '../../core/analysis/rapidEgfrDeclin
 import { MiniSparkline } from '../charts/MiniSparkline'
 import { CohortTrajectoryOverlay } from './CohortTrajectoryOverlay'
 import { sheetsToXlsxBytes, downloadBlob, fileStamp } from '../../io/export'
-import type { CkdEndpoints } from '../../core/endpoints/ckdEndpoints'
+import { endpointBadge } from '../endpointLabels'
 import { comparePatientIds, patientIdKey } from '../../core/types'
 import { patientAttributesExportRows } from '../../core/attributes/attributes'
 import { normaliseSex } from '../../core/egfr/formulas'
 import { groupColors, groupPatients } from '../../core/grouping/grouping'
-import { projectedG5Label, slopeQualityLabel } from '../qualityLabels'
+import { slopeQualityLabel } from '../qualityLabels'
 import { mixedModelRowsFromCohortInputs } from '../../core/mixedModel/cohortDataset'
 import {
   mixedModelConfigLabel,
@@ -31,35 +31,6 @@ const CohortModelPanel = lazy(() =>
 
 const MIXED_MODEL_DATA_POLICY_TEXT =
   'Uses selected patients, active series, clinical event censoring, AKI exclusions, and time balancing.'
-
-function endpointBadge(endpoints: CkdEndpoints, hasFit: boolean): { label: string; title: string } | null {
-  const labelParts: string[] = []
-  const titleParts: string[] = []
-  const decline = endpoints.percentDecline.value
-  if (hasFit && decline !== null) {
-    const change = -decline
-    labelParts.push(`${change > 0 ? '+' : ''}${change.toFixed(0)}%`)
-    titleParts.push(`total eGFR change ${change.toFixed(1)}% from baseline (not per year)`)
-  }
-  if (endpoints.observedCkdG5.met) {
-    labelParts.push('CKD G5')
-    const confirmed = endpoints.observedCkdG5.confirmedDate?.toISOString().slice(0, 10)
-    titleParts.push(confirmed ? `observed CKD G5 confirmed ${confirmed}` : 'observed CKD G5')
-  } else if (hasFit && endpoints.projectedAgeToCkdG5.value !== null) {
-    const age = endpoints.projectedAgeToCkdG5.value
-    labelParts.push(`G5 @ ${age.toFixed(1)}y`)
-    titleParts.push(`projected age to CKD G5 ${age.toFixed(1)} years`)
-  } else {
-    // No projection: say why instead of rendering nothing. An empty cell reads
-    // as "not applicable" whether the patient is stable or the data is too thin.
-    const unavailable = projectedG5Label(endpoints)
-    if (unavailable) {
-      labelParts.push(unavailable.label)
-      titleParts.push(unavailable.title)
-    }
-  }
-  return labelParts.length > 0 ? { label: labelParts.join(' · '), title: titleParts.join(' · ') } : null
-}
 
 function visibleBadges(badges: CohortBadge[]): CohortBadge[] {
   if (badges.length <= 3) return badges
@@ -485,7 +456,7 @@ export function CohortView() {
                           title: `Rapid eGFR decline: faster than ${rapidThreshold} mL/min/1.73m²/yr (KDIGO rapid progression)`,
                         })
                       }
-                      const endpoint = endpointBadge(c.endpoints, Number.isFinite(c.slope))
+                      const endpoint = endpointBadge(c.endpoints, c.points.length)
                       if (endpoint) badges.push({ className: 'endpoint-badge', ...endpoint })
                       return (
                         <td key={i}>

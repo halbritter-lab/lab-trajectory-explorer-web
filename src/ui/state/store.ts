@@ -290,7 +290,7 @@ function fitConfigForPreset(preset: FitPreset, parameter: FitConfig['parameter']
   return generalExplorationConfig(parameter)
 }
 
-function modeForFitModel(fitModel: FitConfig['fitModel']): SlopeMode {
+export function modeForFitModel(fitModel: FitConfig['fitModel']): SlopeMode {
   if (fitModel === 'theil-sen') return 'global-robust'
   if (fitModel === 'rolling-ols') return 'rolling'
   if (fitModel === 'segmented-ols') return 'gap-split'

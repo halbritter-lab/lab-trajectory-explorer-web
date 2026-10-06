@@ -1,5 +1,10 @@
 # Configurable trend projection
 
+## Status update — 2026-09-14
+
+PR #12 and its factor dependency #11 are merged through #13. The technical contract below remains relevant; the new workplace replaces the earlier dialog placement. Product acceptance remains outstanding. See [requirements reconciliation](../../requirements-reconciliation.md).
+
+
 Status: interface concept and generalizable scope accepted in conversation on
 2026-09-13. Implemented on `feat/configurable-trend-projection`; see the plan
 for verification and the separate dependency on PR #11.

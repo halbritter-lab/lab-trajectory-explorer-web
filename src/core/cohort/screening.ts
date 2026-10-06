@@ -1,5 +1,6 @@
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
 import type { SeriesPoint } from '../stats/series'
+import { fitGlobal, fitTheilSen } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
 import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
@@ -13,8 +14,7 @@ import { isEgfrUnit } from '../analysis/rapidEgfrDeclineModule'
 import type { ClinicalEvent } from '../events/events'
 import { clinicalEventAffectsFit, filterFitPointsByClinicalEvents } from '../events/fitExclusions'
 import type { FitConfig } from '../fitPipeline/types'
-import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings, type EndpointPoint } from '../endpoints/ckdEndpoints'
-import { balanceSeriesPoints } from '../stats/timeBalancing'
+import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from '../endpoints/ckdEndpoints'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 
@@ -136,7 +136,15 @@ export function buildCohortRows(
       }
       const excludedIdx = [...excluded].sort((a, b) => a - b)
       const endpointSettings = endpointSettingsFor(spec.einheit ?? null, spec.fitConfig?.endpoints)
-      const endpointPoints = endpointPointsForSeries(seriesRows, clinicalEvents, spec.fitConfig, episodes, exclusionDays, spec.mode)
+      const endpointRows = seriesRows.filter(row => Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
+      // Ages and the all-data fit only feed the G5 projection; skip both otherwise.
+      const projecting = endpointSettings.projectedAgeToCkdG5
+      const ageAnchors = projecting ? ageAnchorsFor(endpointRows) : []
+      const endpointPoints = endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: projecting ? ageAtDate(row.labDatum!, ageAnchors) : null }))
+      const endpointModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
+      const endpointFit = !projecting || endpointModel === 'none'
+        ? { slope: Number.NaN, intercept: Number.NaN }
+        : endpointModel === 'theil-sen' ? fitTheilSen(endpointPoints) : fitGlobal(endpointPoints)
       const fitLines = points.length < 2 || spec.mode === 'rolling'
         ? []
         : buildSlopeLines(
@@ -182,7 +190,8 @@ export function buildCohortRows(
         excludedIdx,
         endpoints: computeCkdEndpoints({
           points: endpointPoints,
-          slopePerYear: match?.slope ?? Number.NaN,
+          slopePerYear: endpointFit.slope,
+          intercept: endpointFit.intercept,
           enabled: endpointSettings,
         }),
       }
@@ -204,50 +213,26 @@ function endpointSettingsFor(einheit: string | null, endpoints?: Partial<CkdEndp
   if (!isEgfrUnit(einheit)) return disabledEndpointSettings
   return {
     percentDecline: endpoints?.percentDecline ?? false,
+    observedCkdG4: endpoints?.observedCkdG4 ?? false,
     observedCkdG5: endpoints?.observedCkdG5 ?? false,
     projectedAgeToCkdG5: endpoints?.projectedAgeToCkdG5 ?? false,
+    confirmationDays: endpoints?.confirmationDays,
   }
 }
 
 const MS_PER_YEAR = 365.25 * 86_400_000
 
-function endpointPointsForSeries(
-  rows: LabRow[],
-  clinicalEvents: ClinicalEvent[],
-  fitConfig: FitConfig | undefined,
-  episodes: AkiEpisode[],
-  exclusionDays: number,
-  mode: SlopeMode,
-): EndpointPoint[] {
-  const indexed = rows
-    .filter((r) => r.wertNum !== null && r.labDatum !== null)
-    .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
-    .map((row, index) => ({ row, index, point: { date: row.labDatum!, value: row.wertNum! } }))
-  const eventExcluded = new Set(
-    filterFitPointsByClinicalEvents(
-      indexed.map((item) => item.point),
-      clinicalEvents,
-      fitConfig?.censoring,
-    ).excludedIdx,
-  )
-  let included = indexed.filter((item) => !eventExcluded.has(item.index))
-  if ((mode === 'aki-aware' || fitConfig?.exclusions.excludeAkiWindows) && included.length > 0) {
-    const kept = new Set(fitAkiAware(included.map((item) => item.point), exclusionDays, episodes).keptIdx)
-    included = included.filter((_, index) => kept.has(index))
-  }
-  const balanced = balanceSeriesPoints(included.map((item) => item.point), fitConfig?.timeBalancing)
-  return balanced.map((point) => ({
-    ...point,
-    ageYears: ageAtDate(point.date, included.map((item) => item.row)),
-  }))
-}
-
-function ageAtDate(date: Date, rows: LabRow[]): number | null {
-  const anchors = rows
+/** Rows carrying an age, oldest first; computed once per series for ageAtDate. */
+function ageAnchorsFor(rows: LabRow[]): LabRow[] {
+  return rows
     .filter((r) => r.labDatum !== null && r.patientAgeAtLab !== null)
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
+}
+
+function ageAtDate(date: Date, anchors: LabRow[]): number | null {
   if (anchors.length === 0) return null
-  const anchor = [...anchors].reverse().find((r) => r.labDatum!.getTime() <= date.getTime()) ?? anchors[0]
+  let anchor = anchors[0]
+  for (const r of anchors) if (r.labDatum!.getTime() <= date.getTime()) anchor = r
   return anchor.patientAgeAtLab! + (date.getTime() - anchor.labDatum!.getTime()) / MS_PER_YEAR
 }
 
@@ -287,6 +272,25 @@ export interface CohortExportRecord {
   endpoint_percent_decline: number | ''
   endpoint_observed_ckd_g5: string
   endpoint_projected_age_to_ckd_g5: number | ''
+  // Columns added after the three above are appended, so positional readers of
+  // older exports keep working. Provenance is blank for endpoints not evaluated.
+  endpoint_observed_ckd_g4: string
+  endpoint_confirmation_days: number | ''
+  endpoint_input_policy: string
+  endpoint_prediction_anchor: string
+  endpoint_prediction_model: string
+  endpoint_g4_first_date: string
+  endpoint_g4_confirmed_date: string
+  endpoint_g4_recovery_date: string
+  endpoint_g4_first_value: number | ''
+  endpoint_g4_confirmed_value: number | ''
+  endpoint_g4_recovery_value: number | ''
+  endpoint_g5_first_date: string
+  endpoint_g5_confirmed_date: string
+  endpoint_g5_recovery_date: string
+  endpoint_g5_first_value: number | ''
+  endpoint_g5_confirmed_value: number | ''
+  endpoint_g5_recovery_value: number | ''
 }
 
 /** Unit string for a slope: the series unit per year (slopes are value-units
@@ -303,9 +307,12 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
   { note: 'Slopes are per year (value-units/yr; eGFR in mL/min/1.73m2/yr).' },
   { note: 'eGFR is computed from creatinine + demographics (adult-only); AKI episodes use the KDIGO creatinine criterion only (urine output not evaluated).' },
   { note: 'All derived values are algorithmic estimates requiring independent clinical verification.' },
+  { note: 'Observed G4 <30 and G5 <15 use all dated numeric eGFR measurements. Confirmation interval is recorded per result. Recovery before confirmation resets the candidate; later recovery preserves the event.' },
+  { note: 'Individual endpoint prediction extends a global fitted curve on all dated numeric measurements, independently of display-fit exclusions and aggregation. Theil-Sen requires three points, uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
+const endpointDate = (date: Date | null): string => date?.toISOString().slice(0, 10) ?? ''
 
 /** Flatten cohort rows into export records (one per patient × series). Pass the
  * rapid-progression threshold (mL/min/1.73m²/yr) to populate rapid_progression;
@@ -320,6 +327,9 @@ export function cohortExportRecords(
   const out: CohortExportRecord[] = []
   for (const r of rows) {
     for (const c of r.cells) {
+      const evaluated = c.endpoints.evaluated
+      const observedEvaluated = evaluated.observedCkdG4 || evaluated.observedCkdG5
+      const anyEvaluated = observedEvaluated || evaluated.percentDecline || evaluated.projectedAgeToCkdG5
       out.push({
         ...(r.groupValue !== undefined ? { group: r.groupValue } : {}),
         PatientID: r.patientId,
@@ -348,6 +358,23 @@ export function cohortExportRecords(
         endpoint_percent_decline: c.endpoints.percentDecline.value ?? '',
         endpoint_observed_ckd_g5: c.endpoints.observedCkdG5.met ? 'yes' : '',
         endpoint_projected_age_to_ckd_g5: c.endpoints.projectedAgeToCkdG5.value ?? '',
+        endpoint_observed_ckd_g4: c.endpoints.observedCkdG4.met ? 'yes' : '',
+        endpoint_confirmation_days: observedEvaluated ? c.endpoints.confirmationDays : '',
+        endpoint_input_policy: anyEvaluated ? 'all dated numeric measurements' : '',
+        endpoint_prediction_anchor: evaluated.projectedAgeToCkdG5 ? 'fitted curve' : '',
+        endpoint_prediction_model: evaluated.projectedAgeToCkdG5 ? c.fitModel : '',
+        endpoint_g4_first_date: endpointDate(c.endpoints.observedCkdG4.firstDate),
+        endpoint_g4_confirmed_date: endpointDate(c.endpoints.observedCkdG4.confirmedDate),
+        endpoint_g4_recovery_date: endpointDate(c.endpoints.observedCkdG4.recoveryDate),
+        endpoint_g4_first_value: c.endpoints.observedCkdG4.firstValue ?? '',
+        endpoint_g4_confirmed_value: c.endpoints.observedCkdG4.confirmedValue ?? '',
+        endpoint_g4_recovery_value: c.endpoints.observedCkdG4.recoveryValue ?? '',
+        endpoint_g5_first_date: endpointDate(c.endpoints.observedCkdG5.firstDate),
+        endpoint_g5_confirmed_date: endpointDate(c.endpoints.observedCkdG5.confirmedDate),
+        endpoint_g5_recovery_date: endpointDate(c.endpoints.observedCkdG5.recoveryDate),
+        endpoint_g5_first_value: c.endpoints.observedCkdG5.firstValue ?? '',
+        endpoint_g5_confirmed_value: c.endpoints.observedCkdG5.confirmedValue ?? '',
+        endpoint_g5_recovery_value: c.endpoints.observedCkdG5.recoveryValue ?? '',
       })
     }
   }

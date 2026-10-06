@@ -112,3 +112,86 @@ XLSX downloads. The browser tests intercept the worker to isolate UI behavior;
 `scripts/verify_mixed_model_projections.mjs` independently runs the actual webR
 worker with lme4 and nlme and checks known profile coefficients/crossing times.
 The projection form stays within the mobile dialog; result columns can scroll.
+
+
+## Real-data workspace
+
+Approved method update, verified 2026-09-23:
+
+- Unit/component suite: 873 tests in 101 files passed; production build passed.
+- Complete production-browser suite: 78 checks passed in Chromium, Firefox and
+  WebKit, with `CI=1 CROSS_BROWSER=1`, two workers, 60-second timeout and no retries.
+- After bounding long endpoint detail text, the final build and all three
+  endpoint browser workflows passed again, including the 390px layout check.
+- The added workflow imports raw eGFR, changes the confirmation interval from
+  90 to 30 days, checks event/confirmation/recovery details without enabling a
+  display trend, downloads and inspects workbook provenance, then restores 90
+  days and verifies the G5 result disappears for this unconfirmed history.
+- Independent review found three issues: legacy patient-export omissions,
+  hidden raw percent change when no display fit exists, and nonfinite input
+  reaching the prediction fit. Each was reproduced by a failing test and fixed;
+  the final unit suite includes all three regressions.
+
+Algorithm definitions and intentionally changed numerical output are recorded
+in `docs/method-algorithms.md`; research-data acceptance remains pending.
+
+Current completion checks, verified 2026-09-23:
+
+- Opt into local saving after import, demographics and derivation; reload,
+  verify preparation, delete and reload again. A stale second tab must not
+  recreate the deleted snapshot. A failed replacement retains saved data.
+- Download the model preview as SVG/PNG and inspect the exported context.
+  Export a patient ZIP; verify distinct chart names and patient-scoped workbook.
+- Import an exclusion event and inspect the affected patient measurement row.
+- Exercise 200 synthetic patients, 12 parameters and 19,200 measurements;
+  search and export the selected patient. Check the model preview at 390px.
+
+The complete production-browser suite passed 72 checks across Chromium, Firefox
+and WebKit. After the final measurement-exclusion addition, all 36 workspace
+checks passed again on those engines with no retries. Unit/component suite:
+857 tests in 100 files passed; production build passed. A real WebR demo fit
+was exercised separately. Representative research-data and first-user acceptance
+remain pending. Earlier dated checkpoints follow.
+
+1. Open `/workspace.html`; confirm English navigation and session-only status.
+2. Load demo data or a workbook with labs, attributes and events. Review import
+   diagnostics and edit demographics using the displayed age reference date.
+3. Select an eGFR formula and source, inspect the preview and apply. Confirm the
+   derived parameter appears without changing the original measurements.
+4. Open Trajectories, select many parameters, and browse the graph table. Check
+   horizontal navigation, sticky patient IDs and shared per-parameter scales.
+5. Open a patient and return to the table; check focus and scroll restoration.
+   Compare the same patient scope in Overlay, including grouping and time axes.
+6. Download XLSX, SVG and PNG. Check selected scope, original/derived provenance,
+   UTC dates, English chart context/legend and research-use footer.
+7. Change the formula, then disable derivation; verify the selected computed
+   parameter updates or is explicitly unavailable. Replace the dataset and check
+   that browser selections reset. Repeat table/detail navigation at 390 px width.
+
+Verified 2026-09-14: all three workspace Chromium tests pass against the production
+build, including actual file downloads and narrow-screen navigation. Desktop graph
+table and grouped overlay visually checked; downloaded English PNG includes readable
+axes, unit, title, grouping/legend and research footer. Original 13 browser checks
+also pass. Representative research-data acceptance remains pending.
+
+## Workspace visual-review regressions
+
+1. Load the demo, apply CKD-EPI 2021 and open Trajectories. The computed series
+   should already be selected, alongside the imported parameters.
+2. Switch Table / Overlay / Individual patient and check that the current view
+   has a contrasting filled button. Open patient 1: creatinine should retain the
+   shared 0–4.2 range rather than stretching its small variation across the chart.
+3. Choose Zoom to visible values explicitly and check that the scale notice and
+   exported chart context change. Restore Shared parameter scale.
+4. Group the overlay by sex: readable Female/Male labels, original grouping codes
+   retained. Enable Events and expand Inspect events to read patient/date/title.
+5. Open Methods: only the available workspace workflow is initially described.
+   Expand the full reference deliberately to see original-app features.
+6. Expand the derived preview and confirm Apply is above it; scroll the preview
+   independently. Repeat the trajectory workflow at 390 px width.
+
+Verified 2026-09-14 against the local development server: all four workspace
+browser tests pass; shared patient-1 plots and active view state visually checked.
+Mobile overlay remains within the viewport; event inspector and sex labels checked.
+Final production-build run: all 17 Chromium tests passed, including these four
+workspace workflows. Unit/component suite: 821 passed; production build passed.

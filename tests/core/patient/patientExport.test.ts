@@ -33,6 +33,14 @@ describe('patientMeasurementRecords', () => {
 })
 
 describe('patientSlopeRecords', () => {
+  it('retains confirmation settings and recovery evidence in the legacy patient workbook', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²' }
+    const fitConfig = ckdProgressionConfig(parameter)
+    fitConfig.endpoints.confirmationDays = 30
+    const rows = [14, 13, 20].map((wertNum, i) => row({ ...parameter, labDatum: d(['2020-01-01', '2020-02-01', '2020-05-01'][i]), wertNum }))
+    const sheets = patientWorkbookSheets(rows, 1, [{ ...parameter, mode: 'global', fitConfig }])
+    expect(sheets.find(sheet => sheet.name === 'slopes')!.rows[0]).toMatchObject({ endpoint_observed_ckd_g4: 'yes', endpoint_observed_ckd_g5: 'yes', endpoint_confirmation_days: 30, endpoint_g5_first_date: '2020-01-01', endpoint_g5_confirmed_date: '2020-02-01', endpoint_g5_recovery_date: '2020-05-01', endpoint_g5_recovery_value: 20, endpoint_input_policy: 'all dated numeric measurements', endpoint_prediction_anchor: 'fitted curve' })
+  })
   const specs: CohortSeriesSpec[] = [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }]
   it('produces a slope row with the configured mode and a null reason on a clean fit', () => {
     const rows: LabRow[] = [
@@ -51,6 +59,11 @@ describe('patientSlopeRecords', () => {
     expect(typeof recs[0].ci_low).toBe('number')
     expect(typeof recs[0].ci_high).toBe('number')
     expect(recs[0].slope as number).toBeCloseTo(0.5, 1) // ~0.5 mg/dl per year
+  })
+
+  it('keeps Mode as the fourth slope column', () => {
+    const [rec] = patientSlopeRecords([row({})], 1, [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }])
+    expect(Object.keys(rec).slice(0, 5)).toEqual(['PatientID', 'Bezeichnung', 'Einheit', 'Mode', 'fit_model'])
   })
 
   it('returns an empty array when no series are configured', () => {

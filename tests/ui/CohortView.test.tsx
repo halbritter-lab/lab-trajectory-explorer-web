@@ -191,7 +191,7 @@ describe('CohortView', () => {
     render(<CohortView />)
 
     expect(screen.getByText('-50% · G5 @ 63.0y')).toBeInTheDocument()
-    expect(screen.getByText('-50% · G5 @ 63.0y')).toHaveAttribute('title', 'total eGFR change -50.0% from baseline (not per year) · projected age to CKD G5 63.0 years')
+    expect(screen.getByText('-50% · G5 @ 63.0y')).toHaveAttribute('title', 'total eGFR change -50.0% from baseline (not per year) · projected age to CKD G5 63.0 years; fitted curve using all dated numeric measurements')
   })
 
   it('renders the cohort mixed model panel only inside the model dialog', async () => {

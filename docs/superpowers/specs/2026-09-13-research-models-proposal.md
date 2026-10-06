@@ -1,5 +1,10 @@
 # Research models: proposed scope
 
+## Status update — 2026-09-14
+
+PRs #11 and #12 are merged through #13. Patient-factor configuration and fitted-curve threshold projections are technically integrated; research-data and redesigned-workflow acceptance remain outstanding. The approved genotype example includes baseline age and sex for both level and slope. Sections below retain the proposal history, including superseded delivery order and open-choice wording. Current decisions and remaining questions: [requirements reconciliation](../../requirements-reconciliation.md).
+
+
 Status: patient-factor configuration and the genotype example were approved on
 2026-09-13 and are implemented on `feat/configurable-mixed-model-factors`.
 Baseline age and sex can affect both level and slope; each factor remains
