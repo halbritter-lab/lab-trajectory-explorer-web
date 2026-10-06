@@ -148,6 +148,16 @@ The 40/57% confirmed declines, 12-month confirmation maximum and 20-year/CI
 projection limits remain for later P4 packages.
 Sequential verification: 780/780 unit tests (90 files), production build,
 29/29 Chromium tests. Existing React `act` warnings remain in storage tests.
+Review follow-up: raw dated numeric eGFR series presence now controls KRT
+reporting, so a series with only on/after-KRT labs still reports kidney failure
+reached. Future G5 projection is withheld after KRT with its own reason and
+neutral UI label. Earlier lab-confirmed G5 remains visible beside KRT. The
+tradeoff is that no pre-KRT counterfactual crossing is shown; the owner may
+revisit that optional estimate. Other P4 packages remain separate.
+Review follow-up verification: 35/35 focused tests, 782/782 full unit tests
+across 90 files, TypeScript no-emit check and production build passed. The
+browser suite was last run for the preceding endpoint/KRT package (29/29);
+this focused review fix did not rerun it.
 Independent review follow-up: the user-facing AKI methodology still described
 mg/dl as its only input after the SI-unit implementation. It now names both
 eligible units, the 88.42 conversion, exact-row selection and 1e-12 tolerance.

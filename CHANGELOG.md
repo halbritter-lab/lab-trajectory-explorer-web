@@ -13,6 +13,9 @@ interfaces are still evolving before 1.0.
   values and the projection fit; raw chart points remain visible. Endpoint
   values can change in event-bearing datasets; existing numeric golden fixtures
   contain no affected event inputs and were deliberately left unchanged.
+- Report KRT in nonempty eGFR cells even when no measurement precedes KRT.
+  Withhold future individual G5 projections after KRT with an explicit reason
+  in cohort exports, while retaining earlier lab-confirmed G5 events.
 
 - Apply a 1e-12 numeric tolerance at KDIGO creatinine thresholds, including
   the stage-1 floor, so exact 0.3 mg/dl and 1.5-fold rises survive floating

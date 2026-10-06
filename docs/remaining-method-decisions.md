@@ -34,6 +34,11 @@ proceed and remain open to the owner's revision.
   display-fit toggles or AKI windows. Kidney failure reached is independent of
   lab-confirmed G5 and is reported for eGFR cells with measurements even when
   observed G5 is disabled; empty eGFR cells add no patient-level result.
+  Review follow-up: a nonempty eGFR series reports KRT even if every lab is on
+  or after KRT. Once kidney failure was reached, a future individual G5
+  projection is withheld with reason `kidney_failure_reached`; a prior observed
+  G5 and KRT remain visible together. This omits a possible pre-KRT
+  counterfactual projection, which the owner may revisit if useful.
 - **Individual G5 projection.** No projected crossing beyond 20 years after
   the last measurement *(proposed horizon)*; no projected crossing when the
   slope confidence interval includes zero. The "unlikely" wording is replaced

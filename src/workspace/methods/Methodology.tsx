@@ -113,7 +113,8 @@ export function Methodology() {
           or chronic dialysis start and outside complete dated acute dialysis intervals,
           independently of display-fit AKI exclusions or aggregation. Kidney replacement therapy
           is reported separately as kidney failure reached with its type and date, independently
-          of lab-confirmed G5. The minimum confirmation interval defaults to 90 days
+          of lab-confirmed G5. After kidney replacement therapy, no future individual G5
+          crossing is projected. The minimum confirmation interval defaults to 90 days
           and is configurable as positive whole days.
         </li>
         <li>

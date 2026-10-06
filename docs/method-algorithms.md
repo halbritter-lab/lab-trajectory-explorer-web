@@ -103,7 +103,8 @@ acute dialysis interval, including its start and end dates. Later values after
 acute dialysis remain eligible. Unknown-intent dialysis and incomplete or
 invalid acute intervals do not censor endpoint input. Dates compare by UTC
 calendar day. KRT is reported separately as kidney failure reached with type
-and date, regardless of observed G5 toggle, only for nonempty eGFR series.
+and date, regardless of observed G5 toggle, for nonempty eGFR series even when
+every lab is on or after KRT and no row is endpoint-eligible.
 An earlier lab-confirmed G5 and later KRT can both be reported. G4 is strictly
 below 30 and G5 strictly below 15 mL/min/1.73m². Equality is not below the
 threshold. The default minimum confirmation interval is 90 elapsed UTC days;
@@ -133,7 +134,7 @@ KRT, without display-fit AKI exclusion or time
 aggregation. It uses global OLS, or Theil-Sen for a robust-trend selection;
 rolling/segmented display fits retain the existing global OLS scalar convention.
 No-fit disables prediction. Percent change likewise describes first to latest
-raw eGFR. It is not shown for a single measurement, where first and latest
+endpoint-eligible exact eGFR. It is not shown for a single eligible measurement, where first and latest
 coincide; exports keep the computed value. Display slopes can therefore differ
 from the endpoint prediction fit.
 
@@ -142,6 +143,10 @@ confirmation interval when G4 or G5 was enabled, the input policy when any
 endpoint was, and the prediction anchor and model when the G5 projection was.
 Blank provenance means the endpoint was not evaluated for that series (for
 example non-eGFR units or a preset with endpoints off), not that it was not met.
+KRT type and date have separate export columns. When a future individual
+projection is withheld after KRT, projected age, anchor and model are blank and
+`endpoint_prediction_reason` records `kidney_failure_reached`. A prior observed
+G5 retains its own lab dates alongside the KRT date.
 The earlier columns `endpoint_percent_decline`, `endpoint_observed_ckd_g5` and
 `endpoint_projected_age_to_ckd_g5` keep their position; later endpoint columns
 are appended after them.
@@ -151,7 +156,9 @@ the first measurement. Future age equals age at the latest measurement plus
 crossing time minus elapsed observed years. Require three points, at least one
 year of follow-up, a finite declining fit, a future crossing and an available
 age anchor. A confirmed observed G5 event retains precedence over a future G5
-projection. If the fitted crossing is already at/before the latest measurement,
+projection. Once KRT is reached, no future G5 crossing is projected, even if
+the pre-KRT fit would cross later. When there is no prior observed G5, the
+reason is `kidney_failure_reached`. If the fitted crossing is already at/before the latest measurement,
 report no future crossing rather than a future age. Missing values remain
 unavailable, never zero. New measurements may change a prediction; they cannot
 revoke a previously confirmed event within the same measurement history.

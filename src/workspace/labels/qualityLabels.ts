@@ -83,6 +83,12 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
   if (endpoints.projectedAgeToCkdG5.value !== null) return null
   const caveat = false
   switch (endpoints.projectedAgeToCkdG5.reason) {
+    case 'kidney_failure_reached':
+      return {
+        label: 'G5 not projected after KRT',
+        title: 'Kidney failure was reached at kidney replacement therapy, so no future individual G5 crossing is projected.',
+        caveat,
+      }
     case 'no_fit':
       return {
         label: 'G5 no fit',

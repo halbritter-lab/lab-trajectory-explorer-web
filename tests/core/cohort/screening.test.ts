@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { buildCohortRows, type CohortCell, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
+import { buildCohortRows, cohortExportRecords, type CohortCell, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
+import { endpointBadge } from '../../../src/workspace/labels/endpointLabels'
 import { formatAkiChip, formatAkiEpisodeSummary } from '../../../src/core/domains/nephrology/aki/summary'
 import { episodesForSeries } from '../../../src/core/domains/nephrology/aki/akiAware'
 import { akiFitInput } from '../../../src/core/domains/nephrology/aki/akiModule'
@@ -255,7 +256,7 @@ describe('buildCohortRows cell overlays', () => {
     expect(cell.slope).toBeLessThan(0)
     expect(cell.endpoints.percentDecline.value).toBe(50)
     expect(cell.endpoints.percentDecline.latestValue).toBe(30)
-    expect(cell.endpoints.projectedAgeToCkdG5.value).not.toBeNull()
+    expect(cell.endpoints.projectedAgeToCkdG5).toEqual({ value: null, reason: 'kidney_failure_reached' })
     expect(cell.endpoints.kidneyFailureReached).toMatchObject({ type: 'kidney_transplant', date: d('2022-07-01') })
     expect(cell.points).toHaveLength(4)
   })
@@ -274,6 +275,9 @@ describe('buildCohortRows cell overlays', () => {
     const enabled = buildCohortRows(rows, [1], [spec])[0].cells[0]
     expect(enabled.endpoints.observedCkdG5).toMatchObject({ met: true, firstDate: d('2020-01-01'), confirmedDate: d('2020-05-01'), recoveryDate: null })
     expect(enabled.endpoints.kidneyFailureReached?.date).toEqual(d('2020-08-01'))
+    expect(enabled.endpoints.projectedAgeToCkdG5.reason).toBe('observed_ckd_g5')
+    expect(endpointBadge(enabled.endpoints, enabled.points.length)?.label).toContain('CKD G5')
+    expect(endpointBadge(enabled.endpoints, enabled.points.length)?.label).toContain('Kidney failure reached')
     expect(enabled.endpoints.percentDecline.latestValue).toBe(13)
   })
 
@@ -281,7 +285,8 @@ describe('buildCohortRows cell overlays', () => {
     const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
     const rows = [['2020-01-01', 60], ['2020-06-01', 13], ['2020-06-10', 12], ['2021-01-01', 45]].map(([date, value]) => row({ ...parameter, labDatum: d(date as string), wertNum: value as number }))
     const event: ClinicalEvent = { patientId: 1, type: 'dialysis', intent: 'acute', date: d('2020-06-01'), endDate: d('2020-06-10'), title: 'Acute dialysis', description: null, warning: '' }
-    const cell = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: [event] }])[0].cells[0]
+    const cohort = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: [event] }])
+    const cell = cohort[0].cells[0]
     expect(cell.endpoints.observedCkdG5.met).toBe(false)
     expect(cell.endpoints.percentDecline.latestValue).toBe(45)
     expect(cell.endpoints.percentDecline.value).toBe(25)
@@ -309,6 +314,20 @@ describe('buildCohortRows cell overlays', () => {
     const cell = buildCohortRows([], [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: [event] }])[0].cells[0]
     expect(cell.endpoints.kidneyFailureReached).toBeNull()
     expect(cell.endpoints.endpointPointCount).toBe(0)
+  })
+
+  it('reports KRT for a nonempty eGFR cell whose only lab is on or after KRT', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const rows = [row({ ...parameter, labDatum: d('2020-01-01'), wertNum: 45 })]
+    const event: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', intent: null, date: d('2020-01-01'), endDate: null, title: 'Transplant', description: null, warning: '' }
+    const cohort = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: [event] }])
+    const cell = cohort[0].cells[0]
+    expect(cell.points).toHaveLength(1)
+    expect(cell.endpoints.endpointPointCount).toBe(0)
+    expect(cell.endpoints.kidneyFailureReached).toMatchObject({ type: 'kidney_transplant', date: d('2020-01-01') })
+    expect(cell.endpoints.projectedAgeToCkdG5).toEqual({ value: null, reason: 'kidney_failure_reached' })
+    expect(endpointBadge(cell.endpoints, cell.points.length)?.label).toContain('Kidney failure reached (kidney transplant, 2020-01-01)')
+    expect(cohortExportRecords(cohort)[0]).toMatchObject({ endpoint_kidney_failure_reached: 'yes', endpoint_kidney_failure_type: 'kidney_transplant', endpoint_kidney_failure_date: '2020-01-01', endpoint_prediction_reason: 'kidney_failure_reached' })
   })
 
   it('uses the earliest KRT date even when events arrive out of order', () => {

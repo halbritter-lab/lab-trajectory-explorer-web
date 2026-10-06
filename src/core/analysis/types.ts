@@ -167,6 +167,9 @@ export interface EndpointContext {
   fitConfig?: FitConfig
   /** Clinical events for this patient; endpoint policy is independent of display-fit toggles. */
   events: readonly ClinicalEvent[]
+  /** Whether this patient has any dated numeric row in the source series,
+   * including rows later excluded from endpoint calculations. */
+  hasSeriesMeasurements: boolean
   /** The estimator of the column's slope; endpoint projections reuse it. */
   scalarFitModel: FitModel
   /** Endpoint-eligible exact finite dated measurements, oldest first; ages

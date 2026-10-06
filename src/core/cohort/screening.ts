@@ -220,7 +220,8 @@ function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRow
     seriesKey: { bezeichnung: spec.bezeichnung, einheit: spec.einheit ?? null },
     mode: spec.mode,
     fitConfig: spec.fitConfig,
-    events: seriesRows.length > 0 ? events : [],
+    events,
+    hasSeriesMeasurements: seriesRows.length > 0,
     scalarFitModel,
     points,
     fit: () => {

@@ -35,6 +35,7 @@ export type CkdProjectionReason =
   | 'span_too_short'
   | 'already_below_threshold'
   | 'missing_age'
+  | 'kidney_failure_reached'
 
 export interface CkdEndpoints {
   kidneyFailureReached: KidneyFailureReached | null
@@ -127,6 +128,10 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
   if (input.enabled.observedCkdG5) out.observedCkdG5 = observeThresholdCrossing(points, definitions.observedCkdG5)
 
   if (input.enabled.projectedAgeToCkdG5) {
+    if (out.kidneyFailureReached && !out.observedCkdG5.met) {
+      out.projectedAgeToCkdG5 = { value: null, reason: 'kidney_failure_reached' }
+      return out
+    }
     const projected = projectAgeAtCrossing({
       points,
       slopePerYear: input.slopePerYear,
