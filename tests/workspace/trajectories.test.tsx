@@ -12,6 +12,41 @@ function fixture(): WorkspaceData {
 }
 
 describe('real-data trajectories workspace', () => {
+  it('pages a 2000-patient table while retaining global sort, detail navigation and return focus', () => {
+    const data = fixture()
+    data.parameters = data.parameters.slice(0, 1)
+    data.patients = Array.from({ length: 2000 }, (_, i) => ({ id: `P-${String(i + 1).padStart(4, '0')}`, label: `P-${String(i + 1).padStart(4, '0')}`, attributes: {}, baselineAge: 40 }))
+    data.rows = data.patients.map((patient, i) => ({ patientId: patient.id, labDatum: new Date('2020-01-01T00:00:00Z'), bezeichnung: 'Marker', einheit: 'unit-0', wert: String(i), wertNum: i, wertOperator: '=' as const, loinc: null, patientSex: null, patientAgeAtLab: 40 }))
+    data.rawRows = data.rows
+    render(<TrajectoriesWorkspace data={data} />)
+    const table = screen.getByRole('table')
+    expect(within(table).getAllByRole('row')).toHaveLength(51)
+    expect(screen.getByText('Showing 1–50 of 2000 patients')).toBeInTheDocument()
+    expect(within(table).getByRole('button', { name: 'Open patient P-0001' }).closest('tr')).toHaveTextContent('1 measurement')
+    expect(within(table).getByRole('button', { name: 'Open patient P-0001' }).closest('tr')).not.toHaveTextContent('1 measurements')
+    fireEvent.click(screen.getByRole('button', { name: 'Next table page' }))
+    expect(within(table).getByRole('button', { name: 'Open patient P-0051' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient P-0051' }))
+    expect(screen.getByRole('heading', { name: 'Patient P-0051' })).toHaveFocus()
+    fireEvent.click(screen.getByRole('button', { name: 'Next patient' }))
+    expect(screen.getByRole('heading', { name: 'Patient P-0052' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Back to table' }))
+    expect(screen.getByRole('button', { name: 'Open patient P-0051' })).toHaveFocus()
+    fireEvent.change(screen.getByLabelText('Sort by'), { target: { value: 'id:desc' } })
+    expect(within(screen.getByRole('table')).getByRole('button', { name: 'Open patient P-2000' })).toBeInTheDocument()
+    expect(screen.getByText('Showing 1–50 of 2000 patients')).toBeInTheDocument()
+  })
+
+  it('exposes a clinical flag explanation through a focusable disclosure', () => {
+    const data = creatinineFixture(['P1'])
+    render(<TrajectoriesWorkspace data={data} />)
+    const row = screen.getByRole('button', { name: 'Open patient P1' }).closest('tr')!
+    const badge = within(row).getByText('AKI II')
+    expect(badge.closest('summary')).toBeInTheDocument()
+    fireEvent.click(badge)
+    expect(badge.closest('details')).toHaveAttribute('open')
+    expect(badge.closest('details')).toHaveTextContent('1 AKI episode: 1× stage II')
+  })
   it('labels bounded values as excluded in chart and measurement table', () => {
     const data = fixture()
     const bounded = data.rows.find(row => row.patientId === 'ID-A' && row.einheit === 'unit-0' && row.labDatum?.getUTCFullYear() === 2021)!

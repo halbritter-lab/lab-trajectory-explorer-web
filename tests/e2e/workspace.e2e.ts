@@ -33,6 +33,28 @@ async function upload(page: Page) {
   await expect(page.locator('.workspace-dataset')).toContainText('3 patients')
 }
 
+test('2000-patient table navigation updates in under two seconds without losing detail focus', async ({ page }) => {
+  const rows = ['patientId,labDate,testName,unit,value', ...Array.from({ length: 2000 }, (_, index) => `P-${String(index + 1).padStart(4, '0')},2020-01-01,Marker,U/L,${index + 1}`)]
+  await page.goto('/')
+  await page.getByLabel('Import lab values').setInputFiles({ name: 'large.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) })
+  await expect(page.locator('.workspace-dataset')).toContainText('2000 patients')
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await expect(page.locator('.wt-table tbody tr')).toHaveCount(50)
+  const elapsedMs = await page.evaluate(async () => {
+    const next = document.querySelector<HTMLButtonElement>('[aria-label="Next table page"]')!
+    const start = performance.now()
+    next.click()
+    await new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve())))
+    return performance.now() - start
+  })
+  expect(elapsedMs).toBeLessThan(2000)
+  await expect(page.getByRole('button', { name: 'Open patient P-0051' })).toBeVisible()
+  await page.getByRole('button', { name: 'Open patient P-0051' }).click()
+  await expect(page.getByRole('heading', { name: 'Patient P-0051' })).toBeFocused()
+  await page.getByRole('button', { name: 'Back to table' }).click()
+  await expect(page.getByRole('button', { name: 'Open patient P-0051' })).toBeFocused()
+})
+
 test('approved endpoint rules: configurable confirmation, visible recovery and workbook provenance', async ({ page }, testInfo) => {
   const workbook = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([14, 13, 20].map((value, i) => ({ patientId: 'P-1', labDate: ['2020-01-01', '2020-02-01', '2020-05-01'][i], testName: 'eGFR', unit: 'mL/min/1.73m²', value, ageAtLab: 60, sex: 'f' }))), 'labs')

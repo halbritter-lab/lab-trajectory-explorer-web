@@ -54,6 +54,15 @@
 .wt-parameter-dialog::backdrop { background: #18313e88; }
 .wt-parameter-options { display: grid; gap: 10px; max-height: 50vh; overflow-y: auto; padding: 16px 0; }
 .wt-badge { display: inline-block; padding: 2px 6px; font-size: 11px; font-weight: 600; line-height: 1.25; border-radius: 4px; width: fit-content; }
+.wt-badge-details { min-width: 0; max-width: 100%; }
+.wt-badge-details > summary { cursor: pointer; list-style: none; max-width: 100%; overflow-wrap: anywhere; }
+.wt-badge-details > summary::-webkit-details-marker { display: none; }
+.wt-badge-details > summary::after { content: ' ▾'; }
+.wt-badge-details[open] > summary::after { content: ' ▴'; }
+.wt-badge-details > summary:focus-visible { outline: 2px solid #176c68; outline-offset: 2px; }
+.wt-badge-details > p { margin: 4px 0 8px; max-width: 240px; white-space: normal; overflow-wrap: anywhere; }
+.wt-table-pages { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; min-width: 0; }
+.wt-table-pages > span { overflow-wrap: anywhere; }
 .wt-badge-endpoint { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
 .wt-badge-rapid { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-weight: 700; }
 .wt-badge-aki { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
