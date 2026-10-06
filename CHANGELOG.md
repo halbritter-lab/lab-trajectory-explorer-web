@@ -7,6 +7,13 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Cohort mixed models require ten patients with repeated times (three for
+  random slopes, two for random intercepts). This technical input guard is not
+  a sample-size calculation. Singular fits are flagged separately from
+  convergence; their coefficients remain exportable while projections and
+  fitted model lines are withheld. The Methodology page now explains each
+  patient's model time origin and the limitations from visit timing and dropout.
+
 - Cohort mixed models now let users apply or skip the selected preset's event
   censoring and AKI windows. Application remains the default. The workspace
   and model workbook report each entity's eligible measurement rows

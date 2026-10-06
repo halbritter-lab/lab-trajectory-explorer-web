@@ -97,6 +97,14 @@ export function Methodology() {
         study-specific sensitivity analysis before drawing clinical conclusions.
       </p>
       <p>
+        Mixed-model fitting requires at least ten patients with repeated observations at
+        different times: three times per patient for a random intercept and slope, or two for a
+        random intercept alone. This is an input safeguard, not evidence of adequate statistical
+        power. A singular fit remains available for inspecting and exporting its coefficients,
+        but its projections and model lines are withheld. Review its random-effect structure
+        and study-specific sample-size assumptions before interpreting it.
+      </p>
+      <p>
         Each parameter column uses the shared fit configuration unless it has its own override.
         Presets such as general exploration,
         CKD progression, and acute review are named defaults over the same explicit pipeline:

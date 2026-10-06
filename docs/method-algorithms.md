@@ -54,7 +54,15 @@ calendar date or disease onset. The model uses observed eligible visits and
 does not fit a visit or dropout process. A trend can be biased when the chance
 of a later visit or dropout depends on an unobserved outcome; review follow-up
 patterns and use a study-specific sensitivity analysis. The minimum-data gate
-is a technical input guard, not a power calculation or guarantee of adequacy.
+requires at least ten qualifying patients: three distinct measurement times
+each for a random intercept and slope, or two each for a random intercept alone.
+This is a technical input guard, not a power calculation or guarantee of
+adequacy. Singularity is reported separately from optimizer convergence.
+Singular fit coefficients remain inspectable and exportable, while cohort
+projections and fitted model lines are withheld. lme4 uses `isSingular` with
+relative tolerance `1e-4`; nlme checks the random-effect covariance scale
+against the residual scale for a random intercept, or its eigenvalue standard
+deviation ratio for an intercept and slope, at `1e-4`.
 
 ## KDIGO creatinine AKI and eGFR source conversion (2026-10-06)
 

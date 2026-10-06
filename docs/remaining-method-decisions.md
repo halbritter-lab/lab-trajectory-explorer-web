@@ -100,10 +100,11 @@ proceed and remain open to the owner's revision.
   removed by the union of event and AKI windows, and switching the policy
   invalidates fitted models and projections. Later time balancing, run-in and
   factor removals are not included in that count.
-- **Mixed models.** Stricter minimum data requirements, singular fits flagged
-  and their projections withheld, and the time origin and dropout assumptions
-  documented on the methodology page. The earlier methodology wording may be
-  replaced.
+- **Mixed models.** Implemented in P5: a technical minimum of ten qualifying
+  patients with three distinct times for random slopes or two for random
+  intercepts; singular fits flagged, their projections withheld, and time
+  origin and dropout assumptions documented on the methodology page. The
+  minimum is not a statistical power guarantee.
 - **Not changed for now:** AKI episode merging and staging; the rapid-decline
   flag; quarterly calendar-median aggregation (made visible only).
 - **Architecture.** Analyses become modular: domain rules (nephrology) live in
