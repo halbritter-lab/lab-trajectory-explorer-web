@@ -12,6 +12,7 @@ import {
   type ThresholdCrossingDefinition,
 } from '../../../endpoints/thresholdEndpoints'
 import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS } from '../constants'
+import type { KidneyFailureReached } from './endpointEventPolicy'
 
 export type { EndpointPoint } from '../../../endpoints/thresholdEndpoints'
 
@@ -36,6 +37,8 @@ export type CkdProjectionReason =
   | 'missing_age'
 
 export interface CkdEndpoints {
+  kidneyFailureReached: KidneyFailureReached | null
+  endpointPointCount: number
   percentDecline: {
     value: number | null
     baselineValue: number | null
@@ -54,6 +57,7 @@ export interface CkdEndpoints {
 }
 
 export interface ComputeCkdEndpointsInput {
+  kidneyFailureReached?: KidneyFailureReached | null
   points: EndpointPoint[]
   slopePerYear: number
   /** Intercept at the first valid point's date; callers pass the raw-data fit. */
@@ -85,6 +89,8 @@ const PROJECTION_REASONS: Record<ProjectedCrossingReason, CkdProjectionReason> =
 
 function emptyEndpoints(): CkdEndpoints {
   return {
+    kidneyFailureReached: null,
+    endpointPointCount: 0,
     percentDecline: { value: null, baselineValue: null, latestValue: null },
     observedCkdG4: emptyObservedCrossing(),
     observedCkdG5: emptyObservedCrossing(),
@@ -102,6 +108,7 @@ export function normalizeConfirmationDays(value: number | undefined): number {
  * projected age at G5, evaluated with the generic endpoint evaluators. */
 export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoints {
   const out = emptyEndpoints()
+  out.kidneyFailureReached = input.kidneyFailureReached ?? null
   const threshold = input.threshold ?? CKD_G5_EGFR_THRESHOLD
   const confirmationDays = normalizeConfirmationDays(input.confirmationDays ?? input.enabled.confirmationDays)
   const definitions = ckdCrossingDefinitions(confirmationDays, threshold)
@@ -113,6 +120,7 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
     projectedAgeToCkdG5: input.enabled.projectedAgeToCkdG5,
   }
   const points = validEndpointPoints(input.points)
+  out.endpointPointCount = points.length
 
   if (input.enabled.percentDecline && points.length > 0) out.percentDecline = percentDeclineFromBaseline(points)
   if (input.enabled.observedCkdG4) out.observedCkdG4 = observeThresholdCrossing(points, definitions.observedCkdG4)

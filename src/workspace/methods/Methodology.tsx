@@ -109,8 +109,11 @@ export function Methodology() {
         <li>
           <strong>Endpoints</strong> — eGFR series can report total percent decline from baseline,
           independent observed G4 (&lt;30) and G5 (&lt;15), and projected age to G5.
-          Endpoints use all dated exact numeric eGFR measurements, independently of display-fit
-          exclusions or aggregation. The minimum confirmation interval defaults to 90 days
+          Endpoints use dated exact numeric eGFR measurements before the first kidney transplant
+          or chronic dialysis start and outside complete dated acute dialysis intervals,
+          independently of display-fit AKI exclusions or aggregation. Kidney replacement therapy
+          is reported separately as kidney failure reached with its type and date, independently
+          of lab-confirmed G5. The minimum confirmation interval defaults to 90 days
           and is configurable as positive whole days.
         </li>
         <li>
@@ -202,8 +205,9 @@ export function Methodology() {
         establish persistence: a value at or above threshold interrupts an unconfirmed candidate.
         Tied qualifying values retain source order. Confirmation requires a later timestamp.</p>
       <h4>Individual endpoint prediction algorithm</h4>
-      <p>Fit all dated exact numeric measurements, including recovery, using global OLS or the selected
-        Theil-Sen estimator. Optional exclusions and aggregation affect display fits, not this
+      <p>Fit the same endpoint-eligible dated exact numeric measurements, including recovery after
+        acute dialysis but excluding transplant and chronic dialysis dates onward, using global OLS
+        or the selected Theil-Sen estimator. Display-fit AKI exclusions and aggregation do not affect this
         endpoint prediction. Rolling and segmented selections use global OLS for the scalar
         endpoint prediction; no-fit disables it. With y(t) = a + b × t, crossing time is
         (target − a) / b, in years from the first measurement. Add the remaining time after the

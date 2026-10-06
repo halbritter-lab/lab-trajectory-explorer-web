@@ -165,13 +165,14 @@ export interface EndpointContext {
   seriesKey: SeriesKey
   mode: SlopeMode
   fitConfig?: FitConfig
+  /** Clinical events for this patient; endpoint policy is independent of display-fit toggles. */
+  events: readonly ClinicalEvent[]
   /** The estimator of the column's slope; endpoint projections reuse it. */
   scalarFitModel: FitModel
-  /** Every dated numeric measurement of the series with a finite value,
-   * oldest first; ages (from the nearest earlier age-carrying row) only
-   * when requested. */
+  /** Endpoint-eligible exact finite dated measurements, oldest first; ages
+   * (from the nearest earlier eligible age-carrying row) only when requested. */
   points(withAges: boolean): EndpointPoint[]
-  /** Global fit of those measurements with the scalar model (OLS or
+  /** Global fit of those same endpoint-eligible measurements with the scalar model (OLS or
    * Theil-Sen); NaN slope and intercept when the model is 'none'. */
   fit(): { slope: number; intercept: number }
 }

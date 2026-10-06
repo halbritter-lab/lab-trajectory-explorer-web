@@ -56,11 +56,21 @@ describe('approved method settings and provenance', () => {
     expect(badge.title).toContain('confirmed 2020-02-01')
     expect(badge.title).toContain('recovery 2020-05-01')
   })
+  it('labels kidney failure separately from observed G5 and exports the KRT type and date', () => {
+    const input = exportFixture()
+    const endpoints = computeCkdEndpoints({ points, slopePerYear: 1, enabled: { percentDecline: false, observedCkdG5: true, projectedAgeToCkdG5: false, confirmationDays: 30 }, kidneyFailureReached: { type: 'chronic_dialysis', date: new Date('2020-06-01') } })
+    expect(endpointBadge(endpoints, points.length)?.label).toContain('Kidney failure reached')
+    expect(endpointBadge(endpoints, points.length)?.title).toContain('chronic dialysis on 2020-06-01')
+    input.cohortRows[0].cells[0].endpoints = endpoints
+    const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
+    const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.cohort)
+    expect(rows[0]).toMatchObject({ endpoint_observed_ckd_g5: 'yes', endpoint_kidney_failure_reached: 'yes', endpoint_kidney_failure_type: 'chronic_dialysis', endpoint_kidney_failure_date: '2020-06-01' })
+  })
   it('exports event dates, recovery and effective settings in actual workbook bytes', () => {
     const input = exportFixture()
     input.cohortRows[0].cells[0].endpoints = computeCkdEndpoints({ points, slopePerYear: 1, enabled: { percentDecline: false, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: true, confirmationDays: 30 } })
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets.cohort)
-    expect(rows[0]).toMatchObject({ endpoint_observed_ckd_g4: 'yes', endpoint_observed_ckd_g5: 'yes', endpoint_g5_first_date: '2020-01-01', endpoint_g5_confirmed_date: '2020-02-01', endpoint_g5_recovery_date: '2020-05-01', endpoint_g5_recovery_value: 20, endpoint_confirmation_days: 30, endpoint_prediction_anchor: 'fitted curve', endpoint_input_policy: 'all dated exact numeric measurements; bounds excluded' })
+    expect(rows[0]).toMatchObject({ endpoint_observed_ckd_g4: 'yes', endpoint_observed_ckd_g5: 'yes', endpoint_g5_first_date: '2020-01-01', endpoint_g5_confirmed_date: '2020-02-01', endpoint_g5_recovery_date: '2020-05-01', endpoint_g5_recovery_value: 20, endpoint_confirmation_days: 30, endpoint_prediction_anchor: 'fitted curve', endpoint_input_policy: 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded' })
   })
 })

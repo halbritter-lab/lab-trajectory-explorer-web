@@ -26,6 +26,14 @@ proceed and remain open to the owner's revision.
   dialysis itself counts as *kidney failure reached* on that date. This
   replaces the earlier "use all dated measurements, including later recovery"
   rule for individual prediction below.
+  Implemented endpoint policy: compare UTC calendar dates; the KRT start date
+  itself is excluded, and the earliest transplant/chronic dialysis date wins.
+  Complete dated acute intervals exclude both boundary dates, with later values
+  retained. Unknown-intent dialysis and acute intervals without a valid end
+  date do not exclude endpoint input. Endpoint filtering does not depend on
+  display-fit toggles or AKI windows. Kidney failure reached is independent of
+  lab-confirmed G5 and is reported for eGFR cells with measurements even when
+  observed G5 is disabled; empty eGFR cells add no patient-level result.
 - **Individual G5 projection.** No projected crossing beyond 20 years after
   the last measurement *(proposed horizon)*; no projected crossing when the
   slope confidence interval includes zero. The "unlikely" wording is replaced

@@ -1,7 +1,7 @@
 /**
  * Generic endpoint evaluators. A domain module states which endpoints a
  * series has (thresholds, directions, confirmation interval); these functions
- * evaluate them on all dated exact numeric measurements of the series.
+ * evaluate them on the dated exact numeric measurements supplied by the domain.
  */
 import { projectedCrossingTime } from '../projection/linearProjection'
 

@@ -134,6 +134,20 @@ boundaries and passed unchanged, so no golden numeric values moved. Final
 sequential verification after the marker-unit follow-up: 52/52 focused tests,
 773/773 unit tests (90 files), production build and 29/29 Chromium tests.
 Existing React `act` warnings remain in the storage unit tests.
+
+Third P4 package: eGFR endpoint rows stop before the earliest transplant or
+chronic dialysis date, and complete dated acute dialysis intervals exclude both
+boundary days while retaining later values. Unknown-intent and incomplete acute
+events do not silently censor. The endpoint values and individual projection
+fit consume identical eligible exact rows, independently of display-fit
+settings. Kidney failure reached is a separate dated KRT result in cohort badges
+and exports, even if observed G5 is off or a prior G5 was lab-confirmed. Raw
+points remain visible. The saved FitConfig shape is unchanged. Existing numeric
+goldens contain no affected event inputs and were intentionally not updated.
+The 40/57% confirmed declines, 12-month confirmation maximum and 20-year/CI
+projection limits remain for later P4 packages.
+Sequential verification: 780/780 unit tests (90 files), production build,
+29/29 Chromium tests. Existing React `act` warnings remain in storage tests.
 Independent review follow-up: the user-facing AKI methodology still described
 mg/dl as its only input after the SI-unit implementation. It now names both
 eligible units, the 88.42 conversion, exact-row selection and 1e-12 tolerance.

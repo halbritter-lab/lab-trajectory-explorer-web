@@ -14,6 +14,7 @@ import type { FitConfig } from '../analysis/fitConfig'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 import { CENSORED_VALUE_REASON, isExactMeasurement } from '../measurements/censored'
+import { filterEndpointPointsForEvents } from '../domains/nephrology/endpoints/endpointEventPolicy'
 
 
 export interface CohortSeriesSpec {
@@ -201,11 +202,15 @@ function ageAtDate(date: Date, anchors: LabRow[]): number | null {
   return anchor.patientAgeAtLab! + (date.getTime() - anchor.labDatum!.getTime()) / MS_PER_YEAR
 }
 
-/** Endpoint inputs of one cell: every dated measurement with a finite value
- * (independent of fit exclusions and aggregation) and, on request, ages and
- * the all-data fit with the column's scalar model. */
+/** Endpoint inputs of one cell: exact finite dated measurements before KRT and
+ * outside complete acute dialysis intervals, independent of display-fit
+ * exclusions and aggregation. The projection fits those same rows. */
 function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel']): EndpointContext {
-  const endpointRows = seriesRows.filter(row => isExactMeasurement(row) && Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
+  const events = spec.clinicalEventsByPatient?.[patientIdKey(patientId)] ?? spec.clinicalEvents ?? []
+  const endpointRows = filterEndpointPointsForEvents(
+    seriesRows.filter(row => isExactMeasurement(row) && Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
+      .map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: null, row })), events,
+  ).map(point => point.row)
   const points = (withAges: boolean): EndpointPoint[] => {
     const ageAnchors = withAges ? ageAnchorsFor(endpointRows) : []
     return endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: withAges ? ageAtDate(row.labDatum!, ageAnchors) : null }))
@@ -215,6 +220,7 @@ function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRow
     seriesKey: { bezeichnung: spec.bezeichnung, einheit: spec.einheit ?? null },
     mode: spec.mode,
     fitConfig: spec.fitConfig,
+    events: seriesRows.length > 0 ? events : [],
     scalarFitModel,
     points,
     fit: () => {
@@ -275,8 +281,8 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
   { note: 'eGFR is computed from creatinine + demographics (adult-only); AKI episodes use the KDIGO creatinine criterion only (urine output not evaluated).' },
   { note: 'All derived values are algorithmic estimates requiring independent clinical verification.' },
   { note: 'Bounds (<x, >x), including bounds on derived eGFR, remain visible and count as raw numeric rows but are excluded from fits, endpoints, AKI detection and mixed models. Exact rows on the same date remain eligible.' },
-  { note: 'Observed G4 <30 and G5 <15 use all dated exact numeric eGFR measurements. Confirmation interval is recorded per result. Recovery before confirmation resets the candidate; later recovery preserves the event.' },
-  { note: 'Individual endpoint prediction extends a global fitted curve on all dated exact numeric measurements, independently of display-fit exclusions and aggregation. Theil-Sen requires three points, uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
+  { note: 'Observed G4 <30 and G5 <15 use dated exact numeric eGFR measurements before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (boundary dates inclusive). KRT is reported separately as kidney failure reached, even without lab-confirmed G5. Confirmation interval is recorded per result.' },
+  { note: 'Individual endpoint prediction fits the same endpoint-eligible rows independently of display-fit AKI exclusions and aggregation. Theil-Sen requires three points, uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)

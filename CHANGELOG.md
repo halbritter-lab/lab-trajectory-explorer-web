@@ -7,6 +7,13 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Stop eGFR endpoint evaluation and individual G5 projection at the first
+  kidney transplant or chronic dialysis start, and omit measurements during
+  complete dated acute dialysis intervals. The same eligible rows feed endpoint
+  values and the projection fit; raw chart points remain visible. Endpoint
+  values can change in event-bearing datasets; existing numeric golden fixtures
+  contain no affected event inputs and were deliberately left unchanged.
+
 - Apply a 1e-12 numeric tolerance at KDIGO creatinine thresholds, including
   the stage-1 floor, so exact 0.3 mg/dl and 1.5-fold rises survive floating
   point rounding. AKI detection now converts eligible serum creatinine µmol/l
@@ -24,6 +31,10 @@ interfaces are still evolving before 1.0.
   report zero. Raw measurement counts are unchanged.
 
 ### Added
+
+- Report kidney failure reached at kidney transplant or chronic dialysis start
+  with event type and date, independently of lab-confirmed CKD G5, in cohort
+  badges and exports.
 
 - Independent observed G4/G5 events with configurable confirmation interval
   (default 90 days), separate first-crossing/confirmation dates and later recovery

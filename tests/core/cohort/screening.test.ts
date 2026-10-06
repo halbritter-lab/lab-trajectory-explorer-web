@@ -224,7 +224,7 @@ describe('buildCohortRows cell overlays', () => {
     expect(cell.fitLines[0][1].date.toISOString().slice(0, 10)).toBe('2021-01-01')
   })
 
-  it('keeps all data in endpoint prediction even when the display fit censors transplant recovery', () => {
+  it('stops endpoint input at transplant, including a same-day recovery value', () => {
     const rows: LabRow[] = [
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2021-01-01'), wertNum: 45, patientAgeAtLab: 61 }),
@@ -253,9 +253,75 @@ describe('buildCohortRows cell overlays', () => {
 
     expect(cell.excludedIdx).toEqual([3])
     expect(cell.slope).toBeLessThan(0)
-    expect(cell.endpoints.percentDecline.value).toBeCloseTo(-100/3)
-    expect(cell.endpoints.percentDecline.latestValue).toBe(80)
-    expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('non_declining_fit')
+    expect(cell.endpoints.percentDecline.value).toBe(50)
+    expect(cell.endpoints.percentDecline.latestValue).toBe(30)
+    expect(cell.endpoints.projectedAgeToCkdG5.value).not.toBeNull()
+    expect(cell.endpoints.kidneyFailureReached).toMatchObject({ type: 'kidney_transplant', date: d('2022-07-01') })
+    expect(cell.points).toHaveLength(4)
+  })
+
+  it('keeps an earlier lab-confirmed G5 and reports later chronic dialysis separately', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const rows = [['2020-01-01', 14], ['2020-05-01', 13], ['2021-01-01', 65]].map(([date, value]) => row({ ...parameter, labDatum: d(date as string), wertNum: value as number }))
+    const event: ClinicalEvent = { patientId: 1, type: 'dialysis', intent: 'chronic', date: d('2020-08-01'), endDate: null, title: 'Dialysis', description: null, warning: '' }
+    const fitConfig = ckdProgressionConfig(parameter)
+    fitConfig.endpoints.observedCkdG5 = false
+    const spec = { ...parameter, mode: 'global' as const, fitConfig, clinicalEvents: [event] }
+    const disabled = buildCohortRows(rows, [1], [spec])[0].cells[0]
+    expect(disabled.endpoints.observedCkdG5.met).toBe(false)
+    expect(disabled.endpoints.kidneyFailureReached).toMatchObject({ type: 'chronic_dialysis', date: d('2020-08-01') })
+    fitConfig.endpoints.observedCkdG5 = true
+    const enabled = buildCohortRows(rows, [1], [spec])[0].cells[0]
+    expect(enabled.endpoints.observedCkdG5).toMatchObject({ met: true, firstDate: d('2020-01-01'), confirmedDate: d('2020-05-01'), recoveryDate: null })
+    expect(enabled.endpoints.kidneyFailureReached?.date).toEqual(d('2020-08-01'))
+    expect(enabled.endpoints.percentDecline.latestValue).toBe(13)
+  })
+
+  it('excludes dated acute dialysis only through its end date and retains later recovery', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const rows = [['2020-01-01', 60], ['2020-06-01', 13], ['2020-06-10', 12], ['2021-01-01', 45]].map(([date, value]) => row({ ...parameter, labDatum: d(date as string), wertNum: value as number }))
+    const event: ClinicalEvent = { patientId: 1, type: 'dialysis', intent: 'acute', date: d('2020-06-01'), endDate: d('2020-06-10'), title: 'Acute dialysis', description: null, warning: '' }
+    const cell = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: [event] }])[0].cells[0]
+    expect(cell.endpoints.observedCkdG5.met).toBe(false)
+    expect(cell.endpoints.percentDecline.latestValue).toBe(45)
+    expect(cell.endpoints.percentDecline.value).toBe(25)
+    expect(cell.endpoints.kidneyFailureReached).toBeNull()
+    expect(cell.points).toHaveLength(4)
+  })
+
+  it('does not infer endpoint censoring from unknown intent or an undated acute interval', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const rows = [['2020-01-01', 60], ['2020-06-01', 30], ['2021-01-01', 45]].map(([date, value]) => row({ ...parameter, labDatum: d(date as string), wertNum: value as number }))
+    const events: ClinicalEvent[] = [
+      { patientId: 1, type: 'dialysis', intent: 'unknown', date: d('2020-02-01'), endDate: d('2020-12-01'), title: 'Unknown', description: null, warning: '' },
+      { patientId: 1, type: 'dialysis', intent: 'acute', date: d('2020-02-01'), endDate: null, title: 'Undated end', description: null, warning: 'unresolved_dialysis_interval' },
+    ]
+    const cell = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: events }])[0].cells[0]
+    expect(cell.endpoints.endpointPointCount).toBe(3)
+    expect(cell.endpoints.percentDecline.latestValue).toBe(45)
+    expect(cell.endpoints.percentDecline.value).toBe(25)
+    expect(cell.endpoints.kidneyFailureReached).toBeNull()
+  })
+
+  it('reports no patient-level KRT result for an eGFR cell without measurements', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const event: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', intent: null, date: d('2020-01-01'), endDate: null, title: 'Transplant', description: null, warning: '' }
+    const cell = buildCohortRows([], [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: [event] }])[0].cells[0]
+    expect(cell.endpoints.kidneyFailureReached).toBeNull()
+    expect(cell.endpoints.endpointPointCount).toBe(0)
+  })
+
+  it('uses the earliest KRT date even when events arrive out of order', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const rows = [['2020-01-01', 60], ['2020-06-01', 40], ['2021-01-01', 20]].map(([date, value]) => row({ ...parameter, labDatum: d(date as string), wertNum: value as number }))
+    const events: ClinicalEvent[] = [
+      { patientId: 1, type: 'kidney_transplant', intent: null, date: d('2021-06-01'), endDate: null, title: 'Transplant', description: null, warning: '' },
+      { patientId: 1, type: 'dialysis', intent: 'chronic', date: d('2020-07-01'), endDate: null, title: 'Dialysis', description: null, warning: '' },
+    ]
+    const cell = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: events }])[0].cells[0]
+    expect(cell.endpoints.kidneyFailureReached).toMatchObject({ type: 'chronic_dialysis', date: d('2020-07-01') })
+    expect(cell.endpoints.percentDecline.latestValue).toBe(40)
+    expect(cell.points).toHaveLength(3)
   })
 
   it('ignores nonfinite measurements consistently in endpoint fitting and evaluation', () => {

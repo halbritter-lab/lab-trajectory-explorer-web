@@ -96,7 +96,15 @@ References: [SciPy documentation](https://docs.scipy.org/doc/scipy/reference/gen
 ## Observed G4/G5 and individual prediction (2026-09-23)
 
 Observed endpoints evaluate dated finite exact eGFR measurements in chronological
-order, independently of display-fit exclusions and aggregation. G4 is strictly
+order after endpoint event filtering, independently of display-fit AKI exclusions
+and aggregation. Endpoint filtering removes values on or after the earliest
+kidney transplant or chronic dialysis start, and values within a complete dated
+acute dialysis interval, including its start and end dates. Later values after
+acute dialysis remain eligible. Unknown-intent dialysis and incomplete or
+invalid acute intervals do not censor endpoint input. Dates compare by UTC
+calendar day. KRT is reported separately as kidney failure reached with type
+and date, regardless of observed G5 toggle, only for nonempty eGFR series.
+An earlier lab-confirmed G5 and later KRT can both be reported. G4 is strictly
 below 30 and G5 strictly below 15 mL/min/1.73m². Equality is not below the
 threshold. The default minimum confirmation interval is 90 elapsed UTC days;
 configuration accepts positive whole days. Invalid values fall back to 90.
@@ -119,8 +127,9 @@ Example: January14, May13, November20 records a January G5 crossing, May
 confirmation and November recovery. January14, March20, May13 has no confirmed
 G5 event yet: May starts a new candidate.
 
-Individual endpoint prediction fits all dated exact numeric observations, including
-post-event recovery, without display-fit censoring, AKI exclusion or time
+Individual endpoint prediction fits the same endpoint-eligible exact numeric
+observations, including recovery after an acute dialysis interval but not after
+KRT, without display-fit AKI exclusion or time
 aggregation. It uses global OLS, or Theil-Sen for a robust-trend selection;
 rolling/segmented display fits retain the existing global OLS scalar convention.
 No-fit disables prediction. Percent change likewise describes first to latest

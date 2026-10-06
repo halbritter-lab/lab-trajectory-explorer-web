@@ -3,6 +3,7 @@ import type { CkdEndpointConfig } from '../fitConfig'
 import { isEgfrUnit } from '../analytes'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from './ckdEndpoints'
 import { projectionTargetPresets as renalProjectionTargets } from '../projectionPresets'
+import { firstKidneyFailureEvent } from './endpointEventPolicy'
 
 export const CKD_ENDPOINTS_MODULE_ID = 'ckdEndpoints'
 
@@ -48,7 +49,8 @@ export const ckdEndpointsModule = {
     // Ages and the all-data fit only feed the G5 projection; skip both otherwise.
     const projecting = enabled.projectedAgeToCkdG5
     const fit = projecting ? ctx.fit() : { slope: Number.NaN, intercept: Number.NaN }
-    return computeCkdEndpoints({ points: ctx.points(projecting), slopePerYear: fit.slope, intercept: fit.intercept, enabled })
+    return computeCkdEndpoints({ points: ctx.points(projecting), slopePerYear: fit.slope, intercept: fit.intercept, enabled,
+      kidneyFailureReached: ctx.points(false).length > 0 && isEgfrUnit(ctx.seriesKey.einheit) ? firstKidneyFailureEvent(ctx.events) : null })
   },
   // Column order is part of the export format: the first three predate the
   // others, which were appended so positional readers keep working.
@@ -58,7 +60,10 @@ export const ckdEndpointsModule = {
     { key: 'endpoint_projected_age_to_ckd_g5', value: (c: Cell) => c.endpoints.projectedAgeToCkdG5.value ?? '' },
     { key: 'endpoint_observed_ckd_g4', value: (c: Cell) => c.endpoints.observedCkdG4.met ? 'yes' : '' },
     { key: 'endpoint_confirmation_days', value: (c: Cell) => observedEvaluated(c.endpoints) ? c.endpoints.confirmationDays : '' },
-    { key: 'endpoint_input_policy', value: (c: Cell) => anyEvaluated(c.endpoints) ? 'all dated exact numeric measurements; bounds excluded' : '' },
+    { key: 'endpoint_input_policy', value: (c: Cell) => anyEvaluated(c.endpoints) ? 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded' : '' },
+    { key: 'endpoint_kidney_failure_reached', value: (c: Cell) => c.endpoints.kidneyFailureReached ? 'yes' : '' },
+    { key: 'endpoint_kidney_failure_type', value: (c: Cell) => c.endpoints.kidneyFailureReached?.type ?? '' },
+    { key: 'endpoint_kidney_failure_date', value: (c: Cell) => endpointDate(c.endpoints.kidneyFailureReached?.date ?? null) },
     { key: 'endpoint_prediction_anchor', value: (c: Cell) => c.endpoints.evaluated.projectedAgeToCkdG5 ? 'fitted curve' : '' },
     { key: 'endpoint_prediction_model', value: (c: Cell) => c.endpoints.evaluated.projectedAgeToCkdG5 ? c.fitModel : '' },
     { key: 'endpoint_g4_first_date', value: (c: Cell) => endpointDate(c.endpoints.observedCkdG4.firstDate) },

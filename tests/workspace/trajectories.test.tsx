@@ -481,7 +481,7 @@ describe('real-data trajectories workspace', () => {
     // Deliberately exact: wording changes to this badge must update this test.
     const badge = document.querySelector('.wt-badge-endpoint')!
     expect(badge).toHaveTextContent(/^-50% · G5 @ 63\.0y$/)
-    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from baseline (not per year) · projected age to CKD G5 63.0 years; fitted curve using all dated exact numeric measurements (bounds excluded)')
+    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from baseline (not per year) · projected age to CKD G5 63.0 years; fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)')
   })
 
   it('reverses a metric sort and keeps patients without a value last', () => {
