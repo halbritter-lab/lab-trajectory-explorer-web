@@ -94,15 +94,15 @@ it('previews EKFC without applying it, then applies and turns derivation off', (
   fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
   expect(useAppStore.getState().analysisResult().rows).toHaveLength(1)
 })
-it('shows the sex-code coefficient note only when CKD-EPI would use a diverse adult row', () => {
+it('shows the sex-code calculation note for any adult formula using a diverse row', () => {
   useAppStore.getState().replaceDataset({ rows: [{ ...row, patientSex: 'd', patientAgeAtLab: 50 }] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
-  const note = /For sex code “d”, CKD-EPI 2021 uses male coefficients/
+  const note = /For sex code “d”, the selected formula uses its male calculation branch/
   expect(screen.queryByText(note)).not.toBeInTheDocument()
-  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ekfc-2021' } })
-  expect(screen.queryByText(note)).not.toBeInTheDocument()
-  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
-  expect(screen.getByText(note)).toBeInTheDocument()
+  for (const formula of ['ekfc-2021', 'mdrd-4', 'ckd-epi-2021']) {
+    fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: formula } })
+    expect(screen.getByText(note)).toBeInTheDocument()
+  }
 })
 it('explains why pediatric source rows are excluded from adult eGFR preview', () => {
   useAppStore.getState().replaceDataset({ rows: [{ ...row, patientSex: 'm', patientAgeAtLab: 17 }] })
