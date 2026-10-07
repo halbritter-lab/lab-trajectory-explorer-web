@@ -76,12 +76,17 @@ export function Methodology() {
 
       <h4>Fit Pipeline</h4>
       <p>
-        Cohort models have a separate checkbox for applying the active preset&apos;s event censoring
-        and AKI exclusion windows. It starts on. Turning it off retains eligible exact dated
-        measurements in those windows for the model; a disabled series fit still supplies no
-        model rows. The Cohort models preview, each model status, and the workbook record the
-        selected policy and the number removed by the union of those windows. This count is
-        taken before time balancing, chronic run-in removal, and missing-factor exclusions.
+        Cohort models prepare their measurements with the analysis settings chosen for the same
+        parameter under Trajectories: its event censoring, AKI exclusion windows and time
+        balancing. With general exploration, the setting of a newly loaded dataset, nothing is
+        excluded or aggregated. The Cohort models page states the settings in use. A separate
+        checkbox, on by default, applies the event censoring and AKI windows; turning it off
+        retains the eligible exact dated measurements inside those windows, while time balancing
+        still applies. A parameter set to “No fit” supplies no model rows. The preview, each model
+        status and the workbook record the selected policy and the number of measurements removed
+        by the union of those windows. This count is taken before time balancing and
+        missing-factor exclusions. Changing these settings under Trajectories discards fitted
+        models.
       </p>
       <p>
         For each patient, model time zero is the first measurement retained after exclusion
@@ -136,7 +141,9 @@ export function Methodology() {
           See <em>Choosing a fit model</em> below.
         </li>
         <li>
-          <strong>Endpoints</strong> — eGFR series can report total percent change from the first to latest eligible measurement,
+          <strong>Endpoints</strong> — a series counts as eGFR when its unit is mL/min/1.73 m²,
+          whatever it is called; a clearance in ml/min does not. Such series can report total
+          percent change from the first to latest eligible measurement,
           independent observed G4 (&lt;30) and G5 (&lt;15), and projected age to G5.
           Endpoints use dated exact numeric eGFR measurements before the first kidney transplant
           or chronic dialysis start and outside complete dated acute dialysis intervals,
@@ -144,7 +151,8 @@ export function Methodology() {
           is reported separately as kidney failure reached with its type and date, independently
           of lab-confirmed G5. After kidney replacement therapy, no future individual G5
           crossing is projected. The minimum confirmation interval defaults to 90 days
-          and is configurable as positive whole days.
+          and can be set from 1 to 365 whole days; a longer interval could never be met, because a
+          confirming value must follow within 12 calendar months.
         </li>
         <li>
           <strong>Exports</strong> — patient and cohort slope exports use the same event and AKI
@@ -179,18 +187,24 @@ export function Methodology() {
           describe uncertainty in the slope, not a prediction interval for individual values.
         </li>
         <li>
-          <strong>Rolling OLS</strong> — a separate OLS fit inside a sliding window. Appropriate
-          when the rate of change itself changes over the observation period and a single slope
-          would average a fast phase together with a slow one. It describes a sequence of local
-          slopes rather than one summary number, so it answers “when did the decline accelerate”
-          better than “how fast is the decline”.
+          <strong>Rolling OLS</strong> — a separate OLS fit inside each two-year window (730
+          days), moved forward in steps of 180 days; a window needs at least three fitted
+          measurements. Appropriate when the rate of change itself changes over the observation
+          period and a single slope would average a fast phase together with a slow one. The chart
+          draws each window's line over the 180 days around the window centre, and the table gives
+          the number of windows with the smallest and largest window slope. The slope, R² and
+          confidence interval reported for the column, and the rapid-decline flag, remain those of
+          the single OLS line through all fitted measurements. A fitted span under two years has
+          no window and therefore no local slopes.
         </li>
         <li>
-          <strong>Segmented OLS</strong> — separate OLS fits per segment, split at long measurement
-          gaps or at configured events. Appropriate when a discrete event — transplantation, start
-          of chronic dialysis, a treatment change — makes one slope across the whole record
-          meaningless. Prefer censoring or exclusion when the event should remove data entirely;
-          prefer segmentation when the periods on either side are both of interest.
+          <strong>Segmented OLS</strong> — separate OLS fits per segment. A new segment starts
+          wherever two consecutive fitted measurements lie more than 180 days apart; clinical
+          events do not split a series. A segment needs at least three measurements to be fitted,
+          and the chart draws one line per fitted segment. The slope, R² and confidence interval
+          reported for the column remain those of the single OLS line through all fitted
+          measurements; the segment slopes are shown as lines only. Use event censoring or
+          exclusion when an event should remove data.
         </li>
         <li>
           <strong>No fit</strong> — measurements only. Appropriate for acute review, where drawing a
@@ -203,10 +217,12 @@ export function Methodology() {
       </p>
       <ul>
         <li>
-          <strong>Parity against the reference implementation</strong> — automated tests assert
-          this port against golden values generated from the Python <code>analyses</code> package.
-          Covers OLS, rolling OLS, segmented OLS and Theil-Sen. The Theil-Sen checks include
-          the slope, separate-median intercept, 95% slope bounds and unavailable-fit cases.
+          <strong>Stored regression cases</strong> — automated tests compare the results with
+          stored cases that were originally generated by the Python <code>analyses</code> package.
+          Since October 2026 the application may deviate from that package deliberately; each such
+          change is documented and the affected case updated. The cases cover OLS, rolling OLS,
+          segmented OLS and Theil-Sen, for Theil-Sen including the slope, separate-median
+          intercept, 95% slope bounds and unavailable-fit cases.
         </li>
         <li>
           <strong>External comparison against an established clinical workflow</strong> — a manual
@@ -252,16 +268,24 @@ export function Methodology() {
         endpoint prediction. Rolling and segmented selections use global OLS for the scalar
         endpoint prediction; no-fit disables it. With y(t) = a + b × t, crossing time is
         (target − a) / b, in years from the first measurement. Add the remaining time after the
-        latest measurement to its age. A confirmed G5 event takes precedence over projection.</p>
-      <p>Require three measurements, at least one year of follow-up, a finite declining fit, a
-        future crossing and an age anchor. For values 60, 50, 25 at years 0, 1, 2, OLS gives
-        a = 62.5 and b = −17.5: the fitted line reaches 15 about 0.7143 years after year 2.
-        Report a future crossing only within 20 years after the latest eligible measurement,
-        including the boundary. The endpoint fit's slope confidence interval must have finite
-        ordered bounds strictly below zero; missing bounds or an interval that includes zero
-        withhold the crossing. The displayed slope interval may differ because it can use
-        different prepared rows. New measurements can change this prediction; they do not
-        revoke a confirmed event.</p>
+        latest measurement to the age at that measurement. When the birth date is known, this is
+        the exact age. Otherwise the age is known in completed years only; the projected age can
+        then be up to one year too low, and the table shows it as a whole number marked as
+        approximate. A confirmed G5 event takes precedence over projection, whether or not the
+        observed G5 endpoint is displayed.</p>
+      <p>Require three measurements, at least 365 days between the first and the latest, a finite
+        declining fit, a future crossing and an age at the latest measurement. Report a future
+        crossing only within 20 years after the latest eligible measurement, including the
+        boundary. The endpoint fit's slope confidence interval must have finite ordered bounds
+        strictly below zero; missing bounds or an interval that includes zero withhold the
+        crossing. With only three measurements this interval is so wide that it almost always
+        includes zero: for values 60, 50, 25 at years 0, 1, 2 the slope is −17.5 per year but its
+        interval runs from −72.5 to 37.5, so no crossing is reported. In practice a projection
+        needs more measurements. Example: eGFR 48, 44, 41, 36, 33 and 29 on 15 January of six
+        consecutive years gives a slope of −3.80 per year with an interval from −4.10 to −3.50;
+        the fitted line reaches 15 about 3.7 years after the latest measurement. The displayed
+        slope interval may differ because it can use different prepared rows. New measurements
+        can change this prediction; they do not revoke a confirmed event.</p>
       <h4>Clinical Events and Exclusion Display</h4>
       <p>
         Clinical events are patient-level annotations with a date, title, optional end date, and
@@ -309,9 +333,10 @@ export function Methodology() {
           fit. The exact two-point fallback is the exception described below.
         </li>
         <li>
-          <strong>span_too_short</strong> — a slope is produced, but the raw numeric observation
-          span is fewer than 365 days. This reference-compatible field intentionally describes the
-          unfiltered series; the displayed reliability rule below also checks the fitted span.
+          <strong>span_too_short</strong> — the raw numeric observation span is fewer than 365
+          days. A slope is normally produced; the exception is a series whose fitted measurements
+          all share one date, for which no slope exists. This field describes the unfiltered
+          series; the displayed reliability rule below also checks the fitted span.
         </li>
       </ul>
       <p>
@@ -323,6 +348,8 @@ export function Methodology() {
         uncertain slope</span>, <span className="wt-warning">Follow-up &lt; 1 year · uncertain
         slope</span>) means a slope exists but should be treated as unstable. The same <em>n &lt;
         3</em> label therefore appears in either colour depending on whether a slope came out of it.
+        When all fitted measurements share one date, the grey note reads “All fitted measurements
+        on one date”.
       </p>
       <p>
         <strong>The displayed flag is broader than the reason field.</strong> A series of exactly
@@ -332,7 +359,7 @@ export function Methodology() {
         shorter fitted window than the raw series suggests. The badge and the{' '}
         <code>unstable_slope</code> export column therefore test both the fitted count and fitted
         span directly: fewer than three fitted measurements, or under a year between the first and
-        last fitted points. The numeric <strong>reason</strong> field is left reference-compatible,
+        last fitted points. The numeric <strong>reason</strong> field is left unchanged,
         so it can differ from this stricter displayed reliability rule.
       </p>
 
@@ -351,19 +378,25 @@ export function Methodology() {
           <strong>G5 not projected</strong> — no future age at G5 was computed. The badge states
           whether the endpoint fit is flat or rising, its slope confidence interval includes zero
           or is unavailable, or its crossing lies more than 20 years after the latest eligible
-          measurement. A crossing at exactly 20 years is included.
+          measurement. A crossing at exactly 20 years is included. <strong>G5 not
+          projected</strong> can also mean that the data contain a confirmed G5 event while the
+          observed G5 endpoint is switched off; the badge says so, and the export gives the reason{' '}
+          <code>observed_ckd_g5</code>. With the observed endpoint on, the CKD G5 badge with its
+          dates is shown instead.
         </li>
         <li>
           <strong>G5 now</strong> — the fitted curve reaches 15 at or before the latest
           measurement, so no future crossing is projected. This does not establish an observed event.
         </li>
         <li>
-          <strong>G5 no age</strong> — no age is recorded for the latest measurement, so the
-          projection has nothing to anchor to.
+          <strong>G5 no age</strong> — no age is available for the latest eligible measurement,
+          so the projection has nothing to anchor to.
         </li>
         <li>
-          <strong>G5 n &lt; 3</strong> and <strong>G5 &lt; 1 yr</strong> — the same stability
-          thresholds as above, applied to the projection.
+          <strong>G5 n &lt; 3</strong> and <strong>G5 &lt; 1 yr</strong> — fewer than three
+          eligible measurements, or fewer than 365 days between the first and the latest. These
+          are the same numbers as the stability thresholds above, applied to the endpoint-eligible
+          measurements rather than to the fitted ones.
         </li>
       </ul>
 
@@ -371,11 +404,12 @@ export function Methodology() {
       <p>
         eGFR is a computed series derived from serum creatinine and patient demographics. Its name
         contains “computed” and it is marked as derived throughout the UI to distinguish it from
-        directly measured values.
+        directly measured values. No eGFR is computed until a formula is applied under Data; the
+        formula selector starts at “Off”. CKD-EPI 2021 is the first entry of the selector.
       </p>
       <ul>
         <li>
-          <strong>CKD-EPI 2021</strong> (default) — race-free equation published by Inker et al.
+          <strong>CKD-EPI 2021</strong> — race-free equation published by Inker et al.
           (NEJM 2021). The National Kidney Foundation lists it as the recommended adult
           creatinine-based GFR-estimating equation and notes that it requires standardized
           creatinine assays. Used when the formula selector is set to <em>CKD-EPI 2021</em>.
@@ -409,7 +443,9 @@ export function Methodology() {
         <li>
           <strong>Units</strong> — creatinine is expected in <em>mg/dl</em>. Values recorded in{' '}
           <em>µmol/l</em> are converted automatically (÷ 88.42); other units are not used as an eGFR
-          source. A value stored under the wrong unit would therefore yield a wrong eGFR.
+          source. A value stored under the wrong unit would therefore yield a wrong eGFR. The EKFC
+          equation's own age-specific Q values for ages 18 to 25 are converted with the factor
+          88.4; the difference changes an eGFR by at most about 0.03 mL/min/1.73 m².
         </li>
         <li>
           <strong>Sex</strong> — the equations use sex-specific coefficients for{' '}
@@ -431,7 +467,12 @@ export function Methodology() {
       <h4>AKI Detection (KDIGO Criteria)</h4>
       <p>
         AKI detection accepts serum creatinine in mg/dl or µmol/l; µmol/l values are divided by
-        88.42 before KDIGO comparisons. Only dated exact numeric values are used. Episodes are detected
+        88.42 before KDIGO comparisons. Only dated exact numeric values are used. Values of zero or
+        less are ignored. Creatinine measured under dialysis is ignored as well: from the start of
+        a chronic dialysis until a later kidney transplant, and during an acute dialysis with a
+        recorded end date, both boundary days included. Detection continues after
+        transplantation. Dialysis of unknown intent and acute dialysis without an end date exclude
+        nothing. Episodes are detected
         automatically using the KDIGO 2012 creatinine criteria; urine output is not evaluated:
       </p>
       <ul>
@@ -483,8 +524,10 @@ export function Methodology() {
           KDIGO adjudication.
         </li>
         <li>
-          Staging is by creatinine ratio / absolute level only; it does not consider renal
-          replacement therapy or paediatric eGFR criteria.
+          Staging is by creatinine ratio / absolute level only. Renal replacement therapy does
+          not raise the stage (KDIGO stage 3 by initiation of renal replacement therapy is not
+          applied); creatinine values measured under dialysis are left out of detection as
+          described above. Paediatric eGFR criteria are not considered.
         </li>
         <li>
           Episodes are detected automatically and are <strong>not clinician-adjudicated</strong>;
@@ -505,11 +548,13 @@ export function Methodology() {
       <p>
         For eGFR series it also applies a single, explicit clinical flag:{' '}
         <strong>rapid eGFR decline</strong>. An eGFR series whose fitted slope falls faster than the
-        configured threshold (default <strong>5 mL/min/1.73m² per year</strong>, matching the KDIGO
-        definition of rapid CKD progression as a sustained decline faster than 5 mL/min/1.73m²/yr)
-        is marked <span className="rapid-badge rapid-badge-inline">rapid ↓</span>{' '}
+        configured threshold is marked <span className="rapid-badge rapid-badge-inline">rapid ↓</span>{' '}
         in the table when the fit is shown, and carries a <code>rapid_progression</code> column in
-        the export. The
+        the export. The default threshold of <strong>5 mL/min/1.73m² per year</strong> is the
+        number KDIGO uses for rapid CKD progression, which KDIGO defines as a sustained decline.
+        The flag itself does not test whether a decline is sustained: it is set for any computed
+        slope beyond the threshold, including one from two measurements or from a few weeks of
+        follow-up. Read it together with the reliability note of the same cell. The
         threshold is adjustable under Trajectories → Display and analysis (set it to 0 to disable
         the flag). No other clinical
         cut-offs are applied; all other interpretation of the ranking is left to the user, and the

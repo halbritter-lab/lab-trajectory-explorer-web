@@ -88,8 +88,9 @@ conflicts with other documentation or looks unintended, describe it as it is
 and add an `Open decision OD-n` marker plus a row in that file's list; do not
 quietly fix either side. Removing a marker needs the owner's decision. Read
 the open-decision list before touching the affected code: several entries
-describe behaviour the interface does not make visible, such as segmented OLS
-reporting the global slope while drawing per-segment lines (OD-3). Resolved
+describe behaviour the interface does not make visible, such as the default
+reference level of a model factor being taken from all patients of the
+dataset (OD-29). Resolved
 entries stay listed under "Resolved decisions" in that file; their numbers are
 not reused.
 

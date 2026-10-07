@@ -2,15 +2,15 @@
 
 Prepared 2026-10-07 after the [open-decision walkthrough](remaining-method-decisions.md#decisions-of-2026-10-07-open-decision-walkthrough).
 The methodology page (`src/workspace/methods/Methodology.tsx`) is published
-under the maintainer's authorship, so **nothing below has been applied**. Each
-entry quotes the start of the current passage and proposes a replacement. Mark
-each one accepted, edited or rejected; accepted text is then applied in one
-change and the matching `OD-n` marker in
-[method algorithms](method-algorithms.md) is removed with it.
+under the maintainer's authorship, so wording changes need his approval.
 
-Part A is needed before release 0.3.0: without it the page contradicts the
-application. Part B adds topics the page does not cover yet; it can follow
-later.
+**Part A was approved by the owner on 2026-10-07 and is applied** as written
+below; "Current" there refers to the text it replaced. The markers of OD-3,
+OD-4, OD-5, OD-10 and OD-12 in [method algorithms](method-algorithms.md) were
+removed with it.
+
+**Part B is not applied.** It adds topics the page does not cover yet. Mark
+each block accepted, edited or rejected.
 
 ## Part A: passages that no longer match the application
 
@@ -102,9 +102,9 @@ Proposed:
 > rolling OLS, segmented OLS and Theil-Sen, for Theil-Sen including the slope,
 > separate-median intercept, 95% slope bounds and unavailable-fit cases.
 
-The later sentence "The numeric **reason** field is left reference-compatible"
-and the phrase "This reference-compatible field" in *Quality Flags* would lose
-the word "reference-compatible" accordingly (see A7).
+Applied with it: the later sentence "The numeric **reason** field is left
+reference-compatible" now reads "left unchanged", and the phrase "This
+reference-compatible field" in *Quality Flags* is gone (see A7).
 
 ### A6. Individual endpoint prediction (OD-4, OD-16, OD-17, OD-18)
 

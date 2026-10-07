@@ -66,8 +66,7 @@ imported parameter names and patient attributes retain their original values.
 
 - Individual analyses support OLS, Theil-Sen, rolling OLS, segmented OLS and no fit.
   Rolling and segmented OLS report the global OLS slope, R² and confidence
-  bounds; segmented OLS adds per-segment lines (open decision OD-3 in the
-  algorithm reference), and rolling OLS adds one line per two-year window with
+  bounds; segmented OLS adds per-segment lines, and rolling OLS adds one line per two-year window with
   the number of windows and their smallest and largest slope.
   Shared presets and per-column overrides include event censoring, AKI exclusion,
   time aggregation and rapid-decline settings. The table and exports use the same

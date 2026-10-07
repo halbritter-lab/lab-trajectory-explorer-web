@@ -148,10 +148,11 @@ Status on 2026-10-07: the 19 behaviour changes below and the text change of
 OD-6 are implemented, each with tests, a changelog entry and an updated
 section in [method algorithms](method-algorithms.md#resolved-decisions); one
 stored regression case moved deliberately (`"1.234"` in
-`tests/goldens/wert.json`, OD-8). The markers of OD-3, OD-4, OD-5, OD-10 and
-OD-12 stay until the owner has approved the
-[methodology wording drafts](methodology-wording-drafts.md); the methodology
-page itself has not been edited. Details of the implementation that the
+`tests/goldens/wert.json`, OD-8). The owner approved Part A of the
+[methodology wording drafts](methodology-wording-drafts.md) on the same day;
+it is applied to the methodology page, and the markers of OD-3, OD-4, OD-5,
+OD-10 and OD-12 are removed. Part B of the drafts, topics the page does not
+cover yet, awaits his review. Details of the implementation that the
 decisions did not spell out are listed under "Implementation notes" below and
 are open to the owner's revision.
 
