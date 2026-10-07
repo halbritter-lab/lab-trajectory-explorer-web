@@ -28,20 +28,25 @@ imported parameter names and patient attributes retain their original values.
 
 1. Under **Data**, import an XLSX/CSV file or load the supplied demo data.
    A workbook can contain `labs`, `attributes` and `events`. Downloadable templates
-   show the accepted input schema, and the demo workbook, events and attributes
-   can be downloaded as examples; arbitrary column mapping is a later extension.
+   show the core columns; all accepted headers and sheet names are listed in the
+   [algorithm reference](method-algorithms.md#import-and-value-interpretation),
+   and the demo workbook, events and attributes can be downloaded as examples; arbitrary column mapping is a later extension.
    Loaded events and rejected event rows are listed with their reason.
 2. Review import diagnostics and missing or conflicting demographics. Manual age
    entries use the displayed reference date. Open a patient from the quality table.
    CSV files are read as text (UTF-8 or Windows-1252, comma or semicolon) and
-   accept decimal commas. Dates may be `YYYY-MM-DD`, `DD.MM.YYYY` or `DD/MM/YYYY`,
-   always read day-first; Excel cells holding a date number (1927–2119 for lab
+   accept decimal commas; a text value of one to three digits, a point and
+   exactly three digits (`0.850`, `1.234`) is not read as a number (open
+   decision OD-8). Dates may be `YYYY-MM-DD`, `YYYY/MM/DD`, `DD.MM.YYYY` or
+   `DD/MM/YYYY`; slash dates with the day first are always read day-first, and
+   a time of day is ignored; Excel cells holding a date number (1927–2119 for lab
    and event dates) are converted. Rows with impossible or unreadable dates are
    rejected and listed. Diagnostics also count duplicate rows, censored values
    (`<`, `>`) and decimal commas that may be thousands separators, and list unit
    spellings merged because they differ only in spacing, micro sign or case that
    does not change an SI prefix.
-3. Choose an eGFR formula and creatinine source, inspect the preview, then apply.
+3. Choose an eGFR formula and creatinine source (no formula is active until one
+   is applied), inspect the preview, then apply.
    Source measurements remain intact. Output-name collisions with imported series
    block the derivation instead of silently combining measurements. Unreadable
    sex spellings are quoted until a manual entry or attribute resolves them.
@@ -57,6 +62,9 @@ imported parameter names and patient attributes retain their original values.
 ## Analysis and model workflows
 
 - Individual analyses support OLS, Theil-Sen, rolling OLS, segmented OLS and no fit.
+  Rolling and segmented OLS report the global OLS slope, R² and confidence
+  bounds; segmented OLS adds per-segment lines and rolling OLS draws no line
+  (open decisions OD-2 and OD-3 in the algorithm reference).
   Shared presets and per-column overrides include event censoring, AKI exclusion,
   time aggregation and rapid-decline settings. The table and exports use the same
   prepared summaries. Uncertain individual fits have dotted lines in the overlay
@@ -65,17 +73,20 @@ imported parameter names and patient attributes retain their original values.
   values available before time aggregation; this does not introduce another fit.
   In the charts, measurements excluded from the fit are grey open circles whose
   tooltip names the reason. **AKI windows and episodes** (plot settings) shades
-  the AKI window after each detected episode and marks its creatinine peak
+  the AKI window from each detected episode's onset for the column's window
+  length (default 30 days, both ends included) and marks its creatinine peak
   ("AKI II"); in the overlay, episode diamonds appear for every trajectory,
   windows and labels for the highlighted patient only. A peak without a
   measurement of the charted parameter within two days is marked on the time
   axis. The model page lists the reference category of each categorical factor.
-- Cohort models fit the existing browser-based WebR model, with configurable
-  factors, grouped fits, result tables and profile/threshold projections. Chart
-  results must match the current response, unit, data, preparation and model
-  configuration, and must have converged. Changing response or data hides stale
+- Cohort models fit linear mixed models in the browser (webR, `lme4::lmer`,
+  REML) with configurable factors, grouped fits, result tables and
+  profile/threshold projections. Chart results must match the current response,
+  unit, data, preparation and model configuration, must have converged and must
+  not be singular. Changing response or data hides stale
   curves. Overlay filters do not refit or redefine the full-cohort reference line.
-  On an age axis, the reference uses mean fitted baseline age plus model time.
+  On an age axis, the reference uses mean fitted baseline age plus model time;
+  the line is not drawn on the calendar axis.
   When the overlay is grouped by the attribute the groups were fitted under, each
   fitted group also gets its own reference line in the group colour. The model
   page shows a readable formula and lists patients a factor choice excludes.
@@ -87,12 +98,14 @@ imported parameter names and patient attributes retain their original values.
 
 - Stored data preparation is not full project management: named projects, saved
   view/column configurations and saved fitted models are not included.
-- Owner-approved G4/G5 definitions, fitted-curve individual prediction and
-  Python-compatible Theil-Sen conventions are documented in the
-  [algorithm reference](method-algorithms.md). Endpoints use raw dated numeric
-  measurements independently of optional display-fit preparation. The minimum
-  confirmation interval is configurable (default 90 days); recovery after
-  confirmation remains visible without revoking the event.
+- Owner-approved G4/G5, confirmed-decline and kidney-failure definitions,
+  fitted-curve individual prediction and Theil-Sen conventions are documented in
+  the [algorithm reference](method-algorithms.md). Endpoints use dated exact
+  numeric eGFR measurements before the first kidney transplant or chronic
+  dialysis start and outside complete dated acute dialysis intervals,
+  independently of optional display-fit preparation. The minimum confirmation
+  interval is configurable (default 90 days) with a 12-calendar-month maximum;
+  recovery after confirmation remains visible without revoking the event.
 - Research use only; no clinical decision support or event-time model.
 
 The current worklist is the [completion backlog](workspace-completion-backlog.md).

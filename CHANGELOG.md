@@ -7,9 +7,20 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- `docs/method-algorithms.md` now specifies every implemented rule that
+  decides which data are analysed and how results are derived: import and
+  value interpretation, demographics resolution, the fit pipeline and presets,
+  time balancing, OLS, rolling and segmented OLS, reason codes, the
+  rapid-decline flag, eGFR derivation, AKI detection and exclusion windows,
+  clinical events, endpoints, cohort mixed models and their projections.
+  Behaviour that conflicts with other documentation or looks unintended is
+  described as implemented and marked as an open decision (OD-1 to OD-27).
+  Documentation only: no numeric or behavioural change. Entries below were
+  corrected where they described behaviour the code does not have.
 - The patient table now pages large cohorts while keeping global sort and
   export scope, keyboard focus on return from patient detail, and explicit
-  page versus all-matching selection. Event types accept case variations;
+  page versus all-matching selection. Event types accept case variations
+  (dialysis intent tokens remain case-sensitive; open decision OD-7);
   import diagnostics can be expanded, clinical badges have accessible details,
   and WebR download failures give connection and retry guidance.
 - CI uses restricted token permissions, bounded jobs and cached Chromium;
@@ -26,7 +37,10 @@ interfaces are still evolving before 1.0.
   censoring and AKI windows. Application remains the default. The workspace
   and model workbook report each entity's eligible measurement rows
   removed by these windows, separately from balancing and factor exclusions;
-  changing the choice invalidates prior fits and projections.
+  changing the choice invalidates prior fits and projections. The Cohort
+  models page currently always supplies the general-exploration configuration,
+  so no row is removed there and the count is 0 (open decision OD-1 in
+  `docs/method-algorithms.md`).
 
 - Withhold individual G5 crossings beyond 20 years after the latest eligible
   measurement or when endpoint-fit slope confidence bounds include zero or are
@@ -86,9 +100,11 @@ interfaces are still evolving before 1.0.
   confirmation preserves the event. Endpoint exports record configuration and dates.
 - Theil-Sen 95% slope confidence bounds, Python separate-median intercept and
   three-observation minimum, with expanded full-field reference parity tests.
-- Individual endpoint prediction now extends the fitted curve on all dated
-  numeric measurements, including recovery, independently of optional display-fit
-  preparation. This intentionally changes the previous latest-measurement anchor.
+- Individual endpoint prediction now extends the fitted curve instead of
+  anchoring at the latest measurement, independently of optional display-fit
+  preparation. Its input is the endpoint-eligible measurements described under
+  Changed above (before kidney replacement therapy, outside dated acute
+  dialysis intervals, bounds excluded).
   See `docs/method-algorithms.md` for numerical contracts and worked examples.
 
 - Workspace analysis presets and independent column settings; cohort-model studio
@@ -114,8 +130,9 @@ interfaces are still evolving before 1.0.
   profile, source response, model identity and projected times.
 
 - Configurable mixed-model patient factors: select level or level-and-slope
-  effects, numeric/categorical interpretation and reference categories, with a
-  genotype example including baseline age and sex. Preview model-specific
+  effects and reference categories; numeric or categorical interpretation is
+  assigned automatically from the attribute's values (open decision OD-22),
+  with a genotype example including baseline age and sex. Preview model-specific
   exclusions and export all coefficients, fitted settings, centers and units.
 
 - Single-workbook upload: `.xlsx` workbooks containing `labs`, `events`, and/or
@@ -123,8 +140,12 @@ interfaces are still evolving before 1.0.
   measurements, timeline events, and patient metadata while preserving the
   separate-file upload workflow.
 - Tolerant header resolution across all importers (`labs`, `events`, `attributes`),
-  supporting case and separator variations (e.g. `patient_id`, `Patient ID`, `patientID`)
-  with strict ambiguity detection when distinct headers refer to the same concept.
+  supporting case and separator variations (e.g. `patient_id`, `Patient ID`, `patientID`).
+  Two headers that differ only in case or separators are rejected as ambiguous.
+  In lab and event sheets, two different accepted names for one column (e.g.
+  `labDate` and `LabDatum`) are both accepted and the first-listed name is used
+  (open decision OD-25); the attributes sheet rejects two sex or two birth-date
+  columns.
 - Explicit birth date conflict detection: disagreements between birth dates stated
   in lab rows versus the attributes table are tracked and reported as
   `birth_date_source_disagreement`.
@@ -163,8 +184,9 @@ interfaces are still evolving before 1.0.
 - Removed the `@observablehq/plot` and `react-aria-components` dependencies.
 - Sex and age are now resolved once per patient before any analysis runs,
   rather than being read from each lab row individually; contradictions
-  between rows (or between rows, the attributes table, and a manual entry)
-  are reported instead of silently computed over.
+  between rows, or between rows and the attributes table, are reported instead
+  of silently computed over. A manual entry takes precedence and suppresses
+  the reports for that field.
 
 ### Fixed
 
@@ -189,21 +211,27 @@ interfaces are still evolving before 1.0.
   diagnostic instead of loading it without a date. US month-first dates are not
   supported: in attribute files, a birth date such as `03/15/1980`, which was
   previously read month-first, is now ignored with a warning, and `03/04/1980` is
-  read as 3 April.
-- Lab imports report exact duplicate rows, censored values (`<`, `>`, which fits
-  currently use at their limit value) per parameter, decimal commas that may be
+  read as 3 April. Exception: an attribute birth date longer than 10 characters
+  that this parser rejects is retried with the JavaScript `Date` parser (open
+  decision OD-24).
+- Lab imports report exact duplicate rows, censored values (`<`, `>`; excluded
+  from fits, endpoints and AKI detection, see Changed above) per parameter,
+  decimal commas that may be
   thousands separators (`1,234`), unreadable birth dates and merged unit
   spellings. Units that differ only in spacing, micro-sign form or case that
   cannot change an SI prefix (`mg/dL`, `MG/DL`, `umol/L`, `μmol/l`) form one
-  parameter; `mU/l` and `MU/l` or `g/l` and `G/l` stay separate, and different
+  parameter; `mU/l` and `MU/l` or `g/l` and `G/l` stay separate (an
+  all-capitals `MU/L` is folded and merges with `mU/l`), and different
   units are never converted. Event and attribute import messages are readable
   sentences naming the offending value. Missing-column errors name the missing
   columns and list the columns found.
 - Typed numeric value cells in XLSX files are taken as numbers. Previously a
   numeric cell such as 1.234 was treated like the text `1.234`, which is
   ambiguous with a German thousands separator, and left without a value.
-- Workspace Rolling OLS and Segmented OLS selections now run their own fit paths
-  instead of global OLS. Endpoint export provenance is blank for endpoints that
+- Workspace Rolling OLS and Segmented OLS selections now run under their own
+  slope modes. The reported slope, R² and confidence bounds remain the global
+  OLS values; segmented OLS draws one line per fitted gap segment and rolling
+  OLS draws none (open decisions OD-2 and OD-3). Endpoint export provenance is blank for endpoints that
   were not evaluated; earlier endpoint columns keep their position and the patient
   slope sheet keeps Mode fourth. No percent change is shown for one measurement.
 - Workspace plots now share a zero-inclusive parameter scale by default, with

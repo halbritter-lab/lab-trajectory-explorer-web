@@ -82,12 +82,14 @@ proceed and remain open to the owner's revision.
   compared quantity (mg/dl for absolute values, dimensionless for ratios), so
   a rise of exactly 0.3 mg/dl or exactly 1.5× is detected despite binary
   rounding. The stage-1 floor and stage-2/3 boundaries use the same rule;
-  episode clustering and staging priority are unchanged. A clinically smaller
+  episode clustering and staging priority are unchanged and are written out in
+  [method algorithms](method-algorithms.md#kdigo-creatinine-aki-detection). A clinically smaller
   rise such as 0.299999 mg/dl remains below threshold. Implemented in this P4
   package.
 - **AKI detection and eGFR derivation** accept eligible serum creatinine in
   mg/dl or µmol/l, converting the latter to mg/dl by division by the central
-  88.42 constant before comparison or formula evaluation. Common micro-sign,
+  88.42 constant before comparison or formula evaluation (the EKFC Q
+  polynomial alone uses 88.4; open decision OD-12). Common micro-sign,
   case and spacing unit spellings are eligible; urine sources and operator-bound
   rows remain excluded from AKI. AKI uses the current creatinine pair on its
   own series or selects the patient's pair with the most eligible exact dated
@@ -98,22 +100,54 @@ proceed and remain open to the owner's revision.
   shown in the interface and recorded in exports. Implemented in P5 package 1:
   application defaults on, the count uses eligible exact dated measurements
   removed by the union of event and AKI windows, and switching the policy
-  invalidates fitted models and projections. Later time balancing, run-in and
-  factor removals are not included in that count.
+  invalidates fitted models and projections. Later time balancing and factor
+  removals are not included in that count; a chronic run-in stage exists in the
+  core but no interface path selects it. As implemented, the Cohort models page
+  builds the series configuration as general exploration, so these windows are
+  empty there and the count is always 0 (open decision OD-1).
 - **Mixed models.** Implemented in P5: a technical minimum of ten qualifying
   patients with three distinct times for random slopes or two for random
   intercepts; singular fits flagged, their projections withheld, and time
   origin and dropout assumptions documented on the methodology page. The
-  minimum is not a statistical power guarantee.
+  minimum is not a statistical power guarantee. It counts qualifying patients
+  and does not remove the others, and it applies to the pooled model and to
+  each group separately.
 - **Not changed for now:** AKI episode merging and staging; the rapid-decline
-  flag; quarterly calendar-median aggregation (made visible only).
+  flag; quarterly calendar-median aggregation (made visible only). Their rules
+  as implemented are written out in [method algorithms](method-algorithms.md):
+  the AKI rules under *Known limitations* of the AKI section, the missing
+  reliability gate of the flag as open decision OD-10, and the bin and
+  representative-date rules under *Time balancing*.
 - **Architecture.** Analyses become modular: domain rules (nephrology) live in
   modules on top of a generic core. The workspace becomes the only interface;
   the legacy interface at `index.html` is removed.
 
+## Documentation review of 2026-10-07
+
+A review compared every implemented rule with the documentation. The
+[algorithm reference](method-algorithms.md) was then completed to describe the
+application as implemented, including import and value interpretation,
+demographics resolution, the fit pipeline and presets, time balancing, OLS,
+rolling and segmented OLS, eGFR formulas, AKI episodes and exclusion windows,
+clinical events, and the cohort mixed-model specification and projections.
+
+No behaviour was changed. Where implemented behaviour conflicts with
+user-facing documentation or looks unintended, the reference describes it as it
+is and marks it **Open decision OD-n**. The
+[list of open decisions](method-algorithms.md#open-decisions) has 27 entries;
+each needs an owner decision to change either the code or the description. The
+methodology page was not edited; wording changes there remain the owner's call.
+
 ## Approved requirements
 
 ### Observed events and recovery
+
+> Superseded in part 2026-10-06: confirmation must also occur within 12
+> calendar months of the candidate (a later low value then starts a new
+> candidate), and input is limited to endpoint-eligible exact measurements
+> before kidney replacement therapy. See "Decisions of 2026-10-06" above and
+> [observed endpoints and individual prediction](method-algorithms.md#observed-endpoints-and-individual-prediction).
+> The steps below are kept as the 2026-09-23 record.
 
 Evaluate G4 and G5 independently, using default eGFR thresholds of strictly
 below 30 and below 15 ml/min/1.73 m² respectively. The owner clarified that
@@ -140,6 +174,15 @@ January 14, March 20, May 13 interrupts the January candidate; May starts a new
 candidate requiring its own later confirmation.
 
 ### Individual prediction
+
+> Superseded 2026-10-06: prediction input is truncated at the first kidney
+> transplant or chronic dialysis start and excludes complete dated acute
+> dialysis intervals and bounds; a crossing is withheld when the slope
+> confidence interval includes zero or lies more than 20 years ahead. See
+> "Decisions of 2026-10-06" above and
+> [observed endpoints and individual prediction](method-algorithms.md#observed-endpoints-and-individual-prediction).
+> The first paragraph below is kept as the 2026-09-23 record; the fitted-curve
+> anchor in the second paragraph still applies.
 
 Use all dated exact numeric measurements initially, including later recovery values.
 Do not truncate the prediction input at an observed event or discard recovery
@@ -196,7 +239,8 @@ illustrates why a first-event definition needs a separate decision:
 Decision: preserve confirmed events after recovery, retain both dates, and use
 the independently evaluated endpoints and configurable interval specified above.
 
-Evidence: [implementation](../src/core/endpoints/ckdEndpoints.ts),
+Evidence: [implementation](../src/core/domains/nephrology/endpoints/ckdEndpoints.ts),
+[generic evaluators](../src/core/endpoints/thresholdEndpoints.ts),
 [current tests](../tests/core/endpoints/ckdEndpoints.test.ts),
 [event-time questions](research-endpoint-readiness.md).
 
