@@ -37,8 +37,12 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
   if (!endpoints.observedCkdG5.met) {
     if (endpoints.projectedAgeToCkdG5.value !== null) {
       const age = endpoints.projectedAgeToCkdG5.value
-      labels.push(`G5 @ ${age.toFixed(1)}y`)
-      details.push(`projected age to CKD G5 ${age.toFixed(1)} years; fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)`)
+      // Without a birth date the age is known in completed years only, so one
+      // decimal would claim a precision the input does not have.
+      const exact = endpoints.projectedAgeToCkdG5.ageBasis === 'birth_date'
+      const shown = exact ? age.toFixed(1) : `~${Math.round(age)}`
+      labels.push(`G5 @ ${shown}y`)
+      details.push(`projected age to CKD G5 ${exact ? `${shown} years` : `about ${Math.round(age)} years (no birth date: counted from the age in completed years, so the true value can be up to one year higher)`}; fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)`)
     } else {
       const unavailable = projectedG5Label(endpoints)
       if (unavailable) { labels.push(unavailable.label); details.push(unavailable.title) }

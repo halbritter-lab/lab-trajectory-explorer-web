@@ -30,6 +30,10 @@ export interface CohortSeriesSpec {
   eventDatesByPatient?: Record<string, Date[]>
   clinicalEvents?: ClinicalEvent[]
   clinicalEventsByPatient?: Record<string, ClinicalEvent[]>
+  /** Birth dates known exactly (attributes table or lab rows), by
+   * patientIdKey. Patients whose age is manual or inferred from stated ages
+   * have no entry. Used for exact ages in endpoint projections. */
+  exactBirthDateByPatient?: Record<string, Date>
   fitConfig?: FitConfig
   fitInputs?: AnalysisFitInputContribution[]
 }
@@ -211,7 +215,16 @@ function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRow
     seriesRows.filter(row => isExactMeasurement(row) && Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
       .map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: null, row })), events,
   ).map(point => point.row)
+  const birthDate = spec.exactBirthDateByPatient?.[patientIdKey(patientId)]
+  const exactBirthDate = birthDate && Number.isFinite(birthDate.getTime()) ? birthDate : null
   const points = (withAges: boolean): EndpointPoint[] => {
+    if (withAges && exactBirthDate) {
+      // Exact age in 365.25-day years; a measurement before the birth date has none.
+      return endpointRows.map(row => {
+        const elapsed = row.labDatum!.getTime() - exactBirthDate.getTime()
+        return { date: row.labDatum!, value: row.wertNum!, ageYears: elapsed >= 0 ? elapsed / MS_PER_YEAR : null }
+      })
+    }
     const ageAnchors = withAges ? ageAnchorsFor(endpointRows) : []
     return endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: withAges ? ageAtDate(row.labDatum!, ageAnchors) : null }))
   }
@@ -224,6 +237,7 @@ function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRow
     hasSeriesMeasurements: seriesRows.length > 0,
     scalarFitModel,
     points,
+    ageBasis: exactBirthDate ? 'birth_date' : 'whole_years',
     fit: () => {
       if (scalarFitModel === 'none') return { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
       const all = points(false)

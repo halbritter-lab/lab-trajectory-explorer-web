@@ -7,6 +7,42 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- eGFR, AKI and endpoint rules decided by the owner on 2026-10-07 (formerly
+  open decisions OD-13 to OD-20 in `docs/method-algorithms.md`). All are
+  **numeric or classification changes** for the data they concern; the golden
+  fixtures contain no affected case and are unchanged.
+  - A series counts as eGFR by its unit mL/min/1.73 m² alone, in every
+    feature: CKD endpoints, kidney failure reached, the rapid-decline flag and
+    the cohort-model projection presets. A clearance or an eGFR series
+    imported with the bare unit `ml/min` no longer receives endpoints or the
+    flag; a series named otherwise than "eGFR…" in mL/min/1.73 m² now gets
+    the projection presets.
+  - AKI detection ignores serum creatinine of zero or less (previously a
+    baseline of 0 produced a stage III episode) and creatinine measured under
+    dialysis: from the start of chronic dialysis until a later kidney
+    transplant, and inside dated acute-dialysis intervals. Detection continues
+    after transplantation. Episodes, chips and AKI exclusion windows of
+    affected patients change. The Data page reports the number of
+    non-positive creatinine values.
+  - An eGFR derived from a non-exact creatinine row of a pre-parsed import
+    (`range`, `unparseable`) is no longer marked exact and stays out of fits,
+    endpoints and cohort models.
+  - The projected age at CKD G5 starts from the exact age when the birth date
+    is known, so it is up to one year higher than before. Without a birth
+    date it still starts from the age in completed years; the badge then
+    shows a rounded value marked as approximate (`G5 @ ~66y`). The new export
+    column `endpoint_prediction_age_basis` records which applies.
+  - The projection needs 365 days of follow-up instead of 365.25, the same as
+    the slope reliability rule; one calendar year of measurements now
+    qualifies.
+  - A confirmed observed G5 withholds the projection also when the
+    observed-G5 endpoint is switched off.
+  - The minimum confirmation interval is limited to 365 days, because a
+    confirming value must follow within 12 calendar months; a larger entry is
+    rejected with that explanation.
+  - Confirmed as final: the 20-year projection horizon, the 90-day mean
+    baseline for the 40 % and 57 % decline events, and the 12-month
+    confirmation window.
 - Import rules decided by the owner on 2026-10-07 (formerly open decisions
   OD-7, OD-8 and OD-24 to OD-28 in `docs/method-algorithms.md`):
   - Text values with exactly three digits after a point (`0.850`, `1.234`) are

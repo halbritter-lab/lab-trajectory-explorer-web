@@ -93,14 +93,6 @@ and are no longer cited as conflicts.
 | OD-10 | [Rapid eGFR decline flag](#rapid-egfr-decline-flag) | The flag has no reliability gate; a two-point slope is flagged like a well-supported one. The owner decided on 2026-10-06 not to change the flag for now; open is the conflict with the methodology wording. |
 | OD-11 | [Ordinary least squares](#ordinary-least-squares) | The t critical value is a step function above 40 degrees of freedom, untested against a reference in that range. |
 | OD-12 | [eGFR derivation](#egfr-derivation) | Two creatinine conversion constants are in use: 88.42 µmol/l per mg/dl for measured values, 88.4 inside the EKFC Q polynomial. |
-| OD-13 | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) | AKI detection accepts zero and negative creatinine values. |
-| OD-14 | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) | AKI detection ignores clinical events; creatinine during dialysis or after transplantation still yields episodes and exclusion windows. |
-| OD-15 | [eGFR derivation](#egfr-derivation) | An eGFR derived from a non-exact creatinine row of a pre-parsed import is marked exact. |
-| OD-16 | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) | The projected age starts from whole completed years and is up to one year low. |
-| OD-17 | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) | The projection needs 365.25 days of follow-up; the slope reliability rule needs 365. |
-| OD-18 | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) | A confirmed observed G5 suppresses the projection only while the observed-G5 endpoint is switched on. |
-| OD-19 | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) | A minimum confirmation interval longer than 12 months can never confirm, without a warning. |
-| OD-20 | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) | eGFR series are recognised by two different rules; any unit containing `ml/min` receives endpoints and the rapid-decline flag. |
 | OD-21 | [Cohort mixed models](#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-23 | [Cohort mixed models](#cohort-mixed-models) | The "Group interaction" preset builds an invalid configuration for a numeric attribute. |
@@ -116,6 +108,14 @@ numbers are not reused.
 | --- | --- | --- |
 | OD-7 | Dialysis intent is matched without regard to case. | [Clinical events](#clinical-events) |
 | OD-8 | Text with three digits after a point is read as a decimal and reported. | [Import and value interpretation](#import-and-value-interpretation) |
+| OD-13 | Creatinine of zero or less takes no part in AKI detection. | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) |
+| OD-14 | Creatinine measured under dialysis is left out of AKI detection. | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) |
+| OD-15 | A derived eGFR inherits the non-exact status of its creatinine row. | [eGFR derivation](#egfr-derivation) |
+| OD-16 | The projected age starts from the exact age when the birth date is known. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
+| OD-17 | The projection needs 365 days of follow-up, like the reliability rule. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
+| OD-18 | A confirmed observed G5 always withholds the projection. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
+| OD-19 | The minimum confirmation interval is at most 365 days. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
+| OD-20 | eGFR is recognised by the unit mL/min/1.73 m² everywhere. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
 | OD-24 | The JavaScript date-parser fallback for attribute birth dates is removed. | [Import and value interpretation](#import-and-value-interpretation) |
 | OD-25 | Two accepted headers for one lab or event field produce a warning naming the column used. | [Import and value interpretation](#import-and-value-interpretation) |
 | OD-26 | Lab rows without a patient ID are listed as rejected. | [Import and value interpretation](#import-and-value-interpretation) |
@@ -268,7 +268,8 @@ number it is treated like a bounded value: it stays visible and counts toward
 raw numeric counts, is excluded from fits, endpoints, AKI detection and cohort
 mixed models, and is labelled "censored value (limit, not exact)".
 
-An eGFR value derived from such a creatinine row is marked exact; see OD-15.
+An eGFR value derived from such a creatinine row inherits its operator and is
+not exact either; see "eGFR derivation".
 
 **Series identity.** A series is the exact pair of test name and unit. Both are
 trimmed; the unit is the canonical spelling chosen under Units. Test names are
@@ -1566,8 +1567,12 @@ with the selected estimator. For rolling and segmented OLS it is the global OLS
 slope. It is not the endpoint-only fit, so the flag can change when the preset
 changes while the endpoint results do not.
 
-A series is treated as eGFR when its unit contains `ml/min`, compared without
-regard to case. The parameter name is not checked; see OD-20.
+A series is treated as eGFR when its unit is mL/min/1.73 m². The unit is compared after
+lower-casing, removing whitespace, and reading a decimal comma as a point and
+`²` or `^2` as `2`; the result must equal `ml/min/1.73m2` (`isEgfrUnit`).
+The parameter name is not checked. A clearance in `ml/min` is not eGFR and is
+never flagged (one rule for all eGFR features since 2026-10-07, formerly
+OD-20; see "Observed endpoints and individual prediction").
 
 The flag does not consult the reliability rule, the confidence bounds, the
 number of fitted points or the fitted span. Two values a few weeks apart that
@@ -1588,9 +1593,10 @@ Regression evidence:
 [export record tests](../tests/core/cohort/exportRecords.test.ts) for
 `isRapidEgfrDecline` and `rapid_progression`, and
 [workspace export tests](../tests/workspace/export.test.ts) for
-`rapid_egfr_threshold`. No dedicated regression test covers a slope exactly
-equal to the negative threshold, units such as a measured clearance in ml/min,
-or the absence of a reliability gate.
+`rapid_egfr_threshold`, and the
+[decision tests](../tests/core/endpoints/decisions20261007.test.ts) for a
+clearance in ml/min. No dedicated regression test covers a slope exactly equal
+to the negative threshold or the absence of a reliability gate.
 
 
 ## eGFR derivation
@@ -1807,13 +1813,14 @@ as described under [bounded measurements](#bounded-measurements-2026-10-06).
 A row whose operator is `range` or `unparseable` normally has no numeric value
 and therefore yields no eGFR row. The exception is a lab sheet that supplies
 the pre-parsed columns `valueNum` and `valueOperator` (aliases `Wert_num`,
-`Wert_operator`). There the number is taken as given, and any operator cell
-other than `=`, `<`, `>`, `range` or `unparseable` (an empty cell and `<=`
-included) is stored as `unparseable`. Such a creatinine row is not an exact
-measurement and is left out of creatinine fits and AKI detection, but its
-derived eGFR row is written with operator `=`.
-
-> **Open decision OD-15.** A creatinine row with a numeric value but operator `range` or `unparseable`, possible only through the pre-parsed `valueNum`/`valueOperator` columns, yields a derived eGFR row marked exact, which then enters fits and endpoints although its source row is excluded as non-exact. Behaviour is unchanged pending an owner decision.
+`Wert_operator`). There the number is taken as given, and an operator cell
+other than `=`, `<`, `>`, `range` or `unparseable` (`<=` for example; an empty
+cell beside a number means `=`) is stored as `unparseable`. Such a creatinine
+row is not an exact measurement and is left out of creatinine fits and AKI
+detection. Its derived eGFR row inherits the operator (`range` stays `range`,
+`unparseable` stays `unparseable`), so the derived value is shown but enters no
+fit, endpoint or cohort model (decided 2026-10-07, formerly OD-15; before, the
+derived row was written with operator `=`).
 
 ### Worked examples
 
@@ -1840,8 +1847,9 @@ bound, under-18 rows, rejected non-serum source),
 `off` contributes nothing), [unit-key tests](../tests/core/parse/units.test.ts)
 and [eGFR fixture tests](../tests/parity/egfr.parity.test.ts). No dedicated
 regression test: one-decimal rounding at a threshold, the absence of caps,
-same-date duplicate source rows, default-source rule 3, and the operator case
-of OD-15. The 88.4 constant has no test of its own but is pinned indirectly:
+same-date duplicate source rows and default-source rule 3. The inherited
+operator of a non-exact source row is covered by the
+[decision tests](../tests/core/endpoints/decisions20261007.test.ts). The 88.4 constant has no test of its own but is pinned indirectly:
 the fixture row for `w`, 0.6 mg/dl, 25 years and the formula test for `w`,
 0.7 mg/dl, 18 years both fail with 88.42.
 
@@ -1874,17 +1882,45 @@ mg/dl** before any comparison. Thus 97.262 and 123.788 µmol/l correspond to
 1.1 and 1.4 mg/dl and, one day apart, are detected as a 0.3 mg/dl rise.
 Episode values in markers and tooltips are always in mg/dl.
 
-Values are not checked for sign or plausibility. Zero and negative creatinine
-values enter detection like any other exact value.
+Creatinine values of zero or less take no part in detection (decided
+2026-10-07, formerly OD-13): `findKdigoAkiEpisodes` removes them before the
+windows are built, so such a value is neither a baseline nor a rise, exactly
+as eGFR derivation rejects it. Before, a baseline of 0 gave an infinite ratio
+and stage III, and 0 followed by 0.3 mg/dl fired the absolute criterion. The
+neighbouring positive values are evaluated as if the value were absent: 1.0,
+0 and 1.6 mg/dl on three consecutive days give one stage-I episode with
+baseline 1.0. No other plausibility check is applied. The Data page reports
+the number of exact dated serum-creatinine rows of zero or less ("… not
+plausible, so not used for AKI detection or eGFR").
 
-> **Open decision OD-13.** AKI detection has no positivity filter on creatinine: a baseline of zero or less gives an infinite ratio and therefore stage III, and 0 followed by 0.3 mg/dl fires the absolute criterion, whereas eGFR derivation rejects non-positive creatinine. Behaviour is unchanged pending an owner decision.
+**Dialysis.** Creatinine measured under dialysis is left out before detection
+(decided 2026-10-07, formerly OD-14), because it reflects the dialysis
+schedule rather than kidney function. `isUnderDialysis` tests the UTC calendar
+day of each creatinine row against the patient's clinical events:
 
-Detection uses laboratory rows only. Clinical events are not an input, so
-creatinine measured during acute dialysis, after the start of chronic
-dialysis or after a kidney transplant is screened like any other value, and
-the resulting episodes produce chips, markers and fit-exclusion windows.
+| Event | Days left out |
+| --- | --- |
+| `dialysis`, `chronic` | From the start date on, up to but not including the date of the next `kidney_transplant` on or after that start; without such a transplant, every later day. An `endDate` is ignored, as elsewhere. |
+| `dialysis`, `acute`, with `endDate` | `date` through `endDate`, both included. |
+| `dialysis`, `acute`, without `endDate` | None. |
+| `dialysis`, `unknown` | None. |
+| `kidney_transplant`, `other` | None. |
 
-> **Open decision OD-14.** AKI detection ignores clinical events: creatinine during dialysis or after transplantation still produces episodes and exclusion windows, while the methodology page states only that staging does not consider renal replacement therapy. Behaviour is unchanged pending an owner decision.
+The rows are removed from the detection input, not the episodes from the
+result: a value under dialysis is neither a baseline nor a peak, and the first
+values after an acute interval are compared only with values outside it.
+Detection continues after transplantation, so a creatinine rise of the
+transplant is detected. A transplant before the start of a chronic dialysis
+does not end it. This filter is independent of the column's censoring options
+and of the endpoint filter; it applies wherever episodes are used (chips,
+markers, exclusion windows, cohort-model exclusions).
+
+Example: creatinine 1.0 and 1.7 mg/dl on 2020-01-01 and 2020-01-03, 4.0 and
+8.0 on 2020-04-01 and 2020-04-02, 1.2 and 2.0 on 2021-07-01 and 2021-07-02.
+Without events there are three episodes (2020-01-03, 2020-04-02, 2021-07-02).
+With chronic dialysis from 2020-03-01 only the episode of 2020-01-03 remains.
+With an additional kidney transplant on 2021-06-01 the episode of 2021-07-02
+is detected again.
 
 ### Time resolution and windows
 
@@ -1942,7 +1978,8 @@ episode.
 ### Staging
 
 `kdigoStage` grades an episode from its baseline and peak value. The ratio is
-peak divided by baseline; a baseline of zero or less gives an infinite ratio.
+peak divided by baseline; a baseline of zero or less gives an infinite ratio,
+which detection never passes on because such values are removed beforehand.
 The rows are tested from top to bottom and the first match applies.
 
 | Stage | Condition (inclusive, with the 1e-12 tolerance) |
@@ -2068,9 +2105,9 @@ tooltip text) and
 No dedicated regression test: inclusive window bounds at exactly two and
 seven days, the oldest-value tie rule for the baseline, same-date row order,
 the sustained-rise and plateau chains, the stage effect of the absolute-first
-order, non-positive values (OD-13), creatinine around clinical events
-(OD-14), and a computed eGFR column whose AKI source differs from its eGFR
-source.
+order, and a computed eGFR column whose AKI source differs from its eGFR
+source. Non-positive values and creatinine under dialysis are covered by the
+[dialysis and positivity tests](../tests/core/aki/dialysisAndPositivity.test.ts).
 
 ## AKI fit-exclusion window
 
@@ -2382,18 +2419,17 @@ projections".
 
 ### Eligibility and kidney failure reached
 
-**Which series.** Endpoints are evaluated for a column whose unit contains
-`ml/min`, compared case-insensitively (`isEgfrUnit`). The parameter name is
-not read. Every other column reports all endpoints as not evaluated,
-whatever its settings. The same gate controls kidney failure reached and the
-rapid-decline flag.
-
-> **Open decision OD-20.** eGFR series are recognised by two different gates:
-> a unit containing `ml/min` for endpoints, kidney failure reached and rapid
-> decline, but a name starting with eGFR plus the unit ml/min/1.73 m² for
-> cohort-model projection presets, so for example a creatinine clearance in
-> ml/min receives G4/G5 endpoints. Behaviour is unchanged pending an owner
-> decision.
+**Which series.** Endpoints are evaluated for a column when its unit is mL/min/1.73 m². The unit is compared after
+lower-casing, removing whitespace, and reading a decimal comma as a point and
+`²` or `^2` as `2`; the result must equal `ml/min/1.73m2`
+(`isEgfrUnit`). `ml/min/1,73m²`, `mL/min/1.73 m2` and `ML/MIN/1,73M^2`
+qualify; `ml/min`, `ml/min/1.73` and `mL/min/m²` do not. The parameter name
+is not read. Every other column reports all endpoints as not evaluated,
+whatever its settings. The same rule controls kidney failure reached, the
+rapid-decline flag and the preset targets of cohort-model projections
+(decided 2026-10-07, formerly OD-20). Until then any unit containing `ml/min`
+received endpoints, so a creatinine clearance in ml/min did; an eGFR series
+imported with the bare unit `ml/min` no longer does.
 
 A third, name-only test (the name contains `egfr`, in any case) only preselects
 the outcome on the Cohort models page.
@@ -2451,9 +2487,10 @@ replacement therapy reports kidney failure reached with zero eligible rows.
 Regression evidence: [cohort cell tests](../tests/core/cohort/screening.test.ts),
 [bounded measurement tests](../tests/core/censoredMeasurements.test.ts) and
 [method contract tests](../tests/workspace/method-contract.test.tsx). No
-dedicated regression test for the unit gate on a non-eGFR `ml/min` series, for
-the same-date transplant tie, or for kidney failure reached with all endpoint
-toggles off.
+The unit rule is covered by the
+[decision tests](../tests/core/endpoints/decisions20261007.test.ts). No
+dedicated regression test for the same-date transplant tie or for kidney
+failure reached with all endpoint toggles off.
 
 ### Observed G4/G5
 
@@ -2489,18 +2526,21 @@ confirms. 2020-01-01 and 2020-04-01 are 91 days apart and confirm at the
 default. `normalizeConfirmationDays` accepts a finite value of at least 1 and
 rounds it down to whole days (90.7 becomes 90, 1.9 becomes 1); a missing,
 non-finite or smaller value, including 0.5, 0 and negative numbers, becomes
-90. There is no upper bound. The settings input commits whole numbers of at
-least 1 only.
+90. The upper bound is 365 days (`MAX_CONFIRMATION_DAYS`; decided 2026-10-07,
+formerly OD-19): a confirming value must follow within 12 calendar months,
+which is 365 or 366 days, so a longer interval could never confirm, and 366
+days only across a leap day. The settings input commits whole numbers from 1
+to 365 only; a larger entry is not applied and the reason is shown beside the
+input ("366 days not applied: a confirming value must follow within 12
+calendar months, so the minimum interval cannot exceed 365 days."). A larger
+value in a stored configuration is evaluated as 365, and the export records
+the effective value. An interval of 365 days can confirm: 2021-01-01 and
+2022-01-01 are 365 days apart and inside the window.
 
-**Maximum window** *(proposed)*. Confirmation must occur within 12 UTC
+**Maximum window.** Confirmed by the owner on 2026-10-07. Confirmation must occur within 12 UTC
 calendar months of the candidate, inclusive of the anniversary day. Month
 addition clamps to the last day of the destination month (2020-02-29 to
 2021-02-28). The value 12 is fixed in code.
-
-> **Open decision OD-19.** A configured minimum confirmation interval longer
-> than 12 calendar months can never confirm an event, and 366 days confirms
-> only across a leap day; there is no validation or warning. Behaviour is
-> unchanged pending an owner decision.
 
 **Consequence of expiry.** The candidate is always the first low value of a
 run until it expires; intermediate low values are never promoted. With the
@@ -2563,7 +2603,7 @@ first and latest coincide; the export keeps the computed 0.
 **Confirmed 40 % and 57 % decline.** These are separate observed events. The
 57 % boundary serves as a serum-creatinine doubling surrogate.
 
-- Baseline *(proposed window)*: the arithmetic mean of all eligible rows from
+- Baseline (window confirmed by the owner on 2026-10-07): the arithmetic mean of all eligible rows from
   the first eligible UTC date through 90 elapsed UTC calendar days, inclusive
   of the whole final day. Duplicate rows each contribute. One row suffices.
 - Only rows after that window can start, confirm or recover an event, so no
@@ -2619,32 +2659,46 @@ between the first and latest eligible rows:
 
 The fitted line is continued; the latest measured value does not shift it.
 
-**Age at the latest eligible row.** Each lab row carries an age in whole
-completed years, derived from the patient's resolved birth anchor (or taken
-from the stated age, truncated). The age at a date is the age of the latest
-eligible age-carrying row at or before that date, or of the earliest such row
-when none precedes it, plus the elapsed time to the date in 365.25-day years.
-When the latest eligible row carries an age, which is the normal case, the age
-used is that row's whole number. Bounds and rows removed by the event filter
-supply no age. The projection is withheld as `missing_age` only when no
+**Age at the latest eligible row.** Two cases are distinguished (decided
+2026-10-07, formerly OD-16), and `ageBasis` records which applies.
+
+- **Birth date known** (`birth_date`). When the patient's birth-date anchor
+  is an explicit birth date, from the attributes table or from dated lab rows
+  (rules 2 and 3 of "Demographics resolution"), the age at a date is the
+  elapsed time from the birth date to that date in 365.25-day years. A date
+  before the birth date has no age.
+- **No birth date** (`whole_years`). With a manual age, or an anchor inferred
+  from stated ages, the age is known in completed years only. Each lab row
+  carries that whole number. The age at a date is the age of the latest
+  eligible age-carrying row at or before that date, or of the earliest such
+  row when none precedes it, plus the elapsed time to the date in 365.25-day
+  years. When the latest eligible row carries an age, which is the normal
+  case, the age used is that row's whole number, so the projected age is up
+  to one year too low.
+
+Bounds and rows removed by the event filter supply no age. The projection is
+withheld as `missing_age` when the latest eligible row has no age: in the
+first case only when it lies before the birth date, in the second when no
 eligible row carries an age.
 
-> **Open decision OD-16.** The projected age starts from the whole completed
-> years of age at the latest eligible measurement, so it is up to one year too
-> low while it is displayed to one decimal. Behaviour is unchanged pending an
-> owner decision.
+The table badge shows a projected age on a birth-date basis with one decimal
+(`G5 @ 66.3y`). On a whole-year basis it shows the value rounded to a whole
+number and marked as approximate (`G5 @ ~66y`), and the tooltip states that it
+was counted from the age in completed years and can be up to one year higher.
+The export carries the unrounded value in both cases and the basis in
+`endpoint_prediction_age_basis`. The 20-year horizon is measured from the same
+age and is unaffected by the basis.
 
 **Minimum data.** At least three eligible rows are required; rows are counted,
 not distinct dates. The follow-up between the first and latest eligible rows
-must be at least one year of 365.25 days. Rows exactly one calendar year apart
-without a leap day are 365 days apart, which is 0.99932 years, and are
-withheld as `span_too_short`: 2021-01-01, 2021-07-01, 2022-01-01 is withheld,
-2020-01-01, 2020-07-01, 2021-01-01 (366 days) is not.
-
-> **Open decision OD-17.** The projection's minimum follow-up is 365.25 days
-> on endpoint-eligible rows, whereas the slope reliability rule uses 365 whole
-> days on fitted rows; the methodology page calls them the same thresholds.
-> Behaviour is unchanged pending an owner decision.
+must be at least 365 days (`MIN_PROJECTION_SPAN_DAYS`), the same number as the
+minimum fitted span of the slope reliability rule (decided 2026-10-07,
+formerly OD-17; before, 365.25 days were required and one calendar year
+without a leap day was withheld). The two rules still look at different rows:
+endpoint-eligible rows here, fitted rows there. 2021-01-01, 2021-07-01,
+2022-01-01 (365 days) is projected; 2021-01-01, 2021-07-01, 2021-12-31 (364
+days) is withheld as `span_too_short`. The conversion of elapsed time to years
+for the fit and the crossing is unchanged at 365.25 days per year.
 
 **Confidence gate.** A crossing is reported only when both slope confidence
 bounds of the endpoint fit are finite, ordered (low not above high) and the
@@ -2665,7 +2719,7 @@ level is not configurable.
 > yields a projection, and the previously documented example (values 60, 50,
 > 25) is withheld. Behaviour is unchanged pending an owner decision.
 
-**Horizon** *(proposed)*. The crossing must lie no more than 20 years after
+**Horizon.** Confirmed by the owner on 2026-10-07. The crossing must lie no more than 20 years after
 the latest eligible row, in 365.25-day years. Exactly 20 years is reported.
 The value 20 is fixed in code.
 
@@ -2675,14 +2729,14 @@ exported in `endpoint_prediction_reason`; the label is the table badge.
 
 | Order | Code | Condition | Badge label |
 | --- | --- | --- | --- |
-| 1 | `observed_ckd_g5` | The observed-G5 endpoint is on and confirmed, with or without later kidney replacement therapy. | None; the `CKD G5` badge with its dates is shown. |
+| 1 | `observed_ckd_g5` | The eligible rows contain a confirmed observed G5, with or without later kidney replacement therapy and whether or not the observed-G5 endpoint is switched on. | With the observed-G5 endpoint on, none: the `CKD G5` badge with its dates is shown. With it off, no projection badge appears. |
 | 2 | `kidney_failure_reached` | Kidney failure reached and no confirmed observed G5. | `G5 not projected after KRT` |
 | 3 | `insufficient_points` | Fewer than three eligible rows. | `G5 n < 3` |
-| 4 | `span_too_short` | First to latest eligible row under 365.25 days. | `G5 < 1 yr` |
+| 4 | `span_too_short` | First to latest eligible row under 365 days. | `G5 < 1 yr` |
 | 5 | `no_fit` | Slope or intercept of the endpoint fit not finite; with three rows over a year this means fit model "No fit". | `G5 no fit` |
 | 6 | `non_declining_fit` | Slope zero or positive. | `G5 not projected` |
 | 7 | `already_below_threshold` | The fitted line reaches 15 at or before the latest eligible row (`t <= span`). | `G5 now` |
-| 8 | `missing_age` | No eligible row carries an age. | `G5 no age` |
+| 8 | `missing_age` | The latest eligible row has no age (see "Age at the latest eligible row"). | `G5 no age` |
 | 9 | `slope_ci_unavailable` | A slope bound is missing or not finite, or the bounds are inverted. | `G5 not projected` |
 | 10 | `slope_ci_includes_zero` | Lower bound at or below zero and upper bound at or above zero. | `G5 not projected` |
 | 11 | `beyond_projection_horizon` | Crossing more than 20 years after the latest eligible row. | `G5 not projected` |
@@ -2697,8 +2751,13 @@ column with fit model "No fit" reports `insufficient_points` or
 `span_too_short` before `no_fit`, and a flat series with two rows reports
 `insufficient_points`, not `non_declining_fit`.
 
-A confirmed observed G5 event takes precedence over a future projection. This
-also holds after a recorded recovery: once G5 is confirmed, the projection
+A confirmed observed G5 event takes precedence over a future projection,
+whether or not the observed-G5 endpoint is switched on (decided 2026-10-07,
+formerly OD-18). With that endpoint off the event is still evaluated for this
+purpose with the column's confirmation interval; the projection is withheld
+as `observed_ckd_g5`, while the event itself is not reported and its export
+columns stay blank. Before, a future G5 age was projected for such a patient.
+This also holds after a recorded recovery: once G5 is confirmed, the projection
 stays withheld as `observed_ckd_g5` however far eGFR recovers. Measurements
 dated after the confirmation cannot revoke or redate the event (the first value
 of 15 or more is recorded as recovery); they can change a projection. A
@@ -2706,12 +2765,6 @@ measurement added on or before the confirmation date can change the event: a
 value of 15 or more between candidate and confirmation, or on the confirmation
 day itself, removes it, and an earlier low value redates the first crossing.
 The whole series is re-evaluated in date order each time.
-
-> **Open decision OD-18.** A confirmed observed G5 takes precedence over the
-> projection only while the observed-G5 toggle is on; with that toggle off the
-> event is not evaluated and a projected age is reported even when the data
-> contain a confirmable G5 event. Behaviour is unchanged pending an owner
-> decision.
 
 **Example 1: crossing arithmetic, withheld by the confidence gate.** Model
 years [0, 1, 2], values [60, 50, 25] give OLS a=62.5, b=-17.5. Target 15 is
@@ -2732,22 +2785,25 @@ this crossing: SE(b)=4.3301 and t(1)=12.7062 give slope bounds
 - Span: 1826 days = 4.99932 years; fitted value at the latest row 29.0013.
 - Crossing: t=(15-47.9987)/(-3.8000)=8.68389 years after the first row, which
   is 3.68457 years after the latest row and within the 20-year horizon.
-- Projected age: 62 + 3.68457 = 65.68457; the badge shows `G5 @ 65.7y`.
+- Projected age with the birth date known (from the attributes table or the
+  lab rows): the exact age at the latest row is 62.623 years, so
+  62.623 + 3.68457 = 66.307; the badge shows `G5 @ 66.3y`.
+- Projected age without a birth date (the file states only ages 57 to 62):
+  62 + 3.68457 = 65.68457; the badge shows `G5 @ ~66y`.
 - With Theil-Sen selected: slope -3.8005, intercept 48, bounds
-  [-4.0027, -3.0021], projected age 65.68371.
-
-The patient's exact age at the latest row is 62.623 years, so the same
-crossing corresponds to an exact age of 66.307 years (see OD-16).
+  [-4.0027, -3.0021], crossing 3.68371 years after the latest row.
 
 Regression evidence: [endpoint tests](../tests/core/endpoints/ckdEndpoints.test.ts),
 [cohort cell tests](../tests/core/cohort/screening.test.ts),
 [export tests](../tests/core/cohort/exportRecords.test.ts),
 [label tests](../tests/workspace/labels/qualityLabels.test.ts) and
 [method contract tests](../tests/workspace/method-contract.test.tsx). The
-endpoint tests supply slope bounds directly rather than from a fit. No
-dedicated regression test for the whole-year age anchor, for the age of an
-earlier row carried forward, for the 365-day versus 366-day span boundary, for
-the full reason order, or for the projection with the observed-G5 toggle off.
+endpoint tests supply slope bounds directly rather than from a fit. The
+[decision tests](../tests/core/endpoints/decisions20261007.test.ts) cover the
+two age bases, the 364-day versus 365-day span boundary, the projection with
+the observed-G5 toggle off and the 365-day limit of the confirmation
+interval. No dedicated regression test for the age of an earlier row carried
+forward or for the full reason order.
 
 ### Export provenance
 
@@ -2764,7 +2820,7 @@ endpoint toggles on a series that passes the unit gate.
 | `endpoint_observed_ckd_g5` | Observed G5 confirmed. | `yes` |
 | `endpoint_projected_age_to_ckd_g5` | A projection is reported. | Age in years, unrounded. |
 | `endpoint_observed_ckd_g4` | Observed G4 confirmed. | `yes` |
-| `endpoint_confirmation_days` | G4, G5 or percent decline enabled. | Effective minimum interval in days. |
+| `endpoint_confirmation_days` | G4, G5 or percent decline enabled. | Effective minimum interval in days, at most 365. |
 | `endpoint_input_policy` | Any endpoint enabled. | Fixed text: "dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded". |
 | `endpoint_kidney_failure_reached` | Kidney failure reached, whatever the toggles. | `yes` |
 | `endpoint_kidney_failure_type` | As above. | `kidney_transplant` or `chronic_dialysis` |
@@ -2780,9 +2836,10 @@ endpoint toggles on a series that passes the unit gate.
 | `endpoint_decline_baseline_value` | Percent decline enabled and at least one eligible row. | Mean baseline eGFR, also when it is zero or negative. |
 | `endpoint_observed_decline_40`, `endpoint_observed_decline_57` | Decline event confirmed. | `yes` |
 | `endpoint_decline_40_*`, then `endpoint_decline_57_*` (each: first, confirmed and recovery date, then first, confirmed and recovery value) | As for G4. | Dates and eGFR values, not percentages. |
+| `endpoint_prediction_age_basis` | A projection is reported. | `birth date` or `age in completed years`; see "Age at the latest eligible row". |
 
 Blank provenance means the endpoint was not evaluated for that series (for
-example a unit without `ml/min` or a preset with endpoints off), not that it
+example a unit other than mL/min/1.73 m² or a preset with endpoints off), not that it
 was not met. A blank `yes` column alone does not distinguish "not met" from
 "not evaluated". `endpoint_confirmation_days` and
 `endpoint_confirmation_max_months` are filled when any of G4, G5 or percent
@@ -2829,10 +2886,11 @@ Regression evidence: [export tests](../tests/core/cohort/exportRecords.test.ts),
 
 These definitions intentionally replace the historical web rules. They are
 owner-approved research definitions, not claims of clinical validation. The
-defaults marked *(proposed)* (the 12-month maximum confirmation window, the
-90-day decline baseline window, the 20-year projection horizon and the absence
-of a pre-KRT counterfactual projection) were chosen during implementation and
-remain open to the owner's revision. A projected crossing is a property of a
+owner confirmed the 12-month maximum confirmation window, the 90-day decline
+baseline window and the 20-year projection horizon on 2026-10-07. The one
+default still marked *(proposed)*, the absence of a pre-KRT counterfactual
+projection, was chosen during implementation and remains open to the owner's
+revision. A projected crossing is a property of a
 fitted line and must not be read or presented as a prognosis.
 
 ## Cohort mixed models
@@ -3438,13 +3496,12 @@ switched off, and `unavailable_profile` as described above.
   labels must not be empty. Changes take effect only after *Apply*.
 - **Preset targets.** For an eGFR outcome the presets are the G4 boundary
   (*below* 30) and the G5 boundary (*below* 15), with the fitted series' own
-  name and unit. They are offered when the outcome name starts with `eGFR`
-  (case-insensitive, as a whole word or followed by an underscore) and the unit
-  equals `ml/min/1.73m2` after lower-casing, removing whitespace, and reading a
-  decimal comma as a point and `²` or `^2` as `2`. `eGFR (CKD-EPI 2021,
-  computed)` in `ml/min/1,73m²` qualifies; `eGFRcys`, `GFR (eGFR)` or the unit
-  `ml/min` do not. This gate differs from the gate of the individual eGFR
-  endpoints; see OD-20. Other outcomes have no preset.
+  name and unit. They are offered when the unit equals `ml/min/1.73m2` after
+  lower-casing, removing whitespace, and reading a decimal comma as a point and
+  `²` or `^2` as `2`, whatever the outcome is called (`isEgfrUnit`, the rule of
+  the individual eGFR endpoints). `eGFR (CKD-EPI 2021, computed)`, `eGFRcys`
+  and `GFR (CKD-EPI)` in `ml/min/1,73m²` qualify; the unit `ml/min` does not.
+  Other outcomes have no preset.
 - **Custom targets.** Any number can be added for the fitted outcome and unit.
   A new custom target starts as *below* 0 and enabled; its label, threshold and
   direction are editable. No unit conversion is applied.

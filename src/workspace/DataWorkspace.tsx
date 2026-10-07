@@ -7,6 +7,7 @@ import { computeAnalysisResult } from '../core/analysis/registry'
 import { isUnrecognisedSex } from '../core/demographics/sex'
 import { creatinineSourceOptions, defaultCreatinineSource, type FormulaName, type Source } from '../core/domains/nephrology/egfr/series'
 import { COMPUTED_EGFR_UNIT, computedEgfrName } from '../core/domains/nephrology/analytes'
+import { nonPositiveCreatinineCount } from '../core/domains/nephrology/aki/akiAware'
 import { describeEventRejection, normalizeClinicalEventsWithNotes, validateClinicalEvents } from '../core/events/events'
 import { describeAttributeRejection, normalizePatientAttributes, validatePatientAttributes } from '../core/attributes/attributes'
 import { readWorkbook } from '../io/readWorkbook'
@@ -101,6 +102,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
   }
   const referenceDate = editing === null ? null : data.rawRows.filter(r => r.patientId === editing && r.labDatum).map(r => r.labDatum!).sort((a, b) => a.getTime() - b.getTime())[0]
   const missingSex = data.patients.filter(p => !p.attributes.sex).length
+  const implausibleCreatinine = useMemo(() => nonPositiveCreatinineCount(data.rawRows), [data.rawRows])
   const missingAge = data.patients.filter(p => p.baselineAge === null).length
   return <div className="data-workspace stack">
     <header className="page-heading"><div><p className="eyebrow">DATA · QUALITY · DERIVATION</p><h1>Prepare data</h1><p className="muted">Import lab values, review patient details and inspect calculations.</p></div><button disabled={!data.rawRows.length} onClick={() => onBrowse()}>Open trajectories →</button></header>
@@ -116,6 +118,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
       <WorkspaceStorageControls hasData={data.rawRows.length > 0} />
     </section>
     {data.rawRows.length > 0 && <><section className="card"><h2>2 · Demographics and data quality</h2><p>{missingSex} patients without resolved sex · {missingAge} without age at the first lab date · {resolution.conflicts.length} conflicts</p>
+      {implausibleCreatinine > 0 && <p className="notice amber" role="status">{implausibleCreatinine} serum creatinine {implausibleCreatinine === 1 ? 'value' : 'values'} of zero or less: not plausible, so not used for AKI detection or eGFR.</p>}
       {!!resolution.conflicts.length && <details><summary>Conflicts and their resolution</summary><ul>{resolution.conflicts.map((c, i) => <li key={i}>{describeConflict(c)}</li>)}</ul></details>}
       <details><summary>Review and edit patients ({data.patients.length})</summary><div className="table-scroll"><table><thead><tr><th>Patient</th><th>Sex</th><th>Age at first measurement</th><th>Quality</th><th>Action</th></tr></thead><tbody>{data.patients.map(p => <tr key={JSON.stringify(p.id)}><th><button onClick={() => onBrowse(p.id)}>{p.label}</button></th><td>{sexLabel(p.attributes.sex)}</td><td>{p.baselineAge ?? 'Missing'}</td><td>{resolution.conflicts.filter(c => c.patientId === p.id).length ? 'Conflict' : !p.attributes.sex || p.baselineAge === null ? 'Incomplete' : 'Complete'}{data.manualDemographics[patientIdKey(p.id)] && Object.keys(data.manualDemographics[patientIdKey(p.id)]).length > 0 ? ' · manual' : ''}</td><td><button aria-label={`Edit demographics: ${p.label}`} onClick={() => edit(p.id)}>Edit</button></td></tr>)}</tbody></table></div></details>
     </section><section className="card"><h2>3 · Derive eGFR</h2><p>Preview before applying. Imported measurements are preserved; computed values appear as separate parameters.</p><div className="data-import-grid"><label className="field">eGFR formula<select value={formula} onChange={e => setFormula(e.target.value as FormulaName | 'off')}><option value="off">Off</option><option value="ckd-epi-2021">CKD-EPI 2021</option><option value="mdrd-4">MDRD-4</option><option value="ekfc-2021">EKFC 2021</option></select></label><label className="field">Creatinine source<select value={sourceKey} onChange={e => setSourceKey(e.target.value)}><option value="null">Automatic{defaultCreatinineSource(options) ? `: ${defaultCreatinineSource(options)!.join(' · ')}` : ': no eligible source'}</option>{options.map(s => <option key={JSON.stringify(s)} value={JSON.stringify(s)}>{s.join(' · ')}</option>)}</select></label></div>

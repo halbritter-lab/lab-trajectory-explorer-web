@@ -29,9 +29,11 @@ const endpointDate = (date: Date | null): string => date?.toISOString().slice(0,
 const observedEvaluated = (e: CkdEndpoints) => e.evaluated.observedCkdG4 || e.evaluated.observedCkdG5 || e.evaluated.percentDecline
 const anyEvaluated = (e: CkdEndpoints) => observedEvaluated(e) || e.evaluated.percentDecline || e.evaluated.projectedAgeToCkdG5
 type Cell = ModuleExportCell<CkdEndpoints>
+/** Export text for the basis of a projected age; blank without a projection. */
+const AGE_BASIS_LABELS = { birth_date: 'birth date', whole_years: 'age in completed years', none: '' } as const
 
 /**
- * CKD endpoints of eGFR series (any unit containing "ml/min"): total percent
+ * CKD endpoints of eGFR series (unit mL/min/1.73 m², see isEgfrUnit): total percent
  * decline, observed CKD G4 and G5 (threshold crossings confirmed after the
  * column's interval) and the projected age at G5 along the series' fitted
  * line. The column's fit configuration (`endpoints`) selects which are
@@ -51,7 +53,7 @@ export const ckdEndpointsModule = {
     const kidneyFailureReached = ctx.hasSeriesMeasurements && isEgfrUnit(ctx.seriesKey.einheit) ? firstKidneyFailureEvent(ctx.events) : null
     const fit = projecting && !kidneyFailureReached ? ctx.fit() : { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
     return computeCkdEndpoints({ points: ctx.points(projecting), slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
-      kidneyFailureReached })
+      kidneyFailureReached, ageBasis: ctx.ageBasis })
   },
   // Column order is part of the export format: the first three predate the
   // others, which were appended so positional readers keep working.
@@ -95,5 +97,6 @@ export const ckdEndpointsModule = {
       { key: `endpoint_decline_${threshold}_confirmed_value`, value: (c: Cell) => c.endpoints[field].confirmedValue ?? '' },
       { key: `endpoint_decline_${threshold}_recovery_value`, value: (c: Cell) => c.endpoints[field].recoveryValue ?? '' },
     ]),
+    { key: 'endpoint_prediction_age_basis', value: (c: Cell) => AGE_BASIS_LABELS[c.endpoints.projectedAgeToCkdG5.ageBasis ?? 'none'] },
   ],
 } satisfies AnalysisModule<undefined, 'ckdEndpoints'>

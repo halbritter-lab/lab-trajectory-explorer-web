@@ -517,9 +517,23 @@ describe('real-data trajectories workspace', () => {
     render(<TrajectoriesWorkspace data={data} />)
     fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'ckd_progression' } })
     // Deliberately exact: wording changes to this badge must update this test.
+    // No birth date: the age is known in completed years, so no decimal is shown.
     const badge = document.querySelector('.wt-badge-endpoint')!
-    expect(badge).toHaveTextContent(/^-50% · G5 @ 63\.0y$/)
-    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from first to latest eligible measurement (not per year) · projected age to CKD G5 63.0 years; fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)')
+    expect(badge).toHaveTextContent(/^-50% · G5 @ ~63y$/)
+    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from first to latest eligible measurement (not per year) · projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)')
+  })
+
+  it('shows the projected G5 age with one decimal when the birth date is known', () => {
+    const parameter = { key: JSON.stringify(['eGFR', 'mL/min/1.73m²']), label: 'eGFR [mL/min/1.73m²]', bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', derived: false }
+    const rows: LabRow[] = [60, 45, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2020 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 60 + i }))
+    const patient = { id: 'P1', label: 'P1', attributes: {}, baselineAge: 60, birthAnchor: new Date(Date.UTC(1959, 6, 1)), ageEstimated: false }
+    const data = { rawRows: rows, rows, fileName: 'g5.csv', parameters: [parameter], patients: [patient], events: [], patientAttributes: {}, analysis: { fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'ckd_progression' } })
+    // Born 1959-07-01: 62.5 at the latest measurement, one year before the crossing.
+    const badge = document.querySelector('.wt-badge-endpoint')!
+    expect(badge).toHaveTextContent(/^-50% · G5 @ 63\.5y$/)
+    expect(badge.getAttribute('title')).toContain('projected age to CKD G5 63.5 years; fitted curve')
   })
 
   it('reverses a metric sort and keeps patients without a value last', () => {

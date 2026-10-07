@@ -94,10 +94,12 @@ class MinWindow {
 /** Detect KDIGO AKI episodes on creatinine values already in mg/dl. O(n) via
  * two sliding-window minima (48h absolute, 7d relative). The window and
  * clustering algorithm follows the original Python implementation; threshold
- * comparisons use the owner's numeric tolerance. */
+ * comparisons use the owner's numeric tolerance. Values of zero or less are
+ * not creatinine concentrations and take no part: they are neither a baseline
+ * nor a rise (decided 2026-10-07; eGFR derivation rejects them as well). */
 export function findKdigoAkiEpisodes(points: SeriesPoint[]): AkiEpisode[] {
-  if (points.length === 0) return []
-  const sorted = [...points].sort((a, b) => a.date.getTime() - b.date.getTime())
+  const sorted = points.filter((p) => p.value > 0).sort((a, b) => a.date.getTime() - b.date.getTime())
+  if (sorted.length === 0) return []
   const times = sorted.map((p) => p.date.getTime())
   const values = sorted.map((p) => p.value)
   const win48 = new MinWindow(values)

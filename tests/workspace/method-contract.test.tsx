@@ -37,6 +37,18 @@ describe('approved method settings and provenance', () => {
     fireEvent.blur(input)
     expect(input).toHaveValue(180)
   })
+  it('rejects a minimum confirmation interval that could never confirm within 12 months', () => {
+    render(<SettingsHarness />)
+    fireEvent.click(screen.getByText('Advanced pipeline settings'))
+    const input = screen.getByLabelText('Minimum confirmation interval (days)')
+    fireEvent.change(input, { target: { value: '365' } })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    fireEvent.change(input, { target: { value: '366' } })
+    expect(screen.getByRole('alert')).toHaveTextContent('366 days not applied: a confirming value must follow within 12 calendar months, so the minimum interval cannot exceed 365 days. Still 365 days.')
+    expect(input).toHaveAttribute('aria-invalid', 'true')
+    fireEvent.blur(input)
+    expect(input).toHaveValue(365)
+  })
   it('recalculates observed events when the minimum confirmation interval changes', () => {
     render(<SettingsHarness />)
     fireEvent.click(screen.getByText('Advanced pipeline settings'))
