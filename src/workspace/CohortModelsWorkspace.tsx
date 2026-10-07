@@ -1,7 +1,8 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
-import { workspaceSpecs } from './workspace-data'
+import { workspaceModelSpec } from './workspace-data'
+import { describeModelPreparation } from './workspace-analysis'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
 import { mentionsEgfr } from '../core/domains/nephrology/analytes'
@@ -17,7 +18,7 @@ import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mi
 import { validateMixedModelRows } from '../core/mixedModel/validation'
 import type { CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
-import { currentWorkspaceModels, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
+import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import './cohort-models-workspace.css'
 
 const CohortModelTable = lazy(() =>
@@ -37,6 +38,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const setMixedModelConfig = useAppStore(s => s.setMixedModelConfig)
   const presetExclusionPolicy = useAppStore(s => s.presetExclusionPolicy)
   const setPresetExclusionPolicy = useAppStore(s => s.setPresetExclusionPolicy)
+  const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
   const showCohortMixedModelLine = useAppStore(s => s.showCohortMixedModelLine)
   const setShowCohortMixedModelLine = useAppStore(s => s.setShowCohortMixedModelLine)
   const cohortModelResults = useAppStore(s => s.cohortModelResults)
@@ -110,11 +112,12 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     ? selectedParamKey
     : (eligibleParameters[0]?.key ?? '')
 
+  // The measurements follow the analysis settings chosen for this parameter
+  // under Trajectories, so the model sees what the trajectory fit sees.
   const spec = useMemo(() => {
     if (!activeParamKey) return undefined
-    const specs = workspaceSpecs(data, [activeParamKey])
-    return specs[0]
-  }, [data, activeParamKey])
+    return workspaceModelSpec(data, activeParamKey, trajectoryFitSettings)
+  }, [data, activeParamKey, trajectoryFitSettings])
 
   const paramIndex = useMemo(() => {
     return (data.parameters ?? []).findIndex(p => p.key === activeParamKey)
@@ -191,15 +194,10 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     } else if (newPreset === 'interaction') {
       const attr = targetAttr ?? (availableGroupByAttributes.find(a => a !== 'sex') ?? availableGroupByAttributes[0] ?? 'genotype')
       setGroupByAttribute(null)
-      const factor = availableFactors.find(f => f.key === attr)
-      const isNumeric = factor?.numeric ?? false
-      const refLevel = factor?.levels[0] ?? undefined
       setMixedModelConfig({
         timeAxis: 'time_since_baseline',
         covariates: [],
-        factors: [
-          { key: attr, kind: isNumeric ? 'numeric' : 'categorical', effect: 'level_slope', reference: refLevel },
-        ],
+        factors: [groupInteractionFactor(attr, availableFactors.find(f => f.key === attr))],
         randomEffects: 'intercept_slope',
       })
     }
@@ -392,7 +390,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             {preset === 'unadjusted' && 'Standard trajectory: Y ~ Time + (1 + Time | Patient). Evaluates overall progression rate without covariates.'}
             {preset === 'stratified' && 'Stratified analysis: Fits independent mixed models for each subgroup of the selected attribute.'}
             {preset === 'demographic' && 'Standard epidemiological model: Y ~ Time + Baseline age + Sex + (1 + Time | Patient).'}
-            {preset === 'interaction' && 'Slope interaction test: Y ~ Time * Group + (1 + Time | Patient). Estimates p-values for slope differences.'}
+            {preset === 'interaction' && 'Slope interaction test: Y ~ Time * Group + (1 + Time | Patient). Estimates slope differences with 95% confidence intervals; no p-values are computed.'}
             {preset === 'custom' && 'Full custom model: Select specific covariates, effects, reference categories, and random effects.'}
           </p>
         </div>
@@ -492,6 +490,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           Apply preset event and AKI exclusions
         </label>
         <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>
+        {spec?.fitConfig && <p className="muted" data-testid="model-preparation">Measurements follow the Trajectories analysis settings for this parameter. {describeModelPreparation(spec.fitConfig)}{presetExclusionPolicy === 'skip' && spec.fitConfig.fitModel !== 'none' ? ' The event and AKI windows are skipped by the choice above; time aggregation still applies.' : ''} Change them under Trajectories; fitted models are then discarded.</p>}
         <div className="cm-formula-strip">
           <div>
             <span>Model: </span>

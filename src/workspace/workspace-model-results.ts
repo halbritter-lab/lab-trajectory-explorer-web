@@ -2,7 +2,7 @@ import { entityGroupValue, entityKey, type CohortModelEntityRows } from '../core
 import { buildMixedModelResultIdentity, mixedModelIdentityEquals } from '../core/mixedModel/resultIdentity'
 import { prepareMixedModelCohortRows, type PresetExclusionPolicy } from '../core/mixedModel/cohortDataset'
 import { prepareMixedModelFactors } from '../core/mixedModel/factors'
-import { mixedModelFactorColumn, mixedModelFactors, mixedModelFormula, mixedModelFormulaForOutcome, type MixedModelConfig } from '../core/mixedModel/config'
+import { mixedModelFactorColumn, mixedModelFactors, mixedModelFormula, mixedModelFormulaForOutcome, type MixedModelConfig, type MixedModelFactor } from '../core/mixedModel/config'
 import type { CohortSeriesSpec } from '../core/cohort/screening'
 import type { PatientGroup } from '../core/grouping/grouping'
 import { normaliseSex } from '../core/demographics/sex'
@@ -98,4 +98,14 @@ export function readableMixedModelFormula(config: MixedModelConfig, outcome: str
     labels.set(mixedModelFactorColumn(factor, index), JSON.stringify(label))
   })
   return mixedModelFormulaForOutcome(mixedModelFormula(config), outcome).replace(/baseline_age_centered|factor_\d+_|time_since_baseline|patient_id/g, (token) => labels.get(token) ?? token)
+}
+
+/** The factor of the "Group interaction" preset for one attribute: level and
+ * slope effect. A numeric attribute is a numeric factor and carries no
+ * reference level (a reference there is an invalid configuration); a
+ * categorical one uses its first level as reference. */
+export function groupInteractionFactor(key: string, available: { numeric: boolean; levels: readonly string[] } | undefined): MixedModelFactor {
+  return available?.numeric
+    ? { key, kind: 'numeric', effect: 'level_slope' }
+    : { key, kind: 'categorical', effect: 'level_slope', reference: available?.levels[0] ?? undefined }
 }

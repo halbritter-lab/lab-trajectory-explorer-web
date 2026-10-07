@@ -83,19 +83,14 @@ and are no longer cited as conflicts.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
-| OD-1 | [Cohort mixed models](#cohort-mixed-models) | The Cohort models page always uses the general-exploration configuration, so the preset event and AKI exclusions, and time balancing, never apply there; the checkbox and its count have no effect. |
-| OD-2 | [Rolling and segmented OLS](#rolling-and-segmented-ols) | Rolling OLS reports the global OLS slope and draws no line; the window slopes are discarded. |
 | OD-3 | [Rolling and segmented OLS](#rolling-and-segmented-ols) | Segmented OLS reports the global OLS slope and splits at gaps only, not at events. |
 | OD-4 | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) | With three points the OLS slope interval almost always includes zero, so the three-measurement minimum of the G5 projection rarely yields a projection. |
 | OD-5 | [eGFR derivation](#egfr-derivation) | No eGFR formula is active by default, while the methodology page labels CKD-EPI 2021 the default. |
-| OD-6 | [Cohort mixed models](#cohort-mixed-models) | The "Group interaction" preset text promises p-values; none is computed. |
-| OD-9 | [Reason codes and the slope reliability rule](#reason-codes-and-the-slope-reliability-rule) | When all fitted points share one date there is no slope, yet the note says a slope was fitted. |
 | OD-10 | [Rapid eGFR decline flag](#rapid-egfr-decline-flag) | The flag has no reliability gate; a two-point slope is flagged like a well-supported one. The owner decided on 2026-10-06 not to change the flag for now; open is the conflict with the methodology wording. |
 | OD-11 | [Ordinary least squares](#ordinary-least-squares) | The t critical value is a step function above 40 degrees of freedom, untested against a reference in that range. |
 | OD-12 | [eGFR derivation](#egfr-derivation) | Two creatinine conversion constants are in use: 88.42 µmol/l per mg/dl for measured values, 88.4 inside the EKFC Q polynomial. |
 | OD-21 | [Cohort mixed models](#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
-| OD-23 | [Cohort mixed models](#cohort-mixed-models) | The "Group interaction" preset builds an invalid configuration for a numeric attribute. |
 | OD-29 | [Cohort mixed models](#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
 
 ### Resolved decisions
@@ -106,8 +101,12 @@ numbers are not reused.
 
 | ID | Resolution | Section |
 | --- | --- | --- |
+| OD-1 | Cohort models prepare their measurements with the analysis settings chosen under Trajectories. | [Cohort mixed models](#cohort-mixed-models) |
+| OD-2 | Rolling OLS draws its window lines and reports the window statistics; the reported slope stays global. | [Rolling and segmented OLS](#rolling-and-segmented-ols) |
+| OD-6 | The "Group interaction" text no longer promises p-values. | [Cohort mixed models](#cohort-mixed-models) |
 | OD-7 | Dialysis intent is matched without regard to case. | [Clinical events](#clinical-events) |
 | OD-8 | Text with three digits after a point is read as a decimal and reported. | [Import and value interpretation](#import-and-value-interpretation) |
+| OD-9 | Fitted points on one date get their own "no slope" note. | [Reason codes and the slope reliability rule](#reason-codes-and-the-slope-reliability-rule) |
 | OD-13 | Creatinine of zero or less takes no part in AKI detection. | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) |
 | OD-14 | Creatinine measured under dialysis is left out of AKI detection. | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) |
 | OD-15 | A derived eGFR inherits the non-exact status of its creatinine row. | [eGFR derivation](#egfr-derivation) |
@@ -116,6 +115,7 @@ numbers are not reused.
 | OD-18 | A confirmed observed G5 always withholds the projection. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
 | OD-19 | The minimum confirmation interval is at most 365 days. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
 | OD-20 | eGFR is recognised by the unit mL/min/1.73 m² everywhere. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
+| OD-23 | The "Group interaction" preset builds a valid numeric factor. | [Cohort mixed models](#cohort-mixed-models) |
 | OD-24 | The JavaScript date-parser fallback for attribute birth dates is removed. | [Import and value interpretation](#import-and-value-interpretation) |
 | OD-25 | Two accepted headers for one lab or event field produce a warning naming the column used. | [Import and value interpretation](#import-and-value-interpretation) |
 | OD-26 | Lab rows without a patient ID are listed as rejected. | [Import and value interpretation](#import-and-value-interpretation) |
@@ -1121,8 +1121,8 @@ Consequences for later steps:
   points.
 
 The cohort mixed-model dataset code uses the same function on its own retained
-rows; the Cohort models page always supplies `raw`, so no model fitted through
-the interface is balanced (OD-1).
+rows, with the time balancing chosen for that parameter under Trajectories
+(see "Cohort mixed models").
 
 Example. Seven exact values of one series in 2021:
 
@@ -1211,8 +1211,8 @@ the results are `slope = Sxy / Sxx` and `intercept = ȳ − slope · x̄`.
 - Identical timestamps: when all points share one timestamp (three or more in
   the kernel, or both points of the two-point case), there is no slope and the
   kernel reason is `identical_timestamps`. The series summary does not pass
-  this reason on; see OD-9 below in "Reason codes and the slope reliability
-  rule".
+  this reason on; the interface recognises the case by its fitted span of zero
+  days (see "Reason codes and the slope reliability rule").
 - Same-date rows: in `raw` mode, several rows on one date stay separate points
   with equal weight. A day with five measurements weighs five times as much as
   a day with one. The fit proceeds as long as at least two distinct dates
@@ -1322,10 +1322,12 @@ References: [SciPy documentation](https://docs.scipy.org/doc/scipy/reference/gen
 ## Rolling and segmented OLS
 
 Both selections add local OLS fits to the global fit. Their parameters are
-fixed defaults in `summarizeByBezeichnung` and `buildCohortRows`. No interface
-control changes them, and the export records neither the parameters nor the
-local results: of the fit settings, the `settings` sheet carries only the slope
-mode (column `mode`), `fit_config` and the rapid-decline threshold.
+fixed defaults in `summarizeByBezeichnung` and `buildCohortRows`; no interface
+control changes them. For rolling OLS the cohort and slope sheets record the
+window parameters and the local results in the `rolling_*` columns (below).
+For segmented OLS the export records neither: of the fit settings, the
+`settings` sheet carries only the slope mode (column `mode`), `fit_config` and
+the rapid-decline threshold.
 
 ### Rolling OLS (`rolling-ols`, slope mode `rolling`)
 
@@ -1360,21 +1362,60 @@ the smallest and largest window slope (`slopeMin`, `slopeMax`) and their
 population variance (`slopeVar`, divisor = number of windows). With no window
 the three statistics are unavailable.
 
-What is reported and drawn:
+What is reported and drawn (decided 2026-10-07, formerly OD-2; before, the
+window slopes were computed and discarded and no line was drawn):
 
 - The reported slope, intercept, R² and confidence bounds are those of the
   global OLS fit over all fitted points, including the exact two-point case.
   They are identical to the values the `ols` fit model gives for the same
-  column settings.
+  column settings. Reason codes, the reliability rule, the rapid-decline flag
+  and sorting use these global values.
 - The table labels this number "Rolling OLS". The export carries
   `slope_mode = rolling` and `fit_model = ols`.
-- No trend line is drawn in the table sparkline, the patient chart or the
-  overlay.
-- The window slopes and the four statistics are not shown and not exported.
-- Reason codes, the reliability rule and the rapid-decline flag use the global
-  values.
+- **Window lines.** One line is drawn per window, in the table sparkline, the
+  patient chart and the overlay (`rollingWindowLine`). The line is the
+  window's own OLS line, drawn over the central step of the window only: from
+  the window centre minus 90 days to the centre plus 90 days (half the 180-day
+  step on each side), clipped to the dates of the first and last point inside
+  the window. Consecutive lines therefore adjoin instead of overlapping, and
+  each stretch shows the slope estimated from the two years around it. The
+  lines of neighbouring windows need not meet, because each window has its own
+  fit. A window whose points do not reach into its central stretch has no
+  line. With no window (fitted span under 730 days) no line is drawn; the
+  global line is not drawn in this mode.
+- **Window statistics.** The cell shows the number of windows and the smallest
+  and largest window slope ("5 windows · local slopes −8 to 0 …/year"), or
+  "No 730-day window with three fitted measurements; no local slopes". The
+  variance `slopeVar` is computed but not shown.
+- **Export.** The cohort and slope sheets end with five columns, appended
+  after all other columns so that earlier column positions are unchanged:
 
-> **Open decision OD-2.** Rolling OLS reports the global OLS slope, R² and confidence bounds under the label "Rolling OLS", draws no line and discards the window slopes, while the methodology page describes a sequence of local slopes rather than one summary number. Behaviour is unchanged pending an owner decision.
+  | Column | Content for slope mode `rolling` | Other modes |
+  | --- | --- | --- |
+  | `rolling_window_days` | `730` | blank |
+  | `rolling_step_days` | `180` | blank |
+  | `rolling_windows` | number of fitted windows, `0` when there is none | blank |
+  | `rolling_slope_min`, `rolling_slope_max` | smallest and largest window slope per year, unrounded; blank without a window | blank |
+
+  With fit model "No fit" the columns are blank.
+
+Example: one value at the start of every quarter from 2018-01-01 to
+2022-01-01 (17 values), 60 up to 2020-01-01 and falling by 8 per year
+afterwards (43.99 on 2022-01-01). The global OLS slope, which is the reported
+slope, is −4.00 per year. The five windows give:
+
+| Centre | Points | Window slope per year | Line drawn from | to |
+| --- | ---: | ---: | --- | --- |
+| 2019-01-01 | 9 | 0.00 | 2018-10-03 (60.00) | 2019-04-01 (60.00) |
+| 2019-06-30 | 8 | −0.66 | 2019-04-01 (59.84) | 2019-09-28 (59.51) |
+| 2019-12-27 | 8 | −3.23 | 2019-09-28 (58.94) | 2020-03-26 (57.34) |
+| 2020-06-24 | 8 | −6.18 | 2020-03-26 (57.13) | 2020-09-22 (54.08) |
+| 2020-12-21 | 8 | −8.00 | 2020-09-22 (54.20) | 2021-03-21 (50.25) |
+
+The cell reports 5 windows with local slopes from −8.00 to 0.00, and the
+export `rolling_windows = 5`, `rolling_slope_min = -8`, `rolling_slope_max = 0`.
+The values after 2021-10-01 belong to no window and the stretch after
+2021-03-21 has no line.
 
 ### Segmented OLS (`segmented-ols`, slope mode `gap-split`)
 
@@ -1430,7 +1471,9 @@ Regression evidence: [rolling tests](../tests/core/stats/rolling.test.ts),
 180-day boundary, [segment fixture tests](../tests/parity/segments.parity.test.ts),
 [slope-line tests](../tests/core/stats/slopeLines.test.ts) for per-segment
 lines, and [cohort screening tests](../tests/core/cohort/screening.test.ts) for
-the absence of rolling lines, and
+the window lines of a cohort cell,
+[rolling line tests](../tests/core/stats/rollingLines.test.ts) for the drawn
+stretch, the window statistics and the `rolling_*` export columns, and
 [summary fixture tests](../tests/parity/summarize.parity.test.ts), which pin
 the reported slope and reason in `rolling` and `gap-split` mode to the same
 values as `global` for three patients. No dedicated regression test asserts
@@ -1506,10 +1549,11 @@ matching row applies.
 | 1 | `reason = no_numeric_values` | No numeric measurements | grey |
 | 2 | `nFitted = 0` | No fitted measurements | grey |
 | 3 | `reason = n_below_threshold` | n < 3 | grey |
-| 4 | `nFitted < 3` | n < 3 · uncertain slope | amber |
-| 5 | Otherwise | Follow-up < 1 year · uncertain slope | amber |
+| 4 | `fittedSpanDays = 0` | All fitted measurements on one date | grey |
+| 5 | `nFitted < 3` | n < 3 · uncertain slope | amber |
+| 6 | Otherwise | Follow-up < 1 year · uncertain slope | amber |
 
-Grey is intended to mean that no slope exists; amber that a slope exists and is
+Grey means that no slope exists; amber that a slope exists and is
 unreliable. Row 2 covers a series whose points were all removed by bounds or
 windows. Row 3 is shown with its fixed wording also when one fitted point
 remains. With fit model `none` the cell shows "Fit model disabled" and no note.
@@ -1520,23 +1564,26 @@ instead of dashed, and the plot states how many fits are affected.
 the rule is met and blank otherwise. It is blank for fit model `none`. It does
 not distinguish grey from amber cases; `slope` is blank in the grey ones.
 
-When all fitted points share one timestamp, rows 4 and 5 apply although no
-slope exists. With OLS, two same-day values give the amber note "n < 3 ·
-uncertain slope" with the explanation that a slope was fitted from two points.
-Three or more same-day values, with OLS or Theil-Sen, give "Follow-up < 1 year
-· uncertain slope" with the explanation that a slope was fitted. Two same-day
-values under Theil-Sen are below its minimum and get the grey "n < 3" note of
-row 3. The cell shows "No fit available" next to the amber note. The overlay
-does not draw a line and does not count the series as uncertain.
-
-> **Open decision OD-9.** When all fitted points share one timestamp there is no slope, but the reason is `span_too_short` or empty and the interface shows an amber "slope was fitted" caveat; the methodology page states that `span_too_short` means a slope was produced and that amber means a slope exists. Behaviour is unchanged pending an owner decision.
+Row 4 covers fitted points that all share one calendar day (decided
+2026-10-07, formerly OD-9). No slope exists then, and the note reads "All
+fitted measurements on one date" in grey with the explanation "All
+measurements used for the fit share one date, so no slope exists." Before, two
+same-day values gave the amber note "n < 3 · uncertain slope" and three or
+more gave "Follow-up < 1 year · uncertain slope", both stating that a slope was
+fitted. Two same-day values under Theil-Sen are below its minimum and keep the
+grey "n < 3" note of row 3. The numeric core is unchanged: the summary still
+reports `reason = span_too_short` or no reason for such a series, `slope` is
+blank and `unstable_slope` is `yes`. The cell shows "No fit available" next to
+the note, and the overlay draws no line and does not count the series as
+uncertain.
 
 Regression evidence: [summary tests](../tests/core/stats/summarize.test.ts),
 [summary fixture tests](../tests/parity/summarize.parity.test.ts),
 [quality label tests](../tests/workspace/labels/qualityLabels.test.ts) and
 [export record tests](../tests/core/cohort/exportRecords.test.ts) for
-`unstable_slope`. No dedicated regression test covers the identical-timestamp
-case in the summary or in the labels, or the 364/365-day boundary.
+`unstable_slope`. The quality label tests cover the one-date note. No
+dedicated regression test covers the identical-timestamp case in the summary
+or the 364/365-day boundary.
 
 ## Rapid eGFR decline flag
 
@@ -2165,13 +2212,10 @@ remove exact measurements, then time balancing (monthly or quarterly medians)
 runs on what remains, so excluded values never enter a median. Excluded
 measurements stay visible and are marked as excluded from the fit; raw counts
 are unchanged. Observed endpoints and the individual endpoint prediction do
-not use AKI windows. Cohort mixed models do not use them in the current
-interface either: the Cohort models page builds the series configuration
-without a fit configuration (general exploration, switch off), so its *Apply
-preset event and AKI exclusions* checkbox has no AKI window to apply (OD-1; see
-[cohort mixed models](#cohort-mixed-models)). The core function removes a
-column's AKI windows only when it is called with a configuration whose switch
-is on and with the policy `apply`.
+not use AKI windows. Cohort mixed models use them when the analysis settings
+chosen for that parameter under Trajectories have the switch on and the *Apply
+preset event and AKI exclusions* checkbox of the Cohort models page is on (see
+[cohort mixed models](#cohort-mixed-models)).
 
 | Preset | AKI windows excluded | Length |
 | --- | --- | ---: |
@@ -2975,24 +3019,22 @@ current grouping attribute or else selects the first groupable attribute in
 numeric-aware, case-insensitive order, which can be `birthDate` or `sex`.
 *Demographic adjustment* adds baseline age (level) and sex (level). *Group
 interaction* adds, with level and slope, the first groupable attribute other
-than `sex` in that order; when `sex` is the only one it uses `sex`; when the
-dataset has no attribute and no resolved sex it stores a factor `genotype`
-without a reference level, which is an invalid configuration and shows the
-same message as the numeric case below. *Custom* leaves the choice to the
-user. The *Group interaction* description
-reads "Estimates p-values for slope differences".
+than `sex` in that order; when `sex` is the only one it uses `sex`. A
+categorical attribute becomes a categorical factor with its first sorted level
+as reference. A numeric attribute becomes a numeric factor without a reference
+level (`groupInteractionFactor`; decided 2026-10-07, formerly OD-23: before,
+the preset stored a reference level with the numeric factor, which
+`validateMixedModelConfig` rejects, so nothing could be fitted). When the
+dataset has no attribute and no resolved sex the preset stores a factor
+`genotype` without a reference level, which is an invalid configuration: the
+formula strip is empty, every unit with model rows shows "Invalid or duplicate
+mixed-model factor; categorical factors require a reference level." and
+nothing is fitted. *Custom* leaves the choice to the user.
 
-> **Open decision OD-6.** The "Group interaction" preset copy says it estimates p-values; no p-value is computed, displayed or exported for any model, only Wald confidence intervals. Behaviour is unchanged pending an owner decision.
-
-When the attribute chosen by *Group interaction* is typed numeric, the preset
-stores the factor as numeric together with a reference level (the first sorted
-value). `validateMixedModelConfig` rejects a numeric factor that carries a
-reference. The formula strip is then empty, every unit with model rows shows
-"Invalid or duplicate mixed-model factor; categorical factors require a
-reference level." and nothing is fitted. Removing the factor and adding it again
-through *Add covariate* produces a valid numeric factor.
-
-> **Open decision OD-23.** The "Group interaction" preset builds an invalid configuration for a numeric attribute (numeric factor with a reference level), so the preset cannot be fitted for such attributes and reports a message about categorical reference levels. Behaviour is unchanged pending an owner decision.
+The *Group interaction* description reads "Estimates slope differences with
+95% confidence intervals; no p-values are computed." (decided 2026-10-07,
+formerly OD-6; before, it promised p-values). No p-value is computed,
+displayed or exported for any model, only Wald confidence intervals.
 
 ### Which measurements enter
 
@@ -3004,7 +3046,8 @@ the model rows per patient in these stages, in this order.
    a date, and an exact value. Rows whose operator is not `=` never enter. Rows are
    ordered by date. Different names or units are never pooled.
 2. **Disabled fit.** A series whose configuration has `fitModel: none` supplies
-   no model rows.
+   no model rows. The page then states that no cohort model is prepared for
+   this parameter.
 3. **Preset exclusion windows.** The cohort-model exclusion checkbox starts on.
    When on, the series configuration's clinical-event censoring windows and AKI
    windows remove eligible rows. A row is inside a window when
@@ -3031,17 +3074,41 @@ stages and do not increase this count. The policy and count are stored with each
 fitted unit, displayed in the model workspace, and exported in the `models`
 worksheet. Changing the policy invalidates fitted results and their projections.
 
-**What the interface supplies.** The Cohort models page builds the series
-configuration with `workspaceSpecs` without a fit configuration, which yields
-general exploration: no event censoring, no AKI exclusion, raw time balancing
-and an OLS display fit. The preset and column settings chosen under
-Trajectories are local to that page and do not reach the model. For a patient
-with exact values on 2020-01-01, 2020-07-01 and 2021-01-01 and a kidney
-transplant on 2020-07-01, `prepareMixedModelCohortRows` keeps all three rows and
-reports a count of 0 with this configuration and the policy on. With the CKD
-progression configuration the same call keeps one row and reports 2.
+**What the interface supplies** (decided 2026-10-07, formerly OD-1). The
+series configuration of a cohort model is the fit configuration that
+Trajectories applies to the same parameter: the parameter's own settings when
+it has some, otherwise the shared settings (`workspaceModelSpec`,
+`trajectoryFitConfig`). Trajectories publishes its settings to the shared
+application state on every change. The model therefore receives the
+measurements the trajectory fit of that parameter receives: the same event
+censoring, AKI windows and time balancing, and none for fit model "No fit".
+The fit model otherwise has no effect on the mixed model; with Theil-Sen,
+rolling or segmented OLS the rows are the same as with OLS. Before, the page
+always used general exploration, so no window and no time balancing could
+apply and the count was always 0.
 
-> **Open decision OD-1.** On the Cohort models page the series configuration is always general exploration, so the "Apply preset event and AKI exclusions" checkbox cannot remove a row (the count is always 0) and time balancing never applies; the core functions, earlier documentation and interface copy describe exclusions that the interface cannot reach. Behaviour is unchanged pending an owner decision.
+- Until a preset is chosen under Trajectories, and for a dataset just loaded,
+  the configuration is general exploration: no event censoring, no AKI
+  exclusion, raw time balancing.
+- Below the checkbox the page states the configuration in use, for example
+  "CKD progression: quarterly medians; event windows after kidney transplant,
+  after chronic dialysis start, acute dialysis intervals, dated dialysis of
+  unknown intent; AKI windows 30 days."
+- The checkbox *Apply preset event and AKI exclusions* switches stage 3 only.
+  Time balancing (stage 4) and the "No fit" rule (stage 2) apply in either
+  position.
+- A change under Trajectories to the fit model, the time balancing, the
+  censoring options or the AKI exclusion discards all fitted models and their
+  projections, like every other change to the model data. Changes to endpoint
+  settings or the rapid-decline threshold do not.
+- The reference line drawn in the Trajectories overlay is looked up with the
+  same configuration.
+
+For a patient with exact values on 2020-01-01, 2020-07-01 and 2021-01-01 and a
+kidney transplant on 2020-07-01, general exploration keeps all three rows and
+reports a count of 0. With the CKD progression preset selected under
+Trajectories one row is kept and the count is 2; with the checkbox off all
+three rows are kept, the count is 0, and quarterly medians still apply.
 
 **Model time.** For each patient, `time_since_baseline` is measured in
 fractional years from that patient's first retained model measurement after
@@ -3370,10 +3437,6 @@ The following rules exist in the core and are covered by unit tests, but no
 interface path selects them. They are documented so that the code and this
 reference agree; they do not affect results produced through the interface.
 
-- **Preset exclusions, time balancing and `fitModel: none` for cohort models.**
-  Stages 2 to 4 of *Which measurements enter* depend on the series
-  configuration, which the Cohort models page always builds as general
-  exploration. See OD-1.
 - **Chronic run-in removal.** For a series in slope mode `chronic-ckd`, model
   rows dated on or before the first retained row's date plus the cutoff (default
   90 days) are removed after time balancing; only rows strictly later than that
@@ -3411,9 +3474,10 @@ which are not part of `pnpm test` or CI. No dedicated regression test: the
 numeric grammar's rejection of decimal commas, the shared resolved sex behind
 grouping and the `sex` factor, a default reference level absent from a unit
 (OD-29), the calendar-axis restriction of the overlay line, the status text of
-a non-converged fit, the fact that validation warnings are not surfaced, and
-the difference between the workspace's general-exploration configuration and a
-preset with exclusions (OD-1; the workspace test asserts a count of 0).
+a non-converged fit, and the fact that validation warnings are not surfaced.
+The [model validity tests](../tests/workspace/model-validity.test.tsx) cover
+the Trajectories settings reaching the model rows, the discarding of fitted
+models and the Group interaction factor.
 
 ## Cohort-model projections
 
@@ -3605,9 +3669,6 @@ models is at the end of [Cohort mixed models](#cohort-mixed-models).
   specification, and `minNPerWindow` and `minNPerSegment` as parameters of
   `summarizeByBezeichnung`: nothing sets them, and the defaults 180, 730, 180,
   3 and 3 always apply (the trend-line code fixes the segment minimum at 3).
-- `buildSlopeLines` in `rolling` mode would return the global OLS line;
-  `buildCohortRows` never calls it for that mode, so no line reaches the
-  interface (see OD-2).
 - `primaryExclusionReason` (`src/core/domains/nephrology/fitConfig.ts`): a
   precedence among exclusion reasons that no application code calls; the
   interface lists every reason of an excluded point.

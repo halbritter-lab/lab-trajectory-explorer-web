@@ -52,6 +52,15 @@ export function slopeQualityLabel(input: SlopeQualityInput): QualityLabel | null
       caveat: false,
     }
   }
+  // All fitted points on one calendar day: there is no slope, so this must not
+  // read as a fitted but uncertain one (decided 2026-10-07).
+  if (input.fittedSpanDays === 0) {
+    return {
+      label: 'one date',
+      title: 'All measurements used for the fit share one date, so no slope exists.',
+      caveat: false,
+    }
+  }
   if (nFitted < 3) {
     return {
       label: 'n < 3',

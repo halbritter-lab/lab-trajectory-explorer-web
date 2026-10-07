@@ -184,10 +184,11 @@ describe('buildCohortRows cell overlays', () => {
     // Same aligned contract: non-empty exactly at excludedIdx.
     expect(cell.pointExclusionReasons.flatMap((r, i) => r.length ? [i] : [])).toEqual(cell.excludedIdx)
   })
-  it('rolling mode has no mini fit lines', () => {
+  it('rolling mode draws its window lines (see rollingLines.test.ts)', () => {
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'rolling' }
     const cell = buildCohortRows(spiky, [1], [spec])[0].cells[0]
-    expect(cell.fitLines).toEqual([])
+    expect(cell.fitLines).toHaveLength(cell.rolling!.nWindows)
+    expect(cell.rolling!.nWindows).toBeGreaterThan(0)
   })
 
   it('marks event-excluded points and fits cohort cells before transplant', () => {

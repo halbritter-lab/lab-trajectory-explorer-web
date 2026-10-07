@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { TrajectoriesWorkspace } from '../../src/workspace/TrajectoriesWorkspace'
 import type { WorkspaceData } from '../../src/workspace/workspace-data'
 import type { LabRow } from '../../src/core/types'
+import { useAppStore } from '../../src/workspace/state/store'
 
 function fixture(): WorkspaceData {
   const parameters = Array.from({ length: 12 }, (_, i) => ({ key: JSON.stringify(['Marker', `unit-${i}`]), label: `Marker · unit-${i}`, bezeichnung: 'Marker', einheit: `unit-${i}`, derived: false }))
@@ -521,6 +522,15 @@ describe('real-data trajectories workspace', () => {
     const badge = document.querySelector('.wt-badge-endpoint')!
     expect(badge).toHaveTextContent(/^-50% · G5 @ ~63y$/)
     expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from first to latest eligible measurement (not per year) · projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)')
+  })
+
+  it('publishes its analysis settings for cohort models and withdraws them on unmount', () => {
+    const view = render(<TrajectoriesWorkspace data={fixture()} />)
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('general_exploration')
+    fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'ckd_progression' } })
+    expect(useAppStore.getState().trajectoryFitSettings.shared).toMatchObject({ presetId: 'ckd_progression', timeBalancing: 'quarterly-median' })
+    view.unmount()
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('general_exploration')
   })
 
   it('shows the projected G5 age with one decimal when the birth date is known', () => {

@@ -9,6 +9,7 @@ import type { FitConfig } from '../core/analysis/fitConfig'
 import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../io/loadDataset'
 import { resolveBirthAnchor } from '../core/demographics/resolveAge'
 import { parseAttributeDate } from '../core/demographics/resolve'
+import { trajectoryFitConfig, type TrajectoryFitSettings } from './workspace-analysis'
 
 export interface WorkspaceParameter { key: string; label: string; bezeichnung: string; einheit: string | null; derived: boolean }
 export interface WorkspacePatient { id: PatientId; label: string; attributes: Record<string, string>; baselineAge: number | null; birthAnchor?: Date | null; ageEstimated?: boolean }
@@ -67,6 +68,13 @@ export function useWorkspaceData(): WorkspaceData {
     })
     return { rawRows, rows, fileName, parameters: [...parameterMap.values()], patients, events, patientAttributes, analysis, analysisSettings, manualDemographics }
   }, [rawRows, fileName, events, attributes, analysisSettings, manualDemographics])
+}
+
+/** The spec of one parameter as cohort models and their overlay lines prepare
+ * it: with the analysis settings chosen for that parameter under Trajectories. */
+export function workspaceModelSpec(data: WorkspaceData, parameterKey: string, settings: TrajectoryFitSettings): CohortSeriesSpec | undefined {
+  const parameter = data.parameters.find(p => p.key === parameterKey)
+  return parameter ? workspaceSpecs(data, [parameterKey], { [parameterKey]: trajectoryFitConfig(settings, parameter) })[0] : undefined
 }
 
 export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>): CohortSeriesSpec[] {

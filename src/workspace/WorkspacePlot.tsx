@@ -11,7 +11,7 @@ import { useAppStore } from './state/store'
 import { mixedModelFitConfigHash, mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
 import type { MixedModelSpikeRow } from '../core/mixedModel/types'
 import { groupPatients, UNGROUPED } from '../core/grouping/grouping'
-import { workspaceSpecs } from './workspace-data'
+import { workspaceModelSpec } from './workspace-data'
 import { currentWorkspaceModels, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import { overlayModules } from '../core/analysis/registry'
 
@@ -115,6 +115,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const showCohortMixedModelLine = useAppStore(s => s.showCohortMixedModelLine)
   const mixedModelConfig = useAppStore(s => s.mixedModelConfig)
   const presetExclusionPolicy = useAppStore(s => s.presetExclusionPolicy)
+  const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
 
   // Cohort mixed-model reference lines: the pooled fit and, when the overlay is
   // grouped by the attribute the groups were fitted under, one line per group.
@@ -122,7 +123,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   // dataset preparation; display filters never change the model population.
   const modelLines = useMemo(() => {
     if (!showCohortMixedModelLine || !cohortModelResults || (axis !== 'baseline' && axis !== 'age')) return []
-    const spec = workspaceSpecs(data, [parameter.key])[0]
+    const spec = workspaceModelSpec(data, parameter.key, trajectoryFitSettings)
     if (!spec) return []
     const patientIds = data.patients.map(p => p.id)
     const groups = groupBy ? groupPatients(patientIds, workspaceGroupableAttributes(data.rows, data.patientAttributes), groupBy) : []
@@ -145,7 +146,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const group = item.entity.kind === 'group' ? (item.entity.value === UNGROUPED ? 'Not recorded' : item.entity.value) : null
       return [{ key, group, points }]
     })
-  }, [showCohortMixedModelLine, cohortModelResults, data, parameter.key, axis, mixedModelConfig, presetExclusionPolicy, groupBy])
+  }, [showCohortMixedModelLine, cohortModelResults, data, parameter.key, axis, mixedModelConfig, presetExclusionPolicy, trajectoryFitSettings, groupBy])
   // Group lines follow the overlay: only groups currently plotted (after the
   // group filter) and not hidden in the legend.
   const visibleModelLines = modelLines.filter(line => line.group === null || groups.includes(line.group) && fullGroups.includes(line.group) && !hiddenGroups.includes(line.group))

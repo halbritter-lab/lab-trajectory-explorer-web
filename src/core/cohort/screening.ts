@@ -59,6 +59,10 @@ export interface CohortCell {
   reason: SeriesSummary['reason']
   points: SeriesPoint[]
   fitLines: LinePoint[][]
+  /** Rolling OLS only: the window settings and the local window slopes behind
+   * the drawn lines. `slope` stays the global OLS slope. The minimum and
+   * maximum are NaN when the fitted span holds no window. */
+  rolling?: RollingSummary
   /** Module badges known before fitting (e.g. AKI episodes). Badges that
    * depend on the fit and a column setting come from cohortCellFlags. */
   flags: CohortFlag[]
@@ -73,6 +77,14 @@ export interface CohortCell {
   pointExclusionReasons: string[][]
   /** Endpoint results of every endpoint module (see CellEndpoints). */
   endpoints: CellEndpoints
+}
+
+export interface RollingSummary {
+  windowDays: number
+  stepDays: number
+  nWindows: number
+  slopeMin: number
+  slopeMax: number
 }
 
 export interface CohortRow {
@@ -141,7 +153,7 @@ export function buildCohortRows(
       const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
       const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel))
       const exactPoints = points.filter((_, i) => isExactMeasurement(seriesRows[i]))
-      const fitLines = exactPoints.length < 2 || spec.mode === 'rolling'
+      const fitLines = exactPoints.length < 2
         ? []
         : buildSlopeLines(
             exactPoints,
@@ -158,6 +170,9 @@ export function buildCohortRows(
             },
           )
       const slope = match?.slope ?? Number.NaN
+      const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match
+        ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN }
+        : undefined
       return {
         bezeichnung: spec.bezeichnung,
         einheit: spec.einheit,
@@ -176,6 +191,7 @@ export function buildCohortRows(
         reason: match ? match.reason : 'no_numeric_values',
         points,
         fitLines,
+        ...(rolling ? { rolling } : {}),
         flags: contributions.flags,
         overlays: contributions.overlays,
         excludedIdx,
@@ -277,7 +293,9 @@ export interface CohortExportRecord {
   demographics_conflict: string
   // Module columns follow here in registry order: e.g. `aki` (the AKI chip),
   // `rapid_progression` ('yes' for a rapid eGFR decline under the column's
-  // threshold) and the CKD endpoint columns (`endpoint_*`).
+  // threshold) and the CKD endpoint columns (`endpoint_*`). The rolling
+  // columns (`rolling_*`) come last, appended so positional readers keep
+  // working; they are filled for slope mode `rolling` only.
   [moduleColumn: string]: string | number | undefined
 }
 
@@ -349,6 +367,11 @@ export function cohortExportRecords(
         unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
         demographics_conflict: conflictPatientKeys.has(patientIdKey(r.patientId)) ? 'yes' : '',
         ...moduleExportValues({ flags: cohortCellFlags(c, r.patientId, settings), endpoints: c.endpoints, fitModel: c.fitModel }),
+        rolling_window_days: c.rolling?.windowDays ?? '',
+        rolling_step_days: c.rolling?.stepDays ?? '',
+        rolling_windows: c.rolling?.nWindows ?? '',
+        rolling_slope_min: c.rolling ? numOrBlank(c.rolling.slopeMin) : '',
+        rolling_slope_max: c.rolling ? numOrBlank(c.rolling.slopeMax) : '',
       })
     }
   }

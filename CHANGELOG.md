@@ -7,6 +7,29 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Trajectory-fit and cohort-model rules decided by the owner on 2026-10-07
+  (formerly open decisions OD-1, OD-2, OD-6, OD-9 and OD-23 in
+  `docs/method-algorithms.md`):
+  - Cohort models prepare their measurements with the analysis settings chosen
+    for the same parameter under Trajectories. **Numeric change for cohort
+    models:** with a preset such as CKD progression, event censoring, AKI
+    windows and quarterly medians now take effect, and "No fit" prepares no
+    model. Until now the page always used general exploration, so the "Apply
+    preset event and AKI exclusions" checkbox had no effect. The page states
+    the settings in use; changing them under Trajectories discards fitted
+    models.
+  - Rolling OLS now shows what it computes: one line per two-year window in the
+    charts, and the number of windows with the smallest and largest window
+    slope in the table. The reported slope, R² and confidence bounds remain
+    the global OLS values. The cohort and slope exports end with the new
+    columns `rolling_window_days`, `rolling_step_days`, `rolling_windows`,
+    `rolling_slope_min` and `rolling_slope_max`.
+  - When all fitted measurements share one date, the table says that no slope
+    exists instead of showing an "uncertain slope" note. Exported values are
+    unchanged.
+  - The "Group interaction" preset can be fitted for a numeric attribute (it
+    stored an invalid reference level), and its description no longer promises
+    p-values; none were ever computed.
 - eGFR, AKI and endpoint rules decided by the owner on 2026-10-07 (formerly
   open decisions OD-13 to OD-20 in `docs/method-algorithms.md`). All are
   **numeric or classification changes** for the data they concern; the golden

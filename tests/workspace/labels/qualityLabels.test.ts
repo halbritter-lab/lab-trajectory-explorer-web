@@ -33,6 +33,16 @@ describe('slopeQualityLabel', () => {
     expect(label?.title).toContain('No usable measurements remain for fitting')
   })
 
+  it('says that no slope exists when all fitted measurements share one date', () => {
+    // Formerly an amber "slope was fitted" note although no slope exists (OD-9).
+    for (const input of [q({ reason: 'span_too_short', nFitted: 2, fittedSpanDays: 0 }), q({ reason: null, nFitted: 3, fittedSpanDays: 0 }), q({ reason: null, nFitted: 3, fittedSpanDays: 0, fitModel: 'theil-sen' })]) {
+      expect(slopeQualityLabel(input)).toEqual({ label: 'one date', title: 'All measurements used for the fit share one date, so no slope exists.', caveat: false })
+    }
+    // Earlier rules keep their wording; one fitted day apart is a real slope.
+    expect(slopeQualityLabel(q({ reason: 'n_below_threshold', nFitted: 2, fittedSpanDays: 0, fitModel: 'theil-sen' }))?.label).toBe('n < 3')
+    expect(slopeQualityLabel(q({ nFitted: 2, fittedSpanDays: 1 }))).toMatchObject({ label: 'n < 3', caveat: true })
+  })
+
   it('labels a short observation window and leaves a clean fit unflagged', () => {
     expect(slopeQualityLabel(q({ reason: 'span_too_short' }))?.label).toBe('< 1 yr')
     expect(slopeQualityLabel(q({}))).toBeNull()

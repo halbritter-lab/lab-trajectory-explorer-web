@@ -10,8 +10,12 @@ export interface RollingSlope {
   windowEnd: Date
   nInWindow: number
   slope: number
+  /** Fitted value at `firstDate`; time is measured from that point. */
   intercept: number
   r2: number
+  /** Dates of the first and last point inside the window. */
+  firstDate: Date
+  lastDate: Date
 }
 
 /** Rolling-window OLS slopes. Centre walks from min+halfWindow to max-halfWindow
@@ -53,6 +57,8 @@ export function rollingSlopes(
       slope: fit.slope,
       intercept: fit.intercept,
       r2: fit.r2,
+      firstDate: inWin[0].date,
+      lastDate: inWin[inWin.length - 1].date,
     })
   }
   return out
