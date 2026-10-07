@@ -12,6 +12,7 @@ import {
   collectHeaders,
   describeFoundColumns,
   resolveColumns,
+  shadowedColumnNotes,
 } from './headers'
 
 /** One import finding for the lab sheet. `scope: 'sheet'` marks a summary over
@@ -30,8 +31,13 @@ export interface LoadedLabRows {
 
 const WERT_OPERATORS: readonly WertOperator[] = ['=', '<', '>', 'range', 'unparseable']
 
-function toWertOperator(v: unknown): WertOperator {
-  return WERT_OPERATORS.includes(v as WertOperator) ? (v as WertOperator) : 'unparseable'
+/** Pre-parsed operator cell. Surrounding whitespace is ignored. An empty cell
+ * beside a number means an exact value; any other unknown content is
+ * unparseable. */
+function toWertOperator(v: unknown, hasNumber: boolean): WertOperator {
+  const text = toStr(v)
+  if (text === null) return hasNumber ? '=' : 'unparseable'
+  return WERT_OPERATORS.includes(text as WertOperator) ? (text as WertOperator) : 'unparseable'
 }
 
 function toStr(v: unknown): string | null {
@@ -86,11 +92,14 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
  * - rows whose lab date is present but not a date (impossible calendar day,
  *   number outside the plausible Excel serial range, unrecognised text) are
  *   rejected; rows with an empty date are kept, as before;
+ * - rows without a patient ID are rejected, unless the row is empty in every
+ *   recognised column, in which case it is skipped;
  * - unit spellings that differ only in case, spacing or micro-sign spelling are
  *   merged per test name into the most frequent spelling (see `unitKey`);
- * - day-first slash dates, Excel serial dates, unreadable birth dates, decimal
- *   commas that could be thousands separators, exact duplicate rows and
- *   censored ("<", ">") values are reported as warnings. Duplicates and
+ * - day-first slash dates, Excel serial dates, unreadable birth dates, values
+ *   with three digits after a comma or point that could be thousands notation,
+ *   two columns for one field, exact duplicate rows and censored ("<", ">")
+ *   values are reported as warnings. Duplicates and
  *   censored values are kept unchanged.
  */
 export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
@@ -120,11 +129,16 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
   const birthDateReads = noDateReads()
   const birthDatesSeen = new Set<string>()
   const commaThousands: string[] = []
+  const dotThousands: string[] = []
 
   const out: LabRow[] = []
   for (const r of rawRows) {
     const patientId = toPatientId(cell(r, columns, 'patientId'))
-    if (patientId === null) continue
+    if (patientId === null) {
+      const hasContent = Object.values<string | undefined>(columns).some((header) => header !== undefined && toStr(r[header]) !== null)
+      if (hasContent) rejected.push({ patientId: null, severity: 'rejected', reason: 'Patient ID missing; row not imported.' })
+      continue
+    }
 
     const rawDate = cell(r, columns, 'labDate')
     const parsedDate = parseImportDate(rawDate)
@@ -141,10 +155,9 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
     let wertOperator: WertOperator
     if (hasPreParsed) {
       wertNum = toNumber(cell(r, columns, 'valueNum'))
-      wertOperator = toWertOperator(cell(r, columns, 'valueOperator'))
+      wertOperator = toWertOperator(cell(r, columns, 'valueOperator'), wertNum !== null)
     } else if (typeof rawValue === 'number' && Number.isFinite(rawValue)) {
-      // A typed numeric xlsx cell is unambiguous. Its text form "1.234" would
-      // otherwise hit parseWert's German-thousands guard and stay unparsed.
+      // A typed numeric xlsx cell is unambiguous and needs no thousands note.
       wertNum = rawValue
       wertOperator = '='
     } else {
@@ -152,6 +165,7 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
       wertNum = parsed.value
       wertOperator = parsed.operator
       if (wertNum !== null && rawWert !== null && COMMA_THOUSANDS_RE.test(rawWert)) commaThousands.push(rawWert)
+      if (wertNum !== null && rawWert !== null && DOT_THOUSANDS_RE.test(rawWert)) dotThousands.push(rawWert)
     }
 
     const patientSexRaw = toStr(cell(r, columns, 'sex'))
@@ -198,7 +212,11 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
     })
   }
 
-  const notes = [...dateReadNotes('lab date', labDateReads), ...dateReadNotes('birth date', birthDateReads)]
+  const notes = [
+    ...shadowedColumnNotes(headers, COLUMN_ALIASES),
+    ...dateReadNotes('lab date', labDateReads),
+    ...dateReadNotes('birth date', birthDateReads),
+  ]
 
   const units = planUnitHarmonisation(out)
   for (const row of out) row.einheit = units.canonicalFor(row.bezeichnung, row.einheit)
@@ -207,7 +225,7 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
     notes.push(`${group.testName ?? 'No test name'}: unit spellings ${spellings} were merged as "${group.canonical}".`)
   }
 
-  notes.push(...commaThousandsNote(commaThousands), ...duplicateNote(out), ...censoredNotes(out))
+  notes.push(...commaThousandsNote(commaThousands), ...dotThousandsNote(dotThousands), ...duplicateNote(out), ...censoredNotes(out))
 
   const sheetNotes = notes.map((reason): LabImportIssue => ({ patientId: null, severity: 'warning', reason, scope: 'sheet' }))
   return { rows: out, issues: [...rejected, ...birthWarnings.values(), ...sheetNotes] }
@@ -224,6 +242,18 @@ function commaThousandsNote(values: string[]): string[] {
   return [values.length === 1
     ? `1 value with three digits after a comma, "${example}", was read as a decimal (${decimal}); check that the comma is not a thousands separator.`
     : `${values.length} values with three digits after a comma, such as "${example}", were read as decimals (${decimal}); check that the comma is not a thousands separator.`]
+}
+
+// "1.234", "0.850" or "<1.500": read as decimals, but in a German-locale export
+// the point may have been a thousands separator (1.234 meaning 1234).
+const DOT_THOUSANDS_RE = /^[<>≤≥]?\s*-?\d{1,3}\.\d{3}$/
+
+function dotThousandsNote(values: string[]): string[] {
+  if (values.length === 0) return []
+  const example = values[0]
+  return [values.length === 1
+    ? `1 value with three digits after a point, "${example}", was read as a decimal; check that the point is not a thousands separator.`
+    : `${values.length} values with three digits after a point, such as "${example}", were read as decimals; check that the point is not a thousands separator.`]
 }
 
 /** Exact duplicates: same patient, date, test, unit and raw value. */

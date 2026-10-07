@@ -60,6 +60,38 @@ export function resolveColumns<K extends string>(
   return resolved
 }
 
+/**
+ * Notes for concepts that are present under two different accepted headers
+ * (for example `labDate` and `LabDatum`). `resolveColumns` reads the alias
+ * listed first; the note names the column used and the ones ignored.
+ */
+export function shadowedColumnNotes<K extends string>(
+  headers: Iterable<string>,
+  aliasMap: Record<K, readonly string[]>,
+): string[] {
+  const byNormalised = new Map<string, string>()
+  for (const header of headers) {
+    const key = normaliseHeader(header)
+    if (!byNormalised.has(key)) byNormalised.set(key, header)
+  }
+  const notes: string[] = []
+  for (const aliases of Object.values<readonly string[]>(aliasMap)) {
+    const present: string[] = []
+    for (const alias of aliases) {
+      const actual = byNormalised.get(normaliseHeader(alias))
+      if (actual !== undefined && !present.includes(actual)) present.push(actual)
+    }
+    if (present.length < 2) continue
+    const [used, ...ignored] = present
+    const ignoredText = ignored.map((h) => `"${h}"`).join(', ')
+    notes.push(
+      `Columns "${used}" and ${ignoredText} hold the same field; "${used}" is used and ` +
+        `${ignoredText} ${ignored.length === 1 ? 'is' : 'are'} ignored.`,
+    )
+  }
+  return notes
+}
+
 /** Read a cell by resolved column concept; undefined when the file lacks that column. */
 export function cell<K extends string>(
   row: RawRow,

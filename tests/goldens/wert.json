@@ -46,8 +46,8 @@
   },
   {
     "raw": "1.234",
-    "value": null,
-    "operator": "unparseable"
+    "value": 1.234,
+    "operator": "="
   },
   {
     "raw": "1.234,5",

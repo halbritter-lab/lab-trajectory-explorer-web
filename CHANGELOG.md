@@ -7,6 +7,28 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Import rules decided by the owner on 2026-10-07 (formerly open decisions
+  OD-7, OD-8 and OD-24 to OD-28 in `docs/method-algorithms.md`):
+  - Text values with exactly three digits after a point (`0.850`, `1.234`) are
+    read as decimals instead of being left without a number. **Numeric
+    change:** such values now enter all analyses. The import reports their
+    number with an example, because a file that uses the point as a thousands
+    separator would be read too low by a factor of 1000.
+  - Dialysis intent is matched without regard to case; `Chronic` is no longer
+    rejected, so that kidney replacement therapy now reaches censoring,
+    endpoint truncation and "kidney failure reached".
+  - With pre-parsed value columns, an empty operator cell beside a number
+    means an exact value; the operator cell is trimmed.
+  - Attribute-table birth dates are no longer retried with the browser's date
+    parser. Long or free-text dates are reported and ignored for age.
+  - New import diagnostics without a change to values: lab rows without a
+    patient ID are listed as rejected, two accepted headers for the same lab
+    or event field produce a warning naming the column used, and implausible
+    stated ages (negative, or a birth year in the age column) are reported as
+    a demographics conflict.
+  One golden case moved deliberately: `tests/goldens/wert.json` now expects
+  `"1.234"` to give 1.234 with operator `=` (previously no value,
+  `unparseable`). All other fixtures are unchanged.
 - `docs/method-algorithms.md` now specifies every implemented rule that
   decides which data are analysed and how results are derived: import and
   value interpretation, demographics resolution, the fit pipeline and presets,

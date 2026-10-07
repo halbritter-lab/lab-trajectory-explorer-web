@@ -38,8 +38,7 @@ Conventions used throughout:
 
 - **Dates are calendar days.** Import keeps the calendar day as written and
   stores it at midnight UTC; a time of day is dropped. Measurements of one day
-  share one timestamp, and every elapsed-time rule works in whole days. The
-  one exception is the long-form attribute birth date of OD-24.
+  share one timestamp, and every elapsed-time rule works in whole days.
 - **A year is 365.25 days** wherever elapsed time is converted to years.
 - **A series** is one patient, one parameter name and one unit, compared as
   stored after import. Different names or units are never pooled.
@@ -90,8 +89,6 @@ and are no longer cited as conflicts.
 | OD-4 | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) | With three points the OLS slope interval almost always includes zero, so the three-measurement minimum of the G5 projection rarely yields a projection. |
 | OD-5 | [eGFR derivation](#egfr-derivation) | No eGFR formula is active by default, while the methodology page labels CKD-EPI 2021 the default. |
 | OD-6 | [Cohort mixed models](#cohort-mixed-models) | The "Group interaction" preset text promises p-values; none is computed. |
-| OD-7 | [Clinical events](#clinical-events) | Dialysis intent is case-sensitive: `Chronic` rejects the event row, and that kidney replacement therapy is lost. |
-| OD-8 | [Import and value interpretation](#import-and-value-interpretation) | Text values such as `0.850` are read as ambiguous thousands notation and lose their value without a per-value warning. |
 | OD-9 | [Reason codes and the slope reliability rule](#reason-codes-and-the-slope-reliability-rule) | When all fitted points share one date there is no slope, yet the note says a slope was fitted. |
 | OD-10 | [Rapid eGFR decline flag](#rapid-egfr-decline-flag) | The flag has no reliability gate; a two-point slope is flagged like a well-supported one. The owner decided on 2026-10-06 not to change the flag for now; open is the conflict with the methodology wording. |
 | OD-11 | [Ordinary least squares](#ordinary-least-squares) | The t critical value is a step function above 40 degrees of freedom, untested against a reference in that range. |
@@ -107,12 +104,23 @@ and are no longer cited as conflicts.
 | OD-21 | [Cohort mixed models](#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-23 | [Cohort mixed models](#cohort-mixed-models) | The "Group interaction" preset builds an invalid configuration for a numeric attribute. |
-| OD-24 | [Import and value interpretation](#import-and-value-interpretation) | A rejected attribute-table birth date longer than ten characters is retried with the JavaScript date parser. |
-| OD-25 | [Import and value interpretation](#import-and-value-interpretation) | Two accepted headers for the same lab or event column are both accepted and one column is ignored silently. |
-| OD-26 | [Import and value interpretation](#import-and-value-interpretation) | Lab rows without a patient ID are skipped without a diagnostic. |
-| OD-27 | [Import and value interpretation](#import-and-value-interpretation) | With pre-parsed value columns, an empty operator cell makes a numeric row non-exact. |
-| OD-28 | [Demographics resolution](#demographics-resolution) | Implausible stated ages are changed without a report: a negative age gives no age, and a birth year typed into the age column is remapped (1950 becomes 50). |
 | OD-29 | [Cohort mixed models](#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+
+### Resolved decisions
+
+Decided by the owner on 2026-10-07 (see
+[method decisions](remaining-method-decisions.md)) and implemented since. The
+numbers are not reused.
+
+| ID | Resolution | Section |
+| --- | --- | --- |
+| OD-7 | Dialysis intent is matched without regard to case. | [Clinical events](#clinical-events) |
+| OD-8 | Text with three digits after a point is read as a decimal and reported. | [Import and value interpretation](#import-and-value-interpretation) |
+| OD-24 | The JavaScript date-parser fallback for attribute birth dates is removed. | [Import and value interpretation](#import-and-value-interpretation) |
+| OD-25 | Two accepted headers for one lab or event field produce a warning naming the column used. | [Import and value interpretation](#import-and-value-interpretation) |
+| OD-26 | Lab rows without a patient ID are listed as rejected. | [Import and value interpretation](#import-and-value-interpretation) |
+| OD-27 | An empty pre-parsed operator beside a number means an exact value. | [Import and value interpretation](#import-and-value-interpretation) |
+| OD-28 | Implausible stated ages are reported as `age_implausible`. | [Demographics resolution](#demographics-resolution) |
 
 ## Import and value interpretation
 
@@ -213,11 +221,12 @@ verbatim is renamed by the workbook reader (`value_1`) and then ignored without
 a diagnostic. The check in `resolveColumns` compares normalised spellings, not
 concepts. When
 a sheet carries two different accepted headers for one concept, the header
-listed first in the table is used and the other column is ignored without a
-diagnostic. A sheet with both `labDate` and `LabDatum` is read from `labDate`;
-a sheet with both `value` and `Wert` is read from `value`.
-
-> **Open decision OD-25.** Two different accepted headers for the same lab or event concept (for example `labDate` and `LabDatum`, or `type` and `EventType`) are both accepted and one column is silently ignored, while the attributes table rejects the equivalent case (two sex or two birth-date headers). Behaviour is unchanged pending an owner decision.
+listed first in the table is used and the other column is ignored. A
+sheet-level warning names both (decided 2026-10-07, formerly OD-25): a sheet
+with both `value` and `Wert` is read from `value` and reports 'Columns "value"
+and "Wert" hold the same field; "value" is used and "Wert" is ignored.' A sheet
+with both `labDate` and `LabDatum` is read from `labDate`. The attributes table
+remains stricter and rejects two sex or two birth-date headers (below).
 
 The attributes table requires `patientId` (= `PatientID`) and at least one
 other column. Two demographic concepts are recognised by
@@ -247,18 +256,17 @@ normally.
   `Number()` after a single decimal comma (`1,2`) is replaced by a point. This
   is wider than the value rules below: a leading `+`, `.5`, exponents including
   `1e+3`, and hexadecimal text (`0x1A` is 26) are accepted. The dot-thousands
-  guard described under Values does not apply here: `1.234` is read as 1.234.
+  warning described under Values is not issued here: `1.234` is read as 1.234.
   Anything else, including an empty cell and `1,2,3`, gives no number.
-- The operator cell must be exactly `=`, `<`, `>`, `range` or `unparseable`.
-  It is compared verbatim, without trimming. An empty cell, ` = ` with spaces,
-  `≤` and any other content become `unparseable`.
+- The operator cell is trimmed and must then be exactly `=`, `<`, `>`, `range`
+  or `unparseable`. An empty or blank operator cell beside a number means an
+  exact value (`=`); beside no number it is `unparseable` (decided 2026-10-07,
+  formerly OD-27). `≤` and any other content become `unparseable`.
 
 A row whose operator is not `=` is not an exact measurement. If it carries a
 number it is treated like a bounded value: it stays visible and counts toward
 raw numeric counts, is excluded from fits, endpoints, AKI detection and cohort
 mixed models, and is labelled "censored value (limit, not exact)".
-
-> **Open decision OD-27.** With pre-parsed `valueNum`/`valueOperator` columns, an empty or non-standard operator cell makes a numeric row non-exact, so it is excluded from all analyses although it holds an exact number. Behaviour is unchanged pending an owner decision.
 
 An eGFR value derived from such a creatinine row is marked exact; see OD-15.
 
@@ -274,10 +282,11 @@ and it does not join or separate series.
 
 `loadLabRowsWithDiagnostics` processes the lab sheet row by row.
 
-A row whose patient ID cell is empty or whitespace is skipped. It produces no
-diagnostic and appears in no count.
-
-> **Open decision OD-26.** Lab rows with an empty patient ID are skipped without a diagnostic or count, whereas attribute rows without a patient ID are listed as rejected. Behaviour is unchanged pending an owner decision.
+A row whose patient ID cell is empty or whitespace is not imported. If any
+other recognised column of that row holds a value, the row is listed as
+rejected ("Patient ID missing; row not imported.") and counts toward the
+rejected rows of the import notice (decided 2026-10-07, formerly OD-26). A row
+that is empty in every recognised column is skipped without a diagnostic.
 
 For all other rows:
 
@@ -304,9 +313,10 @@ For all other rows:
   text is compared, `1,5` and `1.5` on the same day are not duplicates. Rows on
   the same date with different values are not flagged.
 
-Sheet-level warnings also report day-first and Excel-serial dates, merged unit
-spellings, decimal commas that may be thousands separators, and the number of
-`<` and `>` values per parameter.
+Sheet-level warnings also report two columns for one field, day-first and
+Excel-serial dates, merged unit spellings, values with three digits after a
+comma or a point that may be thousands notation, and the number of `<` and `>`
+values per parameter.
 
 ### Dates
 
@@ -387,24 +397,13 @@ onwards) are accepted. Serials 1 to 9999 and four-digit numbers are rejected
 as unrecognised. The birth serial range from 1 applies only to typed numeric
 birth-date cells of the lab sheet in a binary workbook; birth dates in a CSV
 lab sheet are text as well. An unreadable value is kept as
-attribute text, ignored for age, and reported as a warning. One exception
-applies: a text longer than 10 characters that the parser rejects is passed to
-the JavaScript `Date` parser and accepted if that succeeds. This path exists
-for birth dates stored by earlier versions in the long form
-`Sun Feb 03 1980 01:00:00 GMT+0100 (…)`. It also accepts other long texts:
-`03/15/1980 00:00` is read month-first, `1980-02-30T00:00:00` rolls over to
-1 March 1980, and `March 15, 1980` is accepted. Free text containing a number
-can also be accepted without a warning: in Chrome and Node,
-`geb. 1950 (unsicher)` becomes 1 January 1950 local time and `see chart 12`
-becomes 1 December 2001. The result depends on the browser's `Date` parser.
-Texts without an explicit
-offset are interpreted in the browser's time zone and are not normalised to
-midnight UTC. In a browser set to Central European Time these three values
-become 1980-03-14 23:00 UTC, 1980-02-29 23:00 UTC and 1980-03-14 23:00 UTC, so
-the UTC calendar day used for ages is one day early. The ten-character value
-`03/15/1980` is rejected as described above.
-
-> **Open decision OD-24.** An attributes-table birth date longer than 10 characters that the import parser rejects is retried with the JavaScript `Date` parser, which accepts month-first and rolled-over dates and some free text and depends on the browser and its time zone; this bypasses the rule that month-first and impossible birth dates are ignored with a warning. Behaviour is unchanged pending an owner decision.
+attribute text, ignored for age, and reported as a warning. There is no
+fallback to the JavaScript `Date` parser (removed 2026-10-07, formerly OD-24):
+the long form `Sun Feb 03 1980 01:00:00 GMT+0100 (…)`, `03/15/1980 00:00`,
+`1980-02-30T00:00:00`, `March 15, 1980` and free text such as
+`geb. 1950 (unsicher)` are all unreadable, are reported and give no age.
+Attribute birth dates stored by the app itself are ISO calendar dates and are
+not affected.
 
 ### Values
 
@@ -420,9 +419,9 @@ text is trimmed. The following rules then apply in order.
 
 1. **Both separators.** Text containing both a point and a comma (`1.234,5`,
    `1,234.5`) is unparseable.
-2. **Dot-thousands guard.** Text without a comma that consists of an optional
-   minus sign, one to three digits, a point and exactly three digits (pattern
-   `^-?\d{1,3}\.\d{3}$`) is unparseable; see below.
+2. **Three digits after a point.** Text such as `1.234` or `0.850` is read as
+   a decimal like any other plain number and is reported in a sheet-level
+   warning; see below. There is no separate rule for it.
 3. **Decimal comma.** Every comma is read as a decimal point: `7,5` is 7.5.
    A single number with more than one comma (`1,2,3`) is unparseable; a range
    may carry one comma per bound.
@@ -444,15 +443,22 @@ text is trimmed. The following rules then apply in order.
 7. **Overflow.** A number too large for a double (`1e400`) is unparseable.
 8. Everything else, including empty text, is unparseable.
 
-The dot-thousands guard (rule 2) exists because such text could be a whole
-number written with a German thousands separator. The value is not guessed: the
-row is imported without a number, exactly like free text, and no warning names
-it. Affected: `1.234`, `0.850`, `12.500`, `-1.234`, `123.456`. Not affected:
-`1.23`, `1.2345`, `1234.5`, `1234.567`, typed numeric workbook cells,
-pre-parsed numbers, and bounds such as `< 1.234`, which is read as the limit
-1.234.
-
-> **Open decision OD-8.** The dot-thousands guard turns text values such as `0.850` or `1.234` into rows without a numeric value and issues no per-value warning; in a dot-decimal CSV every such three-decimal value drops out of all analyses. Behaviour is unchanged pending an owner decision.
+Until 2026-10-07 text consisting of an optional minus sign, one to three
+digits, a point and exactly three digits was left without a number, because it
+could be a whole number written with a German thousands separator (`1.234`
+meaning 1234). The owner decided to read such text as a decimal and to warn
+instead (formerly OD-8). `1.234` is 1.234, `0.850` is 0.85, `12.500` is 12.5
+and `-1.234` is -1.234. A file that really uses a point as thousands separator
+is therefore read too low by a factor of 1000; the warning is the only
+safeguard. Each value read from text that matches the pattern, optionally
+after a bound sign (`1.234`, `< 1.500`), is counted, and one sheet-level
+warning quotes the first such value and gives their number: '2 values with
+three digits after a point, such as "0.850", were read as decimals; check that
+the point is not a thousands separator.' Typed numeric workbook cells and
+pre-parsed numbers are not counted. Values that never matched the pattern are
+unaffected: `1.23`, `1.2345`, `1234.5`, `1234.567`. The stored regression case
+for `"1.234"` in `tests/goldens/wert.json` was updated from no value to 1.234
+for this reason.
 
 A value read from text that consists of one to three digits, a comma and
 exactly three digits, optionally after a bound sign (`1,234`, `<1,500`), is
@@ -468,9 +474,9 @@ Examples, each verified against `parseWert` and the loader:
 | `-0.4` | text | -0.4 | `=` |
 | `1e3` | text | 1000 | `=` |
 | `1,234` | text | 1.234 (with warning) | `=` |
-| `1.234` | text | none | `unparseable` |
-| `0.850` | text | none | `unparseable` |
-| `12.500` | text | none | `unparseable` |
+| `1.234` | text | 1.234 (with warning) | `=` |
+| `0.850` | text | 0.85 (with warning) | `=` |
+| `12.500` | text | 12.5 (with warning) | `=` |
 | 1.234 | typed numeric cell | 1.234 | `=` |
 | `1.2345` | text | 1.2345 | `=` |
 | `1234.567` | text | 1234.567 | `=` |
@@ -478,7 +484,7 @@ Examples, each verified against `parseWert` and the loader:
 | `1,234.5` | text | none | `unparseable` |
 | `<5` | text | 5 | `<` |
 | `< 0,5` | text | 0.5 | `<` |
-| `< 1.234` | text | 1.234 | `<` |
+| `< 1.234` | text | 1.234 (with warning) | `<` |
 | `≤5` | text | 5 | `<` |
 | `≥90` | text | 90 | `>` |
 | `>=5` | text | none | `unparseable` |
@@ -493,8 +499,10 @@ Examples, each verified against `parseWert` and the loader:
 | `12 mg` | text | none | `unparseable` |
 | `neg` | text | none | `unparseable` |
 | `1e400` | text | none | `unparseable` |
-| number 1.1, operator cell empty | pre-parsed columns | 1.1 | `unparseable` |
-| number text `1.234`, operator ` = ` | pre-parsed columns | 1.234 | `unparseable` |
+| number 1.1, operator cell empty | pre-parsed columns | 1.1 | `=` |
+| number text `1.234`, operator ` = ` | pre-parsed columns | 1.234 | `=` |
+| no number, operator cell empty | pre-parsed columns | none | `unparseable` |
+| number 2, operator `≤` | pre-parsed columns | 2 | `unparseable` |
 | number 5, operator `<` | pre-parsed columns | 5 | `<` |
 
 ### Units
@@ -559,16 +567,13 @@ Regression evidence: [date tests](../tests/core/parse/dates.test.ts),
 [attribute tests](../tests/core/attributes/attributes.test.ts),
 [template tests](../tests/io/templates.test.ts) and
 [dataset replacement tests](../tests/workspace/data.test.tsx). The loader tests
-fix the behaviour described under OD-25 ("prefers the canonical spelling when a
-file carries both") and OD-26 ("still drops blank ids"); the value tests fix
-the dot-thousands guard of OD-8. No dedicated regression test: UTF-16
-decoding and the NUL-byte rule; the alternative sheet names, the labs
-fallback and the ignored sheets of multi-sheet workbooks; an empty or
-untrimmed pre-parsed operator cell (only an unknown word is tested); the
-all-capitals merge of `MU/L` with `mU/l`; the month-first and rolled-over
-results of the long attribute birth-date path (only the stored long form is
-tested); bounds exempt from the dot-thousands guard; the absence of size
-limits.
+cover the two-header warning, the rejected row without a patient ID, the
+three-decimal warning and the empty or untrimmed pre-parsed operator cell; the
+[row resolution tests](../tests/core/demographics/resolve.test.ts) cover the
+attribute birth dates that are no longer guessed. No dedicated regression
+test: UTF-16 decoding and the NUL-byte rule; the alternative sheet names, the
+labs fallback and the ignored sheets of multi-sheet workbooks; the
+all-capitals merge of `MU/L` with `mU/l`; the absence of size limits.
 
 ## Demographics resolution
 
@@ -638,7 +643,7 @@ decimal comma (the same conversion as for pre-parsed numbers, so `4e1` is 40).
 The value is truncated toward zero (`46,9` is 46). Other text (`46 J`) and
 empty cells give no stated age. No plausibility range is applied at import;
 negative and very large values are stored as written. Resolution does not
-preserve all of them (see OD-28 below). When the sheet has no
+preserve all of them (see "Inference from stated ages" below). When the sheet has no
 stated-age column but a row has a readable birth date and a lab date, the
 row's stated age is the completed years between them.
 
@@ -692,6 +697,7 @@ Rules 2 and 3 report disagreements; the explicit birth date wins regardless.
 | `birth_date_row_disagreement` | no attributes-table birth date exists and the dated lab rows carry more than one distinct birth date |
 | `age_source_disagreement` | the winning birth date gives a different completed-years age than the stated age of at least one dated row; the report gives the number of contradicted rows out of the rows stating an age |
 | `age_no_common_birth_date` | rule 4 applies and the stated ages fit no single birth date |
+| `age_implausible` | rule 4 applies and at least one dated row states a negative age or a value that is remapped (see below) |
 
 **Inference from stated ages.** Each dated row with a stated age defines the
 inclusive interval of birth dates for which the completed years at the lab date
@@ -715,8 +721,7 @@ contradiction.
   the ages of all dated rows are recomputed from the anchor. Each row has equal
   weight, so a parameter measured more often has more influence.
 
-Two kinds of stated age are not reproduced on dated rows, and no conflict is
-reported for them. A negative stated age places the birth date after the lab
+Two kinds of stated age are not reproduced on dated rows. A negative stated age places the birth date after the lab
 date, so the row receives no age. A stated age within about 100 years of the
 lab year, such as a birth year typed into the age column, is remapped, because
 the interval arithmetic passes years 0 to 99 to JavaScript's `Date.UTC`, which
@@ -724,7 +729,15 @@ reads them as 1900 to 1999. With a lab date of 2024-03-09, a stated age of 1950
 resolves to 50, 2000 to 100 and 1925 to 25, while 150 and 1000 are kept. Rows
 without a lab date keep the value as written.
 
-> **Open decision OD-28.** Implausible stated ages are changed during resolution without any report: a negative age yields no age, and a value within about 100 years of the lab year (for example a birth year in the age column) is remapped to a different age. Behaviour is unchanged pending an owner decision.
+These rules are unchanged, but since 2026-10-07 they are reported (formerly
+OD-28). A dated row's stated age counts as implausible when the midpoint of
+its own birth-date interval does not give that age back at the lab date; this
+is true of exactly the two kinds above. When rule 4 applies and the patient
+has such rows, the conflict `age_implausible` gives their number and the first
+such value: "Patient 7: 1 stated age, such as 1950, is not a plausible age at
+the lab date — replaced by the age derived from the resolved birth date, or
+left empty." Under rules 2 and 3 the same rows are already counted by
+`age_source_disagreement`; a manual age suppresses the report.
 
 All imported lab rows of the patient with a valid lab date and a stated age
 feed the inference: every parameter, including rows whose value is a bound, a
@@ -774,10 +787,10 @@ Every conflict becomes a warning message of the analysis with the identifier
 `demographics:<code>:<patient ID>`; `birth_date_source_disagreement` carries
 the differing date in its code part so that several reports for one patient
 stay distinct. The Data page lists the messages under "Conflicts and their
-resolution". The seven codes are `sex_row_disagreement`, `sex_tie`,
+resolution". The eight codes are `sex_row_disagreement`, `sex_tie`,
 `sex_source_disagreement`, `birth_date_source_disagreement`,
-`birth_date_row_disagreement`, `age_source_disagreement` and
-`age_no_common_birth_date`. A manual sex suppresses the sex codes and a manual
+`birth_date_row_disagreement`, `age_source_disagreement`,
+`age_no_common_birth_date` and `age_implausible`. A manual sex suppresses the sex codes and a manual
 age suppresses the age and birth-date codes for that patient.
 
 The workbook export records the resolution:
@@ -893,8 +906,8 @@ for the line, step 1 is done by `buildCohortRows` before it calls
 
 1. Exact rows only. Every row whose operator is not `=` is removed by operator,
    not by date. These are the bounds `<` and `>` (see "Bounded measurements")
-   and, with pre-parsed value columns, numeric rows whose operator is `range`,
-   unrecognised or empty (see OD-27).
+   and, with pre-parsed value columns, numeric rows whose operator is `range`
+   or unrecognised. An empty operator cell beside a number is exact.
 2. Censoring windows. Points inside any censoring window of the series are
    removed. These windows come from clinical events under the column's
    censoring options.
@@ -2171,8 +2184,8 @@ Header matching ignores case and separators (`patient_id`, `Patient ID` and
 separators make the import fail ("Ambiguous columns … Rename one of them.").
 Two different accepted headers for one field (for example `type` and
 `EventType`, or `date` and `Datum`) are both accepted: the header listed first
-in the table is used and the other column is ignored without a diagnostic, as
-in the lab sheet (OD-25).
+in the table is used, the other column is ignored, and a table-level warning
+names both, as in the lab sheet.
 
 | Field | Accepted headers | Required | Content |
 | --- | --- | --- | --- |
@@ -2199,18 +2212,12 @@ inferred from the title or description.
 | Field | Tokens | Matching | Empty cell |
 | --- | --- | --- | --- |
 | `type` | `kidney_transplant`, `dialysis`, `other` | Case-insensitive after trimming; stored in lower case. No synonyms: `transplant`, `kidney transplant` and `Dialyse` are rejected. | Row rejected (`missing_required`). |
-| `intent` | `acute`, `chronic`, `unknown` | Case-sensitive after trimming: `Chronic`, `ACUTE` and `UNKNOWN` are rejected. | Dialysis: stored as `unknown`. Other types: stored as no intent. |
+| `intent` | `acute`, `chronic`, `unknown` | Case-insensitive after trimming; stored in lower case (decided 2026-10-07, formerly OD-7): `Chronic` is `chronic`. No synonyms: `permanent` is rejected. | Dialysis: stored as `unknown`. Other types: stored as no intent. |
 
 A non-empty intent on a `kidney_transplant` or `other` event rejects the row,
 even when the value is a valid token. A `kidney_transplant` event stores no
 intent. Whether a dialysis event counts as kidney replacement therapy depends
 only on `intent = chronic`; the title is not read.
-
-> **Open decision OD-7.** Dialysis intent is matched case-sensitively, so
-> `Chronic` rejects the row as `invalid_intent` and that kidney replacement
-> event is lost to censoring, endpoint truncation and kidney failure reached,
-> while the event type is matched case-insensitively. Behaviour is unchanged
-> pending an owner decision.
 
 ### Dates
 
@@ -2269,10 +2276,10 @@ description, end date, intent and warning.
 
 Regression evidence: [event import tests](../tests/core/events/events.test.ts),
 [date reader tests](../tests/core/parse/dates.test.ts) and
-[header tests](../tests/io/headers.test.ts). No dedicated regression test for
-case-sensitive intent matching, for `endDate` equal to `date`, for the
-warning order beyond `unknown_patient`, or for two different accepted headers
-of one event field.
+[header tests](../tests/io/headers.test.ts). The event import tests cover
+case-insensitive intent matching and the warning for two accepted headers of
+one event field. No dedicated regression test for `endDate` equal to `date`
+or for the warning order beyond `unknown_patient`.
 
 ### Display-fit censoring and exclusion
 

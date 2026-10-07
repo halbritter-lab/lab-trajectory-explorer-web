@@ -70,6 +70,7 @@ import {
   collectHeaders,
   normaliseHeader,
   resolveColumns,
+  shadowedColumnNotes,
   EVENTS_COLUMN_ALIASES,
   REQUIRED_EVENTS_COLUMNS,
 } from '../parse/headers'
@@ -87,9 +88,11 @@ export function normalizeClinicalEvents(rows: RawRow[]): RawClinicalEvent[] {
 export function normalizeClinicalEventsWithNotes(rows: RawRow[]): {
   events: RawClinicalEvent[]
   dateReads: DateReadCounts
+  /** Table-level notes, such as two columns holding the same field. */
+  notes: string[]
 } {
   const dateReads = noDateReads()
-  if (rows.length === 0) return { events: [], dateReads }
+  if (rows.length === 0) return { events: [], dateReads, notes: [] }
 
   const headers = collectHeaders(rows)
   const columns = resolveColumns(headers, EVENTS_COLUMN_ALIASES)
@@ -131,7 +134,7 @@ export function normalizeClinicalEventsWithNotes(rows: RawRow[]): {
     if (dateIssue !== undefined) event.dateIssue = dateIssue
     return event
   })
-  return { events, dateReads }
+  return { events, dateReads, notes: shadowedColumnNotes(headers, EVENTS_COLUMN_ALIASES) }
 }
 
 export function validateClinicalEvents(
@@ -229,8 +232,9 @@ function isValidDate(value: Date): boolean {
   return !Number.isNaN(value.getTime())
 }
 
+/** Intent tokens are matched without regard to case, like event types. */
 function normalizeIntent(intent: string): string {
-  return intent === '' ? 'unknown' : intent
+  return intent === '' ? 'unknown' : intent.toLowerCase()
 }
 
 function warningForEvent(

@@ -181,14 +181,11 @@ function parseText(value: unknown): string | null {
 }
 
 /** Read an attribute-table birth date like a lab-sheet one (ISO, DD.MM.YYYY,
- * day-first DD/MM/YYYY, Excel serial). Values saved by earlier versions may
- * hold a Date's toString() form, which is still accepted. */
+ * day-first DD/MM/YYYY, Excel serial). Nothing else is accepted: an unreadable
+ * value is reported and ignored for age. */
 export function readAttributeBirthDate(value: string | undefined): ImportDateResult {
   if (value === undefined) return { kind: 'empty' }
-  const parsed = parseImportDate(value, 'birth')
-  if (parsed.kind !== 'invalid' || value.length <= 10) return parsed
-  const legacy = new Date(value)
-  return Number.isNaN(legacy.getTime()) ? parsed : { kind: 'date', date: legacy, via: 'date-cell' }
+  return parseImportDate(value, 'birth')
 }
 
 /** Birth-date findings for accepted attribute rows: one warning per unreadable

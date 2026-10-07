@@ -21,6 +21,13 @@ describe('describeConflict', () => {
     }
   })
 
+  it('names the count and an example of implausible stated ages', () => {
+    expect(describeConflict({ kind: 'age_implausible', patientId: 7, rows: 3, example: 1950 }))
+      .toContain('Patient 7: 3 stated ages, such as 1950, are not plausible ages at the lab date')
+    expect(describeConflict({ kind: 'age_implausible', patientId: 7, rows: 1, example: -3 }))
+      .toContain('1 stated age, such as -3, is not a plausible age')
+  })
+
   it('tells the user to enter a sex only when nothing resolved the tie', () => {
     const text = describeConflict({
       kind: 'sex_tie',

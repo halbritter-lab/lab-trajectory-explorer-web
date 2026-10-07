@@ -89,12 +89,15 @@ describe('CSV import keeps text for our own parsers', () => {
   })
 
   it('takes typed numeric xlsx value cells as they are', () => {
-    // As text, "1.234" could be German thousands notation and stays unparsed;
-    // a numeric cell carries no such ambiguity.
-    const { rows } = loadDatasetFromWorkbook(xlsx({
+    // Since 2026-10-07 (OD-8) the text "1.234" is read as a decimal too, with
+    // a sheet-level warning; the typed cell needs no warning.
+    const { rows, diagnostics } = loadDatasetFromWorkbook(xlsx({
       labs: [['patientId', 'labDate', 'testName', 'unit', 'value'], [1, '2024-01-15', 'Kreatinin', 'mg/dl', 1.234], [1, '2024-01-16', 'Kreatinin', 'mg/dl', '1.234']],
     }))
-    expect(rows.map((r) => [r.wert, r.wertNum, r.wertOperator])).toEqual([['1.234', 1.234, '='], ['1.234', null, 'unparseable']])
+    expect(rows.map((r) => [r.wert, r.wertNum, r.wertOperator])).toEqual([['1.234', 1.234, '='], ['1.234', 1.234, '=']])
+    expect(diagnostics.filter((d) => d.reason.includes('after a point')).map((d) => d.reason)).toEqual([
+      '1 value with three digits after a point, "1.234", was read as a decimal; check that the point is not a thousands separator.',
+    ])
   })
 })
 

@@ -27,6 +27,9 @@ export type DemographicsConflict =
   | { kind: 'sex_tie'; patientId: PatientId; counts: SexCount[]; resolved: Sex | null }
   | { kind: 'sex_source_disagreement'; patientId: PatientId; fromAttributes: Sex; fromRows: Sex }
   | { kind: 'age_no_common_birth_date'; patientId: PatientId; gapDays: number }
+  /** Stated ages that are not plausible ages at their lab date (negative, or a
+   * birth year in the age column). `example` is the first such stated value. */
+  | { kind: 'age_implausible'; patientId: PatientId; rows: number; example: number }
   | {
       kind: 'age_source_disagreement'
       patientId: PatientId

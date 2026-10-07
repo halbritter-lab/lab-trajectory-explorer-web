@@ -80,7 +80,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         if (!valid.length) throw new Error(`No usable events. ${[...new Set(rejected.map(describeEventRejection))].join(' ')}`)
         store.setEvents(valid)
         useAppStore.setState({ rejectedEvents: rejected })
-        store.setNotice({ kind: 'info', text: `${valid.length} events imported; ${rejected.length} rows rejected.`, details: eventDiagnostics(file.name, normalized.dateReads, validation) })
+        store.setNotice({ kind: 'info', text: `${valid.length} events imported; ${rejected.length} rows rejected.`, details: eventDiagnostics(file.name, normalized.dateReads, validation, normalized.notes) })
       } else {
         const validation = validatePatientAttributes(normalizePatientAttributes(raw), originalRows)
         const { byPatient, valid, rejected } = validation
