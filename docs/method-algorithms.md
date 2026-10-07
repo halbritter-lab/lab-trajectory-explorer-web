@@ -408,8 +408,11 @@ fallback to the JavaScript `Date` parser (removed 2026-10-07, formerly OD-24):
 the long form `Sun Feb 03 1980 01:00:00 GMT+0100 (…)`, `03/15/1980 00:00`,
 `1980-02-30T00:00:00`, `March 15, 1980` and free text such as
 `geb. 1950 (unsicher)` are all unreadable, are reported and give no age.
-Attribute birth dates stored by the app itself are ISO calendar dates and are
-not affected.
+Attribute birth dates stored by the app since 2026-10-06 are ISO calendar
+dates and are not affected. A workspace copy saved by an earlier build can
+still hold the long form; after restoring it that birth date gives no age, and
+no warning appears, because birth-date warnings are issued at import only.
+Saved copies expire after seven days.
 
 ### Values
 
@@ -737,8 +740,12 @@ without a lab date keep the value as written.
 
 These rules are unchanged, but since 2026-10-07 they are reported (formerly
 OD-28). A dated row's stated age counts as implausible when the midpoint of
-its own birth-date interval does not give that age back at the lab date; this
-is true of exactly the two kinds above. When rule 4 applies and the patient
+its own birth-date interval does not give that age back at the lab date. This
+is true of negative values and of values from the lab year minus 100 up to the
+lab year (1924 to 2024 for a lab date of 2024-03-09). At the two ends of that
+range the value is not remapped to a usable age: 1924 and 2024 resolve to 974
+and 1074, and `age_no_common_birth_date` is reported as well. A value further
+back, such as 1923, is kept as written and not reported. When rule 4 applies and the patient
 has such rows, the conflict `age_implausible` gives their number and the first
 such value: "Patient 7: 1 stated age, such as 1950, is not a plausible age at
 the lab date — replaced by the age derived from the resolved birth date, or
@@ -2478,7 +2485,10 @@ projections".
 lower-casing, removing whitespace, and reading a decimal comma as a point and
 `²` or `^2` as `2`; the result must equal `ml/min/1.73m2`
 (`isEgfrUnit`). `ml/min/1,73m²`, `mL/min/1.73 m2` and `ML/MIN/1,73M^2`
-qualify; `ml/min`, `ml/min/1.73` and `mL/min/m²` do not. The parameter name
+qualify; `ml/min`, `ml/min/1.73` and `mL/min/m²` do not. Nor do other ways of
+writing the same unit: the UCUM form `mL/min/{1.73_m2}`, `ml/min/1.73qm`,
+`mL/min per 1.73 m2` or a unit with trailing text such as `ml/min/1,73 m² KOF`.
+A series with such a unit must be renamed before import to receive endpoints. The parameter name
 is not read. Every other column reports all endpoints as not evaluated,
 whatever its settings. The same rule controls kidney failure reached, the
 rapid-decline flag and the preset targets of cohort-model projections
@@ -2585,8 +2595,8 @@ non-finite or smaller value, including 0.5, 0 and negative numbers, becomes
 formerly OD-19): a confirming value must follow within 12 calendar months,
 which is 365 or 366 days, so a longer interval could never confirm, and 366
 days only across a leap day. The settings input commits whole numbers from 1
-to 365 only; a larger entry is not applied and the reason is shown beside the
-input ("366 days not applied: a confirming value must follow within 12
+to 365 only; a larger entry is not applied, the value the field held before
+the edit is restored, and the reason is shown beside the input ("366 days not applied: a confirming value must follow within 12
 calendar months, so the minimum interval cannot exceed 365 days."). A larger
 value in a stored configuration is evaluated as 365, and the export records
 the effective value. An interval of 365 days can confirm: 2021-01-01 and
@@ -2784,7 +2794,7 @@ exported in `endpoint_prediction_reason`; the label is the table badge.
 
 | Order | Code | Condition | Badge label |
 | --- | --- | --- | --- |
-| 1 | `observed_ckd_g5` | The eligible rows contain a confirmed observed G5, with or without later kidney replacement therapy and whether or not the observed-G5 endpoint is switched on. | With the observed-G5 endpoint on, none: the `CKD G5` badge with its dates is shown. With it off, no projection badge appears. |
+| 1 | `observed_ckd_g5` | The eligible rows contain a confirmed observed G5, with or without later kidney replacement therapy and whether or not the observed-G5 endpoint is switched on. | With the observed-G5 endpoint on, none: the `CKD G5` badge with its dates is shown. With it off, `G5 not projected`, whose detail text names the confirmed event. |
 | 2 | `kidney_failure_reached` | Kidney failure reached and no confirmed observed G5. | `G5 not projected after KRT` |
 | 3 | `insufficient_points` | Fewer than three eligible rows. | `G5 n < 3` |
 | 4 | `span_too_short` | First to latest eligible row under 365 days. | `G5 < 1 yr` |
@@ -2796,9 +2806,9 @@ exported in `endpoint_prediction_reason`; the label is the table badge.
 | 10 | `slope_ci_includes_zero` | Lower bound at or below zero and upper bound at or above zero. | `G5 not projected` |
 | 11 | `beyond_projection_horizon` | Crossing more than 20 years after the latest eligible row. | `G5 not projected` |
 
-The four `G5 not projected` cases (`non_declining_fit`, `slope_ci_unavailable`,
-`slope_ci_includes_zero`, `beyond_projection_horizon`) are told apart by the
-badge's detail text.
+The `G5 not projected` cases (`non_declining_fit`, `slope_ci_unavailable`,
+`slope_ci_includes_zero`, `beyond_projection_horizon`, and `observed_ckd_g5`
+with the observed-G5 endpoint off) are told apart by the badge's detail text.
 `G5 now` states only that the fitted line is at or below 15 at the latest
 measurement; it does not establish an observed event. The internal code
 `disabled` (toggle off) is never exported. The order has consequences: a
@@ -2810,8 +2820,10 @@ A confirmed observed G5 event takes precedence over a future projection,
 whether or not the observed-G5 endpoint is switched on (decided 2026-10-07,
 formerly OD-18). With that endpoint off the event is still evaluated for this
 purpose with the column's confirmation interval; the projection is withheld
-as `observed_ckd_g5`, while the event itself is not reported and its export
-columns stay blank. Before, a future G5 age was projected for such a patient.
+as `observed_ckd_g5` and the badge reads `G5 not projected`, while the event
+itself is not reported and its own export columns stay blank. The export
+fills `endpoint_confirmation_days` and `endpoint_confirmation_max_months`
+whenever the projection is enabled, because they decide this result. Before, a future G5 age was projected for such a patient.
 This also holds after a recorded recovery: once G5 is confirmed, the projection
 stays withheld as `observed_ckd_g5` however far eGFR recovers. Measurements
 dated after the confirmation cannot revoke or redate the event (the first value
@@ -2875,7 +2887,7 @@ endpoint toggles on a series that passes the unit gate.
 | `endpoint_observed_ckd_g5` | Observed G5 confirmed. | `yes` |
 | `endpoint_projected_age_to_ckd_g5` | A projection is reported. | Age in years, unrounded. |
 | `endpoint_observed_ckd_g4` | Observed G4 confirmed. | `yes` |
-| `endpoint_confirmation_days` | G4, G5 or percent decline enabled. | Effective minimum interval in days, at most 365. |
+| `endpoint_confirmation_days` | G4, G5, percent decline or the projection enabled. | Effective minimum interval in days, at most 365. |
 | `endpoint_input_policy` | Any endpoint enabled. | Fixed text: "dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded". |
 | `endpoint_kidney_failure_reached` | Kidney failure reached, whatever the toggles. | `yes` |
 | `endpoint_kidney_failure_type` | As above. | `kidney_transplant` or `chronic_dialysis` |
@@ -2887,7 +2899,7 @@ endpoint toggles on a series that passes the unit gate.
 | `endpoint_prediction_max_years` | Projection enabled. | `20` |
 | `endpoint_g4_first_date`, `endpoint_g4_confirmed_date`, `endpoint_g4_recovery_date`, `endpoint_g4_first_value`, `endpoint_g4_confirmed_value`, `endpoint_g4_recovery_value` | First and confirmed: observed G4 confirmed. Recovery: recovery recorded after a confirmed G4. | First crossing, confirmation and recovery (first value of 30 or more). |
 | `endpoint_g5_*` (same six, same order) | As for G4. | Threshold 15. |
-| `endpoint_confirmation_max_months` | G4, G5 or percent decline enabled. | `12` |
+| `endpoint_confirmation_max_months` | G4, G5, percent decline or the projection enabled. | `12` |
 | `endpoint_decline_baseline_value` | Percent decline enabled and at least one eligible row. | Mean baseline eGFR, also when it is zero or negative. |
 | `endpoint_observed_decline_40`, `endpoint_observed_decline_57` | Decline event confirmed. | `yes` |
 | `endpoint_decline_40_*`, then `endpoint_decline_57_*` (each: first, confirmed and recovery date, then first, confirmed and recovery value) | As for G4. | Dates and eGFR values, not percentages. |
@@ -2897,8 +2909,8 @@ Blank provenance means the endpoint was not evaluated for that series (for
 example a unit other than mL/min/1.73 m² or a preset with endpoints off), not that it
 was not met. A blank `yes` column alone does not distinguish "not met" from
 "not evaluated". `endpoint_confirmation_days` and
-`endpoint_confirmation_max_months` are filled when any of G4, G5 or percent
-decline is enabled, and `endpoint_input_policy` when any endpoint is enabled;
+`endpoint_confirmation_max_months` are filled when any of G4, G5, percent
+decline or the projection is enabled, and `endpoint_input_policy` when any endpoint is enabled;
 they show that the series passed the unit gate with some endpoint on, not which
 one. With G4 on and G5 off, a blank `endpoint_observed_ckd_g5` sits beside a
 filled confirmation interval. Per endpoint, only the `endpoints` section of the

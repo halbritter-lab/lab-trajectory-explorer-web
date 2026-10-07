@@ -37,7 +37,8 @@ interfaces are still evolving before 1.0.
   - A series counts as eGFR by its unit mL/min/1.73 m² alone, in every
     feature: CKD endpoints, kidney failure reached, the rapid-decline flag and
     the cohort-model projection presets. A clearance or an eGFR series
-    imported with the bare unit `ml/min` no longer receives endpoints or the
+    imported with the bare unit `ml/min`, or with another spelling such as
+    `mL/min/{1.73_m2}` or `ml/min/1.73qm`, no longer receives endpoints or the
     flag; a series named otherwise than "eGFR…" in mL/min/1.73 m² now gets
     the projection presets.
   - AKI detection ignores serum creatinine of zero or less (previously a

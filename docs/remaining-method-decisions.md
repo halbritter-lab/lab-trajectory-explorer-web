@@ -236,7 +236,11 @@ of [method algorithms](method-algorithms.md) concerned:
 - **OD-20.** The accepted spellings are those the projection presets already
   accepted (`ml/min/1.73m2` after ignoring case and spaces, with a decimal
   comma, `²` or `^2`). An eGFR series imported with the bare unit `ml/min`
-  no longer receives endpoints.
+  no longer receives endpoints, and neither does one written as
+  `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` or `mL/min per 1.73 m2`; whether
+  to accept those spellings is open to the owner.
+- **OD-18.** With the observed-G5 endpoint off, the cell shows
+  `G5 not projected` and names the confirmed event in its detail text.
 - **OD-26.** A row without a patient ID that is empty in every recognised
   column is still skipped silently.
 - **OD-27.** The operator cell is trimmed before it is compared.

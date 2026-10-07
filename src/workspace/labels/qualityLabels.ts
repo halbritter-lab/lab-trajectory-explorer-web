@@ -82,8 +82,10 @@ export function slopeQualityLabel(input: SlopeQualityInput): QualityLabel | null
 
 /**
  * Why no projected age to CKD G5 was produced. Returns null when a projection
- * exists, when the endpoint is off, or when G5 was already observed — the
- * caller shows the observed date in that case.
+ * exists, when the endpoint is off, or when G5 was observed and the observed
+ * endpoint is on — the caller shows the observed date in that case. With the
+ * observed endpoint off, a confirmed G5 still withholds the projection and is
+ * named here, because nothing else would explain the empty cell.
  *
  * A missing scalar fit is represented explicitly as `no_fit`, so it cannot be
  * confused with a real non-declining fit.
@@ -92,6 +94,12 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
   if (endpoints.projectedAgeToCkdG5.value !== null) return null
   const caveat = false
   switch (endpoints.projectedAgeToCkdG5.reason) {
+    case 'observed_ckd_g5':
+      return endpoints.evaluated.observedCkdG5 ? null : {
+        label: 'G5 not projected',
+        title: `The eligible measurements contain a confirmed CKD G5 event (minimum ${endpoints.confirmationDays} days), so no future age at CKD G5 is projected. Switch on Observed CKD G5 to see its dates.`,
+        caveat,
+      }
     case 'kidney_failure_reached':
       return {
         label: 'G5 not projected after KRT',

@@ -181,10 +181,10 @@ Proposed:
 
 Proposed new bullet:
 
-> No projection badge at all, although the projection is switched on — the
-> data contain a confirmed G5 event. This also applies when the observed G5
-> endpoint is switched off; the export then gives the reason
-> `observed_ckd_g5`.
+> **G5 not projected** can also mean that the data contain a confirmed G5
+> event while the observed G5 endpoint is switched off; the badge says so, and
+> the export gives the reason `observed_ckd_g5`. With the observed endpoint
+> on, the CKD G5 badge with its dates is shown instead.
 
 ### A9. eGFR default (OD-5)
 

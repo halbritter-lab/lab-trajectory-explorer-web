@@ -8,6 +8,7 @@ import { ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitCo
 import { appendComputedEgfr } from '../../../src/core/domains/nephrology/egfr/series'
 import { buildCohortRows, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import { isExactMeasurement } from '../../../src/core/measurements/censored'
+import { endpointBadge } from '../../../src/workspace/labels/endpointLabels'
 import type { LabRow } from '../../../src/core/types'
 
 const d = (iso: string) => new Date(`${iso}T00:00:00Z`)
@@ -51,6 +52,20 @@ describe('a confirmed G5 always rules out the projection (OD-18)', () => {
     expect(result.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'observed_ckd_g5' })
     expect(result.observedCkdG5.met).toBe(false)
     expect(result.evaluated.observedCkdG5).toBe(false)
+  })
+  it('names the confirmed event in the badge and exports the interval that decided it', () => {
+    const off = computeCkdEndpoints({ points, slopePerYear: -1, intercept: 14, enabled: projecting })
+    expect(endpointBadge(off, points.length)).toEqual({
+      label: 'G5 not projected',
+      title: 'The eligible measurements contain a confirmed CKD G5 event (minimum 90 days), so no future age at CKD G5 is projected. Switch on Observed CKD G5 to see its dates.',
+    })
+    const value = (key: string, endpoints: typeof off) => ckdEndpointsModule.exportColumns.find((c) => c.key === key)!.value({ flags: [], endpoints, fitModel: 'ols' })
+    expect([value('endpoint_prediction_reason', off), value('endpoint_confirmation_days', off), value('endpoint_confirmation_max_months', off), value('endpoint_observed_ckd_g5', off)]).toEqual(['observed_ckd_g5', 90, 12, ''])
+    // With the observed endpoint on, the event badge speaks for itself.
+    const on = computeCkdEndpoints({ points, slopePerYear: -1, intercept: 14, enabled: { ...projecting, observedCkdG5: true } })
+    expect(endpointBadge(on, points.length)?.label).toBe('CKD G5')
+    const none = computeCkdEndpoints({ points, slopePerYear: -1, intercept: 14, enabled: { ...projecting, projectedAgeToCkdG5: false } })
+    expect(value('endpoint_confirmation_days', none)).toBe('')
   })
   it('gives the same reason as with the endpoint switched on, and prefers it to kidney failure reached', () => {
     const on = computeCkdEndpoints({ points, slopePerYear: -1, intercept: 14, enabled: { ...projecting, observedCkdG5: true } })

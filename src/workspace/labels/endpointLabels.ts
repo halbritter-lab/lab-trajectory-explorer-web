@@ -34,6 +34,8 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
     details.push(`confirmed ${threshold}% eGFR decline: baseline ${endpoints.declineBaselineValue}; event ${event.firstDate?.toISOString().slice(0, 10)} (${event.firstValue}), confirmed ${event.confirmedDate?.toISOString().slice(0, 10)} (${event.confirmedValue}); minimum ${endpoints.confirmationDays} days, maximum 12 calendar months`)
     if (event.recoveryDate) details.push(`${threshold}% decline recovery ${event.recoveryDate.toISOString().slice(0, 10)} (${event.recoveryValue}); confirmed event retained`)
   }
+  // observedCkdG5.met is false both without an event and with the observed
+  // endpoint switched off; projectedG5Label tells the two apart.
   if (!endpoints.observedCkdG5.met) {
     if (endpoints.projectedAgeToCkdG5.value !== null) {
       const age = endpoints.projectedAgeToCkdG5.value
