@@ -1,4 +1,4 @@
-# Endpoint analysis readiness — implementation status updated 2026-09-23
+# Endpoint analysis readiness — implementation status updated 2026-10-07
 
 This is a technical inventory. Owner-approved observed-event and prediction
 definitions are recorded in [method decisions](remaining-method-decisions.md)
@@ -28,13 +28,20 @@ See the configurable trend projection design and implementation plan.
 - The bundled workbook contains 216 lab rows, 8 event rows and 8 attribute rows.
   Attributes include genotype, inheritance and cohort. These are demo/test data;
   they do not establish representativeness for a research cohort.
-- Individual endpoint prediction now continues the global fitted curve on all
-  dated numeric measurements, including recovery. The latest age provides the
-  age anchor; the latest measured value no longer shifts the fitted line.
-- Observed G4/G5 use strict thresholds below 30/15 and a configurable minimum
-  confirmation interval (default 90 days). The first crossing and earliest
-  confirmation are separate dates; recovery before confirmation restarts the
-  candidate, while later recovery preserves the event and is shown separately.
+- Individual endpoint prediction continues the global fitted curve on the
+  endpoint-eligible measurements: dated exact numeric eGFR before the first
+  kidney transplant or chronic dialysis start and outside complete dated acute
+  dialysis intervals, including later recovery values. The age at the latest eligible measurement provides the
+  age anchor; the latest measured value does not shift the fitted line. A
+  crossing is withheld when the endpoint fit's slope confidence interval
+  includes zero or the crossing lies more than 20 years ahead.
+- Observed G4/G5 use strict thresholds below 30/15, a configurable minimum
+  confirmation interval (default 90 days) and a 12-calendar-month maximum. The
+  first crossing and earliest confirmation are separate dates; recovery before
+  confirmation restarts the candidate, while later recovery preserves the event
+  and is shown separately. Confirmed 40 %/57 % eGFR decline and kidney failure
+  reached (kidney transplant or chronic dialysis start) are reported as
+  separate results.
 - Existing clinical events are transplant, dialysis or other. Their fit
   exclusions are measurement-selection rules; they are not an event-time
   dataset with follow-up status, competing events and censoring reasons.

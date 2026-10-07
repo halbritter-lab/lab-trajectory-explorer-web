@@ -74,6 +74,23 @@ documented at the call site, and this list exists so they are findable:
 `src/core/stats/slopeQuality.ts` is the app's own reliability rule, layered over
 these. Keep it separate from `reason` for exactly that reason.
 
+## Method reference: complete and as implemented
+
+[docs/method-algorithms.md](docs/method-algorithms.md) specifies every rule
+that decides which data are analysed, how a number is derived and how a result
+is classified — import and parsing included, not only statistics. The owner
+requires it to stay complete: a change to such a rule updates the matching
+section in the same change, with concrete values, boundary conventions and a
+recomputed example.
+
+It describes what the code does, not what was intended. Where behaviour
+conflicts with other documentation or looks unintended, describe it as it is
+and add an `Open decision OD-n` marker plus a row in that file's list; do not
+quietly fix either side. Removing a marker needs the owner's decision. Read
+the open-decision list before touching the affected code: several entries
+describe behaviour the interface does not make visible, such as cohort models
+never receiving the preset exclusions (OD-1).
+
 ## Issues and pull requests
 
 - Follow [the development and release rules](docs/release-process.md): target
