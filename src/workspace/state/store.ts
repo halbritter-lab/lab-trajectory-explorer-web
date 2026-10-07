@@ -250,11 +250,18 @@ export const useAppStore = create<AppState>((set, get) => ({
     ...clearedMixedModelResults(),
   })),
   // A change to fit model, time balancing, censoring or exclusions changes the
-  // measurements a cohort model receives, so fitted models are discarded like
-  // after every other data-policy change. Other settings are only recorded.
-  setTrajectoryFitSettings: (settings) => set((state) => modelPreparationKey(settings) === modelPreparationKey(state.trajectoryFitSettings)
-    ? { trajectoryFitSettings: settings }
-    : { trajectoryFitSettings: settings, ...clearedMixedModelResults() }),
+  // measurements a cohort model receives, so models fitted for the affected
+  // parameter are discarded like after every other data-policy change. Other
+  // settings, and other parameters' settings, are only recorded.
+  setTrajectoryFitSettings: (settings) => set((state) => {
+    const previous = state.trajectoryFitSettings
+    if (JSON.stringify(settings) === JSON.stringify(previous)) return state
+    const fittedKeys = [...new Set(Object.values(state.cohortModelResults ?? {}).map((stored) => stored.identity.seriesKey))]
+    const stale = fittedKeys.some((key) => modelPreparationKey(settings, key) !== modelPreparationKey(previous, key))
+      // A running fit has no stored identity yet; any preparation change stops it.
+      || (state.cohortModelRunning && modelPreparationKey(settings) !== modelPreparationKey(previous))
+    return stale ? { trajectoryFitSettings: settings, ...clearedMixedModelResults() } : { trajectoryFitSettings: settings }
+  }),
   runCohortModels: async ({ entities, seriesIndex, seriesKey, fitConfigHash, config, formula, runJob = runMixedModelWorkerJob }) => {
     abortActiveCohortModelRun()
     const controller = new AbortController()

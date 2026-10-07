@@ -16,8 +16,8 @@ interfaces are still evolving before 1.0.
     windows and quarterly medians now take effect, and "No fit" prepares no
     model. Until now the page always used general exploration, so the "Apply
     preset event and AKI exclusions" checkbox had no effect. The page states
-    the settings in use; changing them under Trajectories discards fitted
-    models.
+    the settings in use; changing them under Trajectories discards the models
+    fitted for that parameter.
   - Rolling OLS now shows what it computes: one line per two-year window in the
     charts, and the number of windows with the smallest and largest window
     slope in the table. The reported slope, R² and confidence bounds remain

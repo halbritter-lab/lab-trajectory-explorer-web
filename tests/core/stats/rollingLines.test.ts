@@ -77,6 +77,12 @@ describe('rolling OLS in the cohort cell and the export', () => {
     expect(short.fitLines).toEqual([])
     expect(buildCohortRows(rows, [1], [{ ...spec, mode: 'global' }])[0].cells[0].rolling).toBeUndefined()
   })
+  it('has no rolling summary for a series without a fitted value', () => {
+    const bounds = rows.map((row) => ({ ...row, wertOperator: '<' as const }))
+    const cell = buildCohortRows(bounds, [1], [spec])[0].cells[0]
+    expect(cell.rolling).toBeUndefined()
+    expect(cohortExportRecords(buildCohortRows(bounds, [1], [spec]))[0]).toMatchObject({ rolling_windows: '', rolling_window_days: '' })
+  })
   it('appends the rolling columns after every other column', () => {
     const [record] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
     expect(Object.keys(record).slice(-5)).toEqual(['rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max'])

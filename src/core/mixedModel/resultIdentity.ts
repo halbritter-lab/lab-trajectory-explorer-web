@@ -61,7 +61,6 @@ export function mixedModelFitConfigHash(
     },
     fitConfig: spec.fitConfig
       ? {
-          xAxis: spec.fitConfig.xAxis,
           censoring: spec.fitConfig.censoring,
           exclusions: spec.fitConfig.exclusions,
           timeBalancing: spec.fitConfig.timeBalancing,

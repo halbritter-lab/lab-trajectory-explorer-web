@@ -243,7 +243,9 @@ of [method algorithms](method-algorithms.md) concerned:
 - **OD-28.** The report is a demographics conflict (`age_implausible`) under
   "Conflicts and their resolution" on the Data page.
 - **OD-1.** A change under Trajectories to the fit model, time balancing,
-  censoring or AKI exclusion discards fitted cohort models.
+  censoring or AKI exclusion of a parameter discards the cohort models fitted
+  for that parameter. A parameter's own settings keep applying to its cohort
+  model when the parameter is no longer shown as a Trajectories column.
 
 Still marked *(proposed)* and not part of this walkthrough: no individual G5
 projection is computed for the time before kidney replacement therapy once

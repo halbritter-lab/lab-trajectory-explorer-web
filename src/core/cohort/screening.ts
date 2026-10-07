@@ -170,7 +170,7 @@ export function buildCohortRows(
             },
           )
       const slope = match?.slope ?? Number.NaN
-      const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match
+      const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match && match.nFitted > 0
         ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN }
         : undefined
       return {

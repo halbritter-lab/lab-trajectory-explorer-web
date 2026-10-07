@@ -1390,10 +1390,15 @@ window slopes were computed and discarded and no line was drawn):
   global line is not drawn in this mode.
 - **Window statistics.** The cell shows the number of windows and the smallest
   and largest window slope ("5 windows · local slopes −8 to 0 …/year"), or
-  "No 730-day window with three fitted measurements; no local slopes". The
-  variance `slopeVar` is computed but not shown.
-- **Export.** The cohort and slope sheets end with five columns, appended
-  after all other columns so that earlier column positions are unchanged:
+  "No 730-day window with three fitted measurements; no local slopes". A
+  series without any fitted value shows neither. The variance `slopeVar` is
+  computed but not shown.
+- **Overlay counts.** In rolling mode a series counts as fitted when a window
+  line is drawn. A series with a global slope but no window is counted among
+  the trajectories without an available fit and not among the uncertain fits.
+- **Export.** The cohort and slope sheets end with five columns, placed after
+  all other columns of the sheet (`n_fitted` and `fitted_span_days` included)
+  so that earlier column positions are unchanged:
 
   | Column | Content for slope mode `rolling` | Other modes |
   | --- | --- | --- |
@@ -1402,7 +1407,8 @@ window slopes were computed and discarded and no line was drawn):
   | `rolling_windows` | number of fitted windows, `0` when there is none | blank |
   | `rolling_slope_min`, `rolling_slope_max` | smallest and largest window slope per year, unrounded; blank without a window | blank |
 
-  With fit model "No fit" the columns are blank.
+  With fit model "No fit", and for a series without any fitted value, the
+  columns are blank.
 
 Example: one value at the start of every quarter from 2018-01-01 to
 2022-01-01 (17 values), 60 up to 2020-01-01 and falling by 8 per year
@@ -1412,7 +1418,7 @@ slope, is −4.00 per year. The five windows give:
 | Centre | Points | Window slope per year | Line drawn from | to |
 | --- | ---: | ---: | --- | --- |
 | 2019-01-01 | 9 | 0.00 | 2018-10-03 (60.00) | 2019-04-01 (60.00) |
-| 2019-06-30 | 8 | −0.66 | 2019-04-01 (59.84) | 2019-09-28 (59.51) |
+| 2019-06-30 | 8 | −0.66 | 2019-04-01 (59.83) | 2019-09-28 (59.51) |
 | 2019-12-27 | 8 | −3.23 | 2019-09-28 (58.94) | 2020-03-26 (57.34) |
 | 2020-06-24 | 8 | −6.18 | 2020-03-26 (57.13) | 2020-09-22 (54.08) |
 | 2020-12-21 | 8 | −8.00 | 2020-09-22 (54.20) | 2021-03-21 (50.25) |
@@ -3095,17 +3101,26 @@ apply and the count was always 0.
 - Until a preset is chosen under Trajectories, and for a dataset just loaded,
   the configuration is general exploration: no event censoring, no AKI
   exclusion, raw time balancing.
-- Below the checkbox the page states the configuration in use, for example
-  "CKD progression: quarterly medians; event windows after kidney transplant,
+- Below the checkbox the page states the configuration in use and whether it
+  is the shared one or the parameter's own, for example "CKD progression
+  (shared settings): quarterly medians; event windows after kidney transplant,
   after chronic dialysis start, acute dialysis intervals, dated dialysis of
-  unknown intent; AKI windows 30 days."
+  unknown intent; AKI windows 30 days." A preset that was edited is named
+  "Edited settings". A parameter that is not among the Trajectories columns
+  keeps own settings given to it earlier.
+- With fit model "No fit" the page says that no cohort model is prepared, the
+  Fit button is disabled and the count of excluded measurements is not shown.
 - The checkbox *Apply preset event and AKI exclusions* switches stage 3 only.
   Time balancing (stage 4) and the "No fit" rule (stage 2) apply in either
   position.
 - A change under Trajectories to the fit model, the time balancing, the
-  censoring options or the AKI exclusion discards all fitted models and their
-  projections, like every other change to the model data. Changes to endpoint
-  settings or the rapid-decline threshold do not.
+  censoring options or the AKI exclusion of a parameter discards the fitted
+  models and projections when a model of that parameter is stored, like every
+  other change to the model data; a running fit is stopped by any such change.
+  Changes to endpoint settings, to the rapid-decline threshold or to the
+  settings of another parameter do not. The identity of a fitted result
+  depends on the same four settings and on nothing else of the fit
+  configuration; the display axis of a preset is not part of it.
 - The reference line drawn in the Trajectories overlay is looked up with the
   same configuration.
 

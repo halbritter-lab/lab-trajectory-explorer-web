@@ -75,10 +75,23 @@ export function trajectoryFitConfig(
 }
 
 /** The part of the settings that decides which measurements a cohort model
- * receives. Endpoint and badge settings do not belong to it. */
-export function modelPreparationKey(settings: TrajectoryFitSettings): string {
+ * receives: fit model, time balancing, censoring and exclusions. Endpoint and
+ * badge settings do not belong to it. With a parameter key, the settings that
+ * apply to that parameter; without, those of every parameter. The model's
+ * fit-configuration hash depends on exactly these fields. */
+export function modelPreparationKey(settings: TrajectoryFitSettings, parameterKey?: string): string {
   const part = (s: WorkspaceFitSettings) => ({ fitModel: s.fitModel, timeBalancing: s.timeBalancing, censoring: s.censoring, exclusions: s.exclusions })
+  if (parameterKey !== undefined) return JSON.stringify(part(settings.columns[parameterKey] ?? settings.shared))
   return JSON.stringify({ shared: part(settings.shared), columns: Object.keys(settings.columns).sort().map(key => [key, part(settings.columns[key])]) })
+}
+
+/** How the settings that apply to a parameter are named on the Cohort models
+ * page: the catalog preset, or "Own settings" once edited, and whether they
+ * are the parameter's own or the shared ones. */
+export function modelPreparationSource(settings: TrajectoryFitSettings, parameterKey: string): string {
+  const own = settings.columns[parameterKey]
+  const name = fitPresetById((own ?? settings.shared).presetId)?.name ?? 'Edited settings'
+  return `${name} (${own ? 'own settings of this parameter' : 'shared settings'})`
 }
 
 const TIME_BALANCING_TEXT: Record<TimeBalancing, string> = {
@@ -89,8 +102,7 @@ const TIME_BALANCING_TEXT: Record<TimeBalancing, string> = {
 
 /** One sentence on how a fit configuration prepares the measurements of a
  * cohort model, for the Cohort models page. */
-export function describeModelPreparation(config: FitConfig): string {
-  const name = config.preset === 'custom' ? 'Own settings' : fitPresetById(config.preset)?.name ?? config.preset
+export function describeModelPreparation(config: FitConfig, name: string): string {
   if (config.fitModel === 'none') return `${name}: no fit, so no cohort model is prepared for this parameter.`
   const c = config.censoring
   const events = [
