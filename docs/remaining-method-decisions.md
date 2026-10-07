@@ -142,12 +142,18 @@ methodology page was not edited; wording changes there remain the owner's call.
 ## Decisions of 2026-10-07 (open-decision walkthrough)
 
 Taken by the project owner in a walkthrough of the 29 open decisions and the
-three defaults marked *(proposed)* above. This section records the decisions
-only. **Nothing here is implemented yet**: each `OD-n` marker in
-[method algorithms](method-algorithms.md#open-decisions) stays until the change
-that resolves it lands, with its own tests, changelog line and, for numeric
-changes, a deliberate fixture update. Methodology-page wording is drafted for
-the owner's approval, not edited directly.
+three defaults marked *(proposed)* above.
+
+Status on 2026-10-07: the 19 behaviour changes below and the text change of
+OD-6 are implemented, each with tests, a changelog entry and an updated
+section in [method algorithms](method-algorithms.md#resolved-decisions); one
+stored regression case moved deliberately (`"1.234"` in
+`tests/goldens/wert.json`, OD-8). The markers of OD-3, OD-4, OD-5, OD-10 and
+OD-12 stay until the owner has approved the
+[methodology wording drafts](methodology-wording-drafts.md); the methodology
+page itself has not been edited. Details of the implementation that the
+decisions did not spell out are listed under "Implementation notes" below and
+are open to the owner's revision.
 
 Release scope: 0.3.0 resolves the items listed under "before 0.3.0". The four
 items under "after 0.3.0" ship with their markers in place.
@@ -204,6 +210,44 @@ items under "after 0.3.0" ship with their markers in place.
 | OD-21 | Remove the unused `tolerance` export field; pin R package versions. |
 | OD-22 | A control to switch a factor between numeric and categorical. |
 | OD-29 | Choose the default reference level from the fitted data. |
+
+### Implementation notes
+
+Choices made while implementing the decisions, each documented in the section
+of [method algorithms](method-algorithms.md) concerned:
+
+- **OD-2.** A window's line is drawn over the 180 days around the window
+  centre, clipped to the window's own measurements, so that the lines of
+  consecutive windows adjoin instead of overlapping.
+- **OD-8.** The warning also counts bounds such as `< 1.234`. Typed numeric
+  workbook cells and pre-parsed numbers are not counted.
+- **OD-13.** The number of non-positive creatinine values is shown on the Data
+  page under "Demographics and data quality", not in the import notice.
+- **OD-14.** The creatinine values under dialysis are removed from the
+  detection input, so they are neither a baseline nor a peak; a chronic
+  dialysis ends on the day of the next kidney transplant on or after its start.
+- **OD-16.** "Birth date known" means a birth date from the attributes table
+  or the lab rows; a manual age and an age inferred from stated ages count as
+  whole years. Without a birth date the badge shows the rounded value with a
+  tilde (`G5 @ ~66y`); the export keeps the unrounded value and adds
+  `endpoint_prediction_age_basis`.
+- **OD-19.** The limit is 365 days. The input rejects a larger entry; a larger
+  value in a stored configuration is evaluated as 365.
+- **OD-20.** The accepted spellings are those the projection presets already
+  accepted (`ml/min/1.73m2` after ignoring case and spaces, with a decimal
+  comma, `²` or `^2`). An eGFR series imported with the bare unit `ml/min`
+  no longer receives endpoints.
+- **OD-26.** A row without a patient ID that is empty in every recognised
+  column is still skipped silently.
+- **OD-27.** The operator cell is trimmed before it is compared.
+- **OD-28.** The report is a demographics conflict (`age_implausible`) under
+  "Conflicts and their resolution" on the Data page.
+- **OD-1.** A change under Trajectories to the fit model, time balancing,
+  censoring or AKI exclusion discards fitted cohort models.
+
+Still marked *(proposed)* and not part of this walkthrough: no individual G5
+projection is computed for the time before kidney replacement therapy once
+kidney failure was reached.
 
 ### Release gate
 

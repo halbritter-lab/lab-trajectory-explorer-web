@@ -129,6 +129,9 @@ These remain tracked; their earlier mention was not a complete specification.
 For each item, obtain a concrete use case and either implement an approved scope
 or record an explicit deferral. Do not silently mark them complete.
 
+Owner decision of 2026-10-07: none of these items is needed for release 0.3.0.
+All are deferred until after that release and stay open here.
+
 - [ ] Dated interventions: start/end/change/repeated treatments and their model.
 - [ ] Optional event-time analysis: time origin, follow-up, censoring, competing
   events and desired output, separate from conditional trend projection.

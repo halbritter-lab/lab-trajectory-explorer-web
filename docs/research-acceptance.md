@@ -32,7 +32,9 @@ in a non-default preset, the no-fit path, or quarterly aggregation.
 ### Data
 
 - [ ] Import completes; rejected rows and warnings are understandable and match
-  what you expect from the file. Loaded events and rejected event rows are
+  what you expect from the file. If the file holds text values with exactly
+  three digits after a point, check the warning and that they were meant as
+  decimals. Loaded events and rejected event rows are
   listed as expected.
 - [ ] If you used the former interface with "remember" on this browser, its saved
   data is removed at start-up and the Data page says so once.
@@ -49,12 +51,16 @@ in a non-default preset, the no-fit path, or quarterly aggregation.
   Theil–Sen robust trend, CKD progression (quarterly medians, censoring,
   AKI exclusion), Acute review (no fit). Check that slopes, fitted lines and
   quality notices change in a way you can explain.
-- [ ] Rolling OLS and Segmented OLS from the advanced settings.
+- [ ] Rolling OLS and Segmented OLS from the advanced settings. Rolling OLS
+  draws one short line per two-year window and states the number of windows
+  with their smallest and largest slope; the reported slope stays the global
+  one.
 - [ ] For each known patient: slope, number of fitted points, excluded
   measurements and their stated reasons are plausible. Excluded measurements
   appear as grey open circles in the charts.
 - [ ] With **AKI windows and episodes** on, the marked episodes and windows
-  match creatinine courses you know.
+  match creatinine courses you know. For a patient on chronic dialysis, or
+  with a dated acute dialysis, no episode is marked during dialysis.
 - [ ] Overlay: grouping and unreliable-fit markers make sense for the cohort.
 - [ ] Reversing a metric sort gives the expected order.
 
@@ -65,12 +71,21 @@ in a non-default preset, the no-fit path, or quarterly aggregation.
 - [ ] Change the minimum confirmation interval (for example 90 → 180 days) and
   confirm that events appear or disappear as expected.
 - [ ] Projected age to G5: plausible for a declining patient; unavailable with a
-  sensible reason for stable, short or already-low courses.
+  sensible reason for stable, short or already-low courses. With a birth date
+  in the file the badge shows one decimal; with stated ages only it shows a
+  rounded value marked with a tilde.
+- [ ] An imported eGFR series is recognised only with the unit
+  mL/min/1.73 m². Check that your eGFR column carries that unit; a series in
+  plain ml/min receives no endpoints.
 
 ### Cohort models
 
 - [ ] Fit a model that answers one of the prepared questions, with the intended
   covariates and reference categories.
+- [ ] The page states the Trajectories analysis settings it uses for the
+  parameter. Select CKD progression under Trajectories and confirm that the
+  count of excluded measurements and the number of model measurements change
+  as expected, and that a previously fitted model is discarded.
 - [ ] Coefficients, reference-trajectory preview and projections are plausible
   and use the units you expect.
 - [ ] After fitting a grouped model, the trajectory overlay grouped by the same
@@ -104,7 +119,7 @@ for clinical and statistical questions; see the repository's issue rules).
 ## Decisions after the run
 
 - [ ] Accepted for release 0.3.0, or list the blocking findings.
-- [ ] Retained extensions (interventions, event-time analysis, input-column
-  mapping, saved projects, further derivations, exploratory estimators): needed
-  for 0.3.0, scoped for later, or explicitly deferred. See the
+- [x] Retained extensions (interventions, event-time analysis, input-column
+  mapping, saved projects, further derivations, exploratory estimators):
+  explicitly deferred until after 0.3.0 by the owner on 2026-10-07. See the
   [completion backlog](workspace-completion-backlog.md), section 5.

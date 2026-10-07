@@ -74,12 +74,17 @@ Contents:
 ## Open decisions
 
 Each entry is described in full in the section named, with an example where
-one applies. The first eight are the conflicts between documentation and
-behaviour found by the documentation review of 2026-10-07; the others were
-found while the rules were written down and verified. Where a marker cites the
-methodology page, that page is unchanged; passages of the changelog that
-described behaviour the code does not have were corrected in the same change
-and are no longer cited as conflicts.
+one applies. The documentation review of 2026-10-07 produced 29 entries; the
+owner decided all of them on the same day (see
+[method decisions](remaining-method-decisions.md)). Those already implemented
+are listed under *Resolved decisions* below. Two kinds remain:
+
+- **OD-3, OD-4, OD-5, OD-10 and OD-12: the behaviour stays, the methodology
+  page is to be corrected.** The page is the owner's wording, so each marker
+  stays until he has approved the proposed text in
+  [methodology wording drafts](methodology-wording-drafts.md).
+- **OD-11, OD-21, OD-22 and OD-29: to be changed after release 0.3.0.** The
+  behaviour is unchanged until then.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
