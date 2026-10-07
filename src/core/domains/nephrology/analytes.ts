@@ -2,11 +2,11 @@
  * Nephrology analyte recognition: which imported series are serum creatinine,
  * which are eGFR, and how computed eGFR series are named.
  *
- * Several predicates below look alike but are deliberately not unified: each
- * is pinned by a different call site's established behaviour (and some by
+ * The creatinine predicates below look alike but are deliberately not unified:
+ * each is pinned by a different call site's established behaviour (and some by
  * parity tests), and the variants disagree on edge cases such as surrounding
  * whitespace, non-breaking spaces and unit spelling. Each documents which call
- * sites rely on it.
+ * sites rely on it. eGFR has one rule, `isEgfrUnit`.
  */
 import { unitKey } from '../../parse/units'
 
@@ -74,18 +74,15 @@ export function isKdigoCreatinineSeries(bez: string, einheit: string | null): bo
   return isSerumCreatinineSeries(bez, einheit)
 }
 
-/** eGFR by unit: any unit containing "ml/min" (case-insensitive). Gates the
- * CKD endpoints and the rapid-decline flag. */
+/** eGFR by unit: mL/min/1.73 m² in any of the usual spellings (letter case,
+ * spacing, decimal comma, superscript or caret 2), whatever the series is
+ * called. The single rule behind the CKD endpoints, kidney failure reached,
+ * the rapid-decline flag and the mixed-model projection presets (decided
+ * 2026-10-07). A clearance in ml/min is not eGFR. */
 export function isEgfrUnit(einheit: string | null): boolean {
-  return einheit != null && einheit.toLowerCase().includes('ml/min')
-}
-
-/** eGFR by name and unit, as the mixed-model projection presets require: the
- * outcome name starts with "eGFR" and the unit is mL/min/1.73 m² in any of the
- * usual spellings (decimal comma, superscript or caret 2, spacing). */
-export function isEgfrOutcome(outcome: string, unit: string): boolean {
-  const normalised = unit.toLowerCase().replace(/\s/g, '').replace(',', '.').replace('²', '2').replace('^2', '2')
-  return /^egfr(?:\b|_)/i.test(outcome) && normalised === 'ml/min/1.73m2'
+  if (einheit == null) return false
+  const normalised = einheit.toLowerCase().replace(/\s/g, '').replace(',', '.').replace('²', '2').replace('^2', '2')
+  return normalised === 'ml/min/1.73m2'
 }
 
 /** Name mentions eGFR anywhere (case-insensitive). Used only to pick a

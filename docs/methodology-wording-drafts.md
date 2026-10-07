@@ -1,0 +1,441 @@
+# Methodology page: wording drafts for owner approval
+
+Prepared 2026-10-07 after the [open-decision walkthrough](remaining-method-decisions.md#decisions-of-2026-10-07-open-decision-walkthrough).
+The methodology page (`src/workspace/methods/Methodology.tsx`) is published
+under the maintainer's authorship, so **nothing below has been applied**. Each
+entry quotes the start of the current passage and proposes a replacement. Mark
+each one accepted, edited or rejected; accepted text is then applied in one
+change and the matching `OD-n` marker in
+[method algorithms](method-algorithms.md) is removed with it.
+
+Part A is needed before release 0.3.0: without it the page contradicts the
+application. Part B adds topics the page does not cover yet; it can follow
+later.
+
+## Part A: passages that no longer match the application
+
+### A1. Cohort models follow the Trajectories settings (OD-1)
+
+Section *Fit Pipeline*, first paragraph. Current: "Cohort models have a
+separate checkbox for applying the active preset's event censoring and AKI
+exclusion windows. It starts on. …"
+
+Proposed:
+
+> Cohort models prepare their measurements with the analysis settings chosen
+> for the same parameter under Trajectories: its event censoring, AKI exclusion
+> windows and time balancing. With general exploration, the setting of a newly
+> loaded dataset, nothing is excluded or aggregated. The Cohort models page
+> states the settings in use. A separate checkbox, on by default, applies the
+> event censoring and AKI windows; turning it off retains the eligible exact
+> dated measurements inside those windows, while time balancing still applies.
+> A parameter set to "No fit" supplies no model rows. The preview, each model
+> status and the workbook record the selected policy and the number of
+> measurements removed by the union of those windows. This count is taken
+> before time balancing and missing-factor exclusions. Changing these settings
+> under Trajectories discards fitted models.
+
+### A2. Which series count as eGFR; limit of the confirmation interval (OD-19, OD-20)
+
+Section *Fit Pipeline*, bullet **Endpoints**. Current: "eGFR series can report
+total percent change … The minimum confirmation interval defaults to 90 days
+and is configurable as positive whole days."
+
+Proposed change to the first sentence and the last sentence only:
+
+> **Endpoints** — a series counts as eGFR when its unit is mL/min/1.73 m²,
+> whatever it is called; a clearance in ml/min does not. Such series can report
+> total percent change from the first to latest eligible measurement, …
+
+> … The minimum confirmation interval defaults to 90 days and can be set from
+> 1 to 365 whole days; a longer interval could never be met, because a
+> confirming value must follow within 12 calendar months.
+
+### A3. Rolling OLS (OD-2)
+
+Section *Choosing a Fit Model*. Current: "**Rolling OLS** — a separate OLS fit
+inside a sliding window. … It describes a sequence of local slopes rather than
+one summary number, so it answers "when did the decline accelerate" better than
+"how fast is the decline"."
+
+Proposed:
+
+> **Rolling OLS** — a separate OLS fit inside each two-year window (730 days),
+> moved forward in steps of 180 days; a window needs at least three fitted
+> measurements. Appropriate when the rate of change itself changes over the
+> observation period and a single slope would average a fast phase together
+> with a slow one. The chart draws each window's line over the 180 days around
+> the window centre, and the table gives the number of windows with the
+> smallest and largest window slope. The slope, R² and confidence interval
+> reported for the column, and the rapid-decline flag, remain those of the
+> single OLS line through all fitted measurements. A fitted span under two
+> years has no window and therefore no local slopes.
+
+### A4. Segmented OLS (OD-3)
+
+Same section. Current: "**Segmented OLS** — separate OLS fits per segment,
+split at long measurement gaps or at configured events. …"
+
+Proposed:
+
+> **Segmented OLS** — separate OLS fits per segment. A new segment starts
+> wherever two consecutive fitted measurements lie more than 180 days apart;
+> clinical events do not split a series. A segment needs at least three
+> measurements to be fitted, and the chart draws one line per fitted segment.
+> The slope, R² and confidence interval reported for the column remain those of
+> the single OLS line through all fitted measurements; the segment slopes are
+> shown as lines only. Use event censoring or exclusion when an event should
+> remove data.
+
+### A5. Relation to the Python package
+
+Section *How far each model is verified*, first bullet. Current: "**Parity
+against the reference implementation** — automated tests assert this port
+against golden values generated from the Python `analyses` package. …"
+
+Proposed:
+
+> **Stored regression cases** — automated tests compare the results with stored
+> cases that were originally generated by the Python `analyses` package. Since
+> October 2026 the application may deviate from that package deliberately; each
+> such change is documented and the affected case updated. The cases cover OLS,
+> rolling OLS, segmented OLS and Theil-Sen, for Theil-Sen including the slope,
+> separate-median intercept, 95% slope bounds and unavailable-fit cases.
+
+The later sentence "The numeric **reason** field is left reference-compatible"
+and the phrase "This reference-compatible field" in *Quality Flags* would lose
+the word "reference-compatible" accordingly (see A7).
+
+### A6. Individual endpoint prediction (OD-4, OD-16, OD-17, OD-18)
+
+Section *Individual endpoint prediction algorithm*, both paragraphs. Current
+first paragraph ends: "Add the remaining time after the latest measurement to
+its age. A confirmed G5 event takes precedence over projection." Current second
+paragraph begins: "Require three measurements, at least one year of follow-up,
+…" and uses the example 60, 50, 25.
+
+Proposed end of the first paragraph:
+
+> Add the remaining time after the latest measurement to the age at that
+> measurement. When the birth date is known, this is the exact age. Otherwise
+> the age is known in completed years only; the projected age can then be up to
+> one year too low, and the table shows it as a whole number marked as
+> approximate. A confirmed G5 event takes precedence over projection, whether
+> or not the observed G5 endpoint is displayed.
+
+Proposed second paragraph:
+
+> Require three measurements, at least 365 days between the first and the
+> latest, a finite declining fit, a future crossing and an age at the latest
+> measurement. Report a future crossing only within 20 years after the latest
+> eligible measurement, including the boundary. The endpoint fit's slope
+> confidence interval must have finite ordered bounds strictly below zero;
+> missing bounds or an interval that includes zero withhold the crossing. With
+> only three measurements this interval is so wide that it almost always
+> includes zero: for values 60, 50, 25 at years 0, 1, 2 the slope is −17.5 per
+> year but its interval runs from −72.5 to 37.5, so no crossing is reported.
+> In practice a projection needs more measurements. Example: eGFR 48, 44, 41,
+> 36, 33 and 29 on 15 January of six consecutive years gives a slope of −3.80
+> per year with an interval from −4.10 to −3.50; the fitted line reaches 15
+> about 3.7 years after the latest measurement. The displayed slope interval
+> may differ because it can use different prepared rows. New measurements can
+> change this prediction; they do not revoke a confirmed event.
+
+### A7. Quality flags (OD-9)
+
+Section *Quality Flags*. Current bullet: "**span_too_short** — a slope is
+produced, but the raw numeric observation span is fewer than 365 days. This
+reference-compatible field intentionally describes the unfiltered series; …"
+Current paragraph: "… grey text (n < 3) means no slope was produced at all, an
+amber note (…) means a slope exists but should be treated as unstable."
+
+Proposed bullet:
+
+> **span_too_short** — the raw numeric observation span is fewer than 365 days.
+> A slope is normally produced; the exception is a series whose fitted
+> measurements all share one date, for which no slope exists. This field
+> describes the unfiltered series; the displayed reliability rule below also
+> checks the fitted span.
+
+Proposed addition to the paragraph, after the sentence on grey and amber:
+
+> When all fitted measurements share one date, the grey note reads "All fitted
+> measurements on one date".
+
+### A8. Why an endpoint has no value (OD-16, OD-17, OD-18)
+
+Section *Why an Endpoint Has No Value*, last two bullets. Current: "**G5 no
+age** — no age is recorded for the latest measurement, so the projection has
+nothing to anchor to." and "**G5 n < 3** and **G5 < 1 yr** — the same
+stability thresholds as above, applied to the projection."
+
+Proposed:
+
+> **G5 no age** — no age is available for the latest eligible measurement, so
+> the projection has nothing to anchor to.
+
+> **G5 n < 3** and **G5 < 1 yr** — fewer than three eligible measurements, or
+> fewer than 365 days between the first and the latest. These are the same
+> numbers as the stability thresholds above, applied to the endpoint-eligible
+> measurements rather than to the fitted ones.
+
+Proposed new bullet:
+
+> **G5 not projected** can also mean that the data contain a confirmed G5
+> event while the observed G5 endpoint is switched off; the badge says so, and
+> the export gives the reason `observed_ckd_g5`. With the observed endpoint
+> on, the CKD G5 badge with its dates is shown instead.
+
+### A9. eGFR default (OD-5)
+
+Section *eGFR*. Current: "**CKD-EPI 2021** (default) — race-free equation …"
+
+Proposed: remove "(default)" and add one sentence before the list:
+
+> No eGFR is computed until a formula is applied under Data; the formula
+> selector starts at "Off". CKD-EPI 2021 is the first entry of the selector.
+
+### A10. Creatinine conversion constants (OD-12)
+
+Section *eGFR*, bullet **Units**. Current: "Values recorded in µmol/l are
+converted automatically (÷ 88.42); …"
+
+Proposed addition at the end of the bullet:
+
+> The EKFC equation's own age-specific Q values for ages 18 to 25 are converted
+> with the factor 88.4; the difference changes an eGFR by at most
+> about 0.03 mL/min/1.73 m².
+
+### A11. AKI detection: implausible values and dialysis (OD-13, OD-14)
+
+Section *AKI Detection*, first paragraph, and the limitations list. Current
+first paragraph: "… Only dated exact numeric values are used. …" Current
+limitation: "Staging is by creatinine ratio / absolute level only; it does not
+consider renal replacement therapy or paediatric eGFR criteria."
+
+Proposed addition to the first paragraph:
+
+> Values of zero or less are ignored. Creatinine measured under dialysis is
+> ignored as well: from the start of a chronic dialysis until a later kidney
+> transplant, and during an acute dialysis with a recorded end date, both
+> boundary days included. Detection continues after transplantation. Dialysis
+> of unknown intent and acute dialysis without an end date exclude nothing.
+
+Proposed limitation:
+
+> Staging is by creatinine ratio / absolute level only. Renal replacement
+> therapy does not raise the stage (KDIGO stage 3 by initiation of renal
+> replacement therapy is not applied); creatinine values measured under
+> dialysis are left out of detection as described above. Paediatric eGFR
+> criteria are not considered.
+
+### A12. Rapid decline flag (OD-10)
+
+Section *Cohort Screening*. Current: "An eGFR series whose fitted slope falls
+faster than the configured threshold (default 5 mL/min/1.73m² per year,
+matching the KDIGO definition of rapid CKD progression as a sustained decline
+faster than 5 mL/min/1.73m²/yr) is marked …"
+
+Proposed:
+
+> An eGFR series whose fitted slope falls faster than the configured threshold
+> is marked rapid ↓ in the table when the fit is shown, and carries a
+> `rapid_progression` column in the export. The default threshold of
+> 5 mL/min/1.73m² per year is the number KDIGO uses for rapid CKD progression,
+> which KDIGO defines as a sustained decline. The flag itself does not test
+> whether a decline is sustained: it is set for any computed slope beyond the
+> threshold, including one from two measurements or from a few weeks of
+> follow-up. Read it together with the reliability note of the same cell.
+
+The remaining sentences of that paragraph (adjusting the threshold, screening
+signal) stay as they are.
+
+## Part B: topics the page does not cover yet
+
+Seven new blocks, each drafted from the matching sections of
+[method algorithms](method-algorithms.md). They were compared with the code
+except where "Points to check" says otherwise. Each block was kept short;
+what was left out is listed at the end so that it can be added where wanted.
+
+### B1. Time balancing
+
+> #### Time Balancing: Monthly and Quarterly Medians
+>
+> With monthly or quarterly medians, the measurements that remain after
+> exclusions are grouped by UTC calendar month or calendar quarter
+> (January–March, April–June, July–September, October–December). Periods are
+> not counted from the patient's first measurement; 31 December and 1 January
+> fall in different periods.
+>
+> Each period with at least one measurement contributes one point. Its value
+> is the median; with an even count this is the mean of the two middle values.
+> Its date is the date of the lower-middle measurement in date order (the
+> earlier of two, the middle of three, the second of four), so it is always a
+> date on which a measurement exists. Periods without measurements contribute
+> nothing; no value is interpolated.
+>
+> Example: 50, 44, 47 and 41 on 10 January, 20 February, 5 March and 25 March
+> 2021 give the quarterly point 45.5 on 20 February 2021. Minimum point counts
+> and the fitted span refer to these points, not to the raw measurements.
+
+### B2. Ordinary least squares
+
+> #### Ordinary Least Squares (OLS)
+>
+> The OLS fit is unweighted: every fitted point has the same weight. Time is
+> measured in years of 365.25 days from the first fitted point (1 January 2020
+> to 1 January 2021 is 366 / 365.25 = 1.002 years), and the intercept is the
+> fitted value at that point.
+>
+> A regular fit needs at least three points. Exactly two points on different
+> dates give the exact line through both, with R² = 1 and no confidence
+> interval: 60 on 1 January 2020 and 56 on 1 January 2021 give −3.99 per year.
+> R² is the squared correlation of time and value; it is unavailable when all
+> fitted values are identical.
+>
+> The 95% interval is the slope ± t × standard error, where the standard error
+> comes from the residual sum of squares with n − 2 degrees of freedom and t is
+> the two-sided 95% value of Student's t distribution. It describes uncertainty
+> in the slope, not a prediction interval.
+
+### B3. Analysis presets
+
+> #### Analysis Presets
+>
+> A preset sets every analysis setting at once. Changing a single setting
+> afterwards marks the configuration as custom.
+>
+> - **General exploration** (the starting configuration) — OLS on raw
+>   measurements; no event censoring, no AKI exclusion, no time balancing, no
+>   endpoints.
+> - **Theil–Sen robust trend** — General exploration with the Theil–Sen
+>   estimator instead of OLS. Exports record it as a custom configuration.
+> - **CKD progression** — OLS on quarterly medians; values censored from kidney
+>   transplant and from chronic dialysis start; acute dialysis intervals and
+>   dated dialysis intervals of unknown intent excluded; a 30-day window after
+>   each AKI onset excluded; percent decline, observed G4, observed G5 and
+>   projected age to G5 switched on, with a 90-day minimum confirmation
+>   interval.
+> - **Acute review** — raw measurements without a fit; no event censoring, no
+>   AKI exclusion, no endpoints.
+>
+> Every preset sets the rapid-decline threshold to 5 mL/min/1.73m² per year.
+> Endpoint settings take effect on eGFR series only.
+
+### B4. AKI timing, episodes and the exclusion window
+
+> #### AKI Timing, Episodes and the Fit-Exclusion Window
+>
+> Lab dates are calendar days without a time of day. The 48-hour window
+> therefore covers earlier measurements on the same date or one or two calendar
+> days earlier, and the 7-day window those up to seven calendar days earlier,
+> limits included. A rise from 1.0 to 1.3 mg/dl two days apart is detected;
+> three days apart it is not.
+>
+> Each measurement that meets a criterion is a crossing. Consecutive crossings
+> form one episode only while they share the same baseline date; the onset is
+> the date of the first crossing. An episode has no end date, so a sustained
+> rise is reported as a chain of episodes: daily values of 1.0, 1.4, 1.8, 2.2,
+> 2.6 and 3.0 mg/dl give four Stage I episodes.
+>
+> With AKI exclusion on, each episode removes from the fit all measurements
+> from the onset date through onset + 30 days (default), both ends included:
+> onset 2 January 2020 excludes 2 January to 1 February 2020.
+
+### B5. eGFR: conditions, age and rounding
+
+> #### eGFR: Conditions, Age and Rounding
+>
+> A creatinine measurement yields an eGFR value only when it has a lab date and
+> a numeric value, the creatinine is greater than 0 mg/dl after conversion, the
+> patient's sex is resolved, and the age is known and at least 18 (17 gives no
+> value, 18 does). Otherwise no value is produced.
+>
+> Age is the number of whole completed years at the lab date. It changes on the
+> birthday; fractional age is not used. A series therefore shows a small step
+> at each birthday: one further year lowers CKD-EPI 2021 by 0.62%.
+>
+> Each result is rounded to one decimal, and the rounded value is used in every
+> later calculation: fits, observed G4/G5, percent decline, projections, the
+> rapid-decline flag and cohort models. CKD-EPI 2021 for a male aged 65 with
+> 2.35 mg/dl gives 29.96, which is stored as 30.0 and is therefore not below
+> the G4 boundary of 30. No upper or lower limit is applied to the result.
+
+### B6. Resolving sex and age
+
+> #### Resolving Sex and Age
+>
+> Sex and a birth-date anchor are resolved once per patient.
+>
+> - **Sex** — accepted spellings, ignoring case: m, male, man, mann, männlich,
+>   maennlich, mannlich; w, f, female, woman, weiblich, frau; d, divers,
+>   diverse. Other values, such as other or unknown, count as no sex. Sources in
+>   order: manual entry, attributes table, the code stated most often on the
+>   patient's lab rows. If the two most frequent codes tie, the rows yield no
+>   sex.
+> - **Age** — sources in order: manual age (read as the age at the earliest
+>   dated row), attributes-table birth date, birth date on the earliest dated
+>   lab row, stated ages. Each stated age defines a one-year interval of
+>   possible birth dates; the anchor is the midpoint of their intersection.
+>   Without a common birth date, the median of the interval midpoints is used.
+> - **Reported as conflicts** — differing sex codes, a tie, differing birth
+>   dates, stated ages contradicting the birth date or each other, implausible
+>   stated ages. A manual sex or age suppresses the corresponding reports.
+
+This block overlaps the existing **Age** bullet in the eGFR section; one of the
+two would be shortened.
+
+### B7. Cohort models
+
+> #### Cohort Model Specification, Intervals and Projections
+>
+> The cohort model is a linear mixed model of the measured value on time in
+> years, with a random intercept and slope per patient by default, estimated by
+> restricted maximum likelihood (REML). A "level" factor shifts the level;
+> "level and slope" also adds an interaction with time. Numeric factors,
+> including baseline age, are centred at their mean over the modelled patients,
+> one value each. Categorical factors use treatment contrasts: each coefficient
+> is the difference from the reference level. Fixed effects have 95% Wald
+> intervals; no p-values are computed.
+>
+> The model line shows the reference profile — numeric factors at their
+> centres, categorical factors at their reference levels — from fixed effects
+> only, within observed model time.
+>
+> A projection is the time at which a profile's fixed-effect line reaches a
+> threshold; it has no interval. It is reported only within the horizon
+> (default 20 years, exactly 20 included) and is withheld unless the fit
+> converged, is not singular and matches the current data and settings.
+
+### Points to check in Part B
+
+- **Not compared with the code**, taken from the reference only: that every
+  preset resets the rapid-decline threshold to 5 (B3); that centring is done
+  per fitted unit, and the extent of the model line (B7).
+- **B2 and OD-11.** The t value is exact up to 42 points. From 43 to 122
+  points a stepped table makes the interval up to 0.62 % wider than exact, and
+  from 123 points the normal value 1.96 makes it up to 1.00 % narrower. The
+  draft says only "Student's t"; OD-11 is scheduled after 0.3.0.
+- **B7 and OD-22, OD-29.** Automatic numeric or categorical typing and the
+  dataset-wide default reference level are not mentioned.
+- **B5.** A bounded creatinine row (`<x`, `>x`) produces a displayed eGFR bound
+  with the inequality reversed, which is excluded from all calculations; the
+  existing paragraph on bounds covers this.
+- **Left out for length**, available in the reference:
+  - B1: the median value need not have been measured on the representative
+    date.
+  - B2: points that all share one date give no slope; same-date rows each
+    count as a point.
+  - B4: the absolute criterion is tested first and fixes the 48-hour baseline,
+    so a stage can be lower than against the 7-day minimum; the window length
+    can be changed; the windows apply to any analyte column with the switch on.
+  - B6: the row vote counts all lab rows and is a plurality; an explicit birth
+    date always wins over stated ages; the 29 February rule.
+  - B7: the random-intercept-only option; removal of patients who lack a
+    factor value; the statuses shown instead of a time (already met, flat,
+    moving away, beyond horizon); the slope interval is not used to withhold a
+    cohort projection, unlike the individual G5 projection. This block is the
+    most compressed and could be split into model and projections.
+- The existing Fit Pipeline paragraph says a singular fit withholds
+  projections and model lines; a non-converged fit does so as well, as B7
+  states.

@@ -9,6 +9,7 @@ import type { FitConfig } from '../core/analysis/fitConfig'
 import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../io/loadDataset'
 import { resolveBirthAnchor } from '../core/demographics/resolveAge'
 import { parseAttributeDate } from '../core/demographics/resolve'
+import { trajectoryFitConfig, type TrajectoryFitSettings } from './workspace-analysis'
 
 export interface WorkspaceParameter { key: string; label: string; bezeichnung: string; einheit: string | null; derived: boolean }
 export interface WorkspacePatient { id: PatientId; label: string; attributes: Record<string, string>; baselineAge: number | null; birthAnchor?: Date | null; ageEstimated?: boolean }
@@ -69,9 +70,20 @@ export function useWorkspaceData(): WorkspaceData {
   }, [rawRows, fileName, events, attributes, analysisSettings, manualDemographics])
 }
 
+/** The spec of one parameter as cohort models and their overlay lines prepare
+ * it: with the analysis settings chosen for that parameter under Trajectories. */
+export function workspaceModelSpec(data: WorkspaceData, parameterKey: string, settings: TrajectoryFitSettings): CohortSeriesSpec | undefined {
+  const parameter = data.parameters.find(p => p.key === parameterKey)
+  return parameter ? workspaceSpecs(data, [parameterKey], { [parameterKey]: trajectoryFitConfig(settings, parameter) })[0] : undefined
+}
+
 export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>): CohortSeriesSpec[] {
   const parameters = new Map(data.parameters.map(p => [p.key, p]))
-  const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), fitInputs: data.analysis?.fitInputs ?? Object.create(null) }
+  // A birth date read from the attributes table or the lab rows gives exact
+  // ages; a manual or inferred age (ageEstimated) is known in whole years only.
+  const exactBirthDateByPatient: Record<string, Date> = Object.create(null)
+  for (const patient of data.patients) if (patient.birthAnchor && patient.ageEstimated === false) exactBirthDateByPatient[patientIdKey(patient.id)] = patient.birthAnchor
+  const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), exactBirthDateByPatient, fitInputs: data.analysis?.fitInputs ?? Object.create(null) }
   return parameterKeys.flatMap(key => {
     const parameter = parameters.get(key)
     return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], context)] : []

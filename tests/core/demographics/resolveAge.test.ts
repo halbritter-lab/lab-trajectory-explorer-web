@@ -36,6 +36,22 @@ describe('resolveBirthAnchor', () => {
     }
   })
 
+  it('reports stated ages that are not plausible ages, without changing the resolution (OD-28)', () => {
+    const birthYear = resolveBirthAnchor({ ...base, rows: [{ labDatum: utc('2024-03-09'), ageAtLab: 1950, birthDate: null }] })
+    expect(completedYears(birthYear.birthAnchor!, utc('2024-03-09'))).toBe(50)
+    expect(birthYear.conflicts).toEqual([{ kind: 'age_implausible', patientId: 1, rows: 1, example: 1950 }])
+
+    const negative = resolveBirthAnchor({ ...base, rows: [
+      { labDatum: utc('2024-03-09'), ageAtLab: -3, birthDate: null },
+      { labDatum: utc('2024-03-10'), ageAtLab: -3, birthDate: null },
+    ] })
+    expect(completedYears(negative.birthAnchor!, utc('2024-03-09'))).toBeNull()
+    expect(negative.conflicts).toEqual([{ kind: 'age_implausible', patientId: 1, rows: 2, example: -3 }])
+
+    const kept = resolveBirthAnchor({ ...base, rows: [{ labDatum: utc('2024-03-09'), ageAtLab: 150, birthDate: null }] })
+    expect(kept.conflicts).toEqual([])
+  })
+
   it('reports a typo that fits no single birth date', () => {
     const out = resolveBirthAnchor({
       ...base,

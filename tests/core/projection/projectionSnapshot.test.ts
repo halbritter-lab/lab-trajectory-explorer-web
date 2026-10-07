@@ -15,7 +15,8 @@ function source() {
 }
 it('binds renal presets to compatible outcomes/units and returns independent copies', () => {
   expect(projectionTargetPresets(response).map(t => t.threshold)).toEqual([30,15])
-  expect(projectionTargetPresets({outcome:'Other',unit:response.unit})).toEqual([])
+  // Since 2026-10-07 the unit alone identifies eGFR (formerly OD-20).
+  expect(projectionTargetPresets({outcome:'Other',unit:response.unit}).map(t => t.threshold)).toEqual([30,15])
   expect(projectionTargetPresets({outcome:'eGFR',unit:'mg/dL'})).toEqual([])
   expect(projectionTargetPresets({outcome:'eGFR',unit:'ml/min'})).toEqual([])
   const presets = projectionTargetPresets(response)

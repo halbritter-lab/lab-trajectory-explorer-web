@@ -27,11 +27,15 @@ function endpointSettingsFor(series: SeriesKey, endpoints?: Partial<CkdEndpointC
 
 const endpointDate = (date: Date | null): string => date?.toISOString().slice(0, 10) ?? ''
 const observedEvaluated = (e: CkdEndpoints) => e.evaluated.observedCkdG4 || e.evaluated.observedCkdG5 || e.evaluated.percentDecline
+// The projection evaluates an observed G5 with the same interval and window, also with that endpoint off.
+const confirmationUsed = (e: CkdEndpoints) => observedEvaluated(e) || e.evaluated.projectedAgeToCkdG5
 const anyEvaluated = (e: CkdEndpoints) => observedEvaluated(e) || e.evaluated.percentDecline || e.evaluated.projectedAgeToCkdG5
 type Cell = ModuleExportCell<CkdEndpoints>
+/** Export text for the basis of a projected age; blank without a projection. */
+const AGE_BASIS_LABELS = { birth_date: 'birth date', whole_years: 'age in completed years', none: '' } as const
 
 /**
- * CKD endpoints of eGFR series (any unit containing "ml/min"): total percent
+ * CKD endpoints of eGFR series (unit mL/min/1.73 m², see isEgfrUnit): total percent
  * decline, observed CKD G4 and G5 (threshold crossings confirmed after the
  * column's interval) and the projected age at G5 along the series' fitted
  * line. The column's fit configuration (`endpoints`) selects which are
@@ -51,7 +55,7 @@ export const ckdEndpointsModule = {
     const kidneyFailureReached = ctx.hasSeriesMeasurements && isEgfrUnit(ctx.seriesKey.einheit) ? firstKidneyFailureEvent(ctx.events) : null
     const fit = projecting && !kidneyFailureReached ? ctx.fit() : { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
     return computeCkdEndpoints({ points: ctx.points(projecting), slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
-      kidneyFailureReached })
+      kidneyFailureReached, ageBasis: ctx.ageBasis })
   },
   // Column order is part of the export format: the first three predate the
   // others, which were appended so positional readers keep working.
@@ -60,7 +64,7 @@ export const ckdEndpointsModule = {
     { key: 'endpoint_observed_ckd_g5', value: (c: Cell) => c.endpoints.observedCkdG5.met ? 'yes' : '' },
     { key: 'endpoint_projected_age_to_ckd_g5', value: (c: Cell) => c.endpoints.projectedAgeToCkdG5.value ?? '' },
     { key: 'endpoint_observed_ckd_g4', value: (c: Cell) => c.endpoints.observedCkdG4.met ? 'yes' : '' },
-    { key: 'endpoint_confirmation_days', value: (c: Cell) => observedEvaluated(c.endpoints) ? c.endpoints.confirmationDays : '' },
+    { key: 'endpoint_confirmation_days', value: (c: Cell) => confirmationUsed(c.endpoints) ? c.endpoints.confirmationDays : '' },
     { key: 'endpoint_input_policy', value: (c: Cell) => anyEvaluated(c.endpoints) ? 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded' : '' },
     { key: 'endpoint_kidney_failure_reached', value: (c: Cell) => c.endpoints.kidneyFailureReached ? 'yes' : '' },
     { key: 'endpoint_kidney_failure_type', value: (c: Cell) => c.endpoints.kidneyFailureReached?.type ?? '' },
@@ -83,7 +87,7 @@ export const ckdEndpointsModule = {
     { key: 'endpoint_g5_first_value', value: (c: Cell) => c.endpoints.observedCkdG5.firstValue ?? '' },
     { key: 'endpoint_g5_confirmed_value', value: (c: Cell) => c.endpoints.observedCkdG5.confirmedValue ?? '' },
     { key: 'endpoint_g5_recovery_value', value: (c: Cell) => c.endpoints.observedCkdG5.recoveryValue ?? '' },
-    { key: 'endpoint_confirmation_max_months', value: (c: Cell) => observedEvaluated(c.endpoints) ? 12 : '' },
+    { key: 'endpoint_confirmation_max_months', value: (c: Cell) => confirmationUsed(c.endpoints) ? 12 : '' },
     { key: 'endpoint_decline_baseline_value', value: (c: Cell) => c.endpoints.declineBaselineValue ?? '' },
     { key: 'endpoint_observed_decline_40', value: (c: Cell) => c.endpoints.observedDecline40.met ? 'yes' : '' },
     { key: 'endpoint_observed_decline_57', value: (c: Cell) => c.endpoints.observedDecline57.met ? 'yes' : '' },
@@ -95,5 +99,6 @@ export const ckdEndpointsModule = {
       { key: `endpoint_decline_${threshold}_confirmed_value`, value: (c: Cell) => c.endpoints[field].confirmedValue ?? '' },
       { key: `endpoint_decline_${threshold}_recovery_value`, value: (c: Cell) => c.endpoints[field].recoveryValue ?? '' },
     ]),
+    { key: 'endpoint_prediction_age_basis', value: (c: Cell) => AGE_BASIS_LABELS[c.endpoints.projectedAgeToCkdG5.ageBasis ?? 'none'] },
   ],
 } satisfies AnalysisModule<undefined, 'ckdEndpoints'>

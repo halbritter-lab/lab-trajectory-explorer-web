@@ -139,6 +139,132 @@ is and marks it **Open decision OD-n**. The
 each needs an owner decision to change either the code or the description. The
 methodology page was not edited; wording changes there remain the owner's call.
 
+## Decisions of 2026-10-07 (open-decision walkthrough)
+
+Taken by the project owner in a walkthrough of the 29 open decisions and the
+three defaults marked *(proposed)* above.
+
+Status on 2026-10-07: the 19 behaviour changes below and the text change of
+OD-6 are implemented, each with tests, a changelog entry and an updated
+section in [method algorithms](method-algorithms.md#resolved-decisions); one
+stored regression case moved deliberately (`"1.234"` in
+`tests/goldens/wert.json`, OD-8). The markers of OD-3, OD-4, OD-5, OD-10 and
+OD-12 stay until the owner has approved the
+[methodology wording drafts](methodology-wording-drafts.md); the methodology
+page itself has not been edited. Details of the implementation that the
+decisions did not spell out are listed under "Implementation notes" below and
+are open to the owner's revision.
+
+Release scope: 0.3.0 resolves the items listed under "before 0.3.0". The four
+items under "after 0.3.0" ship with their markers in place.
+
+### Proposed defaults confirmed
+
+- Individual G5 projection horizon: 20 years after the latest eligible
+  measurement.
+- Percent-decline baseline: mean of the eligible values in the first 90 days;
+  candidate search starts after that window.
+- Maximum confirmation window: 12 calendar months, for G4/G5 and percent
+  decline.
+
+### Change the behaviour before 0.3.0
+
+| ID | Decision |
+| --- | --- |
+| OD-1 | The Cohort models page uses the preset selected under Trajectories, so event censoring, AKI windows and time balancing take effect there. |
+| OD-2 | Implement rolling OLS as described: the reported slope stays the global OLS slope (reliability, rapid-decline flag and sorting unchanged); the window slopes are drawn as lines, and the number of windows and the smallest and largest window slope appear in the table and the export. |
+| OD-7 | Dialysis intent is matched without regard to case, like the event type. |
+| OD-8 | Text values with exactly three decimals after a dot (`0.850`, `1.234`) are read as decimals, and the import reports the affected values with a count and examples. Recorded as understood from the owner's free-text answer; confirm when the change is reviewed. |
+| OD-9 | When all fitted points share one date, a separate neutral note states that no slope exists; the "slope was fitted" caveat is not shown. |
+| OD-13 | Creatinine values of zero or less are excluded from AKI detection, as in eGFR derivation, and counted as implausible in the import. |
+| OD-14 | No AKI episodes from the start of chronic dialysis (until a later transplant) or inside a dated acute-dialysis interval. Detection continues after transplantation. |
+| OD-15 | A derived eGFR inherits the non-exact status of its creatinine row and stays out of fits and endpoints. |
+| OD-16 | The projected age starts from the exact age when a birth date is known. Otherwise it starts from whole years and is displayed as a whole number with a note. |
+| OD-17 | The projection's minimum follow-up becomes 365 days, the same as the slope reliability rule. |
+| OD-18 | A confirmed observed G5 always suppresses the projection, also when the observed-G5 endpoint is switched off. |
+| OD-19 | A minimum confirmation interval longer than 12 months is rejected with an explanation. |
+| OD-20 | One rule everywhere: a series counts as eGFR by the unit ml/min/1.73 m², whatever its name. A clearance in ml/min no longer receives endpoints or the rapid-decline flag. |
+| OD-23 | The "Group interaction" preset stores a numeric attribute as a numeric factor without a reference level. |
+| OD-24 | The JavaScript date-parser fallback for attribute birth dates is removed; a rejected date is ignored with a warning. |
+| OD-25 | Two accepted headers for the same lab or event column produce a warning naming the column used. |
+| OD-26 | Lab rows without a patient ID are counted and listed as rejected. |
+| OD-27 | With pre-parsed value columns, an empty operator beside a valid number counts as exact. |
+| OD-28 | The age-plausibility rules stay; changed and dropped ages are counted and reported in the import. |
+
+### Keep the behaviour, correct the description before 0.3.0
+
+| ID | Decision |
+| --- | --- |
+| OD-3 | Segmented OLS stays as implemented. The methodology page describes splitting at gaps over 180 days only, one line per fitted segment and the global slope as the reported number; events as split points are no longer claimed. |
+| OD-4 | The three-measurement minimum and the confidence gate stay. The methodology page states that three measurements almost never yield a projection and shows an example that does. |
+| OD-5 | The eGFR formula default stays `off`. The methodology page no longer labels CKD-EPI 2021 the default. |
+| OD-6 | The "Group interaction" preset text describes estimated slope differences with 95 % confidence intervals; no p-values are computed. |
+| OD-10 | The flag stays without a reliability gate (decision of 2026-10-06). The methodology page describes it as a screening mark on any computed slope, to be read with the reliability note. |
+| OD-12 | Both constants stay: 88.42 for measured creatinine, 88.4 inside the EKFC Q polynomial. The methodology page names both. |
+
+### After 0.3.0, markers remain
+
+| ID | Intended direction |
+| --- | --- |
+| OD-11 | Exact t quantiles above 40 degrees of freedom. |
+| OD-21 | Remove the unused `tolerance` export field; pin R package versions. |
+| OD-22 | A control to switch a factor between numeric and categorical. |
+| OD-29 | Choose the default reference level from the fitted data. |
+
+### Implementation notes
+
+Choices made while implementing the decisions, each documented in the section
+of [method algorithms](method-algorithms.md) concerned:
+
+- **OD-2.** A window's line is drawn over the 180 days around the window
+  centre, clipped to the window's own measurements, so that the lines of
+  consecutive windows adjoin instead of overlapping.
+- **OD-8.** The warning also counts bounds such as `< 1.234`. Typed numeric
+  workbook cells and pre-parsed numbers are not counted.
+- **OD-13.** The number of non-positive creatinine values is shown on the Data
+  page under "Demographics and data quality", not in the import notice.
+- **OD-14.** The creatinine values under dialysis are removed from the
+  detection input, so they are neither a baseline nor a peak; a chronic
+  dialysis ends on the day of the next kidney transplant on or after its start.
+- **OD-16.** "Birth date known" means a birth date from the attributes table
+  or the lab rows; a manual age and an age inferred from stated ages count as
+  whole years. Without a birth date the badge shows the rounded value with a
+  tilde (`G5 @ ~66y`); the export keeps the unrounded value and adds
+  `endpoint_prediction_age_basis`.
+- **OD-19.** The limit is 365 days. The input rejects a larger entry; a larger
+  value in a stored configuration is evaluated as 365.
+- **OD-20.** The accepted spellings are those the projection presets already
+  accepted (`ml/min/1.73m2` after ignoring case and spaces, with a decimal
+  comma, `²` or `^2`). An eGFR series imported with the bare unit `ml/min`
+  no longer receives endpoints, and neither does one written as
+  `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` or `mL/min per 1.73 m2`; whether
+  to accept those spellings is open to the owner.
+- **OD-18.** With the observed-G5 endpoint off, the cell shows
+  `G5 not projected` and names the confirmed event in its detail text.
+- **OD-26.** A row without a patient ID that is empty in every recognised
+  column is still skipped silently.
+- **OD-27.** The operator cell is trimmed before it is compared.
+- **OD-28.** The report is a demographics conflict (`age_implausible`) under
+  "Conflicts and their resolution" on the Data page.
+- **OD-1.** A change under Trajectories to the fit model, time balancing,
+  censoring or AKI exclusion of a parameter discards the cohort models fitted
+  for that parameter. A parameter's own settings keep applying to its cohort
+  model when the parameter is no longer shown as a Trajectories column.
+
+Still marked *(proposed)* and not part of this walkthrough: no individual G5
+projection is computed for the time before kidney replacement therapy once
+kidney failure was reached.
+
+### Release gate
+
+- The retained extensions (dated interventions, event-time analysis, input
+  column mapping, further derivations, saved projects, exploratory estimators)
+  are deferred until after 0.3.0.
+- Order: implement the decisions above in verified packages, run a code
+  review, then the owner's research-data acceptance run on the finished state
+  ([checklist](research-acceptance.md)), then the release PR. Publication still
+  needs the owner's explicit acceptance.
+
 ## Approved requirements
 
 ### Observed events and recovery

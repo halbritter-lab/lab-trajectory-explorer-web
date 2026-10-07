@@ -11,7 +11,7 @@ import {
   type ProjectedCrossingReason,
   type ThresholdCrossingDefinition,
 } from '../../../endpoints/thresholdEndpoints'
-import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS } from '../constants'
+import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS, MAX_CONFIRMATION_DAYS } from '../constants'
 import type { KidneyFailureReached } from './endpointEventPolicy'
 
 export type { EndpointPoint } from '../../../endpoints/thresholdEndpoints'
@@ -63,8 +63,15 @@ export interface CkdEndpoints {
     reason: CkdProjectionReason | null
     slopeCiLow?: number | null
     slopeCiHigh?: number | null
+    /** What the ages behind `value` rest on; set whenever a value is reported. */
+    ageBasis?: EndpointAgeBasis
   }
 }
+
+/** `birth_date`: exact ages from a known birth date. `whole_years`: ages in
+ * completed years (stated, manual or inferred), so a projected age can be up
+ * to one year low and is displayed as a whole number. */
+export type EndpointAgeBasis = 'birth_date' | 'whole_years'
 
 export interface ComputeCkdEndpointsInput {
   kidneyFailureReached?: KidneyFailureReached | null
@@ -78,6 +85,8 @@ export interface ComputeCkdEndpointsInput {
   enabled: CkdEndpointSettings
   threshold?: number
   confirmationDays?: number
+  /** Basis of the points' ages; `whole_years` when omitted. */
+  ageBasis?: EndpointAgeBasis
 }
 
 /** The observed CKD G-stage endpoints as generic threshold crossings: G4 and
@@ -116,8 +125,12 @@ function emptyEndpoints(): CkdEndpoints {
   }
 }
 
+/** The minimum confirmation interval in whole days: the default when the value
+ * is missing or below one day, and at most `MAX_CONFIRMATION_DAYS`, because a
+ * longer interval could never confirm within the 12-month window. The
+ * settings input rejects larger values; this limit covers stored ones. */
 export function normalizeConfirmationDays(value: number | undefined): number {
-  return normalizeDays(value, DEFAULT_CONFIRMATION_DAYS)
+  return Math.min(normalizeDays(value, DEFAULT_CONFIRMATION_DAYS), MAX_CONFIRMATION_DAYS)
 }
 
 /** CKD endpoints of one eGFR series: percent decline, observed G4/G5 and the
@@ -165,7 +178,10 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
   if (input.enabled.observedCkdG5) out.observedCkdG5 = observeThresholdCrossing(points, definitions.observedCkdG5)
 
   if (input.enabled.projectedAgeToCkdG5) {
-    if (out.kidneyFailureReached && !out.observedCkdG5.met) {
+    // A confirmed G5 in the data rules out a future G5 crossing whether or not
+    // the observed-G5 endpoint is displayed (decided 2026-10-07).
+    const observedG5 = input.enabled.observedCkdG5 ? out.observedCkdG5.met : observeThresholdCrossing(points, definitions.observedCkdG5).met
+    if (out.kidneyFailureReached && !observedG5) {
       out.projectedAgeToCkdG5 = { value: null, reason: 'kidney_failure_reached' }
       return out
     }
@@ -175,7 +191,7 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
       intercept: input.intercept ?? fitGlobal(points).intercept,
       threshold,
       direction: 'below',
-      observed: out.observedCkdG5.met,
+      observed: observedG5,
     })
     let reason = projected.reason === null ? null : PROJECTION_REASONS[projected.reason]
     let value = projected.value
@@ -190,7 +206,8 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
       }
       if (reason) value = null
     }
-    out.projectedAgeToCkdG5 = { value, reason, slopeCiLow: Number.isFinite(input.slopeCiLow) ? input.slopeCiLow : null, slopeCiHigh: Number.isFinite(input.slopeCiHigh) ? input.slopeCiHigh : null }
+    out.projectedAgeToCkdG5 = { value, reason, slopeCiLow: Number.isFinite(input.slopeCiLow) ? input.slopeCiLow : null, slopeCiHigh: Number.isFinite(input.slopeCiHigh) ? input.slopeCiHigh : null,
+      ...(value !== null ? { ageBasis: input.ageBasis ?? 'whole_years' } : {}) }
   }
 
   return out

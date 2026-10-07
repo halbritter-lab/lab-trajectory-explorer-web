@@ -173,8 +173,11 @@ export interface EndpointContext {
   /** The estimator of the column's slope; endpoint projections reuse it. */
   scalarFitModel: FitModel
   /** Endpoint-eligible exact finite dated measurements, oldest first; ages
-   * (from the nearest earlier eligible age-carrying row) only when requested. */
+   * only when requested. With a known birth date the age is exact; otherwise
+   * it is counted from the nearest earlier eligible age-carrying row, whose
+   * age is in completed years. `ageBasis` says which. */
   points(withAges: boolean): EndpointPoint[]
+  ageBasis: 'birth_date' | 'whole_years'
   /** Global fit of those same endpoint-eligible measurements with the scalar model (OLS or
    * Theil-Sen); NaN slope and intercept when the model is 'none'. */
   fit(): { slope: number; intercept: number; ciLow: number; ciHigh: number }

@@ -31,8 +31,11 @@ describe('parseWert', () => {
     expect(parseWert('10–20')).toEqual({ value: null, operator: 'range', raw: '10–20' })
   })
 
-  it('rejects ambiguous dot-thousands as unparseable', () => {
-    expect(parseWert('1.234')).toEqual({ value: null, operator: 'unparseable', raw: '1.234' })
+  it('reads three digits after a point as a decimal (OD-8, decided 2026-10-07)', () => {
+    expect(parseWert('1.234')).toEqual({ value: 1.234, operator: '=', raw: '1.234' })
+    expect(parseWert('0.850')).toEqual({ value: 0.85, operator: '=', raw: '0.850' })
+    expect(parseWert('-12.500')).toEqual({ value: -12.5, operator: '=', raw: '-12.500' })
+    expect(parseWert('< 1.234')).toEqual({ value: 1.234, operator: '<', raw: '< 1.234' })
   })
 
   it('rejects mixed dot-and-comma as unparseable', () => {

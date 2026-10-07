@@ -36,8 +36,9 @@ imported parameter names and patient attributes retain their original values.
    entries use the displayed reference date. Open a patient from the quality table.
    CSV files are read as text (UTF-8 or Windows-1252, comma or semicolon) and
    accept decimal commas; a text value of one to three digits, a point and
-   exactly three digits (`0.850`, `1.234`) is not read as a number (open
-   decision OD-8). Dates may be `YYYY-MM-DD`, `YYYY/MM/DD`, `DD.MM.YYYY` or
+   exactly three digits (`0.850`, `1.234`) is read as a decimal and reported
+   in the diagnostics, because the point could have been a thousands
+   separator. Dates may be `YYYY-MM-DD`, `YYYY/MM/DD`, `DD.MM.YYYY` or
    `DD/MM/YYYY`; a slash date with the year last is always read day-first
    (month-first dates are not supported), and
    a time of day is ignored; Excel cells holding a date number (1927–2119 for lab
@@ -65,8 +66,9 @@ imported parameter names and patient attributes retain their original values.
 
 - Individual analyses support OLS, Theil-Sen, rolling OLS, segmented OLS and no fit.
   Rolling and segmented OLS report the global OLS slope, R² and confidence
-  bounds; segmented OLS adds per-segment lines and rolling OLS draws no line
-  (open decisions OD-2 and OD-3 in the algorithm reference).
+  bounds; segmented OLS adds per-segment lines (open decision OD-3 in the
+  algorithm reference), and rolling OLS adds one line per two-year window with
+  the number of windows and their smallest and largest slope.
   Shared presets and per-column overrides include event censoring, AKI exclusion,
   time aggregation and rapid-decline settings. The table and exports use the same
   prepared summaries. Uncertain individual fits have dotted lines in the overlay

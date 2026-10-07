@@ -95,7 +95,9 @@ export function appendComputedEgfr(rows: LabRow[], opts: EgfrOptions = {}): LabR
       einheit: COMPUTED_EGFR_UNIT,
       wert: rounded.toFixed(1).replace('.', ','),
       wertNum: rounded,
-      wertOperator: OP_FLIP[r.wertOperator] ?? '=',
+      // A bound flips; a range or unparseable source stays non-exact, so the
+      // derived value is shown but enters no fit or endpoint.
+      wertOperator: OP_FLIP[r.wertOperator] ?? r.wertOperator,
       loinc: null,
       patientSex: r.patientSex,
       patientAgeAtLab: r.patientAgeAtLab,

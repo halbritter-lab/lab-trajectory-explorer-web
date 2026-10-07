@@ -4,7 +4,6 @@ const LESS_THAN_RE = /^<\s*(\d+\.?\d*)$/
 const GREATER_THAN_RE = /^>\s*(\d+\.?\d*)$/
 const RANGE_RE = /^(\d+\.?\d*)\s*[-–]\s*(\d+\.?\d*)$/
 const PLAIN_NUMBER_RE = /^-?\d+\.?\d*([eE]-?\d+)?$/
-const AMBIGUOUS_DOT_THOUSANDS_RE = /^-?\d{1,3}\.\d{3}$/
 
 export function parseWert(raw: string | null): ParsedWert {
   if (raw === null || raw.trim() === '') {
@@ -23,9 +22,6 @@ export function parseWert(raw: string | null): ParsedWert {
     .trim()
 
   if (normalized.includes('.') && normalized.includes(',')) {
-    return { value: null, operator: 'unparseable', raw }
-  }
-  if (!normalized.includes(',') && AMBIGUOUS_DOT_THOUSANDS_RE.test(normalized)) {
     return { value: null, operator: 'unparseable', raw }
   }
   normalized = normalized.replace(/,/g, '.')

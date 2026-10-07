@@ -39,10 +39,12 @@ export function eventDiagnostics(
   sheet: string,
   dateReads: DateReadCounts,
   { valid, rejected }: ClinicalEventValidationResult,
+  notes: readonly string[] = [],
 ): ImportDiagnostic[] {
   return [
     ...rejected.map((r): ImportDiagnostic => ({ sheet, patientId: r.event.patientId, severity: 'rejected', reason: describeEventRejection(r) })),
     ...valid.filter((e) => e.warning).map((e): ImportDiagnostic => ({ sheet, patientId: e.patientId, severity: 'warning', reason: describeEventWarning(e) })),
+    ...notes.map((reason) => sheetNote(sheet, reason)),
     ...dateReadNotes('event date', dateReads).map((reason) => sheetNote(sheet, reason)),
   ]
 }
@@ -112,7 +114,7 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer): LoadedDataset {
         const validation = validateClinicalEvents(normalized.events, rows)
         events = validation.valid
         rejectedEvents = validation.rejected
-        diagnostics.push(...eventDiagnostics(eventsSheetName, normalized.dateReads, validation))
+        diagnostics.push(...eventDiagnostics(eventsSheetName, normalized.dateReads, validation, normalized.notes))
       }
     }
 

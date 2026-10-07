@@ -7,6 +7,9 @@ import { projectedCrossingTime } from '../projection/linearProjection'
 
 const MS_PER_DAY = 86_400_000
 const MS_PER_YEAR = 365.25 * MS_PER_DAY
+/** Minimum follow-up of a projection, equal to the slope reliability rule's
+ * minimum fitted span (`MIN_RELIABLE_SPAN_DAYS`). */
+export const MIN_PROJECTION_SPAN_DAYS = 365
 
 export interface EndpointPoint {
   date: Date
@@ -141,7 +144,8 @@ export interface ProjectedAgeAtCrossing {
  * Age at which the fitted line (intercept at the first point's date, slope
  * per year) crosses the threshold, projected from the latest measurement.
  * Withheld when the crossing was already observed, with fewer than three
- * points or under a year of follow-up, without a finite fit, when the line
+ * points or under 365 days of follow-up (the span of the slope reliability
+ * rule), without a finite fit, when the line
  * does not move towards the threshold, when it crosses at or before the
  * latest measurement, or without an age at the latest measurement.
  */
@@ -158,8 +162,9 @@ export function projectAgeAtCrossing(input: {
   if (points.length < 3) return { value: null, reason: 'insufficient_points' }
   const first = points[0]
   const latest = points[points.length - 1]
-  const spanYears = (latest.date.getTime() - first.date.getTime()) / MS_PER_YEAR
-  if (spanYears < 1) return { value: null, reason: 'span_too_short' }
+  const spanMs = latest.date.getTime() - first.date.getTime()
+  if (spanMs / MS_PER_DAY < MIN_PROJECTION_SPAN_DAYS) return { value: null, reason: 'span_too_short' }
+  const spanYears = spanMs / MS_PER_YEAR
   if (!Number.isFinite(slopePerYear) || !Number.isFinite(intercept)) return { value: null, reason: 'no_fit' }
   if (direction === 'below' ? slopePerYear >= 0 : slopePerYear <= 0) return { value: null, reason: 'not_approaching' }
   const crossingTime = projectedCrossingTime(intercept, slopePerYear, threshold)

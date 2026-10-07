@@ -13,6 +13,7 @@ import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEnt
 import type { PresetExclusionPolicy } from '../../core/mixedModel/cohortDataset'
 import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import type { ImportDiagnostic } from '../../io/loadDataset'
+import { defaultTrajectoryFitSettings, modelPreparationKey, type TrajectoryFitSettings } from '../workspace-analysis'
 
 export interface Notice {
   kind: 'error' | 'info'
@@ -68,6 +69,10 @@ export interface AppState {
   analysisSettings: AnalysisSettings
   mixedModelConfig: MixedModelConfig
   presetExclusionPolicy: PresetExclusionPolicy
+  /** The analysis settings currently chosen under Trajectories. Trajectories
+   * owns and publishes them; cohort models read them to prepare the same
+   * measurements. */
+  trajectoryFitSettings: TrajectoryFitSettings
   /** Cohort mixed-model results keyed by entity (`'cohort'` for the pooled fit,
    * `'group:<value>'` per group), or null when nothing has been fit. Single
    * source of truth read by the results table and the charts. */
@@ -92,6 +97,7 @@ export interface AppState {
   analysisResult: () => AnalysisResult
   setMixedModelConfig: (config: MixedModelConfig) => void
   setPresetExclusionPolicy: (policy: PresetExclusionPolicy) => void
+  setTrajectoryFitSettings: (settings: TrajectoryFitSettings) => void
   runCohortModels: (params: RunCohortModelsParams) => Promise<void>
   setShowCohortMixedModelLine: (value: boolean) => void
   setProjectionSettings: (seriesIndex: number, seriesKey: string, entityKey: string, applied: AppliedProjectionSettings) => void
@@ -102,7 +108,7 @@ export interface AppState {
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'patientAttributes'
-  | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'cohortModelResults' | 'cohortModelRunning'
+  | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'cohortModelResults' | 'cohortModelRunning'
   | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
 
 const initialState = (): AppData => ({
@@ -115,6 +121,7 @@ const initialState = (): AppData => ({
   analysisSettings: defaultAnalysisSettings(),
   mixedModelConfig: DEFAULT_MIXED_MODEL_CONFIG,
   presetExclusionPolicy: 'apply',
+  trajectoryFitSettings: defaultTrajectoryFitSettings(),
   cohortModelResults: null,
   cohortModelRunning: false,
   cohortModelProgress: null,
@@ -242,6 +249,19 @@ export const useAppStore = create<AppState>((set, get) => ({
     presetExclusionPolicy: policy,
     ...clearedMixedModelResults(),
   })),
+  // A change to fit model, time balancing, censoring or exclusions changes the
+  // measurements a cohort model receives, so models fitted for the affected
+  // parameter are discarded like after every other data-policy change. Other
+  // settings, and other parameters' settings, are only recorded.
+  setTrajectoryFitSettings: (settings) => set((state) => {
+    const previous = state.trajectoryFitSettings
+    if (JSON.stringify(settings) === JSON.stringify(previous)) return state
+    const fittedKeys = [...new Set(Object.values(state.cohortModelResults ?? {}).map((stored) => stored.identity.seriesKey))]
+    const stale = fittedKeys.some((key) => modelPreparationKey(settings, key) !== modelPreparationKey(previous, key))
+      // A running fit has no stored identity yet; any preparation change stops it.
+      || (state.cohortModelRunning && modelPreparationKey(settings) !== modelPreparationKey(previous))
+    return stale ? { trajectoryFitSettings: settings, ...clearedMixedModelResults() } : { trajectoryFitSettings: settings }
+  }),
   runCohortModels: async ({ entities, seriesIndex, seriesKey, fitConfigHash, config, formula, runJob = runMixedModelWorkerJob }) => {
     abortActiveCohortModelRun()
     const controller = new AbortController()

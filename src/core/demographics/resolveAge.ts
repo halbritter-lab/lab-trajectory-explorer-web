@@ -152,19 +152,36 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
   }
 
   // 4. Infer from the stated ages.
-  const intervals = dated
-    .filter((r) => r.ageAtLab !== null)
-    .map((r) => birthDateInterval(r.labDatum, r.ageAtLab as number))
+  const stated = dated.filter((r) => r.ageAtLab !== null)
+  const intervals = stated.map((r) => birthDateInterval(r.labDatum, r.ageAtLab as number))
   const intersection = intersectBirthIntervals(intervals)
   if (intersection === null) return { birthAnchor: null, conflicts: [] }
 
+  // A stated age that its own birth-date interval does not reproduce is not a
+  // plausible age: a negative value puts the birth date after the lab date, and
+  // a value near the lab year (a birth year typed into the age column) is
+  // remapped by Date.UTC's two-digit-year rule. The resolution is unchanged;
+  // the rows are reported so the change is not silent.
+  const implausible = stated.filter(
+    (r, i) => completedYears(intervalMidpoint(intervals[i]), r.labDatum) !== r.ageAtLab,
+  )
+  const conflicts: DemographicsConflict[] = implausible.length === 0 ? [] : [
+    {
+      kind: 'age_implausible',
+      patientId: input.patientId,
+      rows: implausible.length,
+      example: implausible[0].ageAtLab as number,
+    },
+  ]
+
   if (!isEmptyInterval(intersection)) {
-    return { birthAnchor: intervalMidpoint(intersection), conflicts: [] }
+    return { birthAnchor: intervalMidpoint(intersection), conflicts }
   }
 
   return {
     birthAnchor: medianDate(intervals.map(intervalMidpoint)),
     conflicts: [
+      ...conflicts,
       {
         kind: 'age_no_common_birth_date',
         patientId: input.patientId,

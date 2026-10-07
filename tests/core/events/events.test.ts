@@ -4,6 +4,7 @@ import {
   CLINICAL_EVENT_WARNINGS,
   DIALYSIS_INTENTS,
   normalizeClinicalEvents,
+  normalizeClinicalEventsWithNotes,
   validateClinicalEvents,
 } from '../../../src/core/events/events'
 import { effectForEvent } from '../../../src/core/domains/nephrology/censoring'
@@ -211,6 +212,26 @@ describe('clinical events', () => {
       'invalid_date_range',
       'invalid_type',
     ])
+  })
+
+  it('accepts dialysis intents regardless of case and stores them in lower case (OD-7)', () => {
+    const events = normalizeClinicalEvents([
+      { patientId: 1, type: 'dialysis', date: '2024-01-01', title: 'A', intent: 'Chronic' },
+      { patientId: 1, type: 'dialysis', date: '2024-02-01', title: 'B', intent: 'ACUTE', endDate: '2024-02-05' },
+      { patientId: 1, type: 'dialysis', date: '2024-03-01', title: 'C', intent: ' Unknown ' },
+      { patientId: 1, type: 'dialysis', date: '2024-04-01', title: 'D', intent: 'permanent' },
+      { patientId: 1, type: 'other', date: '2024-05-01', title: 'E', intent: 'Chronic' },
+    ])
+    const result = validateClinicalEvents(events, [labRow(1)])
+    expect(result.valid.map(event => event.intent)).toEqual(['chronic', 'acute', 'unknown'])
+    expect(result.rejected.map(event => event.reason)).toEqual(['invalid_intent', 'invalid_intent'])
+  })
+
+  it('notes which column is used when two headers hold the same event field (OD-25)', () => {
+    const { notes } = normalizeClinicalEventsWithNotes([
+      { patientId: 1, type: 'dialysis', EventType: 'other', date: '2024-01-01', title: 'A' },
+    ])
+    expect(notes).toEqual(['Columns "type" and "EventType" hold the same field; "type" is used and "EventType" is ignored.'])
   })
 
   it('accepts event types regardless of case and stores their canonical spelling', () => {

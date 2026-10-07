@@ -1,7 +1,8 @@
 import { lazy, Suspense, useMemo, useState } from 'react'
 import { useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
-import { workspaceSpecs } from './workspace-data'
+import { workspaceModelSpec } from './workspace-data'
+import { describeModelPreparation, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
 import { mentionsEgfr } from '../core/domains/nephrology/analytes'
@@ -17,7 +18,7 @@ import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mi
 import { validateMixedModelRows } from '../core/mixedModel/validation'
 import type { CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
-import { currentWorkspaceModels, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
+import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import './cohort-models-workspace.css'
 
 const CohortModelTable = lazy(() =>
@@ -110,11 +111,18 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     ? selectedParamKey
     : (eligibleParameters[0]?.key ?? '')
 
+  // The measurements follow the analysis settings chosen for this parameter
+  // under Trajectories, so the model sees what the trajectory fit sees.
+  // Keyed on the settings that reach the model, so unrelated edits under
+  // Trajectories do not rebuild the model rows.
+  const preparationKey = useAppStore(s => modelPreparationKey(s.trajectoryFitSettings, activeParamKey))
+  const preparationSource = useAppStore(s => modelPreparationSource(s.trajectoryFitSettings, activeParamKey))
   const spec = useMemo(() => {
     if (!activeParamKey) return undefined
-    const specs = workspaceSpecs(data, [activeParamKey])
-    return specs[0]
-  }, [data, activeParamKey])
+    return workspaceModelSpec(data, activeParamKey, useAppStore.getState().trajectoryFitSettings)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, activeParamKey, preparationKey])
+  const noFit = spec?.fitConfig?.fitModel === 'none'
 
   const paramIndex = useMemo(() => {
     return (data.parameters ?? []).findIndex(p => p.key === activeParamKey)
@@ -191,15 +199,10 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     } else if (newPreset === 'interaction') {
       const attr = targetAttr ?? (availableGroupByAttributes.find(a => a !== 'sex') ?? availableGroupByAttributes[0] ?? 'genotype')
       setGroupByAttribute(null)
-      const factor = availableFactors.find(f => f.key === attr)
-      const isNumeric = factor?.numeric ?? false
-      const refLevel = factor?.levels[0] ?? undefined
       setMixedModelConfig({
         timeAxis: 'time_since_baseline',
         covariates: [],
-        factors: [
-          { key: attr, kind: isNumeric ? 'numeric' : 'categorical', effect: 'level_slope', reference: refLevel },
-        ],
+        factors: [groupInteractionFactor(attr, availableFactors.find(f => f.key === attr))],
         randomEffects: 'intercept_slope',
       })
     }
@@ -244,7 +247,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   }
 
   async function handleFitAll() {
-    if (!spec || entities.length === 0 || cohortModelRunning) return
+    if (!spec || noFit || entities.length === 0 || cohortModelRunning) return
     const eligibleEntities = entities.filter(e => validateMixedModelRows(e.rows, mixedModelConfig).ok)
     if (eligibleEntities.length === 0) return
     await runCohortModels({
@@ -392,7 +395,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             {preset === 'unadjusted' && 'Standard trajectory: Y ~ Time + (1 + Time | Patient). Evaluates overall progression rate without covariates.'}
             {preset === 'stratified' && 'Stratified analysis: Fits independent mixed models for each subgroup of the selected attribute.'}
             {preset === 'demographic' && 'Standard epidemiological model: Y ~ Time + Baseline age + Sex + (1 + Time | Patient).'}
-            {preset === 'interaction' && 'Slope interaction test: Y ~ Time * Group + (1 + Time | Patient). Estimates p-values for slope differences.'}
+            {preset === 'interaction' && 'Slope interaction test: Y ~ Time * Group + (1 + Time | Patient). Estimates slope differences with 95% confidence intervals; no p-values are computed.'}
             {preset === 'custom' && 'Full custom model: Select specific covariates, effects, reference categories, and random effects.'}
           </p>
         </div>
@@ -491,7 +494,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           <input type="checkbox" checked={presetExclusionPolicy === 'apply'} onChange={event => setPresetExclusionPolicy(event.target.checked ? 'apply' : 'skip')} />
           Apply preset event and AKI exclusions
         </label>
-        <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>
+        {!noFit && <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>}
+        {spec?.fitConfig && <p className={noFit ? 'notice amber' : 'muted'} role={noFit ? 'status' : undefined} data-testid="model-preparation">Measurements follow the Trajectories analysis settings for this parameter. {describeModelPreparation(spec.fitConfig, preparationSource)}{noFit ? ' Choose a fit model for it under Trajectories to fit a cohort model.' : `${presetExclusionPolicy === 'skip' ? ' The event and AKI windows are skipped by the choice above; time aggregation still applies.' : ''} Changing these settings under Trajectories discards the models fitted for this parameter.`}</p>}
         <div className="cm-formula-strip">
           <div>
             <span>Model: </span>
@@ -520,7 +524,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           <button
             type="button"
             className="primary cm-fit-button"
-            disabled={cohortModelRunning || entities.length === 0}
+            disabled={cohortModelRunning || noFit || entities.length === 0}
             onClick={handleFitAll}
           >
             {cohortModelRunning
@@ -542,7 +546,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           cohortModelResults={currentModels}
           modelRowsByEntity={Object.fromEntries(entities.map(item => [item.entity.kind === 'cohort' ? 'cohort' : `group:${item.entity.value}`, item.rows]))}
           isFitting={cohortModelRunning}
-          onFit={handleFitAll}
+          onFit={noFit ? undefined : handleFitAll}
         />
       )}
 

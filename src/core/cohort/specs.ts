@@ -21,7 +21,7 @@ export function clinicalEventsByPatient(events: readonly ClinicalEvent[]): Recor
 export function cohortSeriesSpec(
   parameter: { bezeichnung: string; einheit: string | null },
   fitConfig: FitConfig = generalExplorationConfig(parameter),
-  context: { clinicalEventsByPatient?: Record<string, ClinicalEvent[]>; fitInputs?: AnalysisFitInputContribution[] } = {},
+  context: { clinicalEventsByPatient?: Record<string, ClinicalEvent[]>; exactBirthDateByPatient?: Record<string, Date>; fitInputs?: AnalysisFitInputContribution[] } = {},
 ): CohortSeriesSpec {
   return {
     bezeichnung: parameter.bezeichnung,
@@ -30,6 +30,7 @@ export function cohortSeriesSpec(
     fitConfig,
     exclusionDays: fitConfig.exclusions.akiExclusionDays,
     clinicalEventsByPatient: context.clinicalEventsByPatient,
+    exactBirthDateByPatient: context.exactBirthDateByPatient,
     fitInputs: context.fitInputs,
   }
 }

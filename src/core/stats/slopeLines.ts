@@ -1,6 +1,7 @@
 import type { SeriesPoint } from './series'
 import { fitGlobal, fitTheilSen } from './series'
 import { fitSegments } from './segments'
+import { rollingSlopes, type RollingSlope } from './rolling'
 import { fitOls } from './ols'
 import { datesToYears } from './time'
 import type { FitModel, TimeBalancing } from '../fitPipeline/types'
@@ -38,10 +39,33 @@ function lineFor(seg: SeriesPoint[], slope: number, intercept: number): LinePoin
   ]
 }
 
+const MS_PER_DAY = 86_400_000
+
+/**
+ * The drawn line of one rolling window: the window's own OLS line over the
+ * central `stepDays` of the window (centre ± stepDays / 2), clipped to the
+ * dates of the first and last point inside the window. Consecutive windows
+ * therefore tile the time axis instead of overlapping, and each stretch shows
+ * the local slope estimated around it. Null when the points of the window do
+ * not reach into its central stretch.
+ */
+export function rollingWindowLine(window: RollingSlope, stepDays: number): LinePoint[] | null {
+  const halfStepMs = (stepDays / 2) * MS_PER_DAY
+  const from = Math.max(window.windowCenter.getTime() - halfStepMs, window.firstDate.getTime())
+  const to = Math.min(window.windowCenter.getTime() + halfStepMs, window.lastDate.getTime())
+  if (!(from < to)) return null
+  const valueAt = (t: number) => window.intercept + window.slope * ((t - window.firstDate.getTime()) / MS_PER_YEAR)
+  return [
+    { date: new Date(from), value: valueAt(from) },
+    { date: new Date(to), value: valueAt(to) },
+  ]
+}
+
 /** Build the slope overlay polyline(s) for the active mode. Each line is two
  * LinePoints (start/end). Global → one line; gap-split → one per fittable
  * segment (falling back to a single global line when no segment is fittable);
- * rolling → the global trend line; aki-aware → one line over the points
+ * rolling → one line per window (see rollingWindowLine), none when the fitted
+ * span holds no window; aki-aware → one line over the points
  * outside the exclusion windows, re-checked after time balancing and fitted
  * by plain OLS (no two-point rule). Returns [] when nothing is fittable. */
 export function buildSlopeLines(points: SeriesPoint[], cfg: PlotModeConfig): LinePoint[][] {
@@ -87,6 +111,13 @@ export function buildSlopeLines(points: SeriesPoint[], cfg: PlotModeConfig): Lin
     const fit = fitOls(datesToYears(kept.map((p) => p.date)), kept.map((p) => p.value))
     if (fit.reason !== null) return []
     return [lineFor(kept, fit.slope, fit.intercept)]
+  }
+  if (cfg.mode === 'rolling') {
+    return rollingSlopes(numeric, cfg.windowDays, cfg.stepDays, 3)
+      .flatMap((window) => {
+        const line = rollingWindowLine(window, cfg.stepDays)
+        return line ? [line] : []
+      })
   }
   if (cfg.mode === 'gap-split') {
     const segs = fitSegments(numeric, cfg.gapDays, 3)

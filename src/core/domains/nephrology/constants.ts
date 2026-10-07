@@ -36,3 +36,7 @@ export const DEFAULT_RAPID_EGFR_DECLINE = 5
 export const DEFAULT_AKI_EXCLUSION_DAYS = 30
 /** Default minimum interval confirming an observed CKD G4/G5 event (days). */
 export const DEFAULT_CONFIRMATION_DAYS = 90
+/** Largest minimum confirmation interval (days). A confirming value must
+ * follow within 12 calendar months (365 or 366 days), so a longer interval
+ * could never confirm. */
+export const MAX_CONFIRMATION_DAYS = 365

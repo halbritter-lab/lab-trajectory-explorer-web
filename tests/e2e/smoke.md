@@ -265,3 +265,16 @@ factor script includes healthy random-intercept fits as well as random slopes.
 The manual single-interface steps 1–7 above were not rerun for this close-out.
 Their dated observation remains above; representative research-data and
 first-user acceptance remain pending.
+
+Open-decision implementation close-out (2026-10-07, branch
+`feat/resolve-open-decisions`): 874/874 unit tests in 93 files, `pnpm build`,
+and 30/30 Chromium checks passed after the last change. Two independent
+reviews of the branch found ten confirmed defects, among them a truncated
+confirmation interval left applied after a rejected entry, cohort models
+vanishing after an endpoint edit under CKD progression, and the new rolling
+columns shifting four existing workbook columns; all are fixed with regression
+tests. The manual steps 1–7 above were not rerun, and the new behaviour
+(rolling window lines, cohort models following the Trajectories settings, the
+approximate G5 age badge, AKI detection under dialysis) has been exercised by
+unit and component tests only, not by hand in a browser. Research-data
+acceptance remains pending; its checklist now includes these points.

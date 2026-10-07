@@ -53,4 +53,67 @@ export function toFitConfig(
   }
 }
 
+/** The analysis settings chosen under Trajectories: the shared settings and
+ * each parameter's own settings, by parameter key. Cohort models prepare
+ * their measurements with the same settings (decided 2026-10-07). */
+export interface TrajectoryFitSettings {
+  shared: WorkspaceFitSettings
+  columns: Record<string, WorkspaceFitSettings>
+}
+
+export function defaultTrajectoryFitSettings(): TrajectoryFitSettings {
+  return { shared: defaultFitSettings(), columns: {} }
+}
+
+/** The fit configuration Trajectories applies to one parameter: its own
+ * settings when it has some, otherwise the shared ones. */
+export function trajectoryFitConfig(
+  settings: TrajectoryFitSettings,
+  parameter: { key: string; bezeichnung: string; einheit: string | null },
+): FitConfig {
+  return toFitConfig(settings.columns[parameter.key] ?? settings.shared, { bezeichnung: parameter.bezeichnung, einheit: parameter.einheit })
+}
+
+/** The part of the settings that decides which measurements a cohort model
+ * receives: fit model, time balancing, censoring and exclusions. Endpoint and
+ * badge settings do not belong to it. With a parameter key, the settings that
+ * apply to that parameter; without, those of every parameter. The model's
+ * fit-configuration hash depends on exactly these fields. */
+export function modelPreparationKey(settings: TrajectoryFitSettings, parameterKey?: string): string {
+  const part = (s: WorkspaceFitSettings) => ({ fitModel: s.fitModel, timeBalancing: s.timeBalancing, censoring: s.censoring, exclusions: s.exclusions })
+  if (parameterKey !== undefined) return JSON.stringify(part(settings.columns[parameterKey] ?? settings.shared))
+  return JSON.stringify({ shared: part(settings.shared), columns: Object.keys(settings.columns).sort().map(key => [key, part(settings.columns[key])]) })
+}
+
+/** How the settings that apply to a parameter are named on the Cohort models
+ * page: the catalog preset, or "Own settings" once edited, and whether they
+ * are the parameter's own or the shared ones. */
+export function modelPreparationSource(settings: TrajectoryFitSettings, parameterKey: string): string {
+  const own = settings.columns[parameterKey]
+  const name = fitPresetById((own ?? settings.shared).presetId)?.name ?? 'Edited settings'
+  return `${name} (${own ? 'own settings of this parameter' : 'shared settings'})`
+}
+
+const TIME_BALANCING_TEXT: Record<TimeBalancing, string> = {
+  raw: 'individual measurements',
+  'monthly-median': 'monthly medians',
+  'quarterly-median': 'quarterly medians',
+}
+
+/** One sentence on how a fit configuration prepares the measurements of a
+ * cohort model, for the Cohort models page. */
+export function describeModelPreparation(config: FitConfig, name: string): string {
+  if (config.fitModel === 'none') return `${name}: no fit, so no cohort model is prepared for this parameter.`
+  const c = config.censoring
+  const events = [
+    c.censorAfterKidneyTransplant ? 'after kidney transplant' : null,
+    c.censorAfterChronicDialysis ? 'after chronic dialysis start' : null,
+    c.excludeAcuteDialysisPeriods ? 'acute dialysis intervals' : null,
+    c.unknownDialysisPolicy === 'exclude-dated-interval' ? 'dated dialysis of unknown intent' : c.unknownDialysisPolicy === 'censor-from-start' ? 'from dialysis of unknown intent' : null,
+  ].filter(Boolean)
+  return `${name}: ${TIME_BALANCING_TEXT[config.timeBalancing]}; `
+    + `event windows ${events.length ? events.join(', ') : 'none'}; `
+    + `AKI windows ${config.exclusions.excludeAkiWindows ? `${config.exclusions.akiExclusionDays} days` : 'none'}.`
+}
+
 export { endpointBadge } from './labels/endpointLabels'

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { loadLabRows, REQUIRED_COLUMNS } from '../../../src/core/parse/loader'
+import { loadLabRows, loadLabRowsWithDiagnostics, REQUIRED_COLUMNS } from '../../../src/core/parse/loader'
 import type { RawRow } from '../../../src/io/readWorkbook'
 
 const base: RawRow = {
@@ -85,6 +85,47 @@ describe('loadLabRows', () => {
     expect(rows[1].patientId).toBe('abc-123')
   })
 
+  it('lists a row without a patient ID as rejected, but skips a row that is empty throughout (OD-26)', () => {
+    const empty = Object.fromEntries(Object.keys(base).map((key) => [key, null]))
+    const { rows, issues } = loadLabRowsWithDiagnostics([
+      { ...base, PatientID: 1 },
+      { ...base, PatientID: '  ' },
+      { ...empty, Kommentar: 'not a recognised column' },
+    ])
+    expect(rows).toHaveLength(1)
+    expect(issues.filter((issue) => issue.severity === 'rejected')).toEqual([
+      { patientId: null, severity: 'rejected', reason: 'Patient ID missing; row not imported.' },
+    ])
+  })
+
+  it('reads three-decimal point values as decimals and reports them once (OD-8)', () => {
+    const { rows, issues } = loadLabRowsWithDiagnostics([
+      { ...base, Wert: '0.850' },
+      { ...base, Wert: '1.234' },
+      { ...base, Wert: '1.23' },
+      { ...base, Wert: 1.234 },
+    ])
+    expect(rows.map((row) => [row.wertNum, row.wertOperator])).toEqual([[0.85, '='], [1.234, '='], [1.23, '='], [1.234, '=']])
+    expect(issues.filter((issue) => issue.reason.includes('after a point'))).toEqual([{
+      patientId: null, severity: 'warning', scope: 'sheet',
+      reason: '2 values with three digits after a point, such as "0.850", were read as decimals; check that the point is not a thousands separator.',
+    }])
+  })
+
+  it('treats an empty pre-parsed operator beside a number as exact (OD-27)', () => {
+    const rows = loadLabRows([
+      { ...base, Wert_num: 1.1, Wert_operator: null },
+      { ...base, Wert_num: 1.2, Wert_operator: '  ' },
+      { ...base, Wert_num: 1.3, Wert_operator: ' = ' },
+      { ...base, Wert_num: 5, Wert_operator: ' < ' },
+      { ...base, Wert_num: null, Wert_operator: null },
+      { ...base, Wert_num: 2, Wert_operator: '\u2264' },
+    ])
+    expect(rows.map((row) => [row.wertNum, row.wertOperator])).toEqual([
+      [1.1, '='], [1.2, '='], [1.3, '='], [5, '<'], [null, 'unparseable'], [2, 'unparseable'],
+    ])
+  })
+
   it('accepts English and long-form sex spellings', () => {
     expect(loadLabRows([{ ...base, PatientSex: 'male' }])[0].patientSex).toBe('m')
     expect(loadLabRows([{ ...base, sex: 'female' }])[0].patientSex).toBe('w')
@@ -166,6 +207,15 @@ describe('loadLabRows', () => {
     // spellings. Alias order decides, so the result never depends on key order.
     const [row] = loadLabRows([{ ...base, value: '3,5', Wert: '9,9' }])
     expect(row.wertNum).toBe(3.5)
+  })
+
+  it('warns which column is used when a file carries two headers for one field (OD-25)', () => {
+    const { issues } = loadLabRowsWithDiagnostics([{ ...base, value: '3,5', Wert: '9,9' }])
+    expect(issues).toContainEqual({
+      patientId: null, severity: 'warning', scope: 'sheet',
+      reason: 'Columns "value" and "Wert" hold the same field; "value" is used and "Wert" is ignored.',
+    })
+    expect(loadLabRowsWithDiagnostics([base]).issues.filter((issue) => issue.reason.includes('same field'))).toEqual([])
   })
 
   it('truncates to whole days when dates carry a time component', () => {

@@ -8,8 +8,11 @@ interface WertGolden {
   operator: string
 }
 
-describe('parseWert parity with Python _parse_wert', () => {
-  it.each(goldens as WertGolden[])('matches Python for %j', (g) => {
+// The stored cases began as Python `_parse_wert` output. One case deviates
+// deliberately since 2026-10-07 (OD-8): "1.234" was unparseable and is now
+// the decimal 1.234.
+describe('parseWert regression cases', () => {
+  it.each(goldens as WertGolden[])('matches the stored case for %j', (g) => {
     const got = parseWert(g.raw)
     expect(got.operator).toBe(g.operator)
     expect(got.value).toBe(g.value)

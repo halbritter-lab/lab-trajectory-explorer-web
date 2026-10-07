@@ -11,7 +11,8 @@ import { useAppStore } from './state/store'
 import { mixedModelFitConfigHash, mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
 import type { MixedModelSpikeRow } from '../core/mixedModel/types'
 import { groupPatients, UNGROUPED } from '../core/grouping/grouping'
-import { workspaceSpecs } from './workspace-data'
+import { workspaceModelSpec } from './workspace-data'
+import { modelPreparationKey } from './workspace-analysis'
 import { currentWorkspaceModels, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import { overlayModules } from '../core/analysis/registry'
 
@@ -105,8 +106,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const groupColor = (group: string) => colors[fullGroups.indexOf(group) % colors.length]
   const groupLabel = (group: string) => groupBy === 'sex' ? sexLabel(group) : group
   const visible = prepared.filter(p => !hiddenGroups.includes(p.group) && p.points.length > 0)
-  const uncertain = visible.filter(p => slopeQualityLabel(p.cell)?.caveat && Number.isFinite(p.cell.slope)).length
-  const noFit = visible.filter(p => !Number.isFinite(p.cell.slope)).length
+  // Rolling OLS draws window lines only; a series without a window has a
+  // global slope but nothing drawn, so it counts as without a fit line here.
+  const hasFitLine = (cell: (typeof visible)[number]['cell']) => Number.isFinite(cell.slope) && (cell.mode !== 'rolling' || cell.fitLines.length > 0)
+  const uncertain = visible.filter(p => slopeQualityLabel(p.cell)?.caveat && hasFitLine(p.cell)).length
+  const noFit = visible.filter(p => !hasFitLine(p.cell)).length
   const fitModel = prepared[0]?.cell?.fitModel ?? 'none'
   const modelLabel = { ols: 'OLS', 'theil-sen': 'Theil–Sen', 'rolling-ols': 'Rolling OLS', 'segmented-ols': 'Segmented OLS', none: 'No fit' }[fitModel]
   const withoutValues = prepared.filter(p => !p.cell?.points.length).length
@@ -115,6 +119,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const showCohortMixedModelLine = useAppStore(s => s.showCohortMixedModelLine)
   const mixedModelConfig = useAppStore(s => s.mixedModelConfig)
   const presetExclusionPolicy = useAppStore(s => s.presetExclusionPolicy)
+  const preparationKey = useAppStore(s => modelPreparationKey(s.trajectoryFitSettings, parameter.key))
 
   // Cohort mixed-model reference lines: the pooled fit and, when the overlay is
   // grouped by the attribute the groups were fitted under, one line per group.
@@ -122,7 +127,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   // dataset preparation; display filters never change the model population.
   const modelLines = useMemo(() => {
     if (!showCohortMixedModelLine || !cohortModelResults || (axis !== 'baseline' && axis !== 'age')) return []
-    const spec = workspaceSpecs(data, [parameter.key])[0]
+    const spec = workspaceModelSpec(data, parameter.key, useAppStore.getState().trajectoryFitSettings)
     if (!spec) return []
     const patientIds = data.patients.map(p => p.id)
     const groups = groupBy ? groupPatients(patientIds, workspaceGroupableAttributes(data.rows, data.patientAttributes), groupBy) : []
@@ -145,7 +150,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const group = item.entity.kind === 'group' ? (item.entity.value === UNGROUPED ? 'Not recorded' : item.entity.value) : null
       return [{ key, group, points }]
     })
-  }, [showCohortMixedModelLine, cohortModelResults, data, parameter.key, axis, mixedModelConfig, presetExclusionPolicy, groupBy])
+  }, [showCohortMixedModelLine, cohortModelResults, data, parameter.key, axis, mixedModelConfig, presetExclusionPolicy, preparationKey, groupBy])
   // Group lines follow the overlay: only groups currently plotted (after the
   // group filter) and not hidden in the legend.
   const visibleModelLines = modelLines.filter(line => line.group === null || groups.includes(line.group) && fullGroups.includes(line.group) && !hiddenGroups.includes(line.group))

@@ -1,7 +1,8 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it } from 'vitest'
 import { useAppStore } from '../../src/workspace/state/store'
-import { useWorkspaceData, workspaceSpecs, type WorkspaceData } from '../../src/workspace/workspace-data'
+import { useWorkspaceData, workspaceModelSpec, workspaceSpecs, type WorkspaceData } from '../../src/workspace/workspace-data'
+import { defaultFitSettings } from '../../src/workspace/workspace-analysis'
 import { WorkspacePlot } from '../../src/workspace/WorkspacePlot'
 import { CohortModelsWorkspace } from '../../src/workspace/CohortModelsWorkspace'
 import { buildCohortRows } from '../../src/core/cohort/screening'
@@ -9,7 +10,8 @@ import { buildMixedModelResultIdentity, mixedModelFitConfigHash } from '../../sr
 import type { MixedModelSuccess } from '../../src/core/mixedModel/types'
 import type { LabRow } from '../../src/core/types'
 import { groupPatients } from '../../src/core/grouping/grouping'
-import { workspaceGroupableAttributes, workspaceModelEntities } from '../../src/workspace/workspace-model-results'
+import { groupInteractionFactor, workspaceGroupableAttributes, workspaceModelEntities } from '../../src/workspace/workspace-model-results'
+import { validateMixedModelConfig } from '../../src/core/mixedModel/config'
 import type { ClinicalEvent } from '../../src/core/events/events'
 
 const success: MixedModelSuccess = {
@@ -85,6 +87,75 @@ describe('workspace model validity', () => {
     expect(screen.queryByText(/Whole cohort fitted trajectory/)).not.toBeInTheDocument()
     expect(useAppStore.getState().cohortModelResults).toBeNull()
     expect(useAppStore.getState().projectionSettings).toEqual({})
+  })
+  // Decided 2026-10-07 (formerly OD-1): the page used to build its series with
+  // general exploration whatever was chosen under Trajectories, so the
+  // checkbox could not remove a row.
+  it('prepares model rows with the analysis settings chosen under Trajectories', () => {
+    const transplant: ClinicalEvent = { patientId: 'A', type: 'kidney_transplant', date: new Date('2021-01-01T00:00:00Z'), title: 'Transplant', description: null, endDate: null, intent: null, warning: '' }
+    act(() => useAppStore.getState().setEvents([transplant]))
+    const view = render(<Harness studio />)
+    expect(screen.getByText(/Preset windows: applied; 0 eligible measurements excluded/)).toBeInTheDocument()
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('General exploration (shared settings): individual measurements; event windows none; AKI windows none.')
+
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: defaultFitSettings('ckd_progression'), columns: {} }))
+    view.rerender(<Harness studio />)
+    expect(screen.getByText(/Preset windows: applied; 2 eligible measurements excluded/)).toBeInTheDocument()
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('CKD progression (shared settings): quarterly medians; event windows after kidney transplant, after chronic dialysis start, acute dialysis intervals, dated dialysis of unknown intent; AKI windows 30 days.')
+
+    fireEvent.click(screen.getByRole('checkbox', { name: /Apply preset event and AKI exclusions/i }))
+    expect(screen.getByText(/Preset windows: skipped; 0 eligible measurements excluded/)).toBeInTheDocument()
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('The event and AKI windows are skipped by the choice above; time aggregation still applies.')
+  })
+  it('uses the own Trajectories settings of a parameter and prepares nothing for "No fit"', () => {
+    const view = render(<Harness studio />)
+    const key = data.parameters[0].key
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: defaultFitSettings('ckd_progression'), columns: { [key]: defaultFitSettings('acute_review') } }))
+    view.rerender(<Harness studio />)
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('Acute review (own settings of this parameter): no fit, so no cohort model is prepared for this parameter. Choose a fit model for it under Trajectories to fit a cohort model.')
+    // Nothing can be fitted, so the button must not look usable and no window count is shown.
+    expect(screen.getByRole('button', { name: /Fit model/ })).toBeDisabled()
+    expect(screen.queryByText(/Preset windows:/)).not.toBeInTheDocument()
+    expect(workspaceModelSpec(data, key, useAppStore.getState().trajectoryFitSettings)?.fitConfig?.preset).toBe('acute_review')
+    expect(workspaceModelSpec(data, 'missing', useAppStore.getState().trajectoryFitSettings)).toBeUndefined()
+  })
+  it('builds a valid Group interaction factor for numeric and categorical attributes', () => {
+    // Formerly a numeric attribute received a reference level, which no fit accepts (OD-23).
+    expect(groupInteractionFactor('dose', { numeric: true, levels: ['1', '2'] })).toEqual({ key: 'dose', kind: 'numeric', effect: 'level_slope' })
+    expect(groupInteractionFactor('arm', { numeric: false, levels: ['A', 'B'] })).toEqual({ key: 'arm', kind: 'categorical', effect: 'level_slope', reference: 'A' })
+    expect(validateMixedModelConfig({ timeAxis: 'time_since_baseline', covariates: [], factors: [groupInteractionFactor('dose', { numeric: true, levels: ['1', '2'] })], randomEffects: 'intercept_slope' }).ok).toBe(true)
+  })
+  it('discards fitted models when a Trajectories setting changes the model measurements, not otherwise', () => {
+    const view = render(<Harness studio />)
+    act(() => seedResult())
+    view.rerender(<Harness studio />)
+    const endpointsOnly = defaultFitSettings()
+    endpointsOnly.endpoints = { ...endpointsOnly.endpoints, observedCkdG5: true }
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: endpointsOnly, columns: {} }))
+    expect(useAppStore.getState().cohortModelResults).not.toBeNull()
+    // Another parameter getting its own settings does not concern this model.
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: endpointsOnly, columns: { other: defaultFitSettings('ckd_progression') } }))
+    expect(useAppStore.getState().cohortModelResults).not.toBeNull()
+    view.rerender(<Harness studio />)
+    expect(screen.getByText(/Whole cohort fitted trajectory/)).toBeInTheDocument()
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: { ...endpointsOnly, timeBalancing: 'quarterly-median' }, columns: {} }))
+    expect(useAppStore.getState().cohortModelResults).toBeNull()
+  })
+  it('keeps a model fitted under CKD progression when only an endpoint setting is edited', () => {
+    // Editing any setting turns the preset into custom settings and its x axis
+    // into calendar time; neither reaches the model rows or the result identity.
+    const key = () => data.parameters[0].key
+    const hash = () => mixedModelFitConfigHash(workspaceModelSpec(data, key(), useAppStore.getState().trajectoryFitSettings)!, useAppStore.getState().mixedModelConfig)
+    render(<Harness studio />)
+    const preset = defaultFitSettings('ckd_progression')
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: preset, columns: {} }))
+    const before = hash()
+    const edited = { ...preset, presetId: 'custom', endpoints: { ...preset.endpoints, percentDecline: false } }
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: edited, columns: {} }))
+    expect(hash()).toBe(before)
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('Edited settings (shared settings): quarterly medians;')
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: defaultFitSettings('theil_sen'), columns: {} }))
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('Theil–Sen robust trend (shared settings): individual measurements;')
   })
   it('draws per-group model lines only for groups fitted under the overlay grouping', () => {
     useAppStore.getState().setPatientAttributes({ A: { arm: 'X' }, B: { arm: 'X' }, C: { arm: 'Y' } })

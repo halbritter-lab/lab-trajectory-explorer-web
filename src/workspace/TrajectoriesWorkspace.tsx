@@ -12,7 +12,8 @@ import { sexLabel } from './workspace-labels'
 import { measurementFitStatus } from './measurement-fit-status'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { WorkspaceAnalysisSettings } from './WorkspaceAnalysisSettings'
-import { defaultFitSettings, endpointBadge, toFitConfig, type WorkspaceFitSettings } from './workspace-analysis'
+import { defaultFitSettings, defaultTrajectoryFitSettings, endpointBadge, toFitConfig, type WorkspaceFitSettings } from './workspace-analysis'
+import { useAppStore } from './state/store'
 
 /** Sort keys are `${parameterKey}:${metric}`; parameter keys are JSON and may
  * themselves contain ':', so split at the last one. */
@@ -56,7 +57,9 @@ function CellSummary({
       ? 'No fitted measurements'
       : quality?.label === '< 1 yr'
         ? 'Follow-up < 1 year'
-        : quality?.label
+        : quality?.label === 'one date'
+          ? 'All fitted measurements on one date'
+          : quality?.label
 
   // cell.fitModel is the scalar estimator; rolling and segmented runs are OLS
   // fits whose path is recorded in cell.mode.
@@ -88,6 +91,11 @@ function CellSummary({
             ? `${modelLabel}: ${formatWorkspaceNumber(cell.slope)} ${cell.einheit ?? ''}/year · R² ${formatWorkspaceNumber(cell.r2)}`
             : 'No fit available'}
       </span>
+      {cell.rolling && <span title={`Rolling OLS: an OLS fit in each ${cell.rolling.windowDays}-day window, moved in steps of ${cell.rolling.stepDays} days, with at least three fitted measurements. The slope above is the global OLS slope; the short lines in the chart are the window fits.`}>
+        {cell.rolling.nWindows > 0
+          ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'} · local slopes ${formatWorkspaceNumber(cell.rolling.slopeMin)} to ${formatWorkspaceNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
+          : `No ${cell.rolling.windowDays}-day window with three fitted measurements; no local slopes`}
+      </span>}
       {Number.isFinite(cell.ciLow) && Number.isFinite(cell.ciHigh) && <span title="Uncertainty in the estimated slope; not a prediction interval for future measurements">95% slope CI [{formatWorkspaceNumber(cell.ciLow)}, {formatWorkspaceNumber(cell.ciHigh)}] {cell.einheit ?? ''}/year</span>}
       <span>
         {cell.nFitted !== cell.nNumeric
@@ -133,6 +141,10 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   const [fitSettings, setFitSettings] = useState<WorkspaceFitSettings>(() => defaultFitSettings('general_exploration'))
 
   const [columnSettings, setColumnSettings] = useState<Record<string, WorkspaceFitSettings>>({})
+  // Cohort models prepare their measurements with these settings; publish them
+  // and return to the defaults when this workspace goes away.
+  useEffect(() => { useAppStore.getState().setTrajectoryFitSettings({ shared: fitSettings, columns: columnSettings }) }, [fitSettings, columnSettings])
+  useEffect(() => () => useAppStore.getState().setTrajectoryFitSettings(defaultTrajectoryFitSettings()), [])
   const [requestedSettingsScope, setSettingsScope] = useState('')
   const settingsScope = parameterKeys.includes(requestedSettingsScope) && data.parameters.some(p => p.key === requestedSettingsScope) ? requestedSettingsScope : ''
   const changeSettings = (settings: WorkspaceFitSettings) => {

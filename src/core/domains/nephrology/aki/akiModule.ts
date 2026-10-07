@@ -2,8 +2,9 @@ import { akiExclusionBands, akiExclusionWindows, episodesForSeries, isAkiCreatin
 import type { AkiEpisode } from './kdigo'
 import { formatAkiChip, formatAkiEpisodeSummary } from './summary'
 import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
-import type { LabRow, PatientId } from '../../../types'
+import { patientIdKey, type LabRow, type PatientId } from '../../../types'
 import { windowsWithLength } from '../../../exclusions/windows'
+import type { ClinicalEvent } from '../../../events/events'
 import { formatDisplayDate, formatDisplayNumber } from '../../../format'
 import type {
   AnalysisContext,
@@ -72,11 +73,11 @@ function episodeSourceKey(patientId: PatientId, seriesKey: SeriesKey): string {
 
 /** AKI episodes shown for and excluded from one series (see episodesForSeries),
  * memoised per patient creatinine source for the duration of a cohort build. */
-export function akiEpisodesForSeriesContext(ctx: Pick<SeriesContext, 'patientId' | 'seriesKey' | 'patientRows' | 'cache'>): AkiEpisode[] {
+export function akiEpisodesForSeriesContext(ctx: Pick<SeriesContext, 'patientId' | 'seriesKey' | 'patientRows' | 'cache'> & Partial<Pick<SeriesContext, 'events'>>): AkiEpisode[] {
   const key = `aki-episodes:${episodeSourceKey(ctx.patientId, ctx.seriesKey)}`
   const cached = ctx.cache.get(key) as AkiEpisode[] | undefined
   if (cached) return cached
-  const episodes = episodesForSeries(ctx.patientRows as LabRow[], ctx.patientId, ctx.seriesKey.bezeichnung, ctx.seriesKey.einheit)
+  const episodes = episodesForSeries(ctx.patientRows as LabRow[], ctx.patientId, ctx.seriesKey.bezeichnung, ctx.seriesKey.einheit, ctx.events ?? [])
   ctx.cache.set(key, episodes)
   return episodes
 }
@@ -165,7 +166,7 @@ function akiSeriesContribution(ctx: SeriesContext): SeriesContribution {
 export const akiModule = {
   id: 'aki' as const,
   label: 'AKI',
-  description: 'KDIGO acute kidney injury episodes detected on serum creatinine (mg/dl or µmol/l converted to mg/dl).',
+  description: 'KDIGO acute kidney injury episodes detected on serum creatinine (mg/dl or µmol/l converted to mg/dl), outside dialysis.',
   defaultSettings: { showOverlays: false, exclusionDays: DEFAULT_AKI_EXCLUSION_DAYS } as AkiModuleSettings,
   parseSettings: (value: unknown): AkiModuleSettings | null => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
@@ -188,11 +189,16 @@ export const akiModule = {
   apply: (ctx: AnalysisContext, settings: AkiModuleSettings): AnalysisContribution => {
     const fitInputs: ExclusionWindowContribution[] = []
     const episodeCache = new Map<string, AkiEpisode[]>()
+    const eventsByPatient = new Map<string, ClinicalEvent[]>()
+    for (const event of ctx.events) {
+      const key = patientIdKey(event.patientId)
+      eventsByPatient.set(key, [...(eventsByPatient.get(key) ?? []), event])
+    }
     for (const { patientId, seriesKey } of distinctNumericSeries(ctx.rows)) {
       const key = episodeSourceKey(patientId, seriesKey)
       let episodes = episodeCache.get(key)
       if (!episodes) {
-        episodes = episodesForSeries(ctx.rows, patientId, seriesKey.bezeichnung, seriesKey.einheit)
+        episodes = episodesForSeries(ctx.rows, patientId, seriesKey.bezeichnung, seriesKey.einheit, eventsByPatient.get(patientIdKey(patientId)) ?? [])
         episodeCache.set(key, episodes)
       }
       fitInputs.push(akiFitInput(patientId, seriesKey, episodes, settings.exclusionDays))

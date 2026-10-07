@@ -7,6 +7,88 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Trajectory-fit and cohort-model rules decided by the owner on 2026-10-07
+  (formerly open decisions OD-1, OD-2, OD-6, OD-9 and OD-23 in
+  `docs/method-algorithms.md`):
+  - Cohort models prepare their measurements with the analysis settings chosen
+    for the same parameter under Trajectories. **Numeric change for cohort
+    models:** with a preset such as CKD progression, event censoring, AKI
+    windows and quarterly medians now take effect, and "No fit" prepares no
+    model. Until now the page always used general exploration, so the "Apply
+    preset event and AKI exclusions" checkbox had no effect. The page states
+    the settings in use; changing them under Trajectories discards the models
+    fitted for that parameter.
+  - Rolling OLS now shows what it computes: one line per two-year window in the
+    charts, and the number of windows with the smallest and largest window
+    slope in the table. The reported slope, R² and confidence bounds remain
+    the global OLS values. The cohort and slope exports end with the new
+    columns `rolling_window_days`, `rolling_step_days`, `rolling_windows`,
+    `rolling_slope_min` and `rolling_slope_max`.
+  - When all fitted measurements share one date, the table says that no slope
+    exists instead of showing an "uncertain slope" note. Exported values are
+    unchanged.
+  - The "Group interaction" preset can be fitted for a numeric attribute (it
+    stored an invalid reference level), and its description no longer promises
+    p-values; none were ever computed.
+- eGFR, AKI and endpoint rules decided by the owner on 2026-10-07 (formerly
+  open decisions OD-13 to OD-20 in `docs/method-algorithms.md`). All are
+  **numeric or classification changes** for the data they concern; the golden
+  fixtures contain no affected case and are unchanged.
+  - A series counts as eGFR by its unit mL/min/1.73 m² alone, in every
+    feature: CKD endpoints, kidney failure reached, the rapid-decline flag and
+    the cohort-model projection presets. A clearance or an eGFR series
+    imported with the bare unit `ml/min`, or with another spelling such as
+    `mL/min/{1.73_m2}` or `ml/min/1.73qm`, no longer receives endpoints or the
+    flag; a series named otherwise than "eGFR…" in mL/min/1.73 m² now gets
+    the projection presets.
+  - AKI detection ignores serum creatinine of zero or less (previously a
+    baseline of 0 produced a stage III episode) and creatinine measured under
+    dialysis: from the start of chronic dialysis until a later kidney
+    transplant, and inside dated acute-dialysis intervals. Detection continues
+    after transplantation. Episodes, chips and AKI exclusion windows of
+    affected patients change. The Data page reports the number of
+    non-positive creatinine values.
+  - An eGFR derived from a non-exact creatinine row of a pre-parsed import
+    (`range`, `unparseable`) is no longer marked exact and stays out of fits,
+    endpoints and cohort models.
+  - The projected age at CKD G5 starts from the exact age when the birth date
+    is known, so it is up to one year higher than before. Without a birth
+    date it still starts from the age in completed years; the badge then
+    shows a rounded value marked as approximate (`G5 @ ~66y`). The new export
+    column `endpoint_prediction_age_basis` records which applies.
+  - The projection needs 365 days of follow-up instead of 365.25, the same as
+    the slope reliability rule; one calendar year of measurements now
+    qualifies.
+  - A confirmed observed G5 withholds the projection also when the
+    observed-G5 endpoint is switched off.
+  - The minimum confirmation interval is limited to 365 days, because a
+    confirming value must follow within 12 calendar months; a larger entry is
+    rejected with that explanation.
+  - Confirmed as final: the 20-year projection horizon, the 90-day mean
+    baseline for the 40 % and 57 % decline events, and the 12-month
+    confirmation window.
+- Import rules decided by the owner on 2026-10-07 (formerly open decisions
+  OD-7, OD-8 and OD-24 to OD-28 in `docs/method-algorithms.md`):
+  - Text values with exactly three digits after a point (`0.850`, `1.234`) are
+    read as decimals instead of being left without a number. **Numeric
+    change:** such values now enter all analyses. The import reports their
+    number with an example, because a file that uses the point as a thousands
+    separator would be read too low by a factor of 1000.
+  - Dialysis intent is matched without regard to case; `Chronic` is no longer
+    rejected, so that kidney replacement therapy now reaches censoring,
+    endpoint truncation and "kidney failure reached".
+  - With pre-parsed value columns, an empty operator cell beside a number
+    means an exact value; the operator cell is trimmed.
+  - Attribute-table birth dates are no longer retried with the browser's date
+    parser. Long or free-text dates are reported and ignored for age.
+  - New import diagnostics without a change to values: lab rows without a
+    patient ID are listed as rejected, two accepted headers for the same lab
+    or event field produce a warning naming the column used, and implausible
+    stated ages (negative, or a birth year in the age column) are reported as
+    a demographics conflict.
+  One golden case moved deliberately: `tests/goldens/wert.json` now expects
+  `"1.234"` to give 1.234 with operator `=` (previously no value,
+  `unparseable`). All other fixtures are unchanged.
 - `docs/method-algorithms.md` now specifies every implemented rule that
   decides which data are analysed and how results are derived: import and
   value interpretation, demographics resolution, the fit pipeline and presets,
