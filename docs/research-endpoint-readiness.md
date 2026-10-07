@@ -31,7 +31,7 @@ See the configurable trend projection design and implementation plan.
 - Individual endpoint prediction continues the global fitted curve on the
   endpoint-eligible measurements: dated exact numeric eGFR before the first
   kidney transplant or chronic dialysis start and outside complete dated acute
-  dialysis intervals. The age at the latest eligible measurement provides the
+  dialysis intervals, including later recovery values. The age at the latest eligible measurement provides the
   age anchor; the latest measured value does not shift the fitted line. A
   crossing is withheld when the endpoint fit's slope confidence interval
   includes zero or the crossing lies more than 20 years ahead.

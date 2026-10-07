@@ -14,7 +14,7 @@ interfaces are still evolving before 1.0.
   rapid-decline flag, eGFR derivation, AKI detection and exclusion windows,
   clinical events, endpoints, cohort mixed models and their projections.
   Behaviour that conflicts with other documentation or looks unintended is
-  described as implemented and marked as an open decision (OD-1 to OD-27).
+  described as implemented and marked as an open decision (OD-1 to OD-29).
   Documentation only: no numeric or behavioural change. Entries below were
   corrected where they described behaviour the code does not have.
 - The patient table now pages large cohorts while keeping global sort and
@@ -104,7 +104,7 @@ interfaces are still evolving before 1.0.
   anchoring at the latest measurement, independently of optional display-fit
   preparation. Its input is the endpoint-eligible measurements described under
   Changed above (before kidney replacement therapy, outside dated acute
-  dialysis intervals, bounds excluded).
+  dialysis intervals, bounds excluded), including later recovery values.
   See `docs/method-algorithms.md` for numerical contracts and worked examples.
 
 - Workspace analysis presets and independent column settings; cohort-model studio

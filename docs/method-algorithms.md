@@ -16,8 +16,11 @@ and no projected value is a prognosis.
   values, units, boundary conventions (inclusive or exclusive, strict or
   non-strict) and a worked example where the arithmetic is not obvious. A
   change to a rule updates this file in the same change; see `CLAUDE.md`.
-- **Regression evidence.** Each section ends by naming the tests that pin its
-  rules and the rules that no test pins.
+- **Regression evidence.** Each section, or each subsection of the larger ones,
+  names the tests that pin its rules and, where they were identified, the rules
+  that no test pins. The sections carried over from earlier versions (Bounded
+  measurements, Theil-Sen) and the export-provenance subsection name their
+  tests only.
 - **Open decisions.** Where implemented behaviour conflicts with user-facing
   documentation or looks unintended, the behaviour is described as it is and a
   marker **Open decision OD-n** follows. Nothing marked this way has been
@@ -25,6 +28,9 @@ and no projected value is a prognosis.
   description. The [list of open decisions](#open-decisions) collects them.
 - **Known limitations.** Behaviour the owner has decided not to change for now
   is documented as a limitation, without a marker.
+- **Proposed defaults.** A value marked *(proposed)* was chosen during
+  implementation and remains open to the owner's revision; see
+  [method decisions](remaining-method-decisions.md).
 - **Not reachable.** Code that exists only for tests is listed separately and
   is not part of the method description.
 
@@ -32,13 +38,17 @@ Conventions used throughout:
 
 - **Dates are calendar days.** Import keeps the calendar day as written and
   stores it at midnight UTC; a time of day is dropped. Measurements of one day
-  share one timestamp, and every elapsed-time rule works in whole days.
+  share one timestamp, and every elapsed-time rule works in whole days. The
+  one exception is the long-form attribute birth date of OD-24.
 - **A year is 365.25 days** wherever elapsed time is converted to years.
 - **A series** is one patient, one parameter name and one unit, compared as
   stored after import. Different names or units are never pooled.
 - **An exact measurement** is a dated numeric row whose operator is `=`.
-  Bounded rows (`<x`, `>x`) are shown and counted as raw rows but excluded from
-  every calculation; see [bounded measurements](#bounded-measurements-2026-10-06).
+  Bounded rows (`<x`, `>x`) are shown and counted as raw rows but enter no fit,
+  endpoint, AKI detection or cohort model. A bounded creatinine row still
+  yields a derived eGFR bound, and its sex and stated age still feed
+  demographics resolution; see
+  [bounded measurements](#bounded-measurements-2026-10-06).
 
 Contents:
 
@@ -64,10 +74,13 @@ Contents:
 
 ## Open decisions
 
-Each entry is described in full, with an example, in the section named. The
-first eight are the conflicts between documentation and behaviour found by the
-documentation review of 2026-10-07; the others were found while the rules were
-written down.
+Each entry is described in full in the section named, with an example where
+one applies. The first eight are the conflicts between documentation and
+behaviour found by the documentation review of 2026-10-07; the others were
+found while the rules were written down and verified. Where a marker cites the
+methodology page, that page is unchanged; passages of the changelog that
+described behaviour the code does not have were corrected in the same change
+and are no longer cited as conflicts.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -80,9 +93,9 @@ written down.
 | OD-7 | [Clinical events](#clinical-events) | Dialysis intent is case-sensitive: `Chronic` rejects the event row, and that kidney replacement therapy is lost. |
 | OD-8 | [Import and value interpretation](#import-and-value-interpretation) | Text values such as `0.850` are read as ambiguous thousands notation and lose their value without a per-value warning. |
 | OD-9 | [Reason codes and the slope reliability rule](#reason-codes-and-the-slope-reliability-rule) | When all fitted points share one date there is no slope, yet the note says a slope was fitted. |
-| OD-10 | [Rapid eGFR decline flag](#rapid-egfr-decline-flag) | The flag has no reliability gate; a two-point slope is flagged like a well-supported one. |
+| OD-10 | [Rapid eGFR decline flag](#rapid-egfr-decline-flag) | The flag has no reliability gate; a two-point slope is flagged like a well-supported one. The owner decided on 2026-10-06 not to change the flag for now; open is the conflict with the methodology wording. |
 | OD-11 | [Ordinary least squares](#ordinary-least-squares) | The t critical value is a step function above 40 degrees of freedom, untested against a reference in that range. |
-| OD-12 | [eGFR derivation](#egfr-derivation) | The EKFC Q polynomial is converted with 88.4 instead of the central 88.42. |
+| OD-12 | [eGFR derivation](#egfr-derivation) | Two creatinine conversion constants are in use: 88.42 µmol/l per mg/dl for measured values, 88.4 inside the EKFC Q polynomial. |
 | OD-13 | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) | AKI detection accepts zero and negative creatinine values. |
 | OD-14 | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) | AKI detection ignores clinical events; creatinine during dialysis or after transplantation still yields episodes and exclusion windows. |
 | OD-15 | [eGFR derivation](#egfr-derivation) | An eGFR derived from a non-exact creatinine row of a pre-parsed import is marked exact. |
@@ -95,9 +108,11 @@ written down.
 | OD-22 | [Cohort mixed models](#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-23 | [Cohort mixed models](#cohort-mixed-models) | The "Group interaction" preset builds an invalid configuration for a numeric attribute. |
 | OD-24 | [Import and value interpretation](#import-and-value-interpretation) | A rejected attribute-table birth date longer than ten characters is retried with the JavaScript date parser. |
-| OD-25 | [Import and value interpretation](#import-and-value-interpretation) | Two accepted headers for the same lab column are both accepted and one column is ignored silently. |
+| OD-25 | [Import and value interpretation](#import-and-value-interpretation) | Two accepted headers for the same lab or event column are both accepted and one column is ignored silently. |
 | OD-26 | [Import and value interpretation](#import-and-value-interpretation) | Lab rows without a patient ID are skipped without a diagnostic. |
 | OD-27 | [Import and value interpretation](#import-and-value-interpretation) | With pre-parsed value columns, an empty operator cell makes a numeric row non-exact. |
+| OD-28 | [Demographics resolution](#demographics-resolution) | Implausible stated ages are changed without a report: a negative age gives no age, and a birth year typed into the age column is remapped (1950 becomes 50). |
+| OD-29 | [Cohort mixed models](#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
 
 ## Import and value interpretation
 
@@ -148,11 +163,12 @@ Sheet names are compared after header normalisation (see Columns).
   sheet, including a second sheet matching the same role, is ignored without a
   diagnostic. A workbook with sheets `Sheet1` and `Sheet2` loads `Sheet1` as
   labs and ignores `Sheet2`. A workbook holding only `events` and `attributes`
-  reads `events` as the lab sheet and fails on its missing lab columns.
+  reads its first sheet as the lab sheet and fails on its missing lab columns.
 
 Events and attributes can also be uploaded as separate files after the lab
 data. Such a file contributes its first sheet only and replaces the
-corresponding table; it is not merged with the previous one.
+corresponding table; it is not merged with the previous one. A file without
+any accepted row is an error and leaves the previous table in place.
 
 A successful lab import replaces the whole dataset: lab rows, events, rejected
 event rows and attributes come from the new file, and manual demographic
@@ -190,15 +206,18 @@ A lab sheet with data rows that lacks a required column is rejected as a whole;
 the error names the missing columns and lists the columns found. `Geschlecht`
 is not a lab-sheet header; it is accepted in the attributes table only.
 
-Two headers that differ only in case or separators (`Patient ID` and
+Two accepted headers that differ only in case or separators (`Patient ID` and
 `patient_id`) are an import error: "Ambiguous columns … Rename one of them."
-The check in `resolveColumns` compares normalised spellings, not concepts. When
+Columns that match no accepted header are never checked. A header repeated
+verbatim is renamed by the workbook reader (`value_1`) and then ignored without
+a diagnostic. The check in `resolveColumns` compares normalised spellings, not
+concepts. When
 a sheet carries two different accepted headers for one concept, the header
 listed first in the table is used and the other column is ignored without a
 diagnostic. A sheet with both `labDate` and `LabDatum` is read from `labDate`;
 a sheet with both `value` and `Wert` is read from `value`.
 
-> **Open decision OD-25.** Two different accepted headers for the same lab concept (for example `labDate` and `LabDatum`) are both accepted and one column is silently ignored; the changelog describes strict ambiguity detection whenever distinct headers refer to the same concept. Behaviour is unchanged pending an owner decision.
+> **Open decision OD-25.** Two different accepted headers for the same lab or event concept (for example `labDate` and `LabDatum`, or `type` and `EventType`) are both accepted and one column is silently ignored, while the attributes table rejects the equivalent case (two sex or two birth-date headers). Behaviour is unchanged pending an owner decision.
 
 The attributes table requires `patientId` (= `PatientID`) and at least one
 other column. Two demographic concepts are recognised by
@@ -224,10 +243,12 @@ Its text is kept only for display and for the duplicate check. A sheet with
 only one of the two columns ignores it and interprets the value column
 normally.
 
-- The number is a typed numeric cell, or text read as a plain number after a
-  single decimal comma (`1,2`) is converted to a point. The dot-thousands guard
-  described under Values does not apply here: `1.234` is read as 1.234.
-  Anything else, including an empty cell, gives no number.
+- The number is a typed numeric cell, or text converted with JavaScript
+  `Number()` after a single decimal comma (`1,2`) is replaced by a point. This
+  is wider than the value rules below: a leading `+`, `.5`, exponents including
+  `1e+3`, and hexadecimal text (`0x1A` is 26) are accepted. The dot-thousands
+  guard described under Values does not apply here: `1.234` is read as 1.234.
+  Anything else, including an empty cell and `1,2,3`, gives no number.
 - The operator cell must be exactly `=`, `<`, `>`, `range` or `unparseable`.
   It is compared verbatim, without trimming. An empty cell, ` = ` with spaces,
   `≤` and any other content become `unparseable`.
@@ -312,8 +333,14 @@ Rejected as unrecognised: two-digit years (`15.01.24`), dashed day-first dates
 four-digit numbers (`2020`). Rejected as impossible: any day that does not
 exist, such as `2024-02-30`, `2023-02-29`, `31/04/2024` or month 13.
 
+Text dates and workbook date cells have no plausibility range: any year from
+0100 to 9999 is accepted (`0203-01-05`, `3000-01-01`). Years 0000 to 0099 are
+rejected as impossible. Only serial numbers are range-checked (below).
+
 **Time of day and time zone.** A date may be followed by a time: `T` or spaces,
-`hh:mm`, optional seconds and fraction, and an optional `Z` or `±hh:mm` offset.
+`h:mm` or `hh:mm`, optional seconds and fraction, and an optional `Z`,
+`±hh:mm` or `±hhmm` offset. A time in another form (`+02`, `2:30 PM`) makes the
+whole date unrecognised.
 The time and the offset are ignored. The calendar day is taken as written and
 is not converted between time zones: `2024-01-15T23:30:00+02:00` is 15 January
 2024, and `2024-01-14T23:00:00.000Z` is 14 January 2024. A workbook date cell
@@ -354,21 +381,30 @@ readable birth date is kept with the row even when the sheet also has a stated
 age column.
 
 **Birth dates in the attributes table.** `readAttributeBirthDate` applies the
-same parser with the birth serial range. An unreadable value is kept as
+same parser, but attribute values are text by then: a numeric cell is read
+under the text rule, so only five-digit serials (10000 to 80000, 1927-05-18
+onwards) are accepted. Serials 1 to 9999 and four-digit numbers are rejected
+as unrecognised. The birth serial range from 1 applies only to typed numeric
+birth-date cells of the lab sheet in a binary workbook; birth dates in a CSV
+lab sheet are text as well. An unreadable value is kept as
 attribute text, ignored for age, and reported as a warning. One exception
 applies: a text longer than 10 characters that the parser rejects is passed to
 the JavaScript `Date` parser and accepted if that succeeds. This path exists
 for birth dates stored by earlier versions in the long form
 `Sun Feb 03 1980 01:00:00 GMT+0100 (…)`. It also accepts other long texts:
 `03/15/1980 00:00` is read month-first, `1980-02-30T00:00:00` rolls over to
-1 March 1980, and `March 15, 1980` is accepted. Texts without an explicit
+1 March 1980, and `March 15, 1980` is accepted. Free text containing a number
+can also be accepted without a warning: in Chrome and Node,
+`geb. 1950 (unsicher)` becomes 1 January 1950 local time and `see chart 12`
+becomes 1 December 2001. The result depends on the browser's `Date` parser.
+Texts without an explicit
 offset are interpreted in the browser's time zone and are not normalised to
 midnight UTC. In a browser set to Central European Time these three values
 become 1980-03-14 23:00 UTC, 1980-02-29 23:00 UTC and 1980-03-14 23:00 UTC, so
 the UTC calendar day used for ages is one day early. The ten-character value
 `03/15/1980` is rejected as described above.
 
-> **Open decision OD-24.** An attributes-table birth date longer than 10 characters that the import parser rejects is retried with the JavaScript `Date` parser, which accepts month-first and rolled-over dates and depends on the browser time zone; the changelog states that month-first and impossible birth dates are ignored with a warning. Behaviour is unchanged pending an owner decision.
+> **Open decision OD-24.** An attributes-table birth date longer than 10 characters that the import parser rejects is retried with the JavaScript `Date` parser, which accepts month-first and rolled-over dates and some free text and depends on the browser and its time zone; this bypasses the rule that month-first and impossible birth dates are ignored with a warning. Behaviour is unchanged pending an owner decision.
 
 ### Values
 
@@ -388,7 +424,8 @@ text is trimmed. The following rules then apply in order.
    minus sign, one to three digits, a point and exactly three digits (pattern
    `^-?\d{1,3}\.\d{3}$`) is unparseable; see below.
 3. **Decimal comma.** Every comma is read as a decimal point: `7,5` is 7.5.
-   Text with more than one comma (`1,2,3`) is unparseable.
+   A single number with more than one comma (`1,2,3`) is unparseable; a range
+   may carry one comma per bound.
 4. **Bounds.** `<` or `>`, optional spaces, then a non-negative number without
    exponent: `<5`, `< 0,5`, `> 60`. The number is the limit and the operator is
    kept. Because of the substitution above, `≤5` is read as `<5` and `≥90` as
@@ -597,9 +634,11 @@ unknown with `sex_tie`.
 
 **Stated age.** When the lab sheet has a stated-age column, each row's stated
 age is read from it: a typed number, or text with a decimal point or a single
-decimal comma. The value is truncated toward zero (`46,9` is 46). Other text
-(`46 J`) and empty cells give no stated age. No plausibility range is applied;
-negative and very large values are accepted as written. When the sheet has no
+decimal comma (the same conversion as for pre-parsed numbers, so `4e1` is 40).
+The value is truncated toward zero (`46,9` is 46). Other text (`46 J`) and
+empty cells give no stated age. No plausibility range is applied at import;
+negative and very large values are stored as written. Resolution does not
+preserve all of them (see OD-28 below). When the sheet has no
 stated-age column but a row has a readable birth date and a lab date, the
 row's stated age is the completed years between them.
 
@@ -666,8 +705,8 @@ earliest upper bound. There is no tolerance; a mismatch of one day is a
 contradiction.
 
 - **Non-empty intersection.** The anchor is the midpoint of the intersection,
-  rounded down to a whole UTC day. Every stated age is reproduced exactly, and
-  rows without a stated age receive an age.
+  rounded down to a whole UTC day. Every plausible stated age is reproduced
+  exactly, and rows without a stated age receive an age.
 - **Empty intersection.** The stated ages fit no single birth date. The anchor
   is the median of the midpoints of the individual row intervals; with an even
   number of rows the lower of the two middle values is used, so the anchor is
@@ -675,6 +714,17 @@ contradiction.
   gap in days between the latest lower bound and the earliest upper bound, and
   the ages of all dated rows are recomputed from the anchor. Each row has equal
   weight, so a parameter measured more often has more influence.
+
+Two kinds of stated age are not reproduced on dated rows, and no conflict is
+reported for them. A negative stated age places the birth date after the lab
+date, so the row receives no age. A stated age within about 100 years of the
+lab year, such as a birth year typed into the age column, is remapped, because
+the interval arithmetic passes years 0 to 99 to JavaScript's `Date.UTC`, which
+reads them as 1900 to 1999. With a lab date of 2024-03-09, a stated age of 1950
+resolves to 50, 2000 to 100 and 1925 to 25, while 150 and 1000 are kept. Rows
+without a lab date keep the value as written.
+
+> **Open decision OD-28.** Implausible stated ages are changed during resolution without any report: a negative age yields no age, and a value within about 100 years of the lab year (for example a birth year in the age column) is remapped to a different age. Behaviour is unchanged pending an owner decision.
 
 All imported lab rows of the patient with a valid lab date and a stated age
 feed the inference: every parameter, including rows whose value is a bound, a
@@ -783,7 +833,9 @@ fixed module order as such.
 
 Imported `<x` and `>x` rows retain their raw text, numeric limit and operator.
 They remain in measurement tables and charts and count toward raw dated numeric
-counts (`nNumeric`), but never enter individual OLS or Theil-Sen fits, rolling
+counts (`nNumeric`) and the raw span (`spanDays`), and through that span can
+remove the `span_too_short` reason of a series whose exact values span less
+than 365 days. They never enter individual OLS or Theil-Sen fits, rolling
 or segmented slopes, cohort screening and slope lines, endpoint evaluation or
 prediction, AKI detection, or cohort mixed-model datasets. Derived eGFR from a
 bounded creatinine source retains the reversed inequality for display and is
@@ -793,9 +845,10 @@ clinical-event censoring and AKI fit windows.
 Filtering is by row operator before fitting, aggregation and endpoint order,
 not by date. An exact value on the same date as a bound remains eligible. A
 bound alone cannot start, confirm, interrupt or recover an observed endpoint;
-it cannot establish an AKI episode. When multiple creatinine series are
-available for AKI detection, the source with the most eligible exact dated
-values is selected; bounds do not win source selection by inflating row count.
+it cannot establish an AKI episode. For a series that is not itself an eligible
+creatinine series, the patient's creatinine series with the most exact dated
+numeric values supplies the AKI episodes (first in row order on a tie); bounds
+do not win source selection by inflating row count.
 Bound-only series retain their displayed
 points and raw count but have zero fitted points, no fitted slope or line and no
 observed endpoint. A bound does not supply an age anchor or mixed-model time
@@ -832,11 +885,16 @@ on the same date keep their source order.
 
 ### Order of operations
 
-`summarizeByBezeichnung` (`src/core/stats/summarize.ts`) and `buildSlopeLines`
-(`src/core/stats/slopeLines.ts`) apply the same five steps in the same order:
+`summarizeByBezeichnung` (`src/core/stats/summarize.ts`) and the trend-line
+path (`buildCohortRows`, then `buildSlopeLines` in
+`src/core/stats/slopeLines.ts`) apply the same five steps in the same order;
+for the line, step 1 is done by `buildCohortRows` before it calls
+`buildSlopeLines`:
 
-1. Bounds. Rows whose operator is `<` or `>` are removed by operator, not by
-   date (see "Bounded measurements").
+1. Exact rows only. Every row whose operator is not `=` is removed by operator,
+   not by date. These are the bounds `<` and `>` (see "Bounded measurements")
+   and, with pre-parsed value columns, numeric rows whose operator is `range`,
+   unrecognised or empty (see OD-27).
 2. Censoring windows. Points inside any censoring window of the series are
    removed. These windows come from clinical events under the column's
    censoring options.
@@ -891,7 +949,7 @@ fitted count is zero and no trend line exists.
 
 | Field | Export column | What it counts |
 | --- | --- | --- |
-| `nNumeric` | `n` | Dated numeric rows of the series, bounded rows included, before any window or balancing. |
+| `nNumeric` | `n` | Dated numeric rows of the series, non-exact rows (bounds and other operators than `=`) included, before any window or balancing. |
 | `spanDays` | `span_days` | Whole days between the first and last of those rows; 0 when there is none. |
 | `nFitted` | `n_fitted` | Points handed to the scalar fit after steps 1 to 4. One monthly or quarterly bin counts as one point. |
 | `fittedSpanDays` | `fitted_span_days` | Whole days between the first and last of those fitted points; 0 with fewer than two. |
@@ -931,12 +989,13 @@ Regression evidence: [summary tests](../tests/core/stats/summarize.test.ts),
 [slope-line tests](../tests/core/stats/slopeLines.test.ts),
 [censored measurement tests](../tests/core/censoredMeasurements.test.ts),
 [event exclusion tests](../tests/core/events/fitExclusions.test.ts) for
-inclusive window bounds, and
+the inclusive start bound, and
 [export record tests](../tests/core/cohort/exportRecords.test.ts) for
 `slope_mode`, `fit_model` and the fitted count behind `unstable_slope`.
 `src/core/exclusions/windows.ts` has no test file of its own and is exercised
 through these tests. No dedicated regression test covers the fixed-length
-window with N = 0, the `n_fitted` and `fitted_span_days` export columns,
+window with N = 0, a point exactly on the end date of a window, the `n_fitted`
+and `fitted_span_days` export columns,
 unrounded export values, or the fact that the preset `xAxis` is not read.
 
 ## Fit presets
@@ -968,8 +1027,10 @@ fixes every setting in the table.
 
 "Stored, inactive" means the value is kept in the configuration so that it is
 already set when the corresponding option is switched on. Endpoint toggles only
-take effect on eGFR series. The construction of AKI windows and the endpoint
-rules are specified in their own sections.
+take effect on eGFR series. For the AKI exclusion days, inactive refers to the
+fit only: the shaded AKI band in charts is drawn with the stored length whether
+or not the exclusion is on (see "AKI fit-exclusion window"). The construction
+of AKI windows and the endpoint rules are specified in their own sections.
 
 The Theil–Sen preset is general exploration with the Theil–Sen estimator. Its
 configuration is recorded with `preset: custom`, so an export cannot
@@ -989,8 +1050,9 @@ Defaults and inheritance:
 - A series specification built without a fit configuration (`cohortSeriesSpec`)
   uses General exploration.
 
-The export `settings` sheet records, per column, the slope mode, the complete
-`fit_config` JSON and the rapid-decline threshold.
+The export `settings` sheet records, per column, the slope mode (column
+`mode`), the complete `fit_config` JSON and the rapid-decline threshold
+(`rapid_egfr_threshold`).
 
 Regression evidence: [preset builder tests](../tests/core/fitPipeline/types.test.ts)
 for General exploration and CKD progression,
@@ -1044,7 +1106,9 @@ Consequences for later steps:
 - Same-date rows collapse into their bin instead of entering as separate
   points.
 
-The cohort mixed-model dataset uses the same function on its own retained rows.
+The cohort mixed-model dataset code uses the same function on its own retained
+rows; the Cohort models page always supplies `raw`, so no model fitted through
+the interface is balanced (OD-1).
 
 Example. Seven exact values of one series in 2021:
 
@@ -1246,8 +1310,8 @@ References: [SciPy documentation](https://docs.scipy.org/doc/scipy/reference/gen
 Both selections add local OLS fits to the global fit. Their parameters are
 fixed defaults in `summarizeByBezeichnung` and `buildCohortRows`. No interface
 control changes them, and the export records neither the parameters nor the
-local results: the `settings` sheet contains the slope mode and `fit_config`
-only.
+local results: of the fit settings, the `settings` sheet carries only the slope
+mode (column `mode`), `fit_config` and the rapid-decline threshold.
 
 ### Rolling OLS (`rolling-ols`, slope mode `rolling`)
 
@@ -1352,10 +1416,13 @@ Regression evidence: [rolling tests](../tests/core/stats/rolling.test.ts),
 180-day boundary, [segment fixture tests](../tests/parity/segments.parity.test.ts),
 [slope-line tests](../tests/core/stats/slopeLines.test.ts) for per-segment
 lines, and [cohort screening tests](../tests/core/cohort/screening.test.ts) for
-the absence of rolling lines. No dedicated regression test asserts that the
-rolling and segmented scalars equal the global OLS values, the window and
-segment statistics in these two modes, the single-window case at exactly 730
-days, or the global fallback line.
+the absence of rolling lines, and
+[summary fixture tests](../tests/parity/summarize.parity.test.ts), which pin
+the reported slope and reason in `rolling` and `gap-split` mode to the same
+values as `global` for three patients. No dedicated regression test asserts
+that R² and the confidence bounds equal the global OLS values in these modes,
+the window and segment statistics, the single-window case at exactly 730 days,
+or the global fallback line.
 
 ## Reason codes and the slope reliability rule
 
@@ -1472,8 +1539,10 @@ A cell is flagged when all of the following hold:
   threshold of 5 is not flagged.
 
 The threshold is a per-column setting in mL/min/1.73 m² per year. Its default is
-5 (`DEFAULT_RAPID_EGFR_DECLINE`). The input accepts values from 0 in steps of
-0.5; a negative entry is stored as 0, and so is an empty or non-numeric one. A
+5 (`DEFAULT_RAPID_EGFR_DECLINE`). The input has a minimum of 0 and a spinner
+step of 0.5; the step is not enforced, so any non-negative number typed is
+stored as entered. A negative entry is stored as 0, and so is an empty or
+non-numeric one. A
 threshold of 0 disables the flag. Selecting a preset resets the threshold to 5.
 Changing the threshold marks the column configuration as custom (see "Fit
 presets").
@@ -1493,7 +1562,7 @@ differ enough produce the same flag as a multi-year decline. The amber
 reliability note, when present, is shown next to the flag but does not
 suppress it.
 
-> **Open decision OD-10.** The rapid-decline flag has no reliability gate: a two-point slope or a slope over less than one year is flagged in the same way as a well-supported slope, while the methodology page relates the threshold to a sustained decline. Behaviour is unchanged pending an owner decision.
+> **Open decision OD-10.** The rapid-decline flag has no reliability gate: a two-point slope or a slope over less than one year is flagged in the same way as a well-supported slope, while the methodology page relates the threshold to a sustained decline. The owner decided on 2026-10-06 not to change the flag for now (see [method decisions](remaining-method-decisions.md)); what remains open is this conflict with the methodology wording. Behaviour is unchanged pending an owner decision.
 
 In the table the badge appears only while the fit is shown for that column; its
 tooltip states the comparison, for example "Rapid decline: slope < -5 /year".
@@ -1560,7 +1629,9 @@ removed; the micro sign may be written `µ` (U+00B5), `μ` (U+03BC) or as a
 plain `u` in front of a letter; letter case is folded, except that the first
 letter of each letter run keeps its case when it can be an SI prefix or a
 colliding single-letter unit (`m M p P n N k K g G t T e E z Z y Y s S`).
-Spellings written entirely in capitals are folded completely.
+In a spelling without any lower-case letter, every run of two or more letters
+is folded completely (`MG/DL` is `mg/dl`); a single-letter run still follows
+the first-letter rule (`G/L` is `G/l`).
 
 | Spelling | Accepted as |
 | --- | --- |
@@ -1579,7 +1650,10 @@ that is not an eligible serum-creatinine source produces no eGFR rows.
 
 When no source is selected, `defaultCreatinineSource` chooses one. The
 candidates are the distinct eligible pairs in the dataset, sorted mg/dl
-before µmol/l and then by lower-cased name. The first rule that matches wins:
+before µmol/l and then by lower-cased name (`localeCompare` in the runtime
+locale). In the workspace, *Automatic* is resolved with these rules when the
+calculation is applied, and the resulting pair is stored as the explicit
+source. The first rule that matches wins:
 
 1. a pair in mg/dl whose trimmed, lower-cased name is exactly `kreatinin`;
 2. the first pair in mg/dl whose name contains `hp` in any case;
@@ -1684,7 +1758,7 @@ Q changes from the polynomial to the fixed value between 25 and 26 years. For
 a male with 0.9 mg/dl this moves the unrounded result from 107.863404 at 25
 to 107.300000 at 26.
 
-> **Open decision OD-12.** The EKFC Q polynomial is converted from µmol/l to mg/dl with 88.4 µmol/l per mg/dl, not the central 88.42 used for creatinine values. The difference affects ages 18 to 25 only and is about 0.03 mL/min/1.73 m² (male, 20 years, 0.9 mg/dl: 102.179692 against 102.153530). Behaviour is unchanged pending an owner decision.
+> **Open decision OD-12.** Two conversion constants are in use: measured creatinine is converted with 88.42 µmol/l per mg/dl (the owner-approved central constant), the EKFC Q polynomial with 88.4. Within EKFC the difference affects ages 18 to 25 only and is at most about 0.03 mL/min/1.73 m² (male, 20 years, 0.9 mg/dl: 102.179692 against 102.153530). Which constant should apply where is the owner's decision; 88.4 is the factor commonly quoted for creatinine, and with 88.42 the SI forms of the KDIGO thresholds become 26.526 µmol/l for the absolute rise and 353.68 µmol/l for the stage-III level, just above the rounded 26.5 and 353.6 µmol/l. Behaviour is unchanged pending an owner decision.
 
 ### Rounding and limits
 
@@ -1753,8 +1827,10 @@ bound, under-18 rows, rejected non-serum source),
 `off` contributes nothing), [unit-key tests](../tests/core/parse/units.test.ts)
 and [eGFR fixture tests](../tests/parity/egfr.parity.test.ts). No dedicated
 regression test: one-decimal rounding at a threshold, the absence of caps,
-same-date duplicate source rows, the 88.4 constant as such, default-source
-rule 3, and the operator case of OD-15.
+same-date duplicate source rows, default-source rule 3, and the operator case
+of OD-15. The 88.4 constant has no test of its own but is pinned indirectly:
+the fixture row for `w`, 0.6 mg/dl, 25 years and the formula test for `w`,
+0.7 mg/dl, 18 years both fail with 88.42.
 
 ## KDIGO creatinine AKI detection
 
@@ -1911,7 +1987,7 @@ computed eGFR column need not be the series the eGFR was derived from.
 Example: a patient has `Kreatinin [mg/dl]` with 1.0 and 1.6 mg/dl on
 consecutive days and `Kreatinin HP [µmol/l]` with 90, 91 and 92 µmol/l on
 three days. The eGFR default source is `Kreatinin [mg/dl]`, and the computed
-eGFR falls from 86.2 to 49.0 (male, 60 years). The `Kreatinin` column shows
+CKD-EPI 2021 eGFR falls from 86.2 to 49.0 (male, 60 years). The `Kreatinin` column shows
 one stage-I episode. The computed eGFR column shows none, because its AKI
 source is the `Kreatinin HP` pair with three rows.
 
@@ -1997,8 +2073,9 @@ window = [onset, onset + N days]      both bounds inclusive
 
 The anchor is the episode onset, the date of the first crossing. It is not
 the baseline date and not the peak date. A measurement is excluded when its
-date lies in at least one window. Nothing before the onset is excluded, so
-the baseline measurement stays in the fit, and so does any measurement after
+date lies in at least one window. Nothing dated before the onset is excluded,
+so the baseline measurement stays in the fit unless it carries the onset date
+itself (two rows on one date, see above), and so does any measurement after
 the window even when creatinine is still raised. N is the column's
 `akiExclusionDays`; the default is **30** (`DEFAULT_AKI_EXCLUSION_DAYS`).
 
@@ -2009,7 +2086,8 @@ inclusive are excluded and one on 2 February is kept.
 
 **Configuration.** Each column's fit configuration has a switch, *Exclude AKI
 windows from fit*, and the length, *Exclusion window (days)*. The length field
-accepts any number from 0 upward and has no upper limit. An empty or
+can be edited only while the switch is on (otherwise it is disabled and keeps
+its value); it accepts any number from 0 upward and has no upper limit. An empty or
 non-numeric entry is stored as 0 and a negative entry as 0. Fractional
 values are stored as entered; with whole-day dates they act like the next
 lower whole number (0.5 excludes the onset date only). With N = 0 the window
@@ -2037,16 +2115,20 @@ remove exact measurements, then time balancing (monthly or quarterly medians)
 runs on what remains, so excluded values never enter a median. Excluded
 measurements stay visible and are marked as excluded from the fit; raw counts
 are unchanged. Observed endpoints and the individual endpoint prediction do
-not use AKI windows. Cohort mixed models apply them only when their own
-exclusion checkbox is on (see
-[cohort mixed models](#cohort-mixed-models)).
+not use AKI windows. Cohort mixed models do not use them in the current
+interface either: the Cohort models page builds the series configuration
+without a fit configuration (general exploration, switch off), so its *Apply
+preset event and AKI exclusions* checkbox has no AKI window to apply (OD-1; see
+[cohort mixed models](#cohort-mixed-models)). The core function removes a
+column's AKI windows only when it is called with a configuration whose switch
+is on and with the policy `apply`.
 
 | Preset | AKI windows excluded | Length |
 | --- | --- | ---: |
-| General exploration | no | 30 (used only if switched on) |
-| Theil–Sen robust trend | no | 30 (used only if switched on) |
+| General exploration | no | 30 (not used for exclusion; sets the length of the drawn band) |
+| Theil–Sen robust trend | no | 30 (not used for exclusion; sets the length of the drawn band) |
 | CKD progression | yes | 30 |
-| Acute review (no fit) | no | 30 (used only if switched on) |
+| Acute review (no fit) | no | 30 (not used for exclusion; sets the length of the drawn band) |
 
 **Marker placement (display only).** An episode marker belongs to the
 creatinine peak date. On each chart it is drawn on that column's measurement
@@ -2068,8 +2150,10 @@ the fit) and [workspace chart tests](../tests/workspace/trajectories.test.tsx)
 [fit configuration tests](../tests/core/fitPipeline/types.test.ts) assert that
 general exploration leaves the switch off. No dedicated regression test: the
 inclusive end bound of the window at exactly onset + N days, fractional N,
-the handling of empty or negative length input, the AKI switch and length of
-the CKD progression, Theil–Sen and acute review presets, and the 2-day marker
+the handling of empty or negative length input, the 30-day length of any
+preset, the AKI switch of the Theil–Sen and acute review presets (the CKD
+progression switch is exercised indirectly by the cohort screening test and
+the workspace chart test that selects the preset), and the 2-day marker
 boundary.
 
 ## Clinical events
@@ -2083,8 +2167,12 @@ endpoint filter (see "Observed endpoints and individual prediction").
 ### Fields
 
 Header matching ignores case and separators (`patient_id`, `Patient ID` and
-`patientID` are the same header). Two distinct headers that resolve to the same
-field make the import fail.
+`patientID` are the same header). Two headers that differ only in case or
+separators make the import fail ("Ambiguous columns … Rename one of them.").
+Two different accepted headers for one field (for example `type` and
+`EventType`, or `date` and `Datum`) are both accepted: the header listed first
+in the table is used and the other column is ignored without a diagnostic, as
+in the lab sheet (OD-25).
 
 | Field | Accepted headers | Required | Content |
 | --- | --- | --- | --- |
@@ -2182,8 +2270,9 @@ description, end date, intent and warning.
 Regression evidence: [event import tests](../tests/core/events/events.test.ts),
 [date reader tests](../tests/core/parse/dates.test.ts) and
 [header tests](../tests/io/headers.test.ts). No dedicated regression test for
-case-sensitive intent matching, for `endDate` equal to `date`, or for the
-warning order beyond `unknown_patient`.
+case-sensitive intent matching, for `endDate` equal to `date`, for the
+warning order beyond `unknown_patient`, or for two different accepted headers
+of one event field.
 
 ### Display-fit censoring and exclusion
 
@@ -2225,7 +2314,7 @@ Defaults:
 - When a caller passes no censoring configuration, every option is on and the
   unknown-dialysis policy is `exclude-dated-interval`. In the app only the
   event table uses this default (next paragraph).
-- General exploration, Theil-Sen robust trend and Acute review: all three
+- General exploration, Theil–Sen robust trend and Acute review: all three
   options off, unknown-dialysis policy `flag-only`. A column specification
   without a fit configuration falls back to General exploration
   (`cohortSeriesSpec`).
@@ -2271,9 +2360,10 @@ and can start or confirm an observed G4/G5 event. The event table shows
 Regression evidence: [fit exclusion tests](../tests/core/events/fitExclusions.test.ts),
 [event effect tests](../tests/core/events/events.test.ts),
 [cohort cell tests](../tests/core/cohort/screening.test.ts) and
-[reason precedence test](../tests/core/fitPipeline/types.test.ts). No dedicated
-regression test for the ignored chronic-dialysis `endDate` or for the
-`censor-from-start` policy on an event with an `endDate`.
+[reason precedence test](../tests/core/fitPipeline/types.test.ts). No
+regression test exercises the `censor-from-start` policy at all, the
+`flag-only` policy on an unknown-intent dialysis, or the ignored
+chronic-dialysis `endDate`.
 
 ## Observed endpoints and individual prediction
 
@@ -2298,10 +2388,13 @@ rapid-decline flag.
 > ml/min receives G4/G5 endpoints. Behaviour is unchanged pending an owner
 > decision.
 
+A third, name-only test (the name contains `egfr`, in any case) only preselects
+the outcome on the Cohort models page.
+
 **Which endpoints.** The column's fit configuration has four toggles: observed
 CKD G4, observed CKD G5, percent eGFR decline, and projected age to CKD G5,
 plus the minimum confirmation interval. The CKD progression preset turns all
-four on with 90 days. General exploration, Theil-Sen robust trend and Acute
+four on with 90 days. General exploration, Theil–Sen robust trend and Acute
 review turn all four off.
 
 **Which measurements.** Endpoint input is the column's measurements of the
@@ -2546,9 +2639,12 @@ withheld as `span_too_short`: 2021-01-01, 2021-07-01, 2022-01-01 is withheld,
 > days on fitted rows; the methodology page calls them the same thresholds.
 > Behaviour is unchanged pending an owner decision.
 
-**Confidence gate.** A crossing is reported only when the endpoint fit's slope
-confidence bounds are both finite, ordered, and strictly below zero. An
-interval touching or straddling zero withholds the crossing. For OLS the
+**Confidence gate.** A crossing is reported only when both slope confidence
+bounds of the endpoint fit are finite, ordered (low not above high) and the
+interval does not contain zero (`low <= 0 and high >= 0` withholds). Because
+the endpoint fit's slope is already negative and lies inside its own interval,
+this means both bounds are strictly below zero. An interval touching or
+straddling zero withholds the crossing. For OLS the
 bounds are the two-sided 95 % Student-t interval `b ± t(0.975, n-2) * SE(b)`
 with `SE(b) = sqrt(SSR / (n-2) / Sxx)`; the t quantile comes from a table for
 1 to 40 degrees of freedom and from a stepwise table above that (the values
@@ -2584,7 +2680,9 @@ exported in `endpoint_prediction_reason`; the label is the table badge.
 | 10 | `slope_ci_includes_zero` | Lower bound at or below zero and upper bound at or above zero. | `G5 not projected` |
 | 11 | `beyond_projection_horizon` | Crossing more than 20 years after the latest eligible row. | `G5 not projected` |
 
-The three `G5 not projected` cases are told apart by the badge's detail text.
+The four `G5 not projected` cases (`non_declining_fit`, `slope_ci_unavailable`,
+`slope_ci_includes_zero`, `beyond_projection_horizon`) are told apart by the
+badge's detail text.
 `G5 now` states only that the fitted line is at or below 15 at the latest
 measurement; it does not establish an observed event. The internal code
 `disabled` (toggle off) is never exported. The order has consequences: a
@@ -2592,9 +2690,15 @@ column with fit model "No fit" reports `insufficient_points` or
 `span_too_short` before `no_fit`, and a flat series with two rows reports
 `insufficient_points`, not `non_declining_fit`.
 
-A confirmed observed G5 event takes precedence over a future projection, and
-new measurements cannot revoke a confirmed event; they can change a
-projection.
+A confirmed observed G5 event takes precedence over a future projection. This
+also holds after a recorded recovery: once G5 is confirmed, the projection
+stays withheld as `observed_ckd_g5` however far eGFR recovers. Measurements
+dated after the confirmation cannot revoke or redate the event (the first value
+of 15 or more is recorded as recovery); they can change a projection. A
+measurement added on or before the confirmation date can change the event: a
+value of 15 or more between candidate and confirmation, or on the confirmation
+day itself, removes it, and an earlier low value redates the first crossing.
+The whole series is re-evaluated in date order each time.
 
 > **Open decision OD-18.** A confirmed observed G5 takes precedence over the
 > projection only while the observed-G5 toggle is on; with that toggle off the
@@ -2641,7 +2745,8 @@ the full reason order, or for the projection with the observed-G5 toggle off.
 ### Export provenance
 
 The cohort sheet (`cohort`, or `slopes` for a single patient) carries one row
-per patient and parameter with these endpoint columns, in this order. The
+per patient and parameter with these endpoint columns, in this order (within
+each event block the three dates precede the three values). The
 first three keep their original position; later columns are appended. Dates
 are UTC calendar days as `YYYY-MM-DD`. "Enabled" refers to the column's
 endpoint toggles on a series that passes the unit gate.
@@ -2662,19 +2767,25 @@ endpoint toggles on a series that passes the unit gate.
 | `endpoint_prediction_reason` | Projection enabled and withheld. | A code from the table above. |
 | `endpoint_prediction_slope_ci_low`, `endpoint_prediction_slope_ci_high` | Projection enabled and the endpoint fit has that bound finite. | Slope bounds of the endpoint fit, per year. Filled also when another reason withholds the projection. |
 | `endpoint_prediction_max_years` | Projection enabled. | `20` |
-| `endpoint_g4_first_date`, `endpoint_g4_confirmed_date`, `endpoint_g4_first_value`, `endpoint_g4_confirmed_value` | Observed G4 confirmed. | First crossing and confirmation. |
-| `endpoint_g4_recovery_date`, `endpoint_g4_recovery_value` | Recovery recorded after a confirmed G4. | First value of 30 or more. |
-| `endpoint_g5_*` (same six) | As for G4. | Threshold 15. |
+| `endpoint_g4_first_date`, `endpoint_g4_confirmed_date`, `endpoint_g4_recovery_date`, `endpoint_g4_first_value`, `endpoint_g4_confirmed_value`, `endpoint_g4_recovery_value` | First and confirmed: observed G4 confirmed. Recovery: recovery recorded after a confirmed G4. | First crossing, confirmation and recovery (first value of 30 or more). |
+| `endpoint_g5_*` (same six, same order) | As for G4. | Threshold 15. |
 | `endpoint_confirmation_max_months` | G4, G5 or percent decline enabled. | `12` |
 | `endpoint_decline_baseline_value` | Percent decline enabled and at least one eligible row. | Mean baseline eGFR, also when it is zero or negative. |
 | `endpoint_observed_decline_40`, `endpoint_observed_decline_57` | Decline event confirmed. | `yes` |
-| `endpoint_decline_40_*`, `endpoint_decline_57_*` (first, confirmed and recovery date and value) | As for G4. | Dates and eGFR values, not percentages. |
+| `endpoint_decline_40_*`, then `endpoint_decline_57_*` (each: first, confirmed and recovery date, then first, confirmed and recovery value) | As for G4. | Dates and eGFR values, not percentages. |
 
 Blank provenance means the endpoint was not evaluated for that series (for
 example a unit without `ml/min` or a preset with endpoints off), not that it
 was not met. A blank `yes` column alone does not distinguish "not met" from
-"not evaluated"; the confirmation, policy and baseline columns and the
-`fit_config` JSON on the `settings` sheet do. The kidney-failure columns are
+"not evaluated". `endpoint_confirmation_days` and
+`endpoint_confirmation_max_months` are filled when any of G4, G5 or percent
+decline is enabled, and `endpoint_input_policy` when any endpoint is enabled;
+they show that the series passed the unit gate with some endpoint on, not which
+one. With G4 on and G5 off, a blank `endpoint_observed_ckd_g5` sits beside a
+filled confirmation interval. Per endpoint, only the `endpoints` section of the
+`fit_config` JSON on the `settings` sheet tells; `endpoint_decline_baseline_value`
+additionally shows that percent decline was evaluated on at least one eligible
+row, and `endpoint_prediction_max_years` that the projection was. The kidney-failure columns are
 the exception: they are filled whenever kidney failure is reached. When a
 future projection is withheld after kidney replacement therapy without a prior
 observed G5, projected age, anchor, model and slope bounds are blank and the
@@ -2693,7 +2804,8 @@ The export does not record:
 
 - the length of the decline baseline window (90 days), the 40 % and 57 %
   definitions, or the candidate rules;
-- the confidence level (95 %) and method behind the slope bounds;
+- the confidence level and method behind the OLS slope bounds (the `about`
+  sheet names 95 % bounds for Theil-Sen only);
 - the endpoint fit's slope and intercept; the `slope` column is the display
   fit;
 - the number of endpoint-eligible rows; `n` counts raw rows and `n_fitted`
@@ -2756,8 +2868,11 @@ value ~ time_since_baseline + factor_0_ + time_since_baseline:factor_0_ +
   (1 + time_since_baseline | patient_id)
 ```
 
-The formula shown in the interface and written to the export replaces `value`
-with the series name and unit.
+The formula strip above the Fit button shows a readable form: the series name
+without unit as outcome, `Time (years)`, `Patient`, and the quoted factor names
+instead of the column names. The unit's Details panel and the export show the
+executable formula with `value` replaced by the series name and unit, for
+example `eGFR (ml/min/1.73m2) ~ time_since_baseline + …`.
 
 - **Random effects.** The default is a random intercept and a random slope per
   patient, and every interface preset sets it. A random intercept alone is a
@@ -2790,10 +2905,16 @@ nlme::lme(<fixed part>, random = ~ time_since_baseline | patient_id,
 ```
 
 **Interface presets.** *Standard* has no factors. *Subgroup comparison* has no
-factors and fits per group (see *Stratified fits*). *Demographic adjustment*
-adds baseline age (level) and sex (level). *Group interaction* adds the first
-available attribute other than `sex`, in sorted order, with level and slope.
-*Custom* leaves the choice to the user. The *Group interaction* description
+factors and fits per group (see *Stratified (grouped) fits*); it keeps the
+current grouping attribute or else selects the first groupable attribute in
+numeric-aware, case-insensitive order, which can be `birthDate` or `sex`.
+*Demographic adjustment* adds baseline age (level) and sex (level). *Group
+interaction* adds, with level and slope, the first groupable attribute other
+than `sex` in that order; when `sex` is the only one it uses `sex`; when the
+dataset has no attribute and no resolved sex it stores a factor `genotype`
+without a reference level, which is an invalid configuration and shows the
+same message as the numeric case below. *Custom* leaves the choice to the
+user. The *Group interaction* description
 reads "Estimates p-values for slope differences".
 
 > **Open decision OD-6.** The "Group interaction" preset copy says it estimates p-values; no p-value is computed, displayed or exported for any model, only Wald confidence intervals. Behaviour is unchanged pending an owner decision.
@@ -2815,7 +2936,7 @@ the model rows per patient in these stages, in this order.
 
 1. **Row eligibility.** Rows of the selected series only: identical name and
    identical unit (a missing unit matches only a missing unit), a numeric value,
-   a date, and an exact value. Rows carrying `<` or `>` never enter. Rows are
+   a date, and an exact value. Rows whose operator is not `=` never enter. Rows are
    ordered by date. Different names or units are never pooled.
 2. **Disabled fit.** A series whose configuration has `fitModel: none` supplies
    no model rows.
@@ -2911,7 +3032,8 @@ patients; it does not remove the others. A patient with one measurement, or
 with too few distinct times, contributes all of its rows to the model.
 **Rows of one patient at the same model time are all kept**, for example two
 values on one day. `validateMixedModelRows` returns a warning text for each of
-these three situations, but a passing validation's warnings are not displayed,
+these three situations (duplicate times are counted for qualifying patients
+only), but a passing validation's warnings are not displayed,
 not attached to the fitted result and not exported.
 
 **The gate applies per unit.** The whole cohort and each group are checked
@@ -2934,20 +3056,20 @@ them for each fitted unit.
 
 **Type.** `baseline_age` is numeric and `sex` is categorical. Any other
 attribute is numeric when it has at least one non-blank value and every
-non-blank trimmed value among the patients in scope matches the numeric grammar,
-and categorical otherwise. The grammar is an optional sign, digits with an
+non-blank trimmed value among the patients in scope matches the numeric grammar
+and converts to a finite number (`1e999` does not), and categorical otherwise. The grammar is an optional sign, digits with an
 optional decimal point (or a leading point), and an optional exponent:
 `^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$`. A decimal comma (`1,5`), a
 thousands separator or inner whitespace does not match, so one such value makes
 the whole attribute categorical. The interface applies this type when the
 factor is added and offers no control to change it.
 
-> **Open decision OD-22.** The factor type (numeric or categorical) is chosen automatically with no control to override it, although the changelog describes it as selectable; numerically coded categories such as 0/1/2 therefore enter as one linear term. Behaviour is unchanged pending an owner decision.
+> **Open decision OD-22.** The factor type (numeric or categorical) is chosen automatically with no control to override it (a comment in `src/core/mixedModel/factors.ts` still says the dialog selects factor kinds); numerically coded categories such as 0/1/2 therefore enter as one linear term. Behaviour is unchanged pending an owner decision.
 
 **Complete cases.** A patient is removed from a unit's model, with all of its
 rows, when any configured factor has no usable value: a missing or blank value
-("Missing <factor>") or, for a numeric factor, text that fails the grammar
-("Invalid numeric <factor>"). Nothing is imputed. The removal affects this model
+(`Missing <factor>`) or, for a numeric factor, text that fails the grammar
+(`Invalid numeric <factor>`). Nothing is imputed. The removal affects this model
 only. Removed patients are listed with their reasons under the formula, in the
 unit's status cell and in the `excluded_patients` worksheet.
 
@@ -2973,24 +3095,35 @@ coefficient, the difference from the reference level, named
 `<column><level>`. With level and slope, `time_since_baseline:<column><level>`
 is the difference in slope per year from the reference level.
 
-**Default reference level.** The first observed level in ascending string
-order (JavaScript default sort: digits before upper-case before lower-case
-letters). The page names the reference in use and marks it as the default; the
-user can choose another observed level. *Demographic adjustment* uses the first
-sorted sex code (`d` before `m` before `w`), or `w` when no sex is available.
+**Default reference level.** The first level in ascending string order
+(JavaScript default sort: digits before upper-case before lower-case letters)
+among all patients of the loaded dataset that have a lab row of any series. It
+is not restricted to the selected series or to a group. The default, and any
+level offered in the selector, can therefore be absent from a unit's model
+rows; that unit then fails the factor validity gate ("Factor … requires
+variation and an observed reference level.") until another reference is
+chosen. The same reference applies to the pooled fit and to every group. The
+page names the reference in use and marks it as the default. *Demographic
+adjustment* uses the first sorted sex code of the dataset (`d` before `m`
+before `w`), or `w` when no sex is available.
+
+> **Open decision OD-29.** The default reference level of a categorical factor is taken from all patients of the dataset, not from the fitted series or group, so it can be a level that the fitted unit does not contain; that unit then cannot be fitted until another reference is chosen, and one reference is shared by the pooled fit and all groups. Behaviour is unchanged pending an owner decision.
 
 **Category text.** Values are trimmed and otherwise compared exactly, including
 case: `A1` and `a1` are different levels.
 
-**Source of `sex`.** The distinct recognised sex codes on the patient's
-resolved lab rows are collected. Exactly one code is used. More than one code
-counts as missing, which removes the patient as a complete-case exclusion. When
-the lab rows carry none, the attribute `sex` is used after normalisation to
-`m`, `w` or `d`; an unrecognised spelling counts as missing.
+**Source of `sex`.** The factor value is the patient's resolved sex (see
+"Demographics resolution": manual entry, else the recognised attributes-table
+sex, else the most frequent row code; a tie yields none). A patient without a
+resolved sex is removed as a complete-case exclusion (`Missing sex`).
+`prepareMixedModelFactors` also contains rules for unresolved input (exactly
+one recognised row code is used, several count as missing, the normalised
+attribute `sex` is a fallback when rows carry none); the interface never
+supplies such input.
 
 **Coefficient units in the export.** Level terms carry the outcome unit, slope
 terms the outcome unit per year. A numeric factor adds "per year of baseline
-age" or "per unit of <factor>".
+age" or `per unit of <factor>`.
 
 ### Convergence and singularity
 
@@ -3025,7 +3158,7 @@ with the result, shown in the unit's details and exported.
 | Converged, not singular | Shown | `models`, `coefficients`, `projections` | Drawn | Available |
 | Singular | Shown; status "singular fit; projection withheld" | `models` (`singular` true), `coefficients` | Withheld | Withheld |
 | Not converged | Shown; status "did not converge" | `models` (`converged` false), `coefficients` | Withheld | Withheld |
-| Failed (R error, timeout, runtime) | None; status "Fit failed: <message>" | `models` row with `status` and `message` | None | None |
+| Failed (R error, timeout, runtime) | None; status `Fit failed: <message>` | `models` row with `status` and `message` | None | None |
 | Fails the validity gate | None; the validation message | None (never fitted) | None | None |
 
 Singular and non-converged coefficients remain inspectable and exportable; they
@@ -3059,7 +3192,8 @@ trimmed attribute value. Comparison is exact and case-sensitive: `B` and `b`
 are two groups. A patient with a missing or blank value belongs to the group
 `(ungrouped)`, which is fitted like any other group. Named groups are ordered by
 a numeric-aware, case-insensitive comparison (`9` before `10`) and `(ungrouped)`
-comes last. Example: values ` B `, `b`, `B`, `10`, `9` and a blank give the
+comes last. Values that differ only in case keep the order in which they first
+occur in the patient list. Example: values ` B `, `b`, `B`, `10`, `9` and a blank give the
 groups `9`, `10`, `B` (two patients), `b`, `(ungrouped)`.
 
 **Per-group preparation.** Row selection, the exclusion count, complete-case
@@ -3071,12 +3205,14 @@ two groups refer to different covariate values unless their centres coincide.
 windows is not listed. A group that has rows but fails a gate is listed with its
 message and is not fitted.
 
-**Sex as grouping attribute and as factor.** The two uses resolve conflicting
-sources differently. For grouping, the value is the sex on the patient's first
-lab row with a recorded sex, replaced by the attribute `sex` when the patient
-has an attributes row with that column (normalised when recognised, otherwise
-the raw text). For the `sex` factor, the lab rows take precedence over the
-attribute (see *Factors and covariates*).
+**Sex as grouping attribute and as factor.** In the interface both uses read
+the same resolved sex (see "Demographics resolution"), so they cannot disagree:
+grouping by `sex` gives `m`, `w`, `d` and `(ungrouped)` for patients without a
+resolved sex, and the `sex` factor removes exactly those `(ungrouped)` patients
+as `Missing sex`. An unrecognised attribute spelling never becomes a group.
+The grouping and factor functions would treat raw conflicting sources
+differently (attribute over first row sex, versus rows over attribute), but the
+workspace passes them resolved values only.
 
 ### Reproducibility
 
@@ -3113,7 +3249,7 @@ The `models` worksheet has one row per fitted unit:
 | `runtimeVersion` | R version of the webR runtime |
 | `packageVersions` | JSON: loaded versions of `lme4` (or `nlme`) and `jsonlite` |
 | `browserUserAgent`, `wasmAssetSource` | Browser and runtime source (`cdn`) |
-| `datasetId`, `datasetHash`, `fitConfigHash` | Identity of rows and configuration |
+| `datasetId`, `datasetHash`, `fitConfigHash` | The constant `cohort`, and hashes of the model rows and of the configuration |
 | `randomSeed` | Empty |
 | `warnings` | R warnings and lme4 messages |
 | `patients`, `measurements`, `converged`, `singular` | Successful fits |
@@ -3134,6 +3270,8 @@ unit's fitted line as
 `value(t) = intercept + time slope × t`
 
 using the fixed-effect intercept and `time_since_baseline` coefficient only.
+(The function can also shift the line by a centred baseline age; the interface
+always passes none or 0, so that path is not reachable.)
 With factors this is the *reference profile*: numeric factors at their centres
 and categorical factors at their reference levels. It is not an average over the
 cohort's categories, and random effects do not enter.
@@ -3182,7 +3320,9 @@ reference agree; they do not affect results produced through the interface.
   `covariates: ['baseline_age']` and no factor list centres baseline age at the
   mean over all modelled patients with a known age and fails validation when
   any modelled patient lacks one, instead of removing that patient. The
-  interface always sends a factor list.
+  initial configuration has no factor list and no covariates, which gives the
+  same model as *Standard*; every preset and factor edit sends a factor list.
+  No interface path produces `covariates: ['baseline_age']` without one.
 
 Regression evidence:
 [row preparation](../tests/core/mixedModel/cohortDataset.test.ts),
@@ -3203,8 +3343,9 @@ replace the worker. Real webR fits run only in
 [the factor verification script](../scripts/verify_mixed_model_factors.mjs) and
 [the projection verification script](../scripts/verify_mixed_model_projections.mjs),
 which are not part of `pnpm test` or CI. No dedicated regression test: the
-numeric grammar's rejection of decimal commas, the sex precedence used for
-grouping, the calendar-axis restriction of the overlay line, the status text of
+numeric grammar's rejection of decimal commas, the shared resolved sex behind
+grouping and the `sex` factor, a default reference level absent from a unit
+(OD-29), the calendar-axis restriction of the overlay line, the status text of
 a non-converged fit, the fact that validation warnings are not surfaced, and
 the difference between the workspace's general-exploration configuration and a
 preset with exclusions (OD-1; the workspace test asserts a count of 0).
@@ -3239,7 +3380,7 @@ The default profile sets every categorical factor to its reference level and
 every numeric factor to its fitted centre, so `a` and `b` equal the reference
 intercept and slope. A model without factors has the single unadjusted profile.
 
-The profile is unavailable, and every target then reports "Profile
+The profile is unavailable, and every enabled target then reports "Profile
 unavailable" with the reason, when a numeric value is missing or not finite, a
 category is missing, a fitted centre or a required coefficient is absent, or a
 chosen category does not occur among the complete-case patients of the fitted
@@ -3300,9 +3441,10 @@ switched off, and `unavailable_profile` as described above.
 - **Custom targets.** Any number can be added for the fitted outcome and unit.
   A new custom target starts as *below* 0 and enabled; its label, threshold and
   direction are editable. No unit conversion is applied.
-- **Scope.** Settings are kept per series and fitted unit for the session only.
-  They are reset to the defaults when the fitted result they belong to is
-  replaced by one with a different identity.
+- **Scope.** Settings are kept for the session per series and fitted unit, for
+  as long as that unit's stored result is the one they were applied to. They
+  are reset to the defaults when it is replaced by a result with a different
+  identity, including a fit of another series.
 
 ### Uncertainty
 
@@ -3320,10 +3462,13 @@ converged, is not singular, and its stored identity matches the current series,
 unit, model rows, preparation and model configuration. A singular fit shows
 "Projection unavailable: the random-effects fit is singular."; otherwise the
 text is "Projection unavailable: a current converged fit is required." Changing
-the loaded data, events, patient attributes, factors, random effects or the
-exclusion policy discards all fitted results and their projection settings. A
-stored result that no longer matches the selected series or its current rows is
-hidden without being discarded.
+the loaded data, events, patient attributes, manual demographics, the eGFR
+formula or source, the factors or random effects (including re-selecting a
+preset) or the exclusion policy discards all fitted results and their
+projection settings. Results are stored per unit, not per series: a stored
+result that no longer matches the selected series or its current rows is
+hidden, and it is overwritten, together with its projection settings, as soon
+as that unit is fitted again.
 
 ### Export
 
@@ -3388,12 +3533,17 @@ models is at the end of [Cohort mixed models](#cohort-mixed-models).
   fit" with the `global`, `global-robust`, `rolling` or `gap-split` mode.
 - `fitAkiAware` (`src/core/domains/nephrology/aki/akiAware.ts`): a standalone
   helper for the `aki-aware` fit; no application code calls it.
-- `cutoffDays`: read only by the `chronic-ckd` branches.
+- `cutoffDays`: used in a calculation only by the `chronic-ckd` branches; it is
+  also part of the mixed-model result identity, where it is always empty.
 - `eventDates` and `eventDatesByPatient`: read only by the `event-driven`
   branches.
-- `gapDays`, `windowDays`, `stepDays`, `minNPerWindow` and `minNPerSegment` as
-  per-series overrides: the fields exist, nothing sets them, and the defaults
-  180, 730, 180, 3 and 3 always apply.
+- `gapDays`, `windowDays` and `stepDays` as per-series overrides on the series
+  specification, and `minNPerWindow` and `minNPerSegment` as parameters of
+  `summarizeByBezeichnung`: nothing sets them, and the defaults 180, 730, 180,
+  3 and 3 always apply (the trend-line code fixes the segment minimum at 3).
+- `buildSlopeLines` in `rolling` mode would return the global OLS line;
+  `buildCohortRows` never calls it for that mode, so no line reaches the
+  interface (see OD-2).
 - `primaryExclusionReason` (`src/core/domains/nephrology/fitConfig.ts`): a
   precedence among exclusion reasons that no application code calls; the
   interface lists every reason of an excluded point.

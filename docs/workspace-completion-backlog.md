@@ -106,12 +106,15 @@ Update numerical contracts and parity expectations explicitly during implementat
 - [x] Decide and document observed-event persistence, first-crossing and first
   confirmation dates, interruption before confirmation, and configurable minimum
   confirmation interval (90 days by default); G4/G5 defaults remain below 30/15.
-- [x] Select all-data individual prediction continuing the fitted curve.
+- [x] Select all-data individual prediction continuing the fitted curve
+  (input superseded 2026-10-06: endpoint-eligible exact measurements; see
+  [method algorithms](method-algorithms.md#observed-endpoints-and-individual-prediction)).
 - [x] Select Theil-Sen minimum three observations, Python intercept convention
   and Python-reference slope confidence bounds.
 - [x] Implement independent observed G4/G5 endpoints and confirmation settings
   consistently in calculations, labels and exports, with recovery shown separately.
-- [x] Implement fitted-curve individual prediction using all dated numeric data;
+- [x] Implement fitted-curve individual prediction using all dated numeric data
+  (input superseded 2026-10-06, as above);
   make its relationship to existing optional preparation settings explicit.
 - [x] Implement the approved Theil-Sen contract and update parity fixtures.
 - [x] Document every substantive algorithm and decision in methodology, settings
@@ -135,7 +138,8 @@ or record an explicit deferral. Do not silently mark them complete.
   not an already accepted requirement to build a plugin system.
 - [ ] Full saved projects, including reusable configurations and view state.
 - [ ] Earlier exploratory estimators (change points, plateau/regime changes,
-  bounded-value handling and local-density weighting): explicit disposition.
+  local-density weighting): explicit disposition. Bounded values were decided
+  on 2026-10-06: excluded from fits, endpoints, AKI detection and cohort models.
 
 ## 6. Integration and release acceptance
 

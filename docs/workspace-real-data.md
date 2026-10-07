@@ -38,7 +38,8 @@ imported parameter names and patient attributes retain their original values.
    accept decimal commas; a text value of one to three digits, a point and
    exactly three digits (`0.850`, `1.234`) is not read as a number (open
    decision OD-8). Dates may be `YYYY-MM-DD`, `YYYY/MM/DD`, `DD.MM.YYYY` or
-   `DD/MM/YYYY`; slash dates with the day first are always read day-first, and
+   `DD/MM/YYYY`; a slash date with the year last is always read day-first
+   (month-first dates are not supported), and
    a time of day is ignored; Excel cells holding a date number (1927–2119 for lab
    and event dates) are converted. Rows with impossible or unreadable dates are
    rejected and listed. Diagnostics also count duplicate rows, censored values
@@ -53,7 +54,8 @@ imported parameter names and patient attributes retain their original values.
 4. Under **Trajectories**, select parameters by name and unit. Search or select
    patients and compare the graph table, individual view and spaghetti overlay.
    Different units remain separate. Horizontal column navigation accommodates many
-   parameters, while the page handles vertical scrolling without pagination.
+   parameters; the patient table is paged (50 patients per page) while sorting
+   and export keep the full scope.
    Metric sorts (latest value, slope, absolute slope, count, duration) can be
    reversed; patients without a value stay last.
 5. Export the selected patient scope as XLSX, or download individual charts as

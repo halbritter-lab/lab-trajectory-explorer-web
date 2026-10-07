@@ -75,7 +75,8 @@ proceed and remain open to the owner's revision.
   no fit or endpoint; a bound cannot start, confirm, interrupt or recover an
   observed event. Derived eGFR may display a reversed bound but is excluded
   downstream. This numeric policy is implemented in the first P4 package.
-  `nFitted` counts fit-eligible points after windows; it is zero if the sole
+  `nFitted` counts the points handed to the fit after windows and time
+  balancing (one monthly or quarterly bin is one point); it is zero if the sole
   exact point is excluded or the fit model is disabled, while `nNumeric` still
   reports the original dated numeric row count.
 - **KDIGO threshold comparisons** use an inclusive 1e-12 tolerance in the
@@ -134,7 +135,7 @@ clinical events, and the cohort mixed-model specification and projections.
 No behaviour was changed. Where implemented behaviour conflicts with
 user-facing documentation or looks unintended, the reference describes it as it
 is and marks it **Open decision OD-n**. The
-[list of open decisions](method-algorithms.md#open-decisions) has 27 entries;
+[list of open decisions](method-algorithms.md#open-decisions) has 29 entries;
 each needs an owner decision to change either the code or the description. The
 methodology page was not edited; wording changes there remain the owner's call.
 
@@ -181,8 +182,10 @@ candidate requiring its own later confirmation.
 > confidence interval includes zero or lies more than 20 years ahead. See
 > "Decisions of 2026-10-06" above and
 > [observed endpoints and individual prediction](method-algorithms.md#observed-endpoints-and-individual-prediction).
-> The first paragraph below is kept as the 2026-09-23 record; the fitted-curve
-> anchor in the second paragraph still applies.
+> Only the first sentence of the first paragraph below is superseded: within
+> the eligible rows the input is still not truncated at an observed laboratory
+> event, and recovery values stay in the fit. The fitted-curve anchor in the
+> second paragraph still applies.
 
 Use all dated exact numeric measurements initially, including later recovery values.
 Do not truncate the prediction input at an observed event or discard recovery
