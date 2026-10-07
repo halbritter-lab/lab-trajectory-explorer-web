@@ -76,24 +76,14 @@ Contents:
 Each entry is described in full in the section named, with an example where
 one applies. The documentation review of 2026-10-07 produced 29 entries; the
 owner decided all of them on the same day (see
-[method decisions](remaining-method-decisions.md)). Those already implemented
-are listed under *Resolved decisions* below. Two kinds remain:
-
-- **OD-3, OD-4, OD-5, OD-10 and OD-12: the behaviour stays, the methodology
-  page is to be corrected.** The page is the owner's wording, so each marker
-  stays until he has approved the proposed text in
-  [methodology wording drafts](methodology-wording-drafts.md).
-- **OD-11, OD-21, OD-22 and OD-29: to be changed after release 0.3.0.** The
-  behaviour is unchanged until then.
+[method decisions](remaining-method-decisions.md)). Those settled since are
+listed under *Resolved decisions* below. Four remain, **OD-11, OD-21, OD-22
+and OD-29: to be changed after release 0.3.0.** Their behaviour is unchanged
+until then.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
-| OD-3 | [Rolling and segmented OLS](#rolling-and-segmented-ols) | Segmented OLS reports the global OLS slope and splits at gaps only, not at events. |
-| OD-4 | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) | With three points the OLS slope interval almost always includes zero, so the three-measurement minimum of the G5 projection rarely yields a projection. |
-| OD-5 | [eGFR derivation](#egfr-derivation) | No eGFR formula is active by default, while the methodology page labels CKD-EPI 2021 the default. |
-| OD-10 | [Rapid eGFR decline flag](#rapid-egfr-decline-flag) | The flag has no reliability gate; a two-point slope is flagged like a well-supported one. The owner decided on 2026-10-06 not to change the flag for now; open is the conflict with the methodology wording. |
 | OD-11 | [Ordinary least squares](#ordinary-least-squares) | The t critical value is a step function above 40 degrees of freedom, untested against a reference in that range. |
-| OD-12 | [eGFR derivation](#egfr-derivation) | Two creatinine conversion constants are in use: 88.42 µmol/l per mg/dl for measured values, 88.4 inside the EKFC Q polynomial. |
 | OD-21 | [Cohort mixed models](#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
@@ -101,17 +91,23 @@ are listed under *Resolved decisions* below. Two kinds remain:
 ### Resolved decisions
 
 Decided by the owner on 2026-10-07 (see
-[method decisions](remaining-method-decisions.md)) and implemented since. The
-numbers are not reused.
+[method decisions](remaining-method-decisions.md)) and settled since, by a
+change to the behaviour or, where the behaviour stays, by a correction of the
+methodology page. The numbers are not reused.
 
 | ID | Resolution | Section |
 | --- | --- | --- |
 | OD-1 | Cohort models prepare their measurements with the analysis settings chosen under Trajectories. | [Cohort mixed models](#cohort-mixed-models) |
 | OD-2 | Rolling OLS draws its window lines and reports the window statistics; the reported slope stays global. | [Rolling and segmented OLS](#rolling-and-segmented-ols) |
+| OD-3 | Segmented OLS stays as implemented; the methodology page describes it. | [Rolling and segmented OLS](#rolling-and-segmented-ols) |
+| OD-4 | The three-measurement minimum and the confidence gate stay; the methodology page explains the consequence. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
+| OD-5 | The eGFR formula default stays `off`; the methodology page no longer calls CKD-EPI 2021 the default. | [eGFR derivation](#egfr-derivation) |
 | OD-6 | The "Group interaction" text no longer promises p-values. | [Cohort mixed models](#cohort-mixed-models) |
 | OD-7 | Dialysis intent is matched without regard to case. | [Clinical events](#clinical-events) |
 | OD-8 | Text with three digits after a point is read as a decimal and reported. | [Import and value interpretation](#import-and-value-interpretation) |
 | OD-9 | Fitted points on one date get their own "no slope" note. | [Reason codes and the slope reliability rule](#reason-codes-and-the-slope-reliability-rule) |
+| OD-10 | The rapid-decline flag stays without a reliability gate; the methodology page says so. | [Rapid eGFR decline flag](#rapid-egfr-decline-flag) |
+| OD-12 | Both creatinine conversion constants stay; the methodology page names them. | [eGFR derivation](#egfr-derivation) |
 | OD-13 | Creatinine of zero or less takes no part in AKI detection. | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) |
 | OD-14 | Creatinine measured under dialysis is left out of AKI detection. | [KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) |
 | OD-15 | A derived eGFR inherits the non-exact status of its creatinine row. | [eGFR derivation](#egfr-derivation) |
@@ -1481,7 +1477,7 @@ from 2020-01-01 (60.86) to 2021-02-01 (48.92). The second segment is one point
 without a line. The reported slope is the global one, −9.28 per year, with
 R² 0.9434 and 95 % CI [−12.43, −6.12].
 
-> **Open decision OD-3.** Segmented OLS reports the global OLS slope, R² and confidence bounds across all segments and splits only at gaps longer than 180 days, while the methodology page also names configured events as split points and presents the model as an alternative to one slope across the whole record. Behaviour is unchanged pending an owner decision.
+Decided 2026-10-07 (formerly OD-3): this behaviour stays. The methodology page was corrected to describe it: segments split at gaps over 180 days only, one line per fitted segment, and the global slope as the reported number.
 
 Regression evidence: [rolling tests](../tests/core/stats/rolling.test.ts),
 [rolling fixture tests](../tests/parity/rolling.parity.test.ts),
@@ -1645,7 +1641,7 @@ differ enough produce the same flag as a multi-year decline. The amber
 reliability note, when present, is shown next to the flag but does not
 suppress it.
 
-> **Open decision OD-10.** The rapid-decline flag has no reliability gate: a two-point slope or a slope over less than one year is flagged in the same way as a well-supported slope, while the methodology page relates the threshold to a sustained decline. The owner decided on 2026-10-06 not to change the flag for now (see [method decisions](remaining-method-decisions.md)); what remains open is this conflict with the methodology wording. Behaviour is unchanged pending an owner decision.
+Decided 2026-10-07 (formerly OD-10): the flag stays without a reliability gate, as decided on 2026-10-06. The methodology page was corrected: it no longer presents the flag as a test for a sustained decline and tells the reader to read it with the reliability note.
 
 In the table the badge appears only while the fit is shown for that column; its
 tooltip states the comparison, for example "Rapid decline: slope < -5 /year".
@@ -1681,7 +1677,7 @@ The eGFR module setting holds one formula (`off`, `ckd-epi-2021`, `mdrd-4` or
 With `off` the module contributes nothing. Only one formula is active at a
 time.
 
-> **Open decision OD-5.** The default eGFR formula setting is `off`, so no eGFR is derived until the user applies a formula, while the methodology page labels CKD-EPI 2021 "(default)". Behaviour is unchanged pending an owner decision.
+Decided 2026-10-07 (formerly OD-5): the default stays `off`. The methodology page no longer labels CKD-EPI 2021 the default.
 
 Computed rows are appended to the imported rows; source rows are never
 changed. The series name is `eGFR (<formula label>, computed)` with the labels
@@ -1842,7 +1838,7 @@ Q changes from the polynomial to the fixed value between 25 and 26 years. For
 a male with 0.9 mg/dl this moves the unrounded result from 107.863404 at 25
 to 107.300000 at 26.
 
-> **Open decision OD-12.** Two conversion constants are in use: measured creatinine is converted with 88.42 µmol/l per mg/dl (the owner-approved central constant), the EKFC Q polynomial with 88.4. Within EKFC the difference affects ages 18 to 25 only and is at most about 0.03 mL/min/1.73 m² (male, 20 years, 0.9 mg/dl: 102.179692 against 102.153530). Which constant should apply where is the owner's decision; 88.4 is the factor commonly quoted for creatinine, and with 88.42 the SI forms of the KDIGO thresholds become 26.526 µmol/l for the absolute rise and 353.68 µmol/l for the stage-III level, just above the rounded 26.5 and 353.6 µmol/l. Behaviour is unchanged pending an owner decision.
+Decided 2026-10-07 (formerly OD-12): both constants stay, 88.42 µmol/l per mg/dl for measured creatinine and 88.4 inside the EKFC Q polynomial. Within EKFC the difference affects ages 18 to 25 only and is at most about 0.03 mL/min/1.73 m² (male, 20 years, 0.9 mg/dl: 102.179692 against 102.153530). With 88.42 the SI forms of the KDIGO thresholds are 26.526 µmol/l for the absolute rise and 353.68 µmol/l for the stage-III level, just above the rounded 26.5 and 353.6 µmol/l. The methodology page names both constants.
 
 ### Rounding and limits
 
@@ -2779,10 +2775,7 @@ then 1.959963985). For Theil-Sen the bounds are the 95 % rank bounds of the
 "Theil-Sen" section. These are slope bounds, not prediction intervals. The
 level is not configurable.
 
-> **Open decision OD-4.** With three points the OLS 95 % interval uses
-> t(1) = 12.706, so the documented three-measurement minimum almost never
-> yields a projection, and the previously documented example (values 60, 50,
-> 25) is withheld. Behaviour is unchanged pending an owner decision.
+Decided 2026-10-07 (formerly OD-4): the three-measurement minimum and the confidence gate stay. With three points the OLS 95 % interval uses t(1) = 12.706, so three measurements almost never yield a projection; the methodology page says so and shows the withheld example (60, 50, 25) beside one that is reported.
 
 **Horizon.** Confirmed by the owner on 2026-10-07. The crossing must lie no more than 20 years after
 the latest eligible row, in 365.25-day years. Exactly 20 years is reported.

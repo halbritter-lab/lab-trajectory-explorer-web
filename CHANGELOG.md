@@ -7,6 +7,15 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- The Methods page was corrected where it no longer matched the application,
+  with wording approved by the owner on 2026-10-07: cohort models following
+  the Trajectories settings, the eGFR unit rule, rolling and segmented OLS as
+  implemented, the relation to the Python package, the projected age and why
+  three measurements rarely yield a projection, the one-date note, the eGFR
+  formula starting at "Off", both creatinine conversion constants, AKI
+  detection under dialysis, and the rapid-decline flag not testing whether a
+  decline is sustained. No behaviour changes; open decisions OD-3, OD-4, OD-5,
+  OD-10 and OD-12 are closed.
 - Trajectory-fit and cohort-model rules decided by the owner on 2026-10-07
   (formerly open decisions OD-1, OD-2, OD-6, OD-9 and OD-23 in
   `docs/method-algorithms.md`):
