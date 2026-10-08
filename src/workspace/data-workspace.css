@@ -7,7 +7,7 @@
 .data-download-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; font-size: 13px; }
 .data-download-label { flex: 0 0 9rem; font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
 .data-download { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid var(--border); border-radius: 999px; background: #f6faf9; font-weight: 600; text-decoration: none; }
-.data-download::before { content: "↓"; font-weight: 400; }
+.data-download > span { font-weight: 400; }
 .data-download:hover { border-color: #689793; background: #e9f3f1; }
 .data-download-row .muted { margin-left: 4px; }
 .workspace-storage { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
