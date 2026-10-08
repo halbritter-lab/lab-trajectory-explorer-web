@@ -24,8 +24,8 @@ describe('one eGFR rule by unit (OD-20)', () => {
   })
   // Owner decision of 2026-10-08: three further ways of writing the same unit.
   it('accepts the UCUM, "qm" and "per" spellings of mL/min/1.73 m²', () => {
-    for (const unit of ['mL/min/{1.73_m2}', 'ml/min/{1,73_m²}', 'ml/min/1.73qm', 'ML/MIN/1,73 QM', 'mL/min per 1.73 m2', 'ml/min per 1,73m²']) expect(isEgfrUnit(unit)).toBe(true)
-    for (const unit of ['ml/min/1,73 m² KOF', 'ml/min/{1.73}', 'ml/min/qm', 'ml/min per m2', 'ml per min per 1.73 m2', 'ml/min/1.73m3']) expect(isEgfrUnit(unit)).toBe(false)
+    for (const unit of ['mL/min/{1.73_m2}', 'ml/min/{1,73_m²}', 'mL/min/{1.73_m^2}', 'ml/min/1.73qm', 'ML/MIN/1,73 QM', 'mL/min per 1.73 m2', 'ml/min per 1,73m²', 'ML/MIN PER 1,73 M^2', 'mL/min per 1.73\u00a0m²']) expect(isEgfrUnit(unit)).toBe(true)
+    for (const unit of ['ml/min/1,73 m² KOF', 'ml/min/{1.73}', 'mL/min/{1.73 m2}', 'ml/min/qm', 'ml/min/1.73 qm²', 'ml/min per m2', 'ml/min per 1.73qm', 'ml/min/per 1.73 m2', 'ml per min per 1.73 m2', 'ml/min/1.73m3']) expect(isEgfrUnit(unit)).toBe(false)
     expect(ckdEndpointsModule.appliesTo({ bezeichnung: 'eGFR', einheit: 'mL/min/{1.73_m2}' })).toBe(true)
     expect(isRapidEgfrDecline('ml/min/1.73qm', -10, 5)).toBe(true)
     expect(projectionTargetPresets({ outcome: 'eGFR', unit: 'mL/min per 1.73 m2' }).map((t) => t.threshold)).toEqual([30, 15])

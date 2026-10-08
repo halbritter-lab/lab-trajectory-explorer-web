@@ -254,7 +254,7 @@ Proposed:
 The remaining sentences of that paragraph (adjusting the threshold, screening
 signal) stay as they are.
 
-## Part B: topics the page does not cover yet
+## Part B: topics the page did not cover (applied 2026-10-08)
 
 Seven new blocks, each drafted from the matching sections of
 [method algorithms](method-algorithms.md). They were compared with the code
@@ -390,9 +390,11 @@ This block overlaps the existing **Age** bullet in the eGFR section. Applied
 by shortening that bullet to: "the equations use the patient's age at the date
 of measurement. This app does not read the age stated on each row directly. It
 derives every row's age from one birth-date anchor per patient (see *Resolving
-Sex and Age* below). Ages shown and exported can therefore differ from the
-values in the source file, usually by a year, and the eGFR follows that
-correction."
+Sex and Age* below). A stated age that contradicts the others is corrected
+rather than used, and the contradiction is reported. Ages shown and exported
+can therefore differ from the values in the source file, usually by a year,
+and the eGFR follows that correction." Only the list of anchor sources was
+removed; every remaining sentence is the earlier wording.
 
 ### B7. Cohort models
 

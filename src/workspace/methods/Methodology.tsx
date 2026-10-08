@@ -526,9 +526,10 @@ export function Methodology() {
         <li>
           <strong>Age</strong> — the equations use the patient's age at the date of measurement.
           This app does not read the age stated on each row directly. It derives every row's age
-          from one birth-date anchor per patient (see <em>Resolving Sex and Age</em> below). Ages
-          shown and exported can therefore differ from the values in the source file, usually by a
-          year, and the eGFR follows that correction.
+          from one birth-date anchor per patient (see <em>Resolving Sex and Age</em> below). A
+          stated age that contradicts the others is corrected rather than used, and the
+          contradiction is reported. Ages shown and exported can therefore differ from the values
+          in the source file, usually by a year, and the eGFR follows that correction.
         </li>
       </ul>
 

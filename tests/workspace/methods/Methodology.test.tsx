@@ -54,6 +54,7 @@ describe('Methodology', () => {
     render(<Methodology />)
     expect(screen.getAllByText(/the anchor is the midpoint of their intersection/)).toHaveLength(1)
     expect(screen.getByText(/derives every row's age from one birth-date anchor per patient/)).toBeInTheDocument()
+    expect(screen.getByText(/A stated age that contradicts the others is corrected rather than used/)).toBeInTheDocument()
     expect(screen.queryByText(/taken from a manual entry, an explicit birth date, or the stated ages/)).not.toBeInTheDocument()
   })
 })

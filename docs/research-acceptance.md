@@ -76,7 +76,8 @@ in a non-default preset, the no-fit path, or quarterly aggregation.
   rounded value marked with a tilde.
 - [ ] An imported eGFR series is recognised only with the unit
   mL/min/1.73 m². Check that your eGFR column carries that unit; a series in
-  plain ml/min receives no endpoints.
+  plain ml/min receives no endpoints. The spellings `mL/min/{1.73_m2}`,
+  `ml/min/1.73qm` and `mL/min per 1.73 m2` count as well.
 
 ### Cohort models
 

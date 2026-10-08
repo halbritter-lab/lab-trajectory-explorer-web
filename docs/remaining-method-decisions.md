@@ -285,9 +285,10 @@ Taken by the project owner on the points the walkthrough had left open.
   had been recorded from a free-text answer pending this confirmation.
 - **No pre-KRT projection.** The last rule still marked *(proposed)* stays:
   once kidney failure was reached, no individual G5 projection is computed for
-  the time before kidney replacement therapy. The marks are removed here and
-  in [method algorithms](method-algorithms.md); no value remains marked as
-  proposed.
+  the time before kidney replacement therapy. The mark is removed from
+  [method algorithms](method-algorithms.md), where no value remains marked as
+  proposed; the entries of 2026-10-06 above keep their marks as the record of
+  that day.
 
 ### Release gate
 
