@@ -12,7 +12,9 @@ are tracked separately in the [backlog](workspace-completion-backlog.md).
 Taken by the project owner after a full review with synthetic cases. Where they
 conflict with older entries below, these take precedence. Defaults marked
 *(proposed)* were chosen during implementation on the owner's instruction to
-proceed and remain open to the owner's revision.
+proceed; the owner confirmed all of them on 2026-10-07 and 2026-10-08 (see
+"Proposed defaults confirmed" below). The marks are kept here as the record
+of that day.
 
 - **Python reference no longer binding.** The TypeScript core may deviate from
   the Python `analyses` package. Golden fixtures remain as regression tests;
@@ -39,6 +41,7 @@ proceed and remain open to the owner's revision.
   projection is withheld with reason `kidney_failure_reached`; a prior observed
   G5 and KRT remain visible together. This omits a possible pre-KRT
   counterfactual projection, which the owner may revisit if useful.
+  Confirmed by the owner on 2026-10-08.
 - **Individual G5 projection.** No projected crossing beyond 20 years after
   the last measurement *(proposed horizon)*; no projected crossing when the
   slope confidence interval includes zero. The "unlikely" wording is replaced
@@ -151,8 +154,9 @@ stored regression case moved deliberately (`"1.234"` in
 `tests/goldens/wert.json`, OD-8). The owner approved Part A of the
 [methodology wording drafts](methodology-wording-drafts.md) on the same day;
 it is applied to the methodology page, and the markers of OD-3, OD-4, OD-5,
-OD-10 and OD-12 are removed. Part B of the drafts, topics the page does not
-cover yet, awaits his review. Details of the implementation that the
+OD-10 and OD-12 are removed. Part B of the drafts, topics the page did not
+cover, was approved on 2026-10-08 and is applied as well (see "Follow-up
+decisions of 2026-10-08"). Details of the implementation that the
 decisions did not spell out are listed under "Implementation notes" below and
 are open to the owner's revision.
 
@@ -167,6 +171,8 @@ items under "after 0.3.0" ship with their markers in place.
   candidate search starts after that window.
 - Maximum confirmation window: 12 calendar months, for G4/G5 and percent
   decline.
+- Confirmed on 2026-10-08: once kidney failure was reached, no individual G5
+  projection is computed for the time before kidney replacement therapy.
 
 ### Change the behaviour before 0.3.0
 
@@ -175,7 +181,7 @@ items under "after 0.3.0" ship with their markers in place.
 | OD-1 | The Cohort models page uses the preset selected under Trajectories, so event censoring, AKI windows and time balancing take effect there. |
 | OD-2 | Implement rolling OLS as described: the reported slope stays the global OLS slope (reliability, rapid-decline flag and sorting unchanged); the window slopes are drawn as lines, and the number of windows and the smallest and largest window slope appear in the table and the export. |
 | OD-7 | Dialysis intent is matched without regard to case, like the event type. |
-| OD-8 | Text values with exactly three decimals after a dot (`0.850`, `1.234`) are read as decimals, and the import reports the affected values with a count and examples. Recorded as understood from the owner's free-text answer; confirm when the change is reviewed. |
+| OD-8 | Text values with exactly three decimals after a dot (`0.850`, `1.234`) are read as decimals, and the import reports the affected values with a count and examples. Confirmed by the owner as implemented on 2026-10-08. |
 | OD-9 | When all fitted points share one date, a separate neutral note states that no slope exists; the "slope was fitted" caveat is not shown. |
 | OD-13 | Creatinine values of zero or less are excluded from AKI detection, as in eGFR derivation, and counted as implausible in the import. |
 | OD-14 | No AKI episodes from the start of chronic dialysis (until a later transplant) or inside a dated acute-dialysis interval. Detection continues after transplantation. |
@@ -234,12 +240,12 @@ of [method algorithms](method-algorithms.md) concerned:
   `endpoint_prediction_age_basis`.
 - **OD-19.** The limit is 365 days. The input rejects a larger entry; a larger
   value in a stored configuration is evaluated as 365.
-- **OD-20.** The accepted spellings are those the projection presets already
-  accepted (`ml/min/1.73m2` after ignoring case and spaces, with a decimal
-  comma, `²` or `^2`). An eGFR series imported with the bare unit `ml/min`
-  no longer receives endpoints, and neither does one written as
-  `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` or `mL/min per 1.73 m2`; whether
-  to accept those spellings is open to the owner.
+- **OD-20.** The accepted spellings were at first those the projection
+  presets already accepted (`ml/min/1.73m2` after ignoring case and spaces,
+  with a decimal comma, `²` or `^2`). An eGFR series imported with the bare
+  unit `ml/min` no longer receives endpoints. The owner decided on 2026-10-08
+  that `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` and `mL/min per 1.73 m2` are
+  accepted as well; see "Follow-up decisions of 2026-10-08" below.
 - **OD-18.** With the observed-G5 endpoint off, the cell shows
   `G5 not projected` and names the confirmed event in its detail text.
 - **OD-26.** A row without a patient ID that is empty in every recognised
@@ -252,9 +258,37 @@ of [method algorithms](method-algorithms.md) concerned:
   for that parameter. A parameter's own settings keep applying to its cohort
   model when the parameter is no longer shown as a Trajectories column.
 
-Still marked *(proposed)* and not part of this walkthrough: no individual G5
-projection is computed for the time before kidney replacement therapy once
-kidney failure was reached.
+### Follow-up decisions of 2026-10-08
+
+Taken by the project owner on the points the walkthrough had left open.
+
+- **Methodology page, Part B.** The seven new blocks of the
+  [methodology wording drafts](methodology-wording-drafts.md) are approved as
+  drafted and applied to the methodology page. The existing "Age" bullet of
+  the eGFR section, which overlapped block B6, was shortened and refers to the
+  new block. No behaviour changes.
+
+- **eGFR unit spellings (OD-20).** Three further ways of writing
+  mL/min/1.73 m² count as eGFR: `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` and
+  `mL/min per 1.73 m2`, each with the same tolerance for letter case, spacing,
+  decimal comma, `²` and `^2` as the plain form. This is a classification
+  change: a series with such a unit now receives CKD endpoints, kidney failure
+  reached, the rapid-decline flag and the cohort-model projection presets.
+  Implemented as a list of four accepted comparison forms, so nothing else is
+  widened: a unit with trailing text such as `ml/min/1,73 m² KOF` and
+  `ml per min per 1.73 m2` are still not recognised. Tests, the changelog and
+  [method algorithms](method-algorithms.md#eligibility-and-kidney-failure-reached)
+  are updated; the golden fixtures contain no such unit and are unchanged.
+- **OD-8 confirmed.** The implemented reading stands: text with exactly three
+  digits after a point is a decimal (`1.234` is 1.234, `0.850` is 0.85), and
+  the import reports the affected values with a count and examples. The entry
+  had been recorded from a free-text answer pending this confirmation.
+- **No pre-KRT projection.** The last rule still marked *(proposed)* stays:
+  once kidney failure was reached, no individual G5 projection is computed for
+  the time before kidney replacement therapy. The mark is removed from
+  [method algorithms](method-algorithms.md), where no value remains marked as
+  proposed; the entries of 2026-10-06 above keep their marks as the record of
+  that day.
 
 ### Release gate
 

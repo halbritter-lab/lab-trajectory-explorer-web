@@ -9,8 +9,18 @@ below; "Current" there refers to the text it replaced. The markers of OD-3,
 OD-4, OD-5, OD-10 and OD-12 in [method algorithms](method-algorithms.md) were
 removed with it.
 
-**Part B is not applied.** It adds topics the page does not cover yet. Mark
-each block accepted, edited or rejected.
+**Part B was approved by the owner as drafted on 2026-10-08 and is applied.**
+It adds topics the page did not cover. The overlap noted under B6 was resolved
+by shortening the existing **Age** bullet of the eGFR section, which now
+refers to the new block. Placement on the page: B3 and B1 after *Fit
+Pipeline*, B2 after *Choosing a Fit Model*, B5 and B6 after the eGFR section,
+B4 after *AKI Detection*, B7 after *Cohort Screening*.
+
+Two sentences were made more precise on the owner's instruction of 2026-10-08,
+after a comparison of the blocks with the code: in B2, R² is unavailable for
+identical values only from three points on (two identical values give slope 0
+and R² = 1); in B6, the birth date comes from the earliest dated lab row that
+carries one. The blocks below show the adjusted wording.
 
 ## Part A: passages that no longer match the application
 
@@ -250,7 +260,7 @@ Proposed:
 The remaining sentences of that paragraph (adjusting the threshold, screening
 signal) stay as they are.
 
-## Part B: topics the page does not cover yet
+## Part B: topics the page did not cover (applied 2026-10-08)
 
 Seven new blocks, each drafted from the matching sections of
 [method algorithms](method-algorithms.md). They were compared with the code
@@ -290,8 +300,8 @@ what was left out is listed at the end so that it can be added where wanted.
 > A regular fit needs at least three points. Exactly two points on different
 > dates give the exact line through both, with R² = 1 and no confidence
 > interval: 60 on 1 January 2020 and 56 on 1 January 2021 give −3.99 per year.
-> R² is the squared correlation of time and value; it is unavailable when all
-> fitted values are identical.
+> R² is the squared correlation of time and value; with three or more points
+> it is unavailable when all fitted values are identical.
 >
 > The 95% interval is the slope ± t × standard error, where the standard error
 > comes from the residual sum of squares with n − 2 degrees of freedom and t is
@@ -375,15 +385,22 @@ what was left out is listed at the end so that it can be added where wanted.
 >   sex.
 > - **Age** — sources in order: manual age (read as the age at the earliest
 >   dated row), attributes-table birth date, birth date on the earliest dated
->   lab row, stated ages. Each stated age defines a one-year interval of
+>   lab row that carries one, stated ages. Each stated age defines a one-year interval of
 >   possible birth dates; the anchor is the midpoint of their intersection.
 >   Without a common birth date, the median of the interval midpoints is used.
 > - **Reported as conflicts** — differing sex codes, a tie, differing birth
 >   dates, stated ages contradicting the birth date or each other, implausible
 >   stated ages. A manual sex or age suppresses the corresponding reports.
 
-This block overlaps the existing **Age** bullet in the eGFR section; one of the
-two would be shortened.
+This block overlaps the existing **Age** bullet in the eGFR section. Applied
+by shortening that bullet to: "the equations use the patient's age at the date
+of measurement. This app does not read the age stated on each row directly. It
+derives every row's age from one birth-date anchor per patient (see *Resolving
+Sex and Age* below). A stated age that contradicts the others is corrected
+rather than used, and the contradiction is reported. Ages shown and exported
+can therefore differ from the values in the source file, usually by a year,
+and the eGFR follows that correction." Only the list of anchor sources was
+removed; every remaining sentence is the earlier wording.
 
 ### B7. Cohort models
 
