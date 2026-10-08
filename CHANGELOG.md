@@ -12,10 +12,13 @@ interfaces are still evolving before 1.0.
   downloads moved into a collapsed section "Templates and example files", and
   the "Remember on this device" option is set apart below them. Link names
   and file names are unchanged.
-- The charts in the patient table under Trajectories grow with their column
-  instead of keeping a fixed width of 176 px, up to 360 px. With few
-  parameter columns the table now uses the available width; with many
-  columns nothing changes.
+- The charts in the patient table under Trajectories use the full width of
+  the table: the parameter columns share it, so few columns give wide charts.
+  A new "Chart size" selector offers Small (68 px high, at least 176 px wide,
+  the former fixed size), Medium (110 px, the default) and Large (160 px).
+  With many columns the charts keep the minimum width of their size and the
+  table scrolls sideways as before. Axis labels no longer scale with the
+  chart.
 - The Methods page gained seven sections on topics it did not cover, with
   wording approved by the owner on 2026-10-08: analysis presets, time
   balancing by monthly and quarterly medians, ordinary least squares, AKI

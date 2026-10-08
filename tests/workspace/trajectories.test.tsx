@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { TrajectoriesWorkspace } from '../../src/workspace/TrajectoriesWorkspace'
+import { sparkWidth } from '../../src/workspace/WorkspaceSparkline'
 import type { WorkspaceData } from '../../src/workspace/workspace-data'
 import type { LabRow } from '../../src/core/types'
 import { useAppStore } from '../../src/workspace/state/store'
@@ -145,6 +146,27 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByLabelText('Aggregation')).toHaveValue('quarterly-median')
   })
 
+  it('offers three table chart sizes and draws the charts at the chosen height', () => {
+    render(<TrajectoriesWorkspace data={fixture()} />)
+    const mini = () => screen.getAllByRole('img', { name: /Measurement trajectory/ })[0]
+    expect(screen.getByLabelText('Chart size')).toHaveValue('medium')
+    // jsdom has no layout, so the chart takes the smallest width of its size.
+    expect(mini()).toHaveAttribute('viewBox', '0 0 240 110')
+    fireEvent.change(screen.getByLabelText('Chart size'), { target: { value: 'small' } })
+    expect(mini()).toHaveAttribute('viewBox', '0 0 176 68')
+    fireEvent.change(screen.getByLabelText('Chart size'), { target: { value: 'large' } })
+    expect(mini()).toHaveAttribute('viewBox', '0 0 320 160')
+    expect(mini()).toHaveAttribute('width', '320')
+  })
+  it('shares the table width between the parameter columns down to a minimum chart width', () => {
+    // 1534 px table: 126 px for the selection and patient columns, 20 px padding per column.
+    expect(sparkWidth(1534, 3, 'medium')).toBe(449)
+    expect(sparkWidth(1534, 1, 'small')).toBe(1388)
+    expect(sparkWidth(1534, 5, 'large')).toBe(320)
+    expect(sparkWidth(1534, 10, 'small')).toBe(176)
+    expect(sparkWidth(0, 3, 'medium')).toBe(240)
+    expect(sparkWidth(356, 0, 'small')).toBe(176)
+  })
   it('preserves negative measurements in the shared domain', () => {
     const data = fixture()
     data.rows = data.rows.map(row => row.einheit === 'unit-0' ? { ...row, wertNum: row.patientId === 'ID-A' ? -3 : 2 } : row)
