@@ -7,6 +7,10 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- The charts in the patient table under Trajectories grow with their column
+  instead of keeping a fixed width of 176 px, up to 360 px. With few
+  parameter columns the table now uses the available width; with many
+  columns nothing changes.
 - The Methods page gained seven sections on topics it did not cover, with
   wording approved by the owner on 2026-10-08: analysis presets, time
   balancing by monthly and quarterly medians, ordinary least squares, AKI
