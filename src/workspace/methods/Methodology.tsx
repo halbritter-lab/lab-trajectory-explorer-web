@@ -298,7 +298,7 @@ export function Methodology() {
         A regular fit needs at least three points. Exactly two points on different dates give the
         exact line through both, with R² = 1 and no confidence interval: 60 on 1 January 2020 and
         56 on 1 January 2021 give −3.99 per year. R² is the squared correlation of time and
-        value; it is unavailable when all fitted values are identical.
+        value; with three or more points it is unavailable when all fitted values are identical.
       </p>
       <p>
         The 95% interval is the slope ± t × standard error, where the standard error comes from
@@ -565,8 +565,8 @@ export function Methodology() {
         </li>
         <li>
           <strong>Age</strong> — sources in order: manual age (read as the age at the earliest
-          dated row), attributes-table birth date, birth date on the earliest dated lab row,
-          stated ages. Each stated age defines a one-year interval of possible birth dates; the
+          dated row), attributes-table birth date, birth date on the earliest dated lab row
+          that carries one, stated ages. Each stated age defines a one-year interval of possible birth dates; the
           anchor is the midpoint of their intersection. Without a common birth date, the median of
           the interval midpoints is used.
         </li>

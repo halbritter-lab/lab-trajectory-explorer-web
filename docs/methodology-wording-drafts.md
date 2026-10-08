@@ -16,6 +16,12 @@ refers to the new block. Placement on the page: B3 and B1 after *Fit
 Pipeline*, B2 after *Choosing a Fit Model*, B5 and B6 after the eGFR section,
 B4 after *AKI Detection*, B7 after *Cohort Screening*.
 
+Two sentences were made more precise on the owner's instruction of 2026-10-08,
+after a comparison of the blocks with the code: in B2, R² is unavailable for
+identical values only from three points on (two identical values give slope 0
+and R² = 1); in B6, the birth date comes from the earliest dated lab row that
+carries one. The blocks below show the adjusted wording.
+
 ## Part A: passages that no longer match the application
 
 ### A1. Cohort models follow the Trajectories settings (OD-1)
@@ -294,8 +300,8 @@ what was left out is listed at the end so that it can be added where wanted.
 > A regular fit needs at least three points. Exactly two points on different
 > dates give the exact line through both, with R² = 1 and no confidence
 > interval: 60 on 1 January 2020 and 56 on 1 January 2021 give −3.99 per year.
-> R² is the squared correlation of time and value; it is unavailable when all
-> fitted values are identical.
+> R² is the squared correlation of time and value; with three or more points
+> it is unavailable when all fitted values are identical.
 >
 > The 95% interval is the slope ± t × standard error, where the standard error
 > comes from the residual sum of squares with n − 2 degrees of freedom and t is
@@ -379,7 +385,7 @@ what was left out is listed at the end so that it can be added where wanted.
 >   sex.
 > - **Age** — sources in order: manual age (read as the age at the earliest
 >   dated row), attributes-table birth date, birth date on the earliest dated
->   lab row, stated ages. Each stated age defines a one-year interval of
+>   lab row that carries one, stated ages. Each stated age defines a one-year interval of
 >   possible birth dates; the anchor is the midpoint of their intersection.
 >   Without a common birth date, the median of the interval midpoints is used.
 > - **Reported as conflicts** — differing sex codes, a tie, differing birth

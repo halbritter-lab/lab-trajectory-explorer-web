@@ -47,6 +47,8 @@ describe('Methodology', () => {
     expect(screen.getByText(/give the quarterly point 45\.5 on 20 February 2021/)).toBeInTheDocument()
     expect(screen.getByText(/56 on 1 January 2021 give −3\.99 per year/)).toBeInTheDocument()
     expect(screen.getByText(/gives 29\.96, which is stored as 30\.0/)).toBeInTheDocument()
+    expect(screen.getByText(/with three or more points it is unavailable when all fitted values are identical/)).toBeInTheDocument()
+    expect(screen.getByText(/birth date on the earliest dated lab row that carries one/)).toBeInTheDocument()
     expect(screen.getByText(/onset 2 January 2020 excludes 2 January to 1 February 2020/)).toBeInTheDocument()
     expect(screen.getByText(/Every preset sets the rapid-decline threshold to 5 mL\/min\/1\.73m² per year/)).toBeInTheDocument()
   })
