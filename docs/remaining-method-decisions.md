@@ -234,12 +234,12 @@ of [method algorithms](method-algorithms.md) concerned:
   `endpoint_prediction_age_basis`.
 - **OD-19.** The limit is 365 days. The input rejects a larger entry; a larger
   value in a stored configuration is evaluated as 365.
-- **OD-20.** The accepted spellings are those the projection presets already
-  accepted (`ml/min/1.73m2` after ignoring case and spaces, with a decimal
-  comma, `²` or `^2`). An eGFR series imported with the bare unit `ml/min`
-  no longer receives endpoints, and neither does one written as
-  `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` or `mL/min per 1.73 m2`; whether
-  to accept those spellings is open to the owner.
+- **OD-20.** The accepted spellings were at first those the projection
+  presets already accepted (`ml/min/1.73m2` after ignoring case and spaces,
+  with a decimal comma, `²` or `^2`). An eGFR series imported with the bare
+  unit `ml/min` no longer receives endpoints. The owner decided on 2026-10-08
+  that `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` and `mL/min per 1.73 m2` are
+  accepted as well; see "Follow-up decisions of 2026-10-08" below.
 - **OD-18.** With the observed-G5 endpoint off, the cell shows
   `G5 not projected` and names the confirmed event in its detail text.
 - **OD-26.** A row without a patient ID that is empty in every recognised
@@ -255,6 +255,22 @@ of [method algorithms](method-algorithms.md) concerned:
 Still marked *(proposed)* and not part of this walkthrough: no individual G5
 projection is computed for the time before kidney replacement therapy once
 kidney failure was reached.
+
+### Follow-up decisions of 2026-10-08
+
+Taken by the project owner on the points the walkthrough had left open.
+
+- **eGFR unit spellings (OD-20).** Three further ways of writing
+  mL/min/1.73 m² count as eGFR: `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` and
+  `mL/min per 1.73 m2`, each with the same tolerance for letter case, spacing,
+  decimal comma, `²` and `^2` as the plain form. This is a classification
+  change: a series with such a unit now receives CKD endpoints, kidney failure
+  reached, the rapid-decline flag and the cohort-model projection presets.
+  Implemented as a list of four accepted comparison forms, so nothing else is
+  widened: a unit with trailing text such as `ml/min/1,73 m² KOF` and
+  `ml per min per 1.73 m2` are still not recognised. Tests, the changelog and
+  [method algorithms](method-algorithms.md#eligibility-and-kidney-failure-reached)
+  are updated; the golden fixtures contain no such unit and are unchanged.
 
 ### Release gate
 

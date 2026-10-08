@@ -115,7 +115,7 @@ methodology page. The numbers are not reused.
 | OD-17 | The projection needs 365 days of follow-up, like the reliability rule. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
 | OD-18 | A confirmed observed G5 always withholds the projection. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
 | OD-19 | The minimum confirmation interval is at most 365 days. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
-| OD-20 | eGFR is recognised by the unit mL/min/1.73 m² everywhere. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
+| OD-20 | eGFR is recognised by the unit mL/min/1.73 m² everywhere, in four accepted spellings. | [Observed endpoints and individual prediction](#observed-endpoints-and-individual-prediction) |
 | OD-23 | The "Group interaction" preset builds a valid numeric factor. | [Cohort mixed models](#cohort-mixed-models) |
 | OD-24 | The JavaScript date-parser fallback for attribute birth dates is removed. | [Import and value interpretation](#import-and-value-interpretation) |
 | OD-25 | Two accepted headers for one lab or event field produce a warning naming the column used. | [Import and value interpretation](#import-and-value-interpretation) |
@@ -1630,7 +1630,8 @@ changes while the endpoint results do not.
 
 A series is treated as eGFR when its unit is mL/min/1.73 m². The unit is compared after
 lower-casing, removing whitespace, and reading a decimal comma as a point and
-`²` or `^2` as `2`; the result must equal `ml/min/1.73m2` (`isEgfrUnit`).
+`²` or `^2` as `2`; the result must be one of the four accepted spellings
+listed under "Eligibility and kidney failure reached" (`isEgfrUnit`).
 The parameter name is not checked. A clearance in `ml/min` is not eGFR and is
 never flagged (one rule for all eGFR features since 2026-10-07, formerly
 OD-20; see "Observed endpoints and individual prediction").
@@ -2479,16 +2480,25 @@ projections".
 
 **Which series.** Endpoints are evaluated for a column when its unit is mL/min/1.73 m². The unit is compared after
 lower-casing, removing whitespace, and reading a decimal comma as a point and
-`²` or `^2` as `2`; the result must equal `ml/min/1.73m2`
-(`isEgfrUnit`). `ml/min/1,73m²`, `mL/min/1.73 m2` and `ML/MIN/1,73M^2`
-qualify; `ml/min`, `ml/min/1.73` and `mL/min/m²` do not. Nor do other ways of
-writing the same unit: the UCUM form `mL/min/{1.73_m2}`, `ml/min/1.73qm`,
-`mL/min per 1.73 m2` or a unit with trailing text such as `ml/min/1,73 m² KOF`.
-A series with such a unit must be renamed before import to receive endpoints. The parameter name
+`²` or `^2` as `2`; the result must equal one of four spellings
+(`isEgfrUnit`):
+
+| Result of the comparison form | Qualifying units, for example |
+| --- | --- |
+| `ml/min/1.73m2` | `ml/min/1,73m²`, `mL/min/1.73 m2`, `ML/MIN/1,73M^2` |
+| `ml/min/{1.73_m2}` | `mL/min/{1.73_m2}` (UCUM), `ml/min/{1,73_m²}` |
+| `ml/min/1.73qm` | `ml/min/1.73qm`, `ML/MIN/1,73 QM` |
+| `ml/minper1.73m2` | `mL/min per 1.73 m2`, `ml/min per 1,73m²` |
+
+`ml/min`, `ml/min/1.73` and `mL/min/m²` do not qualify. Nor does any other way
+of writing the unit, such as `ml per min per 1.73 m2`, `ml/min/{1.73}` or a
+unit with trailing text such as `ml/min/1,73 m² KOF`; the unit of such a series
+must be rewritten before import for it to receive endpoints. The parameter name
 is not read. Every other column reports all endpoints as not evaluated,
 whatever its settings. The same rule controls kidney failure reached, the
 rapid-decline flag and the preset targets of cohort-model projections
-(decided 2026-10-07, formerly OD-20). Until then any unit containing `ml/min`
+(decided 2026-10-07, formerly OD-20; the owner accepted the UCUM, `qm` and
+`per` spellings on 2026-10-08). Until 2026-10-07 any unit containing `ml/min`
 received endpoints, so a creatinine clearance in ml/min did; an eGFR series
 imported with the bare unit `ml/min` no longer does.
 
@@ -3585,11 +3595,12 @@ switched off, and `unavailable_profile` as described above.
   labels must not be empty. Changes take effect only after *Apply*.
 - **Preset targets.** For an eGFR outcome the presets are the G4 boundary
   (*below* 30) and the G5 boundary (*below* 15), with the fitted series' own
-  name and unit. They are offered when the unit equals `ml/min/1.73m2` after
-  lower-casing, removing whitespace, and reading a decimal comma as a point and
-  `²` or `^2` as `2`, whatever the outcome is called (`isEgfrUnit`, the rule of
-  the individual eGFR endpoints). `eGFR (CKD-EPI 2021, computed)`, `eGFRcys`
-  and `GFR (CKD-EPI)` in `ml/min/1,73m²` qualify; the unit `ml/min` does not.
+  name and unit. They are offered when the unit is mL/min/1.73 m² in one of
+  the four accepted spellings, whatever the outcome is called (`isEgfrUnit`,
+  the rule of the individual eGFR endpoints; the spellings are listed under
+  "Eligibility and kidney failure reached"). `eGFR (CKD-EPI 2021, computed)`,
+  `eGFRcys` and `GFR (CKD-EPI)` in `ml/min/1,73m²` qualify, as does `eGFR` in
+  `mL/min/{1.73_m2}`; the unit `ml/min` does not.
   Other outcomes have no preset.
 - **Custom targets.** Any number can be added for the fitted outcome and unit.
   A new custom target starts as *below* 0 and enabled; its label, threshold and

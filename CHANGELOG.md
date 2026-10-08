@@ -46,10 +46,13 @@ interfaces are still evolving before 1.0.
   - A series counts as eGFR by its unit mL/min/1.73 m² alone, in every
     feature: CKD endpoints, kidney failure reached, the rapid-decline flag and
     the cohort-model projection presets. A clearance or an eGFR series
-    imported with the bare unit `ml/min`, or with another spelling such as
-    `mL/min/{1.73_m2}` or `ml/min/1.73qm`, no longer receives endpoints or the
+    imported with the bare unit `ml/min` no longer receives endpoints or the
     flag; a series named otherwise than "eGFR…" in mL/min/1.73 m² now gets
-    the projection presets.
+    the projection presets. The unit is recognised in any letter case and
+    spacing, with a decimal comma, `²` or `^2`, and also written as
+    `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` or `mL/min per 1.73 m2`
+    (accepted by the owner on 2026-10-08). A unit with trailing text such as
+    `ml/min/1,73 m² KOF` is not recognised.
   - AKI detection ignores serum creatinine of zero or less (previously a
     baseline of 0 produced a stage III episode) and creatinine measured under
     dialysis: from the start of chronic dialysis until a later kidney

@@ -22,6 +22,14 @@ describe('one eGFR rule by unit (OD-20)', () => {
     for (const unit of ['ml/min/1,73m²', 'mL/min/1.73m²', 'ml/min/1.73 m2', 'ML/MIN/1,73M^2', ' ml / min / 1.73 m² ']) expect(isEgfrUnit(unit)).toBe(true)
     for (const unit of ['ml/min', 'mL/min/m²', 'ml/min/1.73', 'ml/s', 'mg/dl', '', null]) expect(isEgfrUnit(unit)).toBe(false)
   })
+  // Owner decision of 2026-10-08: three further ways of writing the same unit.
+  it('accepts the UCUM, "qm" and "per" spellings of mL/min/1.73 m²', () => {
+    for (const unit of ['mL/min/{1.73_m2}', 'ml/min/{1,73_m²}', 'ml/min/1.73qm', 'ML/MIN/1,73 QM', 'mL/min per 1.73 m2', 'ml/min per 1,73m²']) expect(isEgfrUnit(unit)).toBe(true)
+    for (const unit of ['ml/min/1,73 m² KOF', 'ml/min/{1.73}', 'ml/min/qm', 'ml/min per m2', 'ml per min per 1.73 m2', 'ml/min/1.73m3']) expect(isEgfrUnit(unit)).toBe(false)
+    expect(ckdEndpointsModule.appliesTo({ bezeichnung: 'eGFR', einheit: 'mL/min/{1.73_m2}' })).toBe(true)
+    expect(isRapidEgfrDecline('ml/min/1.73qm', -10, 5)).toBe(true)
+    expect(projectionTargetPresets({ outcome: 'eGFR', unit: 'mL/min per 1.73 m2' }).map((t) => t.threshold)).toEqual([30, 15])
+  })
   it('gives a clearance in ml/min neither endpoints nor the rapid-decline flag', () => {
     expect(ckdEndpointsModule.appliesTo({ bezeichnung: 'Kreatinin-Clearance', einheit: 'ml/min' })).toBe(false)
     expect(ckdEndpointsModule.appliesTo({ bezeichnung: 'GFR (CKD-EPI)', einheit: 'ml/min/1,73m²' })).toBe(true)

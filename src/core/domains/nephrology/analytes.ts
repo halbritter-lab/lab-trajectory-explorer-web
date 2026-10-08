@@ -74,15 +74,22 @@ export function isKdigoCreatinineSeries(bez: string, einheit: string | null): bo
   return isSerumCreatinineSeries(bez, einheit)
 }
 
-/** eGFR by unit: mL/min/1.73 m² in any of the usual spellings (letter case,
- * spacing, decimal comma, superscript or caret 2), whatever the series is
- * called. The single rule behind the CKD endpoints, kidney failure reached,
- * the rapid-decline flag and the mixed-model projection presets (decided
- * 2026-10-07). A clearance in ml/min is not eGFR. */
+/** The spellings of mL/min/1.73 m² accepted as eGFR, after `isEgfrUnit` has
+ * lower-cased the unit, removed whitespace and read a decimal comma as a point
+ * and `²` or `^2` as `2`: the plain form, UCUM (`mL/min/{1.73_m2}`), "qm" for
+ * square metres, and "per" before the body surface area (`mL/min per 1.73 m2`). */
+const EGFR_UNIT_SPELLINGS: ReadonlySet<string> = new Set(['ml/min/1.73m2', 'ml/min/{1.73_m2}', 'ml/min/1.73qm', 'ml/minper1.73m2'])
+
+/** eGFR by unit: mL/min/1.73 m² in any of the accepted spellings (letter case,
+ * spacing, decimal comma, superscript or caret 2, and the forms listed in
+ * `EGFR_UNIT_SPELLINGS`), whatever the series is called. The single rule
+ * behind the CKD endpoints, kidney failure reached, the rapid-decline flag and
+ * the mixed-model projection presets (decided 2026-10-07; UCUM, "qm" and
+ * "per" spellings added 2026-10-08). A clearance in ml/min is not eGFR. */
 export function isEgfrUnit(einheit: string | null): boolean {
   if (einheit == null) return false
   const normalised = einheit.toLowerCase().replace(/\s/g, '').replace(',', '.').replace('²', '2').replace('^2', '2')
-  return normalised === 'ml/min/1.73m2'
+  return EGFR_UNIT_SPELLINGS.has(normalised)
 }
 
 /** Name mentions eGFR anywhere (case-insensitive). Used only to pick a
