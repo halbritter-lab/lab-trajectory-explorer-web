@@ -7,6 +7,10 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- The import card on the start screen is easier to scan: "Load demo data" is
+  the highlighted action while no dataset is loaded, the template and example
+  downloads are labelled rows of download links, and the "Remember on this
+  device" option is set apart below them. Names and behaviour are unchanged.
 - The charts in the patient table under Trajectories grow with their column
   instead of keeping a fixed width of 176 px, up to 360 px. With few
   parameter columns the table now uses the available width; with many
