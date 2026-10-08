@@ -28,9 +28,6 @@ and no projected value is a prognosis.
   description. The [list of open decisions](#open-decisions) collects them.
 - **Known limitations.** Behaviour the owner has decided not to change for now
   is documented as a limitation, without a marker.
-- **Proposed defaults.** A value marked *(proposed)* was chosen during
-  implementation and remains open to the owner's revision; see
-  [method decisions](remaining-method-decisions.md).
 - **Not reachable.** Code that exists only for tests is listed separately and
   is not part of the method description.
 
@@ -2720,7 +2717,8 @@ Time is elapsed UTC milliseconds since the first eligible row divided by
 365.25 days per year, and the intercept refers to that first row. Display
 slopes and their confidence bounds can differ from the endpoint fit, because
 the display fit can use other rows. Once kidney failure is reached, no
-endpoint fit is run *(proposed: no pre-KRT counterfactual projection)*.
+endpoint fit is run, so no counterfactual projection for the time before
+kidney replacement therapy exists (confirmed by the owner on 2026-10-08).
 
 **Crossing.** For `y(t) = a + b*t` the target 15 is reached at
 `t = (15 - a) / b` years after the first eligible row. With `span` the years
@@ -2957,10 +2955,9 @@ Regression evidence: [export tests](../tests/core/cohort/exportRecords.test.ts),
 These definitions intentionally replace the historical web rules. They are
 owner-approved research definitions, not claims of clinical validation. The
 owner confirmed the 12-month maximum confirmation window, the 90-day decline
-baseline window and the 20-year projection horizon on 2026-10-07. The one
-default still marked *(proposed)*, the absence of a pre-KRT counterfactual
-projection, was chosen during implementation and remains open to the owner's
-revision. A projected crossing is a property of a
+baseline window and the 20-year projection horizon on 2026-10-07, and the
+absence of a pre-KRT counterfactual projection on 2026-10-08. No default
+remains marked as proposed. A projected crossing is a property of a
 fitted line and must not be read or presented as a prognosis.
 
 ## Cohort mixed models
