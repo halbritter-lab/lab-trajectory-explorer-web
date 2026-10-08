@@ -154,8 +154,9 @@ stored regression case moved deliberately (`"1.234"` in
 `tests/goldens/wert.json`, OD-8). The owner approved Part A of the
 [methodology wording drafts](methodology-wording-drafts.md) on the same day;
 it is applied to the methodology page, and the markers of OD-3, OD-4, OD-5,
-OD-10 and OD-12 are removed. Part B of the drafts, topics the page does not
-cover yet, awaits his review. Details of the implementation that the
+OD-10 and OD-12 are removed. Part B of the drafts, topics the page did not
+cover, was approved on 2026-10-08 and is applied as well (see "Follow-up
+decisions of 2026-10-08"). Details of the implementation that the
 decisions did not spell out are listed under "Implementation notes" below and
 are open to the owner's revision.
 
@@ -260,6 +261,12 @@ of [method algorithms](method-algorithms.md) concerned:
 ### Follow-up decisions of 2026-10-08
 
 Taken by the project owner on the points the walkthrough had left open.
+
+- **Methodology page, Part B.** The seven new blocks of the
+  [methodology wording drafts](methodology-wording-drafts.md) are approved as
+  drafted and applied to the methodology page. The existing "Age" bullet of
+  the eGFR section, which overlapped block B6, was shortened and refers to the
+  new block. No behaviour changes.
 
 - **eGFR unit spellings (OD-20).** Three further ways of writing
   mL/min/1.73 m² count as eGFR: `mL/min/{1.73_m2}` (UCUM), `ml/min/1.73qm` and

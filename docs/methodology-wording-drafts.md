@@ -9,8 +9,12 @@ below; "Current" there refers to the text it replaced. The markers of OD-3,
 OD-4, OD-5, OD-10 and OD-12 in [method algorithms](method-algorithms.md) were
 removed with it.
 
-**Part B is not applied.** It adds topics the page does not cover yet. Mark
-each block accepted, edited or rejected.
+**Part B was approved by the owner as drafted on 2026-10-08 and is applied.**
+It adds topics the page did not cover. The overlap noted under B6 was resolved
+by shortening the existing **Age** bullet of the eGFR section, which now
+refers to the new block. Placement on the page: B3 and B1 after *Fit
+Pipeline*, B2 after *Choosing a Fit Model*, B5 and B6 after the eGFR section,
+B4 after *AKI Detection*, B7 after *Cohort Screening*.
 
 ## Part A: passages that no longer match the application
 
@@ -382,8 +386,13 @@ what was left out is listed at the end so that it can be added where wanted.
 >   dates, stated ages contradicting the birth date or each other, implausible
 >   stated ages. A manual sex or age suppresses the corresponding reports.
 
-This block overlaps the existing **Age** bullet in the eGFR section; one of the
-two would be shortened.
+This block overlaps the existing **Age** bullet in the eGFR section. Applied
+by shortening that bullet to: "the equations use the patient's age at the date
+of measurement. This app does not read the age stated on each row directly. It
+derives every row's age from one birth-date anchor per patient (see *Resolving
+Sex and Age* below). Ages shown and exported can therefore differ from the
+values in the source file, usually by a year, and the eGFR follows that
+correction."
 
 ### B7. Cohort models
 

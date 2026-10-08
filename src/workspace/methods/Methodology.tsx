@@ -165,6 +165,57 @@ export function Methodology() {
         endpoint evaluation and prediction, AKI detection, and cohort mixed models.
         Exact measurements on the same date remain eligible.</p>
 
+      <h4>Analysis Presets</h4>
+      <p>
+        A preset sets every analysis setting at once. Changing a single setting afterwards marks
+        the configuration as custom.
+      </p>
+      <ul>
+        <li>
+          <strong>General exploration</strong> (the starting configuration) — OLS on raw
+          measurements; no event censoring, no AKI exclusion, no time balancing, no endpoints.
+        </li>
+        <li>
+          <strong>Theil–Sen robust trend</strong> — General exploration with the Theil–Sen
+          estimator instead of OLS. Exports record it as a custom configuration.
+        </li>
+        <li>
+          <strong>CKD progression</strong> — OLS on quarterly medians; values censored from kidney
+          transplant and from chronic dialysis start; acute dialysis intervals and dated dialysis
+          intervals of unknown intent excluded; a 30-day window after each AKI onset excluded;
+          percent decline, observed G4, observed G5 and projected age to G5 switched on, with a
+          90-day minimum confirmation interval.
+        </li>
+        <li>
+          <strong>Acute review</strong> — raw measurements without a fit; no event censoring, no
+          AKI exclusion, no endpoints.
+        </li>
+      </ul>
+      <p>
+        Every preset sets the rapid-decline threshold to 5 mL/min/1.73m² per year. Endpoint
+        settings take effect on eGFR series only.
+      </p>
+
+      <h4>Time Balancing: Monthly and Quarterly Medians</h4>
+      <p>
+        With monthly or quarterly medians, the measurements that remain after exclusions are
+        grouped by UTC calendar month or calendar quarter (January–March, April–June,
+        July–September, October–December). Periods are not counted from the patient&apos;s first
+        measurement; 31 December and 1 January fall in different periods.
+      </p>
+      <p>
+        Each period with at least one measurement contributes one point. Its value is the median;
+        with an even count this is the mean of the two middle values. Its date is the date of the
+        lower-middle measurement in date order (the earlier of two, the middle of three, the
+        second of four), so it is always a date on which a measurement exists. Periods without
+        measurements contribute nothing; no value is interpolated.
+      </p>
+      <p>
+        Example: 50, 44, 47 and 41 on 10 January, 20 February, 5 March and 25 March 2021 give the
+        quarterly point 45.5 on 20 February 2021. Minimum point counts and the fitted span refer
+        to these points, not to the raw measurements.
+      </p>
+
       <h4>Choosing a Fit Model</h4>
       <p>
         All five models answer the same question — how fast is this parameter changing — but they
@@ -235,6 +286,25 @@ export function Methodology() {
         one only and are less verified than OLS. The observed G4/G5 and endpoint prediction rules
         below are this application's own research definitions: unit tests cover them, but neither
         check above applies. None of this replaces acceptance with representative research data.
+      </p>
+
+      <h4>Ordinary Least Squares (OLS)</h4>
+      <p>
+        The OLS fit is unweighted: every fitted point has the same weight. Time is measured in
+        years of 365.25 days from the first fitted point (1 January 2020 to 1 January 2021 is
+        366 / 365.25 = 1.002 years), and the intercept is the fitted value at that point.
+      </p>
+      <p>
+        A regular fit needs at least three points. Exactly two points on different dates give the
+        exact line through both, with R² = 1 and no confidence interval: 60 on 1 January 2020 and
+        56 on 1 January 2021 give −3.99 per year. R² is the squared correlation of time and
+        value; it is unavailable when all fitted values are identical.
+      </p>
+      <p>
+        The 95% interval is the slope ± t × standard error, where the standard error comes from
+        the residual sum of squares with n − 2 degrees of freedom and t is the two-sided 95% value
+        of Student&apos;s t distribution. It describes uncertainty in the slope, not a prediction
+        interval.
       </p>
 
       <h4>Observed G4/G5 and confirmed decline event algorithms</h4>
@@ -455,12 +525,54 @@ export function Methodology() {
         </li>
         <li>
           <strong>Age</strong> — the equations use the patient's age at the date of measurement.
-          This app does not read the age stated on each row directly. It resolves one birth-date
-          anchor per patient, taken from a manual entry, an explicit birth date, or the stated ages
-          themselves, and derives every row's age from that anchor. A stated age that contradicts
-          the others is corrected rather than used, and the contradiction is reported. Ages shown
-          and exported can therefore differ from the values in the source file, usually by a year,
-          and the eGFR follows that correction.
+          This app does not read the age stated on each row directly. It derives every row's age
+          from one birth-date anchor per patient (see <em>Resolving Sex and Age</em> below). Ages
+          shown and exported can therefore differ from the values in the source file, usually by a
+          year, and the eGFR follows that correction.
+        </li>
+      </ul>
+
+      <h4>eGFR: Conditions, Age and Rounding</h4>
+      <p>
+        A creatinine measurement yields an eGFR value only when it has a lab date and a numeric
+        value, the creatinine is greater than 0 mg/dl after conversion, the patient&apos;s sex is
+        resolved, and the age is known and at least 18 (17 gives no value, 18 does). Otherwise no
+        value is produced.
+      </p>
+      <p>
+        Age is the number of whole completed years at the lab date. It changes on the birthday;
+        fractional age is not used. A series therefore shows a small step at each birthday: one
+        further year lowers CKD-EPI 2021 by 0.62%.
+      </p>
+      <p>
+        Each result is rounded to one decimal, and the rounded value is used in every later
+        calculation: fits, observed G4/G5, percent decline, projections, the rapid-decline flag
+        and cohort models. CKD-EPI 2021 for a male aged 65 with 2.35 mg/dl gives 29.96, which is
+        stored as 30.0 and is therefore not below the G4 boundary of 30. No upper or lower limit
+        is applied to the result.
+      </p>
+
+      <h4>Resolving Sex and Age</h4>
+      <p>Sex and a birth-date anchor are resolved once per patient.</p>
+      <ul>
+        <li>
+          <strong>Sex</strong> — accepted spellings, ignoring case: m, male, man, mann, männlich,
+          maennlich, mannlich; w, f, female, woman, weiblich, frau; d, divers, diverse. Other
+          values, such as other or unknown, count as no sex. Sources in order: manual entry,
+          attributes table, the code stated most often on the patient&apos;s lab rows. If the two
+          most frequent codes tie, the rows yield no sex.
+        </li>
+        <li>
+          <strong>Age</strong> — sources in order: manual age (read as the age at the earliest
+          dated row), attributes-table birth date, birth date on the earliest dated lab row,
+          stated ages. Each stated age defines a one-year interval of possible birth dates; the
+          anchor is the midpoint of their intersection. Without a common birth date, the median of
+          the interval midpoints is used.
+        </li>
+        <li>
+          <strong>Reported as conflicts</strong> — differing sex codes, a tie, differing birth
+          dates, stated ages contradicting the birth date or each other, implausible stated ages.
+          A manual sex or age suppresses the corresponding reports.
         </li>
       </ul>
 
@@ -540,6 +652,26 @@ export function Methodology() {
         </li>
       </ul>
 
+      <h4>AKI Timing, Episodes and the Fit-Exclusion Window</h4>
+      <p>
+        Lab dates are calendar days without a time of day. The 48-hour window therefore covers
+        earlier measurements on the same date or one or two calendar days earlier, and the 7-day
+        window those up to seven calendar days earlier, limits included. A rise from 1.0 to
+        1.3 mg/dl two days apart is detected; three days apart it is not.
+      </p>
+      <p>
+        Each measurement that meets a criterion is a crossing. Consecutive crossings form one
+        episode only while they share the same baseline date; the onset is the date of the first
+        crossing. An episode has no end date, so a sustained rise is reported as a chain of
+        episodes: daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give four Stage I
+        episodes.
+      </p>
+      <p>
+        With AKI exclusion on, each episode removes from the fit all measurements from the onset
+        date through onset + 30 days (default), both ends included: onset 2 January 2020 excludes
+        2 January to 1 February 2020.
+      </p>
+
       <h4>Cohort Screening</h4>
       <p>
         The patient table <strong>ranks and sorts</strong> patients by the selected metric (latest
@@ -559,6 +691,28 @@ export function Methodology() {
         the flag). No other clinical
         cut-offs are applied; all other interpretation of the ranking is left to the user, and the
         flag itself is a screening signal, not a diagnosis.
+      </p>
+
+      <h4>Cohort Model Specification, Intervals and Projections</h4>
+      <p>
+        The cohort model is a linear mixed model of the measured value on time in years, with a
+        random intercept and slope per patient by default, estimated by restricted maximum
+        likelihood (REML). A “level” factor shifts the level; “level and slope” also adds an
+        interaction with time. Numeric factors, including baseline age, are centred at their mean
+        over the modelled patients, one value each. Categorical factors use treatment contrasts:
+        each coefficient is the difference from the reference level. Fixed effects have 95% Wald
+        intervals; no p-values are computed.
+      </p>
+      <p>
+        The model line shows the reference profile — numeric factors at their centres,
+        categorical factors at their reference levels — from fixed effects only, within observed
+        model time.
+      </p>
+      <p>
+        A projection is the time at which a profile&apos;s fixed-effect line reaches a threshold;
+        it has no interval. It is reported only within the horizon (default 20 years, exactly 20
+        included) and is withheld unless the fit converged, is not singular and matches the
+        current data and settings.
       </p>
       </section>
 

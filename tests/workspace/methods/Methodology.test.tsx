@@ -32,4 +32,28 @@ describe('Methodology', () => {
     expect(screen.getByRole('link', { name: /national kidney foundation formula page/i })).toHaveAttribute('href', expect.stringContaining('kidney.org'))
     expect(screen.getByRole('link', { name: /kdigo 2012 clinical practice guideline/i })).toHaveAttribute('href', expect.stringContaining('KDIGO-2012-AKI-Guideline-English.pdf'))
   })
+  // Part B of the wording drafts, approved by the owner on 2026-10-08.
+  it('covers presets, time balancing, OLS, AKI timing, eGFR conditions, demographics and cohort models', () => {
+    render(<Methodology />)
+    for (const name of [
+      'Analysis Presets',
+      'Time Balancing: Monthly and Quarterly Medians',
+      'Ordinary Least Squares (OLS)',
+      'AKI Timing, Episodes and the Fit-Exclusion Window',
+      'eGFR: Conditions, Age and Rounding',
+      'Resolving Sex and Age',
+      'Cohort Model Specification, Intervals and Projections',
+    ]) expect(screen.getByRole('heading', { name, level: 4 })).toBeInTheDocument()
+    expect(screen.getByText(/give the quarterly point 45\.5 on 20 February 2021/)).toBeInTheDocument()
+    expect(screen.getByText(/56 on 1 January 2021 give −3\.99 per year/)).toBeInTheDocument()
+    expect(screen.getByText(/gives 29\.96, which is stored as 30\.0/)).toBeInTheDocument()
+    expect(screen.getByText(/onset 2 January 2020 excludes 2 January to 1 February 2020/)).toBeInTheDocument()
+    expect(screen.getByText(/Every preset sets the rapid-decline threshold to 5 mL\/min\/1\.73m² per year/)).toBeInTheDocument()
+  })
+  it('keeps one description of the age anchor and points the eGFR age input to it', () => {
+    render(<Methodology />)
+    expect(screen.getAllByText(/the anchor is the midpoint of their intersection/)).toHaveLength(1)
+    expect(screen.getByText(/derives every row's age from one birth-date anchor per patient/)).toBeInTheDocument()
+    expect(screen.queryByText(/taken from a manual entry, an explicit birth date, or the stated ages/)).not.toBeInTheDocument()
+  })
 })

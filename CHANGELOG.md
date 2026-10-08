@@ -7,6 +7,14 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- The Methods page gained seven sections on topics it did not cover, with
+  wording approved by the owner on 2026-10-08: analysis presets, time
+  balancing by monthly and quarterly medians, ordinary least squares, AKI
+  timing with episodes and the fit-exclusion window, the conditions, age and
+  rounding of eGFR, how sex and age are resolved, and the specification,
+  intervals and projections of cohort models. The "Age" input of the eGFR
+  section was shortened and now points to the new section. No behaviour
+  changes.
 - The Methods page was corrected where it no longer matched the application,
   with wording approved by the owner on 2026-10-07: cohort models following
   the Trajectories settings, the eGFR unit rule, rolling and segmented OLS as
