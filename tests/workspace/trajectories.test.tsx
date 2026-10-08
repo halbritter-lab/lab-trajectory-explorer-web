@@ -166,6 +166,10 @@ describe('real-data trajectories workspace', () => {
     expect(sparkWidth(1534, 10, 'small')).toBe(176)
     expect(sparkWidth(0, 3, 'medium')).toBe(240)
     expect(sparkWidth(356, 0, 'small')).toBe(176)
+    // A phone-wide table shows 356 - 146 = 210 px of one column: larger sizes shrink to fit.
+    expect(sparkWidth(356, 1, 'medium')).toBe(210)
+    expect(sparkWidth(356, 1, 'large')).toBe(210)
+    expect(sparkWidth(300, 1, 'large')).toBe(176)
   })
   it('preserves negative measurements in the shared domain', () => {
     const data = fixture()

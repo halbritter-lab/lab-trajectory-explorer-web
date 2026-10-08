@@ -16,11 +16,14 @@ const PLOT = { left: 34, right: 20, top: 12, bottom: 24 }
 /** Chart width for a table that is `available` pixels wide and shows `columns`
  * parameter columns: the columns share the width left beside the selection
  * and patient columns, but a chart is never narrower than its size's minimum.
+ * On a narrow table the minimum shrinks to what one column can show, down to
+ * the small size's minimum, so a single chart is not cut off on a phone.
  * An unmeasured table (width 0, as in tests without layout) gets the minimum. */
 export function sparkWidth(available: number, columns: number, size: SparkSize): number {
   const { minWidth } = SPARK_SIZES[size]
   if (!(available > 0) || columns < 1) return minWidth
-  return Math.max(minWidth, Math.floor((available - 126) / columns) - 20)
+  const floor = Math.max(SPARK_SIZES.small.minWidth, Math.min(minWidth, available - 146))
+  return Math.max(floor, Math.floor((available - 126) / columns) - 20)
 }
 
 export function WorkspaceSparkline({ cell, measurements, patientId, label, domain, fit, scaleMode, width = SPARK_SIZES.small.minWidth, height = SPARK_SIZES.small.height }: {

@@ -179,6 +179,24 @@ test('rejects ambiguous normalized CSV headers visibly', async ({ page }) => {
   expect(problems).toEqual([])
 })
 
+test('table charts share the table width and follow the chart size', async ({ page }) => {
+  await page.setViewportSize({ width: 1440, height: 900 })
+  await loadDemo(page)
+  await page.getByRole('button', { name: 'Trajectories' }).first().click()
+  const region = page.getByRole('region', { name: 'Patient table, horizontal scrolling' })
+  const chart = region.getByRole('img', { name: /Measurement trajectory/ }).first()
+  await expect(chart).toHaveAttribute('height', '110')
+  expect(Number(await chart.getAttribute('width'))).toBeGreaterThan(240)
+  expect(await region.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.getByLabel('Chart size').selectOption('small')
+  await expect(chart).toHaveAttribute('height', '68')
+  expect(await region.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+  // With fits shown the longer cell notes wrap inside the chart width.
+  await page.getByText('Display and analysis', { exact: true }).click()
+  await page.getByLabel('Analysis preset').first().selectOption('ckd_progression')
+  expect(await region.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+})
+
 test('downloads the empty templates and demo files with stable filenames', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   await page.goto('/')
