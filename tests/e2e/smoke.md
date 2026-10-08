@@ -214,8 +214,9 @@ Run against `pnpm build && pnpm preview`.
 
 1. Open `/workspace.html?x=1#y`; assert the browser lands on `/index.html?x=1#y`
    with the title "Lab Trajectory Explorer" and no "Preview" label.
-2. Load demo data. Assert the Data page links the demo workbook, events and
-   attributes next to the templates, and lists the loaded events.
+2. Load demo data. Open "Templates and example files" and assert it links the
+   demo workbook, events and attributes below the templates; the Data page
+   lists the loaded events.
 3. Apply CKD-EPI 2021. Under Trajectories, select Kreatinin (mg/dl) and the
    computed eGFR, choose the CKD progression preset and show the fits. Sort by a
    metric and reverse it; the direction note changes.

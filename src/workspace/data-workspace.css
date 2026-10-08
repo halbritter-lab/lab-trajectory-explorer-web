@@ -3,6 +3,20 @@
 .data-workspace h2 { margin-top: 0; }
 .data-import-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; align-items: end; margin: 20px 0; }
 .data-import-grid input, .data-import-grid select { width: 100%; min-width: 0; }
+.data-import-row { display: flex; flex-wrap: wrap; align-items: end; gap: 14px; margin: 20px 0 8px; }
+.data-import-row .field { flex: 1 1 320px; max-width: 520px; }
+.data-import-row .field input { width: 100%; min-width: 0; }
+.data-import-row > .muted { padding-bottom: 10px; font-size: 13px; }
+.data-workspace details.data-downloads { margin: 0; font-size: 13px; }
+.data-download-row { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; padding: 3px 0 3px 16px; }
+.data-download-label { flex: 0 0 8.5rem; color: var(--muted); }
+.data-download { display: inline-flex; gap: 4px; }
+.data-download > span { text-decoration: none; }
+.workspace-storage { margin-top: 24px; padding-top: 18px; border-top: 1px solid var(--border); }
+.workspace-storage > label { display: inline-flex; align-items: center; gap: 8px; font-weight: 600; }
+.workspace-storage > .muted { margin: 6px 0 0; font-size: 13px; max-width: 110ch; }
+.data-workspace .workspace-storage .actions { margin-top: 12px; font-size: 13px; color: var(--muted); }
+@media (max-width: 700px) { .data-download-label { flex-basis: 100%; } .data-import-row > .muted { display: none; } }
 .data-metrics { display: flex; flex-wrap: wrap; gap: 20px 40px; padding: 18px 0; }
 .data-metrics strong { font-size: 24px; display: block; }
 .data-workspace .actions { display: flex; flex-wrap: wrap; gap: 14px; margin-top: 18px; }

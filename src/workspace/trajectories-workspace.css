@@ -35,9 +35,10 @@
 .wt-table tbody tr:hover td { background: #fbfdfc; }
 .wt-table tbody tr:hover th:first-child, .wt-table tbody tr:hover th:nth-child(2) { background: #f2f7f6; }
 .wt-table small { display: block; margin-top: 3px; font-size: 11px; line-height: 1.25; color: #5d6f78; }
-.wt-sparkline { display: block; width: 176px; height: 68px; margin-bottom: 4px; }
+.wt-sparkline { display: block; margin-bottom: 4px; }
 .wt-sparkline text { font: 9px system-ui, sans-serif; fill: #445963; }
 .wt-cell-summary { display: grid; gap: 2px; font-size: .8rem; line-height: 1.35; }
+.wt-table .wt-cell-summary, .wt-table .wt-th-content { max-width: var(--wt-chart-width, 176px); white-space: normal; overflow-wrap: anywhere; }
 .wt-cell-summary strong { font-size: .88rem; color: #1d333e; }
 .wt-cell-summary span { color: #4b606a; }
 .wt-table .wt-cell-summary details { max-width: 240px; white-space: normal; overflow-wrap: anywhere; }
