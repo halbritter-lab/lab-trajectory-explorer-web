@@ -173,6 +173,11 @@ it('offers the demo files next to the empty templates', () => {
     expect(link.getAttribute('href')).toMatch(new RegExp(`${file.replace('.', '\.')}$`))
   }
   expect(within(screen.getByRole('group', { name: 'Templates' })).getAllByRole('link')).toHaveLength(3)
+  // Both groups sit in one collapsed section, so the import controls stay prominent.
+  const section = demo.closest('details')
+  expect(section).not.toHaveAttribute('open')
+  expect(within(section!).getByText('Templates and example files')).toBeInTheDocument()
+  expect(screen.getByRole('button', { name: 'Load demo data' })).not.toHaveClass('primary')
 })
 it('quotes unreadable sex spellings in the eGFR preview until the sex is resolved', () => {
   const raw = (['female', '1', 'unknown'] as const).map((patientSexRaw, i) => ({ ...row, patientId: `P-${i}`, patientAgeAtLab: 50, patientSexRaw, patientSex: patientSexRaw === 'female' ? 'w' as const : null }))

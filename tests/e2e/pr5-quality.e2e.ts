@@ -182,6 +182,8 @@ test('rejects ambiguous normalized CSV headers visibly', async ({ page }) => {
 test('downloads the empty templates and demo files with stable filenames', async ({ page }) => {
   const problems = collectBrowserProblems(page)
   await page.goto('/')
+  await expect(page.getByRole('link', { name: 'Lab template', exact: true })).toBeHidden()
+  await page.getByText('Templates and example files').click()
   for (const [link, file] of [
     ['Lab template', 'template_labs.csv'],
     ['Event template', 'template_events.csv'],
