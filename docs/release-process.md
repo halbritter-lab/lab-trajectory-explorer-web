@@ -36,14 +36,21 @@ latest named tag. It stays unchanged until a regular release is published.
 Identify development builds by branch and commit SHA. Keep unreleased changes
 under Unreleased in CHANGELOG.md. Do not bump the version for every PR.
 The UI redesign is prepared as 0.3.0; its [release notes](releases/0.3.0.md)
-record the scope and open acceptance gates.
+record the scope, verification and owner approval. On 2026-10-09 the owner
+explicitly authorized publication of that scope after technical workflow checks,
+while leaving representative research/user acceptance and a fresh real-WebR
+smoke run open. That publication approval does not establish research, clinical
+or first-user acceptance. Publication and deployment verification are pending.
 
 1. Prepare a release PR with the package version and dated changelog section.
-2. Run checks and obtain explicit acceptance of the complete user workflows.
+2. Run technical workflow checks and obtain explicit owner acceptance of the
+   release scope. Record any research/user acceptance left open separately;
+   technical checks alone do not establish it or authorize publication.
 3. Merge that PR; this still does not deploy.
 4. Tag that exact accepted main commit, using `v` plus the package version.
 5. Publish the matching regular GitHub Release; this triggers deployment.
-6. Verify the Pages deployment and record its result. Do not move existing tags.
+6. Verify the Pages deployment and record the actual deployment evidence on
+   the GitHub Release page after publication. Do not move existing tags.
 
 Create new release tags from main commits containing the release-only workflow.
 Historical commits contain older workflow definitions and are not suitable for

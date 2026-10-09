@@ -195,10 +195,15 @@ All are deferred until after that release and stay open here.
   [release notes](releases/0.3.0.md) comparing the deployed `08b9bd2` baseline.
   Metadata consistency checks, 888 tests in 93 files and production build
   passed. No dependency, lockfile, runtime or numeric changes.
-- [ ] Accept the complete-workflow release scope; representative research-data
-  and first-user acceptance remain open.
-- [ ] Obtain release acceptance, then publish and verify deployment only when
-  authorized. A merge or successful CI is not publication approval.
+- [x] Obtain owner approval for the documented 0.3.0 release scope. On
+  2026-10-09 the owner explicitly authorized completing, merging/pushing,
+  tagging v0.3.0 and publishing the regular release, with representative
+  research-data and first-user acceptance still open and no fresh real-WebR
+  smoke run. This release approval does not establish research or clinical
+  acceptance; see the [release notes](releases/0.3.0.md).
+- [ ] Publish the regular GitHub Release and verify deployment under the owner
+  authorization. Publication and deployment verification have not yet occurred.
+  A merge or successful CI alone is not publication approval.
 
 See [release process](release-process.md). Each implementation package should be
 verified and committed independently; unfinished items remain visible here.
