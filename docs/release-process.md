@@ -28,14 +28,15 @@ explicit publication action and requires user acceptance of the release scope.
 
 ## Versioning
 
-The package version remains 0.2.0; named tags/releases v0.1.0 and v0.2.0 already
-exist. The existing public deployment predates this process and can be ahead
-of its latest named tag. It stays unchanged until a regular release is published.
+The release-preparation package version is 0.3.0; named tags/releases v0.1.0
+and v0.2.0 already exist. Version metadata does not establish release acceptance.
+The existing public deployment predates this process and can be ahead of its
+latest named tag. It stays unchanged until a regular release is published.
 
 Identify development builds by branch and commit SHA. Keep unreleased changes
 under Unreleased in CHANGELOG.md. Do not bump the version for every PR.
-For the completed UI redesign, 0.3.0 is proposed; decide the exact version at
-release preparation.
+The UI redesign is prepared as 0.3.0; its [release notes](releases/0.3.0.md)
+record the scope and open acceptance gates.
 
 1. Prepare a release PR with the package version and dated changelog section.
 2. Run checks and obtain explicit acceptance of the complete user workflows.

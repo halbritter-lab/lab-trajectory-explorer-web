@@ -190,7 +190,13 @@ All are deferred until after that release and stay open here.
   final review against main found ten issues, fixed in `31f7aa0` with
   regression tests; #16 merged as `99f9bb9` (contains #15). CI passed on the
   PR head and on main. Nothing was published.
-- [ ] Prepare version/changelog and complete-workflow release scope.
+- [x] Prepare version/changelog and reviewable release notes. 2026-10-09:
+  package 0.3.0, dated changelog preserving the detailed history, and
+  [release notes](releases/0.3.0.md) comparing the deployed `08b9bd2` baseline.
+  Metadata consistency checks, 888 tests in 93 files and production build
+  passed. No dependency, lockfile, runtime or numeric changes.
+- [ ] Accept the complete-workflow release scope; representative research-data
+  and first-user acceptance remain open.
 - [ ] Obtain release acceptance, then publish and verify deployment only when
   authorized. A merge or successful CI is not publication approval.
 
