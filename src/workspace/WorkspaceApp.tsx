@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { version } from '../../package.json'
 import type { LabRow, PatientId } from '../core/types'
 import { Methodology } from './methods/Methodology'
 import { DataWorkspace } from './DataWorkspace'
@@ -61,7 +62,7 @@ export function WorkspaceApp() {
   return <div className="workspace-app">
     <a className="skip-link" href="#workspace-main">Skip to content</a>
     <header className="workspace-header">
-      <div className="workspace-brand"><span aria-hidden="true" className="workspace-logo">↗</span><div><strong>Lab Trajectory Explorer</strong><span>Longitudinal lab data · research use only</span></div></div>
+      <div className="workspace-brand"><span aria-hidden="true" className="workspace-logo">↗</span><div><div className="workspace-title"><strong>Lab Trajectory Explorer</strong><small className="workspace-version" aria-label={`Version ${version}`}>v{version}</small></div><span>Longitudinal lab data · research use only</span></div></div>
       <nav aria-label="Main navigation" className="workspace-nav">
         {(['Data', 'Trajectories', 'Cohort models'] as const).map(name => <button type="button" key={name}
           aria-current={page === name ? 'page' : undefined} onClick={() => go(name)}>

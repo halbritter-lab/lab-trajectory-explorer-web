@@ -305,12 +305,12 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByText('n < 3 · uncertain slope')).toBeInTheDocument()
   })
 
-  it('retains bounded values in table summaries, plot tooltips and derived measurement text', () => {
+  it('omits standalone latest values while retaining bounded plot tooltips and derived measurement text', () => {
     const data = fixture()
     data.parameters[0].derived = true
     data.rows = data.rows.map(row => row.einheit === 'unit-0' ? { ...row, wertOperator: '>' as const, wert: String(row.wertNum) } : row)
     render(<TrajectoriesWorkspace data={data} />)
-    expect(screen.getAllByText('> 12')).toHaveLength(2)
+    expect(screen.queryByText('> 12')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
     expect(screen.getByText(/01\/01\/2020: > 10 unit-0 · excluded from the fit: censored value/)).toBeInTheDocument()
     expect(screen.getAllByText('> 10').length).toBeGreaterThan(0)
