@@ -5,6 +5,13 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.2] - 2026-10-09
+
+### Added
+
+- Footer links to the GitHub repository and Halbritter Lab, with a creator
+  attribution linking to Jan-Paul Lerch's website.
+
 ## [0.3.1] - 2026-10-09
 
 ### Changed
