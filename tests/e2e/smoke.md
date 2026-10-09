@@ -18,7 +18,14 @@ task received an independent review with no major findings.
 - Final rerun at `361a002`, `CI=true pnpm test:e2e --workers=2`: 34/34 production
   Chromium checks passed, exit 0 (31.8 seconds). Source and unit tests were
   unchanged after `76ba5e5`, so its unit/build results remain applicable.
-- Final whole-branch review is pending recording.
+- Final whole-branch review on 2026-10-09: APPROVE for `e622f1b..1a0783e`, with
+  no Critical or Important findings. Retained nonblocking Minor: a focused direct
+  invocation-time rejection regression would protect the secondary fit guard;
+  the handler revalidates, and normal UI/configuration transitions are covered.
+- The technical documentation package received independent review: PASS /
+  APPROVE, no material findings. Issue #2's two UX items and dated technical
+  verification/review record were updated; research acceptance remains unchecked.
+  No merge, release or publication is recorded for this package.
 
 Focused task checks passed before these final checks: fitting availability,
 44px target dimensions at 1440px and 390px, touch-enabled `tap()` navigation,
@@ -31,7 +38,8 @@ changes. No formula, eligibility floor, preparation rule, endpoint policy or
 golden output change is included.
 
 Representative research workbooks, research questions and a human tester were
-not supplied. Research/user acceptance, real touch-device evaluation and cohort
+not supplied. The owner confirmed on 2026-10-09 that these are not yet available
+and acceptance must remain open. Research/user acceptance, real touch-device evaluation and cohort
 dimensions/latency measurements remain open in
 [research-data acceptance](../../docs/research-acceptance.md).
 

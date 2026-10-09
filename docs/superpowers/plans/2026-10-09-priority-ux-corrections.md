@@ -106,23 +106,23 @@ Deferred work includes the unused `AnalysisModule.appliesTo` contract, kidney-sp
 
 - [x] Run `pnpm test` and `pnpm build` at `76ba5e5`: 888 tests in 93 files passed; production build passed. Record dated actual results, not historical counts.
 - [x] Finish production Chromium verification with `CI=true pnpm test:e2e --workers=2`: initial run at `76ba5e5` had 33 passes/one fixture failure; corrected fixture at `361a002` passed 34/34 (exit 0, 31.8 seconds). Source/unit tests were unchanged after the unit/build checkpoint.
-- [ ] Review the whole diff for scope and numerical-output changes.
-- [ ] Perform and record a final code review before declaring the implementation branch complete, as required by `CLAUDE.md`. Resolve material findings, run affected checks after corrections, and record any remaining limitations. Use an independent reviewer when the chosen execution workflow authorizes one.
+- [x] Review the whole diff for scope and numerical-output changes: independent final review of `e622f1b..1a0783e` confirmed no numerical/core/worker/preparation/validator-policy/endpoint/golden/dependency/package changes.
+- [x] Perform and record final independent code review (2026-10-09): APPROVE for `e622f1b..1a0783e`, no Critical or Important findings. Retain the nonblocking Minor direct invocation-time rejection regression suggestion; handler revalidation and normal UI/configuration transition coverage were confirmed.
 - [x] Assess real-WebR smoke need: no numerical worker change was identified; actual WebR smoke was not rerun for these CSS/button availability changes. Browser model UI checks use synthetic/mock-worker coverage.
-- [x] Ask the owner for representative workbooks, research questions and a first-time tester when acceptance is ready (asked asynchronously; no answer recorded). Keep research files outside the public repository. The current synthetic fixtures are sufficient for technical checks, not for this acceptance.
+- [x] Ask the owner for representative workbooks, research questions and a first-time tester when acceptance is ready (asked asynchronously; owner confirmed on 2026-10-09 that research files/tester are not yet available and acceptance must remain open). Keep research files outside the public repository. The current synthetic fixtures are sufficient for technical checks, not for this acceptance.
 - [ ] Run the existing checklist across import, demographics, derivation, trajectories, endpoints, cohort models, exports and local resumption. Specifically check disabled fitting explanations and patient navigation on a touch device.
 - [ ] Record cohort dimensions and perceived/observed latency during demographic and derivation edits. Only schedule hidden-page computation changes if these measurements identify a practical problem; keep that work tracked in issue #2.
-- [ ] Complete and record technical verification separately from research/user acceptance.
+- [x] Complete and record technical verification separately from research/user acceptance; final code and documentation reviews approved the scoped technical package.
 - [ ] Record anonymous research/user results, unresolved findings and the tester's decision when representative inputs and a human tester are available. Research/user acceptance remains open.
 - [x] Update and commit technical documentation only for performed checks as `docs: record priority UX verification`.
-- [ ] Update the corresponding GitHub checklist items after checks pass (controller-owned; no remote changes in this documentation task).
+- [x] Controller updated issue #2's two UX checklist items and dated local verification/review record after checks passed. Research/user acceptance remains unchecked, and deferred architecture work remains in #23. No merge or publication occurred.
 - [ ] Commit research/user acceptance evidence separately when available.
 
 ## Completion and handoff
 
 Tasks 1 and 2 are independently reviewable implementation packages. Task 3 has a technical portion that can run immediately afterwards and a human/data-dependent acceptance portion. Do not call the full product accepted until that latter portion is completed.
 
-This turn creates the plan and GitHub tracking only. Implementation, version preparation and publication are separate steps.
+The original planning turn created the plan and GitHub tracking only. Implementation and technical verification are now recorded above; version preparation and publication remain separate steps requiring release acceptance.
 
 ## Independent plan review (2026-10-09)
 

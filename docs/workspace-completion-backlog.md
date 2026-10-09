@@ -52,11 +52,19 @@ received independent reviews with no major findings.
   correction also supplied the worker result's missing singular field and
   received an independent scoped review with no major findings. Source/unit
   tests were unchanged after the unit/build checkpoint at `76ba5e5`.
-- [ ] Record the final whole-branch code review.
+- [x] Final whole-branch review on 2026-10-09 approved `e622f1b..1a0783e` with
+  no Critical or Important findings. A nonblocking Minor suggestion remains for
+  direct invocation-time rejection regression coverage; the handler revalidates
+  before submission and normal UI/configuration transitions are covered.
+- [x] Update issue #2's two UX checkboxes and dated technical verification/review
+  record. Research/user acceptance remains unchecked; deferred architecture work
+  remains in #23. This package has not been merged or published.
 - [ ] Complete representative research-data and first-user acceptance, including
   disabled-fitting explanations, real touch-device navigation and demographic/
   derivation edit latency measurements. No representative inputs or human tester
-  were supplied; hidden-page performance work remains conditional and tracked in #2.
+  were supplied. The owner confirmed on 2026-10-09 that research files/tester are
+  not yet available and acceptance must remain open; hidden-page performance
+  work remains conditional and tracked in #2.
 
 See the [technical test record](../tests/e2e/smoke.md) and
 [research-data acceptance](research-acceptance.md). Historical records below

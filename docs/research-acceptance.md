@@ -124,12 +124,16 @@ in 93 files (`pnpm test`, exit 0, 39.32 seconds); `pnpm build` passed (exit 0,
 Vite 10.97 seconds). After the browser-only model-factor fixture correction in
 `361a002`, all 34 production Chromium checks passed (exit 0, 31.8 seconds).
 Source and unit tests were unchanged after `76ba5e5`; its unit/build evidence
-remains applicable. Final whole-branch review remains pending. See the
+remains applicable. Final whole-branch review on 2026-10-09 approved
+`e622f1b..1a0783e` with no Critical or Important findings. A nonblocking Minor
+coverage suggestion remains: directly test invocation-time rejection in the fit
+handler, which already revalidates before submission. See the
 [technical test record](../tests/e2e/smoke.md).
 
 No representative research workbooks, research questions or human tester were
-supplied for this checkpoint; the owner has been asked for these inputs and a
-tester, with no answer recorded yet. The run-through, cohort dimensions, demographic/
+supplied for this checkpoint. Owner decision on 2026-10-09: representative
+research files and a tester are not yet available; leave acceptance open.
+The run-through, cohort dimensions, demographic/
 derivation edit latency measurements, anonymous results and release decision
 remain open. Synthetic technical checks do not establish research/user acceptance.
 
