@@ -5,6 +5,8 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.1] - 2026-10-09
+
 ### Changed
 
 - The workspace header shows the package version beside the application title.
