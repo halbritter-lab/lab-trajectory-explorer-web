@@ -5,6 +5,8 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-10-09
+
 ### Changed
 
 - Patient-opening buttons in the trajectory table now have targets of at least
@@ -411,6 +413,7 @@ interfaces are still evolving before 1.0.
 
 - Initial deployed baseline.
 
-[Unreleased]: https://github.com/halbritter-lab/lab-trajectory-explorer-web/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/halbritter-lab/lab-trajectory-explorer-web/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/halbritter-lab/lab-trajectory-explorer-web/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/halbritter-lab/lab-trajectory-explorer-web/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/halbritter-lab/lab-trajectory-explorer-web/releases/tag/v0.1.0

@@ -190,9 +190,20 @@ All are deferred until after that release and stay open here.
   final review against main found ten issues, fixed in `31f7aa0` with
   regression tests; #16 merged as `99f9bb9` (contains #15). CI passed on the
   PR head and on main. Nothing was published.
-- [ ] Prepare version/changelog and complete-workflow release scope.
-- [ ] Obtain release acceptance, then publish and verify deployment only when
-  authorized. A merge or successful CI is not publication approval.
+- [x] Prepare version/changelog and reviewable release notes. 2026-10-09:
+  package 0.3.0, dated changelog preserving the detailed history, and
+  [release notes](releases/0.3.0.md) comparing the deployed `08b9bd2` baseline.
+  Metadata consistency checks, 888 tests in 93 files and production build
+  passed. No dependency, lockfile, runtime or numeric changes.
+- [x] Obtain owner approval for the documented 0.3.0 release scope. On
+  2026-10-09 the owner explicitly authorized completing, merging/pushing,
+  tagging v0.3.0 and publishing the regular release, with representative
+  research-data and first-user acceptance still open and no fresh real-WebR
+  smoke run. This release approval does not establish research or clinical
+  acceptance; see the [release notes](releases/0.3.0.md).
+- [ ] Publish the regular GitHub Release and verify deployment under the owner
+  authorization. Publication and deployment verification have not yet occurred.
+  A merge or successful CI alone is not publication approval.
 
 See [release process](release-process.md). Each implementation package should be
 verified and committed independently; unfinished items remain visible here.
