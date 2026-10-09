@@ -30,7 +30,7 @@
 .wt-table th:first-child input[type="checkbox"], .wt-table td:first-child input[type="checkbox"] { cursor: pointer; margin: 0 auto; display: block; }
 .wt-table th:nth-child(2) { min-width: 88px; width: 88px; max-width: 88px; position: sticky; left: 36px; z-index: 2; box-sizing: border-box; overflow-wrap: anywhere; box-shadow: 2px 0 0 #dce5e9; padding: 6px 8px; }
 .wt-table tbody th:nth-child(2) { background: #f7fafa; vertical-align: top; padding: 8px 6px; }
-.wt-table tbody th button { display: inline-block; padding: 2px 6px; font-size: 12px; font-weight: 600; line-height: 1.25; border-radius: 4px; border: 1px solid #b8ccd2; background: #fff; color: #176c68; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.wt-table tbody th button { display: inline-block; box-sizing: border-box; min-width: 44px; min-height: 44px; text-align: center; padding: 2px 6px; font-size: 12px; font-weight: 600; line-height: 1.25; border-radius: 4px; border: 1px solid #b8ccd2; background: #fff; color: #176c68; cursor: pointer; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .wt-table tbody th button:hover { background: #eef6f5; border-color: #176c68; }
 .wt-table tbody tr:hover td { background: #fbfdfc; }
 .wt-table tbody tr:hover th:first-child, .wt-table tbody tr:hover th:nth-child(2) { background: #f2f7f6; }

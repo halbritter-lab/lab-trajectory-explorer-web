@@ -518,3 +518,70 @@ test('model fitting availability explains the demo limit and enables an eligible
   await expect(studio.getByRole('button', { name: /Fit model/ })).toBeEnabled()
   await expect(preview.getByRole('button', { name: /Fit model/ })).toBeEnabled()
 })
+
+const navigationPatientIds = ['A', 'B-patient-with-a-long-imported-identifier-123456789', ...Array.from({ length: 49 }, (_, index) => `C-${String(index + 1).padStart(3, '0')}`)]
+
+async function uploadNavigationPatients(page: Page) {
+  const rows = ['patientId,labDate,testName,unit,value', ...navigationPatientIds.flatMap(id => Array.from({ length: 4 }, (_, parameter) => `${id},2020-01-01,Marker ${parameter},U/L,10`))]
+  await page.goto('/')
+  await page.getByLabel('Import lab values').setInputFiles({ name: 'navigation.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) })
+  await expect(page.locator('.workspace-dataset')).toContainText('51 patients')
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+}
+
+test('patient navigation targets retain size, full names and keyboard focus at desktop and narrow widths', async ({ page }, testInfo) => {
+  await uploadNavigationPatients(page)
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 844 })
+    for (const id of navigationPatientIds.slice(0, 2)) {
+      const button = page.getByRole('button', { name: `Open patient ${id}`, exact: true })
+      await expect(button).toHaveAttribute('title', id)
+      const box = await button.boundingBox()
+      expect(box!.width).toBeGreaterThanOrEqual(44)
+      expect(box!.height).toBeGreaterThanOrEqual(44)
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.getByRole('button', { name: 'Open patient A', exact: true }).scrollIntoViewIfNeeded()
+    await page.screenshot({ path: testInfo.outputPath(`patient-navigation-${width}.png`) })
+  }
+  await page.setViewportSize({ width: 1440, height: 844 })
+  const id = navigationPatientIds[1]
+  const button = page.getByRole('button', { name: `Open patient ${id}`, exact: true })
+  await button.focus()
+  await page.keyboard.press('Enter')
+  await expect(page.getByRole('heading', { name: `Patient ${id}`, exact: true })).toBeFocused()
+  await page.getByRole('button', { name: 'Back to table', exact: true }).click()
+  await expect(button).toBeFocused()
+})
+
+test.describe('patient navigation targets on touch', () => {
+  test.use({ hasTouch: true, viewport: { width: 390, height: 844 } })
+
+  test('tap opens the complete long ID and returns to its origin independently of selection and pagination', async ({ page }) => {
+    await uploadNavigationPatients(page)
+    const id = navigationPatientIds[1]
+    const button = page.getByRole('button', { name: `Open patient ${id}`, exact: true })
+    await expect(button).toHaveAttribute('title', id)
+    const box = await button.boundingBox()
+    expect(box!.width).toBeGreaterThanOrEqual(44)
+    expect(box!.height).toBeGreaterThanOrEqual(44)
+    const checkbox = page.getByRole('checkbox', { name: `Select patient ${id}`, exact: true })
+    await checkbox.tap()
+    await expect(checkbox).toBeChecked()
+    await expect(button).toBeVisible()
+    await button.tap()
+    await expect(page.getByRole('heading', { name: `Patient ${id}`, exact: true })).toBeFocused()
+    await page.getByRole('button', { name: 'Back to table', exact: true }).tap()
+    await expect(button).toBeFocused()
+    await expect(checkbox).toBeChecked()
+    await page.getByRole('button', { name: 'Next table page' }).tap()
+    await expect(page.getByRole('button', { name: 'Open patient C-049', exact: true })).toBeVisible()
+    await expect(page.getByRole('heading', { name: `Patient ${id}`, exact: true })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Previous table page' }).tap()
+    await expect(checkbox).toBeChecked()
+    await checkbox.tap()
+    await expect(checkbox).not.toBeChecked()
+    await expect(button).toBeVisible()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  })
+})
