@@ -15,6 +15,7 @@ names, counts), not patient-level values.
 
 ## Inputs to prepare
 
+- [ ] A first-time human tester, including a touch-device run of patient navigation.
 - [ ] One or two representative research workbooks, ideally including an eGFR
   cohort with creatinine, demographics, clinical events (transplant, dialysis)
   and patient attributes such as genotype.
@@ -91,6 +92,9 @@ in a non-default preset, the no-fit path, or quarterly aggregation.
   and use the units you expect.
 - [ ] After fitting a grouped model, the trajectory overlay grouped by the same
   attribute shows one reference line per fitted group.
+- [ ] With an ineligible cohort or configuration, both visible Fit model actions
+  are disabled with understandable adjacent explanations. Eligible units in a
+  partially eligible grouped request can still be fitted; skipped units are explained.
 
 ### Exports
 
@@ -106,8 +110,28 @@ in a non-default preset, the no-fit path, or quarterly aggregation.
   any page felt slow. Note especially edits on the Data page with a large
   cohort loaded; other pages currently recompute in the background.
 - [ ] Optional local saving: reload restores the data; deletion removes it.
+- [ ] On a touch device, open a patient with a short and a long identifier, return
+  to the table, and check that selection and pagination still operate independently.
 
 ## Results
+
+### Technical checkpoint (2026-10-09)
+
+Priority UX corrections are implemented in `095f29e` (model-fitting availability)
+and `76ba5e5` (patient navigation targets). Independent reviews of each task found
+no major findings. Final unit/component verification at `76ba5e5` passed 888 tests
+in 93 files (`pnpm test`, exit 0, 39.32 seconds); `pnpm build` passed (exit 0,
+Vite 10.97 seconds). After the browser-only model-factor fixture correction in
+`361a002`, all 34 production Chromium checks passed (exit 0, 31.8 seconds).
+Source and unit tests were unchanged after `76ba5e5`; its unit/build evidence
+remains applicable. Final whole-branch review remains pending. See the
+[technical test record](../tests/e2e/smoke.md).
+
+No representative research workbooks, research questions or human tester were
+supplied for this checkpoint; the owner has been asked for these inputs and a
+tester, with no answer recorded yet. The run-through, cohort dimensions, demographic/
+derivation edit latency measurements, anonymous results and release decision
+remain open. Synthetic technical checks do not establish research/user acceptance.
 
 Record each run here: date, who, anonymous description of the data, result per
 section, and the issue that received each finding (#2 for UI and workflow, #4
