@@ -1,5 +1,48 @@
 # Manual browser smoke checklist
 
+## Priority UX technical verification (2026-10-09)
+
+Implementation checkpoints: `095f29e` explains and consistently gates cohort
+model fitting; `76ba5e5` enlarges trajectory patient navigation targets. Each
+task received an independent review with no major findings.
+
+- `pnpm test` at `76ba5e5`: 888/888 tests in 93 files passed, exit 0
+  (39.32 seconds).
+- `pnpm build` at `76ba5e5`: passed, exit 0 (Vite 10.97 seconds).
+- Initial final production Chromium run with `CI=true pnpm test:e2e --workers=2`:
+  33 passed, one failed. The model-factor fixture had nine total patients and
+  eight complete cases, so the newly guarded Fit model action correctly stayed
+  disabled. The browser-only fixture correction in `361a002` supplies eleven
+  total/ten complete-case patients and the worker result's missing singular
+  field; it received an independent scoped review with no major findings.
+- Final rerun at `361a002`, `CI=true pnpm test:e2e --workers=2`: 34/34 production
+  Chromium checks passed, exit 0 (31.8 seconds). Source and unit tests were
+  unchanged after `76ba5e5`, so its unit/build results remain applicable.
+- Final whole-branch review on 2026-10-09: APPROVE for `e622f1b..1a0783e`, with
+  no Critical or Important findings. Retained nonblocking Minor: a focused direct
+  invocation-time rejection regression would protect the secondary fit guard;
+  the handler revalidates, and normal UI/configuration transitions are covered.
+- The technical documentation package received independent review: PASS /
+  APPROVE, no material findings. Issue #2's two UX items and dated technical
+  verification/review record were updated; research acceptance remains unchecked.
+  No merge, release or publication is recorded for this package.
+
+Focused task checks passed before these final checks: fitting availability,
+44px target dimensions at 1440px and 390px, touch-enabled `tap()` navigation,
+selection/pagination, existing back navigation and 2000-patient navigation.
+Desktop/mobile synthetic captures were inspected by the implementers. These
+are synthetic automated technical checks, with model-worker interception for
+model UI paths; the manual single-interface steps below were not rerun
+for this package. No real-WebR smoke was rerun for the CSS/button availability
+changes. No formula, eligibility floor, preparation rule, endpoint policy or
+golden output change is included.
+
+Representative research workbooks, research questions and a human tester were
+not supplied. The owner confirmed on 2026-10-09 that these are not yet available
+and acceptance must remain open. Research/user acceptance, real touch-device evaluation and cohort
+dimensions/latency measurements remain open in
+[research-data acceptance](../../docs/research-acceptance.md).
+
 > **2026-10-06: the former interface was removed.** The workspace is the only
 > interface and is served at `/` (`index.html`); `/workspace.html` redirects
 > there. Phases 2 to 8 below exercised the former interface (sidebar, series

@@ -35,6 +35,41 @@ Research-data acceptance remains open; see [dated test record](../tests/e2e/smok
 
 ## 1. Reconcile status and verify correctness
 
+### Priority UX checkpoint (2026-10-09)
+
+The studio and preview now share full-validator fitting availability, with
+adjacent explanations and eligible/skipped group feedback (`095f29e`). Patient
+navigation targets are at least 44 by 44 CSS pixels (`76ba5e5`), covered at desktop
+and 390px widths and in a touch-enabled Chromium context. Both task packages
+received independent reviews with no major findings.
+
+- [x] Final unit/component suite: 888 tests in 93 files passed at `76ba5e5`
+  (`pnpm test`, exit 0, 39.32 seconds); production build passed (exit 0,
+  Vite 10.97 seconds).
+- [x] Final production Chromium browser suite: 34 checks passed at `361a002`
+  (`CI=true pnpm test:e2e --workers=2`, exit 0, 31.8 seconds). The first run
+  had 33 passes and one undersized model-factor fixture failure; the fixture
+  correction also supplied the worker result's missing singular field and
+  received an independent scoped review with no major findings. Source/unit
+  tests were unchanged after the unit/build checkpoint at `76ba5e5`.
+- [x] Final whole-branch review on 2026-10-09 approved `e622f1b..1a0783e` with
+  no Critical or Important findings. A nonblocking Minor suggestion remains for
+  direct invocation-time rejection regression coverage; the handler revalidates
+  before submission and normal UI/configuration transitions are covered.
+- [x] Update issue #2's two UX checkboxes and dated technical verification/review
+  record. Research/user acceptance remains unchecked; deferred architecture work
+  remains in #23. This package has not been merged or published.
+- [ ] Complete representative research-data and first-user acceptance, including
+  disabled-fitting explanations, real touch-device navigation and demographic/
+  derivation edit latency measurements. No representative inputs or human tester
+  were supplied. The owner confirmed on 2026-10-09 that research files/tester are
+  not yet available and acceptance must remain open; hidden-page performance
+  work remains conditional and tracked in #2.
+
+See the [technical test record](../tests/e2e/smoke.md) and
+[research-data acceptance](research-acceptance.md). Historical records below
+remain dated evidence of their original packages, not acceptance of this update.
+
 - [x] Check current issues and distinguish historical claims from recent code.
 - [x] Update workspace documentation and feature inventory: real import,
   configurable individual fits, cohort-model fitting, and projections are

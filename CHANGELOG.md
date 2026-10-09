@@ -7,6 +7,12 @@ interfaces are still evolving before 1.0.
 
 ### Changed
 
+- Patient-opening buttons in the trajectory table now have targets of at least
+  44 by 44 pixels on desktop and touch screens; long IDs remain fully accessible.
+
+- Cohort model actions now explain why fitting is unavailable for the current
+  data and settings. Grouped fits submit eligible units and report skipped units.
+
 - The import card on the start screen is easier to scan: the file field and a
   compact "Load demo data" button share one row, the template and example
   downloads moved into a collapsed section "Templates and example files", and

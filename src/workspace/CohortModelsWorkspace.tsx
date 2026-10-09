@@ -1,4 +1,4 @@
-import { lazy, Suspense, useMemo, useState } from 'react'
+import { lazy, Suspense, useId, useMemo, useState } from 'react'
 import { useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceModelSpec } from './workspace-data'
@@ -34,6 +34,8 @@ interface Props {
 }
 
 export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData }: Props) {
+  const fitFeedbackId = useId()
+  const [invocationFeedback, setInvocationFeedback] = useState<string | null>(null)
   const mixedModelConfig = useAppStore(s => s.mixedModelConfig)
   const setMixedModelConfig = useAppStore(s => s.setMixedModelConfig)
   const presetExclusionPolicy = useAppStore(s => s.presetExclusionPolicy)
@@ -146,6 +148,23 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     [data.rows, patientIds, cohortGroups, spec, mixedModelConfig, data.patientAttributes, presetExclusionPolicy],
   )
 
+  const validatedEntities = useMemo(() => entities.map(entity => ({ entity,
+    validation: validateMixedModelRows(entity.rows, mixedModelConfig),
+  })), [entities, mixedModelConfig])
+  const eligibleEntities = validatedEntities.filter(item => item.validation.ok).map(item => item.entity)
+  const invalidEntities = validatedEntities.filter(item => !item.validation.ok)
+  const validationReasons = invalidEntities.map(({ entity, validation }) =>
+    `${entity.entity.kind === 'cohort' ? 'Whole cohort' : entity.entity.value}: ${!validation.ok ? validation.message : ''}`,
+  ).join(' ')
+  const canFit = eligibleEntities.length > 0 && !cohortModelRunning && !noFit
+  const fitUnavailableReason = cohortModelRunning
+    ? (cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Fitting model …')
+    : noFit ? 'Model fitting is disabled under Trajectories because No fit is selected. Choose a fit model under Trajectories.'
+    : eligibleEntities.length === 0 ? `No model can be fitted with the current data and settings. ${validationReasons || 'Mixed model fitting requires at least one measurement row.'}`
+    : null
+  const fitFeedback = fitUnavailableReason ?? (invalidEntities.length > 0
+    ? `${invalidEntities.length} unit${invalidEntities.length === 1 ? '' : 's'} skipped. ${validationReasons}` : invocationFeedback)
+
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
     paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])
   const hasSuccessfulModel = Object.keys(currentModels).length > 0
@@ -247,9 +266,19 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   }
 
   async function handleFitAll() {
-    if (!spec || noFit || entities.length === 0 || cohortModelRunning) return
-    const eligibleEntities = entities.filter(e => validateMixedModelRows(e.rows, mixedModelConfig).ok)
-    if (eligibleEntities.length === 0) return
+    if (!spec || noFit || cohortModelRunning) return
+    // Validate again at invocation; availability must never submit an invalid unit.
+    const invocationValidation = entities.map(entity => ({ entity,
+      validation: validateMixedModelRows(entity.rows, mixedModelConfig),
+    }))
+    const eligibleEntities = invocationValidation.filter(item => item.validation.ok).map(item => item.entity)
+    if (eligibleEntities.length === 0) {
+      setInvocationFeedback(`No model can be fitted with the current data and settings. ${invocationValidation.map(({ entity, validation }) => validation.ok ? '' :
+        `${entity.entity.kind === 'cohort' ? 'Whole cohort' : entity.entity.value}: ${validation.message}`,
+      ).join(' ') || 'Mixed model fitting requires at least one measurement row.'}`)
+      return
+    }
+    setInvocationFeedback(null)
     await runCohortModels({
       entities: eligibleEntities,
       seriesIndex: paramIndex >= 0 ? paramIndex : 0,
@@ -524,14 +553,16 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           <button
             type="button"
             className="primary cm-fit-button"
-            disabled={cohortModelRunning || noFit || entities.length === 0}
+            disabled={!canFit}
+            aria-describedby={fitFeedback ? fitFeedbackId : undefined}
             onClick={handleFitAll}
           >
             {cohortModelRunning
               ? (cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Running model …')
-              : `▶ Fit model${entities.length > 1 ? `s (${entities.length} units)` : ''}`}
+              : `▶ Fit model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length} units)` : ''}`}
           </button>
         </div>
+        <p id={fitFeedbackId} className="muted" role="status" aria-live="polite">{fitFeedback}</p>
       </section>
 
       {/* Model Trajectory Preview Plot */}
@@ -546,7 +577,10 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           cohortModelResults={currentModels}
           modelRowsByEntity={Object.fromEntries(entities.map(item => [item.entity.kind === 'cohort' ? 'cohort' : `group:${item.entity.value}`, item.rows]))}
           isFitting={cohortModelRunning}
-          onFit={noFit ? undefined : handleFitAll}
+          onFit={handleFitAll}
+          canFit={canFit}
+          fitUnavailableReason={fitUnavailableReason}
+          fitFeedbackId={fitFeedbackId}
         />
       )}
 

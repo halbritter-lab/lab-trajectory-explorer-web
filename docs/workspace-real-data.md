@@ -82,6 +82,14 @@ imported parameter names and patient attributes retain their original values.
   windows and labels for the highlighted patient only. A peak without a
   measurement of the charted parameter within two days is marked on the time
   axis. The model page lists the reference category of each categorical factor.
+- Cohort model fitting actions share the existing full model validation. If no
+  unit qualifies, the studio and preview actions are disabled and explain the
+  validator's reason, including patient counts, distinct measurement times and
+  factor/reference requirements. Trajectories No fit disables both actions with
+  guidance to choose a fit model there. Grouped fits show the eligible unit count,
+  fit the pooled cohort and eligible groups, and identify skipped units beside
+  the studio action. Changing outcomes or model settings updates availability
+  immediately. A current fitted reference line hides the duplicate preview action.
 - Cohort models fit linear mixed models in the browser (webR, `lme4::lmer`,
   REML) with configurable factors, grouped fits, result tables and
   profile/threshold projections. Chart results must match the current response,
