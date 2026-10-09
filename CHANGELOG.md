@@ -5,6 +5,12 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Removed the standalone latest measurement value beneath trajectory charts in
+  the patient table and patient view. Values remain available in chart tooltips
+  and measurement details.
+
 ## [0.3.0] - 2026-10-09
 
 ### Changed
