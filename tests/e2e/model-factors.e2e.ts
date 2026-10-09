@@ -8,7 +8,7 @@ const workerScript = `self.onmessage = async ({data:q}) => {
   const datasetHash = await (await fetch('/__factors_hash',{method:'POST',body:JSON.stringify(q.rows)})).text();
   const adjusted = q.config.factors?.some(f => f.key === 'genotype');
   const result = {
-    status:'success',converged:true,warnings:[],
+    status:'success',converged:true,singular:false,warnings:[],
     metadata:{engine:q.engine,formula:q.formula,modelConfig:q.config,preparation:q.preparation,
       runtimeVersion:'browser-fixture',packageVersions:{},browserUserAgent:'playwright',
       wasmAssetSource:'local-dev',optimizer:null,reml:true,tolerance:null,datasetId:q.datasetId,
@@ -26,31 +26,35 @@ test('real workbook previews complete-case factor selection before fitting', asy
   await context.route('**/__factors_hash', route => route.fulfill({ body: hashMixedModelInput(route.request().postDataJSON()) }))
   await context.route(/webr\.worker[^/]*\.(?:ts|js)(?:\?.*)?$/, route => route.fulfill({ contentType: 'application/javascript', body: workerScript }))
   const wb = XLSX.utils.book_new()
-  const ids = Array.from({ length: 9 }, (_, index) => index + 1)
+  const ids = Array.from({ length: 11 }, (_, index) => index + 1)
   const labs = ids.flatMap((patientId) => [0, 1, 2].map((year) => ({ patientId, labDate: `${2022 + year}-01-01`, testName: 'eGFR', unit: 'ml/min/1.73m2', value: 80 - patientId - year, ageAtLab: 40 + patientId * 2 + year, sex: patientId % 2 ? 'm' : 'w' })))
-  const attributes = ids.map((patientId) => ({ patientId, genotype: patientId === 9 ? '' : patientId % 3 ? 'A' : 'B' }))
+  const attributes = ids.map((patientId) => ({ patientId, genotype: patientId === 11 ? '' : patientId % 3 ? 'A' : 'B' }))
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(labs), 'labs')
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(attributes), 'attributes')
   await page.goto('/')
   await page.getByLabel('Import lab values').setInputFiles({ name: 'model-factors.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) })
-  await expect(page.locator('.workspace-dataset')).toContainText('9 patients')
+  await expect(page.locator('.workspace-dataset')).toContainText('11 patients')
   await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
   await expect(page.getByLabel('Model parameter')).toHaveValue(JSON.stringify(['eGFR', 'ml/min/1.73m2']))
   const studio = page.getByRole('region', { name: 'Model Studio' })
-  await expect(studio.locator('.cm-sample-meta')).toHaveText('Complete cases: 9 patients / 9 (27 measurements)')
+  await expect(studio.locator('.cm-sample-meta')).toHaveText('Complete cases: 11 patients / 11 (33 measurements)')
 
   // Adding genotype as a covariate previews the complete-case population first.
   await studio.getByRole('button', { name: /Custom model/ }).click()
   await studio.getByLabel('Add covariate').selectOption('genotype')
   await studio.getByLabel('genotype effect').selectOption('level_slope')
   await studio.getByLabel('genotype reference').selectOption('A')
-  await expect(studio.locator('.cm-sample-meta')).toHaveText('Complete cases: 8 patients / 9 (24 measurements)')
+  await expect(studio.locator('.cm-sample-meta')).toHaveText('Complete cases: 10 patients / 11 (30 measurements)')
   await expect(studio.getByLabel('Readable formula')).toContainText('Time (years):"genotype"')
   await studio.getByText('Excluded patients (1)', { exact: true }).click()
-  await expect(studio.getByRole('list', { name: 'Patients excluded from the model' })).toContainText('9: Missing genotype')
+  await expect(studio.getByRole('list', { name: 'Patients excluded from the model' })).toContainText('11: Missing genotype')
 
-  await studio.getByRole('button', { name: /Fit model/ }).click()
+  const studioFit = studio.getByRole('button', { name: /Fit model/ })
+  await expect(studioFit).toBeEnabled()
+  await studioFit.click()
   const row = page.getByTestId('cohort-model-row')
-  await expect(row.getByRole('cell').nth(2)).toHaveText('8')
+  await expect(row.getByRole('cell').nth(2)).toHaveText('10')
+  await expect(row.getByRole('cell').nth(3)).toHaveText('30')
+  await expect(page.locator('.cm-slope-badge')).toContainText('Whole cohort:')
   await expect(page.getByRole('columnheader', { name: 'Reference slope', exact: true })).toBeVisible()
 })
