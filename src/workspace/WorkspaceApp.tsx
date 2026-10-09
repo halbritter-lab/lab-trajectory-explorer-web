@@ -114,6 +114,15 @@ export function WorkspaceApp() {
         <Methodology />
       </section>}
     </main>
-    <footer className="workspace-footer">Research use only · Not a medical device or a basis for clinical decisions. Computed values and trends are algorithmic estimates.</footer>
+    <footer className="workspace-footer">
+      <p>Research use only · Not a medical device or a basis for clinical decisions. Computed values and trends are algorithmic estimates.</p>
+      <div className="workspace-footer-links">
+        <nav aria-label="Project links">
+          <a href="https://github.com/halbritter-lab/lab-trajectory-explorer-web" target="_blank" rel="noopener noreferrer" aria-label="GitHub (opens in a new tab)">GitHub</a>
+          <a href="https://www.uniklinik-freiburg.de/medizin4/forschung/nephrolab/groups/jan-halbritter.html" target="_blank" rel="noopener noreferrer" aria-label="Halbritter Lab (opens in a new tab)">Halbritter Lab</a>
+        </nav>
+        <p>Created by <a href="https://jplerch.eu/" target="_blank" rel="noopener noreferrer" aria-label="Jan-Paul Lerch (opens in a new tab)">Jan-Paul Lerch</a></p>
+      </div>
+    </footer>
   </div>
 }
