@@ -114,7 +114,7 @@ describe('workspace model validity', () => {
     view.rerender(<Harness studio />)
     expect(screen.getByTestId('model-preparation')).toHaveTextContent('Acute review (own settings of this parameter): no fit, so no cohort model is prepared for this parameter. Choose a fit model for it under Trajectories to fit a cohort model.')
     // Nothing can be fitted, so the button must not look usable and no window count is shown.
-    expect(screen.getByRole('button', { name: /Fit model/ })).toBeDisabled()
+    screen.getAllByRole('button', { name: /Fit model/ }).forEach(button => expect(button).toBeDisabled())
     expect(screen.queryByText(/Preset windows:/)).not.toBeInTheDocument()
     expect(workspaceModelSpec(data, key, useAppStore.getState().trajectoryFitSettings)?.fitConfig?.preset).toBe('acute_review')
     expect(workspaceModelSpec(data, 'missing', useAppStore.getState().trajectoryFitSettings)).toBeUndefined()

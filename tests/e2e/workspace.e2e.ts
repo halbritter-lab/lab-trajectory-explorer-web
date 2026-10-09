@@ -491,3 +491,30 @@ test('removes data saved by the former interface once and says so', async ({ pag
   await expect(page.getByRole('button', { name: 'Load demo data' })).toBeVisible()
   await expect(page.getByText(/former version/)).toHaveCount(0)
 })
+
+
+test('model fitting availability explains the demo limit and enables an eligible sample', async ({ page }, testInfo) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Load demo data', exact: true }).click()
+  await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
+  const studio = page.getByRole('region', { name: 'Model Studio' })
+  const preview = page.locator('.cm-plot-card')
+  await expect(studio).toContainText('Complete cases: 5 patients')
+  await expect(studio.getByRole('button', { name: /Fit model/ })).toBeDisabled()
+  await expect(preview.getByRole('button', { name: /Fit model/ })).toBeDisabled()
+  await expect(studio.getByRole('status')).toContainText('at least 10 patients')
+  for (const width of [1440, 390]) {
+    await page.setViewportSize({ width, height: 1000 })
+    await preview.scrollIntoViewIfNeeded()
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+    await page.screenshot({ path: testInfo.outputPath(`fit-availability-${width}.png`), fullPage: true })
+  }
+  await page.getByRole('button', { name: 'Data', exact: true }).click()
+  const rows = ['patientId,labDate,testName,unit,value', ...Array.from({ length: 10 }, (_, i) =>
+    [0, 1, 2].map(year => `P-${i},${2020 + year}-01-01,Marker,U/L,${60 - year - i}`)).flat()]
+  await page.getByLabel('Import lab values').setInputFiles({ name: 'eligible.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) })
+  await expect(page.locator('.workspace-dataset')).toContainText('10 patients')
+  await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
+  await expect(studio.getByRole('button', { name: /Fit model/ })).toBeEnabled()
+  await expect(preview.getByRole('button', { name: /Fit model/ })).toBeEnabled()
+})

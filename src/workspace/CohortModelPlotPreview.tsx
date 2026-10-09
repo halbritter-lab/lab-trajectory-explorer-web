@@ -15,6 +15,9 @@ interface Props {
   groupValuesByPatient: Map<string, string>
   cohortModelResults: Record<string, StoredMixedModelResult> | null
   modelRowsByEntity: Record<string, MixedModelSpikeRow[]>
+  canFit: boolean
+  fitUnavailableReason: string | null
+  fitFeedbackId?: string
   isFitting?: boolean
   onFit?: () => void
 }
@@ -31,6 +34,9 @@ export function CohortModelPlotPreview({
   groupValuesByPatient,
   cohortModelResults,
   modelRowsByEntity,
+  canFit,
+  fitUnavailableReason,
+  fitFeedbackId,
   isFitting,
   onFit,
 }: Props) {
@@ -147,7 +153,7 @@ export function CohortModelPlotPreview({
           <h3>Model Trajectory Preview</h3>
           <p className="muted">
             {parameterLabel}{unitLabel} over time (years since baseline).
-            {hasFits ? ' Dashed lines show fitted reference profiles: numeric factors at fitted centers, categorical factors at reference levels.' : ' Run model to estimate slope.'}
+            {hasFits ? ' Dashed lines show fitted reference profiles: numeric factors at fitted centers, categorical factors at reference levels.' : isFitting ? ' Fitting model …' : canFit ? ' Run model to estimate slope.' : ' Model fitting is unavailable with the current data and settings.'}
           </p>
         </div>
         <div className="cm-plot-actions">
@@ -159,13 +165,14 @@ export function CohortModelPlotPreview({
             </span>
           ))}
           {!hasFits && onFit && (
-            <button type="button" className="primary" onClick={onFit} disabled={isFitting}>
+            <button type="button" className="primary" onClick={onFit} disabled={!canFit} aria-describedby={fitFeedbackId ?? (!canFit ? `${clipId}-fit-feedback` : undefined)}>
               {isFitting ? 'Fitting model …' : '▶ Fit model'}
             </button>
           )}
         </div>
       </div>
 
+      {!hasFits && fitUnavailableReason && <p id={`${clipId}-fit-feedback`} className="muted">{fitUnavailableReason}</p>}
       <div className="cm-plot-svg-wrap">
         <svg
           ref={svg}
@@ -290,7 +297,7 @@ export function CohortModelPlotPreview({
                 textAnchor="middle"
                 className="cm-watermark-text"
               >
-                Click 'Fit model' to calculate trajectory
+                {isFitting ? 'Fitting model …' : canFit ? "Click 'Fit model' to calculate trajectory" : 'Model fitting unavailable'}
               </text>
             </g>
           )}
