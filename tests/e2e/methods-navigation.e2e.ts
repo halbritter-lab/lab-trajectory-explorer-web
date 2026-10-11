@@ -1,0 +1,153 @@
+import { expect, test } from '@playwright/test'
+
+test('help deep links survive reload and open technical sections', async ({ page }) => {
+  await page.goto('/#methods/aki/timing')
+  const heading = page.getByRole('heading', { name: 'AKI Timing, Episodes and the Fit-Exclusion Window' })
+  await expect(heading).toBeVisible()
+  await expect(heading).toBeFocused()
+  await expect(page.getByText(/onset 2 January 2020 excludes/)).toBeVisible()
+  await page.reload()
+  await expect(heading).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Methods', exact: true })).toHaveAttribute('aria-current', 'page')
+})
+
+test('topic history returns to the original workspace and preserves its data', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Load demo data', exact: true }).click()
+  await page.getByRole('link', { name: 'eGFR prerequisites and calculation details' }).click()
+  await expect(page.getByRole('heading', { name: 'Data & eGFR', exact: true })).toBeVisible()
+  await page.getByRole('navigation', { name: 'Help topics' }).getByRole('link', { name: 'Fits & slopes' }).click()
+  await expect(page.getByRole('heading', { name: 'Fits & slopes', exact: true })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Data & eGFR', exact: true })).toBeVisible()
+  await page.goBack()
+  await expect(page.getByRole('heading', { name: 'Prepare data' })).toBeVisible()
+  await expect(page.getByRole('link', { name: 'eGFR prerequisites and calculation details' })).toBeVisible()
+  await page.goForward()
+  await expect(page.getByRole('heading', { name: 'Data & eGFR', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Data', exact: true }).click()
+  await expect(page).not.toHaveURL(/#methods/)
+  await page.reload()
+  await expect(page.getByRole('heading', { name: 'Prepare data' })).toBeVisible()
+})
+
+test('all desktop topics and section links lead to a readable destination', async ({ page }) => {
+  await page.goto('/#methods/start')
+  const topics = page.getByRole('navigation', { name: 'Help topics' })
+  const links = await topics.getByRole('link').evaluateAll(elements => elements.map(element => ({ label: element.textContent!, href: element.getAttribute('href')! })))
+  expect(links).toHaveLength(9)
+  for (const link of links) {
+    await topics.getByRole('link', { name: link.label, exact: true }).click()
+    await expect(page.getByRole('heading', { name: link.label, exact: true, level: 2 })).toBeVisible()
+    const sectionLinks = await page.getByRole('navigation', { name: 'On this page' }).getByRole('link').all().catch(() => [])
+    for (const section of sectionLinks) {
+      await section.click()
+      await expect(page.locator('.methodology-page :focus')).toBeVisible()
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+  }
+})
+
+test('mobile topic menu closes after selection and has no horizontal overflow', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/#methods/start')
+  await expect(page.getByRole('navigation', { name: 'Help topics' })).toBeHidden()
+  const menu = page.getByRole('button', { name: 'Topics · Start here' })
+  await menu.focus()
+  await page.keyboard.press('Enter')
+  await expect(menu).toHaveAttribute('aria-expanded', 'true')
+  await page.getByRole('navigation', { name: 'Help topics' }).getByRole('link', { name: 'Start here' }).click()
+  await expect(menu).toHaveAttribute('aria-expanded', 'false')
+  await menu.click()
+  await page.getByRole('navigation', { name: 'Help topics' }).getByRole('link', { name: 'Export & reproducibility' }).click()
+  await expect(page.getByRole('heading', { name: 'Export & reproducibility', exact: true })).toBeFocused()
+  await expect(page.getByRole('navigation', { name: 'Help topics' })).toBeHidden()
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+})
+
+test('unknown help routes fall back to the guide', async ({ page }) => {
+  await page.goto('/#methods/no-such-topic/no-such-section')
+  await expect(page.getByRole('heading', { name: 'Start here', exact: true })).toBeVisible()
+})
+
+test('the main Methods button returns to the guide when help is already open', async ({ page }) => {
+  await page.goto('/#methods/aki/timing')
+  await page.getByRole('button', { name: 'Methods', exact: true }).click()
+  await expect(page).toHaveURL(/#methods\/start$/)
+  await expect(page.getByRole('heading', { name: 'Start here', exact: true })).toBeVisible()
+})
+
+test('Skip to content keeps the selected help topic', async ({ page }) => {
+  await page.goto('/#methods/cohort')
+  const skip = page.getByRole('link', { name: 'Skip to content' })
+  await skip.focus()
+  await skip.press('Enter')
+  await expect(page.locator('#workspace-main')).toBeFocused()
+  await expect(page.getByRole('heading', { name: 'Cohort models', exact: true, level: 2 })).toBeVisible()
+})
+
+test('help history preserves the patient detail and overlay return view', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Load demo data', exact: true }).click()
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await page.getByRole('button', { name: 'Overlay', exact: true }).click()
+  await page.getByRole('button', { name: /^Open patient 1,/ }).first().click()
+  await expect(page.getByRole('heading', { name: 'Patient 1', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Methods', exact: true }).click()
+  await page.getByRole('navigation', { name: 'Help topics' }).getByRole('link', { name: 'Fits & slopes' }).click()
+  await page.goBack()
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Patient 1', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to overlay', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Overlay', exact: true })).toHaveAttribute('aria-pressed', 'true')
+})
+
+test('a repeated section link reopens its calculation details', async ({ page }) => {
+  await page.goto('/#methods/aki/timing')
+  const heading = page.getByRole('heading', { name: 'AKI Timing, Episodes and the Fit-Exclusion Window' })
+  await page.getByText('Calculation details', { exact: true }).click()
+  await expect(heading).toBeHidden()
+  await page.getByRole('navigation', { name: 'On this page' }).getByRole('link', { name: 'Timing & windows' }).click()
+  await expect(heading).toBeVisible()
+  await expect(heading).toBeFocused()
+})
+
+test('deep technical help keeps mobile topic controls and the workspace return action reachable', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Load demo data', exact: true }).click()
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await page.getByRole('button', { name: 'Overlay', exact: true }).click()
+  await page.getByRole('button', { name: /^Open patient 1,/ }).first().click()
+  await page.getByRole('button', { name: 'Methods', exact: true }).click()
+  await page.getByRole('link', { name: 'Which fit model should I choose?' }).click()
+  await page.getByRole('navigation', { name: 'On this page' }).getByRole('link', { name: 'OLS details' }).click()
+  await expect(page.getByRole('button', { name: 'Topics · Fits & slopes' })).toBeInViewport()
+  await expect(page.getByRole('button', { name: 'Back to Trajectories' }).first()).toBeInViewport()
+  const heading = page.getByRole('heading', { name: 'Ordinary Least Squares (OLS)' })
+  await expect(heading).toBeInViewport()
+  await expect(page.getByRole('heading', { name: 'Analysis Presets' })).toBeHidden()
+  await page.getByRole('button', { name: 'Back to Trajectories' }).first().click()
+  await expect(page.getByRole('heading', { name: 'Patient 1', exact: true })).toBeVisible()
+})
+
+test('help tables provide a named keyboard scroll region instead of squeezing labels', async ({ page }) => {
+  await page.setViewportSize({ width: 320, height: 844 })
+  await page.goto('/#methods/fits')
+  const region = page.getByRole('region', { name: 'Fit model comparison' })
+  await expect(region).toHaveAttribute('tabindex', '0')
+  await region.focus()
+  await page.keyboard.press('ArrowRight')
+  await expect.poll(() => region.evaluate(element => element.scrollLeft)).toBeGreaterThan(0)
+  expect(await region.evaluate(element => element.scrollWidth > element.clientWidth)).toBe(true)
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true)
+})
+
+test('the guide exposes troubleshooting shortcuts and direct workflow actions', async ({ page }) => {
+  await page.goto('/#methods/start')
+  const answers = page.getByRole('heading', { name: 'Find an answer' })
+  const guide = page.getByRole('heading', { name: 'Quick Guide' })
+  expect(await answers.evaluate((element, next) => Boolean(element.compareDocumentPosition(next as Node) & Node.DOCUMENT_POSITION_FOLLOWING), await guide.elementHandle())).toBe(true)
+  await page.getByRole('button', { name: 'Open Data', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Prepare data' })).toBeVisible()
+})

@@ -236,11 +236,11 @@ test('keeps methodology usable on a mobile viewport', async ({ page }) => {
   await loadDemo(page)
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: 'Methods', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Methods and interpretation' })).toBeInViewport()
-  await expect(page.getByRole('heading', { name: 'Theory & Methods' })).toBeVisible()
-  await page.getByRole('link', { name: 'Methodology Reference' }).click()
+  await expect(page.getByRole('heading', { name: 'Start here', exact: true })).toBeInViewport()
+  await page.getByRole('button', { name: 'Topics · Start here' }).click()
+  await page.getByRole('navigation', { name: 'Help topics' }).getByRole('link', { name: 'Fits & slopes', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Choosing a Fit Model' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Methodology Reference' })).toBeInViewport()
+  await expect(page.getByRole('heading', { name: 'Fits & slopes', exact: true })).toBeInViewport()
   const geometry = await page.evaluate(() => ({
     clientWidth: document.documentElement.clientWidth,
     scrollWidth: document.documentElement.scrollWidth,

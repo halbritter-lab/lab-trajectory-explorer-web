@@ -5,6 +5,26 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.3] - 2026-10-11
+
+### Changed
+
+- Replaced the long Methods reference with nine linked topics, a desktop
+  sidebar, a mobile topic menu and expandable calculation details. Existing
+  scientific rules, examples and sources remain available in their topics.
+- Added contextual help links for eGFR, fit selection, AKI windows, endpoints
+  and cohort models, plus tables for model selection and result interpretation.
+- UX review improvements keep topic controls and workspace return actions
+  reachable on long articles, reveal calculation groups independently, bring
+  troubleshooting links before the guide and preserve readable table columns
+  in named, keyboard-accessible scroll regions.
+
+### Fixed
+
+- Help URLs now survive reload, synchronize with browser history, reveal linked
+  calculation details and retain patient views when navigating between topics.
+- The skip link preserves the selected help URL and topic.
+
 ## [0.3.2] - 2026-10-09
 
 ### Added

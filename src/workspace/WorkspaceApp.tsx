@@ -7,7 +7,7 @@ import { TrajectoriesWorkspace } from './TrajectoriesWorkspace'
 import { CohortModelsWorkspace } from './CohortModelsWorkspace'
 import { useWorkspaceData } from './workspace-data'
 import { useWorkspaceStorage } from './workspace-storage'
-import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
+import { getMethodLocation, type HelpWorkspace } from './methods/method-navigation'
 
 type Page = 'Data' | 'Trajectories' | 'Cohort models' | 'Methods'
 const datasetKeys = new WeakMap<LabRow[], number>()
@@ -21,9 +21,10 @@ function datasetKey(rows: LabRow[]): number {
 export function WorkspaceApp() {
   const data = useWorkspaceData()
   const storageStatus = useWorkspaceStorage(s => s.status)
-  const [page, setPage] = useState<Page>('Data')
+  const [page, setPage] = useState<Page>(() => getMethodLocation() ? 'Methods' : 'Data')
   const [requestedPerson, setRequestedPerson] = useState<{ id: PatientId; rows: LabRow[] } | null>(null)
   const mainRef = useRef<HTMLElement>(null)
+  const helpOrigin = useRef<HelpWorkspace>('Data')
   const firstRender = useRef(true)
   const hasData = data.rawRows.length > 0
 
@@ -31,7 +32,10 @@ export function WorkspaceApp() {
     setRequestedPerson(null)
     setPage(next)
     if (pushHistory && typeof window !== 'undefined' && window.history?.pushState) {
-      window.history.pushState({ page: next, mode: 'table' }, '')
+      if (next === 'Methods' && page === 'Methods') window.location.hash = '#methods/start'
+      else if (next === 'Methods') window.history.pushState({ page: next, mode: 'table' }, '', '#methods/start')
+      else if (getMethodLocation()) window.history.pushState({ page: next, mode: 'table' }, '', window.location.pathname + window.location.search)
+      else window.history.pushState({ page: next, mode: 'table' }, '')
     }
   }
 
@@ -39,28 +43,41 @@ export function WorkspaceApp() {
     if (typeof window !== 'undefined' && window.history?.replaceState) {
       const current = window.history.state as { page?: Page } | null
       if (!current?.page) {
-        window.history.replaceState({ page: 'Data', mode: 'table' }, '')
+        window.history.replaceState({ page: getMethodLocation() ? 'Methods' : 'Data', mode: 'table' }, '')
       }
     }
     const onPopState = (event: PopStateEvent) => {
       const state = event.state as { page?: Page } | null
       // In-page anchors (such as the methodology section links) add history
       // entries without app state; they must not leave the current page.
+      if (getMethodLocation()) { setPage('Methods'); return }
       if (!state?.page) return
       setRequestedPerson(null)
       setPage(state.page)
     }
+    const onHashChange = () => { if (getMethodLocation()) setPage('Methods') }
+    window.addEventListener('hashchange', onHashChange)
     window.addEventListener('popstate', onPopState)
-    return () => window.removeEventListener('popstate', onPopState)
+    return () => {
+      window.removeEventListener('popstate', onPopState)
+      window.removeEventListener('hashchange', onHashChange)
+    }
   }, [])
 
   useEffect(() => {
+    if (page !== 'Methods') helpOrigin.current = page
     if (firstRender.current) { firstRender.current = false; return }
+    // The help article focuses its topic or section, including on a fresh deep link.
+    if (page === 'Methods') return
     mainRef.current?.focus({ preventScroll: true })
   }, [page])
 
   return <div className="workspace-app">
-    <a className="skip-link" href="#workspace-main">Skip to content</a>
+    <a className="skip-link" href="#workspace-main" onClick={event => {
+      event.preventDefault()
+      mainRef.current?.focus({ preventScroll: true })
+      mainRef.current?.scrollIntoView({ block: 'start' })
+    }}>Skip to content</a>
     <header className="workspace-header">
       <div className="workspace-brand"><span aria-hidden="true" className="workspace-logo">↗</span><div><div className="workspace-title"><strong>Lab Trajectory Explorer</strong><small className="workspace-version" aria-label={`Version ${version}`}>v{version}</small></div><span>Longitudinal lab data · research use only</span></div></div>
       <nav aria-label="Main navigation" className="workspace-nav">
@@ -101,17 +118,7 @@ export function WorkspaceApp() {
       </section>
       {page === 'Methods' && <section className="card workspace-methodology">
         <h1>Methods and interpretation</h1>
-        <h2>Available in this workspace</h2>
-        <p>Start with Data to review measurements and demographics, then preview and apply a derived eGFR series. Use Trajectories to compare parameters across patients or inspect one patient. The same patient and parameter selection controls the table, overlay and workbook export.</p>
-        <p>Individual analyses support OLS, Theil–Sen, rolling OLS, segmented OLS and no fit. Choose a shared preset or override settings for one parameter column. Advanced settings control clinical-event censoring, AKI exclusions and time aggregation. General exploration defaults to OLS without these exclusions or aggregation. Slope and R² describe the fitted data; quality notices refer to the measurements actually used by the fit.</p>
-        <p>Derived eGFR values use the chosen formula, creatinine source and resolved demographics. The Data preview explains unavailable values before applying a calculation. Select the source parameter as well to include its imported measurements in the export.</p>
-        <p>Cohort models allow fitting population-level linear mixed models (WebR / lme4) and evaluating trend projections directly within this workspace.</p>
-          <h2>Reference &amp; Theory</h2>
-          <h3>Observed endpoints and individual prediction</h3>
-          <p>G4 uses eGFR below {CKD_G4_EGFR_THRESHOLD} and G5 below {CKD_G5_EGFR_THRESHOLD} mL/min/1.73m². A first low measurement starts a candidate. A later low measurement confirms it after the configured minimum interval (default {DEFAULT_CONFIRMATION_DAYS} days). Recovery before confirmation restarts the candidate; recovery afterwards is shown separately and preserves the event. Event date and confirmation date remain distinct.</p>
-          <p>Endpoints and individual endpoint prediction use dated exact numeric eGFR measurements before the first kidney transplant or chronic dialysis start. Complete dated acute dialysis intervals exclude both boundary dates; later values remain eligible. Unknown-intent dialysis and incomplete acute intervals do not censor endpoints. Values marked &lt; or &gt; remain visible but are excluded from calculations. Endpoint prediction fits these same rows using OLS or the selected Theil–Sen estimator, independently of display-fit AKI exclusions and aggregation. Kidney replacement therapy is reported separately as kidney failure reached, whether or not G5 was confirmed by labs. After KRT, no future individual G5 crossing is projected.</p>
-          <p>Theil–Sen requires at least three measurements and two distinct dates. Its intercept is median(value) minus slope × median(time); 95% slope confidence bounds quantify slope uncertainty, not the range of future individual measurements.</p>
-        <Methodology />
+        <Methodology onNavigate={go} returnTo={helpOrigin.current} />
       </section>}
     </main>
     <footer className="workspace-footer">

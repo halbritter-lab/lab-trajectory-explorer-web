@@ -69,7 +69,7 @@ dialog::backdrop { background: #1b333d66; }
 .segmented { display: inline-flex; flex-wrap: wrap; gap: 3px; background: #eaf0ed; border-radius: 8px; padding: 3px; }
 .segmented button { background: transparent; border-color: transparent; }
 .segmented button[aria-pressed="true"] { background: white; color: #176c68; box-shadow: 0 1px 4px #18373015; }
-.workspace-methodology { max-width: 1050px; margin: auto; }
+.workspace-methodology { max-width: 1200px; margin: auto; }
 .workspace-methodology table { display: block; overflow-x: auto; }
 .workspace-model-pending { max-width: 900px; }
 @media (max-width: 700px) {

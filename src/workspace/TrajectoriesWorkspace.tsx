@@ -107,7 +107,7 @@ function CellSummary({
         </>)}
       {flags.filter(flag => flag.requiresFit).map(badge)}
     </>}
-    {endpoint && <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p></details></>}
+    {endpoint && <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></details></>}
     {flags.filter(flag => !flag.requiresFit).map(badge)}
     {markedCount > 0 && <span className="wt-muted">{markedCount} excluded from the fit ({markedLabels.join(', ')})</span>}
   </div>
@@ -357,6 +357,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   useEffect(() => {
     const onPopState = (event: PopStateEvent) => {
       const state = event.state as { page?: string; mode?: 'table' | 'overlay' | 'detail'; patientId?: PatientId; returnMode?: 'table' | 'overlay' } | null
+      // Other workspaces and help topics must not change this mounted view.
+      if (state?.page !== 'Trajectories') return
       if (state?.mode === 'table' || state?.mode === 'overlay' || state?.mode === 'detail') {
         if (state.mode === 'table') tablePosition.current.restore = true
         if (state.mode === 'detail' && state.patientId !== undefined) {
