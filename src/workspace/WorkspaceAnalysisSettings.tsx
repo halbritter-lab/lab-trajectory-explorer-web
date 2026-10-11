@@ -66,7 +66,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
   const applyPreset = (id: string) => onChange(defaultFitSettings(id))
   const updateSettings = (patch: Partial<WorkspaceFitSettings>) => onChange({ ...fitSettings, ...patch, presetId: 'custom' })
   return (
-    <div className="wt-preset-section">
+    <div className="wt-preset-section"><p><a href="#methods/fits/choosing">Choosing a fit model</a> · <a href="#methods/aki/timing">AKI exclusion windows</a></p>
       <div className="wt-analysis-selectors">
         <label>Edit settings for
           <select aria-label="Edit analysis settings for" value={scope} onChange={event => onScopeChange(event.target.value)}>

@@ -208,9 +208,16 @@ recommendations.
   **Zoom to visible values** to inspect small changes. This is a display choice,
   not a clinical reference range; the chosen scale is included in chart exports.
 - Table, Overlay and Individual patient have a visibly selected button.
-- Methods starts with the available workspace workflow and OLS configuration.
-  The unchanged full application reference is in a clearly labeled disclosure
-  and explicitly includes features not connected to this workspace.
+- Methods now opens a short workflow guide and nine topic pages, with a desktop
+  sidebar and a collapsible mobile menu. Scientific reference content and
+  examples remain available within their topics; calculation details can be
+  expanded or opened directly through section links. URLs such as
+  `#methods/aki/timing` survive reload and browser history navigation.
+  Contextual links from eGFR, analysis settings, endpoint details and cohort
+  models open the relevant topic while retaining the mounted workspace state.
+  Sticky mobile controls and explicit return actions connect reading back to
+  analysis. Calculation groups expand individually; reference tables retain
+  readable columns inside named, keyboard-accessible scroll regions.
 - Newly created derived parameters are added to the current selection with a
   notice. Imported parameters remain selected; deliberate deselection is respected.
 - Derived-value preview scrolling is bounded and Apply stays above it. Sex codes

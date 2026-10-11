@@ -1,16 +1,48 @@
-/* Theory & Methods reference page, embedded under Methods. */
-.methodology-page { max-width: 760px; line-height: 1.6; }
-.methodology-page h2 { margin-top: 0; }
-.methodology-page h3 { font-size: 18px; margin: 18px 0 8px; }
-.methodology-page h4 { margin: 1rem 0 .35rem; font-size: 15px; }
+/* Help uses the workspace palette and a focused reading column. */
+.methodology-layout { display: grid; grid-template-columns: 225px minmax(0, 1fr); gap: 36px; align-items: start; }
+.methodology-sidebar { position: sticky; top: 20px; max-height: calc(100dvh - 40px); overflow-y: auto; }
+.methodology-return { width: 100%; min-height: 44px; margin-bottom: 14px; text-align: left; }
+.methodology-topics { display: grid; gap: 18px; }
+.methodology-topic-group p { font-size: 12px; font-weight: 650; color: var(--muted); margin: 0 0 6px; }
+.methodology-topic-group a { display: flex; align-items: center; min-height: 44px; padding: 8px 12px; border-radius: 6px; text-decoration: none; font-size: 14px; }
+.methodology-topic-group a:hover { background: var(--surface); text-decoration: underline; }
+.methodology-topic-group a[aria-current="page"] { background: #e9f3ef; color: #145d59; font-weight: 650; }
+.methodology-menu-toggle { display: none; }
+.methodology-page { min-width: 0; max-width: 75ch; line-height: 1.65; overflow-wrap: anywhere; }
+.methodology-page h2 { margin-top: 0; font-size: 24px; }
+.methodology-page h3 { font-size: 18px; margin: 26px 0 8px; }
+.methodology-page h2, .methodology-page h3 { scroll-margin-top: 24px; }
 .methodology-page ul, .methodology-page ol { padding-left: 1.35rem; }
-.methodology-page li { margin-bottom: .4rem; line-height: 1.6; }
-.methodology-page code { font-size: .9em; background: #f1f5f7; padding: 0 3px; border-radius: 3px; overflow-wrap: anywhere; }
-.methodology-section { padding-top: .75rem; margin-top: 1rem; border-top: 1px solid var(--border); scroll-margin-top: 16px; }
-.methodology-nav { display: flex; flex-wrap: wrap; gap: .5rem; margin: 1rem 0 .75rem; }
-.methodology-nav a { display: inline-flex; align-items: center; min-height: 1.75rem; padding: 2px 10px; border: 1px solid var(--border); border-radius: 7px; background: var(--surface); color: var(--accent); font-size: 13px; font-weight: 600; text-decoration: none; }
-.methodology-nav a:hover { border-color: var(--accent); }
-.methodology-steps { padding-left: 1.35rem; }
-.methodology-steps li { margin-bottom: .55rem; }
+.methodology-page li { margin-bottom: .65rem; }
+.methodology-page code { font-size: .9em; background: var(--surface); padding: 0 3px; border-radius: 3px; }
+.methodology-section { margin-top: 24px; }
+.methodology-section-nav { display: flex; flex-wrap: wrap; gap: 8px 16px; padding: 14px 0; border-top: 1px solid var(--border); border-bottom: 1px solid var(--border); font-size: 13px; }
+.methodology-section-nav span { width: 100%; color: var(--muted); }
+.methodology-section-nav a { display: inline-flex; align-items: center; min-height: 32px; }
+.methodology-calculations { margin-top: 28px; border-top: 1px solid var(--border); }
+.methodology-calculations > summary { min-height: 44px; padding: 14px 0; font-size: 15px; font-weight: 600; }
+.methodology-detail > summary { min-height: 44px; padding: 12px 0; font-size: 15px; font-weight: 600; }
+.methodology-answers a { display: inline-flex; align-items: center; min-height: 44px; padding: 5px 0; }
+.methodology-page th, .methodology-page td { line-height: 1.6; }
+.methodology-table { max-width: 100%; overflow-x: auto; overscroll-behavior-x: contain; scrollbar-color: var(--accent) #e9f3ef; }
+.workspace-methodology .methodology-table table { display: table; min-width: 620px; width: 100%; font-size: 14px; overflow: visible; }
+.methodology-table th, .methodology-table td { overflow-wrap: normal; word-break: normal; }
+.methodology-table th { color: #304b54; font-size: 14px; }
+.methodology-table th[scope="row"] { min-width: 120px; }
+.methodology-table-hint { color: var(--muted); font-size: 13px; }
+.methodology-article-footer { display: flex; align-items: center; flex-wrap: wrap; gap: 16px; padding-top: 24px; margin-top: 32px; border-top: 1px solid var(--border); }
+.methodology-article-footer a { display: inline-flex; align-items: center; min-height: 44px; }
+.methodology-workflow-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.methodology-workflow-actions button { min-height: 44px; }
 .rapid-badge { font-size: 11px; background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; border-radius: 999px; padding: 1px 8px; white-space: nowrap; font-weight: 600; }
 .rapid-badge-inline { padding: 0 6px; }
+@media (max-width: 800px) {
+  .methodology-layout { grid-template-columns: minmax(0, 1fr); gap: 24px; }
+  .methodology-sidebar { position: sticky; top: 0; z-index: 5; max-height: none; overflow: visible; background: var(--surface); padding: 8px 0; border-bottom: 1px solid var(--border); }
+  .methodology-sidebar .methodology-return { margin-bottom: 8px; }
+  .methodology-menu-toggle { display: block; width: 100%; min-height: 44px; text-align: left; }
+  .methodology-topics { display: none; margin-top: 18px; max-height: 60dvh; overflow-y: auto; }
+  .methodology-topics.is-open { display: grid; }
+  .methodology-section-nav a { min-height: 44px; }
+  .methodology-page h2, .methodology-page h3 { scroll-margin-top: 132px; }
+}

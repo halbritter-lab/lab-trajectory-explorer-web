@@ -51,5 +51,7 @@ test('reads a German semicolon CSV as text and lists its import diagnostics', as
 test('redirects links to the former workspace.html to the application', async ({ page }) => {
   await page.goto('/workspace.html?source=bookmark#methods')
   await expect(page).toHaveURL(/\/index\.html\?source=bookmark#methods$/)
+  await expect(page.getByRole('heading', { name: 'Start here', exact: true })).toBeVisible()
+  await page.getByRole('button', { name: 'Back to Data' }).first().click()
   await expect(page.getByRole('button', { name: 'Load demo data' })).toBeVisible()
 })

@@ -19,7 +19,7 @@ vi.mock('../../src/workspace/TrajectoriesWorkspace', () => ({
 vi.mock('../../src/workspace/methods/Methodology', () => ({ Methodology: () => <p>Methods content</p> }))
 
 describe('workspace shell', () => {
-  beforeEach(() => { fixture.rows = [{ patientId: 'alpha' }]; fixture.browseId = 'alpha' })
+  beforeEach(() => { window.history.replaceState(null, '', '/'); fixture.rows = [{ patientId: 'alpha' }]; fixture.browseId = 'alpha' })
   it('records numeric patient ID 0 as a detail view in browser history', () => {
     fixture.browseId = 0
     const pushState = vi.spyOn(window.history, 'pushState')
@@ -45,10 +45,11 @@ describe('workspace shell', () => {
     result.rerender(<WorkspaceApp />)
     expect(screen.getByLabelText('Patient search')).toHaveValue('')
   })
-  it('shows the workspace guide followed by the full methodology reference', () => {
+  it('opens help without a duplicated reference introduction', () => {
     render(<WorkspaceApp />)
     fireEvent.click(screen.getByRole('button', { name: /^Methods$/ }))
-    expect(screen.getByRole('heading', { name: 'Available in this workspace' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Methods and interpretation' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Available in this workspace' })).not.toBeInTheDocument()
     expect(screen.getByText('Methods content')).toBeVisible()
     expect(screen.getByText('Methods content').closest('details')).toBeNull()
     expect(screen.queryByText(/Full application reference/)).not.toBeInTheDocument()
@@ -76,11 +77,13 @@ describe('workspace shell', () => {
 
     // Popstate forward to Methods
     fireEvent(window, new PopStateEvent('popstate', { state: { page: 'Methods' } }))
-    expect(screen.getByRole('heading', { name: 'Available in this workspace' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Methods and interpretation' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Available in this workspace' })).not.toBeInTheDocument()
 
     // An in-page anchor entry carries no app state and keeps the current page.
     fireEvent(window, new PopStateEvent('popstate', { state: null }))
-    expect(screen.getByRole('heading', { name: 'Available in this workspace' })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Methods and interpretation' })).toBeVisible()
+    expect(screen.queryByRole('heading', { name: 'Available in this workspace' })).not.toBeInTheDocument()
   })
 })
 

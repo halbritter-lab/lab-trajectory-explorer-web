@@ -292,7 +292,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   if (!data.rawRows || !data.rawRows.length) {
     return (
       <div className="card">
-        <h1>Cohort models</h1>
+        <h1>Cohort models</h1><a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
         <p>Load a dataset first to fit population-level mixed models.</p>
         <button type="button" className="primary" onClick={onBrowseData}>Load data</button>
       </div>
@@ -317,7 +317,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
       <header className="page-heading">
         <div>
           <p className="eyebrow">POPULATION MODELS · FIXED & RANDOM EFFECTS</p>
-          <h1>Cohort models</h1>
+          <h1>Cohort models</h1><a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
           <p className="muted">
             Linear mixed-effects models (WebR / lme4). Fit population trajectories, evaluate covariates (genotype, age, sex),
             and project target thresholds.

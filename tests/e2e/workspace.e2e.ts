@@ -420,8 +420,8 @@ test('review fixes: active views, stable value scales, visible derivation and sc
   expect(zoomSpan).toBeLessThan((sharedMax - sharedMin) / 10)
   await expect(chart).toHaveAttribute('data-export-context', /Zoom/i)
   await page.getByRole('button', { name: 'Methods', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Available in this workspace' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Theory & Methods' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Start here', exact: true })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Help topics' })).toBeVisible()
   await expect(page.getByText('Full application reference', { exact: false })).toHaveCount(0)
 })
 
