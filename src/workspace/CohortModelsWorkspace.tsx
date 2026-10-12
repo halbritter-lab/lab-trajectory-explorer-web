@@ -15,10 +15,11 @@ import {
 } from '../core/mixedModel/config'
 import { prepareMixedModelCohortRows } from '../core/mixedModel/cohortDataset'
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mixedModel/factors'
-import { validateMixedModelRows } from '../core/mixedModel/validation'
+import { MIN_QUALIFYING_PATIENTS, validateMixedModelRows } from '../core/mixedModel/validation'
 import { entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
 import { defaultModelParameterKey } from './cohort-model-parameter'
+import { countLabel } from './workspace-labels'
 import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import './cohort-models-workspace.css'
 
@@ -174,8 +175,20 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     : noFit ? 'Model fitting is disabled under Trajectories because No fit is selected. Choose a fit model under Trajectories.'
     : eligibleEntities.length === 0 ? `No model can be fitted with the current data and settings. ${validationReasons || 'Mixed model fitting requires at least one measurement row.'}`
     : null
-  const fitFeedback = fitUnavailableReason ?? (invalidEntities.length > 0
-    ? `${invalidEntities.length} unit${invalidEntities.length === 1 ? '' : 's'} skipped. ${validationReasons}` : invocationFeedback)
+  // Patients each group contributes, so a comparison that cannot work is visible
+  // before fitting rather than as skipped rows afterwards.
+  const groupSizes = validatedEntities.filter(item => item.entity.entity.kind === 'group').map(item => ({
+    label: item.entity.entity.kind === 'group' ? item.entity.entity.value : '',
+    patients: new Set(item.entity.rows.map(row => row.patient_id)).size,
+    fits: item.validation.ok,
+  }))
+  const largestGroup = groupSizes.reduce<(typeof groupSizes)[number] | null>((largest, group) => largest && largest.patients >= group.patients ? largest : group, null)
+  // Only meaningful while the pooled cohort itself can still be fitted.
+  const noGroupFits = groupByAttribute !== null && largestGroup !== null && groupSizes.every(group => !group.fits) && eligibleEntities.length > 0
+  const fitFeedback = fitUnavailableReason ?? (noGroupFits && largestGroup
+    ? `No ${groupByAttribute} group can be fitted on its own: each needs at least ${MIN_QUALIFYING_PATIENTS} patients with repeated measurements, and the largest, ${largestGroup.label}, has ${countLabel(largestGroup.patients, 'patient')}. Only the whole cohort will be fitted.`
+    : invalidEntities.length > 0
+      ? `${invalidEntities.length} unit${invalidEntities.length === 1 ? '' : 's'} skipped. ${validationReasons}` : invocationFeedback)
 
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
     paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])
@@ -389,6 +402,11 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               </select>
             </label>
           )}
+          {groupByAttribute && groupSizes.length > 0 && (
+            <p className="muted cm-group-sizes">
+              Patients per group in this model: {groupSizes.map(group => `${group.label} ${group.patients}`).join(', ')}. Each group needs at least {MIN_QUALIFYING_PATIENTS}.
+            </p>
+          )}
         </div>
 
         {/* Preset Selector */}
@@ -575,7 +593,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           >
             {cohortModelRunning
               ? (cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Running model …')
-              : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length} units)` : ''}`}
+              : noGroupFits
+                ? `${allEligibleFitted ? 'Refit' : 'Fit'} whole cohort only`
+                : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length} units)` : ''}`}
           </button>
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>

@@ -5,6 +5,16 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Fixed
+
+- Subgroup comparison states before fitting how many patients each group
+  contributes, and says plainly when no group reaches the ten-patient minimum;
+  the action then reads "Fit whole cohort only" instead of suggesting a
+  comparison.
+- The demo data can show every cohort model preset: twelve synthetic patients
+  (15-26) and attributes for patients 1, 2, 4 and 6 give cohorts A and B and
+  both sexes ten patients each. Golden fixtures are unchanged.
+
 ## [0.3.4] - 2026-10-12
 
 ### Fixed

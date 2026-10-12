@@ -210,6 +210,21 @@ describe('CohortModelsWorkspace', () => {
     expect(run.mock.calls[0][0].entities.map((e: any) => e.entity.kind === 'cohort' ? 'cohort' : e.entity.value)).toEqual(['cohort', 'A'])
   })
 
+  it('says before fitting that no group can be fitted and only the whole cohort will be', async () => {
+    const run = vi.fn().mockResolvedValue(undefined)
+    useAppStore.setState({ runCohortModels: run })
+    const data = qualifyingData(12)
+    data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i < 7 ? 'A' : 'B' }]))
+    studio(data)
+    fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
+    expect(screen.getByText('Patients per group in this model: A 7, B 5. Each group needs at least 10.')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('No arm group can be fitted on its own: each needs at least 10 patients with repeated measurements, and the largest, A, has 7 patients. Only the whole cohort will be fitted.')
+    const button = screen.getByRole('button', { name: 'Fit whole cohort only' })
+    fireEvent.click(button)
+    await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
+    expect(run.mock.calls[0][0].entities.map((e: any) => e.entity.kind)).toEqual(['cohort'])
+  })
+
   it('identifies every affected unit when all grouped units are invalid', () => {
     const run = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({ runCohortModels: run })

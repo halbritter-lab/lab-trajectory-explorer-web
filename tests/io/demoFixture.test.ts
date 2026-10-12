@@ -10,7 +10,9 @@ import { defaultModelParameterKey, modelablePatientCount } from '../../src/works
 import { validateMixedModelRows } from '../../src/core/mixedModel/validation'
 import { DEFAULT_MIXED_MODEL_CONFIG } from '../../src/core/mixedModel/config'
 import { workspaceModelSpec, type WorkspaceData } from '../../src/workspace/workspace-data'
-import { workspaceModelEntities } from '../../src/workspace/workspace-model-results'
+import { groupInteractionFactor, workspaceGroupableAttributes, workspaceModelEntities } from '../../src/workspace/workspace-model-results'
+import { groupPatients } from '../../src/core/grouping/grouping'
+import { availableMixedModelFactors } from '../../src/core/mixedModel/factors'
 import { defaultFitSettings } from '../../src/workspace/workspace-analysis'
 import { computeAnalysisResult, defaultAnalysisSettings } from '../../src/core/analysis/registry'
 
@@ -36,7 +38,7 @@ describe('shipped demo workbook', () => {
     expect(dataset.sheetNames).toEqual(['labs', 'events', 'attributes'])
     expect(dataset.rows.length).toBeGreaterThan(100)
     expect(dataset.events.length).toBe(8)
-    expect(Object.keys(dataset.patientAttributes).length).toBe(8)
+    expect(Object.keys(dataset.patientAttributes).length).toBe(24)
   })
 
   it('preselects an imported eGFR that the cohort model can fit with the default settings', () => {
@@ -65,5 +67,20 @@ describe('shipped demo workbook', () => {
       const [cohort] = workspaceModelEntities(analysis.rows, patientIds, spec, DEFAULT_MIXED_MODEL_CONFIG, patientAttributes, [])
       expect(validateMixedModelRows(cohort.rows, DEFAULT_MIXED_MODEL_CONFIG), preset).toMatchObject({ ok: true })
     }
+
+    // Subgroup comparison by cohort (the preset's default grouping): A and B fit.
+    const spec = workspaceModelSpec(data, chosen.key, { shared: defaultFitSettings(), columns: {} })!
+    const groupable = workspaceGroupableAttributes(analysis.rows, patientAttributes)
+    const groups = groupPatients(patientIds, groupable, 'cohort')
+    const units = workspaceModelEntities(analysis.rows, patientIds, spec, DEFAULT_MIXED_MODEL_CONFIG, patientAttributes, groups)
+    const fittable = units.filter(unit => validateMixedModelRows(unit.rows, DEFAULT_MIXED_MODEL_CONFIG).ok)
+      .map(unit => unit.entity.kind === 'cohort' ? 'cohort' : unit.entity.value)
+    expect(fittable).toEqual(expect.arrayContaining(['cohort', 'A', 'B']))
+
+    // Group interaction with cohort as a level and slope factor.
+    const factor = groupInteractionFactor('cohort', availableMixedModelFactors(analysis.rows, patientAttributes).find(f => f.key === 'cohort'))
+    const interaction = { ...DEFAULT_MIXED_MODEL_CONFIG, factors: [factor] }
+    const [pooled] = workspaceModelEntities(analysis.rows, patientIds, spec, interaction, patientAttributes, [])
+    expect(validateMixedModelRows(pooled.rows, interaction)).toMatchObject({ ok: true })
   })
 })

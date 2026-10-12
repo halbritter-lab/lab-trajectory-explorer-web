@@ -2511,8 +2511,8 @@ column's Trajectories settings and the page's preset-exclusion choice, pass the
 model validation for the standard model (random intercept and slope, no
 factors) is preselected. When no candidate passes, the first candidate is shown
 and the page explains why it cannot be fitted. Example: the demo workbook's
-imported eGFR has 11 qualifying patients and passes, so it is preselected ahead
-of Kreatinin (13). The preselection is recomputed whenever the data or those
+imported eGFR has 23 qualifying patients and passes, so it is preselected ahead
+of Kreatinin [mg/dl] (24). The preselection is recomputed whenever the data or those
 settings change, until the user picks a parameter; choosing a model preset or
 factors does not change it.
 

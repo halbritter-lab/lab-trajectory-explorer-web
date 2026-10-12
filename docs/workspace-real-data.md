@@ -91,7 +91,9 @@ imported parameter names and patient attributes retain their original values.
   the studio action. Changing outcomes or model settings updates availability
   immediately. The studio holds the only Fit model action; the preview card shows
   a short guidance line instead, and after a current fit the action reads
-  "Refit model" without primary emphasis.
+  "Refit model" without primary emphasis. With a grouping, the studio lists the
+  patients each group contributes; when no group reaches the minimum, it says
+  so before fitting and the action reads "Fit whole cohort only".
 - Cohort models fit linear mixed models in the browser (webR, `lme4::lmer`,
   REML) with configurable factors, grouped fits, result tables and
   profile/threshold projections. Chart results must match the current response,
