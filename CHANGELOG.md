@@ -5,6 +5,8 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-10-12
+
 ### Fixed
 
 - Cohort models no longer open on an unfittable parameter. The preselection
