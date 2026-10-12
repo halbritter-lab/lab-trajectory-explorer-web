@@ -1389,7 +1389,7 @@ window slopes were computed and discarded and no line was drawn):
   line. With no window (fitted span under 730 days) no line is drawn; the
   global line is not drawn in this mode.
 - **Window statistics.** The cell shows the number of windows and the smallest
-  and largest window slope ("5 windows · local slopes −8 to 0 …/year"), or
+  and largest window slope ("5 windows, local slopes −8 to 0 …/year"), or
   "No 730-day window with three fitted measurements; no local slopes". A
   series without any fitted value shows neither. The variance `slopeVar` is
   computed but not shown.
@@ -1561,8 +1561,8 @@ matching row applies.
 | 2 | `nFitted = 0` | No fitted measurements | grey |
 | 3 | `reason = n_below_threshold` | n < 3 | grey |
 | 4 | `fittedSpanDays = 0` | All fitted measurements on one date | grey |
-| 5 | `nFitted < 3` | n < 3 · uncertain slope | amber |
-| 6 | Otherwise | Follow-up < 1 year · uncertain slope | amber |
+| 5 | `nFitted < 3` | n < 3, uncertain slope | amber |
+| 6 | Otherwise | Follow-up < 1 year, uncertain slope | amber |
 
 Grey means that no slope exists; amber that a slope exists and is
 unreliable. Row 2 covers a series whose points were all removed by bounds or
@@ -1579,8 +1579,8 @@ Row 4 covers fitted points that all share one calendar day (decided
 2026-10-07, formerly OD-9). No slope exists then, and the note reads "All
 fitted measurements on one date" in grey with the explanation "All
 measurements used for the fit share one date, so no slope exists." Before, two
-same-day values gave the amber note "n < 3 · uncertain slope" and three or
-more gave "Follow-up < 1 year · uncertain slope", both stating that a slope was
+same-day values gave the amber note "n < 3, uncertain slope" and three or
+more gave "Follow-up < 1 year, uncertain slope", both stating that a slope was
 fitted. Two same-day values under Theil-Sen are below its minimum and keep the
 grey "n < 3" note of row 3. The numeric core is unchanged: the summary still
 reports `reason = span_too_short` or no reason for such a series, `slope` is

@@ -51,5 +51,5 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
       if (unavailable) { labels.push(unavailable.label); details.push(unavailable.title) }
     }
   }
-  return labels.length ? { label: labels.join(' · '), title: details.join(' · ') } : null
+  return labels.length ? { label: labels.join(', '), title: details.join('; ') } : null
 }

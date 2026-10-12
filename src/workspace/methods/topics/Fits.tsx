@@ -29,8 +29,8 @@ export function Fits() { return <>
         the flag in the affected cell and the individual patient view repeats it beneath the chart;
         the overlay draws affected fit lines dotted. The colour says which kind of problem it is,
         not which threshold was crossed: grey text (<span className="wt-muted">n &lt; 3</span>)
-        means no slope was produced at all, an amber note (<span className="wt-warning">n &lt; 3 ·
-        uncertain slope</span>, <span className="wt-warning">Follow-up &lt; 1 year · uncertain
+        means no slope was produced at all, an amber note (<span className="wt-warning">n &lt; 3,
+        uncertain slope</span>, <span className="wt-warning">Follow-up &lt; 1 year, uncertain
         slope</span>) means a slope exists but should be treated as unstable. The same <em>n &lt;
         3</em> label therefore appears in either colour depending on whether a slope came out of it.
         When all fitted measurements share one date, the grey note reads “All fitted measurements

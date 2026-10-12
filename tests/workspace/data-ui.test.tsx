@@ -82,8 +82,8 @@ it('previews EKFC without applying it, then applies and turns derivation off', (
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ekfc-2021' } })
   expect(screen.getByText('1 computed value in preview')).toBeInTheDocument()
-  expect(screen.getByText('Active: Off · 0 computed values')).toBeInTheDocument()
-  expect(screen.getByText('1 source value · 0 cannot be computed')).toBeInTheDocument()
+  expect(screen.getByText('Active: Off, 0 computed values')).toBeInTheDocument()
+  expect(screen.getByText('1 source value, 0 cannot be computed')).toBeInTheDocument()
   fireEvent.click(screen.getByText('Inspect computed value (1)'))
   expect(screen.getByText(/^\d+\.\d ml\/min/)).toBeInTheDocument()
   expect(screen.getByLabelText('Creatinine source')).toHaveTextContent('Kreatinin')
@@ -115,11 +115,11 @@ it('shows a bounded set of import diagnostics with access to remaining findings'
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.click(screen.getByText('35 import diagnostics — show details'))
   expect(screen.getAllByRole('listitem')).toHaveLength(20)
-  expect(screen.getByText('labs · P-20 · Warning: Finding 20')).toBeInTheDocument()
-  expect(screen.queryByText('labs · P-21 · Warning: Finding 21')).not.toBeInTheDocument()
+  expect(screen.getByText('labs, patient P-20, warning: Finding 20')).toBeInTheDocument()
+  expect(screen.queryByText('labs, patient P-21, warning: Finding 21')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Show 15 remaining diagnostics' }))
   expect(screen.getAllByRole('listitem')).toHaveLength(35)
-  expect(screen.getByText('labs · P-35 · Warning: Finding 35')).toBeInTheDocument()
+  expect(screen.getByText('labs, patient P-35, warning: Finding 35')).toBeInTheDocument()
 })
 it('lists lab import diagnostics from a German CSV, with summaries not attributed to a patient', async () => {
   render(<DataWorkspace onBrowse={vi.fn()} />)
@@ -129,9 +129,9 @@ it('lists lab import diagnostics from a German CSV, with summaries not attribute
   expect(screen.getByText(/1 row rejected; 2 warnings\./)).toBeInTheDocument()
   const items = screen.getAllByRole('listitem').map(item => item.textContent)
   expect(items).toEqual(expect.arrayContaining([
-    'Sheet1 · 0012 · rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
-    'Sheet1 · Warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
-    'Sheet1 · Warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.',
+    'Sheet1, patient 0012, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
+    'Sheet1, warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
+    'Sheet1, warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.',
   ]))
 })
 it('reports readable reasons and birth-date problems for supplementary files', async () => {
@@ -140,10 +140,10 @@ it('reports readable reasons and birth-date problems for supplementary files', a
   const file = (text: string) => ({ name: 'extra.csv', arrayBuffer: async () => new TextEncoder().encode(text).buffer })
   fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('patientId,birthDate\nP-01,1980-02-30\n')] } })
   await waitFor(() => expect(useAppStore.getState().patientAttributes['P-01']).toEqual({ birthDate: '1980-02-30' }))
-  expect(screen.getByText('extra.csv · P-01 · Warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
+  expect(screen.getByText('extra.csv, patient P-01, warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('patientId,type,date,title\nP-01,other,2020-03-01,Visit\nP-01,surgery,2020-04-01,Other\n')] } })
   await waitFor(() => expect(useAppStore.getState().events).toHaveLength(1))
-  expect(screen.getByText('extra.csv · P-01 · rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other; row not imported.')).toBeInTheDocument()
+  expect(screen.getByText('extra.csv, patient P-01, rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other; row not imported.')).toBeInTheDocument()
 })
 it('lists loaded and rejected events from a separate event upload', async () => {
   useAppStore.getState().replaceDataset({ rows: [row] })

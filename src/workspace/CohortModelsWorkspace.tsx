@@ -344,7 +344,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     <div className="cohort-models-workspace stack">
       <header className="page-heading">
         <div>
-          <p className="eyebrow">POPULATION MODELS · FIXED & RANDOM EFFECTS</p>
+          <p className="eyebrow">Population models</p>
           <h1>Cohort models</h1><a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
           <p className="muted">
             Linear mixed-effects models (WebR / lme4). Fit population trajectories, evaluate covariates (genotype, age, sex),
@@ -569,7 +569,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </div>
         </div>
         {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label="Reference categories">
-          Reference categories: {categoricalReferences.map(item => `${item.label} = ${item.reference}${item.isDefault ? ' (first level by default; change it next to the factor)' : ''}`).join(' · ')}
+          Reference categories: {categoricalReferences.map(item => `${item.label} = ${item.reference}${item.isDefault ? ' (first level by default; change it next to the factor)' : ''}`).join('; ')}
         </p>}
         <p className="muted cm-population-note">Time: years since each patient's first retained measurement. Missing selected factors exclude the patient from this model only; no imputation.</p>
         {sampleSummary.preparation.excludedPatients.length > 0 && <details className="cm-excluded-patients">

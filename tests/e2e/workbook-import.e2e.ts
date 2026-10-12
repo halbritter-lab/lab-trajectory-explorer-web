@@ -20,11 +20,11 @@ test('uploads a workbook and exposes rejected events and attribute warnings', as
     mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }),
   })
-  await expect(page.locator('.workspace-dataset')).toContainText('1 patient ·')
+  await expect(page.locator('.workspace-dataset')).toContainText('1 patient,')
   await expect(page.getByText('2 lab values, 1 event and 2 attribute rows loaded. 1 row rejected; 1 warning.')).toBeVisible()
   await page.getByText(/import diagnostics — show details/).click()
-  await expect(page.getByText(/^events · 1 · rejected: Event date "invalid" is not a recognised date/)).toBeVisible()
-  await expect(page.getByText(/^attributes · 999 · Warning: Patient 999 has no lab values/)).toBeVisible()
+  await expect(page.getByText(/^events, patient 1, rejected: Event date "invalid" is not a recognised date/)).toBeVisible()
+  await expect(page.getByText(/^attributes, patient 999, warning: Patient 999 has no lab values/)).toBeVisible()
   // The rejected event row is listed beside the accepted one, not only counted.
   const rejected = page.getByRole('table', { name: 'Rejected events' })
   await expect(rejected.getByRole('row').filter({ hasText: 'Bad start' })).toContainText('is not a recognised date')
@@ -42,9 +42,9 @@ test('reads a German semicolon CSV as text and lists its import diagnostics', as
   await expect(page.locator('.workspace-dataset')).toContainText('2 patients')
   await expect(page.getByText(/3 lab values.*1 row rejected; 3 warnings\./)).toBeVisible()
   await page.getByText(/import diagnostics — show details/).click()
-  await expect(page.getByText('Sheet1 · 12 · rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.')).toBeVisible()
+  await expect(page.getByText('Sheet1, patient 12, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.')).toBeVisible()
   await expect(page.getByText(/read day-first/)).toBeVisible()
-  await expect(page.getByText('Sheet1 · Warning: Kreatinin: unit spellings "µmol/l" (2), "umol/L" (1) were merged as "µmol/l".')).toBeVisible()
+  await expect(page.getByText('Sheet1, warning: Kreatinin: unit spellings "µmol/l" (2), "umol/L" (1) were merged as "µmol/l".')).toBeVisible()
   await expect(page.getByText(/Kreatinin \[µmol\/l\]: 1 censored value/)).toBeVisible()
 })
 

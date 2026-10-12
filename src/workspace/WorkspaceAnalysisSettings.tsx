@@ -66,12 +66,12 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
   const applyPreset = (id: string) => onChange(defaultFitSettings(id))
   const updateSettings = (patch: Partial<WorkspaceFitSettings>) => onChange({ ...fitSettings, ...patch, presetId: 'custom' })
   return (
-    <div className="wt-preset-section"><p><a href="#methods/fits/choosing">Choosing a fit model</a> · <a href="#methods/aki/timing">AKI exclusion windows</a></p>
+    <div className="wt-preset-section"><p>Background: <a href="#methods/fits/choosing">choosing a fit model</a> and <a href="#methods/aki/timing">AKI exclusion windows</a>.</p>
       <div className="wt-analysis-selectors">
         <label>Edit settings for
           <select aria-label="Edit analysis settings for" value={scope} onChange={event => onScopeChange(event.target.value)}>
             <option value="">Shared settings</option>
-            {parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}{overrides[parameter.key] ? ' · Own settings' : ' · Shared'}</option>)}
+            {parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}{overrides[parameter.key] ? ' (own settings)' : ' (shared)'}</option>)}
           </select>
         </label>
         <label>Analysis preset

@@ -80,7 +80,7 @@ export function WorkspaceApp() {
       mainRef.current?.scrollIntoView({ block: 'start' })
     }}>Skip to content</a>
     <header className="workspace-header">
-      <div className="workspace-brand"><span aria-hidden="true" className="workspace-logo">↗</span><div><div className="workspace-title"><strong>Lab Trajectory Explorer</strong><small className="workspace-version" aria-label={`Version ${version}`}>v{version}</small></div><span>Longitudinal lab data · research use only</span></div></div>
+      <div className="workspace-brand"><span aria-hidden="true" className="workspace-logo">↗</span><div><div className="workspace-title"><strong>Lab Trajectory Explorer</strong><small className="workspace-version" aria-label={`Version ${version}`}>v{version}</small></div><span>Longitudinal lab data, for research use only</span></div></div>
       <nav aria-label="Main navigation" className="workspace-nav">
         {(['Data', 'Trajectories', 'Cohort models'] as const).map(name => <button type="button" key={name}
           aria-current={page === name ? 'page' : undefined} onClick={() => go(name)}>
@@ -91,7 +91,7 @@ export function WorkspaceApp() {
     </header>
     <div className="workspace-dataset" role="status">
       <span>{hasData ? data.fileName ?? 'Loaded dataset' : 'No data loaded yet'}</span>
-      {hasData && <span>{countLabel(data.patients.length, 'patient')} · {countLabel(data.parameters.length, 'parameter')} · {countLabel(data.rawRows.length, 'source measurement')}</span>}
+      {hasData && <span>{countLabel(data.patients.length, 'patient')}, {countLabel(data.parameters.length, 'parameter')}, {countLabel(data.rawRows.length, 'source measurement')}</span>}
       <span>{storageStatus === 'saved' ? 'Saved on this device' : storageStatus === 'saving' ? 'Saving …' : storageStatus === 'error' ? 'Check local storage in Data' : 'This session only'}</span>
     </div>
     <main id="workspace-main" className="workspace-main" ref={mainRef} tabIndex={-1}>
@@ -122,7 +122,7 @@ export function WorkspaceApp() {
       </section>}
     </main>
     <footer className="workspace-footer">
-      <p>Research use only · Not a medical device or a basis for clinical decisions. Computed values and trends are algorithmic estimates.</p>
+      <p>Research use only. Not a medical device or a basis for clinical decisions. Computed values and trends are algorithmic estimates.</p>
       <div className="workspace-footer-links">
         <nav aria-label="Project links">
           <a href="https://github.com/halbritter-lab/lab-trajectory-explorer-web" target="_blank" rel="noopener noreferrer" aria-label="GitHub (opens in a new tab)">GitHub</a>

@@ -27,7 +27,7 @@ describe('real-data trajectories workspace', () => {
     expect(within(table).getByRole('button', { name: 'Open patient P-0001' }).closest('tr')).toHaveTextContent('1 measurement')
     expect(within(table).getByRole('button', { name: 'Open patient P-0001' }).closest('tr')).not.toHaveTextContent('1 measurements')
     fireEvent.click(within(table).getByRole('checkbox', { name: 'Select patients on this page' }))
-    expect(screen.getByText('50 selected · 2000 in the shared scope')).toBeInTheDocument()
+    expect(screen.getByText('50 selected, 2000 in the shared scope')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Next table page' }))
     expect(within(table).getByRole('checkbox', { name: 'Select patients on this page' })).not.toBeChecked()
     expect(within(table).getByRole('button', { name: 'Open patient P-0051' })).toBeInTheDocument()
@@ -207,13 +207,13 @@ describe('real-data trajectories workspace', () => {
     const derived = { ...data.parameters[0], key: 'derived-new', bezeichnung: 'eGFR CKD', label: 'eGFR CKD', derived: true }
     const updated = { ...data, parameters: [...data.parameters, derived] }
     result.rerender(<TrajectoriesWorkspace data={updated} />)
-    expect(screen.getByRole('columnheader', { name: 'eGFR CKD · derived' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'eGFR CKD (derived)' })).toBeInTheDocument()
     expect(screen.getByText(/Added derived parameter: eGFR CKD/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Choose parameters' }))
     fireEvent.click(within(screen.getByRole('dialog')).getByRole('checkbox', { name: 'eGFR CKD' }))
     fireEvent.click(screen.getByRole('button', { name: 'Apply' }))
     result.rerender(<TrajectoriesWorkspace data={{ ...updated, parameters: [...updated.parameters] }} />)
-    expect(screen.queryByRole('columnheader', { name: 'eGFR CKD · derived' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('columnheader', { name: 'eGFR CKD (derived)' })).not.toBeInTheDocument()
     expect(screen.getAllByRole('columnheader')).toHaveLength(5)
   })
 
@@ -224,7 +224,7 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
     fireEvent.click(screen.getByRole('checkbox', { name: 'Events' }))
     expect(screen.getAllByText('Inspect events (1)')).toHaveLength(3)
-    expect(screen.getAllByText(/Patient ID-A · 15\/06\/2021 · Recorded visit/)).toHaveLength(3)
+    expect(screen.getAllByText(/Patient ID-A, 15\/06\/2021: Recorded visit/)).toHaveLength(3)
   })
   it('offers all parameters with distinct units, and cancel preserves applied columns', () => {
     render(<TrajectoriesWorkspace data={fixture()} />)
@@ -269,8 +269,8 @@ describe('real-data trajectories workspace', () => {
     data.events = [{ patientId: 'ID-A', type: 'other', date: new Date('2021-06-15T00:00:00Z'), title: 'Aufnahme Station', description: null, endDate: null, intent: null, warning: '' }]
     render(<TrajectoriesWorkspace data={data} requestedPatientId="ID-A" />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: Marker · unit-0' }))
-    expect(screen.getByText('OLS: 1 unit-0/year · R² 1')).toBeInTheDocument()
-    expect(screen.getByText('3 fitted measurements · 731 days')).toBeInTheDocument()
+    expect(screen.getByText('OLS: 1 unit-0/year, R² 1')).toBeInTheDocument()
+    expect(screen.getByText('3 fitted measurements over 731 days')).toBeInTheDocument()
     expect(screen.getByText('15/06/2021: Aufnahme Station')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Time axis'), { target: { value: 'calendar' } })
     fireEvent.click(screen.getByRole('checkbox', { name: 'Events' }))
@@ -302,7 +302,7 @@ describe('real-data trajectories workspace', () => {
     render(<TrajectoriesWorkspace data={data} requestedPatientId="ID-A" />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: Marker · unit-0' }))
     expect(screen.getByText(/R² 1/)).toBeInTheDocument()
-    expect(screen.getByText('n < 3 · uncertain slope')).toBeInTheDocument()
+    expect(screen.getByText('n < 3, uncertain slope')).toBeInTheDocument()
   })
 
   it('omits standalone latest values while retaining bounded plot tooltips and derived measurement text', () => {
@@ -312,7 +312,7 @@ describe('real-data trajectories workspace', () => {
     render(<TrajectoriesWorkspace data={data} />)
     expect(screen.queryByText('> 12')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
-    expect(screen.getByText(/01\/01\/2020: > 10 unit-0 · excluded from the fit: censored value/)).toBeInTheDocument()
+    expect(screen.getByText(/01\/01\/2020: > 10 unit-0; excluded from the fit: censored value/)).toBeInTheDocument()
     expect(screen.getAllByText('> 10').length).toBeGreaterThan(0)
     expect(screen.getByRole('columnheader', { name: 'Derived value' })).toBeInTheDocument()
   })
@@ -337,7 +337,7 @@ describe('real-data trajectories workspace', () => {
     const replacement = { ...data.parameters[0], key: 'new-egfr-key', label: 'eGFR EKFC', bezeichnung: 'eGFR EKFC' }
     const updated = { ...data, parameters: [replacement, ...data.parameters.slice(1)], rows: data.rows.map(row => row.einheit === 'unit-0' ? { ...row, bezeichnung: replacement.bezeichnung } : row) }
     result.rerender(<TrajectoriesWorkspace data={updated} />)
-    expect(screen.getByRole('columnheader', { name: 'eGFR EKFC · derived' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'eGFR EKFC (derived)' })).toBeInTheDocument()
     expect(screen.getByText(/selected eGFR derivation was updated to eGFR EKFC/)).toBeInTheDocument()
     result.rerender(<TrajectoriesWorkspace data={{ ...updated, parameters: updated.parameters.slice(1) }} />)
     expect(screen.getByText(/Unavailable selected parameters: eGFR EKFC/)).toBeInTheDocument()
@@ -477,7 +477,7 @@ describe('real-data trajectories workspace', () => {
     render(<TrajectoriesWorkspace data={data} />)
     fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: Marker · unit-0' }))
     const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
-    const note = within(row).getByText('n < 3 · uncertain slope')
+    const note = within(row).getByText('n < 3, uncertain slope')
     expect(note.getAttribute('title')).toMatch(/Two points/)
     // Keyboard and touch users reach the explanation through a disclosure, not a tooltip.
     const why = within(row).getByText('Why is the slope uncertain?')
@@ -485,7 +485,7 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
     const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
     const card = chart.parentElement!
-    expect(within(card).getByRole('note')).toHaveTextContent(/n < 3 · uncertain slope.*interpret with caution/)
+    expect(within(card).getByRole('note')).toHaveTextContent(/n < 3, uncertain slope.*interpret with caution/)
   })
 
   it('shows no slope-quality caveat once the fit model is off', () => {
@@ -505,9 +505,9 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(screen.getByLabelText('Censor after kidney transplant'))
     fireEvent.click(screen.getByRole('checkbox', { name: 'OLS, slope and R²: Marker · unit-0' }))
     const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
-    expect(within(row).getByText(/^2 fitted of 3 measurements · \d+ days$/)).toBeInTheDocument()
+    expect(within(row).getByText(/^2 fitted of 3 measurements over \d+ days$/)).toBeInTheDocument()
     const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
-    expect(within(other).getAllByText(/^3 fitted measurements · \d+ days$/).length).toBeGreaterThan(0)
+    expect(within(other).getAllByText(/^3 fitted measurements over \d+ days$/).length).toBeGreaterThan(0)
   })
 
   it('does not mark excluded measurements when no fit model is set', () => {
@@ -546,8 +546,8 @@ describe('real-data trajectories workspace', () => {
     // Deliberately exact: wording changes to this badge must update this test.
     // No birth date: the age is known in completed years, so no decimal is shown.
     const badge = document.querySelector('.wt-badge-endpoint')!
-    expect(badge).toHaveTextContent(/^-50% · G5 @ ~63y$/)
-    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from first to latest eligible measurement (not per year) · projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)')
+    expect(badge).toHaveTextContent(/^-50%, G5 @ ~63y$/)
+    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from first to latest eligible measurement (not per year); projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)')
   })
 
   it('publishes its analysis settings for cohort models and withdraws them on unmount', () => {
@@ -568,7 +568,7 @@ describe('real-data trajectories workspace', () => {
     fireEvent.change(screen.getByLabelText('Analysis preset'), { target: { value: 'ckd_progression' } })
     // Born 1959-07-01: 62.5 at the latest measurement, one year before the crossing.
     const badge = document.querySelector('.wt-badge-endpoint')!
-    expect(badge).toHaveTextContent(/^-50% · G5 @ 63\.5y$/)
+    expect(badge).toHaveTextContent(/^-50%, G5 @ 63\.5y$/)
     expect(badge.getAttribute('title')).toContain('projected age to CKD G5 63.5 years; fitted curve')
   })
 

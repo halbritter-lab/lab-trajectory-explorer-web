@@ -15,6 +15,15 @@ interfaces are still evolving before 1.0.
   (15-26) and attributes for patients 1, 2, 4 and 6 give cohorts A and B and
   both sexes ten patients each. Golden fixtures are unchanged.
 
+### Changed
+
+- Interface text no longer strings items together with middle dots. Counts are
+  separated by commas, card titles are numbered "1.", additions such as
+  "(derived)" or "(own settings)" use brackets, chart titles use a colon, and
+  the footer and export notes are full sentences. Wording is otherwise
+  unchanged; the slope-quality labels now read "n < 3, uncertain slope" and
+  "Follow-up < 1 year, uncertain slope".
+
 ## [0.3.4] - 2026-10-12
 
 ### Fixed
