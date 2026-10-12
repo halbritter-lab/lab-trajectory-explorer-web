@@ -493,12 +493,23 @@ test('removes data saved by the former interface once and says so', async ({ pag
 })
 
 
-test('model fitting availability explains the demo limit and enables an eligible sample', async ({ page }, testInfo) => {
+test('model fitting: the demo fits by default, a small sample explains the limit, an eligible one enables it', async ({ page }, testInfo) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Load demo data', exact: true }).click()
   await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
   const studio = page.getByRole('region', { name: 'Model Studio' })
   const preview = page.locator('.cm-plot-card')
+  // The demo preselects its imported eGFR, which reaches the ten-patient minimum.
+  await expect(page.getByLabel('Model parameter')).toHaveValue(JSON.stringify(['eGFR', 'ml/min/1,73m²']))
+  await expect(studio).toContainText('Complete cases: 12 patients')
+  await expect(studio.getByRole('button', { name: /Fit model/ })).toBeEnabled()
+
+  const csv = (patients: number) => ['patientId,labDate,testName,unit,value', ...Array.from({ length: patients }, (_, i) =>
+    [0, 1, 2].map(year => `P-${i},${2020 + year}-01-01,Marker,U/L,${60 - year - i}`)).flat()].join('\n')
+  await page.getByRole('button', { name: 'Data', exact: true }).click()
+  await page.getByLabel('Import lab values').setInputFiles({ name: 'small.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(5)) })
+  await expect(page.locator('.workspace-dataset')).toContainText('5 patients')
+  await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
   await expect(studio).toContainText('Complete cases: 5 patients')
   await expect(studio.getByRole('button', { name: /Fit model/ })).toBeDisabled()
   await expect(preview.getByRole('button', { name: /Fit model/ })).toBeDisabled()
@@ -510,9 +521,7 @@ test('model fitting availability explains the demo limit and enables an eligible
     await page.screenshot({ path: testInfo.outputPath(`fit-availability-${width}.png`), fullPage: true })
   }
   await page.getByRole('button', { name: 'Data', exact: true }).click()
-  const rows = ['patientId,labDate,testName,unit,value', ...Array.from({ length: 10 }, (_, i) =>
-    [0, 1, 2].map(year => `P-${i},${2020 + year}-01-01,Marker,U/L,${60 - year - i}`)).flat()]
-  await page.getByLabel('Import lab values').setInputFiles({ name: 'eligible.csv', mimeType: 'text/csv', buffer: Buffer.from(rows.join('\n')) })
+  await page.getByLabel('Import lab values').setInputFiles({ name: 'eligible.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(10)) })
   await expect(page.locator('.workspace-dataset')).toContainText('10 patients')
   await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
   await expect(studio.getByRole('button', { name: /Fit model/ })).toBeEnabled()
