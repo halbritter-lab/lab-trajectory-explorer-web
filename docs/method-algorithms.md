@@ -2499,8 +2499,22 @@ rapid-decline flag and the preset targets of cohort-model projections
 received endpoints, so a creatinine clearance in ml/min did; an eGFR series
 imported with the bare unit `ml/min` no longer does.
 
-A third, name-only test (the name contains `egfr`, in any case) only preselects
-the outcome on the Cohort models page.
+A third, name-only test (the name contains `egfr`, in any case) is used only
+to preselect the outcome on the Cohort models page (since 2026-10-12;
+`src/workspace/cohort-model-parameter.ts`). Candidates are the parameters with
+at least one finite numeric value. They are ordered by that name test (eGFR
+first), then by the number of patients with exact (`=`) numeric measurements
+on at least three distinct dates, then by import order; this count is taken on
+the analysed rows before any window, run-in or time balancing. The first
+candidate whose count reaches 10 and whose whole-cohort rows, prepared with the
+column's Trajectories settings and the page's preset-exclusion choice, pass the
+model validation for the standard model (random intercept and slope, no
+factors) is preselected. When no candidate passes, the first candidate is shown
+and the page explains why it cannot be fitted. Example: the demo workbook's
+imported eGFR has 11 qualifying patients and passes, so it is preselected ahead
+of Kreatinin (13). The preselection is recomputed whenever the data or those
+settings change, until the user picks a parameter; choosing a model preset or
+factors does not change it.
 
 **Which endpoints.** The column's fit configuration has four toggles: observed
 CKD G4, observed CKD G5, percent eGFR decline, and projected age to CKD G5,

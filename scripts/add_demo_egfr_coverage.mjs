@@ -3,9 +3,10 @@
 // reaches the ten-patient minimum of the cohort mixed model with default settings.
 //
 // Values are CKD-EPI 2021 (LOINC 98979-8), computed from the creatinine row of the
-// same date and rounded to one decimal, as a laboratory would report them. Each new
+// same date and rounded to one decimal, in the style of a laboratory report. The
+// original synthetic eGFR rows (LOINC 62238-1) are not formula-derived. Each new
 // row copies the cells of its creatinine row, so dates and formats are unchanged.
-// Idempotent: patients that already have an imported eGFR are skipped.
+// Idempotent: patients that already have any imported eGFR series are skipped.
 //
 // Usage: node scripts/add_demo_egfr_coverage.mjs
 import { readFileSync, writeFileSync } from 'node:fs'
@@ -42,7 +43,8 @@ for (let r = range.s.r + 1; r <= range.e.r; r++) {
   const patientId = cell(r, C.patientId)?.v
   const testName = cell(r, C.testName)?.v
   const unit = cell(r, C.unit)?.v
-  if (testName === EGFR_NAME) withEgfr.add(patientId)
+  // Any eGFR series counts, also differently named ones such as 'eGFR (CKD-EPI)'.
+  if (/egfr/i.test(String(testName ?? ''))) withEgfr.add(patientId)
   if (testName === 'Kreatinin' && unit === 'mg/dl') sources.push(r)
 }
 

@@ -268,7 +268,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
         </div>
       </details>
       <section className="wt-trend-visibility" aria-label="Trend visibility">
-        <h2>Show trend and statistics for</h2>
+        <h2>Show trends and slopes for</h2>
         <p className="wt-muted">Display only; the analysis settings above apply even when a trend is hidden.</p>
         <div className="wt-fit-options">
           {parameters.map(parameter => {

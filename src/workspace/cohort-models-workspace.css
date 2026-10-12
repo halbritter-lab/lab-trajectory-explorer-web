@@ -27,7 +27,7 @@
 .mixed-model-message {
   margin: 4px 0 0;
   font-size: 13px;
-  color: var(--muted, var(--muted));
+  color: var(--muted);
 }
 
 .mixed-model-options-grid {
@@ -100,7 +100,7 @@
 }
 
 .mixed-model-config-pairs dt {
-  color: var(--muted, var(--muted));
+  color: var(--muted);
 }
 
 .mixed-model-config-pairs dd {
@@ -211,7 +211,7 @@
 
 .cohort-model-details dt {
   font-size: 11px;
-  color: var(--muted, var(--muted));
+  color: var(--muted);
   text-transform: uppercase;
   letter-spacing: 0.5px;
 }

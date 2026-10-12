@@ -8,9 +8,10 @@ interfaces are still evolving before 1.0.
 ### Fixed
 
 - Cohort models no longer open on an unfittable parameter. The preselection
-  prefers a parameter that reaches the ten-patient minimum, then eGFR, and
-  follows newly computed eGFR until a parameter is chosen by hand.
-- The demo workbook now carries imported eGFR for 12 of 14 patients, so a
+  takes the first parameter, eGFR first, that passes the model's preparation and
+  validation with the standard model, and is re-evaluated when the data change
+  until a parameter is chosen by hand.
+- The demo workbook now carries imported eGFR for 11 of 14 patients, so a
   cohort model can be fitted with the default settings. The added rows are
   CKD-EPI 2021 values from the same-day creatinine; no fixture values moved.
 - Muted text, eyebrows, table headers, the dataset bar and the research-use

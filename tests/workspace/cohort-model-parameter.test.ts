@@ -49,6 +49,25 @@ describe('defaultModelParameterKey', () => {
     expect(defaultModelParameterKey(params, data, new Set(data.map(r => String(r.patientId))))).toBe('eGFR||u')
   })
 
+  it('does not count bounded values such as ">90", which the model never sees', () => {
+    const bounded = rows('eGFR', 'u', 10).map((row, i) => i % 3 === 2 ? row : { ...row, wert: '>90', wertNum: 90, wertOperator: '>' as const })
+    const data = [...rows('Kreatinin', 'mg/dl', 10), ...bounded]
+    const params = [param('eGFR', 'u'), param('Kreatinin', 'mg/dl')]
+    const ids = new Set(data.map(r => String(r.patientId)))
+    expect(modelablePatientCount(data, param('eGFR', 'u'), ids)).toBe(0)
+    expect(defaultModelParameterKey(params, data, ids)).toBe('Kreatinin||mg/dl')
+  })
+
+  it('skips a candidate that the real preparation and validation reject', () => {
+    const data = [...rows('Kreatinin', 'mg/dl', 12), ...rows('eGFR', 'u', 11)]
+    const params = [param('Kreatinin', 'mg/dl'), param('eGFR', 'u')]
+    const ids = new Set(data.map(r => String(r.patientId)))
+    const checked: string[] = []
+    const key = defaultModelParameterKey(params, data, ids, candidate => { checked.push(candidate); return candidate !== 'eGFR||u' })
+    expect(key).toBe('Kreatinin||mg/dl')
+    expect(checked).toEqual(['eGFR||u', 'Kreatinin||mg/dl'])
+  })
+
   it('returns an empty key without parameters', () => {
     expect(defaultModelParameterKey([], [], new Set())).toBe('')
   })

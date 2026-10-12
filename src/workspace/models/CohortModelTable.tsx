@@ -370,7 +370,7 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
     <>
     {factors.length > 0 && <p>Reference intercept and slope: {factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : `${factor.key} at its included-patient mean`).join('; ')}. Associations are conditional on this model and population.</p>}
     {result.warnings.map((warning, index) => <p role="status" key={index}>{warning}</p>)}
-    <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{coefficient.estimate.toFixed(3)}</td><td>{formatOptionalInterval(coefficient.confidenceInterval)}</td></tr>)}</tbody></table>
+    <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{coefficient.estimate.toFixed(3)}</td><td>{formatFixedInterval(coefficient.confidenceInterval)}</td></tr>)}</tbody></table>
     <dl className="cohort-model-details">
       <div className="cohort-model-detail-item">
         <dt>Slope 95% CI</dt>
@@ -427,9 +427,13 @@ function formatValue(value: number, unit: string | null): string {
 }
 
 function formatOptionalNumber(value: number | null): string {
-  return value === null ? 'n/a' : value.toFixed(2)
+  return value === null ? 'n/a' : formatWorkspaceNumber(value)
 }
 
 function formatOptionalInterval(value: [number, number] | null): string {
+  return value === null ? 'n/a' : `[${formatWorkspaceNumber(value[0])}, ${formatWorkspaceNumber(value[1])}]`
+}
+/** The coefficient table keeps fixed decimals so its columns line up. */
+function formatFixedInterval(value: [number, number] | null): string {
   return value === null ? 'n/a' : `[${value[0].toFixed(2)}, ${value[1].toFixed(2)}]`
 }

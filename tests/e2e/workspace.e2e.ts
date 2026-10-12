@@ -501,7 +501,7 @@ test('model fitting: the demo fits by default, a small sample explains the limit
   const preview = page.locator('.cm-plot-card')
   // The demo preselects its imported eGFR, which reaches the ten-patient minimum.
   await expect(page.getByLabel('Model parameter')).toHaveValue(JSON.stringify(['eGFR', 'ml/min/1,73m²']))
-  await expect(studio).toContainText('Complete cases: 12 patients')
+  await expect(studio).toContainText('Complete cases: 11 patients')
   await expect(studio.getByRole('button', { name: /Fit model/ })).toBeEnabled()
 
   const csv = (patients: number) => ['patientId,labDate,testName,unit,value', ...Array.from({ length: patients }, (_, i) =>

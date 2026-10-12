@@ -239,7 +239,7 @@ describe('CohortModelTable', () => {
 
     await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
     expect(screen.getByText('Patient intercept SD')).toBeInTheDocument()
-    expect(screen.getByText('4.20')).toBeInTheDocument()
+    expect(screen.getByText('4.2')).toBeInTheDocument()
   })
 
   it('renders long technical details in dedicated wrapping cells', async () => {

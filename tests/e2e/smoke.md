@@ -1,5 +1,32 @@
 # Manual browser smoke checklist
 
+## Workspace UX review and cohort model demo path (2026-10-12)
+
+Branch `fix/workspace-ux-review`. An impeccable critique of the workspace
+(24/40, snapshot in `.impeccable/critique/`) and a report that the demo could
+not fit a cohort model with default settings: the page preselected the
+imported eGFR with 5 of 14 patients, below the ten-patient minimum.
+
+- Cohort models now preselects the first parameter (eGFR first) that passes the
+  real preparation and validation; the demo workbook carries imported eGFR for
+  11 patients. Verified in Chromium against the dev server: demo → Cohort models
+  shows "eGFR [ml/min/1,73m²]", "Complete cases: 11 patients / 14 (116
+  measurements)", Fit model enabled; a real WebR fit returned −2.79
+  ml/min/1,73m²/yr, identical in legend and table, and the action then read
+  "Refit model".
+- Single Fit model action ("Refit model" after a current fit), Cohort models
+  restyled with workspace tokens, "Show trends and slopes" switch, contrast
+  ≥ 4.5:1, singular counts, no "G5 n < 3" in empty cells; checked by screenshot
+  at 1440 and 390 px.
+- `pnpm test`: 908/908 in 96 files. `pnpm build`: passed. `pnpm test:e2e`:
+  46/46 in Chromium (development server).
+- Independent branch review: two Important findings (bounded values counted by
+  the preselection pre-check; outdated method reference) and four minor ones,
+  all fixed before this entry; the full suite above was rerun afterwards.
+
+Not verified: real screen reader, 200 % zoom, the production build in the
+browser, opened export files. No merge, release or publication is recorded.
+
 ## Priority UX technical verification (2026-10-09)
 
 Implementation checkpoints: `095f29e` explains and consistently gates cohort

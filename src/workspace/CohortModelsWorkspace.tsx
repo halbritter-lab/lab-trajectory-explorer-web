@@ -7,6 +7,7 @@ import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
 import {
+  DEFAULT_MIXED_MODEL_CONFIG,
   mixedModelFormula,
   type MixedModelConfig,
   type MixedModelFactor,
@@ -108,9 +109,17 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     return availableMixedModelFactors(rowsInScope, attrsInScope)
   }, [data.rows, patientIds, data.patientAttributes])
 
+  // The candidate must survive the real preparation (Trajectories settings, windows,
+  // time balancing) and validation under the standard model, not only the row count.
+  const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
   const defaultParamKey = useMemo(
-    () => defaultModelParameterKey(eligibleParameters, data.rows ?? [], new Set(patientIds.map(String))),
-    [eligibleParameters, data.rows, patientIds],
+    () => defaultModelParameterKey(eligibleParameters, data.rows ?? [], new Set(patientIds.map(String)), key => {
+      const candidate = workspaceModelSpec(data, key, trajectoryFitSettings)
+      if (!candidate) return false
+      const [cohort] = workspaceModelEntities(data.rows ?? [], patientIds, candidate, DEFAULT_MIXED_MODEL_CONFIG, data.patientAttributes ?? {}, [], presetExclusionPolicy)
+      return cohort !== undefined && validateMixedModelRows(cohort.rows, DEFAULT_MIXED_MODEL_CONFIG).ok
+    }),
+    [eligibleParameters, data, patientIds, trajectoryFitSettings, presetExclusionPolicy],
   )
   const activeParamKey = selectedParamKey !== null && eligibleParameters.some(p => p.key === selectedParamKey)
     ? selectedParamKey
