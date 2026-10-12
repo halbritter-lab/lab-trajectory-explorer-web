@@ -6,7 +6,7 @@ import { slopeQualityLabel } from './labels/qualityLabels'
 import type { WorkspaceData, WorkspaceParameter } from './workspace-data'
 import { ChartExportActions } from './WorkspaceExports'
 import type { SparkDomain } from './WorkspaceSparkline'
-import { exclusionReasonLabel, sexLabel } from './workspace-labels'
+import { countLabel, exclusionReasonLabel, sexLabel } from './workspace-labels'
 import { useAppStore } from './state/store'
 import { mixedModelFitConfigHash, mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
 import type { MixedModelSpikeRow } from '../core/mixedModel/types'
@@ -263,7 +263,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}
     {pooledModelLine && <p className="wt-muted">Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.{axis === 'age' ? ' Age axis: mean baseline age of fitted patients plus elapsed model time.' : ''}</p>}
     {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groupModelLines.map(line => groupLabel(line.group!)).join(', ')}).{axis === 'age' ? ' Age axis: mean baseline age of each group plus elapsed model time.' : ''}</p>}
-    {excludedCount > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> Grey open circles: {excludedCount} measurements excluded from the fit ({excludedReasons.map(exclusionReasonLabel).join('; ')}). They stay visible but do not enter the slope.</p>}
+    {excludedCount > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> Grey open circles: {countLabel(excludedCount, 'measurement')} excluded from the fit ({excludedReasons.map(exclusionReasonLabel).join('; ')}). They stay visible but do not enter the slope.</p>}
     {shownOverlays.map(module => <p key={module.id} className="wt-muted wt-plot-key">{markerCount(module.id) > 0
       ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={module.presentation.color} /></svg>{module.presentation.markerLegend}{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${module.presentation.color}26`, borderColor: `${module.presentation.color}40` }} />{module.presentation.bandLegend}{cohortRows.length > 1 ? ', shown for the highlighted patient' : ''}.</>
       : module.presentation.emptyLegend}</p>)}

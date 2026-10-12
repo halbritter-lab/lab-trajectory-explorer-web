@@ -1,3 +1,4 @@
+import { countLabel } from './workspace-labels'
 import { useMemo } from 'react'
 import { useAppStore } from './state/store'
 import { clinicalEventsByPatient, cohortSeriesSpec } from '../core/cohort/specs'
@@ -103,7 +104,7 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
     useAppStore.getState().replaceDataset({
       rows: dataset.rows, events: dataset.events, rejectedEvents: dataset.rejectedEvents,
       patientAttributes: dataset.patientAttributes, fileName: file?.name ?? 'test_labs.xlsx (Demo)',
-      notice: { kind: 'info', text: `${dataset.rows.length} lab values, ${dataset.events.length} events and ${Object.keys(dataset.patientAttributes).length} attribute rows loaded. ${rejected} rows rejected; ${dataset.diagnostics.length - rejected} warnings.`, details: dataset.diagnostics },
+      notice: { kind: 'info', text: `${countLabel(dataset.rows.length, 'lab value')}, ${countLabel(dataset.events.length, 'event')} and ${countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row')} loaded. ${countLabel(rejected, 'row')} rejected; ${countLabel(dataset.diagnostics.length - rejected, 'warning')}.`, details: dataset.diagnostics },
     })
   } catch (error) {
     useAppStore.setState({ busy: false, notice: { kind: 'error', text: error instanceof Error ? error.message : String(error) } })

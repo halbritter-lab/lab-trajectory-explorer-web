@@ -13,6 +13,20 @@ interfaces are still evolving before 1.0.
 - The demo workbook now carries imported eGFR for 12 of 14 patients, so a
   cohort model can be fitted with the default settings. The added rows are
   CKD-EPI 2021 values from the same-day creatinine; no fixture values moved.
+- Muted text, eyebrows, table headers, the dataset bar and the research-use
+  footer now meet WCAG AA contrast (at least 4.5:1).
+- Counts use the singular where it applies ("1 row rejected", "1 patient"), and
+  table cells name exclusion reasons in words instead of internal codes.
+- An import with rejected rows is reported in the warning style, not as success.
+- Table cells without any measurement no longer show a "G5 n < 3" badge.
+
+### Changed
+
+- Trajectories has a "Show trends and slopes" switch next to the view choice;
+  the per-parameter choice stays under Display and analysis.
+- Analysis setting headings follow the page outline, long paragraphs are
+  limited to a readable line length, and the duplicate guide line below the
+  navigation was removed.
 
 ## [0.3.3] - 2026-10-11
 

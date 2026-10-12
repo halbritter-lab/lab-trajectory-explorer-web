@@ -8,7 +8,7 @@ import { WorkspaceExportActions } from './WorkspaceExports'
 import { DEFAULT_WORKSPACE_DISPLAY, OVERLAY_MODULES, WorkspacePlot, boundedPrefix, measurementText, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from './WorkspacePlot'
 import './trajectories-workspace.css'
 import { SPARK_SIZES, sparkWidth, WorkspaceSparkline, type SparkDomain, type SparkSize } from './WorkspaceSparkline'
-import { sexLabel } from './workspace-labels'
+import { countLabel, exclusionReasonLabel, sexLabel } from './workspace-labels'
 import { measurementFitStatus } from './measurement-fit-status'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { WorkspaceAnalysisSettings } from './WorkspaceAnalysisSettings'
@@ -75,7 +75,7 @@ function CellSummary({
   const endpoint = endpointBadge(cell.endpoints, cell.points.length)
   const markedReasons = cell.pointExclusionReasons.map(reasons => reasons.filter(reason => cell.fitModel !== 'none' || reason === 'censored-value'))
   const markedCount = markedReasons.filter(reasons => reasons.length > 0).length
-  const markedLabels = [...new Set(markedReasons.flat())].map(reason => reason === 'censored-value' ? 'censored values' : reason)
+  const markedLabels = [...new Set(markedReasons.flat())].map(exclusionReasonLabel)
 
   return <div className="wt-cell-summary">
     <span>{last ? `${formatWorkspaceDate(last.date)} · ${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'}` : 'No numeric measurements with a date'}</span>
@@ -383,13 +383,17 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   }, [draftKeys])
   const closePicker = () => { dialog.current?.close?.(); setDraftKeys(null); pickerButton.current?.focus() }
   const toggleFit = (key: string) => setFitKeys(previous => previous.includes(key) ? previous.filter(k => k !== key) : [...previous, key])
+  // One switch for every selected parameter; per-parameter choices stay under Display and analysis.
+  const parameterKeySet = new Set(parameters.map(parameter => parameter.key))
+  const allTrendsShown = parameters.length > 0 && parameters.every(parameter => fitKeys.includes(parameter.key))
+  const someTrendsShown = parameters.some(parameter => fitKeys.includes(parameter.key))
   if (!data.patients.length) return <section className="card"><h1>Patients and trajectories</h1><p>No data loaded yet. Import a CSV or Excel file, or load demo data under Data.</p></section>
     return <div className="wt-workspace" ref={workspaceElement}>
     <header className="page-heading"><p className="eyebrow">PATIENTS & TRAJECTORIES</p><h1>Explore trajectories</h1><p>{data.patients.length} {data.patients.length === 1 ? 'patient' : 'patients'} · {data.parameters.length} {data.parameters.length === 1 ? 'parameter' : 'parameters'} · {data.fileName ?? 'Loaded data'}</p></header>
     {parameterNotice && <p className="notice" role="status">{parameterNotice}</p>}
     {unavailable.length > 0 && <p className="notice" role="status">Unavailable selected parameters: {unavailable.join(', ')}. The derivation is disabled or currently produces no computable values. The selection is retained for recalculation; unavailable parameters are excluded from exports.</p>}
     <section className="card wt-controls" aria-label="Shared selection">
-      <div className="wt-toolbar"><button ref={pickerButton} onClick={() => { setParameterQuery(''); setDraftKeys([...keys]) }}>Choose parameters</button><span>{parameters.length} parameters selected</span><WorkspaceExportActions data={data} parameterKeys={keys} patientIds={patientIds} cohortRows={visible} fitConfigByParameterKey={fitConfigs} moduleSettingsByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).moduleSettings]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
+      <div className="wt-toolbar"><button ref={pickerButton} onClick={() => { setParameterQuery(''); setDraftKeys([...keys]) }}>Choose parameters</button><span>{countLabel(parameters.length, 'parameter')} selected</span><WorkspaceExportActions data={data} parameterKeys={keys} patientIds={patientIds} cohortRows={visible} fitConfigByParameterKey={fitConfigs} moduleSettingsByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).moduleSettings]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
         getCharts: () => [...(workspaceElement.current?.querySelectorAll<SVGSVGElement>('.wt-plot-card svg.wt-plot') ?? [])].map(svg => ({
           svg, title: `Patient ${current.patientId} · ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
         })) } : {})} /></div>
@@ -423,7 +427,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
       </div>
       <div className="wt-toolbar"><label><input type="checkbox" checked={selectedOnly} onChange={event => { setSelectedOnly(event.target.checked); setTablePage(0) }} /> Selected patients only</label><span>{selected.length} selected · {visible.length} in the shared scope</span><button onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])} disabled={!patientIds.length}>Select all matching patients</button><button onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div>
     </section>
-    <div className="wt-view-switch" role="group" aria-label="View"><button aria-pressed={mode === 'table'} onClick={() => {
+    <div className="wt-view-row"><div className="wt-view-switch" role="group" aria-label="View"><button aria-pressed={mode === 'table'} onClick={() => {
       if (mode !== 'table') {
         if (mode === 'detail') tablePosition.current.restore = true
         setMode('table')
@@ -437,6 +441,10 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
     }}>Overlay</button><button aria-pressed={mode === 'detail'} disabled={!current} onClick={() => {
       if (mode !== 'detail' && current) open(current.patientId)
     }}>Individual patient</button></div>
+      <label className="wt-trend-toggle"><input type="checkbox" checked={allTrendsShown} disabled={!parameters.length}
+        ref={element => { if (element) element.indeterminate = someTrendsShown && !allTrendsShown }}
+        onChange={() => setFitKeys(previous => allTrendsShown ? previous.filter(key => !parameterKeySet.has(key)) : [...new Set([...previous, ...parameterKeySet])])} />
+        Show trends and slopes</label></div>
     <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
     <details className="card wt-analysis-card"><summary>Display and analysis</summary>
       <WorkspaceAnalysisSettings parameters={parameters} sharedSettings={fitSettings} overrides={columnSettings}

@@ -20,8 +20,8 @@ test('uploads a workbook and exposes rejected events and attribute warnings', as
     mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }),
   })
-  await expect(page.locator('.workspace-dataset')).toContainText('1 patients')
-  await expect(page.getByText('2 lab values, 1 events and 2 attribute rows loaded. 1 rows rejected; 1 warnings.')).toBeVisible()
+  await expect(page.locator('.workspace-dataset')).toContainText('1 patient ·')
+  await expect(page.getByText('2 lab values, 1 event and 2 attribute rows loaded. 1 row rejected; 1 warning.')).toBeVisible()
   await page.getByText(/import diagnostics — show details/).click()
   await expect(page.getByText(/^events · 1 · rejected: Event date "invalid" is not a recognised date/)).toBeVisible()
   await expect(page.getByText(/^attributes · 999 · Warning: Patient 999 has no lab values/)).toBeVisible()
@@ -40,7 +40,7 @@ test('reads a German semicolon CSV as text and lists its import diagnostics', as
   await page.goto('/')
   await page.getByLabel('Import lab values').setInputFiles({ name: 'labs.csv', mimeType: 'text/csv', buffer: Buffer.from(csv, 'latin1') })
   await expect(page.locator('.workspace-dataset')).toContainText('2 patients')
-  await expect(page.getByText(/3 lab values.*1 rows rejected; 3 warnings\./)).toBeVisible()
+  await expect(page.getByText(/3 lab values.*1 row rejected; 3 warnings\./)).toBeVisible()
   await page.getByText(/import diagnostics — show details/).click()
   await expect(page.getByText('Sheet1 · 12 · rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.')).toBeVisible()
   await expect(page.getByText(/read day-first/)).toBeVisible()
