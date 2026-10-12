@@ -94,7 +94,7 @@ describe('useAppStore', () => {
     expect(state.rows).toHaveLength(1)
     expect(state.events).toEqual([])
     expect(state.rejectedEvents.map((item) => item.event.title)).toEqual(['Start'])
-    expect(state.notice?.text).toContain('1 rows rejected')
+    expect(state.notice?.text).toContain('1 row rejected')
     expect(state.notice?.details).toEqual([
       { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
     ])

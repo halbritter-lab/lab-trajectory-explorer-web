@@ -6,6 +6,7 @@ import { DataWorkspace } from './DataWorkspace'
 import { TrajectoriesWorkspace } from './TrajectoriesWorkspace'
 import { CohortModelsWorkspace } from './CohortModelsWorkspace'
 import { useWorkspaceData } from './workspace-data'
+import { countLabel } from './workspace-labels'
 import { useWorkspaceStorage } from './workspace-storage'
 import { getMethodLocation, type HelpWorkspace } from './methods/method-navigation'
 
@@ -90,10 +91,9 @@ export function WorkspaceApp() {
     </header>
     <div className="workspace-dataset" role="status">
       <span>{hasData ? data.fileName ?? 'Loaded dataset' : 'No data loaded yet'}</span>
-      {hasData && <span>{data.patients.length} patients · {data.parameters.length} parameters · {data.rawRows.length} source measurements</span>}
+      {hasData && <span>{countLabel(data.patients.length, 'patient')} · {countLabel(data.parameters.length, 'parameter')} · {countLabel(data.rawRows.length, 'source measurement')}</span>}
       <span>{storageStatus === 'saved' ? 'Saved on this device' : storageStatus === 'saving' ? 'Saving …' : storageStatus === 'error' ? 'Check local storage in Data' : 'This session only'}</span>
     </div>
-    <p className="workspace-guide">Data: prepare and check inputs · Trajectories: compare individual courses · Cohort models: estimate population associations</p>
     <main id="workspace-main" className="workspace-main" ref={mainRef} tabIndex={-1}>
       <section hidden={page !== 'Data'} aria-label="Data workspace">
         <DataWorkspace onBrowse={id => {

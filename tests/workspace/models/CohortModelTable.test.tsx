@@ -6,6 +6,7 @@ import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula } from '../../../src/core
 import { buildMixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
 import { hashMixedModelInput } from '../../../src/core/mixedModel/validation'
 import { useAppStore } from '../../../src/workspace/state/store'
+import { formatWorkspaceNumber } from '../../../src/workspace/WorkspacePlot'
 import type { RunMixedModelWorkerJobOptions } from '../../../src/core/mixedModel/browserClient'
 import type { CohortModelEntityRows } from '../../../src/core/mixedModel/cohortModelEntity'
 import type {
@@ -159,8 +160,26 @@ describe('CohortModelTable', () => {
     await waitFor(() => expect(useAppStore.getState().cohortModelResults).not.toBeNull())
     expect(runJob).toHaveBeenCalledTimes(2) // cohort + A, never B
     for (const call of runJob.mock.calls) expect(call[0].rows).not.toBe(groupBRows)
-    expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('-2.00 ml/min/1.73m2/yr')
-    expect(within(rowByEntity('group:A')).getByTestId('cohort-model-status')).toHaveTextContent('-2.00 ml/min/1.73m2/yr')
+    expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('-2 ml/min/1.73m2/yr')
+    expect(within(rowByEntity('group:A')).getByTestId('cohort-model-status')).toHaveTextContent('-2 ml/min/1.73m2/yr')
+  })
+
+  it('rounds slope and intercept like the preview legend', async () => {
+    // -9.985 is stored slightly below -9.985 in binary: toFixed(2) gave -9.98
+    // while the legend's formatter gives -9.99. Both now use the same formatter.
+    renderTable({ runJob: vi.fn(async () => ({ ...success(-9.985), fixedEffects: { intercept: 1234.5, timeSinceBaseline: -9.985 } })) })
+    await userEvent.click(screen.getByRole('button', { name: 'Fit selected' }))
+    await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('/yr'))
+    const cells = within(rowByEntity('cohort')).getAllByRole('cell')
+    expect(cells[4]).toHaveTextContent(`${formatWorkspaceNumber(-9.985)} ml/min/1.73m2/yr`)
+    expect(cells[4]).toHaveTextContent('-9.99 ml/min/1.73m2/yr')
+    expect(cells[5]).toHaveTextContent(`${formatWorkspaceNumber(1234.5)} ml/min/1.73m2`)
+  })
+
+  it('keeps the subset fit action secondary under a section heading', () => {
+    renderTable()
+    expect(screen.getByRole('button', { name: 'Fit selected' })).not.toHaveClass('primary')
+    expect(screen.getByRole('heading', { level: 2, name: 'Model results' })).toBeInTheDocument()
   })
 
   it('shows simple progress while selected units are fitting sequentially', async () => {
@@ -220,7 +239,7 @@ describe('CohortModelTable', () => {
 
     await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
     expect(screen.getByText('Patient intercept SD')).toBeInTheDocument()
-    expect(screen.getByText('4.20')).toBeInTheDocument()
+    expect(screen.getByText('4.2')).toBeInTheDocument()
   })
 
   it('renders long technical details in dedicated wrapping cells', async () => {

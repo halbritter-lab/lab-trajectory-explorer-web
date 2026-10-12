@@ -43,7 +43,7 @@ export function ModelProjectionPanel({snapshot,onApply,onDirtyChange,showWarning
     return id
   }
   return <section aria-label="Trend projection" className="model-projection-panel">
-    <h4>Trend projection — {snapshot.sourceResponse.outcome} ({snapshot.sourceResponse.unit || 'unspecified unit'})</h4>
+    <h3>Trend projection — {snapshot.sourceResponse.outcome} ({snapshot.sourceResponse.unit || 'unspecified unit'})</h3>
     <p>Projected boundary intersections conditional on continuation of the fitted trend. Anchor: fitted model curve, with time in years since each patient's first retained measurement. This fixed-effect profile is not a patient-specific prediction or confirmed clinical staging.</p>
     <p>Time uncertainty is not estimated.</p>
     {showWarnings && snapshot.warnings.map((warning,index) => <p role="status" key={index}>{warning}</p>)}

@@ -14,7 +14,7 @@ function collectBrowserProblems(page: Page): string[] {
 async function loadDemo(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: 'Load demo data' }).click()
-  await expect(page.getByText(/216 lab values/)).toBeVisible()
+  await expect(page.getByText(/282 lab values/)).toBeVisible()
 }
 
 async function uploadCsv(page: Page, name: string, csv: string): Promise<void> {
@@ -226,7 +226,7 @@ test('reports a patient whose ages fit no single birth date', async ({ page }) =
     '1,2022-07-20,Kreatinin,mg/dl,1.2,w,46',
     '1,2023-03-02,Kreatinin,mg/dl,1.4,w,64',
   ].join('\n'))
-  await expect(page.getByText('1 conflicts', { exact: false })).toBeVisible()
+  await expect(page.getByText('1 conflict', { exact: false })).toBeVisible()
   await page.getByText('Conflicts and their resolution', { exact: true }).click()
   await expect(page.getByText(/no single birth date/i)).toBeVisible()
 })

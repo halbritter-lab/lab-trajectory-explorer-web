@@ -92,8 +92,9 @@ in a non-default preset, the no-fit path, or quarterly aggregation.
   and use the units you expect.
 - [ ] After fitting a grouped model, the trajectory overlay grouped by the same
   attribute shows one reference line per fitted group.
-- [ ] With an ineligible cohort or configuration, both visible Fit model actions
-  are disabled with understandable adjacent explanations. Eligible units in a
+- [ ] With an ineligible cohort or configuration, the Fit model action is
+  disabled with an understandable adjacent explanation, and the preview says
+  that fitting is unavailable. Eligible units in a
   partially eligible grouped request can still be fitted; skipped units are explained.
 
 ### Exports

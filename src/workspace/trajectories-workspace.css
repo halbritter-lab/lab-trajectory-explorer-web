@@ -79,17 +79,17 @@
 .wt-advanced-settings > summary { cursor: pointer; font-weight: 600; color: #176c68; }
 .wt-pipeline-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 28px 32px; margin-top: 20px; max-width: 960px; }
 .wt-pipeline-group { display: grid; gap: 12px; align-content: start; min-width: 0; }
-.wt-pipeline-group h4 { margin: 0 0 2px; font-size: 15px; font-weight: 600; color: #354f59; }
+.wt-pipeline-group h2 { margin: 0 0 2px; font-size: 15px; font-weight: 600; color: #354f59; }
 .wt-pipeline-group p { margin: 0; font-size: 13px; }
 .wt-pipeline-group label:has(input[type=checkbox]) { display: flex; align-items: flex-start; gap: 8px; line-height: 1.5; }
 .wt-pipeline-group input[type=checkbox] { flex: 0 0 auto; margin-top: 4px; }
 .wt-pipeline-group input[type=number]:disabled { background: #f1f5f7; color: #526774; cursor: not-allowed; }
 .wt-trend-visibility { border-top: 1px solid #dce5e9; padding-top: 20px; }
-.wt-trend-visibility h3 { margin: 0 0 6px; font-size: 15px; }
+.wt-trend-visibility h2 { margin: 0 0 6px; font-size: 15px; }
 .wt-trend-visibility p { margin: 0 0 12px; font-size: 13px; }
 .wt-setting-origin { font-size: 12px; color: #176c68; font-weight: 600; white-space: nowrap; }
 .wt-th-content { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.wt-sort-header-button { background: transparent; border: 1px solid transparent; padding: 2px 6px; font-size: 11px; border-radius: 4px; color: #647a7e; cursor: pointer; line-height: 1.2; }
+.wt-sort-header-button { background: transparent; border: 1px solid transparent; padding: 2px 6px; font-size: 11px; border-radius: 4px; color: var(--muted); cursor: pointer; line-height: 1.2; }
 .wt-sort-header-button:hover, .wt-sort-header-button.active { border-color: #cbd8d6; background: #f1f7f5; color: #176c68; font-weight: 600; }
 @media (max-width: 700px) { .wt-analysis-selectors, .wt-pipeline-grid { grid-template-columns: minmax(0, 1fr); } }
 @media (max-width: 600px) { .wt-plot-card { padding: 12px; } .wt-card-heading { gap: 8px; } .wt-workspace { gap: 14px; } }
@@ -101,3 +101,6 @@
 .wt-cell-summary .wt-quality-details summary { padding: 0; font-size: 11px; }
 .wt-cell-summary .wt-quality-details p { margin: 4px 0; line-height: 1.4; }
 .wt-quality-note { margin: 4px 0; line-height: 1.45; }
+.wt-view-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
+.wt-trend-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; cursor: pointer; }
+.wt-trend-toggle input { width: 18px; height: 18px; }

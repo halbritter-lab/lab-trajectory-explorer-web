@@ -13,7 +13,7 @@ import { describeAttributeRejection, normalizePatientAttributes, validatePatient
 import { readWorkbook } from '../io/readWorkbook'
 import { attributeDiagnostics, eventDiagnostics, type ImportDiagnostic } from '../io/loadDataset'
 import { importWorkspaceFile, useWorkspaceData } from './workspace-data'
-import { sexLabel } from './workspace-labels'
+import { countLabel, sexLabel } from './workspace-labels'
 import './data-workspace.css'
 import { WorkspaceStorageControls } from './WorkspaceStorageControls'
 import { WorkspaceEventTables } from './WorkspaceEventTables'
@@ -81,13 +81,13 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         if (!valid.length) throw new Error(`No usable events. ${[...new Set(rejected.map(describeEventRejection))].join(' ')}`)
         store.setEvents(valid)
         useAppStore.setState({ rejectedEvents: rejected })
-        store.setNotice({ kind: 'info', text: `${valid.length} events imported; ${rejected.length} rows rejected.`, details: eventDiagnostics(file.name, normalized.dateReads, validation, normalized.notes) })
+        store.setNotice({ kind: 'info', text: `${countLabel(valid.length, 'event')} imported; ${countLabel(rejected.length, 'row')} rejected.`, details: eventDiagnostics(file.name, normalized.dateReads, validation, normalized.notes) })
       } else {
         const validation = validatePatientAttributes(normalizePatientAttributes(raw), originalRows)
         const { byPatient, valid, rejected } = validation
         if (!valid.length) throw new Error(`No usable attributes. ${[...new Set(rejected.map(describeAttributeRejection))].join(' ')}`)
         store.setPatientAttributes(byPatient)
-        store.setNotice({ kind: 'info', text: `${valid.length} attribute rows imported; ${rejected.length} rows rejected.`, details: attributeDiagnostics(file.name, validation) })
+        store.setNotice({ kind: 'info', text: `${countLabel(valid.length, 'attribute row')} imported; ${countLabel(rejected.length, 'row')} rejected.`, details: attributeDiagnostics(file.name, validation) })
       }
     } catch (error) {
       // The listed rejections belonged to the previous file; the kept events have none.
@@ -113,13 +113,13 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         <div className="data-download-row" role="group" aria-label="Demo files"><span className="data-download-label" aria-hidden="true">Example files</span>{([['test_labs.xlsx', 'Demo workbook'], ['test_events.csv', 'Demo events'], ['test_attributes.csv', 'Demo attributes']] as const).map(([file, label]) => <a key={file} className="data-download" download={file} href={`${import.meta.env.BASE_URL}${file}`}><span aria-hidden="true">↓</span>{label}</a>)}<span className="muted">Synthetic example files in the expected format.</span></div>
       </details>
       {busy && <p role="status">Checking file …</p>}
-      {notice && <div className={`notice ${notice.kind === 'error' ? 'amber' : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'}><p>{notice.text}</p>{!!notice.details?.length && <ImportDiagnostics details={notice.details} />}</div>}
+      {notice && <div className={`notice ${notice.kind === 'error' || notice.details?.some(d => d.severity === 'rejected') ? 'amber' : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'}><p>{notice.text}</p>{!!notice.details?.length && <ImportDiagnostics details={notice.details} />}</div>}
       {data.rawRows.length > 0 && <><p><strong>{data.fileName ?? 'Dataset'}</strong></p><div className="data-metrics"><span><strong>{data.patients.length}</strong> patients</span><span><strong>{data.rawRows.length}</strong> imported values</span><span><strong>{data.parameters.filter(p => !p.derived).length}</strong> Parameter–unit combinations</span><span><strong>{data.events.length}</strong> events</span></div>
-        <p className="muted">{data.rawRows.filter(r => !r.labDatum).length} values without a date · {data.rawRows.filter(r => r.wertNum === null).length} values without a numeric measurement · {data.rawRows.filter(r => !r.bezeichnung).length} values without a parameter name</p>
+        <p className="muted">{countLabel(data.rawRows.filter(r => !r.labDatum).length, 'value')} without a date · {countLabel(data.rawRows.filter(r => r.wertNum === null).length, 'value')} without a numeric measurement · {countLabel(data.rawRows.filter(r => !r.bezeichnung).length, 'value')} without a parameter name</p>
         <div className="data-import-grid">{(['events', 'attributes'] as const).map(kind => <label className="field" key={kind}>{kind === 'events' ? 'Replace events' : 'Replace attributes'}<input type="file" accept=".csv,.xlsx,.xls" disabled={busy} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void supplementary(f, kind) }} /></label>)}</div><p className="muted">Supplementary files replace the corresponding table. Attributes: one row per patientId; additional columns can be freely named.</p><WorkspaceEventTables /></>}
       <WorkspaceStorageControls hasData={data.rawRows.length > 0} />
     </section>
-    {data.rawRows.length > 0 && <><section className="card"><h2>2 · Demographics and data quality</h2><p>{missingSex} patients without resolved sex · {missingAge} without age at the first lab date · {resolution.conflicts.length} conflicts</p>
+    {data.rawRows.length > 0 && <><section className="card"><h2>2 · Demographics and data quality</h2><p>{countLabel(missingSex, 'patient')} without resolved sex · {missingAge} without age at the first lab date · {countLabel(resolution.conflicts.length, 'conflict')}</p>
       {implausibleCreatinine > 0 && <p className="notice amber" role="status">{implausibleCreatinine} serum creatinine {implausibleCreatinine === 1 ? 'value' : 'values'} of zero or less: not plausible, so not used for AKI detection or eGFR.</p>}
       {!!resolution.conflicts.length && <details><summary>Conflicts and their resolution</summary><ul>{resolution.conflicts.map((c, i) => <li key={i}>{describeConflict(c)}</li>)}</ul></details>}
       <details><summary>Review and edit patients ({data.patients.length})</summary><div className="table-scroll"><table><thead><tr><th>Patient</th><th>Sex</th><th>Age at first measurement</th><th>Quality</th><th>Action</th></tr></thead><tbody>{data.patients.map(p => <tr key={JSON.stringify(p.id)}><th><button onClick={() => onBrowse(p.id)}>{p.label}</button></th><td>{sexLabel(p.attributes.sex)}</td><td>{p.baselineAge ?? 'Missing'}</td><td>{resolution.conflicts.filter(c => c.patientId === p.id).length ? 'Conflict' : !p.attributes.sex || p.baselineAge === null ? 'Incomplete' : 'Complete'}{data.manualDemographics[patientIdKey(p.id)] && Object.keys(data.manualDemographics[patientIdKey(p.id)]).length > 0 ? ' · manual' : ''}</td><td><button aria-label={`Edit demographics: ${p.label}`} onClick={() => edit(p.id)}>Edit</button></td></tr>)}</tbody></table></div></details>

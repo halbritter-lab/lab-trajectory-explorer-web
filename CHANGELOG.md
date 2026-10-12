@@ -5,6 +5,38 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.4] - 2026-10-12
+
+### Fixed
+
+- Cohort models no longer open on an unfittable parameter. The preselection
+  takes the first parameter, eGFR first, that passes the model's preparation and
+  validation with the standard model, and is re-evaluated when the data change
+  until a parameter is chosen by hand.
+- The demo workbook now carries imported eGFR for 11 of 14 patients, so a
+  cohort model can be fitted with the default settings. The added rows are
+  CKD-EPI 2021 values from the same-day creatinine; no fixture values moved.
+- Muted text, eyebrows, table headers, the dataset bar and the research-use
+  footer now meet WCAG AA contrast (at least 4.5:1).
+- Counts use the singular where it applies ("1 row rejected", "1 patient"), and
+  table cells name exclusion reasons in words instead of internal codes.
+- An import with rejected rows is reported in the warning style, not as success.
+- Table cells without any measurement no longer show a "G5 n < 3" badge.
+
+### Changed
+
+- Trajectories has a "Show trends and slopes" switch next to the view choice;
+  the per-parameter choice stays under Display and analysis.
+- Analysis setting headings follow the page outline, long paragraphs are
+  limited to a readable line length, and the duplicate guide line below the
+  navigation was removed.
+- Cohort models uses the workspace colours and type instead of a separate dark
+  palette with emoji presets. The studio holds the only Fit model action; after
+  a current fit it reads "Refit model". The preview card shows a guidance line.
+- Cohort result tables round slope and intercept like the chart legend, so the
+  same estimate no longer shows as −9.98 in one place and −9.99 in the other.
+  Display only; exported values are unchanged.
+
 ## [0.3.3] - 2026-10-11
 
 ### Changed

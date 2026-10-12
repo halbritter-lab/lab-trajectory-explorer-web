@@ -110,7 +110,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
         <summary>Advanced pipeline settings</summary>
         <div className="wt-pipeline-grid">
           <div className="wt-pipeline-group">
-            <h4>Trend model</h4>
+            <h2>Trend model</h2>
             <label>Model
               <select
                 aria-label="Fit model"
@@ -138,7 +138,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             </label>
           </div>
           <div className="wt-pipeline-group">
-            <h4>Clinical events & censoring</h4>
+            <h2>Clinical events & censoring</h2>
             <label>
               <input
                 type="checkbox"
@@ -187,7 +187,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             </label>
           </div>
           <div className="wt-pipeline-group">
-            <h4>AKI exclusions (KDIGO)</h4>
+            <h2>AKI exclusions (KDIGO)</h2>
             <label>
               <input
                 type="checkbox"
@@ -213,7 +213,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             </label>
           </div>
           <div className="wt-pipeline-group">
-            <h4>eGFR endpoints & thresholds</h4>
+            <h2>eGFR endpoints & thresholds</h2>
             <p className="wt-muted">Applies only to parameters with eGFR units.</p>
             <p className="wt-muted">Endpoints and prediction use exact dated eGFR measurements before the first transplant or chronic dialysis start, excluding complete dated acute dialysis intervals. Later values after acute dialysis remain eligible. Values marked &lt; or &gt; are excluded. Display-fit AKI exclusions and aggregation do not apply. Kidney failure reached is reported separately from observed G5.</p>
             <label><input type="checkbox" aria-label="Observed CKD G4" checked={fitSettings.endpoints.observedCkdG4 ?? false} onChange={e => updateSettings({ endpoints: { ...fitSettings.endpoints, observedCkdG4: e.target.checked } })} />Observed CKD G4</label>
@@ -262,13 +262,13 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             />
           </div>
           {columnSettingModules().filter(module => !ENDPOINT_GROUP_MODULES.has(module.id)).map(module => <div key={module.id} className="wt-pipeline-group">
-            <h4>{module.label}</h4>
+            <h2>{module.label}</h2>
             <ModuleSettingInputs modules={[module]} settings={fitSettings.moduleSettings} onChange={moduleSettings => updateSettings({ moduleSettings })} />
           </div>)}
         </div>
       </details>
       <section className="wt-trend-visibility" aria-label="Trend visibility">
-        <h3>Show trend and statistics for</h3>
+        <h2>Show trends and slopes for</h2>
         <p className="wt-muted">Display only; the analysis settings above apply even when a trend is hidden.</p>
         <div className="wt-fit-options">
           {parameters.map(parameter => {

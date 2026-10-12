@@ -13,3 +13,8 @@ export function exclusionReasonLabel(reason: string): string {
   if (reason === CENSORED_VALUE_REASON) return 'censored value (limit, not exact)'
   return moduleExclusionReasonLabel(reason)
 }
+
+/** "1 row", "3 rows": English count with the matching noun form. */
+export function countLabel(count: number, singular: string, plural = `${singular}s`): string {
+  return `${count} ${count === 1 ? singular : plural}`
+}

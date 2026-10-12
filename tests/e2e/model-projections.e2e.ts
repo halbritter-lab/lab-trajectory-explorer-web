@@ -40,7 +40,7 @@ test('projects a custom nonrenal target and downloads the applied settings', asy
   const dialog = page.getByRole('region',{name:'Cohort mixed model'})
   await expect(page.getByLabel('Readable formula')).toContainText('Study marker')
   await dialog.getByRole('button',{name:'Fit selected',exact:true}).click()
-  await expect(dialog.getByTestId('cohort-model-row')).toContainText('5.00')
+  await expect(dialog.getByTestId('cohort-model-row')).toContainText('5 U/L/yr')
   // Remaining interactions use the projection editor's accessible controls.
   await dialog.getByRole('button',{name:'Details',exact:true}).click()
   await expect(dialog.getByRole('button',{name:/G4/})).toHaveCount(0)
@@ -99,7 +99,7 @@ test('uses renal presets and the selected fitted genotype profile in exports', a
   await studio.getByLabel('genotype reference').selectOption('A')
   const dialog = page.getByRole('region',{name:'Cohort mixed model'})
   await dialog.getByRole('button',{name:'Fit selected',exact:true}).click()
-  await expect(dialog.getByTestId('cohort-model-row')).toContainText('-3.00')
+  await expect(dialog.getByTestId('cohort-model-row')).toContainText('-3 ml/min/1.73m2/yr')
   await dialog.getByRole('button',{name:'Details',exact:true}).click()
   await expect(dialog.getByLabel('Target 1 threshold')).toHaveValue('30')
   await expect(dialog.getByLabel('Target 2 threshold')).toHaveValue('15')

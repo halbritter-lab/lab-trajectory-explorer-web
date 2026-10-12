@@ -5,6 +5,14 @@ import { readWorkbook } from '../../src/io/readWorkbook'
 import { loadLabRows } from '../../src/core/parse/loader'
 import { resolveDemographics } from '../../src/core/demographics/resolve'
 import { loadDatasetFromWorkbook } from '../../src/io/loadDataset'
+import { MIN_QUALIFYING_PATIENTS } from '../../src/core/mixedModel/validation'
+import { defaultModelParameterKey, modelablePatientCount } from '../../src/workspace/cohort-model-parameter'
+import { validateMixedModelRows } from '../../src/core/mixedModel/validation'
+import { DEFAULT_MIXED_MODEL_CONFIG } from '../../src/core/mixedModel/config'
+import { workspaceModelSpec, type WorkspaceData } from '../../src/workspace/workspace-data'
+import { workspaceModelEntities } from '../../src/workspace/workspace-model-results'
+import { defaultFitSettings } from '../../src/workspace/workspace-analysis'
+import { computeAnalysisResult, defaultAnalysisSettings } from '../../src/core/analysis/registry'
 
 describe('shipped demo workbook', () => {
   it('carries demographics that resolve without conflict', () => {
@@ -29,5 +37,33 @@ describe('shipped demo workbook', () => {
     expect(dataset.rows.length).toBeGreaterThan(100)
     expect(dataset.events.length).toBe(8)
     expect(Object.keys(dataset.patientAttributes).length).toBe(8)
+  })
+
+  it('preselects an imported eGFR that the cohort model can fit with the default settings', () => {
+    const file = resolve(__dirname, '../../public/test_labs.xlsx')
+    const buf = readFileSync(file)
+    const { rows } = loadDatasetFromWorkbook(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength))
+    const parameters = [...new Map(rows.filter(r => r.bezeichnung !== null).map(r => {
+      const key = JSON.stringify([r.bezeichnung, r.einheit])
+      return [key, { key, bezeichnung: r.bezeichnung!, einheit: r.einheit }]
+    })).values()]
+    const patients = new Set(rows.map(r => String(r.patientId)))
+    const chosen = parameters.find(p => p.key === defaultModelParameterKey(parameters, rows, patients))!
+    expect(chosen.bezeichnung).toBe('eGFR')
+    expect(modelablePatientCount(rows, chosen, patients)).toBeGreaterThanOrEqual(MIN_QUALIFYING_PATIENTS)
+
+    // The real preparation and validation accept it, with the default and with
+    // the CKD progression settings (quarterly medians).
+    const { events, patientAttributes } = loadDatasetFromWorkbook(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength))
+    const patientIds = [...new Set(rows.map(r => r.patientId))]
+    const analysis = computeAnalysisResult({ rows, events, patientAttributes, manualDemographics: {}, settings: defaultAnalysisSettings() })
+    const data = { rawRows: rows, rows: analysis.rows, analysis, fileName: 'test_labs.xlsx', events, patientAttributes, manualDemographics: {},
+      parameters: parameters.map(p => ({ ...p, label: p.bezeichnung, derived: false })),
+      patients: patientIds.map(id => ({ id, label: String(id), attributes: {}, baselineAge: null })) } as unknown as WorkspaceData
+    for (const preset of ['general_exploration', 'ckd_progression']) {
+      const spec = workspaceModelSpec(data, chosen.key, { shared: defaultFitSettings(preset), columns: {} })!
+      const [cohort] = workspaceModelEntities(analysis.rows, patientIds, spec, DEFAULT_MIXED_MODEL_CONFIG, patientAttributes, [])
+      expect(validateMixedModelRows(cohort.rows, DEFAULT_MIXED_MODEL_CONFIG), preset).toMatchObject({ ok: true })
+    }
   })
 })

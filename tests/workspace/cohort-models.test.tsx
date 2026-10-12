@@ -1,4 +1,4 @@
-import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CohortModelsWorkspace } from '../../src/workspace/CohortModelsWorkspace'
 import { useAppStore } from '../../src/workspace/state/store'
@@ -118,22 +118,46 @@ describe('CohortModelsWorkspace', () => {
     return render(<CohortModelsWorkspace data={data} onBrowseTrajectories={vi.fn()} onBrowseData={vi.fn()} />)
   }
   function fitButtons() { return screen.getAllByRole('button', { name: /Fit model/i }) }
+  function preview() { return document.querySelector<HTMLElement>('.cm-plot-card')! }
 
-  it('explains the five-patient limit beside both disabled actions without submitting', async () => {
+  it('explains the five-patient limit once, beside the single disabled action, without submitting', async () => {
     const run = vi.spyOn(useAppStore.getState(), 'runCohortModels')
     studio(qualifyingData(5))
     await screen.findByTestId('cohort-model-table')
-    expect(fitButtons()).toHaveLength(2)
-    for (const button of fitButtons()) {
-      expect(button).toBeDisabled()
-      expect(button).toHaveAccessibleDescription(/No model can be fitted.*at least 10 patients/)
-      fireEvent.click(button)
-    }
+    expect(fitButtons()).toHaveLength(1)
+    const [button] = fitButtons()
+    expect(button).toBeDisabled()
+    expect(button).toHaveAccessibleDescription(/No model can be fitted.*at least 10 patients/)
+    fireEvent.click(button)
     expect(screen.getByRole('status', { name: '' })).toHaveTextContent('at least 10 patients')
-    expect(screen.queryByText(/Run model to estimate slope/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Click 'Fit model'/)).not.toBeInTheDocument()
+    // The reason is printed once; the preview only points to it.
+    expect(screen.getAllByText(/at least 10 patients/)).toHaveLength(1)
+    expect(within(preview()).queryByRole('button', { name: /Fit/ })).not.toBeInTheDocument()
+    expect(within(preview()).getByText('Model fitting is unavailable; see the reason above.')).toBeInTheDocument()
+    expect(screen.queryByText(/Fit the model above/)).not.toBeInTheDocument()
     expect(run).not.toHaveBeenCalled()
     run.mockRestore()
+  })
+
+  it('offers one primary fit action and points the preview to it', () => {
+    studio(qualifyingData())
+    const [button] = fitButtons()
+    expect(fitButtons()).toHaveLength(1)
+    expect(button).toHaveAccessibleName('Fit model')
+    expect(button).toHaveClass('primary')
+    expect(within(preview()).queryByRole('button', { name: /Fit/ })).not.toBeInTheDocument()
+    expect(within(preview()).getByText('Fit the model above to draw the population line.')).toBeInTheDocument()
+  })
+
+  it('does not repeat "computed" for a computed parameter whose label already says so', () => {
+    const data = qualifyingData()
+    data.parameters = [{ ...data.parameters[0], label: 'eGFR (CKD-EPI 2021, computed)', derived: true }]
+    studio(data)
+    expect(screen.getByRole('option', { name: /eGFR/ }).textContent).toBe('eGFR (CKD-EPI 2021, computed)')
+    cleanup()
+    data.parameters = [{ ...data.parameters[0], label: 'eGFR derived' }]
+    studio(data)
+    expect(screen.getByRole('option', { name: /eGFR/ }).textContent).toBe('eGFR derived (computed)')
   })
 
   it('explains zero prepared rows', () => {
@@ -145,7 +169,7 @@ describe('CohortModelsWorkspace', () => {
   it('updates availability immediately when random slopes become identifiable', () => {
     studio(qualifyingData(10, 2))
     expect(fitButtons()[0]).toHaveAccessibleDescription(/3 distinct measurement times/)
-    expect(fitButtons()[1]).toBeDisabled()
+    expect(fitButtons()[0]).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
     fireEvent.click(screen.getByRole('radio', { name: 'Intercept only' }))
     fitButtons().forEach(button => expect(button).toBeEnabled())
@@ -163,10 +187,10 @@ describe('CohortModelsWorkspace', () => {
     fitButtons().forEach(button => expect(button).toBeEnabled())
   })
 
-  it('keeps both actions visible and explains Trajectories No fit', () => {
+  it('keeps the action visible and explains Trajectories No fit', () => {
     studio(qualifyingData())
     act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: { ...defaultFitSettings(), fitModel: 'none' }, columns: {} }))
-    expect(fitButtons()).toHaveLength(2)
+    expect(fitButtons()).toHaveLength(1)
     fitButtons().forEach(button => {
       expect(button).toBeDisabled()
       expect(button).toHaveAccessibleDescription(/disabled.*Trajectories/)
@@ -198,7 +222,7 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/Whole cohort:.*A:.*B:/)
   })
 
-  it('hides the preview action for a current fit and reveals disabled actions after changing outcome', () => {
+  it('turns the action into a secondary refit for a current fit and back after changing outcome', () => {
     const data = qualifyingData()
     data.rows = [...data.rows, ...qualifyingData(5).rows.map(row => ({ ...row, bezeichnung: 'Kreatinin', einheit: 'mg/dl' }))]
     data.parameters = dataset.parameters
@@ -213,20 +237,25 @@ describe('CohortModelsWorkspace', () => {
     } as any } } })
     studio(data)
     expect(fitButtons()).toHaveLength(1)
+    expect(fitButtons()[0]).toHaveAccessibleName('Refit model')
+    expect(fitButtons()[0]).not.toHaveClass('primary')
+    expect(fitButtons()[0]).toBeEnabled()
     expect(screen.getByText(/Whole cohort fitted trajectory/)).toBeInTheDocument()
+    expect(within(preview()).queryByText(/Fit the model above/)).not.toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Model parameter'), { target: { value: 'Kreatinin||mg/dl' } })
-    expect(fitButtons()).toHaveLength(2)
-    fitButtons().forEach(button => {
-      expect(button).toBeDisabled()
-      expect(button).toHaveAccessibleDescription(/at least 10 patients/)
-    })
+    expect(fitButtons()).toHaveLength(1)
+    expect(fitButtons()[0]).toHaveAccessibleName('Fit model')
+    expect(fitButtons()[0]).toHaveClass('primary')
+    expect(fitButtons()[0]).toBeDisabled()
+    expect(fitButtons()[0]).toHaveAccessibleDescription(/at least 10 patients/)
   })
 
-  it('shows progress guidance while both actions are disabled during fitting', () => {
+  it('shows progress guidance while the action is disabled during fitting', () => {
     useAppStore.setState({ cohortModelRunning: true, cohortModelProgress: { completed: 0, total: 2, key: 'cohort' } })
     studio(qualifyingData())
     expect(screen.getByRole('button', { name: /Fitting 1 of 2/ })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Fitting model …' })).toBeDisabled()
+    expect(screen.getAllByRole('button', { name: /Fitting/ })).toHaveLength(1)
+    expect(within(preview()).getAllByText('Fitting model …').length).toBeGreaterThan(0)
     expect(screen.getByRole('status')).toHaveTextContent('Fitting 1 of 2')
     expect(screen.queryByText(/Click 'Fit model'/)).not.toBeInTheDocument()
   })
@@ -274,7 +303,7 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getByLabelText('Readable formula')).toHaveTextContent(/Time \(years\) \+ \(1 \+ Time \(years\) \| Patient\)/)
 
     // Trajectory plot preview is rendered
-    expect(screen.getByRole('heading', { name: 'Model Trajectory Preview' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 2, name: 'Model trajectory preview' })).toBeInTheDocument()
     expect(screen.getByLabelText(/Model trajectory preview for eGFR/i)).toBeInTheDocument()
 
     // Lazy CohortModelTable is rendered

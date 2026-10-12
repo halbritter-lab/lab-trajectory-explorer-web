@@ -27,7 +27,7 @@ export type MixedModelValidationResult =
     }
 
 const DATA_VALIDATION_STAGE = 'data-validation' as const
-const MIN_QUALIFYING_PATIENTS = 10
+export const MIN_QUALIFYING_PATIENTS = 10
 
 export function validateMixedModelRows(
   rows: readonly MixedModelSpikeRow[],

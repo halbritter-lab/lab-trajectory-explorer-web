@@ -26,8 +26,9 @@ import { projectionSettingsKey } from '../state/store'
 import { buildProjectionSnapshot, type ProjectionResponse, type ProjectionSnapshot } from '../../core/projection/projectionSnapshot'
 import { createDefaultProjectionSettings } from '../../core/analysis/projection'
 import { ModelProjectionPanel } from './ModelProjectionPanel'
+import { formatWorkspaceNumber } from '../WorkspacePlot'
 
-const FALLBACK_COLOR = '#475569'
+const FALLBACK_COLOR = '#55686e'
 
 export interface CohortModelTableProps {
   /** Entities to list/fit; `entities[0]` is the pooled cohort, the rest are
@@ -236,6 +237,7 @@ export function CohortModelTable({
 
   return (
     <section className="mixed-model-panel cohort-model-panel" aria-label="Cohort mixed model">
+      <h2 className="cohort-model-panel-title">Model results</h2>
       <div className="mixed-model-panel-header">
         <p className="mixed-model-message">One mixed model per selected unit, fit sequentially. Failures are isolated per unit.</p>
         <button type="button" disabled={exportable.length === 0 || running || hasDirtyEditor || initializing} onClick={exportModels}>Export models (xlsx)</button>
@@ -368,7 +370,7 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
     <>
     {factors.length > 0 && <p>Reference intercept and slope: {factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : `${factor.key} at its included-patient mean`).join('; ')}. Associations are conditional on this model and population.</p>}
     {result.warnings.map((warning, index) => <p role="status" key={index}>{warning}</p>)}
-    <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{coefficient.estimate.toFixed(3)}</td><td>{formatOptionalInterval(coefficient.confidenceInterval)}</td></tr>)}</tbody></table>
+    <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{coefficient.estimate.toFixed(3)}</td><td>{formatFixedInterval(coefficient.confidenceInterval)}</td></tr>)}</tbody></table>
     <dl className="cohort-model-details">
       <div className="cohort-model-detail-item">
         <dt>Slope 95% CI</dt>
@@ -411,20 +413,27 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
   )
 }
 
+// Slope and intercept use the workspace display rounding, so the table and the
+// preview legend show the same digits for the same estimate. Display only:
+// exports keep the unrounded values.
 function formatSlope(value: number, unit: string | null): string {
   const unitText = unit ? ` ${unit}` : ''
-  return `${value.toFixed(2)}${unitText}/yr`
+  return `${formatWorkspaceNumber(value)}${unitText}/yr`
 }
 
 function formatValue(value: number, unit: string | null): string {
   const unitText = unit ? ` ${unit}` : ''
-  return `${value.toFixed(2)}${unitText}`
+  return `${formatWorkspaceNumber(value)}${unitText}`
 }
 
 function formatOptionalNumber(value: number | null): string {
-  return value === null ? 'n/a' : value.toFixed(2)
+  return value === null ? 'n/a' : formatWorkspaceNumber(value)
 }
 
 function formatOptionalInterval(value: [number, number] | null): string {
+  return value === null ? 'n/a' : `[${formatWorkspaceNumber(value[0])}, ${formatWorkspaceNumber(value[1])}]`
+}
+/** The coefficient table keeps fixed decimals so its columns line up. */
+function formatFixedInterval(value: [number, number] | null): string {
   return value === null ? 'n/a' : `[${value[0].toFixed(2)}, ${value[1].toFixed(2)}]`
 }
