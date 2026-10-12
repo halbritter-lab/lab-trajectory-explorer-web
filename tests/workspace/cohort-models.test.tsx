@@ -217,12 +217,36 @@ describe('CohortModelsWorkspace', () => {
     data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i < 7 ? 'A' : 'B' }]))
     studio(data)
     fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
-    expect(screen.getByText('Patients per group in this model: A 7, B 5. Each group needs at least 10.')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('No arm group can be fitted on its own: each needs at least 10 patients with repeated measurements, and the largest, A, has 7 patients. Only the whole cohort will be fitted.')
+    expect(screen.getByText('Patients with enough measurement times per group: A: 7, B: 5. Each group needs at least 10.')).toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('No arm group can be fitted on its own: each needs at least 10 patients with enough measurement times, and the largest, A, has 7. Only the whole cohort will be fitted.')
     const button = screen.getByRole('button', { name: 'Fit whole cohort only' })
     fireEvent.click(button)
     await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
     expect(run.mock.calls[0][0].entities.map((e: any) => e.entity.kind)).toEqual(['cohort'])
+  })
+
+  it('counts only patients with enough measurement times, as the validation does', () => {
+    // Twelve patients in A, but two of them have only two distinct times.
+    const data = qualifyingData(14)
+    data.rows = data.rows.filter(row => !(['P-0', 'P-1'].includes(String(row.patientId)) && row.labDatum!.getUTCFullYear() === 2022))
+    data.rawRows = data.rows
+    data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i < 12 ? 'A' : 'B' }]))
+    studio(data)
+    fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
+    expect(screen.getByText('Patients with enough measurement times per group: A: 10, B: 2. Each group needs at least 10.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Fit models (2 units)' })).toBeEnabled()
+  })
+
+  it('keeps the validation reasons when groups fail for something other than size', () => {
+    const data = qualifyingData(24)
+    data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { sex: i % 2 ? 'm' : 'w' }]))
+    studio(data)
+    fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+    fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'sex' } })
+    fireEvent.change(screen.getByLabelText('Model grouping'), { target: { value: 'sex' } })
+    const status = screen.getByRole('status')
+    expect(status).not.toHaveTextContent(/can be fitted on its own/)
+    expect(status).toHaveTextContent(/requires variation/)
   })
 
   it('identifies every affected unit when all grouped units are invalid', () => {

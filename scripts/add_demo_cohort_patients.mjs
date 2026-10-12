@@ -1,6 +1,6 @@
 // Extends the demo data so every cohort model preset can be demonstrated with the
-// default settings: attributes for patients 1, 2, 4 and 6, and twelve synthetic
-// patients (15-26) with serum creatinine and lab-style eGFR. Cohorts A and B then
+// default settings: attributes for patients 1, 2, 4 and 6, and fourteen synthetic
+// patients (15-28) with serum creatinine and lab-style eGFR. Cohorts A and B then
 // each reach the ten-patient model minimum, and so do both sexes.
 //
 // The new patients have smooth creatinine courses without AKI or events; cohort B
@@ -21,12 +21,16 @@ const ATTRIBUTES = [
   [15, 'UMOD', 'AD', 'A'], [16, 'UMOD', 'AD', 'A'], [17, 'UMOD', 'AD', 'A'], [18, 'UMOD', 'AD', 'A'], [19, 'UMOD', 'AD', 'A'],
   [20, 'MUC1', 'AD', 'B'], [21, 'PKD1', 'AD', 'B'], [22, 'MUC1', 'AD', 'B'], [23, 'PKD1', 'AD', 'B'],
   [24, 'MUC1', 'AD', 'B'], [25, 'PKD1', 'AD', 'B'], [26, 'MUC1', 'AD', 'B'],
+  [27, 'UMOD', 'AD', 'A'], [28, 'UMOD', 'AD', 'A'],
 ]
 // patient, sex, age at first measurement, cohort
 const NEW_PATIENTS = [
   [15, 'w', 41, 'A'], [16, 'm', 53, 'A'], [17, 'w', 62, 'A'], [18, 'm', 47, 'A'], [19, 'm', 68, 'A'],
   [20, 'w', 39, 'B'], [21, 'm', 45, 'B'], [22, 'w', 57, 'B'], [23, 'm', 50, 'B'], [24, 'w', 64, 'B'],
   [25, 'w', 36, 'B'], [26, 'm', 59, 'B'],
+  // Two more in cohort A so it stays above the minimum when a preset (CKD
+  // progression, quarterly medians) drops a patient with few distinct times.
+  [27, 'w', 49, 'A'], [28, 'm', 56, 'A'],
 ]
 
 function mulberry32(seed) {

@@ -15,11 +15,10 @@ import {
 } from '../core/mixedModel/config'
 import { prepareMixedModelCohortRows } from '../core/mixedModel/cohortDataset'
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mixedModel/factors'
-import { MIN_QUALIFYING_PATIENTS, validateMixedModelRows } from '../core/mixedModel/validation'
+import { MIN_QUALIFYING_PATIENTS, qualifyingMixedModelPatients, validateMixedModelRows } from '../core/mixedModel/validation'
 import { entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
 import { defaultModelParameterKey } from './cohort-model-parameter'
-import { countLabel } from './workspace-labels'
 import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import './cohort-models-workspace.css'
 
@@ -179,14 +178,17 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   // before fitting rather than as skipped rows afterwards.
   const groupSizes = validatedEntities.filter(item => item.entity.entity.kind === 'group').map(item => ({
     label: item.entity.entity.kind === 'group' ? item.entity.entity.value : '',
-    patients: new Set(item.entity.rows.map(row => row.patient_id)).size,
+    patients: qualifyingMixedModelPatients(item.entity.rows, mixedModelConfig),
     fits: item.validation.ok,
+    tooFew: !item.validation.ok && (item.validation.code === 'INSUFFICIENT_PATIENTS' || item.validation.code === 'INSUFFICIENT_REPEATED_MEASURES'),
   }))
   const largestGroup = groupSizes.reduce<(typeof groupSizes)[number] | null>((largest, group) => largest && largest.patients >= group.patients ? largest : group, null)
   // Only meaningful while the pooled cohort itself can still be fitted.
-  const noGroupFits = groupByAttribute !== null && largestGroup !== null && groupSizes.every(group => !group.fits) && eligibleEntities.length > 0
+  // The size explanation applies only when every group fails for lack of patients;
+  // any other reason (factors, duplicate times) keeps the per-unit messages.
+  const noGroupFits = groupByAttribute !== null && largestGroup !== null && groupSizes.every(group => group.tooFew) && eligibleEntities.length > 0
   const fitFeedback = fitUnavailableReason ?? (noGroupFits && largestGroup
-    ? `No ${groupByAttribute} group can be fitted on its own: each needs at least ${MIN_QUALIFYING_PATIENTS} patients with repeated measurements, and the largest, ${largestGroup.label}, has ${countLabel(largestGroup.patients, 'patient')}. Only the whole cohort will be fitted.`
+    ? `No ${groupByAttribute} group can be fitted on its own: each needs at least ${MIN_QUALIFYING_PATIENTS} patients with enough measurement times, and the largest, ${largestGroup.label}, has ${largestGroup.patients}. Only the whole cohort will be fitted.`
     : invalidEntities.length > 0
       ? `${invalidEntities.length} unit${invalidEntities.length === 1 ? '' : 's'} skipped. ${validationReasons}` : invocationFeedback)
 
@@ -404,7 +406,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           )}
           {groupByAttribute && groupSizes.length > 0 && (
             <p className="muted cm-group-sizes">
-              Patients per group in this model: {groupSizes.map(group => `${group.label} ${group.patients}`).join(', ')}. Each group needs at least {MIN_QUALIFYING_PATIENTS}.
+              Patients with enough measurement times per group: {groupSizes.map(group => `${group.label}: ${group.patients}`).join(', ')}. Each group needs at least {MIN_QUALIFYING_PATIENTS}.
             </p>
           )}
         </div>

@@ -14,7 +14,7 @@ function collectBrowserProblems(page: Page): string[] {
 async function loadDemo(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: 'Load demo data' }).click()
-  await expect(page.getByText(/474 lab values/)).toBeVisible()
+  await expect(page.getByText(/506 lab values/)).toBeVisible()
 }
 
 async function uploadCsv(page: Page, name: string, csv: string): Promise<void> {

@@ -116,7 +116,7 @@ describe('projectedG5Label', () => {
     ], slopePerYear: -4, enabled: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: false } })
     const title = endpointBadge(endpoints, 3)?.title
     expect(title).toContain('from first to latest eligible measurement')
-    expect(title).toContain('observed CKD G4:')
+    expect(title).toContain('Observed CKD G4:')
     expect(title).toContain('maximum 12 calendar months')
   })
   it('omits "G5 n < 3" for a cell without measurements but keeps it for one or two', () => {

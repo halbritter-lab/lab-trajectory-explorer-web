@@ -312,7 +312,7 @@ describe('real-data trajectories workspace', () => {
     render(<TrajectoriesWorkspace data={data} />)
     expect(screen.queryByText('> 12')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
-    expect(screen.getByText(/01\/01\/2020: > 10 unit-0; excluded from the fit: censored value/)).toBeInTheDocument()
+    expect(screen.getByText(/01\/01\/2020: > 10 unit-0, excluded from the fit \(censored value/)).toBeInTheDocument()
     expect(screen.getAllByText('> 10').length).toBeGreaterThan(0)
     expect(screen.getByRole('columnheader', { name: 'Derived value' })).toBeInTheDocument()
   })
@@ -547,7 +547,7 @@ describe('real-data trajectories workspace', () => {
     // No birth date: the age is known in completed years, so no decimal is shown.
     const badge = document.querySelector('.wt-badge-endpoint')!
     expect(badge).toHaveTextContent(/^-50%, G5 @ ~63y$/)
-    expect(badge.getAttribute('title')).toBe('total eGFR change -50.0% from first to latest eligible measurement (not per year); projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)')
+    expect(badge.getAttribute('title')).toBe('Total eGFR change -50.0% from first to latest eligible measurement (not per year). Projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded).')
   })
 
   it('publishes its analysis settings for cohort models and withdraws them on unmount', () => {
@@ -569,7 +569,7 @@ describe('real-data trajectories workspace', () => {
     // Born 1959-07-01: 62.5 at the latest measurement, one year before the crossing.
     const badge = document.querySelector('.wt-badge-endpoint')!
     expect(badge).toHaveTextContent(/^-50%, G5 @ 63\.5y$/)
-    expect(badge.getAttribute('title')).toContain('projected age to CKD G5 63.5 years; fitted curve')
+    expect(badge.getAttribute('title')).toContain('Projected age to CKD G5 63.5 years; fitted curve')
   })
 
   it('reverses a metric sort and keeps patients without a value last', () => {
@@ -601,7 +601,7 @@ describe('real-data trajectories workspace', () => {
     const excluded = within(chart).getAllByTestId('excluded-point')
     expect(excluded).toHaveLength(2)
     expect(excluded.every(point => point.getAttribute('data-exclusion') === 'post_kidney_transplant')).toBe(true)
-    expect(excluded[0].querySelector('title')!.textContent).toContain('excluded from the fit: after kidney transplant')
+    expect(excluded[0].querySelector('title')!.textContent).toContain('excluded from the fit (after kidney transplant')
     expect(within(chart).getByText(/Grey open circles: 2 measurements excluded from the fit \(after kidney transplant\)/)).toBeInTheDocument()
     expect(chart.querySelector('svg')!.getAttribute('data-export-context')).toContain('2 measurements excluded from the fit')
   })

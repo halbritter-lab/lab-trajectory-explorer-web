@@ -115,7 +115,7 @@ describe('loadBundledFixtureData', () => {
       expect(events.some((event) => event.warning === 'unknown_dialysis_intent')).toBe(true)
       expect(events).toHaveLength(8)
       expect(patientAttributes['7']).toEqual({ genotype: 'UMOD', inheritance: 'AD', cohort: 'A' })
-      expect(Object.keys(patientAttributes)).toHaveLength(24)
+      expect(Object.keys(patientAttributes)).toHaveLength(26)
     } finally {
       globalThis.fetch = originalFetch
     }
@@ -134,7 +134,7 @@ describe('loadBundledFixtureData', () => {
 
       expect(rows.length).toBeGreaterThanOrEqual(180)
       expect(events).toHaveLength(8)
-      expect(Object.keys(patientAttributes)).toHaveLength(24)
+      expect(Object.keys(patientAttributes)).toHaveLength(26)
       expect(patientAttributes['7']).toEqual({ genotype: 'UMOD', inheritance: 'AD', cohort: 'A' })
     } finally {
       globalThis.fetch = originalFetch

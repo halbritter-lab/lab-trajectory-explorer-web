@@ -96,7 +96,7 @@ export function validateMixedModelRows(
   // A random patient slope needs enough distinct times to identify a slope
   // within each qualifying patient. These floors are input guards, not a
   // statistical power or model-adequacy guarantee.
-  const minimumDistinctTimes = config.randomEffects === 'intercept_slope' ? 3 : 2
+  const minimumDistinctTimes = minimumDistinctTimesFor(config)
   let qualifyingPatientCount = 0
   let singleMeasurementPatientCount = 0
   let noTimeVariationPatientCount = 0
@@ -152,6 +152,27 @@ export function validateMixedModelRows(
   }
 
   return { ok: true, warnings }
+}
+
+/** Distinct measurement times a qualifying patient needs under this config. */
+function minimumDistinctTimesFor(config: MixedModelConfig): number {
+  return config.randomEffects === 'intercept_slope' ? 3 : 2
+}
+
+/** Patients that count towards the minimum in validateMixedModelRows: at least two
+ * rows and enough distinct times for the configured random effects. */
+export function qualifyingMixedModelPatients(rows: readonly MixedModelSpikeRow[], config: MixedModelConfig = DEFAULT_MIXED_MODEL_CONFIG): number {
+  const times = new Map<string, { rows: number; distinct: Set<number> }>()
+  for (const row of rows) {
+    const entry = times.get(row.patient_id) ?? { rows: 0, distinct: new Set<number>() }
+    entry.rows += 1
+    entry.distinct.add(row.time_since_baseline)
+    times.set(row.patient_id, entry)
+  }
+  const minimum = minimumDistinctTimesFor(config)
+  let count = 0
+  for (const entry of times.values()) if (entry.rows >= 2 && entry.distinct.size >= minimum) count += 1
+  return count
 }
 
 export function hashMixedModelInput(rows: readonly MixedModelSpikeRow[]): string {

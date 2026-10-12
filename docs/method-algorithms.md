@@ -2511,8 +2511,8 @@ column's Trajectories settings and the page's preset-exclusion choice, pass the
 model validation for the standard model (random intercept and slope, no
 factors) is preselected. When no candidate passes, the first candidate is shown
 and the page explains why it cannot be fitted. Example: the demo workbook's
-imported eGFR has 23 qualifying patients and passes, so it is preselected ahead
-of Kreatinin [mg/dl] (24). The preselection is recomputed whenever the data or those
+imported eGFR has 25 qualifying patients and passes, so it is preselected ahead
+of Kreatinin [mg/dl] (26). The preselection is recomputed whenever the data or those
 settings change, until the user picks a parameter; choosing a model preset or
 factors does not change it.
 
@@ -3388,6 +3388,19 @@ two groups refer to different covariate values unless their centres coincide.
 **Omitted groups.** A group with no model rows and no rows removed by preset
 windows is not listed. A group that has rows but fails a gate is listed with its
 message and is not fitted.
+
+**Group sizes before fitting (since 2026-10-12).** With a grouping, the studio
+lists for every group the patients that count towards the ten-patient minimum:
+at least two rows and at least three distinct times (two with a random
+intercept only), the same rule as the validation
+(`qualifyingMixedModelPatients`, `src/core/mixedModel/validation.ts`). Example:
+"Patients with enough measurement times per group: A: 12, B: 10, C: 3. Each
+group needs at least 10." When every group fails for lack of such patients
+(`INSUFFICIENT_PATIENTS` or `INSUFFICIENT_REPEATED_MEASURES`) while the pooled
+cohort passes, the per-group messages are replaced by one sentence naming the
+largest group, and the action reads "Fit whole cohort only"; only the pooled
+model is submitted. If any group fails for another reason, such as a factor
+without variation, the per-group messages are kept.
 
 **Sex as grouping attribute and as factor.** In the interface both uses read
 the same resolved sex (see "Demographics resolution"), so they cannot disagree:

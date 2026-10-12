@@ -389,7 +389,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   const someTrendsShown = parameters.some(parameter => fitKeys.includes(parameter.key))
   if (!data.patients.length) return <section className="card"><h1>Patients and trajectories</h1><p>No data loaded yet. Import a CSV or Excel file, or load demo data under Data.</p></section>
     return <div className="wt-workspace" ref={workspaceElement}>
-    <header className="page-heading"><p className="eyebrow">PATIENTS & TRAJECTORIES</p><h1>Explore trajectories</h1><p>{data.patients.length} {data.patients.length === 1 ? 'patient' : 'patients'}, {data.parameters.length} {data.parameters.length === 1 ? 'parameter' : 'parameters'}, from {data.fileName ?? 'loaded data'}</p></header>
+    <header className="page-heading"><p className="eyebrow">Patients and trajectories</p><h1>Explore trajectories</h1><p>{data.patients.length} {data.patients.length === 1 ? 'patient' : 'patients'}, {data.parameters.length} {data.parameters.length === 1 ? 'parameter' : 'parameters'}, from {data.fileName ?? 'loaded data'}</p></header>
     {parameterNotice && <p className="notice" role="status">{parameterNotice}</p>}
     {unavailable.length > 0 && <p className="notice" role="status">Unavailable selected parameters: {unavailable.join(', ')}. The derivation is disabled or currently produces no computable values. The selection is retained for recalculation; unavailable parameters are excluded from exports.</p>}
     <section className="card wt-controls" aria-label="Shared selection">

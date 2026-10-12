@@ -38,7 +38,7 @@ describe('shipped demo workbook', () => {
     expect(dataset.sheetNames).toEqual(['labs', 'events', 'attributes'])
     expect(dataset.rows.length).toBeGreaterThan(100)
     expect(dataset.events.length).toBe(8)
-    expect(Object.keys(dataset.patientAttributes).length).toBe(24)
+    expect(Object.keys(dataset.patientAttributes).length).toBe(26)
   })
 
   it('preselects an imported eGFR that the cohort model can fit with the default settings', () => {
@@ -68,14 +68,19 @@ describe('shipped demo workbook', () => {
       expect(validateMixedModelRows(cohort.rows, DEFAULT_MIXED_MODEL_CONFIG), preset).toMatchObject({ ok: true })
     }
 
-    // Subgroup comparison by cohort (the preset's default grouping): A and B fit.
-    const spec = workspaceModelSpec(data, chosen.key, { shared: defaultFitSettings(), columns: {} })!
+    // Subgroup comparison by cohort (the preset's default grouping) and by sex: both
+    // groups fit, also under CKD progression, whose quarterly medians drop a patient.
     const groupable = workspaceGroupableAttributes(analysis.rows, patientAttributes)
-    const groups = groupPatients(patientIds, groupable, 'cohort')
-    const units = workspaceModelEntities(analysis.rows, patientIds, spec, DEFAULT_MIXED_MODEL_CONFIG, patientAttributes, groups)
-    const fittable = units.filter(unit => validateMixedModelRows(unit.rows, DEFAULT_MIXED_MODEL_CONFIG).ok)
-      .map(unit => unit.entity.kind === 'cohort' ? 'cohort' : unit.entity.value)
-    expect(fittable).toEqual(expect.arrayContaining(['cohort', 'A', 'B']))
+    for (const preset of ['general_exploration', 'ckd_progression']) {
+      const presetSpec = workspaceModelSpec(data, chosen.key, { shared: defaultFitSettings(preset), columns: {} })!
+      for (const [attribute, expected] of [['cohort', ['A', 'B']], ['sex', ['m', 'w']]] as const) {
+        const units = workspaceModelEntities(analysis.rows, patientIds, presetSpec, DEFAULT_MIXED_MODEL_CONFIG, patientAttributes, groupPatients(patientIds, groupable, attribute))
+        const fittable = units.filter(unit => validateMixedModelRows(unit.rows, DEFAULT_MIXED_MODEL_CONFIG).ok)
+          .map(unit => unit.entity.kind === 'cohort' ? 'cohort' : unit.entity.value)
+        expect(fittable, `${preset} by ${attribute}`).toEqual(expect.arrayContaining(['cohort', ...expected]))
+      }
+    }
+    const spec = workspaceModelSpec(data, chosen.key, { shared: defaultFitSettings(), columns: {} })!
 
     // Group interaction with cohort as a level and slope factor.
     const factor = groupInteractionFactor('cohort', availableMixedModelFactors(analysis.rows, patientAttributes).find(f => f.key === 'cohort'))
