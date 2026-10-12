@@ -2807,6 +2807,12 @@ exported in `endpoint_prediction_reason`; the label is the table badge.
 | 10 | `slope_ci_includes_zero` | Lower bound at or below zero and upper bound at or above zero. | `G5 not projected` |
 | 11 | `beyond_projection_horizon` | Crossing more than 20 years after the latest eligible row. | `G5 not projected` |
 
+A table cell without any measurement of its parameter shows no `G5 n < 3`
+badge (since 2026-10-12): the cell already reads "No numeric measurements with
+a date". The reason code is unchanged, and the export still carries
+`insufficient_points` for that patient and parameter. Other badges of the
+cell, such as `Kidney failure reached`, are still shown.
+
 The `G5 not projected` cases (`non_declining_fit`, `slope_ci_unavailable`,
 `slope_ci_includes_zero`, `beyond_projection_horizon`, and `observed_ckd_g5`
 with the observed-G5 endpoint off) are told apart by the badge's detail text.
