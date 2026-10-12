@@ -5,7 +5,6 @@ import { workspaceModelSpec } from './workspace-data'
 import { describeModelPreparation, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
-import { mentionsEgfr } from '../core/domains/nephrology/analytes'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
 import {
   mixedModelFormula,
@@ -18,6 +17,7 @@ import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mi
 import { validateMixedModelRows } from '../core/mixedModel/validation'
 import type { CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
+import { defaultModelParameterKey } from './cohort-model-parameter'
 import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import './cohort-models-workspace.css'
 
@@ -54,10 +54,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     )
   }, [data.parameters, data.rows])
 
-  const [selectedParamKey, setSelectedParamKey] = useState<string>(() => {
-    const egfrParam = eligibleParameters.find(p => mentionsEgfr(p.bezeichnung))
-    return egfrParam?.key ?? eligibleParameters[0]?.key ?? ''
-  })
+  // Null until the user picks a parameter: the preselection follows the data, so a
+  // computed eGFR applied later under Data can take over from an unfittable import.
+  const [selectedParamKey, setSelectedParamKey] = useState<string | null>(null)
 
   const [groupByAttribute, setGroupByAttribute] = useState<string | null>(null)
   const [preset, setPreset] = useState<CohortModelPreset>('unadjusted')
@@ -109,9 +108,13 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     return availableMixedModelFactors(rowsInScope, attrsInScope)
   }, [data.rows, patientIds, data.patientAttributes])
 
-  const activeParamKey = eligibleParameters.some(p => p.key === selectedParamKey)
+  const defaultParamKey = useMemo(
+    () => defaultModelParameterKey(eligibleParameters, data.rows ?? [], new Set(patientIds.map(String))),
+    [eligibleParameters, data.rows, patientIds],
+  )
+  const activeParamKey = selectedParamKey !== null && eligibleParameters.some(p => p.key === selectedParamKey)
     ? selectedParamKey
-    : (eligibleParameters[0]?.key ?? '')
+    : defaultParamKey
 
   // The measurements follow the analysis settings chosen for this parameter
   // under Trajectories, so the model sees what the trajectory fit sees.
