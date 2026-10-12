@@ -15,7 +15,7 @@ import {
 import { prepareMixedModelCohortRows } from '../core/mixedModel/cohortDataset'
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mixedModel/factors'
 import { validateMixedModelRows } from '../core/mixedModel/validation'
-import type { CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
+import { entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
 import { defaultModelParameterKey } from './cohort-model-parameter'
 import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
@@ -171,6 +171,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
     paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])
   const hasSuccessfulModel = Object.keys(currentModels).length > 0
+  // Every unit the button would submit already has a current, usable fit: the
+  // button stays available for a refit but no longer reads as the next step.
+  const allEligibleFitted = eligibleEntities.length > 0 && eligibleEntities.every(item => currentModels[entityKey(item.entity)] !== undefined)
 
   const entityLabels = useMemo(() => {
     const map = new Map<string, string>([['cohort', 'Whole cohort']])
@@ -180,7 +183,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
   const entityColors = useMemo(() => {
     const map = new Map<string, string>()
-    for (const group of cohortGroups) map.set(`group:${group.value}`, cohortGroupColorMap.get(group.value) ?? '#475569')
+    for (const group of cohortGroups) map.set(`group:${group.value}`, cohortGroupColorMap.get(group.value) ?? '#55686e')
     return map
   }, [cohortGroups, cohortGroupColorMap])
 
@@ -353,7 +356,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               onChange={e => setSelectedParamKey(e.target.value)}
             >
               {eligibleParameters.map(p => (
-                <option key={p.key} value={p.key}>{p.label}{p.derived ? ' (computed)' : ''}</option>
+                <option key={p.key} value={p.key}>{p.label}{p.derived && !/computed/i.test(p.label) ? ' (computed)' : ''}</option>
               ))}
             </select>
           </label>
@@ -388,7 +391,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'unadjusted'}
               onClick={() => selectPreset('unadjusted')}
             >
-              <span>🔬 Standard (Overall)</span>
+              <span>Standard (Overall)</span>
             </button>
             <button
               type="button"
@@ -396,7 +399,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'stratified'}
               onClick={() => selectPreset('stratified')}
             >
-              <span>👥 Subgroup comparison</span>
+              <span>Subgroup comparison</span>
             </button>
             <button
               type="button"
@@ -404,7 +407,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'demographic'}
               onClick={() => selectPreset('demographic')}
             >
-              <span>⚖️ Demographic adjustment</span>
+              <span>Demographic adjustment</span>
             </button>
             <button
               type="button"
@@ -412,14 +415,15 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'interaction'}
               onClick={() => selectPreset('interaction')}
             >
-              <span>🧬 Group interaction</span>
+              <span>Group interaction</span>
             </button>
             <button
               type="button"
               className={`cm-preset-btn ${preset === 'custom' ? 'active' : ''}`}
+              aria-pressed={preset === 'custom'}
               onClick={() => setPreset('custom')}
             >
-              <span>🛠️ Custom model</span>
+              <span>Custom model</span>
             </button>
           </div>
 
@@ -555,20 +559,20 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </div>
           <button
             type="button"
-            className="primary cm-fit-button"
+            className={allEligibleFitted ? 'cm-fit-button' : 'primary cm-fit-button'}
             disabled={!canFit}
             aria-describedby={fitFeedback ? fitFeedbackId : undefined}
             onClick={handleFitAll}
           >
             {cohortModelRunning
               ? (cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Running model …')
-              : `▶ Fit model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length} units)` : ''}`}
+              : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length} units)` : ''}`}
           </button>
         </div>
-        <p id={fitFeedbackId} className="muted" role="status" aria-live="polite">{fitFeedback}</p>
+        <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
       </section>
 
-      {/* Model Trajectory Preview Plot */}
+      {/* Model trajectory preview plot; the studio button above is the only fit action. */}
       {spec && (
         <CohortModelPlotPreview
           parameterLabel={spec.bezeichnung}
@@ -580,10 +584,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           cohortModelResults={currentModels}
           modelRowsByEntity={Object.fromEntries(entities.map(item => [item.entity.kind === 'cohort' ? 'cohort' : `group:${item.entity.value}`, item.rows]))}
           isFitting={cohortModelRunning}
-          onFit={handleFitAll}
           canFit={canFit}
-          fitUnavailableReason={fitUnavailableReason}
-          fitFeedbackId={fitFeedbackId}
         />
       )}
 

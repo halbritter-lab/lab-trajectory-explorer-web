@@ -15,15 +15,16 @@ interface Props {
   groupValuesByPatient: Map<string, string>
   cohortModelResults: Record<string, StoredMixedModelResult> | null
   modelRowsByEntity: Record<string, MixedModelSpikeRow[]>
+  /** Whether the studio's Fit model action is available; only steers the guidance line. */
   canFit: boolean
-  fitUnavailableReason: string | null
-  fitFeedbackId?: string
   isFitting?: boolean
-  onFit?: () => void
 }
 
-const FALLBACK_LINE_COLOR = '#0f172a'
-const FALLBACK_POINT_COLOR = '#64748b'
+// Workspace text and muted tones; literal because exported SVGs carry no CSS variables.
+const FALLBACK_LINE_COLOR = '#243740'
+const FALLBACK_POINT_COLOR = '#687c7f'
+const GRID_COLOR = '#dce5e9'
+const FRAME_COLOR = '#cbd8d6'
 
 export function CohortModelPlotPreview({
   parameterLabel,
@@ -35,10 +36,7 @@ export function CohortModelPlotPreview({
   cohortModelResults,
   modelRowsByEntity,
   canFit,
-  fitUnavailableReason,
-  fitFeedbackId,
   isFitting,
-  onFit,
 }: Props) {
   const svg = useRef<SVGSVGElement>(null)
   const clipId = useId().replace(/:/g, '')
@@ -150,11 +148,14 @@ export function CohortModelPlotPreview({
     <div className="cm-plot-card card">
       <div className="cm-plot-header">
         <div>
-          <h3>Model Trajectory Preview</h3>
+          <h2>Model trajectory preview</h2>
           <p className="muted">
             {parameterLabel}{unitLabel} over time (years since baseline).
-            {hasFits ? ' Dashed lines show fitted reference profiles: numeric factors at fitted centers, categorical factors at reference levels.' : isFitting ? ' Fitting model …' : canFit ? ' Run model to estimate slope.' : ' Model fitting is unavailable with the current data and settings.'}
+            {hasFits && ' Dashed lines show fitted reference profiles: numeric factors at fitted centers, categorical factors at reference levels.'}
           </p>
+          {!hasFits && <p className="muted cm-plot-guidance">
+            {isFitting ? 'Fitting model …' : canFit ? 'Fit the model above to draw the population line.' : 'Model fitting is unavailable; see the reason above.'}
+          </p>}
         </div>
         <div className="cm-plot-actions">
           <ChartExportActions getSvg={() => svg.current} title={`Model trajectory · ${parameterLabel}${unitLabel}`} />
@@ -164,15 +165,9 @@ export function CohortModelPlotPreview({
               <strong>{b.label}:</strong> {formatWorkspaceNumber(b.slope)} {parameterUnit ? `${parameterUnit}/yr` : '/yr'}
             </span>
           ))}
-          {!hasFits && onFit && (
-            <button type="button" className="primary" onClick={onFit} disabled={!canFit} aria-describedby={fitFeedbackId ?? (!canFit ? `${clipId}-fit-feedback` : undefined)}>
-              {isFitting ? 'Fitting model …' : '▶ Fit model'}
-            </button>
-          )}
         </div>
       </div>
 
-      {!hasFits && fitUnavailableReason && <p id={`${clipId}-fit-feedback`} className="muted">{fitUnavailableReason}</p>}
       <div className="cm-plot-svg-wrap">
         <svg
           ref={svg}
@@ -198,7 +193,7 @@ export function CohortModelPlotPreview({
                 x2={W - padRight}
                 y1={scaleY(yVal)}
                 y2={scaleY(yVal)}
-                stroke="#e2e8f0"
+                stroke={GRID_COLOR}
                 strokeDasharray="2 3"
               />
               <text
@@ -219,7 +214,7 @@ export function CohortModelPlotPreview({
                 x2={scaleX(xVal)}
                 y1={padTop}
                 y2={H - padBottom}
-                stroke="#e2e8f0"
+                stroke={GRID_COLOR}
                 strokeDasharray="2 3"
               />
               <text
@@ -240,7 +235,7 @@ export function CohortModelPlotPreview({
             width={xRange}
             height={yRange}
             fill="none"
-            stroke="#cbd5e1"
+            stroke={FRAME_COLOR}
           />
 
           {/* Raw Points (clipped) */}
@@ -289,7 +284,7 @@ export function CohortModelPlotPreview({
                 rx={6}
                 fill="white"
                 fillOpacity={0.92}
-                stroke="#cbd5e1"
+                stroke={FRAME_COLOR}
               />
               <text
                 x={padLeft + xRange / 2}
@@ -297,7 +292,7 @@ export function CohortModelPlotPreview({
                 textAnchor="middle"
                 className="cm-watermark-text"
               >
-                {isFitting ? 'Fitting model …' : canFit ? "Click 'Fit model' to calculate trajectory" : 'Model fitting unavailable'}
+                {isFitting ? 'Fitting model …' : canFit ? 'No fitted model yet' : 'Model fitting unavailable'}
               </text>
             </g>
           )}

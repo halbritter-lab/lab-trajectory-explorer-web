@@ -27,6 +27,12 @@ interfaces are still evolving before 1.0.
 - Analysis setting headings follow the page outline, long paragraphs are
   limited to a readable line length, and the duplicate guide line below the
   navigation was removed.
+- Cohort models uses the workspace colours and type instead of a separate dark
+  palette with emoji presets. The studio holds the only Fit model action; after
+  a current fit it reads "Refit model". The preview card shows a guidance line.
+- Cohort result tables round slope and intercept like the chart legend, so the
+  same estimate no longer shows as −9.98 in one place and −9.99 in the other.
+  Display only; exported values are unchanged.
 
 ## [0.3.3] - 2026-10-11
 
