@@ -158,7 +158,7 @@ export function exportChartSvg(svg: SVGSVGElement, title: string): {svg:string;w
   const contextLines = wrapChartText(svg.getAttribute('data-export-context') ?? '',Math.max(1,Math.floor((width-24)/12)))
   const legend = chartLegend(svg).map(item => ({...item,lines:wrapChartText(item.label,Math.max(1,Math.floor((width-40)/12)))}))
   const headerHeight = 16 + titleLines.length*20 + contextLines.length*17 + legend.reduce((sum,item) => sum+item.lines.length*17,0)
-  const lines = ['Lab Trajectory Explorer · Research use only.', 'Not for clinical decision-making.', 'Bounds (<, >) remain visible but are excluded from calculations.'].flatMap(line => wrapChartText(line,Math.max(1,Math.floor((width-24)/11))))
+  const lines = ['Lab Trajectory Explorer. Research use only.', 'Not for clinical decision-making.', 'Bounds (<, >) remain visible but are excluded from calculations.'].flatMap(line => wrapChartText(line,Math.max(1,Math.floor((width-24)/11))))
   const footerHeight = 12 + lines.length*16
   const height = headerHeight + contentHeight + footerHeight
   clone.setAttribute('viewBox',`${x} ${y-headerHeight} ${width} ${height}`)
@@ -170,7 +170,7 @@ export function exportChartSvg(svg: SVGSVGElement, title: string): {svg:string;w
   label.textContent = title
   clone.prepend(label)
   const description = document.createElementNS(svg.namespaceURI,'desc')
-  description.textContent = 'Lab Trajectory Explorer · Research use only. Not for clinical decision-making. Bounds (<, >) remain visible but are excluded from calculations.'
+  description.textContent = 'Lab Trajectory Explorer. Research use only. Not for clinical decision-making. Bounds (<, >) remain visible but are excluded from calculations.'
   clone.prepend(description)
   const background = document.createElementNS(svg.namespaceURI,'rect')
   background.setAttribute('x',String(x)); background.setAttribute('y',String(y-headerHeight))

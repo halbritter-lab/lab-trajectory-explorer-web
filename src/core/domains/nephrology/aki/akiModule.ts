@@ -120,9 +120,9 @@ function akiOverlays(ctx: SeriesContext, episodes: readonly AkiEpisode[]): Serie
       moduleId: AKI_MODULE_ID,
       date: episode.peakDate,
       label: `AKI ${stage}`,
-      title: `AKI stage ${stage} · onset ${formatDisplayDate(episode.date)} · creatinine peak ${formatDisplayNumber(episode.peakValue)} mg/dl on ${formatDisplayDate(episode.peakDate)} (baseline ${formatDisplayNumber(episode.baselineValue)} mg/dl)`,
+      title: `AKI stage ${stage}, onset ${formatDisplayDate(episode.date)}, creatinine peak ${formatDisplayNumber(episode.peakValue)} mg/dl on ${formatDisplayDate(episode.peakDate)} (baseline ${formatDisplayNumber(episode.baselineValue)} mg/dl)`,
       snapWithinDays: AKI_MARKER_TOLERANCE_DAYS,
-      offMeasurementNote: ' · no measurement of this parameter on that date',
+      offMeasurementNote: '; no measurement of this parameter on that date',
     }
   })
   const bands: SeriesOverlay[] = akiExclusionBands([...episodes], bandDays).map((band) => ({

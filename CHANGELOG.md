@@ -5,6 +5,33 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.5] - 2026-10-13
+
+### Fixed
+
+- Subgroup comparison states before fitting how many patients each group
+  contributes, and says plainly when no group reaches the ten-patient minimum;
+  the action then reads "Fit whole cohort only" instead of suggesting a
+  comparison.
+- The demo data can show every cohort model preset: fourteen synthetic patients
+  (15-28) and attributes for patients 1, 2, 4 and 6 give cohort A 12 and
+  cohort B 10 patients, and both sexes at least 12. Golden fixtures are
+  unchanged.
+
+### Changed
+
+- Interface text no longer strings items together with middle dots. Counts are
+  separated by commas, card titles are numbered "1.", additions such as
+  "(derived)" or "(own settings)" use brackets, chart titles use a colon, and
+  the footer and export notes are full sentences. A few phrases were tightened
+  at the same time: shorter eyebrows, cell summaries such as "8 measurements,
+  latest 23/09/2023" and "8 fitted measurements over 630 days", and endpoint
+  tooltips as one sentence per item. The slope-quality labels now read "n < 3,
+  uncertain slope" and "Follow-up < 1 year, uncertain slope".
+- A table cell without dated measurements shows one line, "No numeric
+  measurements with a date", instead of five lines repeating that nothing can be
+  fitted. Event-based badges such as AKI or kidney failure reached stay visible.
+
 ## [0.3.4] - 2026-10-12
 
 ### Fixed

@@ -1389,7 +1389,7 @@ window slopes were computed and discarded and no line was drawn):
   line. With no window (fitted span under 730 days) no line is drawn; the
   global line is not drawn in this mode.
 - **Window statistics.** The cell shows the number of windows and the smallest
-  and largest window slope ("5 windows · local slopes −8 to 0 …/year"), or
+  and largest window slope ("5 windows, local slopes −8 to 0 …/year"), or
   "No 730-day window with three fitted measurements; no local slopes". A
   series without any fitted value shows neither. The variance `slopeVar` is
   computed but not shown.
@@ -1561,8 +1561,8 @@ matching row applies.
 | 2 | `nFitted = 0` | No fitted measurements | grey |
 | 3 | `reason = n_below_threshold` | n < 3 | grey |
 | 4 | `fittedSpanDays = 0` | All fitted measurements on one date | grey |
-| 5 | `nFitted < 3` | n < 3 · uncertain slope | amber |
-| 6 | Otherwise | Follow-up < 1 year · uncertain slope | amber |
+| 5 | `nFitted < 3` | n < 3, uncertain slope | amber |
+| 6 | Otherwise | Follow-up < 1 year, uncertain slope | amber |
 
 Grey means that no slope exists; amber that a slope exists and is
 unreliable. Row 2 covers a series whose points were all removed by bounds or
@@ -1579,8 +1579,8 @@ Row 4 covers fitted points that all share one calendar day (decided
 2026-10-07, formerly OD-9). No slope exists then, and the note reads "All
 fitted measurements on one date" in grey with the explanation "All
 measurements used for the fit share one date, so no slope exists." Before, two
-same-day values gave the amber note "n < 3 · uncertain slope" and three or
-more gave "Follow-up < 1 year · uncertain slope", both stating that a slope was
+same-day values gave the amber note "n < 3, uncertain slope" and three or
+more gave "Follow-up < 1 year, uncertain slope", both stating that a slope was
 fitted. Two same-day values under Theil-Sen are below its minimum and keep the
 grey "n < 3" note of row 3. The numeric core is unchanged: the summary still
 reports `reason = span_too_short` or no reason for such a series, `slope` is
@@ -2511,8 +2511,8 @@ column's Trajectories settings and the page's preset-exclusion choice, pass the
 model validation for the standard model (random intercept and slope, no
 factors) is preselected. When no candidate passes, the first candidate is shown
 and the page explains why it cannot be fitted. Example: the demo workbook's
-imported eGFR has 11 qualifying patients and passes, so it is preselected ahead
-of Kreatinin (13). The preselection is recomputed whenever the data or those
+imported eGFR has 25 qualifying patients and passes, so it is preselected ahead
+of Kreatinin [mg/dl] (26). The preselection is recomputed whenever the data or those
 settings change, until the user picks a parameter; choosing a model preset or
 factors does not change it.
 
@@ -3388,6 +3388,19 @@ two groups refer to different covariate values unless their centres coincide.
 **Omitted groups.** A group with no model rows and no rows removed by preset
 windows is not listed. A group that has rows but fails a gate is listed with its
 message and is not fitted.
+
+**Group sizes before fitting (since 2026-10-12).** With a grouping, the studio
+lists for every group the patients that count towards the ten-patient minimum:
+at least two rows and at least three distinct times (two with a random
+intercept only), the same rule as the validation
+(`qualifyingMixedModelPatients`, `src/core/mixedModel/validation.ts`). Example:
+"Patients with enough measurement times per group: A: 12, B: 10, C: 3. Each
+group needs at least 10." When every group fails for lack of such patients
+(`INSUFFICIENT_PATIENTS` or `INSUFFICIENT_REPEATED_MEASURES`) while the pooled
+cohort passes, the per-group messages are replaced by one sentence naming the
+largest group, and the action reads "Fit whole cohort only"; only the pooled
+model is submitted. If any group fails for another reason, such as a factor
+without variation, the per-group messages are kept.
 
 **Sex as grouping attribute and as factor.** In the interface both uses read
 the same resolved sex (see "Demographics resolution"), so they cannot disagree:

@@ -51,5 +51,6 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
       if (unavailable) { labels.push(unavailable.label); details.push(unavailable.title) }
     }
   }
-  return labels.length ? { label: labels.join(' · '), title: details.join(' · ') } : null
+  // Details contain semicolons themselves, so each one becomes its own sentence.
+  return labels.length ? { label: labels.join(', '), title: details.map(detail => `${detail[0].toUpperCase()}${detail.slice(1)}${detail.endsWith('.') ? '' : '.'}`).join(' ') } : null
 }

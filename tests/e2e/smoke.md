@@ -1,5 +1,26 @@
 # Manual browser smoke checklist
 
+## Cohort model presets with the demo, plain punctuation (2026-10-13)
+
+Branch `fix/cohort-demo-subgroups`. Subgroup comparison could not fit any
+group with the demo data and Group interaction had seven complete cases; the
+interface also strung items together with middle dots.
+
+- Demo extended by `scripts/add_demo_cohort_patients.mjs` (patients 15-28,
+  attributes for 1, 2, 4, 6): 28 patients, 506 lab rows, eGFR for 25.
+- Real WebR fits against the development server in Chromium, eGFR, default
+  settings: Standard −4.71 ml/min/1,73m²/yr; Subgroup by cohort A −4.32 (12
+  patients), B −8.18 (10), C skipped (3); by sex m −4.91 (13), w −4.51 (12);
+  Demographic adjustment −4.77; Group interaction −3.81 (25 complete cases).
+  None singular. Grouping by genotype lists "UMOD: 12" and skips the others with
+  their messages.
+- No middle dot remains in the rendered Data or Trajectories pages.
+- `pnpm test`: 911/911 in 96 files. `pnpm build`: passed. `pnpm test:e2e`:
+  46/46 (development server).
+- Independent review: one important finding (group sizes counted patients the
+  validation does not, and the size message hid other reasons) and minor ones;
+  all fixed before this entry.
+
 ## Workspace UX review and cohort model demo path (2026-10-12)
 
 Branch `fix/workspace-ux-review`. An impeccable critique of the workspace

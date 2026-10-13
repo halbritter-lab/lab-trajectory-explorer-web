@@ -187,7 +187,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const y = (n: number) => 240 - (n - yMin) / (yMax - yMin) * 210
   const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)' : 'Years since first measurement of this parameter'
   const hasHighlight = visible.some(p => p.row.patientId === highlight)
-  const exportTitle = cohortRows.length === 1 ? `Patient ${cohortRows[0].patientId} · ${parameter.label}` : parameter.label
+  const exportTitle = cohortRows.length === 1 ? `Patient ${cohortRows[0].patientId}: ${parameter.label}` : parameter.label
   const markVisible = display.points || display.connect
   const excludedCount = markVisible ? visible.reduce((sum, series) => sum + series.points.filter(p => p.exclusions.length > 0).length, 0) : 0
   const excludedReasons = [...new Set(visible.flatMap(series => series.points.flatMap(p => p.exclusions)))]
@@ -202,10 +202,10 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   return <section className="wt-plot-card" aria-label={`Chart ${parameter.label}`}>
     <div className="wt-card-heading"><h3>{parameter.label}</h3><ChartExportActions getSvg={() => svg.current} title={exportTitle} /></div>
     {groupBy && <div className="wt-legend" role="group" aria-label={`Groups for ${parameter.label}`}>{groups.map(group => <button key={group} aria-pressed={!hiddenGroups.includes(group)} onClick={() => setHiddenGroups(previous => previous.includes(group) ? previous.filter(g => g !== group) : [...previous, group])}><span style={{ color: groupColor(group) }}>● </span>{groupLabel(group)}{hiddenGroups.includes(group) ? ' (hidden)' : ''}</button>)}</div>}
-    <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? ` · ${visible.length} of ${cohortRows.length} trajectories` : ''}{withoutValues > 0 ? ` · ${withoutValues} without numeric measurements` : ''}{withoutAge > 0 ? ` · ${withoutAge} additional trajectories without age data` : ''}</p>
+    <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? `; ${visible.length} of ${cohortRows.length} trajectories` : ''}{withoutValues > 0 ? `; ${withoutValues} without numeric measurements` : ''}{withoutAge > 0 ? `; ${withoutAge} additional trajectories without age data` : ''}</p>
     {axis === 'age' && <p className="wt-muted">{cohortRows.length === 1 ? visible[0]?.ageEstimated ? 'Age: estimated birth-date anchor.' : visible.length ? 'Age: recorded birth date.' : 'Age unavailable.' : `${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors; other ages use recorded birth dates.`}</p>}
     {!visible.length ? <p>No trajectories can be plotted. Check measurements, ages, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-y-min={yMin} data-y-max={yMax} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? fitModel === 'none' ? '; Fit model disabled' : `; ${uncertain} uncertain individual ${modelLabel} fits; ${noFit} without a fit` : ''}${excludedCount ? `; ${countLabel(excludedCount, 'measurement')} excluded from the fit (grey open circles)` : ''}${shownOverlays.map(module => `; ${module.presentation.exportContext(markerCount(module.id))}`).join('')}${pooledModelLine ? '; Cohort mixed model mean line' : ''}${groupModelLines.length ? `; Group mixed model mean lines: ${groupModelLines.map(line => groupLabel(line.group!)).join(', ')}` : ''}`}>
-      <title>{parameter.label} · {axisLabel}</title>
+      <title>{parameter.label} by {axisLabel.charAt(0).toLowerCase()}{axisLabel.slice(1)}</title>
       <desc>Measurements for the selected patients. Press Enter or Space to open a trajectory. Research use only.</desc>
       <defs><clipPath id={clip}><rect x="65" y="20" width="565" height="230" /></clipPath></defs>
       {[0, .5, 1].map(f => { const v = yMin + (yMax - yMin) * f; return <g key={f}><line x1="65" x2="630" y1={y(v)} y2={y(v)} stroke="#dce5e9" /><text x="57" y={y(v) + 4} textAnchor="end">{formatWorkspaceNumber(v)}</text></g> })}
@@ -218,11 +218,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         const uncertainFit = Boolean(showFit && slopeQualityLabel(series.cell)?.caveat && Number.isFinite(series.cell.slope))
         return <g key={String(series.row.patientId)} clipPath={`url(#${clip})`} opacity={hasHighlight && !active ? .25 : 1}>
           <g role="button" tabIndex={0} aria-label={`Open patient ${series.row.patientId}, ${parameter.label}`} aria-description={uncertainFit ? "Uncertain slope: limited fitted measurements or follow-up. Dotted fit line." : undefined} onClick={() => onOpen(series.row.patientId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(series.row.patientId) } }} className="wt-chart-person">
-            <title>Patient {series.row.patientId} · {groupLabel(series.group)}</title>
+            <title>Patient {series.row.patientId}, {groupLabel(series.group)}</title>
             {display.connect && <polyline points={series.points.map(p => `${x(p.x)},${y(p.value)}`).join(' ')} fill="none" stroke={color} strokeWidth={active ? 3 : 1.5} />}
             {series.points.filter(p => display.points || display.connect && (series.points.length === 1 || boundedPrefix(p.operator) || p.exclusions.length > 0)).map((p, i) => {
               const excluded = p.exclusions.length > 0
-              const pointTitle = `${formatWorkspaceDate(p.date)}: ${boundedPrefix(p.operator)}${formatWorkspaceNumber(p.value)} ${parameter.einheit ?? ''}${excluded ? ` · excluded from the fit: ${p.exclusions.map(exclusionReasonLabel).join('; ')}` : ''}`
+              const pointTitle = `${formatWorkspaceDate(p.date)}: ${boundedPrefix(p.operator)}${formatWorkspaceNumber(p.value)} ${parameter.einheit ?? ''}${excluded ? `, excluded from the fit (${p.exclusions.map(exclusionReasonLabel).join('; ')})` : ''}`
               return <g key={i}>{excluded
                 ? <circle data-testid="excluded-point" data-exclusion={p.exclusions.join(' ')} cx={x(p.x)} cy={y(p.value)} r={active ? 4.5 : 3.5} fill="white" stroke={EXCLUDED_COLOR} strokeWidth={1.6} strokeDasharray="2 1.5"><title>{pointTitle}</title></circle>
                 : <circle cx={x(p.x)} cy={y(p.value)} r={active ? 4 : 3} fill={boundedPrefix(p.operator) ? 'white' : color} stroke={color}><title>{pointTitle}</title></circle>}
@@ -242,7 +242,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       {groupModelLines.map(line => <g key={line.key} clipPath={`url(#${clip})`} className="wt-group-model-line" data-group={line.group!}>
         <polyline points={line.points.map(p => `${x(axis === 'age' && p.age !== undefined ? p.age : p.time_since_baseline)},${y(p.value)}`).join(' ')}
           fill="none" stroke={groupColor(line.group!)} strokeWidth={3.5} strokeDasharray="10 3 2 3" strokeLinecap="round">
-          <title>Mixed-model mean trajectory · {groupLabel(line.group!)}</title>
+          <title>Mixed-model mean trajectory, {groupLabel(line.group!)}</title>
         </polyline>
       </g>)}
       {pooledModelLine && (
@@ -259,7 +259,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         </g>
       )}
     </svg>}
-    {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length})</summary>{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId} · {formatWorkspaceDate(event.date)} · {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` · ${event.description}` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
+    {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length})</summary>{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId}, {formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
     {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}
     {pooledModelLine && <p className="wt-muted">Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.{axis === 'age' ? ' Age axis: mean baseline age of fitted patients plus elapsed model time.' : ''}</p>}
     {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groupModelLines.map(line => groupLabel(line.group!)).join(', ')}).{axis === 'age' ? ' Age axis: mean baseline age of each group plus elapsed model time.' : ''}</p>}

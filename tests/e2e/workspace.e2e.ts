@@ -62,7 +62,7 @@ test('approved endpoint rules: configurable confirmation, visible recovery and w
   XLSX.utils.book_append_sheet(workbook, XLSX.utils.json_to_sheet([14, 13, 20].map((value, i) => ({ patientId: 'P-1', labDate: ['2020-01-01', '2020-02-01', '2020-05-01'][i], testName: 'eGFR', unit: 'mL/min/1.73m²', value, ageAtLab: 60, sex: 'f' }))), 'labs')
   await page.goto('/')
   await page.getByLabel('Import lab values').setInputFiles({ name: 'endpoints.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' }) })
-  await expect(page.locator('.workspace-dataset')).toContainText('1 patient ·')
+  await expect(page.locator('.workspace-dataset')).toContainText('1 patient,')
   await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
   await page.getByText('Display and analysis', { exact: true }).click()
   await page.getByLabel('Analysis preset').selectOption('ckd_progression')
@@ -384,7 +384,7 @@ test('workspace stays within a narrow viewport and replacement resets selections
   await page.getByLabel('Search patients', { exact: true }).fill('A-01')
   await page.getByRole('button', { name: 'Data', exact: true }).click()
   await page.getByLabel('Import lab values').setInputFiles({ name: 'replacement.csv', mimeType: 'text/csv', buffer: Buffer.from('patientId,labDate,testName,unit,value\nnew-person,2025-01-01,Potassium,mmol/L,4.2\n') })
-  await expect(page.locator('.workspace-dataset')).toContainText('1 patient ·')
+  await expect(page.locator('.workspace-dataset')).toContainText('1 patient,')
   await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
   await expect(page.getByLabel('Search patients', { exact: true })).toHaveValue('')
   await expect(page.getByRole('button', { name: 'Open patient new-person', exact: true })).toBeVisible()
@@ -501,7 +501,7 @@ test('model fitting: the demo fits by default, a small sample explains the limit
   const preview = page.locator('.cm-plot-card')
   // The demo preselects its imported eGFR, which reaches the ten-patient minimum.
   await expect(page.getByLabel('Model parameter')).toHaveValue(JSON.stringify(['eGFR', 'ml/min/1,73m²']))
-  await expect(studio).toContainText('Complete cases: 11 patients')
+  await expect(studio).toContainText('Complete cases: 25 patients')
   await expect(studio.getByRole('button', { name: /Fit model/ })).toBeEnabled()
 
   const csv = (patients: number) => ['patientId,labDate,testName,unit,value', ...Array.from({ length: patients }, (_, i) =>

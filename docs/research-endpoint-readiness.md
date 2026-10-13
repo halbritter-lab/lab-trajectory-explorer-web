@@ -25,9 +25,14 @@ See the configurable trend projection design and implementation plan.
 - PR #11 implements configurable patient-level factors for trajectory level
   and slope; PRs #11/#12 are merged through #13. They still await dataset/product
   acceptance. They do not implement event-time analysis.
-- The bundled workbook contains 282 lab rows, 8 event rows and 8 attribute rows.
-  Imported eGFR covers 11 of 14 patients, each with at least three measurement
-  times, so the cohort model can be fitted with the default settings. The rows
+- The bundled workbook contains 506 lab rows, 8 event rows and 26 attribute rows
+  for 28 patients. Imported eGFR covers 25 patients, each with at least three
+  measurement times, so every cohort model preset can be fitted with the default
+  settings: cohort A has 12 patients, cohort B 10, women 12 and men 13, and 25
+  patients have a cohort for the group interaction. Patients 15-28 and the
+  attributes of patients 1, 2, 4 and 6 were added on 2026-10-12 by
+  `scripts/add_demo_cohort_patients.mjs` (synthetic, smooth courses, cohort B
+  progressing faster). The rows
   added on 2026-10-12 for patients 4, 6, 7, 8, 9 and 12 are CKD-EPI 2021 values
   computed from the same-day creatinine (`scripts/add_demo_egfr_coverage.mjs`);
   the original five patients' eGFR rows are synthetic, not formula-derived.

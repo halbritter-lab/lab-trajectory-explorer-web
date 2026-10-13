@@ -14,7 +14,7 @@ function collectBrowserProblems(page: Page): string[] {
 async function loadDemo(page: Page): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: 'Load demo data' }).click()
-  await expect(page.getByText(/282 lab values/)).toBeVisible()
+  await expect(page.getByText(/506 lab values/)).toBeVisible()
 }
 
 async function uploadCsv(page: Page, name: string, csv: string): Promise<void> {
@@ -42,7 +42,7 @@ test('shows the same slope-quality caveat in the cohort table and the patient vi
 
   for (const [patient, label] of [['3', 'n < 3'], ['5', 'Follow-up < 1 year'], ['12', 'Follow-up < 1 year']] as const) {
     const caveat = patientRow(page, patient).locator('.wt-cell-summary span.wt-warning')
-    await expect(caveat).toHaveText(`${label} · uncertain slope`)
+    await expect(caveat).toHaveText(`${label}, uncertain slope`)
     expect(await caveat.getAttribute('title')).toMatch(/caution|unstable|Two points/i)
     // The same explanation is reachable without a pointer.
     const why = patientRow(page, patient).getByText('Why is the slope uncertain?', { exact: true })
@@ -53,7 +53,7 @@ test('shows the same slope-quality caveat in the cohort table and the patient vi
   await page.getByRole('button', { name: 'Open patient 3', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Patient 3', exact: true })).toBeVisible()
   const note = page.locator('.wt-plot-grid').getByRole('note')
-  await expect(note).toContainText('n < 3 · uncertain slope')
+  await expect(note).toContainText('n < 3, uncertain slope')
   await expect(note).toContainText('interpret with caution')
   await expect(page.locator('.wt-plot-grid svg [data-fit-quality="uncertain"]')).toHaveCount(1)
 
@@ -104,7 +104,7 @@ test('renders every G5 projection outcome in its patient row', async ({ page }) 
   for (const [patient, label] of expected) {
     const badge = patientRow(page, patient).locator('.wt-badge-endpoint')
     await expect(badge).toBeVisible()
-    expect((await badge.innerText()).split(' · ').at(-1)).toBe(label)
+    expect((await badge.innerText()).split(', ').at(-1)).toBe(label)
     expect(await badge.getAttribute('title')).toBeTruthy()
   }
   expect(problems).toEqual([])
@@ -237,7 +237,7 @@ test('keeps methodology usable on a mobile viewport', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 })
   await page.getByRole('button', { name: 'Methods', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Start here', exact: true })).toBeInViewport()
-  await page.getByRole('button', { name: 'Topics · Start here' }).click()
+  await page.getByRole('button', { name: 'Topic: Start here' }).click()
   await page.getByRole('navigation', { name: 'Help topics' }).getByRole('link', { name: 'Fits & slopes', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Choosing a Fit Model' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'Fits & slopes', exact: true })).toBeInViewport()

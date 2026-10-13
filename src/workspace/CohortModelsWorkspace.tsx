@@ -15,7 +15,7 @@ import {
 } from '../core/mixedModel/config'
 import { prepareMixedModelCohortRows } from '../core/mixedModel/cohortDataset'
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mixedModel/factors'
-import { validateMixedModelRows } from '../core/mixedModel/validation'
+import { MIN_QUALIFYING_PATIENTS, qualifyingMixedModelPatients, validateMixedModelRows } from '../core/mixedModel/validation'
 import { entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
 import { defaultModelParameterKey } from './cohort-model-parameter'
@@ -174,8 +174,23 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     : noFit ? 'Model fitting is disabled under Trajectories because No fit is selected. Choose a fit model under Trajectories.'
     : eligibleEntities.length === 0 ? `No model can be fitted with the current data and settings. ${validationReasons || 'Mixed model fitting requires at least one measurement row.'}`
     : null
-  const fitFeedback = fitUnavailableReason ?? (invalidEntities.length > 0
-    ? `${invalidEntities.length} unit${invalidEntities.length === 1 ? '' : 's'} skipped. ${validationReasons}` : invocationFeedback)
+  // Patients each group contributes, so a comparison that cannot work is visible
+  // before fitting rather than as skipped rows afterwards.
+  const groupSizes = validatedEntities.filter(item => item.entity.entity.kind === 'group').map(item => ({
+    label: item.entity.entity.kind === 'group' ? item.entity.entity.value : '',
+    patients: qualifyingMixedModelPatients(item.entity.rows, mixedModelConfig),
+    fits: item.validation.ok,
+    tooFew: !item.validation.ok && (item.validation.code === 'INSUFFICIENT_PATIENTS' || item.validation.code === 'INSUFFICIENT_REPEATED_MEASURES'),
+  }))
+  const largestGroup = groupSizes.reduce<(typeof groupSizes)[number] | null>((largest, group) => largest && largest.patients >= group.patients ? largest : group, null)
+  // Only meaningful while the pooled cohort itself can still be fitted.
+  // The size explanation applies only when every group fails for lack of patients;
+  // any other reason (factors, duplicate times) keeps the per-unit messages.
+  const noGroupFits = groupByAttribute !== null && largestGroup !== null && groupSizes.every(group => group.tooFew) && eligibleEntities.length > 0
+  const fitFeedback = fitUnavailableReason ?? (noGroupFits && largestGroup
+    ? `No ${groupByAttribute} group can be fitted on its own: each needs at least ${MIN_QUALIFYING_PATIENTS} patients with enough measurement times, and the largest, ${largestGroup.label}, has ${largestGroup.patients}. Only the whole cohort will be fitted.`
+    : invalidEntities.length > 0
+      ? `${invalidEntities.length} unit${invalidEntities.length === 1 ? '' : 's'} skipped. ${validationReasons}` : invocationFeedback)
 
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
     paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])
@@ -331,7 +346,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     <div className="cohort-models-workspace stack">
       <header className="page-heading">
         <div>
-          <p className="eyebrow">POPULATION MODELS · FIXED & RANDOM EFFECTS</p>
+          <p className="eyebrow">Population models</p>
           <h1>Cohort models</h1><a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
           <p className="muted">
             Linear mixed-effects models (WebR / lme4). Fit population trajectories, evaluate covariates (genotype, age, sex),
@@ -388,6 +403,11 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                 ))}
               </select>
             </label>
+          )}
+          {groupByAttribute && groupSizes.length > 0 && (
+            <p className="muted cm-group-sizes">
+              Patients with enough measurement times per group: {groupSizes.map(group => `${group.label}: ${group.patients}`).join(', ')}. Each group needs at least {MIN_QUALIFYING_PATIENTS}.
+            </p>
           )}
         </div>
 
@@ -551,7 +571,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </div>
         </div>
         {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label="Reference categories">
-          Reference categories: {categoricalReferences.map(item => `${item.label} = ${item.reference}${item.isDefault ? ' (first level by default; change it next to the factor)' : ''}`).join(' · ')}
+          Reference categories: {categoricalReferences.map(item => `${item.label} = ${item.reference}${item.isDefault ? ' (first level by default; change it next to the factor)' : ''}`).join('; ')}
         </p>}
         <p className="muted cm-population-note">Time: years since each patient's first retained measurement. Missing selected factors exclude the patient from this model only; no imputation.</p>
         {sampleSummary.preparation.excludedPatients.length > 0 && <details className="cm-excluded-patients">
@@ -575,7 +595,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           >
             {cohortModelRunning
               ? (cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Running model …')
-              : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length} units)` : ''}`}
+              : noGroupFits
+                ? `${allEligibleFitted ? 'Refit' : 'Fit'} whole cohort only`
+                : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length} units)` : ''}`}
           </button>
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>

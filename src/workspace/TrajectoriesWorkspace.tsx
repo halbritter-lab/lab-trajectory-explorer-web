@@ -78,30 +78,31 @@ function CellSummary({
   const markedLabels = [...new Set(markedReasons.flat())].map(exclusionReasonLabel)
 
   return <div className="wt-cell-summary">
-    <span>{last ? `${formatWorkspaceDate(last.date)} · ${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'}` : 'No numeric measurements with a date'}</span>
-    {fit && <>
+    <span className={last ? undefined : 'wt-muted'}>{last ? `${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'}, latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date'}</span>
+    {/* Without a dated measurement the fit lines would only repeat that there is nothing to fit. */}
+    {fit && last && <>
       <span>
         {cell.fitModel === 'none'
           ? 'Fit model disabled'
           : Number.isFinite(cell.slope)
-            ? `${modelLabel}: ${formatWorkspaceNumber(cell.slope)} ${cell.einheit ?? ''}/year · R² ${formatWorkspaceNumber(cell.r2)}`
+            ? `${modelLabel}: ${formatWorkspaceNumber(cell.slope)} ${cell.einheit ?? ''}/year, R² ${formatWorkspaceNumber(cell.r2)}`
             : 'No fit available'}
       </span>
       {cell.rolling && <span title={`Rolling OLS: an OLS fit in each ${cell.rolling.windowDays}-day window, moved in steps of ${cell.rolling.stepDays} days, with at least three fitted measurements. The slope above is the global OLS slope; the short lines in the chart are the window fits.`}>
         {cell.rolling.nWindows > 0
-          ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'} · local slopes ${formatWorkspaceNumber(cell.rolling.slopeMin)} to ${formatWorkspaceNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
+          ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'}, local slopes ${formatWorkspaceNumber(cell.rolling.slopeMin)} to ${formatWorkspaceNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
           : `No ${cell.rolling.windowDays}-day window with three fitted measurements; no local slopes`}
       </span>}
       {Number.isFinite(cell.ciLow) && Number.isFinite(cell.ciHigh) && <span title="Uncertainty in the estimated slope; not a prediction interval for future measurements">95% slope CI [{formatWorkspaceNumber(cell.ciLow)}, {formatWorkspaceNumber(cell.ciHigh)}] {cell.einheit ?? ''}/year</span>}
       <span>
         {cell.nFitted !== cell.nNumeric
-          ? `${cell.nFitted} fitted of ${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'} · ${cell.fittedSpanDays} days`
-          : `${cell.nFitted} fitted ${cell.nFitted === 1 ? 'measurement' : 'measurements'} · ${cell.fittedSpanDays} days`}
+          ? `${cell.nFitted} fitted of ${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'} over ${cell.fittedSpanDays} days`
+          : `${cell.nFitted} fitted ${cell.nFitted === 1 ? 'measurement' : 'measurements'} over ${cell.fittedSpanDays} days`}
       </span>
       {quality && (detailed
-        ? <p role="note" className={`wt-quality-note ${quality.caveat ? 'wt-warning' : 'wt-muted'}`}><strong>{qualityText}{quality.caveat ? ' · uncertain slope' : ''}</strong>: {quality.title}</p>
+        ? <p role="note" className={`wt-quality-note ${quality.caveat ? 'wt-warning' : 'wt-muted'}`}><strong>{qualityText}{quality.caveat ? ', uncertain slope' : ''}</strong>: {quality.title}</p>
         : <>
-          <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityText}{quality.caveat ? ' · uncertain slope' : ''}</span>
+          <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityText}{quality.caveat ? ', uncertain slope' : ''}</span>
           {/* Tooltips are unreachable by keyboard and touch; the disclosure is not. */}
           <details className="wt-quality-details"><summary>{quality.caveat ? 'Why is the slope uncertain?' : 'Why is there no slope?'}</summary><p>{quality.title}</p></details>
         </>)}
@@ -389,13 +390,13 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   const someTrendsShown = parameters.some(parameter => fitKeys.includes(parameter.key))
   if (!data.patients.length) return <section className="card"><h1>Patients and trajectories</h1><p>No data loaded yet. Import a CSV or Excel file, or load demo data under Data.</p></section>
     return <div className="wt-workspace" ref={workspaceElement}>
-    <header className="page-heading"><p className="eyebrow">PATIENTS & TRAJECTORIES</p><h1>Explore trajectories</h1><p>{data.patients.length} {data.patients.length === 1 ? 'patient' : 'patients'} · {data.parameters.length} {data.parameters.length === 1 ? 'parameter' : 'parameters'} · {data.fileName ?? 'Loaded data'}</p></header>
+    <header className="page-heading"><p className="eyebrow">Patients and trajectories</p><h1>Explore trajectories</h1><p>{data.patients.length} {data.patients.length === 1 ? 'patient' : 'patients'}, {data.parameters.length} {data.parameters.length === 1 ? 'parameter' : 'parameters'}, from {data.fileName ?? 'loaded data'}</p></header>
     {parameterNotice && <p className="notice" role="status">{parameterNotice}</p>}
     {unavailable.length > 0 && <p className="notice" role="status">Unavailable selected parameters: {unavailable.join(', ')}. The derivation is disabled or currently produces no computable values. The selection is retained for recalculation; unavailable parameters are excluded from exports.</p>}
     <section className="card wt-controls" aria-label="Shared selection">
       <div className="wt-toolbar"><button ref={pickerButton} onClick={() => { setParameterQuery(''); setDraftKeys([...keys]) }}>Choose parameters</button><span>{countLabel(parameters.length, 'parameter')} selected</span><WorkspaceExportActions data={data} parameterKeys={keys} patientIds={patientIds} cohortRows={visible} fitConfigByParameterKey={fitConfigs} moduleSettingsByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).moduleSettings]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
         getCharts: () => [...(workspaceElement.current?.querySelectorAll<SVGSVGElement>('.wt-plot-card svg.wt-plot') ?? [])].map(svg => ({
-          svg, title: `Patient ${current.patientId} · ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
+          svg, title: `Patient ${current.patientId}: ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
         })) } : {})} /></div>
       <div className="wt-control-grid">
         <label>Search patients<input value={query} onChange={event => { setQuery(event.target.value); setTablePage(0) }} placeholder="ID or name" /></label>
@@ -425,7 +426,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
           <span className="wt-muted" role="status">{metricArrow(sortAscending)} {sortAscending ? 'Lowest first' : 'Highest first'}{activeMetric === 'slope' && !sortReversed ? ' (steepest decline first)' : ''}{activeMetric === 'n' || activeMetric === 'duration' ? '' : '; patients without a value last'}</span>
         </div>}
       </div>
-      <div className="wt-toolbar"><label><input type="checkbox" checked={selectedOnly} onChange={event => { setSelectedOnly(event.target.checked); setTablePage(0) }} /> Selected patients only</label><span>{selected.length} selected · {visible.length} in the shared scope</span><button onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])} disabled={!patientIds.length}>Select all matching patients</button><button onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div>
+      <div className="wt-toolbar"><label><input type="checkbox" checked={selectedOnly} onChange={event => { setSelectedOnly(event.target.checked); setTablePage(0) }} /> Selected patients only</label><span>{selected.length} selected, {visible.length} in the shared scope</span><button onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])} disabled={!patientIds.length}>Select all matching patients</button><button onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div>
     </section>
     <div className="wt-view-row"><div className="wt-view-switch" role="group" aria-label="View"><button aria-pressed={mode === 'table'} onClick={() => {
       if (mode !== 'table') {
@@ -461,9 +462,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
       const metric = parsedSort.paramKey === p.key ? parsedSort.metric : null
       const metricLabel = metric && metricShortLabel[metric] ? `${metricArrow(metricAscendingByDefault(metric) !== sortReversed)} ${metricShortLabel[metric]}` : null
       return (
-        <th key={p.key} aria-label={p.derived ? `${p.label} · derived` : p.label} ref={element => { if (element) parameterHeaders.current.set(p.key, element); else parameterHeaders.current.delete(p.key) }}>
+        <th key={p.key} aria-label={p.derived ? `${p.label} (derived)` : p.label} ref={element => { if (element) parameterHeaders.current.set(p.key, element); else parameterHeaders.current.delete(p.key) }}>
           <div className="wt-th-content">
-            <span>{p.label}{p.derived ? ' · derived' : ''}</span>
+            <span>{p.label}{p.derived ? ' (derived)' : ''}</span>
             <button
               type="button"
               aria-hidden="true"
@@ -506,7 +507,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
       const measurements = measurementsFor(current.patientId, parameter)
       const fitStatus = measurementFitStatus(measurements, current.cells[index])
       return <div key={parameter.key}><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed cell={current.cells[index]} patientId={current.patientId} fit={fitKeys.includes(parameter.key)} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
-    })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` · ${event.description}` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section></section>}
+    })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section></section>}
     {draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} />{p.label}</label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}
   </div>
 }

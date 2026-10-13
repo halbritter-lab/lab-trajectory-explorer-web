@@ -158,7 +158,7 @@ export function CohortModelPlotPreview({
           </p>}
         </div>
         <div className="cm-plot-actions">
-          <ChartExportActions getSvg={() => svg.current} title={`Model trajectory · ${parameterLabel}${unitLabel}`} />
+          <ChartExportActions getSvg={() => svg.current} title={`Model trajectory: ${parameterLabel}${unitLabel}`} />
           {slopeBadges.map(b => (
             <span key={b.label} className="cm-slope-badge" style={{ borderColor: b.color }}>
               <span className="cm-badge-swatch" style={{ background: b.color }} />

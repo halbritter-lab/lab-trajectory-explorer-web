@@ -58,7 +58,7 @@ export function Methodology({ onNavigate, returnTo = 'Data' }: { onNavigate?: (p
     <aside className="methodology-sidebar">
       {onNavigate && <button className="methodology-return" type="button" onClick={() => onNavigate(returnTo)}>Back to {returnTo}</button>}
       <button className="methodology-menu-toggle" type="button" aria-expanded={menuOpen} aria-controls="methodology-topics" onClick={() => setMenuOpen(!menuOpen)}>
-        Topics · {topic.label}
+        Topic: {topic.label}
       </button>
       <nav id="methodology-topics" className={`methodology-topics${menuOpen ? ' is-open' : ''}`} aria-label="Help topics">
         {['Get started', 'Analysis & interpretation', 'Reference'].map(group => <div className="methodology-topic-group" key={group}>
