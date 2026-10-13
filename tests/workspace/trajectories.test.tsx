@@ -14,6 +14,19 @@ function fixture(): WorkspaceData {
 }
 
 describe('real-data trajectories workspace', () => {
+  it('shows one line for a cell without measurements, also with trends on', () => {
+    const data = fixture()
+    data.parameters = data.parameters.slice(0, 1)
+    data.rows = data.rows.filter(row => !(row.patientId === 'ID-B' && row.einheit === 'unit-0'))
+    data.rawRows = data.rows
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByLabelText('Show trends and slopes'))
+    const row = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
+    expect(row).toHaveTextContent('No numeric measurements with a date')
+    expect(row).not.toHaveTextContent(/No fit available|fitted measurements|Why is there no slope/)
+    expect(screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')).toHaveTextContent('3 fitted measurements')
+  })
+
   it('pages a 2000-patient table while retaining global sort, detail navigation and return focus', () => {
     const data = fixture()
     data.parameters = data.parameters.slice(0, 1)

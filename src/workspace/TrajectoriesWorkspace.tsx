@@ -78,8 +78,9 @@ function CellSummary({
   const markedLabels = [...new Set(markedReasons.flat())].map(exclusionReasonLabel)
 
   return <div className="wt-cell-summary">
-    <span>{last ? `${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'}, latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date'}</span>
-    {fit && <>
+    <span className={last ? undefined : 'wt-muted'}>{last ? `${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'}, latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date'}</span>
+    {/* Without a dated measurement the fit lines would only repeat that there is nothing to fit. */}
+    {fit && last && <>
       <span>
         {cell.fitModel === 'none'
           ? 'Fit model disabled'
