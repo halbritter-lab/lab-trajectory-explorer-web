@@ -5,6 +5,8 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-10-14
+
 ### Added
 
 - Cohort models have a *Data preparation* select with the presets offered
