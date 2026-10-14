@@ -12,6 +12,21 @@ import { FIT_PRESET_CATEGORY_LABELS, type FitPresetDefinition } from '../core/an
 const PRESET_GROUPS = [...new Set(fitPresetCatalog.map(preset => preset.category))]
   .map(category => [category, fitPresetCatalog.filter(preset => preset.category === category)] as [FitPresetDefinition['category'], FitPresetDefinition[]])
 
+/** The options of a preset select, shared by Trajectories and Cohort models;
+ * "Custom configuration" appears only while edited settings are in use. */
+export function PresetOptions({ presetId }: { presetId: string }) {
+  return <>
+    {PRESET_GROUPS.map(([category, presets]) => <optgroup key={category} label={FIT_PRESET_CATEGORY_LABELS[category]}>
+      {presets.map(preset => <option key={preset.id} value={preset.id}>{preset.optionLabel}</option>)}
+    </optgroup>)}
+    {presetId === 'custom' && (
+      <optgroup label="Custom">
+        <option value="custom">Custom configuration</option>
+      </optgroup>
+    )}
+  </>
+}
+
 /** Column settings of the eGFR endpoint group; every other module with column
  * settings gets its own group after the built-in ones. */
 const ENDPOINT_GROUP_MODULES = new Set<string>([RAPID_EGFR_DECLINE_MODULE_ID])
@@ -80,14 +95,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             value={fitSettings.presetId}
             onChange={event => applyPreset(event.target.value)}
           >
-            {PRESET_GROUPS.map(([category, presets]) => <optgroup key={category} label={FIT_PRESET_CATEGORY_LABELS[category]}>
-              {presets.map(preset => <option key={preset.id} value={preset.id}>{preset.optionLabel}</option>)}
-            </optgroup>)}
-            {fitSettings.presetId === 'custom' && (
-              <optgroup label="Custom">
-                <option value="custom">Custom configuration</option>
-              </optgroup>
-            )}
+            <PresetOptions presetId={fitSettings.presetId} />
           </select>
         </label>
 

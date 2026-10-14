@@ -5,6 +5,23 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.6] - 2026-10-14
+
+### Added
+
+- Cohort models have a *Data preparation* select with the presets offered
+  under Trajectories. It changes the same settings Trajectories uses (the
+  parameter's own settings, otherwise the shared ones, as a note under the
+  select says), so a parameter set to "No fit" can be made fittable without
+  leaving the page.
+- The Trajectories table has a *Cell details* option. *Compact* shows the
+  measurement count with fitted count and span, the slope and the quality label
+  per cell, and moves rolling windows, slope CI, quality explanation, endpoint
+  details and exclusions into one *Details* disclosure.
+- Unapplied projection settings are previewed below the projection controls
+  with the remaining years per enabled target, computed like the applied
+  table. The table and the export still show the applied settings.
+
 ## [0.3.5] - 2026-10-13
 
 ### Fixed

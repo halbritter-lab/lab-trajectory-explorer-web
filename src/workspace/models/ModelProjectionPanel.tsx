@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { mixedModelFactors } from '../../core/mixedModel/config'
-import { validateProjectionSettings, type ProjectionSettings, type ProjectionSnapshot } from '../../core/projection/projectionSnapshot'
+import { projectionRows, validateProjectionSettings, type ProjectionSettings, type ProjectionSnapshot } from '../../core/projection/projectionSnapshot'
 import { projectionTargetPresets } from '../../core/analysis/registry'
 
 export interface ModelProjectionPanelProps {
@@ -20,6 +20,16 @@ const STATUS_LABELS: Record<ProjectionSnapshot['rows'][number]['status'],string>
   incompatible_target:'Target does not match series', disabled:'Disabled', unavailable_profile:'Profile unavailable',
 }
 
+/** Remaining years of the unapplied draft, computed like the applied table. */
+function formatDraftPreview(snapshot: ProjectionSnapshot, draft: ProjectionSettings): string | null {
+  const items = projectionRows(snapshot.sourceResult, snapshot.sourceResponse, snapshot.categoryChoices, draft).rows
+    .filter(row => row.status !== 'disabled')
+    .map(row => row.remainingYears !== null
+      ? `${row.target.label}: ${row.remainingYears.toFixed(2)} remaining years`
+      : `${row.target.label}: ${STATUS_LABELS[row.status]}`)
+  return items.length > 0 ? items.join('; ') : null
+}
+
 /** The parent supplies the same current, applied snapshot to this view and export. */
 export function ModelProjectionPanel({snapshot,onApply,onDirtyChange,showWarnings = true}: ModelProjectionPanelProps) {
   const [draft,setDraft] = useState(() => clone(snapshot.settings))
@@ -32,6 +42,7 @@ export function ModelProjectionPanel({snapshot,onApply,onDirtyChange,showWarning
   useEffect(() => { dirtyCallback.current(dirty) }, [dirty])
   useEffect(() => () => dirtyCallback.current(false), [])
   const errors = validateProjectionSettings(draft,snapshot.sourceResponse)
+  const draftPreview = dirty && errors.length === 0 ? formatDraftPreview(snapshot, draft) : null
   const factors = snapshot.sourceResult.metadata.modelConfig ? mixedModelFactors(snapshot.sourceResult.metadata.modelConfig) : []
   function updateTarget(index: number, patch: Partial<ProjectionSettings['targets'][number]>) {
     setDraft((current) => ({...current,targets:current.targets.map((target,i) => i === index ? {...target,...patch} : target)}))
@@ -67,6 +78,8 @@ export function ModelProjectionPanel({snapshot,onApply,onDirtyChange,showWarning
     {projectionTargetPresets(snapshot.sourceResponse).map((preset) => <button type="button" key={preset.id} onClick={() => setDraft({...draft,targets:[...draft.targets,{...preset,id:uniqueId(preset.id),enabled:true}]})}>Add {preset.label}</button>)}
     {errors.length > 0 && <p role="alert">{errors.join(' ')}</p>}
     {dirty && <p role="status">Unapplied projection changes. Results show applied settings.</p>}
+    {/* Outside the live region, so screen readers are not interrupted on every keystroke. */}
+    {draftPreview && <p className="muted" data-testid="projection-draft-preview">Preview of the unapplied settings: {draftPreview}.</p>}
     <button type="button" disabled={!dirty || errors.length > 0} onClick={() => onApply(clone(draft))}>Apply projection settings</button>
     <button type="button" disabled={!dirty} onClick={() => setDraft(clone(snapshot.settings))}>Cancel</button>
     <div className="model-projection-results"><table className="cohort-model-table" aria-label="Projected boundary intersections"><thead><tr><th>Target</th><th>Status</th><th>Model time (years)</th><th>Remaining years</th></tr></thead><tbody>

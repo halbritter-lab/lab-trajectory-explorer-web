@@ -112,7 +112,7 @@ describe('workspace model validity', () => {
     const key = data.parameters[0].key
     act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: defaultFitSettings('ckd_progression'), columns: { [key]: defaultFitSettings('acute_review') } }))
     view.rerender(<Harness studio />)
-    expect(screen.getByTestId('model-preparation')).toHaveTextContent('Acute review (own settings of this parameter): no fit, so no cohort model is prepared for this parameter. Choose a fit model for it under Trajectories to fit a cohort model.')
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('Acute review (own settings of this parameter): no fit, so no cohort model is prepared for this parameter. Choose another data preparation above or a fit model under Trajectories to fit a cohort model.')
     // Nothing can be fitted, so the button must not look usable and no window count is shown.
     screen.getAllByRole('button', { name: /Fit model/ }).forEach(button => expect(button).toBeDisabled())
     expect(screen.queryByText(/Preset windows:/)).not.toBeInTheDocument()

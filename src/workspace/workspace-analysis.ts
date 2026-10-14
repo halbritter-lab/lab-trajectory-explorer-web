@@ -53,9 +53,10 @@ export function toFitConfig(
   }
 }
 
-/** The analysis settings chosen under Trajectories: the shared settings and
- * each parameter's own settings, by parameter key. Cohort models prepare
- * their measurements with the same settings (decided 2026-10-07). */
+/** The analysis settings used by Trajectories: the shared settings and each
+ * parameter's own settings, by parameter key. Cohort models prepare their
+ * measurements with the same settings (decided 2026-10-07) and can change
+ * them through their Data preparation select. */
 export interface TrajectoryFitSettings {
   shared: WorkspaceFitSettings
   columns: Record<string, WorkspaceFitSettings>

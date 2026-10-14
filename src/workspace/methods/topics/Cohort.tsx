@@ -3,16 +3,16 @@ import { ReferenceTable } from '../ReferenceTable'
 export function Cohort() { return <>
 <p>Cohort models estimate population associations with linear mixed models (WebR / lme4). Fit the whole cohort or selected groups, then inspect status and warnings before interpreting coefficients or projections.</p><section className="methodology-section"><h3 id="methods-preparation" tabIndex={-1}>Inputs, time origin and fit safeguards</h3>
       <p>
-        Cohort models prepare their measurements with the analysis settings chosen for the same
-        parameter under Trajectories: its event censoring, AKI exclusion windows and time
-        balancing. With general exploration, the setting of a newly loaded dataset, nothing is
+        Cohort models prepare their measurements with the analysis settings Trajectories uses for
+        the same parameter: its event censoring, AKI exclusion windows and time balancing. The
+        Data preparation select on the Cohort models page changes the same settings. With general exploration, the setting of a newly loaded dataset, nothing is
         excluded or aggregated. The Cohort models page states the settings in use. A separate
         checkbox, on by default, applies the event censoring and AKI windows; turning it off
         retains the eligible exact dated measurements inside those windows, while time balancing
         still applies. A parameter set to “No fit” supplies no model rows. The preview, each model
         status and the workbook record the selected policy and the number of measurements removed
         by the union of those windows. This count is taken before time balancing and
-        missing-factor exclusions. Changing these settings under Trajectories discards fitted
+        missing-factor exclusions. Changing these settings, on either page, discards fitted
         models.
       </p>
       <p>

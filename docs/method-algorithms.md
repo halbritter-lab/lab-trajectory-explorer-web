@@ -3121,8 +3121,10 @@ worksheet. Changing the policy invalidates fitted results and their projections.
 series configuration of a cohort model is the fit configuration that
 Trajectories applies to the same parameter: the parameter's own settings when
 it has some, otherwise the shared settings (`workspaceModelSpec`,
-`trajectoryFitConfig`). Trajectories publishes its settings to the shared
-application state on every change. The model therefore receives the
+`trajectoryFitConfig`). These settings live in the shared application state;
+Trajectories reads and writes them there, and the *Data preparation* select on
+the Cohort models page writes the same settings (see below). The model
+therefore receives the
 measurements the trajectory fit of that parameter receives: the same event
 censoring, AKI windows and time balancing, and none for fit model "No fit".
 The fit model otherwise has no effect on the mixed model; with Theil-Sen,
@@ -3130,9 +3132,24 @@ rolling or segmented OLS the rows are the same as with OLS. Before, the page
 always used general exploration, so no window and no time balancing could
 apply and the count was always 0.
 
-- Until a preset is chosen under Trajectories, and for a dataset just loaded,
-  the configuration is general exploration: no event censoring, no AKI
-  exclusion, raw time balancing.
+- Until a preset is chosen, and for a dataset just loaded, the configuration
+  is general exploration: no event censoring, no AKI exclusion, raw time
+  balancing. When the Trajectories page is unmounted, which happens when
+  another dataset is loaded, the settings return to these defaults.
+- **Data preparation on the Cohort models page.** The select
+  offers the same presets as *Analysis preset* under Trajectories and has the
+  same effect: choosing a preset replaces the settings with that preset's
+  defaults, endpoint and rapid-decline settings included. It writes to the
+  model parameter's own settings when the parameter has some, otherwise to the
+  shared settings; a note under the select states which, and that a shared
+  change also applies to every Trajectories column without own settings.
+  "Custom configuration" is listed only while edited settings are in use and
+  cannot be chosen otherwise. Choosing a preset also fixes the model parameter
+  to the one shown, because the preselection depends on these settings and
+  could otherwise move to another parameter. Example: the shared settings are
+  acute review (fit model "No fit"), so the Fit button is disabled; choosing
+  CKD progression sets the shared settings to quarterly medians and enables
+  the Fit button.
 - Below the checkbox the page states the configuration in use and whether it
   is the shared one or the parameter's own, for example "CKD progression
   (shared settings): quarterly medians; event windows after kidney transplant,
@@ -3142,10 +3159,11 @@ apply and the count was always 0.
   keeps own settings given to it earlier.
 - With fit model "No fit" the page says that no cohort model is prepared, the
   Fit button is disabled and the count of excluded measurements is not shown.
+  The page points to the *Data preparation* select and to Trajectories.
 - The checkbox *Apply preset event and AKI exclusions* switches stage 3 only.
   Time balancing (stage 4) and the "No fit" rule (stage 2) apply in either
   position.
-- A change under Trajectories to the fit model, the time balancing, the
+- A change, under Trajectories or through *Data preparation*, to the fit model, the time balancing, the
   censoring options or the AKI exclusion of a parameter discards the fitted
   models and projections when a model of that parameter is stored, like every
   other change to the model data; a running fit is stopped by any such change.
@@ -3622,7 +3640,12 @@ switched off, and `unavailable_profile` as described above.
   and every preset target enabled.
 - **Editable ranges.** The reference time must be finite and at least 0. The
   horizon must be finite and greater than 0. Thresholds must be finite. Target
-  labels must not be empty. Changes take effect only after *Apply*.
+  labels must not be empty. Changes take effect only after *Apply*. While
+  valid changes are unapplied, a line below the controls previews them: for
+  each enabled target its remaining years, rounded to two decimals, or its
+  status. It is computed by the same function as the applied rows
+  (`projectionRows`); the results table and the export keep the applied
+  settings until *Apply*.
 - **Preset targets.** For an eGFR outcome the presets are the G4 boundary
   (*below* 30) and the G5 boundary (*below* 15), with the fitted series' own
   name and unit. They are offered when the unit is mL/min/1.73 m² in one of
