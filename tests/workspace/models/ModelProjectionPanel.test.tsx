@@ -73,3 +73,12 @@ it('refreshes displayed times from same-identity refits while retaining unapplie
   expect(screen.getByLabelText('Reference time (years)')).toHaveValue(2)
   expect(screen.getByText('Apply projection settings')).toBeEnabled()
 })
+
+it('shows a live preview of unapplied valid draft crossings in the status banner before applying', () => {
+  render(<Harness />)
+  fireEvent.change(screen.getByLabelText('Reference time (years)'), { target: { value: '1' } })
+  // The table keeps the applied value (4.00 remaining); the preview shows the draft (3.00 remaining).
+  expect(screen.getByRole('table', { name: 'Projected boundary intersections' })).toHaveTextContent('4.00')
+  expect(screen.getByText(/Unapplied projection changes/)).not.toHaveTextContent('3.00')
+  expect(screen.getByTestId('projection-draft-preview')).toHaveTextContent('Study boundary: 3.00 remaining years')
+})

@@ -197,6 +197,19 @@ describe('CohortModelsWorkspace', () => {
     })
   })
 
+  it('allows switching data preparation directly in Cohort models and unblocks Trajectories No fit', () => {
+    studio(qualifyingData())
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: defaultFitSettings('acute_review'), columns: {} }))
+    expect(fitButtons()[0]).toBeDisabled()
+    const prepSelect = screen.getByLabelText('Data preparation') as HTMLSelectElement
+    expect(prepSelect.value).toBe('acute_review')
+    expect(prepSelect.closest('label')).toHaveTextContent('Shared settings: also changes every Trajectories column without own settings.')
+    fireEvent.change(prepSelect, { target: { value: 'ckd_progression' } })
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('ckd_progression')
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('CKD progression (shared settings): quarterly medians')
+    expect(fitButtons()[0]).toBeEnabled()
+  })
+
   it('submits the eligible pooled cohort and group A and explains the skipped group B', async () => {
     const run = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({ runCohortModels: run })

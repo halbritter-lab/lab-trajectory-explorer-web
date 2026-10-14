@@ -27,6 +27,21 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')).toHaveTextContent('3 fitted measurements')
   })
 
+  it('supports compact cell details mode that condenses multi-line fit metadata into a single disclosure', () => {
+    const data = fixture()
+    data.parameters = data.parameters.slice(0, 1)
+    render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByLabelText('Show trends and slopes'))
+    const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
+    expect(row).toHaveTextContent('95% slope CI')
+    fireEvent.change(screen.getByLabelText('Cell details'), { target: { value: 'compact' } })
+    expect(within(row).getByText(/3 measurements \(3 fitted over 731 days\), latest 01\/01\/2022/)).toBeInTheDocument()
+    const compactDetails = row.querySelector('details.wt-compact-details') as HTMLDetailsElement
+    expect(compactDetails).toBeInTheDocument()
+    expect(compactDetails).not.toHaveAttribute('open')
+    expect(within(compactDetails).getByText(/95% slope CI/)).toBeInTheDocument()
+  })
+
   it('pages a 2000-patient table while retaining global sort, detail navigation and return focus', () => {
     const data = fixture()
     data.parameters = data.parameters.slice(0, 1)

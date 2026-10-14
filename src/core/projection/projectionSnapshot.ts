@@ -72,6 +72,22 @@ export function projectionCategoryChoices(result: MixedModelSuccess, preparedRow
   }))
 }
 
+/** The profile line and one row per target for these settings. Shared by the
+ * applied snapshot and the panel's preview of unapplied settings, so both
+ * compute crossings the same way. Expects validated settings. */
+export function projectionRows(result: MixedModelSuccess, sourceResponse: ProjectionResponse, categoryChoices: Record<string,string[]>, settings: ProjectionSettings): Pick<ProjectionSnapshot,'line'|'rows'> {
+  const unknown = Object.entries(categoryChoices).find(([key,choices]) => !choices.includes(String(settings.profile[key])))
+  const line: ProfileLine = unknown ? {status:'unavailable',reason:`Profile category is not present in the fitted population: ${unknown[0]}.`} : resolveProjectionProfile(result,settings.profile)
+  return {
+    line,
+    rows:settings.targets.map(target => {
+      if (!target.enabled) return {target,status:'disabled',reason:null,modelTimeYears:null,remainingYears:null}
+      if (line.status === 'unavailable') return {target,status:'unavailable_profile',reason:line.reason,modelTimeYears:null,remainingYears:null}
+      return {target,...projectLinearThreshold({...line,...sourceResponse,referenceTimeYears:settings.referenceTimeYears,horizonYears:settings.horizonYears,target}),reason:null}
+    }),
+  }
+}
+
 export function buildProjectionSnapshot(result: MixedModelSuccess, identity: MixedModelResultIdentity, sourceResponse: ProjectionResponse, preparedRows: readonly MixedModelSpikeRow[], settings: ProjectionSettings): ProjectionSnapshot {
   if (result.status !== 'success' || !result.converged) throw new Error('Projection requires a successful converged source fit.')
   if (result.singular) throw new Error('Projection is withheld for a singular random-effects fit.')
@@ -81,14 +97,8 @@ export function buildProjectionSnapshot(result: MixedModelSuccess, identity: Mix
   if (errors.length) throw new Error(errors.join(' '))
   const applied = {...settings,profile:{...settings.profile},targets:settings.targets.map(target => ({...target}))}
   const categoryChoices = projectionCategoryChoices(result,preparedRows)
-  const unknown = Object.entries(categoryChoices).find(([key,choices]) => !choices.includes(String(applied.profile[key])))
-  const line: ProfileLine = unknown ? {status:'unavailable',reason:`Profile category is not present in the fitted population: ${unknown[0]}.`} : resolveProjectionProfile(result,applied.profile)
   return {
-    sourceResponse:{...sourceResponse},sourceResult:result,sourceIdentity:{...identity},settings:applied,line,categoryChoices,warnings:[...result.warnings],
-    rows:applied.targets.map(target => {
-      if (!target.enabled) return {target,status:'disabled',reason:null,modelTimeYears:null,remainingYears:null}
-      if (line.status === 'unavailable') return {target,status:'unavailable_profile',reason:line.reason,modelTimeYears:null,remainingYears:null}
-      return {target,...projectLinearThreshold({...line,...sourceResponse,referenceTimeYears:applied.referenceTimeYears,horizonYears:applied.horizonYears,target}),reason:null}
-    }),
+    sourceResponse:{...sourceResponse},sourceResult:result,sourceIdentity:{...identity},settings:applied,categoryChoices,warnings:[...result.warnings],
+    ...projectionRows(result,sourceResponse,categoryChoices,applied),
   }
 }

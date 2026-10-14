@@ -12,7 +12,7 @@ import { countLabel, exclusionReasonLabel, sexLabel } from './workspace-labels'
 import { measurementFitStatus } from './measurement-fit-status'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { WorkspaceAnalysisSettings } from './WorkspaceAnalysisSettings'
-import { defaultFitSettings, defaultTrajectoryFitSettings, endpointBadge, toFitConfig, type WorkspaceFitSettings } from './workspace-analysis'
+import { defaultTrajectoryFitSettings, endpointBadge, toFitConfig, type WorkspaceFitSettings } from './workspace-analysis'
 import { useAppStore } from './state/store'
 
 /** Sort keys are `${parameterKey}:${metric}`; parameter keys are JSON and may
@@ -37,6 +37,7 @@ function CellSummary({
   fit,
   columnSettings,
   detailed = false,
+  compact = false,
 }: {
   cell: CohortCell
   patientId: PatientId
@@ -45,6 +46,8 @@ function CellSummary({
   columnSettings: ColumnModuleSettings
   /** Patient view: the slope-quality explanation is shown as text, not hidden. */
   detailed?: boolean
+  /** Table view: condenses fit counts and secondary disclosures into one compact block. */
+  compact?: boolean
 }) {
   const last = cell.points[cell.points.length - 1]
   const quality = slopeQualityLabel(cell)
@@ -76,33 +79,67 @@ function CellSummary({
   const markedReasons = cell.pointExclusionReasons.map(reasons => reasons.filter(reason => cell.fitModel !== 'none' || reason === 'censored-value'))
   const markedCount = markedReasons.filter(reasons => reasons.length > 0).length
   const markedLabels = [...new Set(markedReasons.flat())].map(exclusionReasonLabel)
+  // Shared by the full and the compact layout, so their wording cannot drift.
+  const measurementCount = `${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'}`
+  const slopeText = cell.fitModel === 'none'
+    ? 'Fit model disabled'
+    : Number.isFinite(cell.slope)
+      ? `${modelLabel}: ${formatWorkspaceNumber(cell.slope)} ${cell.einheit ?? ''}/year, R² ${formatWorkspaceNumber(cell.r2)}`
+      : 'No fit available'
+  const rollingTitle = cell.rolling && `Rolling OLS: an OLS fit in each ${cell.rolling.windowDays}-day window, moved in steps of ${cell.rolling.stepDays} days, with at least three fitted measurements. The slope above is the global OLS slope; the short lines in the chart are the window fits.`
+  const rollingText = cell.rolling && (cell.rolling.nWindows > 0
+    ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'}, local slopes ${formatWorkspaceNumber(cell.rolling.slopeMin)} to ${formatWorkspaceNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
+    : `No ${cell.rolling.windowDays}-day window with three fitted measurements; no local slopes`)
+  const hasCi = Number.isFinite(cell.ciLow) && Number.isFinite(cell.ciHigh)
+  const ciTitle = 'Uncertainty in the estimated slope; not a prediction interval for future measurements'
+  const ciText = `95% slope CI [${formatWorkspaceNumber(cell.ciLow)}, ${formatWorkspaceNumber(cell.ciHigh)}] ${cell.einheit ?? ''}/year`
+  const qualityLabel = quality && `${qualityText}${quality.caveat ? ', uncertain slope' : ''}`
+  const excludedText = `${markedCount} excluded from the fit (${markedLabels.join(', ')})`
+
+  if (compact && !detailed) {
+    const hasSecondaryDetails = Boolean((fit && last && (cell.rolling || hasCi || quality)) || endpoint || markedCount > 0)
+    return <div className="wt-cell-summary wt-cell-summary-compact">
+      <span className={last ? undefined : 'wt-muted'}>
+        {!last
+          ? 'No numeric measurements with a date'
+          : fit
+            ? `${measurementCount} (${cell.nFitted} fitted over ${cell.fittedSpanDays} days), latest ${formatWorkspaceDate(last.date)}`
+            : `${measurementCount}, latest ${formatWorkspaceDate(last.date)}`}
+      </span>
+      {fit && last && <>
+        <span>{slopeText}</span>
+        {quality && <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityLabel}</span>}
+        {flags.filter(flag => flag.requiresFit).map(badge)}
+      </>}
+      {endpoint && <span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span>}
+      {flags.filter(flag => !flag.requiresFit).map(badge)}
+      {hasSecondaryDetails && <details className="wt-compact-details">
+        <summary>Details</summary>
+        {fit && last && rollingText && <p title={rollingTitle || undefined}>{rollingText}</p>}
+        {fit && last && hasCi && <p title={ciTitle}>{ciText}</p>}
+        {fit && last && quality && <p>{quality.title}</p>}
+        {endpoint && <><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></>}
+        {markedCount > 0 && <p className="wt-muted">{excludedText}</p>}
+      </details>}
+    </div>
+  }
 
   return <div className="wt-cell-summary">
-    <span className={last ? undefined : 'wt-muted'}>{last ? `${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'}, latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date'}</span>
+    <span className={last ? undefined : 'wt-muted'}>{last ? `${measurementCount}, latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date'}</span>
     {/* Without a dated measurement the fit lines would only repeat that there is nothing to fit. */}
     {fit && last && <>
-      <span>
-        {cell.fitModel === 'none'
-          ? 'Fit model disabled'
-          : Number.isFinite(cell.slope)
-            ? `${modelLabel}: ${formatWorkspaceNumber(cell.slope)} ${cell.einheit ?? ''}/year, R² ${formatWorkspaceNumber(cell.r2)}`
-            : 'No fit available'}
-      </span>
-      {cell.rolling && <span title={`Rolling OLS: an OLS fit in each ${cell.rolling.windowDays}-day window, moved in steps of ${cell.rolling.stepDays} days, with at least three fitted measurements. The slope above is the global OLS slope; the short lines in the chart are the window fits.`}>
-        {cell.rolling.nWindows > 0
-          ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'}, local slopes ${formatWorkspaceNumber(cell.rolling.slopeMin)} to ${formatWorkspaceNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
-          : `No ${cell.rolling.windowDays}-day window with three fitted measurements; no local slopes`}
-      </span>}
-      {Number.isFinite(cell.ciLow) && Number.isFinite(cell.ciHigh) && <span title="Uncertainty in the estimated slope; not a prediction interval for future measurements">95% slope CI [{formatWorkspaceNumber(cell.ciLow)}, {formatWorkspaceNumber(cell.ciHigh)}] {cell.einheit ?? ''}/year</span>}
+      <span>{slopeText}</span>
+      {rollingText && <span title={rollingTitle || undefined}>{rollingText}</span>}
+      {hasCi && <span title={ciTitle}>{ciText}</span>}
       <span>
         {cell.nFitted !== cell.nNumeric
           ? `${cell.nFitted} fitted of ${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'} over ${cell.fittedSpanDays} days`
           : `${cell.nFitted} fitted ${cell.nFitted === 1 ? 'measurement' : 'measurements'} over ${cell.fittedSpanDays} days`}
       </span>
       {quality && (detailed
-        ? <p role="note" className={`wt-quality-note ${quality.caveat ? 'wt-warning' : 'wt-muted'}`}><strong>{qualityText}{quality.caveat ? ', uncertain slope' : ''}</strong>: {quality.title}</p>
+        ? <p role="note" className={`wt-quality-note ${quality.caveat ? 'wt-warning' : 'wt-muted'}`}><strong>{qualityLabel}</strong>: {quality.title}</p>
         : <>
-          <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityText}{quality.caveat ? ', uncertain slope' : ''}</span>
+          <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityLabel}</span>
           {/* Tooltips are unreachable by keyboard and touch; the disclosure is not. */}
           <details className="wt-quality-details"><summary>{quality.caveat ? 'Why is the slope uncertain?' : 'Why is there no slope?'}</summary><p>{quality.title}</p></details>
         </>)}
@@ -110,7 +147,7 @@ function CellSummary({
     </>}
     {endpoint && <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></details></>}
     {flags.filter(flag => !flag.requiresFit).map(badge)}
-    {markedCount > 0 && <span className="wt-muted">{markedCount} excluded from the fit ({markedLabels.join(', ')})</span>}
+    {markedCount > 0 && <span className="wt-muted">{excludedText}</span>}
   </div>
 }
 
@@ -133,16 +170,26 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   const [axis, setAxis] = useState<WorkspaceAxis>('baseline')
   const [scaleMode, setScaleMode] = useState<'shared' | 'zoom'>('shared')
   const [chartSize, setChartSize] = useState<SparkSize>('medium')
+  const [cellDetails, setCellDetails] = useState<'full' | 'compact'>('full')
   const [tableWidth, setTableWidth] = useState(0)
   const [highlight, setHighlight] = useState<PatientId | null>(null)
   const [display, setDisplay] = useState<WorkspaceDisplay>(DEFAULT_WORKSPACE_DISPLAY)
   const [fitKeys, setFitKeys] = useState<string[]>([])
-  const [fitSettings, setFitSettings] = useState<WorkspaceFitSettings>(() => defaultFitSettings('general_exploration'))
-
-  const [columnSettings, setColumnSettings] = useState<Record<string, WorkspaceFitSettings>>({})
-  // Cohort models prepare their measurements with these settings; publish them
-  // and return to the defaults when this workspace goes away.
-  useEffect(() => { useAppStore.getState().setTrajectoryFitSettings({ shared: fitSettings, columns: columnSettings }) }, [fitSettings, columnSettings])
+  const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
+  const fitSettings = trajectoryFitSettings.shared
+  const columnSettings = trajectoryFitSettings.columns
+  const setFitSettings = (updater: WorkspaceFitSettings | ((previous: WorkspaceFitSettings) => WorkspaceFitSettings)) => {
+    const current = useAppStore.getState().trajectoryFitSettings
+    const nextShared = typeof updater === 'function' ? updater(current.shared) : updater
+    useAppStore.getState().setTrajectoryFitSettings({ ...current, shared: nextShared })
+  }
+  const setColumnSettings = (updater: Record<string, WorkspaceFitSettings> | ((previous: Record<string, WorkspaceFitSettings>) => Record<string, WorkspaceFitSettings>)) => {
+    const current = useAppStore.getState().trajectoryFitSettings
+    const nextColumns = typeof updater === 'function' ? updater(current.columns) : updater
+    useAppStore.getState().setTrajectoryFitSettings({ ...current, columns: nextColumns })
+  }
+  // The settings live in the shared store, where Cohort models read and can
+  // change them too; return to the defaults when this workspace goes away.
   useEffect(() => () => useAppStore.getState().setTrajectoryFitSettings(defaultTrajectoryFitSettings()), [])
   const [requestedSettingsScope, setSettingsScope] = useState('')
   const settingsScope = parameterKeys.includes(requestedSettingsScope) && data.parameters.some(p => p.key === requestedSettingsScope) ? requestedSettingsScope : ''
@@ -453,7 +500,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
         fitKeys={fitKeys} onToggleFit={toggleFit} />
     </details>
     {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={display[key]} onChange={event => setDisplay(previous => ({ ...previous, [key]: event.target.checked }))} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}{OVERLAY_MODULES.map(module => <label key={module.id}><input type="checkbox" checked={display[module.id] ?? false} onChange={event => setDisplay(previous => ({ ...previous, [module.id]: event.target.checked }))} />{module.presentation.toggleLabel}</label>)}</div></section>}
-    {mode === 'table' && parameters.length > 0 && <div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Choose parameters …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Chart size<select aria-label="Chart size" value={chartSize} onChange={event => setChartSize(event.target.value as SparkSize)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label><span className="wt-muted">{scaleMode === 'shared' ? 'Shared parameter scales.' : 'Zoomed visible-value scales.'} Time since first measurement; patient IDs stay visible while scrolling.</span></div>}
+    {mode === 'table' && parameters.length > 0 && <div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Choose parameters …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Chart size<select aria-label="Chart size" value={chartSize} onChange={event => setChartSize(event.target.value as SparkSize)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'full' | 'compact')}><option value="full">Full details</option><option value="compact">Compact</option></select></label><span className="wt-muted">{scaleMode === 'shared' ? 'Shared parameter scales.' : 'Zoomed visible-value scales.'} Time since first measurement; patient IDs stay visible while scrolling.</span></div>}
     {!visible.length && <p className="card">No matching patients. Change the search, group filter, or selection.</p>}
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
     {mode === 'table' && visible.length > 0 && <nav className="wt-table-pages" aria-label="Patient table pages"><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => setTablePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {activeTablePage * TABLE_PAGE_SIZE + 1}–{Math.min((activeTablePage + 1) * TABLE_PAGE_SIZE, visible.length)} of {visible.length} {visible.length === 1 ? 'patient' : 'patients'}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => setTablePage(activeTablePage + 1)}>Next</button></nav>}
@@ -485,7 +532,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
           </div>
         </th>
       )
-    })}</tr></thead><tbody>{tableRows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} patientId={row.patientId} fit={fitKeys.includes(keys[i])} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}</tbody></table></div>}
+    })}</tr></thead><tbody>{tableRows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} patientId={row.patientId} fit={fitKeys.includes(keys[i])} compact={cellDetails === 'compact'} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}</tbody></table></div>}
     {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <WorkspacePlot key={`${parameter.key}-${groupBy}`} data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} />)}</div>}
     {mode === 'detail' && current && <section><div className="wt-toolbar"><button type="button" className="wt-back-button" aria-label={`Back to ${returnMode}`} onClick={() => {
       if (returnMode === 'table') tablePosition.current.restore = true

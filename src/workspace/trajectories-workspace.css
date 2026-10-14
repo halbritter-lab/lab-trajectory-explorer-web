@@ -97,9 +97,9 @@
 .wt-overlay-swatch { display: inline-block; width: 14px; height: 10px; margin-right: 2px; vertical-align: -1px; border: 1px solid; }
 .wt-sort-direction { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; align-self: end; }
 .wt-sort-direction button[aria-pressed=true] { background: #e9f3ef; border-color: #689793; color: #145d59; font-weight: 600; }
-.wt-cell-summary .wt-quality-details { margin: 0; font-size: 11px; max-width: 240px; white-space: normal; }
-.wt-cell-summary .wt-quality-details summary { padding: 0; font-size: 11px; }
-.wt-cell-summary .wt-quality-details p { margin: 4px 0; line-height: 1.4; }
+.wt-cell-summary .wt-quality-details, .wt-cell-summary .wt-compact-details { margin: 0; font-size: 11px; max-width: 240px; white-space: normal; }
+.wt-cell-summary .wt-quality-details summary, .wt-cell-summary .wt-compact-details summary { padding: 0; font-size: 11px; cursor: pointer; color: #176c68; }
+.wt-cell-summary .wt-quality-details p, .wt-cell-summary .wt-compact-details p { margin: 4px 0; line-height: 1.4; }
 .wt-quality-note { margin: 4px 0; line-height: 1.45; }
 .wt-view-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
 .wt-trend-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; cursor: pointer; }

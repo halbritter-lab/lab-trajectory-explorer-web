@@ -2,7 +2,8 @@ import { lazy, Suspense, useId, useMemo, useState } from 'react'
 import { useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceModelSpec } from './workspace-data'
-import { describeModelPreparation, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
+import { describeModelPreparation, defaultFitSettings, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
+import { PresetOptions } from './WorkspaceAnalysisSettings'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
@@ -125,12 +126,34 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     ? selectedParamKey
     : defaultParamKey
 
-  // The measurements follow the analysis settings chosen for this parameter
-  // under Trajectories, so the model sees what the trajectory fit sees.
+  // The measurements follow the analysis settings of this parameter, the same
+  // ones Trajectories uses, so the model sees what the trajectory fit sees.
   // Keyed on the settings that reach the model, so unrelated edits under
   // Trajectories do not rebuild the model rows.
   const preparationKey = useAppStore(s => modelPreparationKey(s.trajectoryFitSettings, activeParamKey))
   const preparationSource = useAppStore(s => modelPreparationSource(s.trajectoryFitSettings, activeParamKey))
+  const activePrepSettings = (activeParamKey ? trajectoryFitSettings.columns[activeParamKey] : undefined) ?? trajectoryFitSettings.shared
+  const ownPrepSettings = activeParamKey !== undefined && trajectoryFitSettings.columns[activeParamKey] !== undefined
+  // Same semantics as the preset select under Trajectories: the parameter's own
+  // settings when it has some, otherwise the shared ones. The parameter is
+  // pinned first, because the preselection depends on these settings and
+  // would otherwise move to another parameter.
+  function changeDataPreparation(presetId: string) {
+    if (activeParamKey) setSelectedParamKey(activeParamKey)
+    const current = useAppStore.getState().trajectoryFitSettings
+    const nextSettings = defaultFitSettings(presetId)
+    if (activeParamKey && current.columns[activeParamKey]) {
+      useAppStore.getState().setTrajectoryFitSettings({
+        ...current,
+        columns: { ...current.columns, [activeParamKey]: nextSettings },
+      })
+    } else {
+      useAppStore.getState().setTrajectoryFitSettings({
+        ...current,
+        shared: nextSettings,
+      })
+    }
+  }
   const spec = useMemo(() => {
     if (!activeParamKey) return undefined
     return workspaceModelSpec(data, activeParamKey, useAppStore.getState().trajectoryFitSettings)
@@ -171,7 +194,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const canFit = eligibleEntities.length > 0 && !cohortModelRunning && !noFit
   const fitUnavailableReason = cohortModelRunning
     ? (cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Fitting model …')
-    : noFit ? 'Model fitting is disabled under Trajectories because No fit is selected. Choose a fit model under Trajectories.'
+    : noFit ? 'Model fitting is disabled because the data preparation uses No fit. Choose another data preparation above or a fit model under Trajectories.'
     : eligibleEntities.length === 0 ? `No model can be fitted with the current data and settings. ${validationReasons || 'Mixed model fitting requires at least one measurement row.'}`
     : null
   // Patients each group contributes, so a comparison that cannot work is visible
@@ -385,6 +408,20 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             </select>
           </label>
 
+          <label>
+            Data preparation
+            <select
+              aria-label="Data preparation"
+              value={activePrepSettings.presetId}
+              onChange={e => changeDataPreparation(e.target.value)}
+            >
+              <PresetOptions presetId={activePrepSettings.presetId} />
+            </select>
+            <small className="muted">{ownPrepSettings
+              ? 'Own settings of this parameter, also used under Trajectories.'
+              : 'Shared settings: also changes every Trajectories column without own settings.'}</small>
+          </label>
+
           {(preset === 'stratified' || preset === 'custom' || groupByAttribute) && (
             <label>
               Model grouping
@@ -560,7 +597,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           Apply preset event and AKI exclusions
         </label>
         {!noFit && <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>}
-        {spec?.fitConfig && <p className={noFit ? 'notice amber' : 'muted'} role={noFit ? 'status' : undefined} data-testid="model-preparation">Measurements follow the Trajectories analysis settings for this parameter. {describeModelPreparation(spec.fitConfig, preparationSource)}{noFit ? ' Choose a fit model for it under Trajectories to fit a cohort model.' : `${presetExclusionPolicy === 'skip' ? ' The event and AKI windows are skipped by the choice above; time aggregation still applies.' : ''} Changing these settings under Trajectories discards the models fitted for this parameter.`}</p>}
+        {spec?.fitConfig && <p className={noFit ? 'notice amber' : 'muted'} role={noFit ? 'status' : undefined} data-testid="model-preparation">Measurements follow the analysis settings of this parameter, shared with Trajectories. {describeModelPreparation(spec.fitConfig, preparationSource)}{noFit ? ' Choose another data preparation above or a fit model under Trajectories to fit a cohort model.' : `${presetExclusionPolicy === 'skip' ? ' The event and AKI windows are skipped by the choice above; time aggregation still applies.' : ''} Changing these settings here or under Trajectories discards the models fitted for this parameter.`}</p>}
         <div className="cm-formula-strip">
           <div>
             <span>Model: </span>
