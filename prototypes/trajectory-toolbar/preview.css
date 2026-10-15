@@ -176,6 +176,8 @@ button, input, select { font-family: inherit; }
 .pv-quiet-settings > details > p { color: var(--muted); font-size: 12px; margin: 0 0 16px; }
 .pv-quiet-settings .wt-trend-visibility .wt-fit-options { gap: 0; margin-bottom: 16px; }
 .pv-quiet-settings .wt-fit-options label { border: 0; padding: 12px 0; font-size: 12px; border-radius: 0; }
+.pv-quiet-settings .wt-fit-options label > span:not(.wt-setting-origin) { display: grid; gap: 4px; }
+.pv-quiet-settings .wt-fit-options small { font-size: 11px; }
 .pv-quiet-settings .wt-pipeline-grid { margin: 4px 0 20px; }
 .pv-quiet-settings .wt-advanced-settings { margin-bottom: 0; }
 @media (max-width: 600px) {

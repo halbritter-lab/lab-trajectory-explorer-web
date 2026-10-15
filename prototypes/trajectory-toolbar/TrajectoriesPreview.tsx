@@ -14,8 +14,9 @@ import { exclusionReasonLabel, sexLabel } from '../../src/workspace/workspace-la
 import { measurementFitStatus } from '../../src/workspace/measurement-fit-status'
 import type { FitConfig } from '../../src/core/analysis/fitConfig'
 import { QuietAnalysisSettings } from './QuietAnalysisSettings'
-import { defaultTrajectoryFitSettings, endpointBadge, toFitConfig, type WorkspaceFitSettings } from '../../src/workspace/workspace-analysis'
+import { defaultTrajectoryFitSettings, endpointBadge, type WorkspaceFitSettings } from '../../src/workspace/workspace-analysis'
 import { useAppStore } from '../../src/workspace/state/store'
+import { previewTrendConfig } from './preview-analysis'
 
 /** Sort keys are `${parameterKey}:${metric}`; parameter keys are JSON and may
  * themselves contain ':', so split at the last one. */
@@ -207,6 +208,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
   const [highlight, setHighlight] = useState<PatientId | null>(null)
   const [display, setDisplay] = useState<WorkspaceDisplay>(DEFAULT_WORKSPACE_DISPLAY)
   const [fitKeys, setFitKeys] = useState<string[]>([])
+  const [trendKeys, setTrendKeys] = useState<string[]>([])
   const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
   const fitSettings = trajectoryFitSettings.shared
   const columnSettings = trajectoryFitSettings.columns
@@ -226,6 +228,11 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
   const [requestedSettingsScope, setSettingsScope] = useState('')
   const settingsScope = parameterKeys.includes(requestedSettingsScope) && data.parameters.some(p => p.key === requestedSettingsScope) ? requestedSettingsScope : ''
   const changeSettings = (settings: WorkspaceFitSettings) => {
+    if (settings.fitModel === 'none') {
+      const affected = new Set(settingsScope ? [settingsScope] : data.parameters.filter(parameter => !columnSettings[parameter.key]).map(parameter => parameter.key))
+      setTrendKeys(previous => previous.filter(key => !affected.has(key)))
+      setFitKeys(previous => previous.filter(key => !affected.has(key)))
+    }
     if (settingsScope) setColumnSettings(previous => ({ ...previous, [settingsScope]: settings }))
     else setFitSettings(settings)
   }
@@ -292,10 +299,10 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
   const fitConfigs = useMemo(() => {
     const map: Record<string, FitConfig> = {}
     for (const p of parameters) {
-      map[p.key] = toFitConfig(columnSettings[p.key] ?? fitSettings, p)
+      map[p.key] = previewTrendConfig(columnSettings[p.key] ?? fitSettings, p, trendKeys.includes(p.key))
     }
     return map
-  }, [parameters, fitSettings, columnSettings])
+  }, [parameters, fitSettings, columnSettings, trendKeys])
   const specs = useMemo(() => workspaceSpecs(data, keys, fitConfigs), [data, keys, fitConfigs])
   const cohort = useMemo(() => buildCohortRows(data.rows, data.patients.map(p => p.id), specs), [data.rows, data.patients, specs])
   const sparkDomains = useMemo(() => specs.map((_, index): SparkDomain => {
@@ -462,11 +469,16 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     if (draftKeys !== null && dialog.current && !dialog.current.open && typeof dialog.current.showModal === 'function') dialog.current.showModal()
   }, [draftKeys])
   const closePicker = () => { dialog.current?.close?.(); setDraftKeys(null); pickerButton.current?.focus() }
-  const toggleFit = (key: string) => setFitKeys(previous => previous.includes(key) ? previous.filter(k => k !== key) : [...previous, key])
-  // One switch for every selected parameter; per-parameter choices stay under Display and analysis.
-  const parameterKeySet = new Set(parameters.map(parameter => parameter.key))
-  const allTrendsShown = parameters.length > 0 && parameters.every(parameter => fitKeys.includes(parameter.key))
-  const someTrendsShown = parameters.some(parameter => fitKeys.includes(parameter.key))
+  const toggleTrend = (key: string) => {
+    if (trendKeys.includes(key)) {
+      setTrendKeys(previous => previous.filter(item => item !== key))
+      setFitKeys(previous => previous.filter(item => item !== key))
+      if (sort === `${key}:slope` || sort === `${key}:absSlope`) setSort('id')
+    } else setTrendKeys(previous => [...previous, key])
+  }
+  const parameterKeySet = new Set(parameters.filter(parameter => trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none').map(parameter => parameter.key))
+  const allTrendsShown = parameterKeySet.size > 0 && [...parameterKeySet].every(key => fitKeys.includes(key))
+  const someTrendsShown = [...parameterKeySet].some(key => fitKeys.includes(key))
   if (!data.patients.length) return <section className="card"><h1>Patients and trajectories</h1><p>No data loaded yet. Import a CSV or Excel file, or load demo data under Data.</p></section>
     return <div className={`wt-workspace pv-explorer ${openTool === 'analysis' ? 'pv-panel-open' : ''}`} ref={workspaceElement}>
     <header className="pv-heading"><div><h1>Explore trajectories</h1><p>Follow the measurements. Explore the change.</p></div><span className="pv-dataset-name">{data.fileName}</span></header>
@@ -515,8 +527,8 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
             {parameters.map(p => (
               <optgroup key={p.key} label={p.label}>
                 <option value={`${p.key}:latest`}>Latest value: {p.label}</option>
-                <option value={`${p.key}:slope`}>Slope: {p.label}</option>
-                <option value={`${p.key}:absSlope`}>Absolute slope: {p.label}</option>
+                <option disabled={!trendKeys.includes(p.key)} value={`${p.key}:slope`}>Slope: {p.label}</option>
+                <option disabled={!trendKeys.includes(p.key)} value={`${p.key}:absSlope`}>Absolute slope: {p.label}</option>
                 <option value={`${p.key}:n`}>Number of measurements: {p.label}</option>
                 <option value={`${p.key}:duration`}>Duration: {p.label}</option>
               </optgroup>
@@ -530,10 +542,10 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
 </ToolPopover>
           <ToolPopover name="View" icon="view" open={openTool === 'view'} onToggle={() => toggleTool('view')} onClose={closeTool}>
                   <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
-                  <label className="wt-trend-toggle"><input type="checkbox" checked={allTrendsShown} disabled={!parameters.length}
+                  <label className="wt-trend-toggle"><input type="checkbox" checked={allTrendsShown} disabled={!parameterKeySet.size}
         ref={element => { if (element) element.indeterminate = someTrendsShown && !allTrendsShown }}
         onChange={() => setFitKeys(previous => allTrendsShown ? previous.filter(key => !parameterKeySet.has(key)) : [...new Set([...previous, ...parameterKeySet])])} />
-        Show trends and slopes</label>
+        Show trend lines</label><span className="wt-muted">Enable trend analysis for each parameter under Analysis. Hiding lines keeps fit results.</span>
             {mode === 'table' && <div className="pv-table-options"><div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Jump to …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Chart size<select aria-label="Chart size" value={chartSize} onChange={event => setChartSize(event.target.value as SparkSize)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'minimal' | 'full' | 'compact')}><option value="minimal">Minimal</option><option value="compact">Compact</option><option value="full">Full details</option></select></label><label>Warnings<select aria-label="Warning display" value={warningIcons ? 'icons' : 'text'} onChange={event => setWarningIcons(event.target.value === 'icons')}><option value="icons">Icons with tooltips</option><option value="text">Text badges</option></select></label></div></div>}
                 {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={display[key]} onChange={event => setDisplay(previous => ({ ...previous, [key]: event.target.checked }))} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}{OVERLAY_MODULES.map(module => <label key={module.id}><input type="checkbox" checked={display[module.id] ?? false} onChange={event => setDisplay(previous => ({ ...previous, [module.id]: event.target.checked }))} />{module.presentation.toggleLabel}</label>)}</div></section>}
 
@@ -541,7 +553,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
           <button type="button" className={`pv-tool pv-analysis-trigger ${openTool === 'analysis' ? 'pv-tool-active' : ''}`} aria-expanded={openTool === 'analysis'} onClick={() => toggleTool('analysis')}><Icon name="analysis" />Analysis</button>
         </div>
       </div>
-      <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{(allTrendsShown || someTrendsShown) && <span> · Trends on</span>}</div>    {mode === 'table' && visible.length > 0 && <nav className="wt-table-pages" aria-label="Patient table pages"><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => setTablePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {activeTablePage * TABLE_PAGE_SIZE + 1}–{Math.min((activeTablePage + 1) * TABLE_PAGE_SIZE, visible.length)} of {visible.length} {visible.length === 1 ? 'patient' : 'patients'}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => setTablePage(activeTablePage + 1)}>Next</button></nav>}</div>
+      <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{parameterKeySet.size > 0 && <span> · Trend analysis: {parameterKeySet.size}</span>}</div>    {mode === 'table' && visible.length > 0 && <nav className="wt-table-pages" aria-label="Patient table pages"><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => setTablePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {activeTablePage * TABLE_PAGE_SIZE + 1}–{Math.min((activeTablePage + 1) * TABLE_PAGE_SIZE, visible.length)} of {visible.length} {visible.length === 1 ? 'patient' : 'patients'}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => setTablePage(activeTablePage + 1)}>Next</button></nav>}</div>
       {(query || group || selectedOnly || selected.length > 0) && <div className="pv-active-state">
         {query && <button type="button" className="pv-chip" onClick={() => setQuery('')}>Search: {query}<Icon name="close" /></button>}
         {group && <button type="button" className="pv-chip" onClick={() => setGroup('')}>{groupBy}: {groupLabel(group)}<Icon name="close" /></button>}
@@ -567,7 +579,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
               className={`wt-sort-header-button ${metric ? 'active' : ''}`}
               title={`Sort by ${p.label}`}
               onClick={() => {
-                if (sort === `${p.key}:latest`) setSort(`${p.key}:slope`)
+                if (sort === `${p.key}:latest`) setSort(`${p.key}:${trendKeys.includes(p.key) ? 'slope' : 'n'}`)
                 else if (sort === `${p.key}:slope`) setSort(`${p.key}:absSlope`)
                 else if (sort === `${p.key}:absSlope`) setSort(`${p.key}:n`)
                 else if (sort === `${p.key}:n`) setSort(`${p.key}:duration`)
@@ -580,7 +592,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
           </div>
         </th>
       )
-    })}</tr></thead><tbody>{tableRows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} patientId={row.patientId} fit={fitKeys.includes(keys[i])} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}</tbody></table></div>}
+    })}</tr></thead><tbody>{tableRows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}</tbody></table></div>}
     {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <WorkspacePlot key={`${parameter.key}-${groupBy}`} data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} />)}</div>}
     {mode === 'detail' && current && <section><div className="wt-toolbar"><button type="button" className="wt-back-button" aria-label={`Back to ${returnMode}`} onClick={() => {
       if (returnMode === 'table') tablePosition.current.restore = true
@@ -601,13 +613,13 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     }}>Next patient</button><span>{currentIndex + 1} / {visible.length}</span></div><div className="wt-plot-grid">{parameters.map((parameter, index) => {
       const measurements = measurementsFor(current.patientId, parameter)
       const fitStatus = measurementFitStatus(measurements, current.cells[index])
-      return <div key={parameter.key}><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed cell={current.cells[index]} patientId={current.patientId} fit={fitKeys.includes(parameter.key)} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
+      return <div key={parameter.key}><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section></section>}
     {draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} />{p.label}</label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}
     <AnalysisDrawer open={openTool === 'analysis'} onClose={closeTool}>
             <QuietAnalysisSettings parameters={parameters} sharedSettings={fitSettings} overrides={columnSettings}
         scope={settingsScope} onScopeChange={setSettingsScope} onChange={changeSettings} onReset={resetColumnSettings}
-        fitKeys={fitKeys} onToggleFit={toggleFit} />
+        trendKeys={trendKeys} onToggleTrend={toggleTrend} />
     </AnalysisDrawer>
   </div>
 }

@@ -1,4 +1,4 @@
-// Presentation-only fork; calculation semantics remain unchanged.
+// Preview configuration: explicit parameter assignment and independent trend activation.
 import type { FitModel, TimeBalancing } from '../../src/core/fitPipeline/types'
 import type { UnknownDialysisPolicy } from '../../src/core/domains/nephrology/fitConfig'
 import type { WorkspaceParameter } from '../../src/workspace/workspace-data'
@@ -8,6 +8,8 @@ import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS
 import { RAPID_EGFR_DECLINE_MODULE_ID } from '../../src/core/domains/nephrology/rapidEgfrDeclineModule'
 import { columnSettingModules, fitPresetById, fitPresetCatalog, type ColumnModuleSettings, type RegisteredAnalysisModule } from '../../src/core/analysis/registry'
 import { FIT_PRESET_CATEGORY_LABELS, type FitPresetDefinition } from '../../src/core/analysis/fitConfig'
+import { presetsForScope } from './preview-analysis'
+import { isEgfrUnit } from '../../src/core/domains/nephrology/analytes'
 
 /** Catalog presets grouped by category, in catalog order. */
 const PRESET_GROUPS = [...new Set(fitPresetCatalog.map(preset => preset.category))]
@@ -15,9 +17,9 @@ const PRESET_GROUPS = [...new Set(fitPresetCatalog.map(preset => preset.category
 
 /** The options of a preset select, shared by Trajectories and Cohort models;
  * "Custom configuration" appears only while edited settings are in use. */
-export function PresetOptions({ presetId }: { presetId: string }) {
+export function PresetOptions({ presetId, scope }: { presetId: string; scope: string }) {
   return <>
-    {PRESET_GROUPS.map(([category, presets]) => <optgroup key={category} label={FIT_PRESET_CATEGORY_LABELS[category]}>
+    {PRESET_GROUPS.filter(([category]) => scope !== '' || category === 'Standard').map(([category, presets]) => <optgroup key={category} label={category === 'Nephrology' ? 'Nephrology · assign to this parameter' : FIT_PRESET_CATEGORY_LABELS[category]}>
       {presets.map(preset => <option key={preset.id} value={preset.id}>{preset.optionLabel}</option>)}
     </optgroup>)}
     {presetId === 'custom' && (
@@ -73,20 +75,23 @@ interface Props {
   onScopeChange: (key: string) => void
   onChange: (settings: WorkspaceFitSettings) => void
   onReset: () => void
-  fitKeys: string[]
-  onToggleFit: (key: string) => void
+  trendKeys: string[]
+  onToggleTrend: (key: string) => void
 }
 
-export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, scope, onScopeChange, onChange, onReset, fitKeys, onToggleFit }: Props) {
+export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, scope, onScopeChange, onChange, onReset, trendKeys, onToggleTrend }: Props) {
   const fitSettings = overrides[scope] ?? sharedSettings
-  const applyPreset = (id: string) => onChange(defaultFitSettings(id))
+  const activeParameter = parameters.find(parameter => parameter.key === scope)
+  const specialist = Boolean(scope && (fitPresetById(fitSettings.presetId)?.category === 'Nephrology' || fitSettings.exclusions.excludeAkiWindows || Object.values(fitSettings.censoring).some(value => value === true) || Object.values(fitSettings.endpoints).some(value => value === true)))
+  const egfrEndpoints = specialist && isEgfrUnit(activeParameter?.einheit ?? null)
+  const applyPreset = (id: string) => { if (presetsForScope(scope).some(preset => preset.id === id)) onChange(defaultFitSettings(id)) }
   const updateSettings = (patch: Partial<WorkspaceFitSettings>) => onChange({ ...fitSettings, ...patch, presetId: 'custom' })
   return (
     <div className="wt-preset-section pv-quiet-settings">
       <div className="wt-analysis-selectors">
         <label>Scope
           <select aria-label="Edit analysis settings for" value={scope} onChange={event => onScopeChange(event.target.value)}>
-            <option value="">Shared settings</option>
+            <option value="">Shared general defaults</option>
             {parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}{overrides[parameter.key] ? ' (own settings)' : ' (shared)'}</option>)}
           </select>
         </label>
@@ -96,7 +101,7 @@ export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, s
             value={fitSettings.presetId}
             onChange={event => applyPreset(event.target.value)}
           >
-            <PresetOptions presetId={fitSettings.presetId} />
+            <PresetOptions presetId={fitSettings.presetId} scope={scope} />
           </select>
         </label>
 
@@ -106,9 +111,22 @@ export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, s
           ? overrides[scope]
             ? 'Independent settings for this parameter.'
             : 'Editing creates independent settings for this parameter.'
-          : 'Applies to parameters using shared settings. Independent settings stay unchanged.'}</p>
+          : 'General defaults only. Select a parameter to assign a specialist profile; independent settings stay unchanged.'}</p>
         {scope && overrides[scope] && <button type="button" onClick={onReset}>Use shared settings</button>}
       </div>
+      <details className="wt-trend-visibility" aria-label="Trend analysis"><summary>Trend analysis <span>{trendKeys.filter(key => parameters.some(parameter => parameter.key === key)).length} / {parameters.length}</span></summary>
+        <p className="wt-muted">Calculate the fit and slope for enabled parameters. Trend lines can be shown separately under View.</p>
+        <div className="wt-fit-options">
+          {parameters.map(parameter => {
+            const settings = overrides[parameter.key] ?? sharedSettings
+            return <label key={parameter.key}>
+              <input type="checkbox" aria-label={`Analyse trend: ${parameter.label}`} disabled={settings.fitModel === 'none'} checked={trendKeys.includes(parameter.key)} onChange={() => onToggleTrend(parameter.key)} />
+              <span>{parameter.label}<small>{fitModelLabel(settings.fitModel)}{settings.fitModel === 'none' ? ' — choose a fit method to enable' : ''}</small></span>
+              {overrides[parameter.key] && <span className="wt-setting-origin" aria-hidden="true">Own settings</span>}
+            </label>
+          })}
+        </div>
+      </details>
       <details className="pv-preset-help"><summary>About this preset</summary><p>
           {fitPresetById(fitSettings.presetId)?.summary
             ?? (fitSettings.presetId === 'custom'
@@ -146,7 +164,7 @@ export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, s
               </select>
             </label>
           </div>
-          <div className="wt-pipeline-group">
+          {specialist && <div className="wt-pipeline-group">
             <h2>Clinical events & censoring</h2>
             <label>
               <input
@@ -194,8 +212,8 @@ export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, s
                 <option value="censor-from-start">Censor from start</option>
               </select>
             </label>
-          </div>
-          <div className="wt-pipeline-group">
+          </div>}
+          {specialist && <div className="wt-pipeline-group">
             <h2>AKI exclusions (KDIGO)</h2>
             <label>
               <input
@@ -220,8 +238,8 @@ export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, s
                 })}
               />
             </label>
-          </div>
-          <div className="wt-pipeline-group">
+          </div>}
+          {egfrEndpoints && <div className="wt-pipeline-group">
             <h2>eGFR endpoints & thresholds</h2>
             <p className="wt-muted">Applies only to parameters with eGFR units.</p>
             <p className="wt-muted">Endpoints and prediction use exact dated eGFR measurements before the first transplant or chronic dialysis start, excluding complete dated acute dialysis intervals. Later values after acute dialysis remain eligible. Values marked &lt; or &gt; are excluded. Display-fit AKI exclusions and aggregation do not apply. Kidney failure reached is reported separately from observed G5.</p>
@@ -269,26 +287,14 @@ export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, s
               settings={fitSettings.moduleSettings}
               onChange={moduleSettings => updateSettings({ moduleSettings })}
             />
-          </div>
-          {columnSettingModules().filter(module => !ENDPOINT_GROUP_MODULES.has(module.id)).map(module => <div key={module.id} className="wt-pipeline-group">
+          </div>}
+          {columnSettingModules().filter(module => specialist && !ENDPOINT_GROUP_MODULES.has(module.id)).map(module => <div key={module.id} className="wt-pipeline-group">
             <h2>{module.label}</h2>
             <ModuleSettingInputs modules={[module]} settings={fitSettings.moduleSettings} onChange={moduleSettings => updateSettings({ moduleSettings })} />
           </div>)}
         </div>
       </details>
-      <details className="wt-trend-visibility" aria-label="Trend visibility"><summary>Visible trends <span>{fitKeys.filter(key => parameters.some(parameter => parameter.key === key)).length} / {parameters.length}</span></summary>
-        <p className="wt-muted">Display only; the analysis settings above apply even when a trend is hidden.</p>
-        <div className="wt-fit-options">
-          {parameters.map(parameter => {
-            const settings = overrides[parameter.key] ?? sharedSettings
-            return <label key={parameter.key}>
-              <input type="checkbox" checked={fitKeys.includes(parameter.key)} onChange={() => onToggleFit(parameter.key)} />
-              {fitModelLabel(settings.fitModel)}: {parameter.label}
-              {overrides[parameter.key] && <span className="wt-setting-origin" aria-hidden="true">Own settings</span>}
-            </label>
-          })}
-        </div>
-      </details>
+
     </div>
   )
 }
