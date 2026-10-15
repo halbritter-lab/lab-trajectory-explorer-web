@@ -242,9 +242,11 @@ button, input, select { font-family: inherit; }
 .pv-group-row [aria-expanded=true] svg { transform: rotate(90deg); }
 .pv-group-name { max-width: 32ch; overflow-wrap: anywhere; }
 .pv-group-count { font-size: 11px; font-weight: 400; color: #50665a; }
-.pv-explorer .wt-table .pv-attribute-column { min-width: 144px; width: 144px; max-width: 192px; box-sizing: border-box; overflow-wrap: anywhere; }
-.pv-attribute-column .pv-column-title { align-items: flex-start; }
-.pv-attribute-column .pv-column-sort { overflow-wrap: anywhere; }
+.pv-explorer .wt-table .pv-attribute-column { min-width: 0; width: 1px; max-width: none; box-sizing: border-box; overflow-wrap: anywhere; }
+.pv-attribute-column .pv-column-header { max-width: none; }
+.pv-attribute-column .pv-column-title { align-items: flex-start; width: max-content; }
+.pv-attribute-column .pv-column-sort { max-width: 144px; overflow-wrap: anywhere; }
+.pv-attribute-column > span { display: block; width: max-content; max-width: 192px; white-space: normal; overflow-wrap: anywhere; }
 .pv-attribute-help { margin: 0 0 12px; color: #50665a; font-size: 12px; }
 .pv-attribute-options { display: grid; gap: 4px; max-height: 45dvh; overflow-y: auto; }
 .pv-attribute-options label { min-height: 44px; padding: 6px 8px; border-radius: 4px; overflow-wrap: anywhere; }

@@ -22,6 +22,10 @@ header-click and context-menu sorting; text categories use natural ordering and
 missing values remain last in both directions. Hiding a sorted attribute keeps
 the sort, with a visible clear-sort chip. Grouping remains a separate operation
 in each attribute column's context menu; there is no toolbar Group by selector.
+Attribute widths follow their header and displayed values instead of a fixed
+144px allocation. Long values wrap within a 192px content cap; measured header
+widths determine the remaining chart space. The demo's sex/genotype columns are
+about 74/108px before sorting.
 
 The column menu's Group by this column action creates sections with patient counts instead of repeating
 the category under each ID. Sections collapse with a click or keyboard activation;
@@ -40,6 +44,10 @@ with a fine pointer and at least 44px on narrow or touch screens. On short
 landscape screens the complete dialog scrolls so controls remain reachable.
 Compact spacing moves the table header about 66px upward at 1440×1000; the demo
 parameter picker is 596px high instead of 782px. Whole-row selection is retained.
+Escape dismisses the parameter picker, attributes/display popovers, column menu
+and settings panel, returning focus to the trigger. Picker drafts are discarded;
+settings that apply immediately retain their changes. Handled keys and input
+composition do not also dismiss a parent surface.
 
 Each parameter has direct Trend activation, method selection, a line visibility
 toggle and contextual settings. These controls also appear beside plots in Overlay

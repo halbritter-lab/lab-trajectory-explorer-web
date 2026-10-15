@@ -209,6 +209,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
   const [cellDetails, setCellDetails] = useState<'minimal' | 'full' | 'compact'>('minimal')
   const [warningIcons, setWarningIcons] = useState(true)
   const [tableWidth, setTableWidth] = useState(0)
+  const [attributeTableWidth, setAttributeTableWidth] = useState(0)
   const [highlight, setHighlight] = useState<PatientId | null>(null)
   const [display, setDisplay] = useState<WorkspaceDisplay>(DEFAULT_WORKSPACE_DISPLAY)
   const [fitKeys, setFitKeys] = useState<string[]>([])
@@ -388,17 +389,23 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
   // The table charts share the width of the table region, so few parameter
   // columns give wide charts; the region is measured while the table is shown.
   const tableShown = mode === 'table' && visible.length > 0
+  const attributeLayoutKey = JSON.stringify(shownAttributes)
   useLayoutEffect(() => {
     const scroller = tableScroller.current
     if (!tableShown || !scroller) return
-    const measure = () => setTableWidth(scroller.clientWidth)
+    const attributeHeaders = [...scroller.querySelectorAll<HTMLElement>('thead .pv-attribute-column')]
+    const measure = () => {
+      setTableWidth(scroller.clientWidth)
+      setAttributeTableWidth(Math.ceil(attributeHeaders.reduce((width, header) => width + header.getBoundingClientRect().width, 0)))
+    }
     measure()
     if (typeof ResizeObserver === 'undefined') return
     const observer = new ResizeObserver(measure)
     observer.observe(scroller)
+    attributeHeaders.forEach(header => observer.observe(header))
     return () => observer.disconnect()
-  }, [tableShown])
-  const chartWidth = sparkWidth(Math.max(0, tableWidth - shownAttributes.length * 144), parameters.length, chartSize)
+  }, [tableShown, attributeLayoutKey])
+  const chartWidth = sparkWidth(Math.max(0, tableWidth - attributeTableWidth), parameters.length, chartSize)
   const pageCount = Math.ceil(visible.length / TABLE_PAGE_SIZE)
   const activeTablePage = Math.min(tablePage, Math.max(0, pageCount - 1))
   const tableRows = visible.slice(activeTablePage * TABLE_PAGE_SIZE, (activeTablePage + 1) * TABLE_PAGE_SIZE)
@@ -488,10 +495,20 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     if (requestedPatientId === undefined || requestedPatientId === null) return
     setQuery(''); setGroup(''); setSelectedOnly(false); setPatientId(requestedPatientId); setReturnMode('table'); setMode('detail')
   }, [requestedPatientId])
-  useEffect(() => {
-    if (draftKeys !== null && dialog.current && !dialog.current.open && typeof dialog.current.showModal === 'function') dialog.current.showModal()
-  }, [draftKeys])
   const closePicker = () => { dialog.current?.close?.(); setDraftKeys(null); pickerButton.current?.focus() }
+  const pickerOpen = draftKeys !== null
+  useEffect(() => {
+    if (!pickerOpen) return
+    if (dialog.current && !dialog.current.open && typeof dialog.current.showModal === 'function') dialog.current.showModal()
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !event.defaultPrevented && !event.isComposing) {
+        event.preventDefault()
+        closePicker()
+      }
+    }
+    document.addEventListener('keydown', escape)
+    return () => document.removeEventListener('keydown', escape)
+  }, [pickerOpen])
   const toggleTrend = (key: string) => {
     if (trendKeys.includes(key)) {
       setTrendKeys(previous => previous.filter(item => item !== key))

@@ -45,7 +45,7 @@ export function ToolPopover({ name, icon, open, onToggle, onClose, badge, childr
     if (!open) return
     const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node) && !content.current?.contains(event.target as Node)) close.current() }
     const escape = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') { event.stopPropagation(); close.current(); trigger.current?.focus() }
+      if (event.key === 'Escape' && !event.defaultPrevented && !event.isComposing) { event.preventDefault(); event.stopPropagation(); close.current(); trigger.current?.focus() }
     }
     content.current?.querySelector<HTMLElement>('input, select, button')?.focus({ preventScroll: true })
     document.addEventListener('pointerdown', outside)
@@ -78,7 +78,7 @@ export function AnalysisDrawer({ open, onClose, children, title = 'Analysis' }: 
       dialog.scrollTop = 0
     }
     show()
-    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); close.current() } }
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape' && !event.defaultPrevented && !event.isComposing) { event.preventDefault(); close.current() } }
     document.addEventListener('keydown', escape)
     mobile.addEventListener('change', show)
     return () => { dialog.close(); document.removeEventListener('keydown', escape); mobile.removeEventListener('change', show); previous?.focus({ preventScroll: true }) }
