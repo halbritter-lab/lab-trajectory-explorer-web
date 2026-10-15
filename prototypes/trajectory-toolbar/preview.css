@@ -225,7 +225,15 @@ button, input, select { font-family: inherit; }
 .pv-column-menu-group button[aria-checked=true] { color: #176c68; background: #edf5ef; }
 .pv-explorer .wt-table th:nth-child(2) .pv-column-title { gap: 0; }
 .pv-exports { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.pv-explorer .wt-table .pv-group-row > th { position: static; width: auto; max-width: none; min-width: 0; padding: 4px 8px; text-align: left; background: #eaf1ed; border-bottom-color: #d6e2da; }
+.pv-explorer .wt-table .pv-group-row button { position: sticky; left: 8px; display: flex; align-items: center; gap: 8px; width: fit-content; max-width: calc(100vw - 66px); min-height: 38px; padding: 4px 8px; text-align: left; white-space: normal; overflow: visible; color: #354e43; border: 0; }
+.pv-group-row svg { width: 14px; height: 14px; flex: 0 0 auto; }
+.pv-group-row [aria-expanded=true] svg { transform: rotate(90deg); }
+.pv-group-name { max-width: 32ch; overflow-wrap: anywhere; }
+.pv-group-count { font-size: 11px; font-weight: 400; color: #50665a; }
 @media (max-width: 900px) {
+  .pv-explorer .wt-table .pv-group-row button { min-height: 44px; }
+  .pv-group-name { max-width: 18ch; }
   .pv-heading-actions { width: 100%; }
   .pv-tool-group { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
   .pv-tool, .pv-defaults { min-width: 44px; min-height: 44px; }

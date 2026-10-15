@@ -18,6 +18,7 @@ const paths = {
   excluded: 'M8 8l8 8 M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
   more: 'M5 12h.01 M12 12h.01 M19 12h.01',
   eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
+  chevron: 'm9 5 7 7-7 7',
 } as const
 
 export function Icon({ name }: { name: keyof typeof paths }) {

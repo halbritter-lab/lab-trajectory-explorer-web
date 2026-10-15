@@ -13,6 +13,15 @@ sort latest values; the ellipsis, right-click or Shift+F10 opens explicit sort
 metrics and directions. Menus support arrow keys, Home/End, Escape and outside
 or focus-leave dismissal. The sticky ID column has the same sorting controls.
 
+Group by creates actual table sections with patient counts instead of repeating
+the category under each ID. Sections collapse with a click or keyboard activation;
+page selection includes only expanded rows. Column sorting applies within each
+group, and the separate Show selector filters to one group. Missing attributes
+form a final Not recorded section. Groups spanning pages repeat their header with
+the page count and total matching count. Collapse affects presentation only;
+filters still define the analysis and export scope, and exports retain raw
+category values. The same attribute still controls Overlay colors.
+
 Each parameter has direct Trend activation, method selection, a line visibility
 toggle and contextual settings. These controls also appear beside plots in Overlay
 and Individual patient views. Enabling analysis calculates fits and slopes;
@@ -42,6 +51,9 @@ views, sort directions, mouse/keyboard context menus, S/M/L, point visibility,
 no-fit sort reset and bounded mobile menus. No page errors or horizontal page
 overflow were observed. Measured interactions: Trend 3 → 1 click; Trend plus line
 6 → 2 clicks (compared with the preceding preview, including panel dismissal).
+Grouping checks additionally cover within-group sorting, keyboard collapse,
+visible-only page selection, group filtering, category values in the downloaded
+workbook, and 112 patients across three pages. All 922 unit tests pass.
 
 The independent critique of the preceding layout is archived under
 `.impeccable/critique/2026-10-15T15-04-24Z__rajectory-toolbar-trajectoriespreview-tsx-3ff5f695.md`.
