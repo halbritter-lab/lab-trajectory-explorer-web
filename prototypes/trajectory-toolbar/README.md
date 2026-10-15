@@ -14,6 +14,16 @@ desktop panel and a modal full-screen editor on mobile. Presets and per-paramete
 overrides recalculate the demo trajectories. Escape closes panels and menus.
 The top link opens the current application for comparison.
 
+The default table presentation is Minimal with small charts: latest value,
+measurement count and, when shown, the slope. Measurement details and warning
+explanations open on hover, keyboard focus or tap, with Escape/outside dismissal.
+AKI always retains its short pill label; other indicators can use icons or text
+badges under View → Warnings. Compact and Full details remain available.
+
+The quiet analysis panel initially shows only Scope, Preset and the scope note.
+Preset explanation, calculation settings and per-parameter trend visibility are
+separate disclosures. This changes presentation only, not computation rules.
+
 Preview navigation back to Data or Cohort models opens the current application;
 it does not create new preview versions of those workspaces.
 

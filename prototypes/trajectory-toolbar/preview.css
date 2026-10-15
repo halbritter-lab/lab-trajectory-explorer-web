@@ -140,3 +140,45 @@ button, input, select { font-family: inherit; }
   .pv-popover:not([hidden]) { animation: pv-reveal 120ms ease-out; }
   @keyframes pv-reveal { from { transform: translateY(-3px); } to { transform: translateY(0); } }
 }
+
+/* Compact reading mode: the series carries the story, metadata stays secondary. */
+.pv-cell-values { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 30px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.pv-cell-values > strong { color: #2b4338; font-weight: 600; font-size: 13px; }
+.pv-cell-values > span { color: #64766b; font-size: 11px; }
+.pv-cell-values > .pv-cell-slope { color: #425c4d; }
+.pv-cell-indicators { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-left: auto; }
+.pv-hint { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 28px; min-height: 28px; padding: 5px; border: 0; border-radius: 4px; background: transparent; color: #65796e; font-size: 11px; }
+.pv-hint svg { width: 15px; height: 15px; flex: 0 0 auto; }
+.pv-hint:hover, .pv-hint:focus-visible { background: #edf2ee; }
+.pv-hint-caution { color: #946100; }
+.pv-hint-aki { color: #b45309; }
+.pv-hint-rapid { color: #b91c1c; }
+.pv-hint-endpoint { color: #326b8e; }
+.pv-hint-label { padding: 4px 6px; background: #f3f6f3; }
+.pv-hint-aki.pv-hint-label { background: transparent; padding: 2px; }
+.pv-hint-aki.pv-hint-label svg { display: none; }
+.pv-hint-aki.pv-hint-label > span { background: #fff1dd; color: #95510b; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 650; }
+.pv-hint-tooltip { position: fixed; z-index: 100; width: 280px; max-width: calc(100vw - 16px); padding: 13px 15px; border-radius: 8px; color: #f6faf7; background: #253c32; box-shadow: 0 6px 24px #17312526; font-size: 12px; line-height: 1.6; overflow-wrap: anywhere; }
+.pv-hint-tooltip > strong { display: block; font-weight: 650; margin-bottom: 4px; }
+.pv-hint-tooltip p { margin: 5px 0; line-height: inherit; }
+.pv-explorer .wt-cell-summary > .pv-hint { justify-self: start; }
+
+/* Quiet panel: one form, a short scope note, then deliberate disclosure. */
+.pv-panel-content .pv-quiet-settings { display: block; margin: 0; }
+.pv-quiet-settings .wt-analysis-selectors { gap: 20px; }
+.pv-quiet-settings .wt-analysis-selectors label { font-size: 13px; font-weight: 500; }
+.pv-quiet-settings .wt-analysis-scope { background: transparent; border: 0; border-radius: 0; padding: 0; margin: 12px 0 24px; font-size: 12px; color: #60746a; }
+.pv-quiet-settings .wt-analysis-scope p { line-height: 1.6; }
+.pv-quiet-settings .wt-analysis-scope button { min-height: 36px; font-size: 12px; }
+.pv-quiet-settings > details { margin: 0; padding: 0; border-top: 1px solid #e5ebe7; }
+.pv-quiet-settings > details > summary { padding: 17px 0; min-height: 48px; font-size: 13px; color: #344e40; font-weight: 500; }
+.pv-quiet-settings > details > summary > span { float: right; color: #64796c; font-size: 12px; }
+.pv-quiet-settings > details > p { color: var(--muted); font-size: 12px; margin: 0 0 16px; }
+.pv-quiet-settings .wt-trend-visibility .wt-fit-options { gap: 0; margin-bottom: 16px; }
+.pv-quiet-settings .wt-fit-options label { border: 0; padding: 12px 0; font-size: 12px; border-radius: 0; }
+.pv-quiet-settings .wt-pipeline-grid { margin: 4px 0 20px; }
+.pv-quiet-settings .wt-advanced-settings { margin-bottom: 0; }
+@media (max-width: 600px) {
+  .pv-hint { min-width: 36px; min-height: 44px; }
+  .pv-cell-values { gap: 3px 8px; }
+}

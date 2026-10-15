@@ -1,5 +1,5 @@
 // Disposable presentation fork for the interactive toolbar preview.
-import { Icon, ToolPopover, AnalysisDrawer } from './PreviewControls'
+import { Icon, ToolPopover, AnalysisDrawer, Hint } from './PreviewControls'
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { buildCohortRows, cohortCellFlags, type CohortCell } from '../../src/core/cohort/screening'
 import type { ColumnModuleSettings } from '../../src/core/analysis/registry'
@@ -13,7 +13,7 @@ import { SPARK_SIZES, sparkWidth, WorkspaceSparkline, type SparkDomain, type Spa
 import { exclusionReasonLabel, sexLabel } from '../../src/workspace/workspace-labels'
 import { measurementFitStatus } from '../../src/workspace/measurement-fit-status'
 import type { FitConfig } from '../../src/core/analysis/fitConfig'
-import { WorkspaceAnalysisSettings } from '../../src/workspace/WorkspaceAnalysisSettings'
+import { QuietAnalysisSettings } from './QuietAnalysisSettings'
 import { defaultTrajectoryFitSettings, endpointBadge, toFitConfig, type WorkspaceFitSettings } from '../../src/workspace/workspace-analysis'
 import { useAppStore } from '../../src/workspace/state/store'
 
@@ -40,6 +40,8 @@ function CellSummary({
   columnSettings,
   detailed = false,
   compact = false,
+  minimal = false,
+  warningIcons = true,
 }: {
   cell: CohortCell
   patientId: PatientId
@@ -50,6 +52,8 @@ function CellSummary({
   detailed?: boolean
   /** Table view: condenses fit counts and secondary disclosures into one compact block. */
   compact?: boolean
+  minimal?: boolean
+  warningIcons?: boolean
 }) {
   const last = cell.points[cell.points.length - 1]
   const quality = slopeQualityLabel(cell)
@@ -76,7 +80,11 @@ function CellSummary({
           : 'OLS'
 
   const flags = cohortCellFlags(cell, patientId, columnSettings)
-  const badge = (flag: (typeof flags)[number]) => <details key={flag.id} className="wt-badge-details"><summary className={`wt-badge wt-badge-${flag.tone}`} title={flag.title}>{flag.label}</summary><p>{flag.title}</p></details>
+  const badge = (flag: (typeof flags)[number]) => !detailed && flag.tone === 'aki'
+    ? <Hint key={flag.id} label={flag.label} icon="event" tone="aki" text="AKI">{flag.title}</Hint>
+    : !detailed && warningIcons
+    ? <Hint key={flag.id} label={flag.label} icon={flag.tone === 'aki' ? 'event' : flag.tone === 'rapid' ? 'warning' : 'endpoint'} tone={flag.tone}>{flag.title}</Hint>
+    : <details key={flag.id} className="wt-badge-details"><summary className={`wt-badge wt-badge-${flag.tone}`} title={flag.title}>{flag.label}</summary><p>{flag.title}</p></details>
   const endpoint = endpointBadge(cell.endpoints, cell.points.length)
   const markedReasons = cell.pointExclusionReasons.map(reasons => reasons.filter(reason => cell.fitModel !== 'none' || reason === 'censored-value'))
   const markedCount = markedReasons.filter(reasons => reasons.length > 0).length
@@ -98,6 +106,24 @@ function CellSummary({
   const qualityLabel = quality && `${qualityText}${quality.caveat ? ', uncertain slope' : ''}`
   const excludedText = `${markedCount} excluded from the fit (${markedLabels.join(', ')})`
 
+  if (minimal && !detailed) {
+    const visibleFlags = flags.filter(flag => fit || !flag.requiresFit)
+    return <div className="pv-cell-minimal">
+      <div className="pv-cell-values">
+        <strong aria-label={last ? `Latest value: ${formatWorkspaceNumber(last.value)}` : 'No numeric measurements with a date'}>{last ? formatWorkspaceNumber(last.value) : '—'}</strong>
+        {last && <span aria-label={measurementCount}>n={cell.nNumeric}</span>}
+        {fit && last && Number.isFinite(cell.slope) && <span aria-label={slopeText} className="pv-cell-slope">{cell.slope > 0 ? '+' : ''}{formatWorkspaceNumber(cell.slope)}/yr</span>}
+        <div className="pv-cell-indicators">
+          <Hint label={last ? 'Measurement details' : 'No numeric measurements'}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p><p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.</p>}{rollingText && <p>{rollingText}</p>}</>}</Hint>
+          {fit && last && quality && <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'} text={warningIcons ? undefined : qualityText}>{quality.title}</Hint>}
+          {visibleFlags.map(flag => <Hint key={flag.id} label={flag.label} icon={flag.tone === 'aki' ? 'event' : flag.tone === 'rapid' ? 'warning' : 'endpoint'} tone={flag.tone} text={flag.tone === 'aki' ? 'AKI' : warningIcons ? undefined : flag.label}>{flag.title}</Hint>)}
+          {endpoint && <Hint label={endpoint.label} icon="endpoint" tone="endpoint" text={warningIcons ? undefined : endpoint.label}>{endpoint.title}</Hint>}
+          {markedCount > 0 && <Hint label="Excluded measurements" icon="excluded" text={warningIcons ? undefined : `${markedCount} excluded`}>{excludedText}</Hint>}
+        </div>
+      </div>
+    </div>
+  }
+
   if (compact && !detailed) {
     const hasSecondaryDetails = Boolean((fit && last && (cell.rolling || hasCi || quality)) || endpoint || markedCount > 0)
     return <div className="wt-cell-summary wt-cell-summary-compact">
@@ -110,10 +136,10 @@ function CellSummary({
       </span>
       {fit && last && <>
         <span>{slopeText}</span>
-        {quality && <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityLabel}</span>}
+        {quality && (warningIcons ? <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'}>{quality.title}</Hint> : <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityLabel}</span>)}
         {flags.filter(flag => flag.requiresFit).map(badge)}
       </>}
-      {endpoint && <span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span>}
+      {endpoint && (warningIcons ? <Hint label={endpoint.label} icon="endpoint" tone="endpoint">{endpoint.title}</Hint> : <span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span>)}
       {flags.filter(flag => !flag.requiresFit).map(badge)}
       {hasSecondaryDetails && <details className="wt-compact-details">
         <summary>Details</summary>
@@ -140,14 +166,14 @@ function CellSummary({
       </span>
       {quality && (detailed
         ? <p role="note" className={`wt-quality-note ${quality.caveat ? 'wt-warning' : 'wt-muted'}`}><strong>{qualityLabel}</strong>: {quality.title}</p>
-        : <>
+        : warningIcons ? <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'}>{quality.title}</Hint> : <>
           <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityLabel}</span>
           {/* Tooltips are unreachable by keyboard and touch; the disclosure is not. */}
           <details className="wt-quality-details"><summary>{quality.caveat ? 'Why is the slope uncertain?' : 'Why is there no slope?'}</summary><p>{quality.title}</p></details>
         </>)}
       {flags.filter(flag => flag.requiresFit).map(badge)}
     </>}
-    {endpoint && <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></details></>}
+    {endpoint && (!detailed && warningIcons ? <Hint label={endpoint.label} icon="endpoint" tone="endpoint">{endpoint.title}</Hint> : <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></details></>)}
     {flags.filter(flag => !flag.requiresFit).map(badge)}
     {markedCount > 0 && <span className="wt-muted">{excludedText}</span>}
   </div>
@@ -174,8 +200,9 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
   const [returnMode, setReturnMode] = useState<'table' | 'overlay'>('table')
   const [axis, setAxis] = useState<WorkspaceAxis>('baseline')
   const [scaleMode, setScaleMode] = useState<'shared' | 'zoom'>('shared')
-  const [chartSize, setChartSize] = useState<SparkSize>('medium')
-  const [cellDetails, setCellDetails] = useState<'full' | 'compact'>('full')
+  const [chartSize, setChartSize] = useState<SparkSize>('small')
+  const [cellDetails, setCellDetails] = useState<'minimal' | 'full' | 'compact'>('minimal')
+  const [warningIcons, setWarningIcons] = useState(true)
   const [tableWidth, setTableWidth] = useState(0)
   const [highlight, setHighlight] = useState<PatientId | null>(null)
   const [display, setDisplay] = useState<WorkspaceDisplay>(DEFAULT_WORKSPACE_DISPLAY)
@@ -507,7 +534,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
         ref={element => { if (element) element.indeterminate = someTrendsShown && !allTrendsShown }}
         onChange={() => setFitKeys(previous => allTrendsShown ? previous.filter(key => !parameterKeySet.has(key)) : [...new Set([...previous, ...parameterKeySet])])} />
         Show trends and slopes</label>
-            {mode === 'table' && <div className="pv-table-options"><div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Jump to …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Chart size<select aria-label="Chart size" value={chartSize} onChange={event => setChartSize(event.target.value as SparkSize)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'full' | 'compact')}><option value="full">Full details</option><option value="compact">Compact</option></select></label><span className="wt-muted">Time since first measurement; patient IDs stay visible while scrolling.</span></div></div>}
+            {mode === 'table' && <div className="pv-table-options"><div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Jump to …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Chart size<select aria-label="Chart size" value={chartSize} onChange={event => setChartSize(event.target.value as SparkSize)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'minimal' | 'full' | 'compact')}><option value="minimal">Minimal</option><option value="compact">Compact</option><option value="full">Full details</option></select></label><label>Warnings<select aria-label="Warning display" value={warningIcons ? 'icons' : 'text'} onChange={event => setWarningIcons(event.target.value === 'icons')}><option value="icons">Icons with tooltips</option><option value="text">Text badges</option></select></label></div></div>}
                 {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={display[key]} onChange={event => setDisplay(previous => ({ ...previous, [key]: event.target.checked }))} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}{OVERLAY_MODULES.map(module => <label key={module.id}><input type="checkbox" checked={display[module.id] ?? false} onChange={event => setDisplay(previous => ({ ...previous, [module.id]: event.target.checked }))} />{module.presentation.toggleLabel}</label>)}</div></section>}
 
           </ToolPopover>
@@ -553,7 +580,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
           </div>
         </th>
       )
-    })}</tr></thead><tbody>{tableRows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} patientId={row.patientId} fit={fitKeys.includes(keys[i])} compact={cellDetails === 'compact'} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}</tbody></table></div>}
+    })}</tr></thead><tbody>{tableRows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} patientId={row.patientId} fit={fitKeys.includes(keys[i])} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}</tbody></table></div>}
     {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <WorkspacePlot key={`${parameter.key}-${groupBy}`} data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} />)}</div>}
     {mode === 'detail' && current && <section><div className="wt-toolbar"><button type="button" className="wt-back-button" aria-label={`Back to ${returnMode}`} onClick={() => {
       if (returnMode === 'table') tablePosition.current.restore = true
@@ -578,8 +605,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section></section>}
     {draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} />{p.label}</label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}
     <AnalysisDrawer open={openTool === 'analysis'} onClose={closeTool}>
-      <div className="pv-analysis-intro"><Icon name="analysis" /><div><strong>Calculation settings</strong><p>Shared defaults or an independent configuration per parameter.</p></div></div>
-            <WorkspaceAnalysisSettings parameters={parameters} sharedSettings={fitSettings} overrides={columnSettings}
+            <QuietAnalysisSettings parameters={parameters} sharedSettings={fitSettings} overrides={columnSettings}
         scope={settingsScope} onScopeChange={setSettingsScope} onChange={changeSettings} onReset={resetColumnSettings}
         fitKeys={fitKeys} onToggleFit={toggleFit} />
     </AnalysisDrawer>

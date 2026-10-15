@@ -1,4 +1,5 @@
-import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 
 const paths = {
   search: 'm20 20-5-5 M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0',
@@ -10,6 +11,11 @@ const paths = {
   chart: 'M4 17l6-6 4 3 6-9 M15 5h5v5',
   close: 'm6 6 12 12 M6 18 18 6',
   external: 'M14 4h6v6 M20 4 10 14 M10 5H5v14h14v-5',
+  info: 'M12 11v6 M12 7v.01 M22 12a10 10 0 1 1-20 0 10 10 0 0 1 20 0',
+  warning: 'M12 8v5 M12 17v.01 M10.3 3.8 2 18a2 2 0 0 0 1.7 3h16.6a2 2 0 0 0 1.7-3L13.7 3.8a2 2 0 0 0-3.4 0',
+  event: 'm13 2-9 12h7l-1 8 10-13h-7z',
+  endpoint: 'M5 21V3 M5 4h13l-3 4 3 4H5',
+  excluded: 'M8 8l8 8 M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
 } as const
 
 export function Icon({ name }: { name: keyof typeof paths }) {
@@ -51,7 +57,12 @@ export function AnalysisDrawer({ open, onClose, children }: { open: boolean; onC
     if (!open) return
     const previous = document.activeElement as HTMLElement | null
     const mobile = window.matchMedia('(max-width: 900px)')
-    const show = () => { dialog.close(); if (mobile.matches) dialog.showModal(); else dialog.show() }
+    const show = () => {
+      dialog.close()
+      if (mobile.matches) dialog.showModal(); else dialog.show()
+      dialog.querySelector<HTMLButtonElement>('button')?.focus({ preventScroll: true })
+      dialog.scrollTop = 0
+    }
     show()
     const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') { event.preventDefault(); close.current() } }
     document.addEventListener('keydown', escape)
@@ -59,7 +70,49 @@ export function AnalysisDrawer({ open, onClose, children }: { open: boolean; onC
     return () => { dialog.close(); document.removeEventListener('keydown', escape); mobile.removeEventListener('change', show); previous?.focus({ preventScroll: true }) }
   }, [open])
   return <dialog className="pv-analysis-panel" ref={drawer} aria-labelledby="pv-analysis-title" onCancel={event => { event.preventDefault(); onClose() }}>
-    <div className="pv-panel-heading"><div><h2 id="pv-analysis-title">Analysis settings</h2><p>Configure the calculation, keep the data in view.</p></div><button type="button" aria-label="Close analysis settings" onClick={onClose}><Icon name="close" /></button></div>
+    <div className="pv-panel-heading"><div><h2 id="pv-analysis-title">Analysis</h2><p>Changes apply immediately.</p></div><button type="button" aria-label="Close analysis settings" onClick={onClose}><Icon name="close" /></button></div>
     <div className="pv-panel-content">{children}</div>
   </dialog>
+}
+
+export function Hint({ label, children, icon = 'info', tone = 'neutral', text }: {
+  label: string; children: ReactNode; icon?: keyof typeof paths; tone?: string; text?: string;
+}) {
+  const id = useId()
+  const trigger = useRef<HTMLButtonElement>(null)
+  const tooltip = useRef<HTMLDivElement>(null)
+  const [hovered, setHovered] = useState(false)
+  const [focused, setFocused] = useState(false)
+  const [pinned, setPinned] = useState(false)
+  const [dismissed, setDismissed] = useState(false)
+  const [position, setPosition] = useState({ left: 0, top: 0 })
+  const leaveTimer = useRef<ReturnType<typeof setTimeout>>()
+  const enter = () => { clearTimeout(leaveTimer.current); setDismissed(false); setHovered(true) }
+  const leave = () => { leaveTimer.current = setTimeout(() => setHovered(false), 120) }
+  useEffect(() => () => clearTimeout(leaveTimer.current), [])
+  const open = !dismissed && (hovered || focused || pinned)
+  useLayoutEffect(() => {
+    if (!open) return
+    const rect = trigger.current!.getBoundingClientRect()
+    const tip = tooltip.current!.getBoundingClientRect()
+    setPosition({ left: Math.max(8, Math.min(rect.left, innerWidth - tip.width - 8)), top: rect.bottom + tip.height + 16 < innerHeight ? rect.bottom + 6 : Math.max(8, rect.top - tip.height - 6) })
+  }, [open])
+  useEffect(() => {
+    if (!open) return
+    const dismiss = () => { setPinned(false); setDismissed(true) }
+    const dismissOnScroll = () => setDismissed(true)
+    const outside = (event: PointerEvent) => { if (!trigger.current?.contains(event.target as Node) && !tooltip.current?.contains(event.target as Node)) dismiss() }
+    const escape = (event: KeyboardEvent) => { if (event.key === 'Escape') dismiss() }
+    document.addEventListener('pointerdown', outside)
+    document.addEventListener('keydown', escape)
+    window.addEventListener('scroll', dismissOnScroll, true)
+    return () => { document.removeEventListener('pointerdown', outside); document.removeEventListener('keydown', escape); window.removeEventListener('scroll', dismissOnScroll, true) }
+  }, [open])
+  return <>
+    <button type="button" ref={trigger} className={`pv-hint pv-hint-${tone} ${text ? 'pv-hint-label' : ''}`} aria-label={label} aria-describedby={open ? id : undefined}
+      onMouseEnter={enter} onMouseLeave={leave}
+      onFocus={() => { setDismissed(false); setFocused(true) }} onBlur={() => setFocused(false)}
+      onClick={() => { setDismissed(pinned); setPinned(value => !value) }}><Icon name={icon} />{text && <span>{text}</span>}</button>
+    {open && createPortal(<div id={id} role="tooltip" ref={tooltip} className="pv-hint-tooltip" style={position} onMouseEnter={enter} onMouseLeave={leave}><strong>{label}</strong><div>{children}</div></div>, document.body)}
+  </>
 }
