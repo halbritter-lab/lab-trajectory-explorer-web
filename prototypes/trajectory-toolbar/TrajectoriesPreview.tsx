@@ -5,7 +5,7 @@ import { buildCohortRows, cohortCellFlags, type CohortCell } from '../../src/cor
 import type { ColumnModuleSettings } from '../../src/core/analysis/registry'
 import { comparePatientIds, type LabRow, type PatientId } from '../../src/core/types'
 import { slopeQualityLabel } from '../../src/workspace/labels/qualityLabels'
-import { workspaceSpecs, type WorkspaceData } from '../../src/workspace/workspace-data'
+import { workspaceSpecs, type WorkspaceData, type WorkspaceParameter } from '../../src/workspace/workspace-data'
 import { WorkspaceExportActions } from '../../src/workspace/WorkspaceExports'
 import { DEFAULT_WORKSPACE_DISPLAY, OVERLAY_MODULES, WorkspacePlot, boundedPrefix, measurementText, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from '../../src/workspace/WorkspacePlot'
 import '../../src/workspace/trajectories-workspace.css'
@@ -14,9 +14,10 @@ import { exclusionReasonLabel, sexLabel } from '../../src/workspace/workspace-la
 import { measurementFitStatus } from '../../src/workspace/measurement-fit-status'
 import type { FitConfig } from '../../src/core/analysis/fitConfig'
 import { QuietAnalysisSettings } from './QuietAnalysisSettings'
-import { defaultTrajectoryFitSettings, endpointBadge, type WorkspaceFitSettings } from '../../src/workspace/workspace-analysis'
+import { ANALYSIS_CATALOG, defaultTrajectoryFitSettings, endpointBadge, type WorkspaceFitSettings } from '../../src/workspace/workspace-analysis'
 import { useAppStore } from '../../src/workspace/state/store'
 import { previewTrendConfig } from './preview-analysis'
+import { ColumnActions } from './ColumnActions'
 
 /** Sort keys are `${parameterKey}:${metric}`; parameter keys are JSON and may
  * themselves contain ':', so split at the last one. */
@@ -30,8 +31,6 @@ function parseSortKey(sort: string): { paramKey: string; metric: string } {
 /** Default direction per metric: slopes ascending (steepest decline first),
  * everything else descending (largest first). The direction toggle reverses it. */
 const metricAscendingByDefault = (metric: string) => metric === 'slope'
-const metricArrow = (ascending: boolean) => ascending ? '↑' : '↓'
-const metricShortLabel: Record<string, string> = { latest: 'val', slope: 'slope', absSlope: '|slope|', n: 'n', duration: 'dur' }
 const TABLE_PAGE_SIZE = 50
 
 function CellSummary({
@@ -236,6 +235,11 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     if (settingsScope) setColumnSettings(previous => ({ ...previous, [settingsScope]: settings }))
     else setFitSettings(settings)
   }
+  const changeParameterMethod = (key: string, model: WorkspaceFitSettings['fitModel']) => {
+    const current = columnSettings[key] ?? fitSettings
+    setColumnSettings(previous => ({ ...previous, [key]: { ...current, fitModel: model, presetId: 'custom' } }))
+    if (model === 'none') { setTrendKeys(previous => previous.filter(item => item !== key)); setFitKeys(previous => previous.filter(item => item !== key)) }
+  }
   const resetColumnSettings = () => setColumnSettings(previous => {
     const next = { ...previous }
     delete next[settingsScope]
@@ -303,6 +307,10 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     }
     return map
   }, [parameters, fitSettings, columnSettings, trendKeys])
+  useEffect(() => {
+    const { paramKey, metric } = parseSortKey(sort)
+    if ((metric === 'slope' || metric === 'absSlope') && fitConfigs[paramKey]?.fitModel === 'none') setSort('id')
+  }, [sort, fitConfigs])
   const specs = useMemo(() => workspaceSpecs(data, keys, fitConfigs), [data, keys, fitConfigs])
   const cohort = useMemo(() => buildCohortRows(data.rows, data.patients.map(p => p.id), specs), [data.rows, data.patients, specs])
   const sparkDomains = useMemo(() => specs.map((_, index): SparkDomain => {
@@ -477,8 +485,18 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     } else setTrendKeys(previous => [...previous, key])
   }
   const parameterKeySet = new Set(parameters.filter(parameter => trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none').map(parameter => parameter.key))
-  const allTrendsShown = parameterKeySet.size > 0 && [...parameterKeySet].every(key => fitKeys.includes(key))
-  const someTrendsShown = [...parameterKeySet].some(key => fitKeys.includes(key))
+  const parameterControls = (p: WorkspaceParameter) => {
+    const settings = columnSettings[p.key] ?? fitSettings
+    const analysed = parameterKeySet.has(p.key)
+    return <div className="pv-param-controls" role="group" aria-label={`Analysis: ${p.label}`}>
+      <label><input type="checkbox" aria-label={`Analyse trend: ${p.label}`} checked={analysed} disabled={settings.fitModel === 'none'} onChange={() => toggleTrend(p.key)} />Trend</label>
+      <select aria-label={`Trend method: ${p.label}`} title={`${columnSettings[p.key] ? 'Own settings' : 'Shared defaults'}: trend method`} value={settings.fitModel} onChange={event => changeParameterMethod(p.key, event.target.value as WorkspaceFitSettings['fitModel'])}>
+        <option value="ols">OLS</option><option value="theil-sen">Theil–Sen</option><option value="rolling-ols">Rolling OLS</option><option value="segmented-ols">Segmented OLS</option><option value="none">No fit</option>
+      </select>
+      <button type="button" className="pv-line-toggle" aria-label={`Show trend line: ${p.label}`} aria-pressed={analysed && fitKeys.includes(p.key)} disabled={!analysed} title={analysed ? 'Show or hide the fitted line; results stay calculated' : 'Enable trend analysis first'} onClick={() => setFitKeys(previous => previous.includes(p.key) ? previous.filter(key => key !== p.key) : [...previous, p.key])}><Icon name="eye" /></button>
+      <button type="button" aria-label={`Analysis settings: ${p.label}`} title={`Configure ${p.label}`} onClick={() => { setSettingsScope(p.key); setOpenTool('analysis') }}><Icon name="view" /></button>
+    </div>
+  }
   if (!data.patients.length) return <section className="card"><h1>Patients and trajectories</h1><p>No data loaded yet. Import a CSV or Excel file, or load demo data under Data.</p></section>
     return <div className={`wt-workspace pv-explorer ${openTool === 'analysis' ? 'pv-panel-open' : ''}`} ref={workspaceElement}>
     <header className="pv-heading"><div><h1>Explore trajectories</h1><p>Follow the measurements. Explore the change.</p></div><span className="pv-dataset-name">{data.fileName}</span></header>
@@ -502,55 +520,21 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
 <div className="pv-exports"><WorkspaceExportActions data={data} parameterKeys={keys} patientIds={patientIds} cohortRows={visible} fitConfigByParameterKey={fitConfigs} moduleSettingsByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).moduleSettings]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
         getCharts: () => [...(workspaceElement.current?.querySelectorAll<SVGSVGElement>('.wt-plot-card svg.wt-plot') ?? [])].map(svg => ({
           svg, title: `Patient ${current.patientId}: ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
-        })) } : {})} /></div></div>
+        })) } : {})} /><button type="button" className="pv-defaults" onClick={() => { setSettingsScope(''); setOpenTool('analysis') }}>General defaults</button></div></div>
       <div className="pv-toolbar">
         <label className="pv-search"><Icon name="search" /><input aria-label="Search patients" value={query} onChange={event => { setQuery(event.target.value); setTablePage(0) }} placeholder="Search patients…" /></label>
         <div className="pv-tool-group">
           <button ref={pickerButton} className="pv-tool" type="button" onClick={() => { closeTool(); setParameterQuery(''); setDraftKeys([...keys]) }}><Icon name="parameters" />Parameters<span className="pv-count">{parameters.length}</span></button>
-          <ToolPopover name="Filter" icon="filter" open={openTool === 'filter'} onToggle={() => toggleTool('filter')} onClose={closeTool} badge={Number(Boolean(group)) + Number(selectedOnly)}>
-                  <div className="wt-control-grid">
-
-        <label>Group by<select value={groupBy} onChange={event => { setGroupBy(event.target.value); setGroup(''); setTablePage(0) }}><option value="">No grouping</option>{attributes.map(attribute => <option key={attribute}>{attribute}</option>)}</select></label>
-        <label>Filter group<select value={group} disabled={!groupBy} onChange={event => { setGroup(event.target.value); setTablePage(0) }}><option value="">All groups</option>{groupBy && groups.map(value => <option key={value} value={value}>{groupLabel(value)}</option>)}</select></label>
-      </div>
-      <div className="wt-toolbar"><label><input type="checkbox" checked={selectedOnly} onChange={event => { setSelectedOnly(event.target.checked); setTablePage(0) }} /> Selected patients only</label><span>{selected.length} selected, {visible.length} in the shared scope</span><button onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])} disabled={!patientIds.length}>Select all matching patients</button><button onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div>
-
-          </ToolPopover>
-          <ToolPopover name="Sort" icon="sort" open={openTool === 'sort'} onToggle={() => toggleTool('sort')} onClose={closeTool}>        <label>Sort by
-          <select
-            aria-label="Sort by"
-            value={keys.some(k => sort.startsWith(k)) ? (sort.includes(':') ? sort : `${sort}:latest`) : (sort === 'id:desc' ? 'id:desc' : 'id')}
-            onChange={event => setSort(event.target.value)}
-          >
-            <option value="id">Patient ID (A → Z)</option>
-            <option value="id:desc">Patient ID (Z → A)</option>
-            {parameters.map(p => (
-              <optgroup key={p.key} label={p.label}>
-                <option value={`${p.key}:latest`}>Latest value: {p.label}</option>
-                <option disabled={!trendKeys.includes(p.key)} value={`${p.key}:slope`}>Slope: {p.label}</option>
-                <option disabled={!trendKeys.includes(p.key)} value={`${p.key}:absSlope`}>Absolute slope: {p.label}</option>
-                <option value={`${p.key}:n`}>Number of measurements: {p.label}</option>
-                <option value={`${p.key}:duration`}>Duration: {p.label}</option>
-              </optgroup>
-            ))}
-          </select>
-        </label>
-        {activeMetric && <div className="wt-sort-direction" role="group" aria-label="Sort direction">
-          <button type="button" aria-pressed={sortReversed} onClick={() => { setSortReversed(previous => !previous); setTablePage(0) }}>Reverse order</button>
-          <span className="wt-muted" role="status">{metricArrow(sortAscending)} {sortAscending ? 'Lowest first' : 'Highest first'}{activeMetric === 'slope' && !sortReversed ? ' (steepest decline first)' : ''}{activeMetric === 'n' || activeMetric === 'duration' ? '' : '; patients without a value last'}</span>
-        </div>}
-</ToolPopover>
-          <ToolPopover name="View" icon="view" open={openTool === 'view'} onToggle={() => toggleTool('view')} onClose={closeTool}>
+          <label className="pv-inline-field"><span>Group</span><select aria-label="Group by" value={groupBy} onChange={event => { setGroupBy(event.target.value); setGroup(''); setTablePage(0) }}><option value="">None</option>{attributes.map(attribute => <option key={attribute}>{attribute}</option>)}</select></label>
+          {groupBy && <label className="pv-inline-field"><span>Filter</span><select aria-label="Filter group" value={group} onChange={event => { setGroup(event.target.value); setTablePage(0) }}><option value="">All groups</option>{groups.map(value => <option key={value} value={value}>{groupLabel(value)}</option>)}</select></label>}
+          {mode === 'table' && <div className="pv-zoom" role="group" aria-label="Chart zoom">{(['small', 'medium', 'large'] as const).map(size => <button type="button" key={size} aria-pressed={chartSize === size} aria-label={`${size[0].toUpperCase() + size.slice(1)} charts`} onClick={() => setChartSize(size)}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div>}
+          <ToolPopover name="Display" icon="view" open={openTool === 'view'} onToggle={() => toggleTool('view')} onClose={closeTool}>
                   <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
-                  <label className="wt-trend-toggle"><input type="checkbox" checked={allTrendsShown} disabled={!parameterKeySet.size}
-        ref={element => { if (element) element.indeterminate = someTrendsShown && !allTrendsShown }}
-        onChange={() => setFitKeys(previous => allTrendsShown ? previous.filter(key => !parameterKeySet.has(key)) : [...new Set([...previous, ...parameterKeySet])])} />
-        Show trend lines</label><span className="wt-muted">Enable trend analysis for each parameter under Analysis. Hiding lines keeps fit results.</span>
-            {mode === 'table' && <div className="pv-table-options"><div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Jump to …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Chart size<select aria-label="Chart size" value={chartSize} onChange={event => setChartSize(event.target.value as SparkSize)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'minimal' | 'full' | 'compact')}><option value="minimal">Minimal</option><option value="compact">Compact</option><option value="full">Full details</option></select></label><label>Warnings<select aria-label="Warning display" value={warningIcons ? 'icons' : 'text'} onChange={event => setWarningIcons(event.target.value === 'icons')}><option value="icons">Icons with tooltips</option><option value="text">Text badges</option></select></label></div></div>}
+
+            {mode === 'table' && <div className="pv-table-options"><div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Jump to …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'minimal' | 'full' | 'compact')}><option value="minimal">Minimal</option><option value="compact">Compact</option><option value="full">Full details</option></select></label><label>Warnings<select aria-label="Warning display" value={warningIcons ? 'icons' : 'text'} onChange={event => setWarningIcons(event.target.value === 'icons')}><option value="icons">Icons with tooltips</option><option value="text">Text badges</option></select></label></div></div>}
                 {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={display[key]} onChange={event => setDisplay(previous => ({ ...previous, [key]: event.target.checked }))} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}{OVERLAY_MODULES.map(module => <label key={module.id}><input type="checkbox" checked={display[module.id] ?? false} onChange={event => setDisplay(previous => ({ ...previous, [module.id]: event.target.checked }))} />{module.presentation.toggleLabel}</label>)}</div></section>}
 
           </ToolPopover>
-          <button type="button" className={`pv-tool pv-analysis-trigger ${openTool === 'analysis' ? 'pv-tool-active' : ''}`} aria-expanded={openTool === 'analysis'} onClick={() => toggleTool('analysis')}><Icon name="analysis" />Analysis</button>
         </div>
       </div>
       <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{parameterKeySet.size > 0 && <span> · Trend analysis: {parameterKeySet.size}</span>}</div>    {mode === 'table' && visible.length > 0 && <nav className="wt-table-pages" aria-label="Patient table pages"><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => setTablePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {activeTablePage * TABLE_PAGE_SIZE + 1}–{Math.min((activeTablePage + 1) * TABLE_PAGE_SIZE, visible.length)} of {visible.length} {visible.length === 1 ? 'patient' : 'patients'}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => setTablePage(activeTablePage + 1)}>Next</button></nav>}</div>
@@ -558,42 +542,31 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
         {query && <button type="button" className="pv-chip" onClick={() => setQuery('')}>Search: {query}<Icon name="close" /></button>}
         {group && <button type="button" className="pv-chip" onClick={() => setGroup('')}>{groupBy}: {groupLabel(group)}<Icon name="close" /></button>}
         {selectedOnly && <button type="button" className="pv-chip" onClick={() => setSelectedOnly(false)}>Selected only<Icon name="close" /></button>}
-        {selected.length > 0 && <><span>{selected.length} selected</span><button type="button" onClick={() => setSelected([])}>Clear selection</button></>}
+        {selected.length > 0 && <><span>{selected.length} selected</span><label><input type="checkbox" checked={selectedOnly} onChange={event => { setSelectedOnly(event.target.checked); setTablePage(0) }} /> Selected only</label><button type="button" onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])}>Select all matching</button><button type="button" onClick={() => setSelected([])}>Clear selection</button></>}
       </div>}
     </section>
     {!visible.length && <p className="card">No matching patients. Change the search, group filter, or selection.</p>}
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
 
-    {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table" style={{ '--wt-chart-width': `${chartWidth}px` } as CSSProperties}><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select patients on this page" title="Select patients on this page" ref={element => { if (element) { element.indeterminate = pageSelectedCount > 0 && pageSelectedCount < tableRows.length } }} checked={tableRows.length > 0 && pageSelectedCount === tableRows.length} onChange={event => { const scopeIds = new Set(pagePatientIds); setSelected(event.target.checked ? [...new Set([...selected, ...pagePatientIds])] : selected.filter(id => !scopeIds.has(id))) }} /></th><th aria-label="Patient"><button type="button" aria-hidden="true" tabIndex={-1} className="wt-sort-header-button" onClick={() => setSort(sort === 'id' ? 'id:desc' : 'id')}>Patient {sort === 'id' ? '↑' : sort === 'id:desc' ? '↓' : ''}</button></th>{parameters.map(p => {
+    {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table" style={{ '--wt-chart-width': `${chartWidth}px` } as CSSProperties}><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select patients on this page" title="Select patients on this page" ref={element => { if (element) { element.indeterminate = pageSelectedCount > 0 && pageSelectedCount < tableRows.length } }} checked={tableRows.length > 0 && pageSelectedCount === tableRows.length} onChange={event => { const scopeIds = new Set(pagePatientIds); setSelected(event.target.checked ? [...new Set([...selected, ...pagePatientIds])] : selected.filter(id => !scopeIds.has(id))) }} /></th><th aria-label="Patient" aria-sort={sort === 'id' ? 'ascending' : sort === 'id:desc' ? 'descending' : undefined}><ColumnActions label="Patient" shortLabel="ID" metrics={[{id:'id',label:'Patient ID'}]} activeMetric={sort === 'id' || sort === 'id:desc' ? 'id' : null} ascending={sort === 'id'} onSort={(_metric, ascending) => setSort(ascending ? 'id' : 'id:desc')} /></th>{parameters.map(p => {
       const parsedSort = parseSortKey(sort)
       const metric = parsedSort.paramKey === p.key ? parsedSort.metric : null
-      const metricLabel = metric && metricShortLabel[metric] ? `${metricArrow(metricAscendingByDefault(metric) !== sortReversed)} ${metricShortLabel[metric]}` : null
-      return (
-        <th key={p.key} aria-label={p.derived ? `${p.label} (derived)` : p.label} ref={element => { if (element) parameterHeaders.current.set(p.key, element); else parameterHeaders.current.delete(p.key) }}>
-          <div className="wt-th-content">
-            <span>{p.label}{p.derived ? ' (derived)' : ''}</span>
-            <button
-              type="button"
-              aria-hidden="true"
-              tabIndex={-1}
-              className={`wt-sort-header-button ${metric ? 'active' : ''}`}
-              title={`Sort by ${p.label}`}
-              onClick={() => {
-                if (sort === `${p.key}:latest`) setSort(`${p.key}:${trendKeys.includes(p.key) ? 'slope' : 'n'}`)
-                else if (sort === `${p.key}:slope`) setSort(`${p.key}:absSlope`)
-                else if (sort === `${p.key}:absSlope`) setSort(`${p.key}:n`)
-                else if (sort === `${p.key}:n`) setSort(`${p.key}:duration`)
-                else if (sort === `${p.key}:duration`) setSort('id')
-                else setSort(`${p.key}:latest`)
-              }}
-            >
-              {metricLabel ?? '↕'}
-            </button>
-          </div>
-        </th>
-      )
-    })}</tr></thead><tbody>{tableRows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}</tbody></table></div>}
-    {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <WorkspacePlot key={`${parameter.key}-${groupBy}`} data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} />)}</div>}
+      const settings = columnSettings[p.key] ?? fitSettings
+      const analysed = parameterKeySet.has(p.key)
+      return <th key={p.key} aria-label={p.derived ? `${p.label} (derived)` : p.label} aria-sort={metric ? sortAscending ? 'ascending' : 'descending' : undefined} ref={element => { if (element) parameterHeaders.current.set(p.key, element); else parameterHeaders.current.delete(p.key) }}>
+        <ColumnActions label={p.label} activeMetric={metric} ascending={sortAscending} metrics={[
+          { id: 'latest', label: 'Latest value' },
+          { id: 'slope', label: 'Slope', disabled: !analysed },
+          { id: 'absSlope', label: 'Absolute slope', disabled: !analysed },
+          { id: 'n', label: 'Measurements' },
+          { id: 'duration', label: 'Follow-up' },
+        ]} onSort={(nextMetric, ascending) => { setSort(`${p.key}:${nextMetric}`); setSortReversed(metricAscendingByDefault(nextMetric) !== ascending) }}>
+          {parameterControls(p)}
+          {columnSettings[p.key] && <span className="pv-own-profile">{ANALYSIS_CATALOG.find(preset => preset.id === settings.presetId)?.name ?? 'Custom'} · Own settings</span>}
+        </ColumnActions>
+      </th>
+    })}</tr></thead><tbody>{tableRows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button>{groupBy && <small>{groupLabel(groupValue(row.patientId))}</small>}</th>{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}</tbody></table></div>}
+    {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <div key={`${parameter.key}-${groupBy}`}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /></div>)}</div>}
     {mode === 'detail' && current && <section><div className="wt-toolbar"><button type="button" className="wt-back-button" aria-label={`Back to ${returnMode}`} onClick={() => {
       if (returnMode === 'table') tablePosition.current.restore = true
       setMode(returnMode)
@@ -613,13 +586,13 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     }}>Next patient</button><span>{currentIndex + 1} / {visible.length}</span></div><div className="wt-plot-grid">{parameters.map((parameter, index) => {
       const measurements = measurementsFor(current.patientId, parameter)
       const fitStatus = measurementFitStatus(measurements, current.cells[index])
-      return <div key={parameter.key}><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
+      return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section></section>}
     {draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} />{p.label}</label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}
-    <AnalysisDrawer open={openTool === 'analysis'} onClose={closeTool}>
+    <AnalysisDrawer open={openTool === 'analysis'} onClose={closeTool} title={settingsScope ? parameters.find(parameter => parameter.key === settingsScope)?.label ?? 'Parameter analysis' : 'General defaults'}>
             <QuietAnalysisSettings parameters={parameters} sharedSettings={fitSettings} overrides={columnSettings}
-        scope={settingsScope} onScopeChange={setSettingsScope} onChange={changeSettings} onReset={resetColumnSettings}
-        trendKeys={trendKeys} onToggleTrend={toggleTrend} />
+        scope={settingsScope} onChange={changeSettings} onReset={resetColumnSettings}
+ />
     </AnalysisDrawer>
   </div>
 }

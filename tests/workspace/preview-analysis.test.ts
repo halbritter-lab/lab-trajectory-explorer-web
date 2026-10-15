@@ -4,10 +4,26 @@ import { defaultFitSettings } from '../../src/workspace/workspace-analysis'
 import { buildCohortRows } from '../../src/core/cohort/screening'
 import { cohortSeriesSpec } from '../../src/core/cohort/specs'
 import type { LabRow } from '../../src/core/types'
+import { applicableColumnModules, analysisSettingsAdapters } from '../../prototypes/trajectory-toolbar/analysis-modules'
+import type { RegisteredAnalysisModule } from '../../src/core/analysis/registry'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ModuleSettingInputs } from '../../prototypes/trajectory-toolbar/ModuleSettingInputs'
 
 const parameter = { key: 'marker', label: 'Study marker', bezeichnung: 'Study marker', einheit: 'U/L', derived: false }
 
 describe('preview analysis scope and activation', () => {
+  it('exposes a registered general module without requiring any nephrology profile', () => {
+    const general: RegisteredAnalysisModule = {
+      id: 'general-quality', label: 'General quality checks',
+      appliesTo: series => series.einheit === 'U/L',
+      columnSettingFields: [{ key: 'minimumCount', label: 'Minimum count', ariaLabel: 'Minimum count', kind: 'number' }],
+    }
+    expect(applicableColumnModules(parameter, [general], analysisSettingsAdapters)).toEqual([general])
+    expect(applicableColumnModules({ ...parameter, einheit: 'other' }, [general], analysisSettingsAdapters)).toEqual([])
+    expect(renderToStaticMarkup(createElement(ModuleSettingInputs, { modules: [general], settings: {}, onChange: () => {} }))).toContain('aria-label="Minimum count"')
+  })
+
   it('limits shared defaults to general presets and allows deliberate per-parameter assignment', () => {
     expect(presetsForScope('').every(preset => preset.category === 'Standard')).toBe(true)
     expect(presetsForScope(parameter.key).some(preset => preset.id === 'ckd_progression')).toBe(true)

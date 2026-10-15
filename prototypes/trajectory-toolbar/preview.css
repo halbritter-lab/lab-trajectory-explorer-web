@@ -184,3 +184,58 @@ button, input, select { font-family: inherit; }
   .pv-hint { min-width: 36px; min-height: 44px; }
   .pv-cell-values { gap: 3px 8px; }
 }
+
+/* Routine work belongs at its parameter; transient editors are for depth. */
+.pv-heading-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 12px; }
+.pv-defaults { font-size: 12px; padding: 7px 9px; min-height: 36px; background: transparent; }
+.pv-tool-group { margin-left: 0; gap: 12px; }
+.pv-inline-field { display: inline-flex; align-items: center; gap: 7px; font-size: 12px; color: var(--muted); }
+.pv-inline-field select { max-width: 160px; padding: 7px 9px; font-size: 12px; min-height: 38px; }
+.pv-zoom { display: flex; padding: 2px; gap: 2px; background: #f1f5f2; border-radius: 6px; }
+.pv-zoom button { min-height: 34px; min-width: 34px; padding: 5px; border: 0; background: transparent; color: #597163; font-size: 12px; }
+.pv-zoom button[aria-pressed=true] { color: #215e47; background: white; font-weight: 650; box-shadow: 0 1px 3px #263e3020; }
+.pv-popover { position: fixed; right: auto; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
+.pv-explorer .wt-table { font-variant-numeric: tabular-nums; }
+.pv-explorer .wt-table thead th:not(:nth-child(-n+2)) { min-width: 260px; }
+.pv-column-header { min-width: 0; max-width: var(--wt-chart-width, 240px); }
+.pv-column-title { display: flex; align-items: center; gap: 4px; justify-content: space-between; }
+.pv-column-sort { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; border: 0; background: transparent; border-radius: 4px; padding: 5px 0; color: #3b5747; font-size: 12px; font-weight: 600; line-height: 1.5; text-align: left; }
+.pv-column-sort:hover { background: transparent; color: #176c68; }
+.pv-column-sort-state { color: #176c68; font-size: 10px; font-weight: 500; }
+.pv-column-more { display: grid; place-items: center; flex: 0 0 auto; width: 32px; min-height: 32px; border: 0; padding: 5px; background: transparent; }
+.pv-column-more svg { width: 17px; height: 17px; stroke-width: 3; }
+.pv-param-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding-top: 5px; }
+.pv-param-controls > label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; cursor: pointer; min-height: 32px; }
+.pv-param-controls > label input { margin: 0; }
+.pv-param-controls select { max-width: 100px; min-width: 0; font-size: 11px; padding: 5px 4px; background: #fff; min-height: 32px; }
+.pv-param-controls > button { display: grid; place-items: center; min-width: 32px; min-height: 32px; padding: 5px; border: 0; background: transparent; color: #587365; }
+.pv-param-controls > button[aria-pressed=true] { color: #176c68; background: #e2eee7; }
+.pv-param-controls > button:disabled { opacity: .4; }
+.pv-param-controls svg { width: 15px; height: 15px; }
+.pv-own-profile { display: block; color: #557362; font-size: 10px; font-weight: 400; line-height: 1.5; padding-top: 5px; }
+.pv-graph-small svg text, .pv-graph-small svg line { display: none; }
+.pv-plot-controls { padding: 8px 16px; background: #fff; border-radius: 8px 8px 0 0; }
+.pv-active-state > label { display: flex; align-items: center; gap: 5px; }
+.pv-module-settings { display: grid; gap: 24px; }
+.pv-column-menu { position: fixed; z-index: 80; width: 300px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; padding: 14px; background: white; border-radius: 10px; box-shadow: 0 10px 42px #1b3b2e29; color: #385143; }
+.pv-column-menu > p { margin: 0 0 12px; font-size: 13px; font-weight: 600; }
+.pv-column-menu-group { display: grid; grid-template-columns: 1fr 1fr; column-gap: 6px; row-gap: 4px; padding: 8px 0; border-top: 1px solid #e6ece8; }
+.pv-column-menu-group > span { grid-column: 1 / -1; font-size: 11px; color: var(--muted); }
+.pv-column-menu-group button { font-size: 12px; text-align: left; padding: 8px; border: 0; background: transparent; min-height: 36px; }
+.pv-column-menu-group button[aria-checked=true] { color: #176c68; background: #edf5ef; }
+.pv-explorer .wt-table th:nth-child(2) .pv-column-title { gap: 0; }
+.pv-exports { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+@media (max-width: 900px) {
+  .pv-heading-actions { width: 100%; }
+  .pv-tool-group { justify-content: flex-start; flex-wrap: wrap; gap: 8px; }
+  .pv-tool, .pv-defaults { min-width: 44px; min-height: 44px; }
+  .pv-inline-field select { min-height: 44px; }
+  .pv-zoom button { min-width: 44px; min-height: 44px; }
+  .pv-column-more, .pv-param-controls > button { min-width: 44px; min-height: 44px; }
+  .pv-param-controls > label, .pv-param-controls select { min-height: 44px; }
+  .pv-param-controls { flex-wrap: nowrap; gap: 4px; }
+  .pv-param-controls > label { gap: 4px; font-size: 11px; white-space: nowrap; }
+  .pv-param-controls select { width: 66px; flex: 0 0 66px; }
+  .pv-column-sort { min-height: 44px; }
+  .pv-column-menu-group button { min-height: 44px; }
+}

@@ -1,50 +1,47 @@
 # Trajectory toolbar preview
 
 Open `/prototypes/trajectory-toolbar/index.html` with the existing Vite dev server.
-This is an interactive layout proposal, excluded from the production entry point.
+This interactive proposal is excluded from the production entry point. It loads
+bundled synthetic demo data in its own page session without workspace persistence.
+Measurements, fits, filters and exports reuse existing application functions.
+`TrajectoriesPreview.tsx` is a disposable presentation fork, not a second product UI.
 
-The preview automatically loads the bundled synthetic demo dataset in its own
-page session. It does not start workspace persistence. Measurements, fits,
-filtering and exports reuse the existing application functions. The copied
-`TrajectoriesPreview.tsx` is a disposable presentation fork of
-`src/workspace/TrajectoriesWorkspace.tsx`; it is not a second maintained product UI.
+Search, parameter selection and grouping sit above the table. S/M/L directly
+changes chart size; value scale remains a separate Display option. S keeps point
+markers so single measurements and bounded values remain visible. Column titles
+sort latest values; the ellipsis, right-click or Shift+F10 opens explicit sort
+metrics and directions. Menus support arrow keys, Home/End, Escape and outside
+or focus-leave dismissal. The sticky ID column has the same sorting controls.
 
-Try patient search, Parameters, Filter, Sort and View. Analysis opens a nonmodal
-desktop panel and a modal full-screen editor on mobile. Presets and per-parameter
-overrides recalculate the demo trajectories. Escape closes panels and menus.
-The top link opens the current application for comparison.
+Each parameter has direct Trend activation, method selection, a line visibility
+toggle and contextual settings. These controls also appear beside plots in Overlay
+and Individual patient views. Enabling analysis calculates fits and slopes;
+hiding lines retains the results. Disabling analysis uses the existing no-fit
+calculation path. Selecting No fit also removes obsolete slope sorting.
 
-The default table presentation is Minimal with small charts: latest value,
-measurement count and, when analysis is enabled, the slope. Measurement details and warning
-explanations open on hover, keyboard focus or tap, with Escape/outside dismissal.
-AKI always retains its short pill label; other indicators can use icons or text
-badges under View → Warnings. Compact and Full details remain available.
+Minimal cells show latest value, count and any calculated slope. Explanations
+open through icon tooltips on hover, focus or tap. AKI retains its short pill.
+Display offers warning text badges and Compact/Full cell details when needed.
 
-The quiet analysis panel initially shows Scope, Preset and the scope note.
-Shared defaults offer general presets only. Nephrology profiles require an
-explicit parameter scope and create independent settings. This is manual
-assignment, not automatic clinical eligibility validation. eGFR-specific endpoint
-controls use the existing unit recognition rule.
+General defaults offer general presets only. Specialist profiles are assigned
+explicitly per parameter and create independent settings. No automatic clinical
+eligibility is implied. The shared editor renders generic module descriptors
+through registry applicability rules; domain-specific settings live in optional
+UI adapters in `analysis-modules.tsx`. Nephrology is one adapter. The numerical
+core and production interface are unchanged.
 
-Trend analysis activation is separate from line visibility: enabling analysis
-allows the configured fit and slope for that parameter; disabling it uses the
-existing `fitModel: none` calculation path and removes its fit and slope results.
-View → Show trend lines affects only the graph and retains calculated results.
-Selecting a No fit method deactivates the affected trend analyses. The preview
-uses the existing numeric core; production behavior is unchanged.
+Automatic profile suggestions are intentionally deferred until analyte identity,
+units, specimen/source, computed versus imported values, ambiguous columns and
+confirmation rules are defined. Preview navigation to Data or Cohort models
+opens the current application.
 
-Automatic suggestions are intentionally not implemented. Any future proposal
-needs explicit rules for analyte identity, units, specimen/source, computed versus
-imported values, ambiguous columns and user confirmation before assignment.
+Verification: prototype TypeScript check, three focused regression tests and
+production build. Browser checks at 1440×1000 and 390×844 cover calculation versus
+line visibility, independent profile assignment, contextual settings in all three
+views, sort directions, mouse/keyboard context menus, S/M/L, point visibility,
+no-fit sort reset and bounded mobile menus. No page errors or horizontal page
+overflow were observed. Measured interactions: Trend 3 → 1 click; Trend plus line
+6 → 2 clicks (compared with the preceding preview, including panel dismissal).
 
-Preview navigation back to Data or Cohort models opens the current application;
-it does not create new preview versions of those workspaces.
-
-Verification: prototype TypeScript check; regression tests for shared preset
-scope and actual slope/fit activation; browser checks at 1440×1000 and
-390×844 for filtering, search, scale/detail controls, preset changes, desktop
-panel and mobile modal dismissal. No page errors or horizontal page overflow
-observed. The first desktop chart starts around 469px; mobile around 592px.
-Browser checks also verify that hiding lines retains slopes, disabling analysis
-removes slopes, and an eGFR profile assignment leaves other parameter settings
-and shared defaults unchanged.
+The independent critique of the preceding layout is archived under
+`.impeccable/critique/2026-10-15T15-04-24Z__rajectory-toolbar-trajectoriespreview-tsx-3ff5f695.md`.

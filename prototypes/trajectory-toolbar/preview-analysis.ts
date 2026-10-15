@@ -1,10 +1,11 @@
 import { fitPresetCatalog } from '../../src/core/analysis/registry'
 import { toFitConfig, type WorkspaceFitSettings } from '../../src/workspace/workspace-analysis'
 import type { WorkspaceParameter } from '../../src/workspace/workspace-data'
+import { STANDARD_PRESETS } from '../../src/core/analysis/fitConfig'
 
 /** Specialist presets require an explicit parameter scope, never a shared default. */
 export function presetsForScope(scope: string) {
-  return fitPresetCatalog.filter(preset => scope !== '' || preset.category === 'Standard')
+  return scope === '' ? STANDARD_PRESETS : fitPresetCatalog
 }
 
 /** Trend activation changes calculation inputs; line visibility never does. */

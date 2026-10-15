@@ -16,6 +16,8 @@ const paths = {
   event: 'm13 2-9 12h7l-1 8 10-13h-7z',
   endpoint: 'M5 21V3 M5 4h13l-3 4 3 4H5',
   excluded: 'M8 8l8 8 M20 12a8 8 0 1 1-16 0 8 8 0 0 1 16 0',
+  more: 'M5 12h.01 M12 12h.01 M19 12h.01',
+  eye: 'M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12 M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0',
 } as const
 
 export function Icon({ name }: { name: keyof typeof paths }) {
@@ -29,11 +31,18 @@ export function ToolPopover({ name, icon, open, onToggle, onClose, badge, childr
   const root = useRef<HTMLDivElement>(null)
   const trigger = useRef<HTMLButtonElement>(null)
   const content = useRef<HTMLDivElement>(null)
+  const [position, setPosition] = useState({ left: 0, top: 0 })
   const close = useRef(onClose)
   close.current = onClose
+  useLayoutEffect(() => {
+    if (!open) return
+    const anchor = trigger.current!.getBoundingClientRect()
+    const rect = content.current!.getBoundingClientRect()
+    setPosition({ left: Math.max(8, Math.min(anchor.right - rect.width, innerWidth - rect.width - 8)), top: Math.max(8, Math.min(anchor.bottom + 6, innerHeight - rect.height - 8)) })
+  }, [open])
   useEffect(() => {
     if (!open) return
-    const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node)) close.current() }
+    const outside = (event: PointerEvent) => { if (!root.current?.contains(event.target as Node) && !content.current?.contains(event.target as Node)) close.current() }
     const escape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') { event.stopPropagation(); close.current(); trigger.current?.focus() }
     }
@@ -44,11 +53,11 @@ export function ToolPopover({ name, icon, open, onToggle, onClose, badge, childr
   }, [open])
   return <div className="pv-popover-root" ref={root}>
     <button className={`pv-tool ${open || badge ? 'pv-tool-active' : ''}`} type="button" ref={trigger} aria-expanded={open} aria-controls={id} onClick={onToggle}><Icon name={icon} />{name}{badge ? <span className="pv-count">{badge}</span> : null}</button>
-    <div id={id} ref={content} hidden={!open} className="pv-popover" role="region" aria-label={`${name} options`}><h2>{name}</h2>{children}</div>
+    {open && createPortal(<div id={id} ref={content} className="pv-popover" role="region" aria-label={`${name} options`} style={position} onBlur={event => { if (!root.current?.contains(event.relatedTarget as Node) && !content.current?.contains(event.relatedTarget as Node)) close.current() }}><h2>{name}</h2>{children}</div>, document.body)}
   </div>
 }
 
-export function AnalysisDrawer({ open, onClose, children }: { open: boolean; onClose: () => void; children: ReactNode }) {
+export function AnalysisDrawer({ open, onClose, children, title = 'Analysis' }: { open: boolean; onClose: () => void; children: ReactNode; title?: string }) {
   const drawer = useRef<HTMLDialogElement>(null)
   const close = useRef(onClose)
   close.current = onClose
@@ -70,7 +79,7 @@ export function AnalysisDrawer({ open, onClose, children }: { open: boolean; onC
     return () => { dialog.close(); document.removeEventListener('keydown', escape); mobile.removeEventListener('change', show); previous?.focus({ preventScroll: true }) }
   }, [open])
   return <dialog className="pv-analysis-panel" ref={drawer} aria-labelledby="pv-analysis-title" onCancel={event => { event.preventDefault(); onClose() }}>
-    <div className="pv-panel-heading"><div><h2 id="pv-analysis-title">Analysis</h2><p>Changes apply immediately.</p></div><button type="button" aria-label="Close analysis settings" onClick={onClose}><Icon name="close" /></button></div>
+    <div className="pv-panel-heading"><div><h2 id="pv-analysis-title">{title}</h2><p>Changes apply immediately.</p></div><button type="button" aria-label="Close analysis settings" onClick={onClose}><Icon name="close" /></button></div>
     <div className="pv-panel-content">{children}</div>
   </dialog>
 }
