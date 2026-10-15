@@ -35,8 +35,11 @@ An active grouping has a removable chip, including when its column is hidden.
 Removing or changing grouping clears its old group filter and collapsed state.
 
 The parameter picker separates title, search, bulk selection, scrollable options
-and Apply/Cancel controls. Options wrap long labels and keep 44px targets. On
-short landscape screens the complete dialog scrolls so controls remain reachable.
+and Apply/Cancel controls. Options wrap long labels; rows are 32px on wide screens
+with a fine pointer and at least 44px on narrow or touch screens. On short
+landscape screens the complete dialog scrolls so controls remain reachable.
+Compact spacing moves the table header about 66px upward at 1440×1000; the demo
+parameter picker is 596px high instead of 782px. Whole-row selection is retained.
 
 Each parameter has direct Trend activation, method selection, a line visibility
 toggle and contextual settings. These controls also appear beside plots in Overlay
