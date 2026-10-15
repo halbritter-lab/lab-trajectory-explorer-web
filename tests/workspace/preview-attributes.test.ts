@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { attributeSortKey, parseAttributeSort, compareAttributeValues } from '../../prototypes/trajectory-toolbar/preview-attributes'
+import { attributeSortKey, parseAttributeSort, compareAttributeValues } from '../../src/workspace/trajectory-ui/attributes'
 
 describe('preview attribute sorting', () => {
   it('sorts text and numeric labels naturally with missing values last in either direction', () => {

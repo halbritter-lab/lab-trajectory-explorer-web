@@ -4,6 +4,7 @@ import type { WorkspaceData } from './workspace-data'
 import { workspaceModelSpec } from './workspace-data'
 import { ANALYSIS_CATALOG, describeModelPreparation, defaultFitSettings, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
 import { PresetOptions } from './WorkspaceAnalysisSettings'
+import { STANDARD_PRESETS } from '../core/analysis/fitConfig'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
@@ -140,15 +141,16 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     ? parameter.key === activeParamKey
     : !trajectoryFitSettings.columns[parameter.key])
   const affectedParameterCount = `${affectedParameters.length} parameter${affectedParameters.length === 1 ? '' : 's'}`
-  // Same semantics as the preset select under Trajectories: the parameter's own
-  // settings when it has some, otherwise the shared ones. The parameter is
+  // Specialist presets always belong to the selected parameter. General
+  // presets retain the existing own/shared scope. The parameter is
   // pinned first, because the preselection depends on these settings and
   // would otherwise move to another parameter.
   function changeDataPreparation(presetId: string) {
     if (activeParamKey) setSelectedParamKey(activeParamKey)
     const current = useAppStore.getState().trajectoryFitSettings
     const nextSettings = defaultFitSettings(presetId)
-    if (activeParamKey && current.columns[activeParamKey]) {
+    const ownTarget = Boolean(activeParamKey && (current.columns[activeParamKey] || !STANDARD_PRESETS.some(preset => preset.id === presetId)))
+    if (activeParamKey && ownTarget) {
       useAppStore.getState().setTrajectoryFitSettings({
         ...current,
         columns: { ...current.columns, [activeParamKey]: nextSettings },
@@ -160,7 +162,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
       })
     }
     const presetName = ANALYSIS_CATALOG.find(item => item.id === nextSettings.presetId)?.name ?? nextSettings.presetId
-    setPreparationNotice({ key: activeParamKey, text: `${ownPrepSettings ? 'Parameter preparation' : 'Shared preparation'} updated for ${affectedParameterCount}: ${presetName}. Refit affected models before interpreting results.` })
+    setPreparationNotice({ key: activeParamKey, text: `${ownTarget ? 'Parameter preparation' : 'Shared preparation'} updated for ${ownTarget ? '1 parameter' : affectedParameterCount}: ${presetName}. Refit affected models before interpreting results.` })
   }
   const spec = useMemo(() => {
     if (!activeParamKey) return undefined
@@ -422,7 +424,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               <PresetOptions presetId={activePrepSettings.presetId} />
             </select>
             <small id={preparationScopeId} className="cm-preparation-impact">{ownPrepSettings ? 'Parameter preparation' : 'Shared preparation'} affects {affectedParameterCount} in Cohort models and Trajectories: {affectedParameters.slice(0, 3).map(parameter => parameter.label).join(', ')}{affectedParameters.length > 3 ? ` and ${affectedParameters.length - 3} more` : ''}.
-              {' '}Existing model fits for affected parameters are discarded when their inputs change.</small>
+              {' '}Specialist presets apply only to the selected parameter. Existing model fits for affected parameters are discarded when their inputs change.</small>
           </label>
 
           {(preset === 'stratified' || preset === 'custom' || groupByAttribute) && (

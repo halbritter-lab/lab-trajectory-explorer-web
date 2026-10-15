@@ -370,3 +370,32 @@ tests. The manual steps 1–7 above were not rerun, and the new behaviour
 approximate G5 age badge, AKI detection under dialysis) has been exercised by
 unit and component tests only, not by hand in a browser. Research-data
 acceptance remains pending; its checklist now includes these points.
+
+
+## v0.3.7: accepted trajectory controls (2026-10-15)
+
+Verified 2026-10-15 against the production build: all 51 automated Chromium
+checks passed, including real workbook import, analysis/export provenance,
+persistence, derivation changes, patient/table history, responsive controls and
+mobile method navigation. The 929 unit/component tests also passed.
+
+1. Load demo data, then open Trajectories. Minimal cells show measurements;
+   slopes appear only after the parameter's Trend control is enabled. Hiding its
+   fitted line retains the calculated slope and exported preparation settings.
+2. Add sex/genotype with Attributes. The order remains unchanged, columns fit
+   their content, and header/context-menu sorting works independently of grouping.
+   Group by this column creates sections; the grouping chip removes them.
+3. Choose a specialist profile in one parameter's settings or in Cohort models.
+   It creates own settings without changing unrelated shared preparation.
+4. Click selection names or row whitespace to toggle them. Parameters supports
+   search, Apply/Cancel and Escape discards the pending selection. Mouse rows are
+   compact; narrow/touch rows retain larger targets.
+5. Open desktop settings, navigate to Data/Cohort models, then narrow the window.
+   No hidden modal remains; destination controls accept pointer and keyboard.
+   Mobile Fit methods closes the drawer and opens Methods inside the app.
+6. Switch S/M/L, warning icons/text, cell details and value scale. Sort and
+   modal/menu dismissal remain keyboard-accessible, with focus returned to the
+   originating control. AKI remains a short pill with accessible explanation.
+
+This records the reviewed technical workflows and owner publication acceptance;
+it does not claim research, clinical or representative-user validation.

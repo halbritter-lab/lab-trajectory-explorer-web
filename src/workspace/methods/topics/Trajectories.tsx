@@ -1,5 +1,5 @@
 export function Trajectories() { return <>
-<p>The patient table, individual view and overlay share your patient and parameter selection. Use the table to compare courses, then open a patient to inspect measurements and event context.</p><section className="methodology-section"><h3 id="methods-overlay" tabIndex={-1}>Cohort Overlay Plot</h3>
+<p>The patient table, individual view and overlay share your patient and parameter selection. Use the table to compare courses, then open a patient to inspect measurements and event context.</p><p>Attributes adds ordinary columns without changing patient order. Click a column title to sort, or use its menu for sort direction and optional grouping. Grouped tables sort within each section. S/M/L changes chart size. Trend calculates a parameter's slope; its separate line button controls visibility. Display contains value scale, cell details and warning presentation.</p><section className="methodology-section"><h3 id="methods-overlay" tabIndex={-1}>Cohort Overlay Plot</h3>
 
       <p>
         The overlay is a spaghetti plot for each selected parameter across the patients in the

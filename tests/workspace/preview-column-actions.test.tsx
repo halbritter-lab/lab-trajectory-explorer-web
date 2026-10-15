@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { ColumnActions } from '../../prototypes/trajectory-toolbar/ColumnActions'
+import { ColumnActions } from '../../src/workspace/trajectory-ui/ColumnActions'
 
 describe('preview column grouping actions', () => {
   it('groups from the column menu without invoking sorting', () => {

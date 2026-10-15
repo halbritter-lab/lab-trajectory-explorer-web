@@ -105,7 +105,7 @@ export function WorkspaceApp() {
         }} />
       </section>
       <section hidden={page !== 'Trajectories'} aria-label="Trajectory workspace">
-        {hasData ? <TrajectoriesWorkspace key={datasetKey(data.rawRows)} data={data}
+        {hasData ? <TrajectoriesWorkspace key={datasetKey(data.rawRows)} data={data} active={page === 'Trajectories'}
           requestedPatientId={requestedPerson?.rows === data.rawRows ? requestedPerson.id : null} />
           : <div className="card"><h1>Compare trajectories</h1><p>Load a file or the demo data first. Then compare patients and multiple parameters in the table, individual view and overlay.</p><button type="button" className="primary" onClick={() => go('Data')}>Load data</button></div>}
       </section>

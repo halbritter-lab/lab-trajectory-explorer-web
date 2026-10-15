@@ -1,10 +1,10 @@
 # Trajectory toolbar preview
 
 Open `/prototypes/trajectory-toolbar/index.html` with the existing Vite dev server.
-This interactive proposal is excluded from the production entry point. It loads
-bundled synthetic demo data in its own page session without workspace persistence.
-Measurements, fits, filters and exports reuse existing application functions.
-`TrajectoriesPreview.tsx` is a disposable presentation fork, not a second product UI.
+This standalone demo route is excluded from the production entry point. It loads
+bundled synthetic data in its own session without workspace persistence. Its
+components re-export the production implementation under `src/workspace/`;
+there is one trajectory UI, shared by the demo and the actual application.
 
 Search and parameter selection sit above the table. S/M/L directly
 changes chart size; value scale remains a separate Display option. S keeps point
@@ -25,7 +25,7 @@ in each attribute column's context menu; there is no toolbar Group by selector.
 Attribute widths follow their header and displayed values instead of a fixed
 144px allocation. Long values wrap within a 192px content cap; measured header
 widths determine the remaining chart space. The demo's sex/genotype columns are
-about 74/108px before sorting.
+about 100/108px before sorting, including accessible column actions.
 
 The column menu's Group by this column action creates sections with patient counts instead of repeating
 the category under each ID. Sections collapse with a click or keyboard activation;
@@ -64,15 +64,15 @@ explicitly per parameter and create independent settings. No automatic clinical
 eligibility is implied. The shared editor renders generic module descriptors
 through registry applicability rules; domain-specific settings live in optional
 UI adapters in `analysis-modules.tsx`. Nephrology is one adapter. The numerical
-core and production interface are unchanged.
+core is unchanged; the approved interface now ships in the actual application.
 
 Automatic profile suggestions are intentionally deferred until analyte identity,
 units, specimen/source, computed versus imported values, ambiguous columns and
 confirmation rules are defined. Preview navigation to Data or Cohort models
 opens the current application.
 
-Verification: prototype TypeScript check, three focused regression tests and
-production build. Browser checks at 1440×1000 and 390×844 cover calculation versus
+Verification: preview TypeScript check, production build, focused regression
+tests and production browser checks. Browser checks at 1440×1000 and 390×844 cover calculation versus
 line visibility, independent profile assignment, contextual settings in all three
 views, sort directions, mouse/keyboard context menus, S/M/L, point visibility,
 no-fit sort reset and bounded mobile menus. No page errors or horizontal page
@@ -86,7 +86,7 @@ missing values, hidden-sort preservation, grouping independence, compact column
 widths, mobile selection and absence of implicit grouping in XLSX exports.
 Column-based grouping and parameter-picker search, Apply/Cancel, Escape and
 non-overlapping layouts are verified at 1440×1000, 390×844 and 844×390.
-All 925 unit tests pass.
+Production migration verification: 929 unit/component tests pass.
 
 The independent critique of the preceding layout is archived under
 `.impeccable/critique/2026-10-15T15-04-24Z__rajectory-toolbar-trajectoriespreview-tsx-3ff5f695.md`.

@@ -1,14 +1,14 @@
 import { describe, expect, it } from 'vitest'
-import { presetsForScope, previewTrendConfig } from '../../prototypes/trajectory-toolbar/preview-analysis'
+import { presetsForScope, trajectoryTrendConfig } from '../../src/workspace/trajectory-ui/analysis'
 import { defaultFitSettings } from '../../src/workspace/workspace-analysis'
 import { buildCohortRows } from '../../src/core/cohort/screening'
 import { cohortSeriesSpec } from '../../src/core/cohort/specs'
 import type { LabRow } from '../../src/core/types'
-import { applicableColumnModules, analysisSettingsAdapters } from '../../prototypes/trajectory-toolbar/analysis-modules'
+import { applicableColumnModules, analysisSettingsAdapters } from '../../src/workspace/trajectory-ui/analysis-modules'
 import type { RegisteredAnalysisModule } from '../../src/core/analysis/registry'
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
-import { ModuleSettingInputs } from '../../prototypes/trajectory-toolbar/ModuleSettingInputs'
+import { ModuleSettingInputs } from '../../src/workspace/trajectory-ui/ModuleSettingInputs'
 
 const parameter = { key: 'marker', label: 'Study marker', bezeichnung: 'Study marker', einheit: 'U/L', derived: false }
 
@@ -37,7 +37,7 @@ describe('preview analysis scope and activation', () => {
       wert: String(value), wertNum: value, wertOperator: '=', loinc: null,
       patientSex: null, patientAgeAtLab: null,
     }))
-    const result = (enabled: boolean) => buildCohortRows(rows, ['P-1'], [cohortSeriesSpec(parameter, previewTrendConfig(settings, parameter, enabled))])[0].cells[0]
+    const result = (enabled: boolean) => buildCohortRows(rows, ['P-1'], [cohortSeriesSpec(parameter, trajectoryTrendConfig(settings, parameter, enabled))])[0].cells[0]
     expect(result(false).slope).toBeNaN()
     expect(result(false).fitLines).toHaveLength(0)
     expect(result(true).slope).toBeLessThan(0)

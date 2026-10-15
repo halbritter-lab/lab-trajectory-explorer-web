@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { groupRows } from '../../prototypes/trajectory-toolbar/preview-grouping'
+import { groupRows } from '../../src/workspace/trajectory-ui/grouping'
 
 describe('preview patient groups', () => {
   it('keeps the active patient sort within each group and does not mutate input', () => {

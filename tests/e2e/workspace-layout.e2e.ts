@@ -16,17 +16,14 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
       const box = await button.boundingBox()
       if (viewport.width === 390) expect(box!.height).toBeGreaterThanOrEqual(44)
     }
-    for (const button of await page.locator('.wt-sort-header-button').all()) {
+    for (const button of await page.locator('.pv-column-sort').all()) {
       const box = await button.boundingBox()
       expect(box!.width).toBeGreaterThanOrEqual(44)
       expect(box!.height).toBeGreaterThanOrEqual(44)
     }
-    await expect(page.getByLabel('Search patients', { exact: true })).not.toBeVisible()
-    await page.locator('.wt-selection-details > summary').click()
+    await expect(page.getByLabel('Search patients', { exact: true })).toBeVisible()
     await page.getByLabel('Search patients', { exact: true }).fill('1')
-    await page.locator('.wt-selection-details > summary').click()
-    await expect(page.locator('.wt-selection-details > summary')).toContainText('Filters active')
-    await page.locator('.wt-selection-details > summary').click()
+    await expect(page.getByRole('button', { name: 'Search: 1' })).toBeVisible()
     await expect(page.getByLabel('Search patients', { exact: true })).toHaveValue('1')
     await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
     const summary = page.getByRole('region', { name: 'Fit summary', exact: true })

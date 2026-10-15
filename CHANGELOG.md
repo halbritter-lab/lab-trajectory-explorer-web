@@ -5,15 +5,38 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+## [0.3.7] - 2026-10-15
+
+### Added
+
+- Patient attributes can be shown as independent table columns without changing
+  patient order. Their widths follow the content, with column sorting and
+  optional grouping through each attribute column's context menu.
+- Direct per-parameter trend activation, method selection, line visibility and
+  contextual settings in the table, overlay and individual patient views.
+- Direct S/M/L chart controls and column menus for explicit sort metrics and
+  directions, including keyboard access.
+
 ### Changed
 
-- Trajectories show results sooner by disclosing filters, selection and table
-  appearance controls. The current selection and value scale remain visible.
-- Cohort model preparation identifies its shared or parameter-specific scope
-  and announces preset changes. Formula, complete cases, exclusions and the fit
-  action are grouped; extended preparation and runtime notes are expandable.
-- Mobile navigation keeps all four destinations together with larger touch
-  targets; trajectory table sort actions also have larger hit areas.
+- The trajectory table starts with minimal cell details and icon explanations;
+  AKI retains its short pill. Full details and text warnings remain available.
+- Shared preparation defaults offer general presets. Specialist presets create
+  independent parameter settings in Trajectories and Cohort models. Optional
+  UI adapters keep domain configuration out of the common settings editor.
+- Trend calculation is independent of line visibility. Analysis starts disabled;
+  hiding a calculated line retains its slope and export results.
+- The toolbar and selection dialogs use less space. Whole selection rows remain
+  clickable, touch targets stay larger, and Escape dismisses dialogs and menus.
+- Cohort preparation identifies its scope and announces changes. Mobile workspace
+  navigation keeps all four destinations together.
+
+### Fixed
+
+- Switching an eGFR derivation retains active analysis, line visibility and
+  parameter settings. No-fit selections clear obsolete slope sorting.
+- Parameter-picker rows no longer collide with search or action buttons, and
+  settings links close the modal before navigating to Methods.
 
 ## [0.3.6] - 2026-10-14
 
