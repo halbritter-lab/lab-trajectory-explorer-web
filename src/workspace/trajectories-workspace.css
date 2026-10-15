@@ -1,5 +1,6 @@
-.wt-workspace { display: grid; gap: 20px; min-width: 0; }
-.wt-workspace > .page-heading { display: block; }
+.wt-workspace { display: grid; gap: 12px; min-width: 0; }
+.wt-workspace > .page-heading { display: block; margin-bottom: 4px; }
+.wt-workspace > .page-heading p { margin: 4px 0 0; color: var(--muted); }
 .wt-view-switch { display: flex; flex-wrap: wrap; gap: 4px; padding: 5px; width: fit-content; border: 1px solid #b8ccd2; background: #edf3f4; border-radius: 10px; }
 .wt-view-switch button { border: 0; background: transparent; color: #354f59; font-weight: 500; }
 .wt-view-switch button[aria-pressed=true] { background: #145d58; color: #fff; font-weight: 750; box-shadow: 0 1px 3px #183f432b; }
@@ -13,7 +14,19 @@
 .wt-toolbar, .wt-card-heading, .wt-legend { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; }
 .wt-card-heading { justify-content: space-between; align-items: flex-start; }
 .wt-card-heading h3 { margin: 0; overflow-wrap: anywhere; }
-.wt-controls { display: grid; gap: 18px; }
+.wt-controls { display: grid; gap: 8px; padding: 16px 20px; }
+.wt-selection-details { margin: 0; border-top: 1px solid var(--border); padding-top: 4px; }
+.wt-selection-details > summary { min-height: 44px; align-content: center; }
+.wt-selection-details > summary span { margin-left: 12px; }
+.wt-selection-details .wt-control-grid { margin: 12px 0 16px; }
+.wt-options-row { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 20px; }
+.wt-options-row > details { flex: 1 1 240px; margin: 0; min-width: 0; }
+.wt-options-row > details[open] { flex-basis: 100%; }
+.wt-options-row summary, .wt-table-appearance > summary { min-height: 44px; padding: 12px 0; font-weight: 600; }
+.wt-current-scale { margin-left: auto; }
+.wt-analysis-card .wt-scale-control { margin: 12px 0; }
+.wt-table-appearance { margin: 0; }
+.wt-table-appearance .wt-toolbar { padding: 8px 0 16px; }
 .wt-control-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; }
 .wt-control-grid > label, .wt-parameter-dialog > label { display: grid; gap: 6px; }
 .wt-control-grid input:not([type=checkbox]), .wt-control-grid select { width: 100%; min-width: 0; }
@@ -67,7 +80,7 @@
 .wt-badge-endpoint { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
 .wt-badge-rapid { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-weight: 700; }
 .wt-badge-aki { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
-.wt-analysis-card { display: grid; gap: 12px; }
+.wt-analysis-card[open] { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .wt-preset-section { display: grid; gap: 16px; margin-top: 16px; min-width: 0; }
 .wt-analysis-selectors { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
 .wt-analysis-selectors label, .wt-pipeline-group label { display: grid; gap: 6px; min-width: 0; font-size: 14px; color: #2d424c; }
@@ -89,10 +102,19 @@
 .wt-trend-visibility p { margin: 0 0 12px; font-size: 13px; }
 .wt-setting-origin { font-size: 12px; color: #176c68; font-weight: 600; white-space: nowrap; }
 .wt-th-content { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
-.wt-sort-header-button { background: transparent; border: 1px solid transparent; padding: 2px 6px; font-size: 11px; border-radius: 4px; color: var(--muted); cursor: pointer; line-height: 1.2; }
+.wt-sort-header-button { min-width: 44px; min-height: 44px; background: transparent; border: 1px solid transparent; padding: 6px; font-size: 11px; border-radius: 4px; color: var(--muted); cursor: pointer; line-height: 1.2; }
 .wt-sort-header-button:hover, .wt-sort-header-button.active { border-color: #cbd8d6; background: #f1f7f5; color: #176c68; font-weight: 600; }
 @media (max-width: 700px) { .wt-analysis-selectors, .wt-pipeline-grid { grid-template-columns: minmax(0, 1fr); } }
-@media (max-width: 600px) { .wt-plot-card { padding: 12px; } .wt-card-heading { gap: 8px; } .wt-workspace { gap: 14px; } }
+@media (max-width: 600px) {
+  .wt-plot-card { padding: 12px; }
+  .wt-card-heading { gap: 8px; }
+  .wt-workspace { gap: 8px; }
+  .card.wt-controls { padding: 12px; }
+  .wt-selection-details > summary span { display: block; margin: 4px 0 0; }
+  .wt-options-row { gap: 0 12px; }
+  .wt-options-row > details { flex-basis: auto; }
+  .wt-current-scale { margin-left: 0; font-size: 12px; }
+}
 .wt-plot-key svg { vertical-align: -1px; margin-right: 2px; }
 .wt-overlay-swatch { display: inline-block; width: 14px; height: 10px; margin-right: 2px; vertical-align: -1px; border: 1px solid; }
 .wt-sort-direction { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; align-self: end; }

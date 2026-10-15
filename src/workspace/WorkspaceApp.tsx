@@ -86,8 +86,8 @@ export function WorkspaceApp() {
           aria-current={page === name ? 'page' : undefined} onClick={() => go(name)}>
           {name}
         </button>)}
+        <button type="button" className="workspace-help" aria-current={page === 'Methods' ? 'page' : undefined} onClick={() => go('Methods')}>Methods</button>
       </nav>
-      <button type="button" className="workspace-help" aria-current={page === 'Methods' ? 'page' : undefined} onClick={() => go('Methods')}>Methods</button>
     </header>
     <div className="workspace-dataset" role="status">
       <span>{hasData ? data.fileName ?? 'Loaded dataset' : 'No data loaded yet'}</span>

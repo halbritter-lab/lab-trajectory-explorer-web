@@ -188,6 +188,7 @@ test('table charts share the table width and follow the chart size', async ({ pa
   await expect(chart).toHaveAttribute('height', '110')
   expect(Number(await chart.getAttribute('width'))).toBeGreaterThan(240)
   expect(await region.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.getByText('Table appearance', { exact: true }).click()
   await page.getByLabel('Chart size').selectOption('small')
   await expect(chart).toHaveAttribute('height', '68')
   expect(await region.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)

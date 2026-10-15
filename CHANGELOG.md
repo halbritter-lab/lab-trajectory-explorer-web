@@ -5,6 +5,16 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Trajectories show results sooner by disclosing filters, selection and table
+  appearance controls. The current selection and value scale remain visible.
+- Cohort model preparation identifies its shared or parameter-specific scope
+  and announces preset changes. Formula, complete cases, exclusions and the fit
+  action are grouped; extended preparation and runtime notes are expandable.
+- Mobile navigation keeps all four destinations together with larger touch
+  targets; trajectory table sort actions also have larger hit areas.
+
 ## [0.3.6] - 2026-10-14
 
 ### Added

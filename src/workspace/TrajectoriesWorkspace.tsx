@@ -437,7 +437,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
   const someTrendsShown = parameters.some(parameter => fitKeys.includes(parameter.key))
   if (!data.patients.length) return <section className="card"><h1>Patients and trajectories</h1><p>No data loaded yet. Import a CSV or Excel file, or load demo data under Data.</p></section>
     return <div className="wt-workspace" ref={workspaceElement}>
-    <header className="page-heading"><p className="eyebrow">Patients and trajectories</p><h1>Explore trajectories</h1><p>{data.patients.length} {data.patients.length === 1 ? 'patient' : 'patients'}, {data.parameters.length} {data.parameters.length === 1 ? 'parameter' : 'parameters'}, from {data.fileName ?? 'loaded data'}</p></header>
+    <header className="page-heading"><h1>Explore trajectories</h1></header>
     {parameterNotice && <p className="notice" role="status">{parameterNotice}</p>}
     {unavailable.length > 0 && <p className="notice" role="status">Unavailable selected parameters: {unavailable.join(', ')}. The derivation is disabled or currently produces no computable values. The selection is retained for recalculation; unavailable parameters are excluded from exports.</p>}
     <section className="card wt-controls" aria-label="Shared selection">
@@ -445,6 +445,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
         getCharts: () => [...(workspaceElement.current?.querySelectorAll<SVGSVGElement>('.wt-plot-card svg.wt-plot') ?? [])].map(svg => ({
           svg, title: `Patient ${current.patientId}: ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
         })) } : {})} /></div>
+      <details className="wt-selection-details"><summary>Filter and select patients <span className="wt-muted">{visible.length} matching · {selected.length} selected{query || group || selectedOnly ? ' · Filters active' : ''}</span></summary>
       <div className="wt-control-grid">
         <label>Search patients<input value={query} onChange={event => { setQuery(event.target.value); setTablePage(0) }} placeholder="ID or name" /></label>
         <label>Group by<select value={groupBy} onChange={event => { setGroupBy(event.target.value); setGroup(''); setTablePage(0) }}><option value="">No grouping</option>{attributes.map(attribute => <option key={attribute}>{attribute}</option>)}</select></label>
@@ -474,6 +475,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
         </div>}
       </div>
       <div className="wt-toolbar"><label><input type="checkbox" checked={selectedOnly} onChange={event => { setSelectedOnly(event.target.checked); setTablePage(0) }} /> Selected patients only</label><span>{selected.length} selected, {visible.length} in the shared scope</span><button onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])} disabled={!patientIds.length}>Select all matching patients</button><button onClick={() => setSelected([])} disabled={!selected.length}>Clear selection</button></div>
+      </details>
     </section>
     <div className="wt-view-row"><div className="wt-view-switch" role="group" aria-label="View"><button aria-pressed={mode === 'table'} onClick={() => {
       if (mode !== 'table') {
@@ -488,19 +490,22 @@ export function TrajectoriesWorkspace({ data, requestedPatientId }: { data: Work
       }
     }}>Overlay</button><button aria-pressed={mode === 'detail'} disabled={!current} onClick={() => {
       if (mode !== 'detail' && current) open(current.patientId)
-    }}>Individual patient</button></div>
+    }}>Individual patient</button></div></div>
+    <div className="wt-options-row">
+    <details className="wt-analysis-card"><summary>Display and analysis</summary>
       <label className="wt-trend-toggle"><input type="checkbox" checked={allTrendsShown} disabled={!parameters.length}
         ref={element => { if (element) element.indeterminate = someTrendsShown && !allTrendsShown }}
         onChange={() => setFitKeys(previous => allTrendsShown ? previous.filter(key => !parameterKeySet.has(key)) : [...new Set([...previous, ...parameterKeySet])])} />
-        Show trends and slopes</label></div>
-    <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
-    <details className="card wt-analysis-card"><summary>Display and analysis</summary>
+        Show trends and slopes</label>
+      <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
       <WorkspaceAnalysisSettings parameters={parameters} sharedSettings={fitSettings} overrides={columnSettings}
         scope={settingsScope} onScopeChange={setSettingsScope} onChange={changeSettings} onReset={resetColumnSettings}
         fitKeys={fitKeys} onToggleFit={toggleFit} />
     </details>
+    <span className="wt-muted wt-current-scale" role="status">{scaleMode === 'shared' ? 'Shared parameter scales' : 'Zoomed scales — small changes appear larger'}</span>
+    </div>
     {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={display[key]} onChange={event => setDisplay(previous => ({ ...previous, [key]: event.target.checked }))} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}{OVERLAY_MODULES.map(module => <label key={module.id}><input type="checkbox" checked={display[module.id] ?? false} onChange={event => setDisplay(previous => ({ ...previous, [module.id]: event.target.checked }))} />{module.presentation.toggleLabel}</label>)}</div></section>}
-    {mode === 'table' && parameters.length > 0 && <div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Choose parameters …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Chart size<select aria-label="Chart size" value={chartSize} onChange={event => setChartSize(event.target.value as SparkSize)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'full' | 'compact')}><option value="full">Full details</option><option value="compact">Compact</option></select></label><span className="wt-muted">{scaleMode === 'shared' ? 'Shared parameter scales.' : 'Zoomed visible-value scales.'} Time since first measurement; patient IDs stay visible while scrolling.</span></div>}
+    {mode === 'table' && parameters.length > 0 && <details className="wt-table-appearance"><summary>Table appearance</summary><div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Jump to …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Chart size<select aria-label="Chart size" value={chartSize} onChange={event => setChartSize(event.target.value as SparkSize)}><option value="small">Small</option><option value="medium">Medium</option><option value="large">Large</option></select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'full' | 'compact')}><option value="full">Full details</option><option value="compact">Compact</option></select></label><span className="wt-muted">Time since first measurement; patient IDs stay visible while scrolling.</span></div></details>}
     {!visible.length && <p className="card">No matching patients. Change the search, group filter, or selection.</p>}
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
     {mode === 'table' && visible.length > 0 && <nav className="wt-table-pages" aria-label="Patient table pages"><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => setTablePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {activeTablePage * TABLE_PAGE_SIZE + 1}–{Math.min((activeTablePage + 1) * TABLE_PAGE_SIZE, visible.length)} of {visible.length} {visible.length === 1 ? 'patient' : 'patients'}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => setTablePage(activeTablePage + 1)}>Next</button></nav>}
