@@ -25,12 +25,24 @@ async function uploadCsv(page: Page, name: string, csv: string): Promise<void> {
 /** Open Trajectories with exactly one parameter column and its fit shown. */
 async function showOnlyParameter(page: Page, label: RegExp, fit = true): Promise<void> {
   await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
-  await page.getByRole('button', { name: 'Choose parameters' }).click()
+  await page.getByRole('button', { name: /^Parameters/ }).click()
   await page.getByRole('button', { name: 'No parameters', exact: true }).click()
   await page.getByRole('dialog').getByRole('checkbox', { name: label }).check()
   await page.getByRole('button', { name: 'Apply', exact: true }).click()
-  await page.getByText('Display and analysis', { exact: true }).click()
-  if (fit) await page.getByRole('checkbox', { name: /slope and R²/ }).check()
+  await page.getByRole('button', { name: 'Display', exact: true }).click()
+  await page.getByLabel('Cell details', { exact: true }).selectOption('full')
+  await page.getByLabel('Warning display').selectOption('text')
+  await page.keyboard.press('Escape')
+  if (fit) {
+    await page.getByRole('checkbox', { name: /^Analyse trend:/ }).check()
+    await page.getByRole('button', { name: /^Show trend line:/ }).click()
+  }
+}
+
+async function applyParameterPreset(page: Page, preset: string): Promise<void> {
+  await page.getByRole('button', { name: /^Analysis settings:/ }).click()
+  await page.getByRole('dialog').getByLabel('Analysis preset').selectOption(preset)
+  await page.getByRole('button', { name: 'Close analysis settings' }).click()
 }
 
 const patientRow = (page: Page, id: string) => page.getByRole('button', { name: `Open patient ${id}`, exact: true }).locator('xpath=ancestor::tr')
@@ -58,13 +70,14 @@ test('shows the same slope-quality caveat in the cohort table and the patient vi
   await expect(page.locator('.wt-plot-grid svg [data-fit-quality="uncertain"]')).toHaveCount(1)
 
   await page.getByRole('button', { name: 'Back to table', exact: true }).click()
-  await page.getByLabel('Analysis preset').selectOption('acute_review')
+  await applyParameterPreset(page, 'acute_review')
   await expect(page.locator('.wt-cell-summary .wt-warning')).toHaveCount(0)
   // The August 2026 defect class: no quality caveat may survive a disabled fit.
   for (const summary of await page.locator('.wt-cell-summary').all()) {
     expect(await summary.innerText()).not.toMatch(/n < 3|< 1 year/)
+    await expect(summary).not.toContainText(/OLS:|R²/)
   }
-  await expect(page.locator('.wt-cell-summary').first()).toContainText('Fit model disabled')
+  await expect(page.getByRole('checkbox', { name: /^Analyse trend:/ })).toBeDisabled()
   expect(problems).toEqual([])
 })
 
@@ -91,7 +104,8 @@ test('renders every G5 projection outcome in its patient row', async ({ page }) 
   await uploadCsv(page, 'g5-reasons.csv', csv)
   await expect(page.locator('.workspace-dataset')).toContainText('5 patients')
   await showOnlyParameter(page, /^eGFR \[ml\/min\/1\.73m2\]$/, false)
-  await page.getByLabel('Analysis preset').selectOption('ckd_progression')
+  await applyParameterPreset(page, 'ckd_progression')
+  await page.getByRole('checkbox', { name: /^Analyse trend:/ }).check()
 
   // The G5 label is the last token of the endpoint badge; pin it exactly.
   const expected = new Map([
@@ -116,10 +130,14 @@ test('keeps the AKI chip visible next to endpoint badges', async ({ page }) => {
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
   await page.getByRole('button', { name: 'Apply calculation' }).click()
   await showOnlyParameter(page, /^eGFR \(CKD-EPI 2021, computed\)/, false)
-  await page.getByLabel('Analysis preset').selectOption('ckd_progression')
+  await applyParameterPreset(page, 'ckd_progression')
 
   const row = patientRow(page, '12')
-  await expect(row.locator('.wt-badge-aki')).toBeVisible()
+  const aki = row.getByRole('button', { name: /^AKI/ })
+  await expect(aki).toHaveText('AKI')
+  await aki.scrollIntoViewIfNeeded()
+  await aki.click()
+  await expect(page.getByRole('tooltip')).toContainText(/AKI.*stage/i)
   await expect(row.locator('.wt-badge-endpoint')).toBeVisible()
   // KRT is recorded independently of the AKI badge and withholds future G5 projection.
   await expect(row.locator('.wt-badge-endpoint')).toContainText('Kidney failure reached')
@@ -185,15 +203,23 @@ test('table charts share the table width and follow the chart size', async ({ pa
   await page.getByRole('button', { name: 'Trajectories' }).first().click()
   const region = page.getByRole('region', { name: 'Patient table, horizontal scrolling' })
   const chart = region.getByRole('img', { name: /Measurement trajectory/ }).first()
+  await expect(chart).toHaveAttribute('height', '68')
+  expect(await region.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
+  await page.getByRole('button', { name: 'Medium charts' }).click()
   await expect(chart).toHaveAttribute('height', '110')
   expect(Number(await chart.getAttribute('width'))).toBeGreaterThan(240)
-  expect(await region.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
-  await page.getByLabel('Chart size').selectOption('small')
+  await page.getByRole('button', { name: 'Small charts' }).click()
   await expect(chart).toHaveAttribute('height', '68')
   expect(await region.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
   // With fits shown the longer cell notes wrap inside the chart width.
-  await page.getByText('Display and analysis', { exact: true }).click()
-  await page.getByLabel('Analysis preset').first().selectOption('ckd_progression')
+  await page.getByRole('button', { name: /^Analysis settings:/ }).first().click()
+  await page.getByRole('dialog').getByLabel('Analysis preset').selectOption('ckd_progression')
+  await page.getByRole('button', { name: 'Close analysis settings' }).click()
+  await page.getByRole('checkbox', { name: /^Analyse trend:/ }).first().check()
+  await page.getByRole('button', { name: 'Display', exact: true }).click()
+  await page.getByLabel('Cell details', { exact: true }).selectOption('full')
+  await page.getByLabel('Warning display').selectOption('text')
+  await page.keyboard.press('Escape')
   expect(await region.evaluate(element => element.scrollWidth <= element.clientWidth)).toBe(true)
 })
 

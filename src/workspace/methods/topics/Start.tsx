@@ -19,9 +19,10 @@ export function Start({ onNavigate }: { onNavigate?: (page: HelpWorkspace) => vo
           </li>
           <li>
             <strong>Set the fit policy before interpreting slopes.</strong> Configure event censoring,
-            AKI exclusions, time balancing, and the fit model under Trajectories → Display and
-            analysis, shared or per parameter column. The same policy feeds plots, cohort summaries,
-            and exports.
+            AKI exclusions, time balancing, and the fit model in a parameter's settings under
+            Trajectories. General defaults offer general preparation; specialist profiles apply to
+            one parameter. Enable Trend to calculate slopes, then use the line button to show them.
+            The configured policy feeds plots, cohort summaries, and exports.
           </li>
           <li>
             <strong>Inspect individual and cohort views together.</strong> Use the individual patient

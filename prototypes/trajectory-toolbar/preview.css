@@ -1,0 +1,31 @@
+/* Demo shell only. Trajectory controls use the production implementation. */
+body { background: #f7f9f8; }
+button, input, select { font-family: inherit; }
+.pv-app-header { display: flex; align-items: center; gap: 40px; padding: 0 32px; min-height: 60px; background: #fff; border-bottom: 1px solid var(--border); }
+.pv-brand { display: flex; align-items: center; gap: 12px; text-decoration: none; color: #243740; font-size: 14px; white-space: nowrap; }
+.pv-logo { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 8px; color: #fff; background: var(--accent); }
+.pv-logo svg { width: 23px; height: 23px; }
+.pv-app-header nav { display: flex; align-self: stretch; gap: 28px; font-size: 13px; }
+.pv-app-header nav > * { display: flex; align-items: center; color: var(--muted); text-decoration: none; border-bottom: 2px solid transparent; padding-top: 2px; }
+.pv-app-header nav [aria-current] { color: var(--accent); border-color: var(--accent); font-weight: 650; }
+.pv-original { display: flex; align-items: center; gap: 6px; margin-left: auto; font-size: 12px; text-decoration: none; white-space: nowrap; }
+.pv-original svg { width: 14px; height: 14px; }
+.pv-preview-banner { display: flex; align-items: center; justify-content: center; gap: 12px; padding: 6px 16px; font-size: 12px; color: #42645b; background: #ecf4f0; border-bottom: 1px solid #dce8e1; }
+.pv-preview-label { font-weight: 650; }
+.pv-main { max-width: 1664px; margin: auto; padding: 24px 32px; }
+.pv-footer { padding: 16px 32px 24px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
+@media (max-width: 1100px) {
+  .pv-app-header { gap: 24px; }
+  .pv-app-header nav { gap: 20px; }
+}
+@media (max-width: 900px) {
+  .pv-app-header { flex-wrap: wrap; padding: 16px 20px 0; gap: 12px; }
+  .pv-app-header nav { order: 3; width: 100%; min-height: 44px; }
+  .pv-brand strong { font-size: 13px; }
+  .pv-preview-banner { justify-content: flex-start; font-size: 11px; gap: 8px; flex-wrap: wrap; }
+  .pv-main { padding: 24px 16px; }
+}
+@media (max-width: 480px) {
+  .pv-brand strong { font-size: 12px; }
+  .pv-original { font-size: 11px; }
+}

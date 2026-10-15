@@ -5,7 +5,9 @@ export function Cohort() { return <>
       <p>
         Cohort models prepare their measurements with the analysis settings Trajectories uses for
         the same parameter: its event censoring, AKI exclusion windows and time balancing. The
-        Data preparation select on the Cohort models page changes the same settings. With general exploration, the setting of a newly loaded dataset, nothing is
+        Data preparation select on the Cohort models page changes the same settings; specialist
+        presets create independent settings for the selected parameter. The trajectory's Trend
+        activation switch does not disable cohort model preparation. With general exploration, the setting of a newly loaded dataset, nothing is
         excluded or aggregated. The Cohort models page states the settings in use. A separate
         checkbox, on by default, applies the event censoring and AKI windows; turning it off
         retains the eligible exact dated measurements inside those windows, while time balancing

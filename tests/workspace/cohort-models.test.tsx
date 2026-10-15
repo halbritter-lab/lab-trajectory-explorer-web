@@ -203,11 +203,18 @@ describe('CohortModelsWorkspace', () => {
     expect(fitButtons()[0]).toBeDisabled()
     const prepSelect = screen.getByLabelText('Data preparation') as HTMLSelectElement
     expect(prepSelect.value).toBe('acute_review')
-    expect(prepSelect.closest('label')).toHaveTextContent('Shared settings: also changes every Trajectories column without own settings.')
+    expect(prepSelect).toHaveAccessibleDescription(/Shared preparation.*1 parameter.*Existing model fits for affected parameters are discarded/)
+    const announcement = screen.getByRole('status', { name: 'Preparation change' })
+    expect(announcement).toBeEmptyDOMElement()
     fireEvent.change(prepSelect, { target: { value: 'ckd_progression' } })
-    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('ckd_progression')
-    expect(screen.getByTestId('model-preparation')).toHaveTextContent('CKD progression (shared settings): quarterly medians')
+    expect(announcement).toHaveTextContent(/Parameter preparation updated for 1 parameter: CKD progression/)
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('acute_review')
+    expect(useAppStore.getState().trajectoryFitSettings.columns[dataset.parameters[0].key].presetId).toBe('ckd_progression')
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('CKD progression (own settings of this parameter): quarterly medians')
     expect(fitButtons()[0]).toBeEnabled()
+    fireEvent.change(prepSelect, { target: { value: 'theil_sen' } })
+    expect(screen.getByRole('status', { name: 'Preparation change' })).toBe(announcement)
+    expect(announcement).toHaveTextContent('Theil–Sen robust trend')
   })
 
   it('submits the eligible pooled cohort and group A and explains the skipped group B', async () => {
@@ -217,10 +224,27 @@ describe('CohortModelsWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
     const button = screen.getByRole('button', { name: /Fit models \(2 units\)/ })
     expect(button).toBeEnabled()
-    expect(screen.getByRole('status')).toHaveTextContent(/1 unit skipped.*B:.*at least 10 patients/)
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent(/1 unit skipped.*B:.*at least 10 patients/)
     fireEvent.click(button)
     await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
     expect(run.mock.calls[0][0].entities.map((e: any) => e.entity.kind === 'cohort' ? 'cohort' : e.entity.value)).toEqual(['cohort', 'A'])
+  })
+
+  it('describes the actual preparation scope and preserves independent parameter settings', () => {
+    const [sharedParameter, ownParameter] = dataset.parameters
+    const ownSettings = defaultFitSettings('theil_sen')
+    useAppStore.getState().setTrajectoryFitSettings({ shared: defaultFitSettings(), columns: { [ownParameter.key]: ownSettings } })
+    studio(dataset)
+    fireEvent.change(screen.getByLabelText('Model parameter'), { target: { value: sharedParameter.key } })
+    const preparation = screen.getByLabelText('Data preparation')
+    expect(preparation).toHaveAccessibleDescription(/Shared preparation affects 1 parameter.*eGFR/)
+    fireEvent.change(preparation, { target: { value: 'ckd_progression' } })
+    expect(useAppStore.getState().trajectoryFitSettings.columns[ownParameter.key]).toEqual(ownSettings)
+    expect(useAppStore.getState().trajectoryFitSettings.columns[sharedParameter.key].presetId).toBe('ckd_progression')
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('general_exploration')
+    fireEvent.change(screen.getByLabelText('Model parameter'), { target: { value: ownParameter.key } })
+    expect(preparation).toHaveAccessibleDescription(/Parameter preparation affects 1 parameter.*Kreatinin/)
+    expect(screen.getByRole('status', { name: 'Preparation change' })).toBeEmptyDOMElement()
   })
 
   it('says before fitting that no group can be fitted and only the whole cohort will be', async () => {
@@ -231,7 +255,7 @@ describe('CohortModelsWorkspace', () => {
     studio(data)
     fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
     expect(screen.getByText('Patients with enough measurement times per group: A: 7, B: 5. Each group needs at least 10.')).toBeInTheDocument()
-    expect(screen.getByRole('status')).toHaveTextContent('No arm group can be fitted on its own: each needs at least 10 patients with enough measurement times, and the largest, A, has 7. Only the whole cohort will be fitted.')
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('No arm group can be fitted on its own: each needs at least 10 patients with enough measurement times, and the largest, A, has 7. Only the whole cohort will be fitted.')
     const button = screen.getByRole('button', { name: 'Fit whole cohort only' })
     fireEvent.click(button)
     await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
@@ -257,7 +281,7 @@ describe('CohortModelsWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
     fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'sex' } })
     fireEvent.change(screen.getByLabelText('Model grouping'), { target: { value: 'sex' } })
-    const status = screen.getByRole('status')
+    const status = screen.getByRole('status', { name: '' })
     expect(status).not.toHaveTextContent(/can be fitted on its own/)
     expect(status).toHaveTextContent(/requires variation/)
   })
@@ -271,7 +295,7 @@ describe('CohortModelsWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
     fitButtons().forEach(button => { expect(button).toBeDisabled(); fireEvent.click(button) })
     expect(run).not.toHaveBeenCalled()
-    expect(screen.getByRole('status')).toHaveTextContent(/Whole cohort:.*A:.*B:/)
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent(/Whole cohort:.*A:.*B:/)
   })
 
   it('turns the action into a secondary refit for a current fit and back after changing outcome', () => {
@@ -308,7 +332,7 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getByRole('button', { name: /Fitting 1 of 2/ })).toBeDisabled()
     expect(screen.getAllByRole('button', { name: /Fitting/ })).toHaveLength(1)
     expect(within(preview()).getAllByText('Fitting model …').length).toBeGreaterThan(0)
-    expect(screen.getByRole('status')).toHaveTextContent('Fitting 1 of 2')
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Fitting 1 of 2')
     expect(screen.queryByText(/Click 'Fit model'/)).not.toBeInTheDocument()
   })
 

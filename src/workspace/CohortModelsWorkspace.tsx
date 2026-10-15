@@ -2,8 +2,9 @@ import { lazy, Suspense, useId, useMemo, useState } from 'react'
 import { useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceModelSpec } from './workspace-data'
-import { describeModelPreparation, defaultFitSettings, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
+import { ANALYSIS_CATALOG, describeModelPreparation, defaultFitSettings, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
 import { PresetOptions } from './WorkspaceAnalysisSettings'
+import { STANDARD_PRESETS } from '../core/analysis/fitConfig'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
@@ -37,6 +38,8 @@ interface Props {
 
 export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData }: Props) {
   const fitFeedbackId = useId()
+  const preparationScopeId = useId()
+  const [preparationNotice, setPreparationNotice] = useState<{ key: string | undefined; text: string } | null>(null)
   const [invocationFeedback, setInvocationFeedback] = useState<string | null>(null)
   const mixedModelConfig = useAppStore(s => s.mixedModelConfig)
   const setMixedModelConfig = useAppStore(s => s.setMixedModelConfig)
@@ -134,15 +137,20 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const preparationSource = useAppStore(s => modelPreparationSource(s.trajectoryFitSettings, activeParamKey))
   const activePrepSettings = (activeParamKey ? trajectoryFitSettings.columns[activeParamKey] : undefined) ?? trajectoryFitSettings.shared
   const ownPrepSettings = activeParamKey !== undefined && trajectoryFitSettings.columns[activeParamKey] !== undefined
-  // Same semantics as the preset select under Trajectories: the parameter's own
-  // settings when it has some, otherwise the shared ones. The parameter is
+  const affectedParameters = data.parameters.filter(parameter => ownPrepSettings
+    ? parameter.key === activeParamKey
+    : !trajectoryFitSettings.columns[parameter.key])
+  const affectedParameterCount = `${affectedParameters.length} parameter${affectedParameters.length === 1 ? '' : 's'}`
+  // Specialist presets always belong to the selected parameter. General
+  // presets retain the existing own/shared scope. The parameter is
   // pinned first, because the preselection depends on these settings and
   // would otherwise move to another parameter.
   function changeDataPreparation(presetId: string) {
     if (activeParamKey) setSelectedParamKey(activeParamKey)
     const current = useAppStore.getState().trajectoryFitSettings
     const nextSettings = defaultFitSettings(presetId)
-    if (activeParamKey && current.columns[activeParamKey]) {
+    const ownTarget = Boolean(activeParamKey && (current.columns[activeParamKey] || !STANDARD_PRESETS.some(preset => preset.id === presetId)))
+    if (activeParamKey && ownTarget) {
       useAppStore.getState().setTrajectoryFitSettings({
         ...current,
         columns: { ...current.columns, [activeParamKey]: nextSettings },
@@ -153,6 +161,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         shared: nextSettings,
       })
     }
+    const presetName = ANALYSIS_CATALOG.find(item => item.id === nextSettings.presetId)?.name ?? nextSettings.presetId
+    setPreparationNotice({ key: activeParamKey, text: `${ownTarget ? 'Parameter preparation' : 'Shared preparation'} updated for ${ownTarget ? '1 parameter' : affectedParameterCount}: ${presetName}. Refit affected models before interpreting results.` })
   }
   const spec = useMemo(() => {
     if (!activeParamKey) return undefined
@@ -369,12 +379,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     <div className="cohort-models-workspace stack">
       <header className="page-heading">
         <div>
-          <p className="eyebrow">Population models</p>
           <h1>Cohort models</h1><a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
-          <p className="muted">
-            Linear mixed-effects models (WebR / lme4). Fit population trajectories, evaluate covariates (genotype, age, sex),
-            and project target thresholds.
-          </p>
         </div>
         <div className="actions">
           {hasSuccessfulModel && (
@@ -409,17 +414,17 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </label>
 
           <label>
-            Data preparation
+            <span>Data preparation <strong className="cm-preparation-scope">{ownPrepSettings ? 'This parameter' : 'Shared'}</strong></span>
             <select
               aria-label="Data preparation"
+              aria-describedby={preparationScopeId}
               value={activePrepSettings.presetId}
               onChange={e => changeDataPreparation(e.target.value)}
             >
               <PresetOptions presetId={activePrepSettings.presetId} />
             </select>
-            <small className="muted">{ownPrepSettings
-              ? 'Own settings of this parameter, also used under Trajectories.'
-              : 'Shared settings: also changes every Trajectories column without own settings.'}</small>
+            <small id={preparationScopeId} className="cm-preparation-impact">{ownPrepSettings ? 'Parameter preparation' : 'Shared preparation'} affects {affectedParameterCount} in Cohort models and Trajectories: {affectedParameters.slice(0, 3).map(parameter => parameter.label).join(', ')}{affectedParameters.length > 3 ? ` and ${affectedParameters.length - 3} more` : ''}.
+              {' '}Specialist presets apply only to the selected parameter. Existing model fits for affected parameters are discarded when their inputs change.</small>
           </label>
 
           {(preset === 'stratified' || preset === 'custom' || groupByAttribute) && (
@@ -447,6 +452,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             </p>
           )}
         </div>
+        <p className={preparationNotice && preparationNotice.key === activeParamKey ? 'notice cm-preparation-notice' : 'sr-only'} role="status" aria-label="Preparation change" aria-atomic="true">{preparationNotice && preparationNotice.key === activeParamKey ? preparationNotice.text : ''}</p>
 
         {/* Preset Selector */}
         <div className="cm-preset-section">
@@ -494,7 +500,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </div>
 
           <p className="cm-preset-desc">
-            {preset === 'unadjusted' && 'Standard trajectory: Y ~ Time + (1 + Time | Patient). Evaluates overall progression rate without covariates.'}
+            {preset === 'unadjusted' && 'Overall progression rate without covariates.'}
             {preset === 'stratified' && 'Stratified analysis: Fits independent mixed models for each subgroup of the selected attribute.'}
             {preset === 'demographic' && 'Standard epidemiological model: Y ~ Time + Baseline age + Sex + (1 + Time | Patient).'}
             {preset === 'interaction' && 'Slope interaction test: Y ~ Time * Group + (1 + Time | Patient). Estimates slope differences with 95% confidence intervals; no p-values are computed.'}
@@ -591,13 +597,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </div>
         )}
 
-        {/* Formula strip and sample coverage */}
-        <label className="mixed-model-config-check">
-          <input type="checkbox" checked={presetExclusionPolicy === 'apply'} onChange={event => setPresetExclusionPolicy(event.target.checked ? 'apply' : 'skip')} />
-          Apply preset event and AKI exclusions
-        </label>
-        {!noFit && <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>}
-        {spec?.fitConfig && <p className={noFit ? 'notice amber' : 'muted'} role={noFit ? 'status' : undefined} data-testid="model-preparation">Measurements follow the analysis settings of this parameter, shared with Trajectories. {describeModelPreparation(spec.fitConfig, preparationSource)}{noFit ? ' Choose another data preparation above or a fit model under Trajectories to fit a cohort model.' : `${presetExclusionPolicy === 'skip' ? ' The event and AKI windows are skipped by the choice above; time aggregation still applies.' : ''} Changing these settings here or under Trajectories discards the models fitted for this parameter.`}</p>}
+        <section className="cm-fit-summary" aria-label="Fit summary">
+        <h2>Fit summary</h2>
         <div className="cm-formula-strip">
           <div>
             <span>Model: </span>
@@ -607,10 +608,14 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             Complete cases: {sampleSummary.rows.length > 0 ? new Set(sampleSummary.rows.map(r => r.patient_id)).size : 0} patients / {data.patients.length} ({sampleSummary.rows.length} measurements)
           </div>
         </div>
+        <label className="mixed-model-config-check">
+          <input type="checkbox" checked={presetExclusionPolicy === 'apply'} onChange={event => setPresetExclusionPolicy(event.target.checked ? 'apply' : 'skip')} />
+          Apply preset event and AKI exclusions
+        </label>
+        {!noFit && <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>}
         {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label="Reference categories">
           Reference categories: {categoricalReferences.map(item => `${item.label} = ${item.reference}${item.isDefault ? ' (first level by default; change it next to the factor)' : ''}`).join('; ')}
         </p>}
-        <p className="muted cm-population-note">Time: years since each patient's first retained measurement. Missing selected factors exclude the patient from this model only; no imputation.</p>
         {sampleSummary.preparation.excludedPatients.length > 0 && <details className="cm-excluded-patients">
           <summary>Excluded patients ({sampleSummary.preparation.excludedPatients.length})</summary>
           <ul aria-label="Patients excluded from the model">{sampleSummary.preparation.excludedPatients.map(patient => <li key={String(patient.patientId)}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul>
@@ -618,11 +623,6 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
         {/* Studio Footer with Primary Fit Action */}
         <div className="cm-studio-footer">
-          <div>
-            <span className="muted">
-              One linear mixed-effects model per selected unit. Fit runs in-browser via WebR (lme4).
-            </span>
-          </div>
           <button
             type="button"
             className={allEligibleFitted ? 'cm-fit-button' : 'primary cm-fit-button'}
@@ -638,6 +638,13 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </button>
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
+        </section>
+        <details className="cm-preparation-details">
+          <summary>Preparation and fitting details</summary>
+          {spec?.fitConfig && <p data-testid="model-preparation">Measurements follow the analysis settings of this parameter, shared with Trajectories. {describeModelPreparation(spec.fitConfig, preparationSource)}{noFit ? ' Choose another data preparation above or a fit model under Trajectories to fit a cohort model.' : `${presetExclusionPolicy === 'skip' ? ' The event and AKI windows are skipped by the choice above; time aggregation still applies.' : ''} Changing these settings here or under Trajectories discards the models fitted for this parameter.`}</p>}
+          <p>Time: years since each patient's first retained measurement. Missing selected factors exclude the patient from this model only; no imputation.</p>
+          <p>One linear mixed-effects model per selected unit. Fit runs in-browser via WebR (lme4).</p>
+        </details>
       </section>
 
       {/* Model trajectory preview plot; the studio button above is the only fit action. */}

@@ -1,0 +1,48 @@
+import { describe, expect, it } from 'vitest'
+import { presetsForScope, trajectoryTrendConfig } from '../../src/workspace/trajectory-ui/analysis'
+import { defaultFitSettings } from '../../src/workspace/workspace-analysis'
+import { buildCohortRows } from '../../src/core/cohort/screening'
+import { cohortSeriesSpec } from '../../src/core/cohort/specs'
+import type { LabRow } from '../../src/core/types'
+import { applicableColumnModules, analysisSettingsAdapters } from '../../src/workspace/trajectory-ui/analysis-modules'
+import type { RegisteredAnalysisModule } from '../../src/core/analysis/registry'
+import { createElement } from 'react'
+import { renderToStaticMarkup } from 'react-dom/server'
+import { ModuleSettingInputs } from '../../src/workspace/trajectory-ui/ModuleSettingInputs'
+
+const parameter = { key: 'marker', label: 'Study marker', bezeichnung: 'Study marker', einheit: 'U/L', derived: false }
+
+describe('preview analysis scope and activation', () => {
+  it('exposes a registered general module without requiring any nephrology profile', () => {
+    const general: RegisteredAnalysisModule = {
+      id: 'general-quality', label: 'General quality checks',
+      appliesTo: series => series.einheit === 'U/L',
+      columnSettingFields: [{ key: 'minimumCount', label: 'Minimum count', ariaLabel: 'Minimum count', kind: 'number' }],
+    }
+    expect(applicableColumnModules(parameter, [general], analysisSettingsAdapters)).toEqual([general])
+    expect(applicableColumnModules({ ...parameter, einheit: 'other' }, [general], analysisSettingsAdapters)).toEqual([])
+    expect(renderToStaticMarkup(createElement(ModuleSettingInputs, { modules: [general], settings: {}, onChange: () => {} }))).toContain('aria-label="Minimum count"')
+  })
+
+  it('limits shared defaults to general presets and allows deliberate per-parameter assignment', () => {
+    expect(presetsForScope('').every(preset => preset.category === 'Standard')).toBe(true)
+    expect(presetsForScope(parameter.key).some(preset => preset.id === 'ckd_progression')).toBe(true)
+  })
+
+  it('calculates a slope only when analysis is enabled, without mutating the configured method', () => {
+    const settings = defaultFitSettings()
+    const rows: LabRow[] = [10, 8, 6].map((value, index) => ({
+      patientId: 'P-1', labDatum: new Date(`${2020 + index}-01-01`),
+      bezeichnung: parameter.bezeichnung, einheit: parameter.einheit,
+      wert: String(value), wertNum: value, wertOperator: '=', loinc: null,
+      patientSex: null, patientAgeAtLab: null,
+    }))
+    const result = (enabled: boolean) => buildCohortRows(rows, ['P-1'], [cohortSeriesSpec(parameter, trajectoryTrendConfig(settings, parameter, enabled))])[0].cells[0]
+    expect(result(false).slope).toBeNaN()
+    expect(result(false).fitLines).toHaveLength(0)
+    expect(result(true).slope).toBeLessThan(0)
+    expect(result(true).fitLines.length).toBeGreaterThan(0)
+    expect(settings.fitModel).toBe('ols')
+    expect(result(false).points).toHaveLength(3)
+  })
+})

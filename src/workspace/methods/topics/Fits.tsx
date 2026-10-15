@@ -1,7 +1,7 @@
 import { ReferenceTable } from '../ReferenceTable'
 
 export function Fits() { return <>
-<p>Choose a shared analysis preset or override one parameter column under Trajectories → Display and analysis. Check which measurements feed the fit before interpreting a slope.</p><section className="methodology-section"><h3 id="methods-choosing" tabIndex={-1}>Choosing a Fit Model</h3>
+<p>Use General defaults for general preparation, or open a parameter's settings for an independent preset. Specialist profiles apply to that parameter only. Enable Trend to calculate its slope; the line button changes only the drawing. Check which measurements feed the fit before interpreting a slope.</p><section className="methodology-section"><h3 id="methods-choosing" tabIndex={-1}>Choosing a Fit Model</h3>
 
 <p>All five models describe change over time. Choose according to the shape of the course and the question you want to explore; none is more correct in general.</p>
 <ReferenceTable label="Fit model comparison"><table><thead><tr><th>Model</th><th>When to use it</th><th>What the summary slope means</th></tr></thead><tbody>

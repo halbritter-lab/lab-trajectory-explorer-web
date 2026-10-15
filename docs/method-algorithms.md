@@ -1058,16 +1058,32 @@ distinguish it from a manually edited configuration that has the same values.
 Defaults and inheritance:
 
 - The workspace starts with shared settings built from General exploration.
+- Shared defaults offer only general presets. Specialist presets are assigned
+  explicitly to one parameter, including when chosen in Cohort models; they do
+  not become shared defaults for unrelated measurements.
 - A column without its own configuration uses the shared settings. Editing
   settings while a column is selected creates an independent configuration for
   that column; "Use shared settings" removes it.
 - Selecting a preset replaces every setting in the table, including the
   column's rapid-decline threshold, which returns to 5.
+
 - Changing any single advanced setting, including the rapid-decline threshold,
   marks the configuration as custom. It is then recorded with `preset: custom`
   and `xAxis: calendar_time`, whichever preset it started from.
 - A series specification built without a fit configuration (`cohortSeriesSpec`)
   uses General exploration.
+
+Trajectory calculation and visibility are separate. *Analyse trend* starts off
+for each parameter and supplies `fitModel: none` to that parameter's trajectory
+summary until enabled. With values 10, 8 and 6 on 1 January in 2020, 2021 and
+2022, disabling analysis retains the three measurements and supplies no slope
+or fit line; enabling OLS computes the existing negative slope. *Show trend
+line* changes only the drawing and retains the slope and export results. The
+configured model and preparation remain stored; Cohort models uses those
+settings independently of the trajectory activation switch. Choosing a No fit
+method disables trajectory activation and line visibility and clears slope
+sorting for that parameter. A derived-parameter replacement transfers activation,
+line visibility and own settings to its replacement key.
 
 The export `settings` sheet records, per column, the slope mode (column
 `mode`), the complete `fit_config` JSON and the rapid-decline threshold
@@ -3118,14 +3134,14 @@ fitted unit, displayed in the model workspace, and exported in the `models`
 worksheet. Changing the policy invalidates fitted results and their projections.
 
 **What the interface supplies** (decided 2026-10-07, formerly OD-1). The
-series configuration of a cohort model is the fit configuration that
-Trajectories applies to the same parameter: the parameter's own settings when
+series configuration of a cohort model is the stored preparation configuration
+shared with Trajectories for the same parameter: the parameter's own settings when
 it has some, otherwise the shared settings (`workspaceModelSpec`,
 `trajectoryFitConfig`). These settings live in the shared application state;
 Trajectories reads and writes them there, and the *Data preparation* select on
 the Cohort models page writes the same settings (see below). The model
-therefore receives the
-measurements the trajectory fit of that parameter receives: the same event
+therefore receives the measurements selected by the configured preparation
+(independently of the per-parameter trajectory activation switch): the same event
 censoring, AKI windows and time balancing, and none for fit model "No fit".
 The fit model otherwise has no effect on the mixed model; with Theil-Sen,
 rolling or segmented OLS the rows are the same as with OLS. Before, the page
@@ -3139,20 +3155,22 @@ apply and the count was always 0.
 - **Data preparation on the Cohort models page.** The select
   offers the same presets as *Analysis preset* under Trajectories and has the
   same effect: choosing a preset replaces the settings with that preset's
-  defaults, endpoint and rapid-decline settings included. It writes to the
-  model parameter's own settings when the parameter has some, otherwise to the
-  shared settings; a note under the select states which, and that a shared
-  change also applies to every Trajectories column without own settings.
+  defaults, endpoint and rapid-decline settings included. Specialist presets
+  always create or replace the model parameter's own settings. General presets
+  write to its own settings when present, otherwise to shared settings. A note
+  states the current scope and that specialist choices are parameter-specific;
+  a shared general change applies to every column without own settings.
   "Custom configuration" is listed only while edited settings are in use and
   cannot be chosen otherwise. Choosing a preset also fixes the model parameter
   to the one shown, because the preselection depends on these settings and
   could otherwise move to another parameter. Example: the shared settings are
-  acute review (fit model "No fit"), so the Fit button is disabled; choosing
-  CKD progression sets the shared settings to quarterly medians and enables
-  the Fit button.
+  general exploration with fit model "No fit", so the Fit button is disabled;
+  choosing CKD progression creates an independent quarterly-median preparation
+  for the selected parameter and enables its Fit button, while shared settings
+  and unrelated parameter settings remain unchanged.
 - Below the checkbox the page states the configuration in use and whether it
   is the shared one or the parameter's own, for example "CKD progression
-  (shared settings): quarterly medians; event windows after kidney transplant,
+  (own settings): quarterly medians; event windows after kidney transplant,
   after chronic dialysis start, acute dialysis intervals, dated dialysis of
   unknown intent; AKI windows 30 days." A preset that was edited is named
   "Edited settings". A parameter that is not among the Trajectories columns
