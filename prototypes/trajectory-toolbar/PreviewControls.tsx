@@ -54,7 +54,11 @@ export function ToolPopover({ name, icon, open, onToggle, onClose, badge, childr
   }, [open])
   return <div className="pv-popover-root" ref={root}>
     <button className={`pv-tool ${open || badge ? 'pv-tool-active' : ''}`} type="button" ref={trigger} aria-expanded={open} aria-controls={id} onClick={onToggle}><Icon name={icon} />{name}{badge ? <span className="pv-count">{badge}</span> : null}</button>
-    {open && createPortal(<div id={id} ref={content} className="pv-popover" role="region" aria-label={`${name} options`} style={position} onBlur={event => { if (!root.current?.contains(event.relatedTarget as Node) && !content.current?.contains(event.relatedTarget as Node)) close.current() }}><h2>{name}</h2>{children}</div>, document.body)}
+    {open && createPortal(<div id={id} ref={content} className="pv-popover" role="region" aria-label={`${name} options`} style={position} onBlur={event => {
+      // Clicking label text temporarily blurs the input before native label
+      // activation focuses its checkbox. Outside pointer clicks close above.
+      if (event.relatedTarget && !root.current?.contains(event.relatedTarget as Node) && !content.current?.contains(event.relatedTarget as Node)) close.current()
+    }}><h2>{name}</h2>{children}</div>, document.body)}
   </div>
 }
 

@@ -247,7 +247,9 @@ button, input, select { font-family: inherit; }
 .pv-attribute-column .pv-column-sort { overflow-wrap: anywhere; }
 .pv-attribute-help { margin: 0 0 12px; color: #50665a; font-size: 12px; }
 .pv-attribute-options { display: grid; gap: 4px; max-height: 45dvh; overflow-y: auto; }
-.pv-attribute-options label { min-height: 36px; overflow-wrap: anywhere; }
+.pv-attribute-options label { min-height: 44px; padding: 6px 8px; border-radius: 4px; overflow-wrap: anywhere; }
+.pv-attribute-options label, .pv-explorer .wt-parameter-options label { cursor: pointer; }
+.pv-attribute-options label:hover, .pv-explorer .wt-parameter-options label:hover { background: #edf5ef; }
 .pv-attribute-options input[type=checkbox] { width: auto; flex: 0 0 auto; }
 @media (max-width: 900px) {
   .pv-attribute-options label { min-height: 44px; }

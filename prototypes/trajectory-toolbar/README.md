@@ -15,6 +15,9 @@ or focus-leave dismissal. The sticky ID column has the same sorting controls.
 
 Attributes independently toggles ordinary metadata columns after ID. Multiple
 attributes can be visible without grouping or changing patient order. Each has
+an entirely clickable selection row, including its name and surrounding space.
+Native label activation preserves the open picker while toggling the checkbox.
+Each column has
 header-click and context-menu sorting; text categories use natural ordering and
 missing values remain last in both directions. Hiding a sorted attribute keeps
 the sort, with a visible clear-sort chip. Grouping remains a separate operation
