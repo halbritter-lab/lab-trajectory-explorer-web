@@ -196,7 +196,7 @@ button, input, select { font-family: inherit; }
 .pv-zoom button[aria-pressed=true] { color: #215e47; background: white; font-weight: 650; box-shadow: 0 1px 3px #263e3020; }
 .pv-popover { position: fixed; right: auto; width: 340px; max-width: calc(100vw - 16px); max-height: calc(100dvh - 16px); overflow-y: auto; }
 .pv-explorer .wt-table { font-variant-numeric: tabular-nums; }
-.pv-explorer .wt-table thead th:not(:nth-child(-n+2)) { min-width: 260px; }
+.pv-explorer .wt-table thead th:not(:nth-child(-n+2)):not(.pv-attribute-column) { min-width: 260px; }
 .pv-column-header { min-width: 0; max-width: var(--wt-chart-width, 240px); }
 .pv-column-title { display: flex; align-items: center; gap: 4px; justify-content: space-between; }
 .pv-column-sort { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; border: 0; background: transparent; border-radius: 4px; padding: 5px 0; color: #3b5747; font-size: 12px; font-weight: 600; line-height: 1.5; text-align: left; }
@@ -231,7 +231,15 @@ button, input, select { font-family: inherit; }
 .pv-group-row [aria-expanded=true] svg { transform: rotate(90deg); }
 .pv-group-name { max-width: 32ch; overflow-wrap: anywhere; }
 .pv-group-count { font-size: 11px; font-weight: 400; color: #50665a; }
+.pv-explorer .wt-table .pv-attribute-column { min-width: 144px; width: 144px; max-width: 192px; box-sizing: border-box; overflow-wrap: anywhere; }
+.pv-attribute-column .pv-column-title { align-items: flex-start; }
+.pv-attribute-column .pv-column-sort { overflow-wrap: anywhere; }
+.pv-attribute-help { margin: 0 0 12px; color: #50665a; font-size: 12px; }
+.pv-attribute-options { display: grid; gap: 4px; max-height: 45dvh; overflow-y: auto; }
+.pv-attribute-options label { min-height: 36px; overflow-wrap: anywhere; }
+.pv-attribute-options input[type=checkbox] { width: auto; flex: 0 0 auto; }
 @media (max-width: 900px) {
+  .pv-attribute-options label { min-height: 44px; }
   .pv-explorer .wt-table .pv-group-row button { min-height: 44px; }
   .pv-group-name { max-width: 18ch; }
   .pv-heading-actions { width: 100%; }

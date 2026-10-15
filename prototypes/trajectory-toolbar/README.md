@@ -13,6 +13,12 @@ sort latest values; the ellipsis, right-click or Shift+F10 opens explicit sort
 metrics and directions. Menus support arrow keys, Home/End, Escape and outside
 or focus-leave dismissal. The sticky ID column has the same sorting controls.
 
+Attributes independently toggles ordinary metadata columns after ID. Multiple
+attributes can be visible without grouping or changing patient order. Each has
+header-click and context-menu sorting; text categories use natural ordering and
+missing values remain last in both directions. Hiding a sorted attribute keeps
+the sort, with a visible clear-sort chip. Group by remains a separate operation.
+
 Group by creates actual table sections with patient counts instead of repeating
 the category under each ID. Sections collapse with a click or keyboard activation;
 page selection includes only expanded rows. Column sorting applies within each
@@ -53,7 +59,11 @@ overflow were observed. Measured interactions: Trend 3 → 1 click; Trend plus l
 6 → 2 clicks (compared with the preceding preview, including panel dismissal).
 Grouping checks additionally cover within-group sorting, keyboard collapse,
 visible-only page selection, group filtering, category values in the downloaded
-workbook, and 112 patients across three pages. All 922 unit tests pass.
+workbook, and 112 patients across three pages. Attribute checks cover multiple
+columns without reordering, ascending/descending and keyboard context menus,
+missing values, hidden-sort preservation, grouping independence, compact column
+widths, mobile selection and absence of implicit grouping in XLSX exports.
+All 924 unit tests pass.
 
 The independent critique of the preceding layout is archived under
 `.impeccable/critique/2026-10-15T15-04-24Z__rajectory-toolbar-trajectoriespreview-tsx-3ff5f695.md`.

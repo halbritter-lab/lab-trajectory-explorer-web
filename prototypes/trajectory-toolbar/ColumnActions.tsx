@@ -4,9 +4,9 @@ import { Icon } from './PreviewControls'
 
 export interface ColumnMetric { id: string; label: string; disabled?: boolean }
 
-export function ColumnActions({ label, shortLabel, metrics, activeMetric, ascending, onSort, children }: {
+export function ColumnActions({ label, shortLabel, metrics, activeMetric, ascending, onSort, children, defaultAscending = false }: {
   label: string; shortLabel?: string; metrics: ColumnMetric[]; activeMetric: string | null; ascending: boolean;
-  onSort: (metric: string, ascending: boolean) => void; children?: ReactNode;
+  onSort: (metric: string, ascending: boolean) => void; children?: ReactNode; defaultAscending?: boolean;
 }) {
   const [anchor, setAnchor] = useState<{ left: number; top: number } | null>(null)
   const [position, setPosition] = useState({ left: 0, top: 0 })
@@ -32,7 +32,7 @@ export function ColumnActions({ label, shortLabel, metrics, activeMetric, ascend
   return <div className="pv-column-header" onContextMenu={event => { event.preventDefault(); setAnchor({ left: event.clientX, top: event.clientY }) }} onKeyDown={event => {
     if (event.key === 'ContextMenu' || event.shiftKey && event.key === 'F10') { event.preventDefault(); show() }
   }}>
-    <div className="pv-column-title"><button type="button" className="pv-column-sort" aria-label={label} onClick={() => onSort(metrics[0].id, activeMetric === metrics[0].id ? !ascending : false)}>{shortLabel ?? label}{activeMetric && <span className="pv-column-sort-state">{ascending ? '↑' : '↓'} {shortLabel ? '' : activeLabel}</span>}</button><button type="button" className="pv-column-more" ref={trigger} aria-label={`Column actions: ${label}`} aria-haspopup="menu" aria-expanded={Boolean(anchor)} aria-controls={id} onClick={() => anchor ? close() : show()}><Icon name="more" /></button></div>
+    <div className="pv-column-title"><button type="button" className="pv-column-sort" aria-label={label} onClick={() => onSort(metrics[0].id, activeMetric === metrics[0].id ? !ascending : defaultAscending)}>{shortLabel ?? label}{activeMetric && <span className="pv-column-sort-state">{ascending ? '↑' : '↓'} {shortLabel ? '' : activeLabel}</span>}</button><button type="button" className="pv-column-more" ref={trigger} aria-label={`Column actions: ${label}`} aria-haspopup="menu" aria-expanded={Boolean(anchor)} aria-controls={id} onClick={() => anchor ? close() : show()}><Icon name="more" /></button></div>
     {children}
     {anchor && createPortal(<div className="pv-column-menu" role="menu" aria-label={`Sort ${label}`} id={id} ref={menu} style={position} onBlur={event => { if (!event.currentTarget.contains(event.relatedTarget as Node)) setAnchor(null) }} onKeyDown={event => {
       if (event.key === 'Escape') { event.preventDefault(); close(true) }

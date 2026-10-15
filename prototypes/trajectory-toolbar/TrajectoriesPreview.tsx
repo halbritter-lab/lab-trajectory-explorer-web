@@ -19,6 +19,7 @@ import { useAppStore } from '../../src/workspace/state/store'
 import { previewTrendConfig } from './preview-analysis'
 import { ColumnActions } from './ColumnActions'
 import { groupKey, groupRows } from './preview-grouping'
+import { attributeSortKey, parseAttributeSort, compareAttributeValues } from './preview-attributes'
 
 /** Sort keys are `${parameterKey}:${metric}`; parameter keys are JSON and may
  * themselves contain ':', so split at the last one. */
@@ -192,6 +193,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
   const [selected, setSelected] = useState<PatientId[]>([])
   const [selectedOnly, setSelectedOnly] = useState(false)
   const [groupBy, setGroupBy] = useState('')
+  const [attributeKeys, setAttributeKeys] = useState<string[]>([])
   const [group, setGroup] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([])
   const [sort, setSortKey] = useState('id')
@@ -329,6 +331,9 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     return { min, max, days }
   }), [cohort, specs])
   const attributes = useMemo(() => [...new Set(data.patients.flatMap(p => Object.keys(p.attributes)))].sort(), [data.patients])
+  const shownAttributes = attributeKeys.filter(attribute => attributes.includes(attribute))
+  const attributeLabel = (attribute: string, value: string | undefined) => value?.trim() ? attribute === 'sex' ? sexLabel(value) : value : undefined
+  const attributeSort = parseAttributeSort(sort)
   const patientById = useMemo(() => new Map(data.patients.map(patient => [patient.id, patient])), [data.patients])
   const selectedSet = useMemo(() => new Set(selected), [selected])
   const groupValue = (id: PatientId) => data.patientAttributes[String(id)]?.[groupBy]
@@ -341,6 +346,10 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
   }).sort((a, b) => {
     if (sort === 'id') return comparePatientIds(a.patientId, b.patientId)
     if (sort === 'id:desc') return comparePatientIds(b.patientId, a.patientId)
+    if (attributeSort) {
+      const value = (id: PatientId) => attributeLabel(attributeSort.attribute, data.patientAttributes[String(id)]?.[attributeSort.attribute])
+      return compareAttributeValues(value(a.patientId), value(b.patientId), attributeSort.ascending) || comparePatientIds(a.patientId, b.patientId)
+    }
     const { paramKey, metric } = parseSortKey(sort)
     const index = keys.indexOf(paramKey)
     if (index < 0) return comparePatientIds(a.patientId, b.patientId)
@@ -388,7 +397,7 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     observer.observe(scroller)
     return () => observer.disconnect()
   }, [tableShown])
-  const chartWidth = sparkWidth(tableWidth, parameters.length, chartSize)
+  const chartWidth = sparkWidth(Math.max(0, tableWidth - shownAttributes.length * 144), parameters.length, chartSize)
   const pageCount = Math.ceil(visible.length / TABLE_PAGE_SIZE)
   const activeTablePage = Math.min(tablePage, Math.max(0, pageCount - 1))
   const tableRows = visible.slice(activeTablePage * TABLE_PAGE_SIZE, (activeTablePage + 1) * TABLE_PAGE_SIZE)
@@ -530,6 +539,10 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
         <label className="pv-search"><Icon name="search" /><input aria-label="Search patients" value={query} onChange={event => { setQuery(event.target.value); setTablePage(0) }} placeholder="Search patients…" /></label>
         <div className="pv-tool-group">
           <button ref={pickerButton} className="pv-tool" type="button" onClick={() => { closeTool(); setParameterQuery(''); setDraftKeys([...keys]) }}><Icon name="parameters" />Parameters<span className="pv-count">{parameters.length}</span></button>
+          {mode === 'table' && attributes.length > 0 && <ToolPopover name="Attributes" icon="parameters" badge={shownAttributes.length} open={openTool === 'attributes'} onToggle={() => toggleTool('attributes')} onClose={closeTool}>
+            <p className="pv-attribute-help">Show columns without changing patient order.</p>
+            <div className="pv-attribute-options">{attributes.map(attribute => <label key={attribute}><input type="checkbox" aria-label={`Show attribute: ${attribute}`} checked={shownAttributes.includes(attribute)} onChange={event => setAttributeKeys(previous => event.target.checked ? [...previous, attribute] : previous.filter(key => key !== attribute))} />{attribute}</label>)}</div>
+          </ToolPopover>}
           <label className="pv-inline-field"><span>Group by</span><select aria-label="Group by" value={groupBy} onChange={event => { setGroupBy(event.target.value); setGroup(''); setCollapsedGroups([]); setTablePage(0) }}><option value="">None</option>{attributes.map(attribute => <option key={attribute}>{attribute}</option>)}</select></label>
           {groupBy && <label className="pv-inline-field"><span>Show</span><select aria-label="Filter group" value={group} onChange={event => { setGroup(event.target.value); setTablePage(0) }}><option value="">All groups</option>{groups.map(section => <option key={section.key} value={section.key}>{section.label}</option>)}</select></label>}
           {mode === 'table' && <div className="pv-zoom" role="group" aria-label="Chart zoom">{(['small', 'medium', 'large'] as const).map(size => <button type="button" key={size} aria-pressed={chartSize === size} aria-label={`${size[0].toUpperCase() + size.slice(1)} charts`} onClick={() => setChartSize(size)}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div>}
@@ -543,7 +556,8 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
         </div>
       </div>
       <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{groupBy && mode === 'table' && <span className="pv-group-summary"> · {groupedRows.length} {groupedRows.length === 1 ? 'group' : 'groups'} · sorted within groups</span>}{parameterKeySet.size > 0 && <span> · Trend analysis: {parameterKeySet.size}</span>}</div>    {mode === 'table' && visible.length > 0 && <nav className="wt-table-pages" aria-label="Patient table pages"><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => setTablePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {activeTablePage * TABLE_PAGE_SIZE + 1}–{Math.min((activeTablePage + 1) * TABLE_PAGE_SIZE, visible.length)} of {visible.length} {visible.length === 1 ? 'patient' : 'patients'}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => setTablePage(activeTablePage + 1)}>Next</button></nav>}</div>
-      {(query || group || selectedOnly || selected.length > 0) && <div className="pv-active-state">
+      {(query || group || selectedOnly || selected.length > 0 || attributeSort && !shownAttributes.includes(attributeSort.attribute)) && <div className="pv-active-state">
+        {attributeSort && !shownAttributes.includes(attributeSort.attribute) && <button type="button" className="pv-chip" aria-label={`Clear attribute sort: ${attributeSort.attribute}`} onClick={() => setSort('id')}>Sort: {attributeSort.attribute} {attributeSort.ascending ? '↑' : '↓'}<Icon name="close" /></button>}
         {query && <button type="button" className="pv-chip" onClick={() => setQuery('')}>Search: {query}<Icon name="close" /></button>}
         {group && <button type="button" className="pv-chip" onClick={() => setGroup('')}>{groupBy}: {groups.find(section => section.key === group)?.label}<Icon name="close" /></button>}
         {selectedOnly && <button type="button" className="pv-chip" onClick={() => setSelectedOnly(false)}>Selected only<Icon name="close" /></button>}
@@ -553,7 +567,12 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
     {!visible.length && <p className="card">No matching patients. Change the search, group filter, or selection.</p>}
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
 
-    {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table" style={{ '--wt-chart-width': `${chartWidth}px` } as CSSProperties}><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select visible patients on this page" title="Select visible patients on this page" disabled={!selectableRows.length} ref={element => { if (element) { element.indeterminate = pageSelectedCount > 0 && pageSelectedCount < selectableRows.length } }} checked={selectableRows.length > 0 && pageSelectedCount === selectableRows.length} onChange={event => { const scopeIds = new Set(pagePatientIds); setSelected(event.target.checked ? [...new Set([...selected, ...pagePatientIds])] : selected.filter(id => !scopeIds.has(id))) }} /></th><th aria-label="Patient" aria-sort={sort === 'id' ? 'ascending' : sort === 'id:desc' ? 'descending' : undefined}><ColumnActions label="Patient" shortLabel="ID" metrics={[{id:'id',label:'Patient ID'}]} activeMetric={sort === 'id' || sort === 'id:desc' ? 'id' : null} ascending={sort === 'id'} onSort={(_metric, ascending) => setSort(ascending ? 'id' : 'id:desc')} /></th>{parameters.map(p => {
+    {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table" style={{ '--wt-chart-width': `${chartWidth}px` } as CSSProperties}><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select visible patients on this page" title="Select visible patients on this page" disabled={!selectableRows.length} ref={element => { if (element) { element.indeterminate = pageSelectedCount > 0 && pageSelectedCount < selectableRows.length } }} checked={selectableRows.length > 0 && pageSelectedCount === selectableRows.length} onChange={event => { const scopeIds = new Set(pagePatientIds); setSelected(event.target.checked ? [...new Set([...selected, ...pagePatientIds])] : selected.filter(id => !scopeIds.has(id))) }} /></th><th aria-label="Patient" aria-sort={sort === 'id' ? 'ascending' : sort === 'id:desc' ? 'descending' : undefined}><ColumnActions label="Patient" shortLabel="ID" metrics={[{id:'id',label:'Patient ID'}]} activeMetric={sort === 'id' || sort === 'id:desc' ? 'id' : null} ascending={sort === 'id'} onSort={(_metric, ascending) => setSort(ascending ? 'id' : 'id:desc')} /></th>{shownAttributes.map(attribute => {
+      const active = attributeSort?.attribute === attribute
+      return <th className="pv-attribute-column" key={`attribute:${attribute}`} aria-label={`Attribute: ${attribute}`} aria-sort={active ? attributeSort.ascending ? 'ascending' : 'descending' : undefined}>
+        <ColumnActions label={attribute} shortLabel={attribute} metrics={[{ id: 'value', label: 'Value' }]} activeMetric={active ? 'value' : null} ascending={attributeSort?.ascending ?? true} defaultAscending onSort={(_metric, ascending) => setSort(attributeSortKey(attribute, ascending))} />
+      </th>
+    })}{parameters.map(p => {
       const parsedSort = parseSortKey(sort)
       const metric = parsedSort.paramKey === p.key ? parsedSort.metric : null
       const settings = columnSettings[p.key] ?? fitSettings
@@ -574,12 +593,15 @@ export function TrajectoriesPreview({ data, requestedPatientId }: { data: Worksp
       const collapsed = groupBy !== '' && collapsedGroups.includes(section.key)
       const total = groupedRows.find(full => full.key === section.key)?.rows.length ?? section.rows.length
       return <tbody key={section.key} aria-label={groupBy ? `${groupBy}: ${section.label}` : undefined}>
-        {groupBy && <tr className="pv-group-row"><th scope="rowgroup" colSpan={parameters.length + 2}>
+        {groupBy && <tr className="pv-group-row"><th scope="rowgroup" colSpan={parameters.length + shownAttributes.length + 2}>
           <button type="button" aria-expanded={!collapsed} aria-label={`${collapsed ? 'Expand' : 'Collapse'} group ${section.label}`} onClick={() => setCollapsedGroups(previous => collapsed ? previous.filter(key => key !== section.key) : [...previous, section.key])}>
             <Icon name="chevron" /><span className="pv-group-name">{section.label}</span><span className="pv-group-count">{section.rows.length === total ? `${total} ${total === 1 ? 'patient' : 'patients'}` : `${section.rows.length} of ${total} patients on this page`}</span>
           </button>
         </th></tr>}
-        {!collapsed && section.rows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button></th>{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}
+        {!collapsed && section.rows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button></th>{shownAttributes.map(attribute => {
+          const value = attributeLabel(attribute, data.patientAttributes[String(row.patientId)]?.[attribute])
+          return <td key={`attribute:${attribute}`} className="pv-attribute-column"><span title={value} aria-label={value === undefined ? 'Not recorded' : undefined}>{value ?? '—'}</span></td>
+        })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i])} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} /></td>)}</tr>)}
       </tbody>
     })}</table></div>}
     {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <div key={`${parameter.key}-${groupBy}`}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} showFit={fitKeys.includes(parameter.key)} onOpen={open} /></div>)}</div>}
