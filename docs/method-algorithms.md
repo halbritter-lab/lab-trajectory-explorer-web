@@ -865,7 +865,8 @@ Filtering is by row operator before fitting, aggregation and endpoint order,
 not by date. An exact value on the same date as a bound remains eligible. A
 bound alone cannot start, confirm, interrupt or recover an observed endpoint;
 it cannot establish an AKI episode. For a series that is not itself an eligible
-creatinine series, the patient's creatinine series with the most exact dated
+creatinine series and not a computed eGFR (which uses its own source series),
+the patient's creatinine series with the most exact dated
 numeric values supplies the AKI episodes (first in row order on a tie); bounds
 do not win source selection by inflating row count.
 Bound-only series retain their displayed
@@ -1707,10 +1708,27 @@ conditions hold (`isSerumCreatinineSeries`):
 
 - **Name contains** `kreatinin` or `creatinin`. The test ignores case,
   surrounding whitespace and non-breaking spaces. It is a substring test.
-- **Name is not a urine name.** A name is a urine name when it contains
-  `urin` or `harn` in any case (this covers "Urin", "Urine", "Harn"), or when
-  it ends with upper-case `UR`. The suffix test is case-sensitive:
-  `Kreatinin UR` is excluded, `Kreatinin ur` is not.
+- **Name is not a non-serum name** (`isNonSerumName`, decided 2026-11-05,
+  issue #34; before, only the urine rule below existed and was called
+  `isUrineName`). A name marks a material other than serum or plasma when any
+  of these holds, after non-breaking spaces and surrounding whitespace are
+  ignored:
+  - it contains, in any case, `urin`, `harn` (covering "Urin", "Urine",
+    "Harn", "Sammelurin"), `dialysat` ("Dialysat", "dialysate"), `punktat`,
+    `fluid`, `aszites`, `ascites`, `pleura`, `liquor` or `drainage`;
+  - split at whitespace, hyphens, commas, semicolons and parentheses, one
+    token is, in any case, `i.U.` or `i.U` (im Urin), `SU` (Sammelurin; also
+    the `SU` of `24h-SU`) or a lone `U` (`U-Kreatinin`, `Kreatinin (U)`);
+  - it ends with upper-case `UR`. This suffix test is case-sensitive:
+    `Kreatinin UR` is excluded, `Kreatinin ur` is not.
+
+  Excluded therefore: `Kreatinin i.U.`, `U-Kreatinin`, `Kreatinin SU`,
+  `Kreatinin 24h-SU`, `Kreatinin Dialysat`, `Kreatinin Punktat`. Still
+  eligible: `Kreatinin`, `Kreatinin i.S.`, `Kreatinin (enzym.)`,
+  `Kreatinin Serum`, `S-Kreatinin`, `Kreatinin HP`, `Creatinine serum`.
+  Tokens are compared whole: `Kreatinin U/l` stays eligible, because the
+  slash is no separator and the token is `U/l`. Prefixes such as `S-` or `P-`
+  mark nothing.
 - **Unit is mg/dl or µmol/l** after unit-key normalisation (below).
 
 No other material or method is distinguished. Any name that passes these tests
@@ -1872,6 +1890,24 @@ limit and no plausibility range for creatinine other than the positivity
 condition. For example, CKD-EPI 2021 for 0.3 mg/dl in a woman aged 18 gives
 157.6.
 
+**Plausibility warnings** (added 2026-11-05, issue #34; thresholds proposed
+for the owner's confirmation). Warnings only: no value is changed, removed or
+excluded. The Data page shows, with the number of affected values:
+
+- under *Demographics and data quality*, exact dated serum creatinine values
+  strictly above **25 mg/dl** (`IMPLAUSIBLE_CREATININE_ABOVE_MGDL`;
+  `implausiblyHighCreatinineCount`), µmol/l values divided by 88.42 first, so
+  the µmol/l limit is 2210.5 µmol/l (2210 is not counted, 2211 is). Only
+  eligible serum-creatinine pairs are counted; bounds such as `>30` are not.
+  The typical cause is a µmol/l column labelled mg/dl: 120 "mg/dl" gives
+  CKD-EPI 2021 0.3 (0.275614) for a male aged 60 and silent G5 endpoints.
+- under *Derive eGFR*, for the previewed calculation, exact computed eGFR
+  values strictly above **200 mL/min/1.73 m²** (`IMPLAUSIBLE_EGFR_ABOVE`;
+  `implausiblyHighEgfrCount`). Bounds are not counted: `<0,3` mg/dl gives a
+  `>` bound, not an implausible measurement. Imported eGFR series are not
+  checked. Example: CKD-EPI 2021 for a male aged 20 gives 243.5 at 0.1 mg/dl
+  (counted) and 149.7 at 0.5 mg/dl (not counted).
+
 ### Duplicates and bounded rows
 
 Each eligible source row produces its own eGFR row. Rows of the same patient
@@ -1918,6 +1954,8 @@ age-specific Q, sex spellings),
 [eGFR source tests](../tests/core/egfr/series.test.ts) (urine exclusion,
 default-source rules 1, 2 and 4, µmol/l conversion and spellings, reversed
 bound, under-18 rows, rejected non-serum source),
+[creatinine source tests](../tests/core/aki/creatinineSource.test.ts)
+(non-serum and serum names, plausibility counts at both thresholds),
 [eGFR module tests](../tests/core/analysis/egfrModule.test.ts) (formula
 `off` contributes nothing), [unit-key tests](../tests/core/parse/units.test.ts)
 and [eGFR fixture tests](../tests/parity/egfr.parity.test.ts). No dedicated
@@ -1941,16 +1979,23 @@ thresholds are in `src/core/domains/nephrology/constants.ts`.
 
 AKI detection accepts the same eligible serum-creatinine name and unit pairs
 as eGFR derivation: a name containing "Kreatinin" or "Creatinin", excluding
-urine names, with mg/dl or µmol/l (including common case, space and micro-sign
-spellings; see [eGFR derivation](#egfr-derivation) for the exact tokens).
+non-serum names (urine, dialysate, puncture and other body fluids; since
+2026-11-05 also `i.U.`, `SU`, `24h-SU` and `U-`), with mg/dl or µmol/l
+(including common case, space and micro-sign spellings; see
+[eGFR derivation](#eligible-source-series) for the exact tokens). A non-serum
+series detects no episodes and supplies none to other columns.
 Only dated exact numeric rows enter detection; bounded rows (`<x`, `>x`) and
 rows without a number are ignored and cannot establish an episode.
 
-Each eligible creatinine series detects AKI on itself. For any other analyte
-column the patient's eligible creatinine pair with the most exact dated rows
-is used; ties retain the first encountered pair. Bounds do not win source
-selection by inflating the row count. The choice is made per patient. Rows
-with different names or units are never pooled into one detection series.
+Each eligible creatinine series detects AKI on itself. A computed eGFR column
+uses the creatinine pair it was computed from (decided 2026-11-05, issue #34):
+every computed row carries its source pair (`LabRow.sourceSeries`), and the
+patient's rows of that pair are the detection input. Before, a computed eGFR
+column was treated like any other analyte. For any other analyte column the
+patient's eligible creatinine pair with the most exact dated rows is used;
+ties retain the first encountered pair. Bounds do not win source selection by
+inflating the row count. The choice is made per patient. Rows with different
+names or units are never pooled into one detection series.
 
 A µmol/l value is converted to mg/dl by dividing by **88.42 µmol/l per
 mg/dl** before any comparison. Thus 97.262 and 123.788 µmol/l correspond to
@@ -1964,9 +2009,11 @@ as eGFR derivation rejects it. Before, a baseline of 0 gave an infinite ratio
 and stage III, and 0 followed by 0.3 mg/dl fired the absolute criterion. The
 neighbouring positive values are evaluated as if the value were absent: 1.0,
 0 and 1.6 mg/dl on three consecutive days give one stage-I episode with
-baseline 1.0. No other plausibility check is applied. The Data page reports
+baseline 1.0. No other value is removed. The Data page reports
 the number of exact dated serum-creatinine rows of zero or less ("… not
-plausible, so not used for AKI detection or eGFR").
+plausible, so not used for AKI detection or eGFR") and warns about values
+above 25 mg/dl, which stay in detection (see the
+[plausibility warnings](#rounding-and-limits) of eGFR derivation).
 
 **Dialysis.** Creatinine measured under dialysis is left out before detection
 (decided 2026-10-07, formerly OD-14), because it reflects the dialysis
@@ -2105,16 +2152,23 @@ stage reached by several as `n×` and the numeral: `AKI I`, `AKI I, II`,
 "3 AKI episodes: 2× stage I, 1× stage II". Without episodes there is no chip
 and the export cell is empty.
 
-Because a creatinine column detects on itself and every other column uses the
-patient's creatinine pair with the most exact dated rows, two creatinine
-columns of one patient can show different episodes, and the AKI source of a
-computed eGFR column need not be the series the eGFR was derived from.
-Example: a patient has `Kreatinin [mg/dl]` with 1.0 and 1.6 mg/dl on
-consecutive days and `Kreatinin HP [µmol/l]` with 90, 91 and 92 µmol/l on
-three days. The eGFR default source is `Kreatinin [mg/dl]`, and the computed
-CKD-EPI 2021 eGFR falls from 86.2 to 49.0 (male, 60 years). The `Kreatinin` column shows
-one stage-I episode. The computed eGFR column shows none, because its AKI
-source is the `Kreatinin HP` pair with three rows.
+Because a creatinine column detects on itself and every other imported column
+uses the patient's creatinine pair with the most exact dated rows, two
+creatinine columns of one patient can show different episodes, and an
+imported eGFR column can take its episodes from another creatinine pair than
+the one it was measured with. A computed eGFR column always uses the pair it
+was derived from (since 2026-11-05).
+Example (issue #34): a patient has `Kreatinin [mg/dl]` with 1.0, 2.0 and
+1.9 mg/dl on 2020-01-01, -02 and -03, and five rows of
+`Kreatinin enzym. [mg/dl]` in 2021, after the laboratory switched method. The
+eGFR default source is `Kreatinin [mg/dl]`; the computed CKD-EPI 2021 eGFR is
+86.2, 37.5 and 39.9 (male, 60 years). The `Kreatinin` column shows one
+stage-II episode with onset 2020-01-02 (peak 2.0, baseline 1.0). The computed
+eGFR column now shows the same episode, and with AKI exclusion its 30-day
+window from 2020-01-02 removes 37.5 and 39.9 from the eGFR fit. Before, the
+computed eGFR column used `Kreatinin enzym.` (five rows), showed no episode
+and kept both AKI values in its slope. A `HbA1c` column of the same patient
+still uses `Kreatinin enzym.` and shows none.
 
 ### Not implemented
 
@@ -2170,7 +2224,9 @@ Regression evidence: [KDIGO boundary tests](../tests/core/aki/kdigo.test.ts)
 (tolerance, exact 0.3 mg/dl and 1.5-fold boundaries, stage values, the
 4.0 mg/dl rule), [AKI source tests](../tests/core/aki/akiAware.test.ts)
 (eligible names and units, µmol/l conversion, source selection without
-pooling, bounded rows), [AKI module tests](../tests/core/analysis/akiModule.test.ts)
+pooling, bounded rows), [creatinine source tests](../tests/core/aki/creatinineSource.test.ts)
+(non-serum names, the computed eGFR source example above, its fit input and
+episode cache), [AKI module tests](../tests/core/analysis/akiModule.test.ts)
 (episodes reused on computed eGFR and other columns),
 [AKI fixture tests](../tests/parity/aki.parity.test.ts) (episode dates,
 stages and criteria on fixture series),
