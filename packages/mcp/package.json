@@ -1,0 +1,25 @@
+{
+  "name": "@halbritter-lab/lab-trajectory-mcp",
+  "version": "0.1.0",
+  "description": "Local stdio MCP server that analyses lab-trajectory workbooks with the kidney-trajectories package. Research use only.",
+  "private": true,
+  "author": "Jan-Paul Lerch",
+  "license": "MIT",
+  "type": "module",
+  "bin": {
+    "lab-trajectory-mcp": "./dist/index.js"
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "@halbritter-lab/kidney-trajectories": "workspace:*",
+    "@modelcontextprotocol/sdk": "^1.32.2",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz",
+    "zod": "^4.6.7"
+  }
+}

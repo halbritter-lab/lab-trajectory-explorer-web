@@ -3747,6 +3747,39 @@ and the [browser projection workflow](../tests/e2e/model-projections.e2e.ts).
 No dedicated regression test: that a projection is still reported when the
 slope confidence interval includes zero.
 
+## MCP server aggregates (2026-11-05)
+
+The local MCP server (`packages/mcp/`) runs the cohort pipeline of one
+parameter column with the app's defaults: default analysis settings (eGFR
+computed only when a formula is passed, with the default creatinine source
+unless one is named), the chosen preset's fit configuration, the default
+rapid-decline threshold (5 per year), no manual demographics, and exact birth
+dates for patients whose attributes table or lab rows carry a readable birth
+date (as the workspace derives `exactBirthDateByPatient`). Per-patient values
+are the cohort export records unchanged. `analyse_cohort` then counts and
+summarises them; these cohort-level numbers exist only in the server:
+
+| Field | Definition |
+| --- | --- |
+| `patients_in_dataset` | Patients with at least one analysis row in any series. |
+| `patients_with_series` | Patients with `nNumeric > 0` in the analysed series. |
+| `patients_with_slope` | Export records with a numeric `slope`. |
+| `slope_per_year` | Median, first and third quartile, minimum and maximum of those slopes. Quartiles interpolate linearly between order statistics (R type 7): position `(n − 1) · p`, zero-based. |
+| `unstable_slope` | Records with a numeric slope and `unstable_slope = yes`; the share divides by `patients_with_slope`. |
+| `no_slope_reasons` | `reason` of patients with data but no numeric slope. |
+| `rapid_decline_count`, `endpoints.*` | Records with `yes` in `rapid_progression` and the `endpoint_observed_*` and `endpoint_kidney_failure_reached` columns. |
+| `aki` | Records with a non-empty `aki` badge, and counts per badge label. |
+| `exclusions` | Each point's exclusion reasons (`pointExclusionReasons`): points per reason, and patients with at least one point per reason. A point with two reasons counts under both. |
+| `projection_to_ckd_g5` | Records with a numeric projected age at G5, and counts of `endpoint_prediction_reason` values. |
+
+Worked example: slopes −4, −3, −2 and −1 per year give the median at position
+1.5, (−3 + −2) / 2 = −2.5, and the first quartile at position 0.75,
+−4 + 0.75 · (−3 − (−4)) = −3.25.
+
+Tests: [server tests](../packages/mcp/test/server.test.ts) compare the
+aggregates with the package called directly on the fixture workbook, pin the
+quantile rule and check the exact-birth-date path of the G5 projection.
+
 ## Fit code not reachable from the interface
 
 The following exist in the source and in tests, but no interface path selects

@@ -11,6 +11,11 @@ interfaces are still evolving before 1.0.
   type declarations, built with `pnpm build:kidney` and tested against the
   build with `pnpm test:kidney`. It re-exports `src/core` unchanged; no numeric
   change.
+- `packages/mcp/`: a local stdio MCP server (`lab-trajectory-mcp`) that loads
+  a workbook from disk and runs the app's cohort pipeline through the kidney
+  package. Results are aggregate by default; patient-level results go to a
+  local export file. Built with `pnpm build:mcp`, tested with `pnpm test:mcp`.
+  The repository is now a pnpm workspace (`packages/kidney`, `packages/mcp`).
 
 ## [0.3.7] - 2026-10-15
 

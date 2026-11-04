@@ -1,6 +1,7 @@
 /// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { configDefaults } from 'vitest/config'
 
 export default defineConfig({
   plugins: [react()],
@@ -26,5 +27,7 @@ export default defineConfig({
     globals: true,
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
+    // packages/mcp runs its own Node suite (pnpm test:mcp) against the built kidney package.
+    exclude: [...configDefaults.exclude, 'packages/**'],
   },
 })

@@ -1,0 +1,16 @@
+{
+  // Plain tsc build to dist/ for Node. Build the kidney package first
+  // (`pnpm build:kidney`): its declarations come from packages/kidney/dist.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["node"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "skipLibCheck": true,
+    "outDir": "dist",
+    "rootDir": "src"
+  },
+  "include": ["src"]
+}
