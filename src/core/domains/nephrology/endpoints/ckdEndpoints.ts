@@ -13,6 +13,7 @@ import {
 } from '../../../endpoints/thresholdEndpoints'
 import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS, MAX_CONFIRMATION_DAYS } from '../constants'
 import type { KidneyFailureReached } from './endpointEventPolicy'
+import type { FitModel } from '../../../fitPipeline/types'
 
 export type { EndpointPoint } from '../../../endpoints/thresholdEndpoints'
 
@@ -32,6 +33,7 @@ export type CkdProjectionReason =
   | 'no_fit'
   | 'non_declining_fit'
   | 'insufficient_points'
+  | 'theil_sen_insufficient_points'
   | 'span_too_short'
   | 'already_below_threshold'
   | 'missing_age'
@@ -43,6 +45,8 @@ export type CkdProjectionReason =
 export interface CkdEndpoints {
   kidneyFailureReached: KidneyFailureReached | null
   endpointPointCount: number
+  /** Whether the column's AKI exclusion windows were removed from the endpoint input. */
+  inputExcludesAkiWindows: boolean
   percentDecline: {
     value: number | null
     baselineValue: number | null
@@ -87,6 +91,10 @@ export interface ComputeCkdEndpointsInput {
   confirmationDays?: number
   /** Basis of the points' ages; `whole_years` when omitted. */
   ageBasis?: EndpointAgeBasis
+  /** Estimator of the endpoint fit; Theil–Sen raises the projection's minimum dates. */
+  fitModel?: FitModel
+  /** Recorded for provenance; the caller has already removed those rows from `points`. */
+  inputExcludesAkiWindows?: boolean
 }
 
 /** The observed CKD G-stage endpoints as generic threshold crossings: G4 and
@@ -102,6 +110,7 @@ export function ckdCrossingDefinitions(confirmationDays: number, g5Threshold = C
 const PROJECTION_REASONS: Record<ProjectedCrossingReason, CkdProjectionReason> = {
   observed: 'observed_ckd_g5',
   insufficient_points: 'insufficient_points',
+  theil_sen_insufficient_points: 'theil_sen_insufficient_points',
   span_too_short: 'span_too_short',
   no_fit: 'no_fit',
   not_approaching: 'non_declining_fit',
@@ -113,6 +122,7 @@ function emptyEndpoints(): CkdEndpoints {
   return {
     kidneyFailureReached: null,
     endpointPointCount: 0,
+    inputExcludesAkiWindows: false,
     percentDecline: { value: null, baselineValue: null, latestValue: null },
     observedCkdG4: emptyObservedCrossing(),
     observedCkdG5: emptyObservedCrossing(),
@@ -138,6 +148,7 @@ export function normalizeConfirmationDays(value: number | undefined): number {
 export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoints {
   const out = emptyEndpoints()
   out.kidneyFailureReached = input.kidneyFailureReached ?? null
+  out.inputExcludesAkiWindows = input.inputExcludesAkiWindows ?? false
   const threshold = input.threshold ?? CKD_G5_EGFR_THRESHOLD
   const confirmationDays = normalizeConfirmationDays(input.confirmationDays ?? input.enabled.confirmationDays)
   const definitions = ckdCrossingDefinitions(confirmationDays, threshold)
@@ -192,6 +203,7 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
       threshold,
       direction: 'below',
       observed: observedG5,
+      fitModel: input.fitModel,
     })
     let reason = projected.reason === null ? null : PROJECTION_REASONS[projected.reason]
     let value = projected.value

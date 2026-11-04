@@ -7,7 +7,8 @@ import { endpointBadge } from '../../../src/workspace/labels/endpointLabels'
 const ALL_ENDPOINTS = { percentDecline: true, observedCkdG5: true, projectedAgeToCkdG5: true }
 
 function q(partial: Partial<SlopeQualityInput>): SlopeQualityInput {
-  return { reason: null, nFitted: 10, fittedSpanDays: 1_000, fitModel: 'ols', ...partial }
+  // Points on distinct dates unless a test says otherwise.
+  return { reason: null, nFitted: 10, fittedSpanDays: 1_000, fitModel: 'ols', ...partial, nFittedDates: partial.nFittedDates ?? partial.nFitted ?? 10 }
 }
 
 function endpointsFor(points: { date: string; value: number; ageYears?: number }[], slopePerYear: number): CkdEndpoints {

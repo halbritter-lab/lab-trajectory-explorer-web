@@ -44,7 +44,7 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
       const exact = endpoints.projectedAgeToCkdG5.ageBasis === 'birth_date'
       const shown = exact ? age.toFixed(1) : `~${Math.round(age)}`
       labels.push(`G5 @ ${shown}y`)
-      details.push(`projected age to CKD G5 ${exact ? `${shown} years` : `about ${Math.round(age)} years (no birth date: counted from the age in completed years, so the true value can be up to one year higher)`}; fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)`)
+      details.push(`projected age to CKD G5 ${exact ? `${shown} years` : `about ${Math.round(age)} years (no birth date: counted from the age in completed years, so the true value can be up to one year higher)`}; fitted curve using endpoint-eligible dated exact numeric measurements (bounds${endpoints.inputExcludesAkiWindows ? ', AKI exclusion windows' : ''} and kidney replacement therapy/acute dialysis periods excluded)`)
     } else if (measurementCount > 0 || endpoints.projectedAgeToCkdG5.reason !== 'insufficient_points') {
       // A cell without any measurement already says so; "G5 n < 3" would only add noise.
       const unavailable = projectedG5Label(endpoints)
