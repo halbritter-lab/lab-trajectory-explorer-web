@@ -1685,17 +1685,20 @@ validated clinical result. The implementation is `appendComputedEgfr` in
 
 ### Activation, default and output series
 
-The eGFR module setting holds one formula (`off`, `ckd-epi-2021`, `mdrd-4` or
-`ekfc-2021`) and one optional source pair. The default is `formula: 'off'`,
+The eGFR module setting holds one formula (`off`, `ckd-epi-2021`,
+`ckd-epi-2009`, `mdrd-4` or `ekfc-2021`) and one optional source pair. The default is `formula: 'off'`,
 `source: null`: no eGFR series exists until a formula is applied under Data.
 With `off` the module contributes nothing. Only one formula is active at a
-time.
+time. A saved setting whose formula is not one of these values is rejected
+when settings are loaded.
 
 Decided 2026-10-07 (formerly OD-5): the default stays `off`. The methodology page no longer labels CKD-EPI 2021 the default.
 
 Computed rows are appended to the imported rows; source rows are never
 changed. The series name is `eGFR (<formula label>, computed)` with the labels
-`CKD-EPI 2021`, `MDRD-4` and `EKFC 2021`, and the unit is written
+`CKD-EPI 2021`, `CKD-EPI 2009`, `MDRD-4` and `EKFC 2021`, so a CKD-EPI 2009
+series (`eGFR (CKD-EPI 2009, computed)`) is a separate parameter from a
+CKD-EPI 2021 series in tables, fits and exports. The unit is written
 `ml/min/1,73m²`. The workspace blocks the calculation when an imported series
 already has that name and unit, so imported and computed values are never
 combined.
@@ -1780,7 +1783,7 @@ yields nothing; no placeholder row is written.
 | Sex | resolved to `m`, `w` or `d` |
 | Age | present and at least 18 (`age >= 18`; 17 gives no value, 18 does) |
 
-All three formulas are adult-only here. This includes EKFC, whose published
+All four formulas are adult-only here. This includes EKFC, whose published
 form covers the full age spectrum. If no row in the dataset carries a sex and
 no row carries an age, the derivation returns the input rows unchanged without
 looking at the source.
@@ -1792,12 +1795,12 @@ compared on UTC calendar dates. It is an integer and changes on the
 (resolved or assumed) birthday; fractional age is not used. When a patient has
 no anchor, the row keeps its stated age, which the import truncates toward
 zero to an integer. One further completed year lowers CKD-EPI 2021 by 0.62 %
-(factor 0.9938) and EKFC above 40 years by 1.0 % (factor 0.990), so a series
+(factor 0.9938), CKD-EPI 2009 by 0.70 % (factor 0.993) and EKFC above 40 years by 1.0 % (factor 0.990), so a series
 shows a small step at each birthday. The rules that resolve sex and the
 birth-date anchor are not repeated here.
 
 **Sex.** The resolved patient sex is used. `m` and `w` select the male and
-female coefficients. `d` uses the male coefficients in all three formulas,
+female coefficients. `d` uses the male coefficients in all four formulas,
 including the EKFC Q value. An unresolved or unrecognised sex gives no value.
 
 ### Formulas
@@ -1816,6 +1819,26 @@ eGFR = 142 × min(Scr/κ, 1)^α × max(Scr/κ, 1)^(−1.200) × 0.9938^age × F
 | --- | ---: | ---: | ---: |
 | `w` | 0.7 | −0.241 | 1.012 |
 | `m`, `d` | 0.9 | −0.302 | 1.000 |
+
+**CKD-EPI 2009 creatinine** (Levey et al., Annals of Internal Medicine
+2009;150:604-612), added 2026-11-05 for comparability with analyses that use
+it (see [method decisions](remaining-method-decisions.md#ckd-epi-2009-equation-2026-11-05)).
+The published race coefficient (× 1.159) is not applied, because the data
+model carries no race; this is a deviation from the published equation, and
+the result equals the published value for a non-Black patient. The conditions,
+age, sex handling and rounding are the same as for CKD-EPI 2021:
+
+```
+eGFR = 141 × min(Scr/κ, 1)^α × max(Scr/κ, 1)^(−1.209) × 0.993^age × F
+```
+
+| Sex | κ | α | F |
+| --- | ---: | ---: | ---: |
+| `w` | 0.7 | −0.329 | 1.018 |
+| `m`, `d` | 0.9 | −0.411 | 1.000 |
+
+At `Scr = κ` both branches give 1, so the two branches meet there; the α branch
+applies only below κ.
 
 **MDRD-4**, IDMS-traceable 175 form (Levey et al., Annals of Internal Medicine
 2006). The published race coefficient is not applied:
@@ -1907,20 +1930,28 @@ are the values returned by the formula functions.
 | CKD-EPI 2021 | `m` | 142 × 1 × (1.2/0.9)^−1.2 × 0.9938^60 = 142 × 0.708066 × 0.688556 | 69.231128 | 69.2 |
 | CKD-EPI 2021 | `w` | 142 × 1 × (1.2/0.7)^−1.2 × 0.688556 × 1.012 | 51.821330 | 51.8 |
 | CKD-EPI 2021 | `w`, 0.6 mg/dl | 142 × (0.6/0.7)^−0.241 × 1 × 0.688556 × 1.012 | 102.693411 | 102.7 |
+| CKD-EPI 2009 | `m` | 141 × 1 × (1.2/0.9)^−1.209 × 0.993^60 = 141 × 0.706235 × 0.656077 | 65.331569 | 65.3 |
+| CKD-EPI 2009 | `w` | 141 × 1 × (1.2/0.7)^−1.209 × 0.656077 × 1.018 = 141 × 0.521187 × 0.656077 × 1.018 | 49.081204 | 49.1 |
+| CKD-EPI 2009 | `w`, 0.6 mg/dl, 40 years | 141 × (0.6/0.7)^−0.329 × 1 × 0.993^40 × 1.018 = 141 × 1.052024 × 0.755040 × 1.018 | 114.015087 | 114.0 |
+| CKD-EPI 2009 | `m`, 0.6 mg/dl, 40 years | 141 × (0.6/0.9)^−0.411 × 1 × 0.993^40 | 125.765801 | 125.8 |
 | MDRD-4 | `m` | 175 × 1.2^−1.154 × 60^−0.203 = 175 × 0.810261 × 0.435547 | 61.758706 | 61.8 |
 | MDRD-4 | `w` | the male result × 0.742 | 45.824960 | 45.8 |
 | EKFC 2021 | `m` | 107.3 × (1.2/0.90)^−1.132 × 0.990^20 = 107.3 × 0.722053 × 0.817907 | 63.368432 | 63.4 |
 | EKFC 2021 | `m`, 20 years, 0.9 mg/dl | Q = 76.1966/88.4 = 0.861953; 107.3 × (0.9/0.861953)^−1.132 | 102.179692 | 102.2 |
 
 Regression evidence: [formula tests](../tests/core/egfr/formulas.test.ts)
-(invalid inputs, `d` as male, EKFC reference values including the
+(invalid inputs, `d` as male, CKD-EPI 2009 values of the worked examples,
+EKFC reference values including the
 age-specific Q, sex spellings),
 [eGFR source tests](../tests/core/egfr/series.test.ts) (urine exclusion,
+formula-specific series names including CKD-EPI 2009,
 default-source rules 1, 2 and 4, µmol/l conversion and spellings, reversed
 bound, under-18 rows, rejected non-serum source),
 [eGFR module tests](../tests/core/analysis/egfrModule.test.ts) (formula
-`off` contributes nothing), [unit-key tests](../tests/core/parse/units.test.ts)
-and [eGFR fixture tests](../tests/parity/egfr.parity.test.ts). No dedicated
+`off` contributes nothing, saved formula names validated), [unit-key tests](../tests/core/parse/units.test.ts)
+and [eGFR fixture tests](../tests/parity/egfr.parity.test.ts). The golden
+fixtures carry no CKD-EPI 2009 values; its values are pinned by the formula
+tests only. No dedicated
 regression test: one-decimal rounding at a threshold, the absence of caps,
 same-date duplicate source rows and default-source rule 3. The inherited
 operator of a non-exact source row is covered by the

@@ -5,6 +5,13 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added
+
+- The eGFR formula selector offers CKD-EPI 2009 (creatinine, without the race
+  coefficient) next to CKD-EPI 2021, MDRD-4 and EKFC 2021. Its series is named
+  `eGFR (CKD-EPI 2009, computed)`. The default stays Off and existing values
+  are unchanged.
+
 ## [0.3.7] - 2026-10-15
 
 ### Added

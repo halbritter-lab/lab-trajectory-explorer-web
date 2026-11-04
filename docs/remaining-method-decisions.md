@@ -300,6 +300,26 @@ Taken by the project owner on the points the walkthrough had left open.
   ([checklist](research-acceptance.md)), then the release PR. Publication still
   needs the owner's explicit acceptance.
 
+## CKD-EPI 2009 equation (2026-11-05)
+
+Requested by the project owner on 2026-11-05 in issue #4 ("Clinical review
+2026-11-03: decisions needed", eGFR equations): CKD-EPI 2009 (Levey et al.,
+Annals of Internal Medicine 2009;150:604-612) becomes a selectable eGFR
+formula, so that computed series can be compared with GCKD analyses that used
+it (Behning et al., Kidney International Reports 2026;11(2):103696,
+doi:10.1016/j.ekir.2025.11.021).
+
+- The default stays `off` (OD-5); CKD-EPI 2021, MDRD-4 and EKFC 2021 values are
+  unchanged.
+- Same conditions, age limit, sex handling (`d` as male) and rounding as
+  CKD-EPI 2021. The series name is `eGFR (CKD-EPI 2009, computed)`.
+- Deviation from the published equation: the race coefficient (× 1.159) is not
+  applied, because the data model carries no race. Open for the owner: whether
+  the label should say so, for example "CKD-EPI 2009 (no race term)". Changing
+  the label renames the computed series.
+- Coefficients and worked values:
+  [method algorithms](method-algorithms.md#formulas).
+
 ## Approved requirements
 
 ### Observed events and recovery
