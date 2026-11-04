@@ -19,7 +19,7 @@ test('public API names are pinned', () => {
     'buildCohortRows', 'ckdEpi2021', 'ckdProgressionConfig', 'clinicalEventsByPatient',
     'cohortCellFlags', 'cohortExportRecords', 'cohortSeriesSpec', 'comparePatientIds',
     'computeAnalysisResult', 'computeCkdEndpoints', 'computedEgfrName', 'creatinineSourceOptions',
-    'datesToYears', 'defaultAnalysisSettings', 'defaultCreatinineSource', 'ekfc2021',
+    'datesToYears', 'defaultAnalysisSettings', 'defaultColumnModuleSettings', 'defaultCreatinineSource', 'ekfc2021',
     'episodesForSeries', 'exclusionReasonsAt', 'findKdigoAkiEpisodes', 'fitAkiAware',
     'fitGlobal', 'fitOls', 'fitPresetById', 'fitPresetCatalog',
     'fitTheilSen', 'fixedLengthWindow', 'generalExplorationConfig', 'isCreatinineName',

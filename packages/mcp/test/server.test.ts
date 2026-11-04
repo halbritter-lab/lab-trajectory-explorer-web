@@ -34,7 +34,7 @@ function direct() {
   const parameter = { bezeichnung: kidney.computedEgfrName('ckd-epi-2021'), einheit: kidney.COMPUTED_EGFR_UNIT }
   const spec = kidney.cohortSeriesSpec(parameter, kidney.ckdProgressionConfig(parameter), { clinicalEventsByPatient: kidney.clinicalEventsByPatient(dataset.events), fitInputs: analysis.fitInputs })
   const cohort = kidney.buildCohortRows(analysis.rows, [...new Set(analysis.rows.map((r) => r.patientId))], [spec])
-  return { cohort, records: kidney.cohortExportRecords(cohort, { rapidEgfrDecline: settings.rapidEgfrDecline }) }
+  return { cohort, records: kidney.cohortExportRecords(cohort, kidney.defaultColumnModuleSettings()) }
 }
 
 let id: string
@@ -88,6 +88,12 @@ describe('lab-trajectory MCP server', () => {
     expect(method.fit_config.timeBalancing).toBe(kidney.ckdProgressionConfig({ bezeichnung: method.series, einheit: method.unit }).timeBalancing)
     expect(method.egfr.formula).toBe('ckd-epi-2021')
     expect(JSON.stringify(aggregate)).not.toMatch(/"(PatientID|patientId)"/)
+  })
+
+  test('acute review reports no requested fit instead of too few points', async () => {
+    const { aggregate } = await call('analyse_cohort', { dataset_id: id, ...egfr, preset: 'acute_review' })
+    expect(aggregate.patients_with_slope).toBe(0)
+    expect(Object.keys(aggregate.no_slope_reasons)).toEqual(['no_fit_requested'])
   })
 
   test('quantile interpolates linearly', () => {

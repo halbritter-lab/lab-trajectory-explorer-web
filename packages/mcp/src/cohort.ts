@@ -13,6 +13,7 @@ import {
   computedEgfrName,
   creatinineSourceOptions,
   defaultAnalysisSettings,
+  defaultColumnModuleSettings,
   defaultCreatinineSource,
   EXPORT_DISCLAIMER_ROWS,
   fitPresetById,
@@ -52,7 +53,11 @@ const validDate = (date: Date | null | undefined): date is Date => date != null 
  * lab rows. Without one the endpoint projection uses ages in completed years. */
 function exactBirthDates(dataset: LoadedDataset): Record<string, Date> {
   const byPatient = new Map<PatientId, LabRow[]>()
-  for (const row of dataset.rows) byPatient.set(row.patientId, [...(byPatient.get(row.patientId) ?? []), row])
+  for (const row of dataset.rows) {
+    const bucket = byPatient.get(row.patientId)
+    if (bucket) bucket.push(row)
+    else byPatient.set(row.patientId, [row])
+  }
   const out: Record<string, Date> = Object.create(null)
   for (const [patientId, rows] of byPatient) {
     const attributeBirthDate = parseAttributeDate(dataset.patientAttributes[patientIdKey(patientId)]?.birthDate)
@@ -97,8 +102,7 @@ export function runCohort(dataset: LoadedDataset, options: CohortOptions) {
   })
   const patientIds = [...new Set(analysis.rows.map((r) => r.patientId))]
   const cohort = buildCohortRows(analysis.rows, patientIds, [spec])
-  // The app's default column settings: only the rapid-decline module has any.
-  const columnSettings = { rapidEgfrDecline: settings.rapidEgfrDecline }
+  const columnSettings = defaultColumnModuleSettings()
   // Same rule as workspace-export.ts: demographics messages carry the patient key from segment three.
   const conflictKeys = new Set(analysis.messages.filter((m) => m.id.startsWith('demographics:')).map((m) => m.id.split(':').slice(2).join(':')))
   const records = cohortExportRecords(cohort, columnSettings, conflictKeys)
@@ -111,7 +115,7 @@ export function runCohort(dataset: LoadedDataset, options: CohortOptions) {
     slope_mode: spec.mode,
     egfr: settings.egfr,
     aki: settings.aki,
-    rapid_decline_threshold_per_year: settings.rapidEgfrDecline.threshold,
+    column_settings: columnSettings,
     demographics: 'as imported; no manual overrides',
     method_reference: METHOD_REFERENCE_URL,
   }
@@ -158,7 +162,9 @@ export function aggregate(cohort: readonly CohortRow[], records: readonly Cohort
     },
     unstable_slope: { count: yes(fitted, 'unstable_slope'), share_of_slopes: slopes.length ? yes(fitted, 'unstable_slope') / slopes.length : null,
       rule: 'fewer than three fitted points or a fitted span under one year (isUnstableSlope)' },
-    no_slope_reasons: countBy(records.filter((r, i) => cells[i].nNumeric > 0 && typeof r.slope !== 'number').map((r) => r.reason || 'none')),
+    // With fit model 'none' (acute review) the core reports 'n_below_threshold' whatever the point count.
+    no_slope_reasons: countBy(records.flatMap((r, i) => cells[i].nNumeric > 0 && typeof r.slope !== 'number'
+      ? [cells[i].fitModel === 'none' ? 'no_fit_requested' : r.reason || 'none'] : [])),
     rapid_decline_count: yes(records, 'rapid_progression'),
     aki: { patients_with_episodes: records.filter((r) => r.aki).length, by_label: countBy(records.flatMap((r) => (r.aki ? [String(r.aki)] : []))) },
     exclusions: {

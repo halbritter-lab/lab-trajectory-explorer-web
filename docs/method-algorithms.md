@@ -3753,7 +3753,7 @@ The local MCP server (`packages/mcp/`) runs the cohort pipeline of one
 parameter column with the app's defaults: default analysis settings (eGFR
 computed only when a formula is passed, with the default creatinine source
 unless one is named), the chosen preset's fit configuration, the default
-rapid-decline threshold (5 per year), no manual demographics, and exact birth
+column module settings (`defaultColumnModuleSettings`: rapid-decline threshold 5 per year), no manual demographics, and exact birth
 dates for patients whose attributes table or lab rows carry a readable birth
 date (as the workspace derives `exactBirthDateByPatient`). Per-patient values
 are the cohort export records unchanged. `analyse_cohort` then counts and
@@ -3766,7 +3766,7 @@ summarises them; these cohort-level numbers exist only in the server:
 | `patients_with_slope` | Export records with a numeric `slope`. |
 | `slope_per_year` | Median, first and third quartile, minimum and maximum of those slopes. Quartiles interpolate linearly between order statistics (R type 7): position `(n − 1) · p`, zero-based. |
 | `unstable_slope` | Records with a numeric slope and `unstable_slope = yes`; the share divides by `patients_with_slope`. |
-| `no_slope_reasons` | `reason` of patients with data but no numeric slope. |
+| `no_slope_reasons` | `reason` of patients with data but no numeric slope; `no_fit_requested` instead when the fit model is `none` (acute review), where the core reports `n_below_threshold` regardless of the point count. |
 | `rapid_decline_count`, `endpoints.*` | Records with `yes` in `rapid_progression` and the `endpoint_observed_*` and `endpoint_kidney_failure_reached` columns. |
 | `aki` | Records with a non-empty `aki` badge, and counts per badge label. |
 | `exclusions` | Each point's exclusion reasons (`pointExclusionReasons`): points per reason, and patients with at least one point per reason. A point with two reasons counts under both. |

@@ -84,8 +84,8 @@ with escaped backslashes in JSON.
 | `load_dataset(path)` | Dataset id, patients, lab rows, series with units and row counts, events, attribute rows, import diagnostics (sheet notes, counted row messages) | No |
 | `list_series(dataset_id)` | Series with unit, rows and patients; computable eGFR series and creatinine sources | No |
 | `analyse_cohort(dataset_id, series?, unit?, preset, egfr_formula?, creatinine_source?)` | Patients analysed, slope median, IQR and range, unstable share, no-fit reasons, rapid decline count, AKI counts, excluded points by reason, observed endpoints, projection counts, and the exact method settings | No |
-| `patient_detail(..., patient_id)` | One patient's export row (slope, CI, r², n, span, reason, flags, endpoints), fitted points, fitted span, distinct dates, excluded points by reason, AKI episodes and windows | **Yes** |
-| `export_cohort(..., output_path)` | Writes `.xlsx` (sheets `cohort`, `settings`, `about`) or `.csv` (research-use notes as leading `#` lines); returns path and row count | Written to file only |
+| `patient_detail(..., patient_id)` | One patient's cohort export record (slope, CI, r², n, span, reason, flags, endpoints), fitted points, fitted span, distinct dates, excluded points by reason, AKI episodes and windows | **Yes** |
+| `export_cohort(..., output_path)` | Writes `.xlsx` (sheets `cohort`, `settings`, `about`) or `.csv` (research-use notes as leading `#` lines; read with `comment='#'` in pandas or `comment.char = "#"` in R); returns path and row count | Written to file only |
 | `methods_reference()` | Link to the method reference, presets, eGFR equations, export notes | No |
 
 `preset` is one of `general_exploration`, `theil_sen`, `ckd_progression`

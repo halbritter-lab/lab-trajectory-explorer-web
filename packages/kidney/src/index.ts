@@ -109,6 +109,7 @@ export { ckdProgressionConfig, acuteReviewConfig, NEPHROLOGY_PRESETS } from '../
 export {
   computeAnalysisResult,
   defaultAnalysisSettings,
+  defaultColumnModuleSettings,
   parseAnalysisSettings,
   fitPresetCatalog,
   fitPresetById,

@@ -144,8 +144,13 @@ export function createServer(): McpServer {
   }, async ({ output_path, ...args }) => {
     const file = localPath(output_path, ['.xlsx', '.csv'])
     const { cohort, records, method } = cohortFor(args)
-    // n counts raw measurements; add the fitted counts the app's export adds too.
-    const rows = records.map((record, i) => ({ ...record, n_fitted: cohort[i].cells[0].nFitted, fitted_span_days: cohort[i].cells[0].fittedSpanDays }))
+    // Column layout of the app's cohort sheet (workspace-export.ts): Parameter and Unit, fitted counts, rolling columns last.
+    const rows = records.map((record, i) => {
+      const { Bezeichnung, Einheit, rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max, ...fields } = record
+      const cell = cohort[i].cells[0]
+      return { ...fields, Parameter: Bezeichnung, Unit: Einheit, n_fitted: cell.nFitted, fitted_span_days: cell.fittedSpanDays,
+        rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max }
+    })
     const about = [...EXPORT_DISCLAIMER_ROWS, { note: `Source file: ${get(args.dataset_id).fileName}` }, { note: `Method reference: ${METHOD_REFERENCE_URL}` }]
     let bytes: Uint8Array | string
     if (extname(file).toLowerCase() === '.csv') {
