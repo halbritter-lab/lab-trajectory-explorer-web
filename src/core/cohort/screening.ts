@@ -53,6 +53,15 @@ export interface CohortCell {
   fittedSpanDays: number
   spanDays: number
   slope: number // value-units per YEAR (x-axis is fractional years)
+  /** Fitted value at `firstFittedDate`, the time origin of the scalar fit. */
+  intercept: number
+  /** OLS slope standard error; NaN for Theil-Sen and the exact two-point line. */
+  slopeSe: number
+  firstFittedDate: Date | null
+  lastFittedDate: Date | null
+  /** Date of the last endpoint-eligible measurement (see endpointContext):
+   * exact, before KRT, outside complete acute dialysis intervals. */
+  lastEligibleDate: Date | null
   r2: number
   ciLow: number
   ciHigh: number
@@ -151,7 +160,8 @@ export function buildCohortRows(
       const pointExclusionReasons = points.map((point, i) =>
         [...(!isExactMeasurement(seriesRows[i]) ? [CENSORED_VALUE_REASON] : []), ...(excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])])
       const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
-      const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel))
+      const endpointInputs = endpointContext(spec, pid, seriesRows, fitModel)
+      const endpoints = moduleEndpoints(endpointInputs)
       const exactPoints = points.filter((_, i) => isExactMeasurement(seriesRows[i]))
       const fitLines = exactPoints.length < 2
         ? []
@@ -183,6 +193,11 @@ export function buildCohortRows(
         fittedSpanDays: match?.fittedSpanDays ?? 0,
         spanDays: match?.spanDays ?? 0,
         slope,
+        intercept: match?.intercept ?? Number.NaN,
+        slopeSe: match?.slopeSe ?? Number.NaN,
+        firstFittedDate: match?.firstFittedDate ?? null,
+        lastFittedDate: match?.lastFittedDate ?? null,
+        lastEligibleDate: endpointInputs.points(false).at(-1)?.date ?? null,
         r2: match?.r2 ?? Number.NaN,
         ciLow: match?.ciLow ?? Number.NaN,
         ciHigh: match?.ciHigh ?? Number.NaN,
@@ -295,7 +310,8 @@ export interface CohortExportRecord {
   // `rapid_progression` ('yes' for a rapid eGFR decline under the column's
   // threshold) and the CKD endpoint columns (`endpoint_*`). The rolling
   // columns (`rolling_*`) come last, appended so positional readers keep
-  // working; they are filled for slope mode `rolling` only.
+  // working; they are filled for slope mode `rolling` only. The fit dates,
+  // `intercept` and `slope_se` follow them, appended for the same reason.
   [moduleColumn: string]: string | number | undefined
 }
 
@@ -319,6 +335,7 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
+const dateOrBlank = (date: Date | null): string => date?.toISOString().slice(0, 10) ?? ''
 
 /** Every badge of a fitted cell: those known before fitting plus those that
  * depend on the fit and the column's module settings (evaluated only for
@@ -372,6 +389,11 @@ export function cohortExportRecords(
         rolling_windows: c.rolling?.nWindows ?? '',
         rolling_slope_min: c.rolling ? numOrBlank(c.rolling.slopeMin) : '',
         rolling_slope_max: c.rolling ? numOrBlank(c.rolling.slopeMax) : '',
+        index_date: dateOrBlank(c.firstFittedDate),
+        last_fitted_date: dateOrBlank(c.lastFittedDate),
+        last_eligible_date: dateOrBlank(c.lastEligibleDate),
+        intercept: numOrBlank(c.intercept),
+        slope_se: numOrBlank(c.slopeSe),
       })
     }
   }

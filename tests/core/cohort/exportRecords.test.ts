@@ -299,6 +299,50 @@ describe('cohortExportRecords', () => {
     expect(cohortExportRecords(cohort, undefined, new Set())[0].demographics_conflict).toBe('')
     expect(cohortExportRecords(cohort)[0].demographics_conflict).toBe('')
   })
+
+  describe('fit dates, intercept and slope standard error', () => {
+    const yearly = [60, 56, 50, 46].map((wertNum, i) => row({ labDatum: d(`202${i}-01-01`), wertNum }))
+    const spec = (mode: CohortSeriesSpec['mode']): CohortSeriesSpec => ({ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode })
+
+    it('appends the five columns after the rolling columns', () => {
+      const [rec] = cohortExportRecords(buildCohortRows(yearly, [1], [spec('global')]))
+      expect(Object.keys(rec).slice(-6)).toEqual(['rolling_slope_max', 'index_date', 'last_fitted_date', 'last_eligible_date', 'intercept', 'slope_se'])
+    })
+
+    it('carries the OLS intercept at the first fitted date and SE = sqrt(SSres / (n - 2) / Sxx)', () => {
+      const [rec] = cohortExportRecords(buildCohortRows(yearly, [1], [spec('global')]))
+      expect(rec).toMatchObject({ index_date: '2020-01-01', last_fitted_date: '2023-01-01', last_eligible_date: '2023-01-01' })
+      expect(rec.intercept as number).toBeCloseTo(60.203774, 6)
+      // The CI half-width is t(df = 2) * SE, so the SE reproduces the exported bounds.
+      expect((rec.slope_se as number) * 4.30265273).toBeCloseTo(((rec.ci_high as number) - (rec.ci_low as number)) / 2, 10)
+      expect(rec.slope_se as number).toBeCloseTo(0.283741, 6)
+    })
+
+    it('leaves the SE blank for Theil-Sen and the exact two-point line', () => {
+      const [robust] = cohortExportRecords(buildCohortRows(yearly, [1], [spec('global-robust')]))
+      expect(robust.fit_model).toBe('theil-sen')
+      expect(robust.slope_se).toBe('')
+      expect(typeof robust.intercept).toBe('number')
+      const [twoPoint] = cohortExportRecords(buildCohortRows(yearly.slice(0, 2), [1], [spec('global')]))
+      expect(twoPoint).toMatchObject({ intercept: 60, slope_se: '', index_date: '2020-01-01', last_fitted_date: '2021-01-01' })
+    })
+
+    it('separates the last fitted date from the last endpoint-eligible date', () => {
+      // Quarterly medians date the 2023 Q1 bin at its middle measurement, 2023-02-01.
+      const rows = [...yearly, row({ labDatum: d('2023-02-01'), wertNum: 44 }), row({ labDatum: d('2023-03-01'), wertNum: 42 }),
+        row({ labDatum: d('2023-09-01'), wertNum: 20 })]
+      const transplant: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', date: d('2023-06-01'), title: 'Kidney transplant', description: null, endDate: null, intent: null, warning: '' }
+      const fitConfig = ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+      const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...spec('global'), fitConfig, clinicalEvents: [transplant] }]))
+      expect(rec).toMatchObject({ index_date: '2020-01-01', last_fitted_date: '2023-02-01', last_eligible_date: '2023-03-01' })
+    })
+
+    it('leaves fit columns blank without a fit but keeps the last eligible date', () => {
+      const fitConfig = acuteReviewConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+      const [rec] = cohortExportRecords(buildCohortRows(yearly, [1], [{ ...spec('global'), fitConfig }]))
+      expect(rec).toMatchObject({ index_date: '', last_fitted_date: '', intercept: '', slope_se: '', last_eligible_date: '2023-01-01' })
+    })
+  })
 })
 
 describe('isRapidEgfrDecline', () => {

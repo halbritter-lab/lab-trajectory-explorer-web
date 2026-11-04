@@ -985,6 +985,30 @@ slope.
 Example: eight raw values in two calendar quarters under quarterly medians give
 `nNumeric = 8` and `nFitted = 2`.
 
+### Fit dates, intercept and slope standard error
+
+Since 2026-11-05 the `cohort` and `slopes` sheets end with five further
+columns, placed after the rolling columns so that earlier column positions are
+unchanged. They are read from the existing fit; nothing is refitted.
+
+| Column | Content | Blank when |
+| --- | --- | --- |
+| `index_date` | Date (`YYYY-MM-DD`, UTC) of the first point the scalar fit consumed: the time origin `t0`, at which `intercept` applies. Under balancing it is the representative date of the first bin; in `chronic-ckd` the first point after the run-in; in `event-driven` the first point of the reported segment. | no point was fitted (`n_fitted = 0`, fit model `none` included) |
+| `last_fitted_date` | Date of the last point the scalar fit consumed, with the same conventions. With one fitted point it equals `index_date`. | as `index_date` |
+| `last_eligible_date` | Date of the last endpoint-eligible measurement: the last exact, finite, dated row of the series before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (the selection of "Observed endpoints and individual prediction"; boundary dates as there). It ignores display-fit AKI exclusions, run-in and balancing, and is filled for every column and fit model, also where endpoints are not evaluated. | the series has no such row |
+| `intercept` | Fitted value at `index_date`, unrounded (OLS: `ȳ − slope · x̄`; two-point line: the first value; Theil-Sen: separate-median intercept). | the estimator returns no slope |
+| `slope_se` | OLS standard error of the slope, `SE = sqrt(SSres / (n − 2) / Sxx)` from "95 % confidence interval for the slope", unrounded; `ci_low = slope − t · SE`. | Theil-Sen (no standard error is defined; its bounds are rank-based), the exact two-point line (`n − 2 = 0`), and every case without a slope |
+
+Rolling and segmented OLS report the global OLS fit, so these columns describe
+that fit, not a window or segment. Example: the worked OLS example dated
+2020-01-01 to 2023-01-01 exports `index_date = 2020-01-01`,
+`last_fitted_date = 2023-01-01`, `intercept = 60.203774` and
+`slope_se = 0.283741` (half-width 1.220837 / t 4.30265273). Adding values on
+2023-02-01 and 2023-03-01 under quarterly medians gives one bin dated
+2023-02-01, so `last_fitted_date = 2023-02-01` while
+`last_eligible_date = 2023-03-01`; a value after a kidney transplant on
+2023-06-01 changes neither. Evidence: [export record tests](../tests/core/cohort/exportRecords.test.ts).
+
 ### Rounding
 
 The core does not round. Slope, intercept, R² and confidence bounds are
@@ -1262,8 +1286,8 @@ With `df = n − 2`:
 percentile) for `df`. These bounds describe uncertainty in the slope under the
 usual linear-model assumptions. They are not bounds for the intercept and not a
 prediction interval for individual measurements. They are shown next to the
-slope, exported as `ci_low` and `ci_high`, and the endpoint-only fit uses the
-same calculation.
+slope, exported as `ci_low` and `ci_high` (and `SE` as `slope_se`), and the
+endpoint-only fit uses the same calculation.
 
 The critical value is read from a table in `tCritical95`, not computed:
 

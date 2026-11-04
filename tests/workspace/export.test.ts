@@ -34,7 +34,8 @@ describe('workspace workbook', () => {
   it('keeps the rolling columns last in the cohort sheet, after the columns that existed before', () => {
     const workbook = XLSX.read(workspaceWorkbookBytes(exportFixture()), { type: 'array' })
     const [header] = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets.cohort, { header: 1 })
-    expect(header.slice(-7)).toEqual(['n_fitted', 'fitted_span_days', 'rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max'])
+    expect(header.slice(-12)).toEqual(['n_fitted', 'fitted_span_days', 'rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max',
+      'index_date', 'last_fitted_date', 'last_eligible_date', 'intercept', 'slope_se'])
   })
   it('preserves UTC import dates in a negative-offset timezone', () => {
     const previous = process.env.TZ

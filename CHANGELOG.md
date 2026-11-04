@@ -5,6 +5,12 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added
+
+- The cohort and patient slope sheets append `index_date`, `last_fitted_date`,
+  `last_eligible_date`, `intercept` and `slope_se` (OLS only) after the rolling
+  columns. Values come from the existing fit; no estimate changes.
+
 ## [0.3.7] - 2026-10-15
 
 ### Added
