@@ -51,21 +51,32 @@ export function isCreatinineName(bez: string | null): boolean {
   return s.includes('kreatinin') || s.includes('creatinin')
 }
 
-/** Name marks a urine measurement ("urin", "harn", "urine" or an "UR" suffix).
- * Non-breaking spaces and surrounding whitespace are ignored. Used by the eGFR
- * source selection. */
-export function isUrineName(bez: string | null): boolean {
+/** Name substrings (lower case) that mark a material other than serum or
+ * plasma: urine, dialysate, puncture fluid and other body fluids. */
+const NON_SERUM_SUBSTRINGS = ['urin', 'harn', 'dialysat', 'punktat', 'fluid', 'aszites', 'ascites', 'pleura', 'liquor', 'drainage']
+/** Whole name tokens (lower case, split at whitespace, hyphens, commas,
+ * semicolons and parentheses) that mark urine: `i.U.` (im Urin), `SU`
+ * (Sammelurin, also in `24h-SU`) and a lone `U` (`U-Kreatinin`). */
+const NON_SERUM_TOKENS: ReadonlySet<string> = new Set(['i.u.', 'i.u', 'su', 'u'])
+
+/** Name marks a measurement in a material other than serum or plasma: a
+ * substring of `NON_SERUM_SUBSTRINGS` in any case, a token of
+ * `NON_SERUM_TOKENS`, or an upper-case "UR" suffix. Non-breaking spaces and
+ * surrounding whitespace are ignored. Used by the eGFR source selection and,
+ * through it, by KDIGO AKI detection. */
+export function isNonSerumName(bez: string | null): boolean {
   if (bez == null) return false
   const s = normalisedName(bez)
   const low = s.toLowerCase()
-  if (low.includes('urin') || low.includes('harn') || low.includes('urine')) return true
+  if (NON_SERUM_SUBSTRINGS.some((part) => low.includes(part))) return true
+  if (low.split(/[\s,;()-]+/).some((token) => NON_SERUM_TOKENS.has(token))) return true
   return s.endsWith('UR')
 }
 
-/** A serum creatinine series usable as eGFR source: creatinine name, not
- * urine, unit mg/dl or µmol/l in any common spelling. */
+/** A serum creatinine series usable as eGFR source: creatinine name, not a
+ * non-serum material, unit mg/dl or µmol/l in any common spelling. */
 export function isSerumCreatinineSeries(bez: string, einheit: string | null): boolean {
-  return isCreatinineName(bez) && !isUrineName(bez) && (SERUM_CREATININE_UNITS as readonly string[]).includes(normaliseUnit(einheit))
+  return isCreatinineName(bez) && !isNonSerumName(bez) && (SERUM_CREATININE_UNITS as readonly string[]).includes(normaliseUnit(einheit))
 }
 
 /** Serum creatinine eligible for KDIGO AKI detection. Matches the eGFR source

@@ -43,6 +43,10 @@ export interface LabRow {
    * anchor from integer ages. Optional: datasets persisted before this field
    * existed, and row literals in tests, simply omit it. */
   patientBirthDate?: Date | null
+  /** On a derived row (computed eGFR): the (name, unit) of the imported series
+   * it was computed from, so AKI detection for the derived series uses that
+   * series. Absent on imported rows. */
+  sourceSeries?: { bezeichnung: string; einheit: string }
 }
 
 export type FitReason =
