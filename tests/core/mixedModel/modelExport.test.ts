@@ -2,7 +2,8 @@ import * as XLSX from 'xlsx'
 import { sheetsToXlsxBytes } from '../../../src/io/export'
 import { describe, it, expect } from 'vitest'
 import { mixedModelExportSheets, mixedModelTermLabel } from '../../../src/core/mixedModel/modelExport'
-import { DEFAULT_MIXED_MODEL_CONFIG } from '../../../src/core/mixedModel/config'
+import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula } from '../../../src/core/mixedModel/config'
+import { lme4ModelCall, mixedModelDataRCode, mixedModelRScript } from '../../../src/core/mixedModel/rCode'
 import type { MixedModelSuccess } from '../../../src/core/mixedModel/types'
 import type { ProjectionSnapshot } from '../../../src/core/projection/projectionSnapshot'
 
@@ -66,4 +67,55 @@ it('labels category strings literally and distinguishes generated columns with s
   expect(mixedModelTermLabel('time_since_baseline:factor_10_A:B',config)).toBe('Slope \u00d7 variable 10: A:B (reference ref)')
   expect(mixedModelTermLabel('factor_1_0B',config)).toBe('variable 1: 0B (reference ref)')
   expect(mixedModelTermLabel('factor_10_B',config)).toBe('variable 10: B (reference ref)')
+})
+
+describe('R reproduction export', () => {
+  const config = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'genotype',kind:'categorical' as const,effect:'level_slope' as const,reference:'A'}, {key:'dose',kind:'numeric' as const,effect:'level' as const}]}
+  const terms = ['(Intercept)','time_since_baseline','factor_0_B','factor_1_','time_since_baseline:factor_0_B']
+  const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:'4.5.1',packageVersions:{lme4:'1.1-37',Matrix:'1.7-3',jsonlite:'2.0.0'},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,tolerance:null,datasetId:'cohort',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:mixedModelFormula(config),datasetHash:'hash'},nPatients:2,nMeasurements:2,converged:true,singular:false,warnings:[],
+    fixedEffectTerms:terms.map((term,index) => ({term,estimate:index+1,confidenceInterval:null,standardError:index/10})),
+    fixedEffectCovariance:{terms,matrix:terms.map((_,row) => terms.map((__,column) => row === column ? (row/10)**2 : 0.001))},
+    fixedEffects:{intercept:1,timeSinceBaseline:2},fixedEffectConfidenceIntervals:{timeSinceBaseline:null},randomEffects:{interceptSd:null,slopeSd:null,interceptSlopeCorrelation:null},residualSd:null} satisfies MixedModelSuccess
+  const rows = [
+    {patient_id:'p1',value:60,date:'2020-01-01',time_since_baseline:0,factorValues:{factor_0_:'A',factor_1_:-1.5},factorRawValues:{factor_0_:'A',factor_1_:2}},
+    {patient_id:'p2',value:58,date:'2020-03-01',time_since_baseline:0,factorValues:{factor_0_:'B',factor_1_:1.5},factorRawValues:{factor_0_:'B',factor_1_:5}},
+  ]
+  const inputFlags = [{patient_id:'p1',date:'2020-01-01',value:60,status:'entered' as const,reason:'',model_date:'2020-01-01'}, {patient_id:'p1',date:'2020-02-01',value:40,status:'excluded' as const,reason:'aki',model_date:''}]
+  const sheets = mixedModelExportSheets([{entity:'G1',result,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'},rows,inputFlags}])
+  const workbook = XLSX.read(sheetsToXlsxBytes(sheets),{type:'array'})
+  const sheet = (name: string) => XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[name], {defval:''})
+
+  it('exports the exact model rows with passed and raw factor values', () => {
+    expect(sheet('model_rows')).toEqual([
+      {entity:'G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,time_since_baseline:0,factor_0_:'A',raw_factor_0_:'A',factor_1_:-1.5,raw_factor_1_:2},
+      {entity:'G1',group:'G1',patient_id:'p2',date:'2020-03-01',value:58,time_since_baseline:0,factor_0_:'B',raw_factor_0_:'B',factor_1_:1.5,raw_factor_1_:5},
+    ])
+    expect(sheet('model_input_flags')).toEqual([
+      {entity:'G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01'},
+      {entity:'G1',group:'G1',patient_id:'p1',date:'2020-02-01',value:40,status:'excluded',reason:'aki',model_date:''},
+    ])
+  })
+
+  it('exports standard errors and the covariance matrix in term order', () => {
+    expect(sheet('coefficients').map(row => [row.term,row.estimate,row.std_error])).toEqual(terms.map((term,index) => [term,index+1,index/10]))
+    const vcov = sheet('vcov')
+    expect(vcov.map(row => row.term)).toEqual(terms)
+    expect(vcov[2]).toMatchObject({entity:'G1',factor_0_B:0.2**2,'(Intercept)':0.001})
+  })
+
+  it('generates an R script with the worker data, contrast and model code', () => {
+    const script = sheet('r_script').map(row => row.line).join('\n')
+    expect(script).toContain('Research use only')
+    expect(script).toContain('REML = FALSE')
+    expect(script).toContain('lmerTest')
+    expect(script).toContain(`mm_fit <- ${lme4ModelCall(config)}`)
+    expect(lme4ModelCall(config)).toContain(`(${mixedModelFormula(config)}, data = mm_data, REML = TRUE`)
+    for (const line of mixedModelDataRCode(config).split('\n').filter(line => line.trim())) expect(script).toContain(line.replace(/^ {4}/, ''))
+    expect(script).toContain('mm_levels <- c("A", sort(setdiff(unique(mm_factor_0_), "A")))')
+    expect(script).toContain('contrasts(mm_data$factor_0_) <- contr.treatment(mm_levels, base = 1)')
+    expect(script).toContain('mm_factor_0_ <- as.character(mm_unit[["factor_0_"]])')
+    expect(script).toContain('mm_unit <- mm_rows[mm_rows$entity == "G1", , drop = FALSE]')
+    expect(script).toContain('R 4.5.1 (webR); lme4 1.1-37; Matrix 1.7-3; jsonlite 2.0.0')
+    expect(mixedModelRScript([{entity:'G2',result:{...result,metadata:{...result.metadata,runtimeVersion:null,packageVersions:{}}}}]).join('\n')).toContain('R version unknown (webR); package versions unknown')
+  })
 })

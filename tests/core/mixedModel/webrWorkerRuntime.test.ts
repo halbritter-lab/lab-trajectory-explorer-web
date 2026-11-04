@@ -5,6 +5,7 @@ import {
   type MixedModelConfig,
 } from '../../../src/core/mixedModel/config'
 import { syntheticMixedModelRows } from '../../../src/core/mixedModel/syntheticData'
+import { lme4ModelCall, mixedModelDataRCode } from '../../../src/core/mixedModel/rCode'
 import type { MixedModelWorkerRequest, MixedModelWorkerResponse } from '../../../src/core/mixedModel/workerProtocol'
 
 type MockWebRBehavior = {
@@ -71,7 +72,12 @@ describe('webR worker runtime behavior', () => {
       expect(code).toContain('qr(mm_design)$rank')
       expect(code).toContain('na.action = na.fail')
       expect(code).toContain('fixedEffectTerms =')
+      // The exported R script reuses exactly this data and contrast code.
+      expect(code).toContain(mixedModelDataRCode(config))
+      expect(code).toContain('fixedEffectCovariance = mm_covariance')
+      expect(code).toContain('stats::vcov(mm_fit)')
     }
+    expect(codes[0]).toContain(lme4ModelCall(config))
     expect(codes[0]).toContain('col.dropped')
   })
   it('rejects a second concurrent request while R globals are in use', async () => {

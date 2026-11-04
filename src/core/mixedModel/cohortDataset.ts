@@ -1,10 +1,10 @@
 import type { CohortSeriesSpec } from '../cohort/screening'
 import { seriesContextFor, seriesExclusions } from '../cohort/seriesContributions'
-import { applyExclusionWindows } from '../exclusions/windows'
+import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows'
 import type { PatientGroup } from '../grouping/grouping'
-import { balanceSeriesPoints } from '../stats/timeBalancing'
+import { balanceSeriesPointGroups } from '../stats/timeBalancing'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
-import type { MixedModelSpikeRow } from './types'
+import type { MixedModelInputFlag, MixedModelSpikeRow } from './types'
 import { roundTo10Decimals } from './validation'
 import { isExactMeasurement } from '../measurements/censored'
 
@@ -20,13 +20,14 @@ interface ModelPoint {
 
 export type PresetExclusionPolicy = 'apply' | 'skip'
 
-/** Counts only eligible exact dated rows removed by the union of preset windows. */
+/** Counts only eligible exact dated rows removed by the union of preset windows.
+ * `inputFlags` records, per measurement of the series, whether and how it entered. */
 export function prepareMixedModelCohortRows(
   allRows: readonly LabRow[],
   patientIds: readonly PatientId[],
   spec: CohortSeriesSpec,
   exclusionPolicy: PresetExclusionPolicy = 'apply',
-): { rows: MixedModelSpikeRow[]; excludedByPreset: number } {
+): { rows: MixedModelSpikeRow[]; excludedByPreset: number; inputFlags: MixedModelInputFlag[] } {
   return buildMixedModelRows(allRows, patientIds, spec, exclusionPolicy)
 }
 
@@ -43,11 +44,12 @@ function buildMixedModelRows(
   patientIds: readonly PatientId[],
   spec: CohortSeriesSpec,
   exclusionPolicy: PresetExclusionPolicy,
-): { rows: MixedModelSpikeRow[]; excludedByPreset: number } {
+): { rows: MixedModelSpikeRow[]; excludedByPreset: number; inputFlags: MixedModelInputFlag[] } {
   // Honor the cohort's "no fit" configuration: when fitting is disabled the
   // displayed cohort slope is intentionally blank, so the mixed model must not
   // silently fit rows the rest of the UI is not showing.
-  if (spec.fitConfig?.fitModel === 'none') return { rows: [], excludedByPreset: 0 }
+  if (spec.fitConfig?.fitModel === 'none') return { rows: [], excludedByPreset: 0, inputFlags: [] }
+  const inputFlags: MixedModelInputFlag[] = []
 
   let excludedByPreset = 0
 
@@ -67,30 +69,38 @@ function buildMixedModelRows(
   for (const patientId of ids) {
     const patientRows = rowsByPatient.get(patientId) ?? []
     const patientKey = patientIdKey(patientId)
-    const seriesRows = patientRows
-      .filter((row) =>
-        row.bezeichnung === spec.bezeichnung
-        && (row.einheit ?? null) === (spec.einheit ?? null)
-        && row.wertNum !== null
-        && row.labDatum !== null
-        && isExactMeasurement(row)
-      )
+    const allSeriesRows = patientRows.filter((row) =>
+      row.bezeichnung === spec.bezeichnung && (row.einheit ?? null) === (spec.einheit ?? null))
+    const flagFor = new Map<LabRow, MixedModelInputFlag>()
+    for (const row of allSeriesRows) {
+      const reason = row.labDatum === null ? 'no_date' : row.wertNum === null ? 'no_numeric_value' : !isExactMeasurement(row) ? 'bound_value' : ''
+      const flag: MixedModelInputFlag = { patient_id: patientKey, date: isoDate(row.labDatum), value: row.wertNum, status: 'excluded', reason, model_date: '' }
+      flagFor.set(row, flag)
+      inputFlags.push(flag)
+    }
+    const seriesRows = allSeriesRows
+      .filter((row) => row.wertNum !== null && row.labDatum !== null && isExactMeasurement(row))
       .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
-    const points: ModelPoint[] = seriesRows.map((row) => ({
+    const points: Array<ModelPoint & { flag: MixedModelInputFlag }> = seriesRows.map((row) => ({
       date: row.labDatum!,
       value: row.wertNum!,
       age: Number.isFinite(row.patientAgeAtLab) ? row.patientAgeAtLab : null,
+      flag: flagFor.get(row)!,
     }))
     // The same censoring and exclusion windows as the cohort cell's fit.
     const windows = exclusionPolicy === 'apply'
       ? seriesExclusions(seriesContextFor(spec, patientId, patientRows, cache))
       : { censoring: [], exclusions: [] }
-    const exclusion = applyExclusionWindows(points, [...windows.censoring, ...windows.exclusions])
+    const allWindows = [...windows.censoring, ...windows.exclusions]
+    const exclusion = applyExclusionWindows(points, allWindows)
     excludedByPreset += exclusion.excludedIdx.length
+    for (const index of exclusion.excludedIdx) points[index].flag.reason = exclusionReasonsAt(points[index].date, allWindows).join('; ')
     const included = exclusion.kept
 
-    const balanced = balanceSeriesPoints(included, spec.fitConfig?.timeBalancing).map((point) => ({
-      ...point,
+    const groups = balanceSeriesPointGroups(included, spec.fitConfig?.timeBalancing)
+    const balanced = groups.map(({ point }) => ({
+      date: point.date,
+      value: point.value,
       age: sourceAgeForBalancedPoint(point, included),
     }))
 
@@ -105,6 +115,14 @@ function buildMixedModelRows(
             return balanced.filter((point) => point.date.getTime() > cutoffMs)
           })()
         : balanced
+    const selectedPoints = new Set(selected)
+    groups.forEach(({ members }, index) => {
+      const kept = selectedPoints.has(balanced[index])
+      for (const { flag } of members) {
+        if (!kept) flag.reason = 'run_in'
+        else Object.assign(flag, { status: members.length > 1 ? 'aggregated_into_median' : 'entered', model_date: isoDate(balanced[index].date) })
+      }
+    })
     if (selected.length === 0) continue
 
     const baselineAge = Number.isFinite(selected[0].age) ? selected[0].age : null
@@ -126,6 +144,7 @@ function buildMixedModelRows(
       out.push({
         patient_id: series.patientKey,
         value: point.value,
+        date: isoDate(point.date),
         time_since_baseline: roundYears((point.date.getTime() - baselineDate) / MS_PER_YEAR),
         baseline_age: baselineAge ?? undefined,
         baseline_age_centered: baselineAge !== null && meanBaselineAge !== null
@@ -135,7 +154,7 @@ function buildMixedModelRows(
     }
   }
 
-  return { rows: out, excludedByPreset }
+  return { rows: out, excludedByPreset, inputFlags }
 }
 
 /** Build mixed-model rows for each group by reusing the single-cohort row
@@ -155,6 +174,10 @@ export function mixedModelRowsByGroup(
     byGroup[group.value] = rows
   }
   return byGroup
+}
+
+function isoDate(date: Date | null): string {
+  return date && Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : ''
 }
 
 function roundYears(value: number): number {

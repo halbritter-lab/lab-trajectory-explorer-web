@@ -59,6 +59,7 @@ interface EntityRow {
   nMeasurements: number
   /** Passes the same pooled validity gate as the single fit. */
   preparation?: CohortModelEntityRows['preparation']
+  inputFlags?: CohortModelEntityRows['inputFlags']
   validationMessage: string | null
   eligible: boolean
 }
@@ -90,7 +91,7 @@ export function CohortModelTable({
   const entityRows = useMemo<EntityRow[]>(
     () =>
       entities
-        .map(({ entity, rows, preparation }) => {
+        .map(({ entity, rows, preparation, inputFlags }) => {
           const validation = validateMixedModelRows(rows, config)
           const key = entityKey(entity)
           return {
@@ -102,6 +103,7 @@ export function CohortModelTable({
             nPatients: new Set(rows.map((row) => row.patient_id)).size,
             nMeasurements: rows.length,
             preparation,
+            inputFlags,
             validationMessage: validation.ok ? null : validation.message,
             eligible: validation.ok,
           }
@@ -223,7 +225,7 @@ export function CohortModelTable({
       try { projection = buildProjectionSnapshot(stored.result,stored.identity,sourceResponse,row.rows,applied.settings) }
       catch (error) { projectionError = error instanceof Error ? error.message : 'Projection settings or source fit are invalid.' }
     }
-    return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError}]
+    return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError, rows: row.rows, inputFlags: row.inputFlags}]
   })
   const hasDirtyEditor = exportable.some((model) => dirtyEditors.has(model.key))
   const initializing = exportable.some((model) => model.result.status === 'success' && model.result.converged && !model.result.singular && !model.projection)

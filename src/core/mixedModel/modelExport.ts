@@ -3,7 +3,8 @@ import { mixedModelFactorColumn, mixedModelFactors, mixedModelFormulaForOutcome,
 import type { MixedModelResultIdentity } from './resultIdentity'
 import { mixedModelIdentityEquals } from './resultIdentity'
 import type { ProjectionSnapshot, ProjectionResponse } from '../projection/projectionSnapshot'
-import type { MixedModelResult, MixedModelSuccess } from './types'
+import type { MixedModelInputFlag, MixedModelResult, MixedModelSpikeRow, MixedModelSuccess } from './types'
+import { mixedModelRScript } from './rCode'
 
 export function mixedModelTermLabel(term: string, config?: MixedModelConfig): string {
   const factors = config ? mixedModelFactors(config) : []
@@ -22,7 +23,7 @@ export function mixedModelTermLabel(term: string, config?: MixedModelConfig): st
   return term
 }
 
-export function mixedModelCoefficientTerms(result: MixedModelSuccess) {
+export function mixedModelCoefficientTerms(result: MixedModelSuccess): NonNullable<MixedModelSuccess['fixedEffectTerms']> {
   return result.fixedEffectTerms ?? [
     {term: '(Intercept)', estimate: result.fixedEffects.intercept, confidenceInterval: null},
     {term: 'time_since_baseline', estimate: result.fixedEffects.timeSinceBaseline, confidenceInterval: result.fixedEffectConfidenceIntervals.timeSinceBaseline},
@@ -32,15 +33,22 @@ export function mixedModelCoefficientTerms(result: MixedModelSuccess) {
 
 /** Receives stored fitted results only, never live/draft model settings. */
 export function mixedModelExportSheets(
-  models: readonly { entity: string; result: MixedModelResult; identity: Pick<MixedModelResultIdentity, 'seriesKey'>; sourceResponse?: ProjectionResponse; projection?: ProjectionSnapshot }[],
+  models: readonly {
+    entity: string; result: MixedModelResult; identity: Pick<MixedModelResultIdentity, 'seriesKey' | 'groupValue'>; sourceResponse?: ProjectionResponse; projection?: ProjectionSnapshot
+    /** The rows the worker received for this result, and how the series' measurements reached them. */
+    rows?: readonly MixedModelSpikeRow[]; inputFlags?: readonly MixedModelInputFlag[]
+  }[],
 ): { name: string; rows: object[] }[] {
   const settings: object[] = []
   const coefficients: object[] = []
+  const covariances: object[] = []
   const factors: object[] = []
   const centers: object[] = []
   const exclusions: object[] = []
+  const modelRows: object[] = []
+  const inputFlags: object[] = []
   const projections: object[] = []
-  for (const { entity, result, identity, sourceResponse, projection } of models) {
+  for (const { entity, result, identity, sourceResponse, projection, rows, inputFlags: flags } of models) {
     if (projection && (projection.sourceResult !== result || result.status !== 'success' || !result.converged || result.singular || !mixedModelIdentityEquals(projection.sourceIdentity, identity as MixedModelResultIdentity))) {
       throw new Error('Projection snapshot must match the current source result and identity.')
     }
@@ -92,6 +100,21 @@ export function mixedModelExportSheets(
     for (const patient of preparation?.excludedPatients ?? []) {
       exclusions.push({ entity, patient_id: patient.patientId, reasons: patient.reasons.join('; ') })
     }
+    const group = identity.groupValue ?? ''
+    const factorList = config ? mixedModelFactors(config) : []
+    for (const row of rows ?? []) {
+      modelRows.push({
+        entity, group, patient_id: row.patient_id, date: row.date ?? '', value: row.value, time_since_baseline: row.time_since_baseline,
+        ...Object.fromEntries(factorList.flatMap((factor, index) => {
+          const column = mixedModelFactorColumn(factor, index)
+          // The value bindRows passes to R, then the value before centring.
+          const passed = config?.factors === undefined ? row.baseline_age_centered : row.factorValues?.[column]
+          const raw = factor.key === 'baseline_age' ? row.baseline_age : row.factorRawValues?.[column]
+          return [[column, passed ?? null], [factor.key === 'baseline_age' ? 'baseline_age' : `raw_${column}`, raw ?? null]]
+        })),
+      })
+    }
+    for (const flag of flags ?? []) inputFlags.push({ entity, group, ...flag })
     if (result.status === 'success') {
       for (const coefficient of mixedModelCoefficientTerms(result)) {
         coefficients.push({
@@ -101,22 +124,32 @@ export function mixedModelExportSheets(
           term: coefficient.term,
           label: mixedModelTermLabel(coefficient.term, config),
           estimate: coefficient.estimate,
+          std_error: coefficient.standardError ?? null,
           ci_lower: coefficient.confidenceInterval?.[0] ?? null,
           ci_upper: coefficient.confidenceInterval?.[1] ?? null,
         })
       }
+      const covariance = result.fixedEffectCovariance
+      covariance?.terms.forEach((term, index) => {
+        covariances.push({ entity, term, ...Object.fromEntries(covariance.terms.map((column, columnIndex) => [column, covariance.matrix[index][columnIndex]])) })
+      })
     }
   }
   return [
     { name: 'models', rows: settings },
     { name: 'coefficients', rows: coefficients },
+    { name: 'vcov', rows: covariances },
     { name: 'factors', rows: factors },
     { name: 'centering', rows: centers },
     { name: 'excluded_patients', rows: exclusions },
+    { name: 'model_rows', rows: modelRows },
+    { name: 'model_input_flags', rows: inputFlags },
     ...(models.some((model) => model.projection) ? [{ name: 'projections', rows: projections }] : []),
+    { name: 'r_script', rows: mixedModelRScript(models).map((line) => ({ line })) },
     { name: 'about', rows: [
       ...EXPORT_DISCLAIMER_ROWS,
       { note: 'Adjusted intercept and slope refer to the selected reference categories and centered numeric predictors. Time is years since the first retained measurement. Associations are conditional on the selected model and population.' },
+      { note: 'model_rows holds the rows each model received in R, with factor values as passed to R and before centring. model_input_flags lists every measurement of the series per unit with whether it entered, was aggregated into a time-balancing median, or why it was excluded. vcov is the fixed-effect variance-covariance matrix; std_error is the square root of its diagonal. r_script refits the models in R from model_rows.' },
     ] },
   ]
 }
