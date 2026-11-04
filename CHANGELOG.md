@@ -5,6 +5,17 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed
+
+- Endpoint input (issue #34): a column that excludes AKI windows from its fit
+  now also removes them from every CKD endpoint and the G5 projection fit, so
+  a terminal AKI admission no longer produces a projection or a misplaced
+  decline baseline; `endpoint_input_policy` records the exclusion. The G5
+  projection needs measurements on three distinct dates, five under
+  Theil–Sen (new reason `theil_sen_insufficient_points`, badge `G5 n < 5`),
+  and the slope reliability rule counts distinct dates instead of rows
+  (new note "< 3 dates, uncertain slope").
+
 ## [0.3.7] - 2026-10-15
 
 ### Added
