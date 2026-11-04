@@ -116,6 +116,10 @@ export {
   type ComputeAnalysisResultOptions,
 } from '../../../src/core/analysis/registry'
 export type { AnalysisResult, AnalysisMessage, ManualDemographics, CohortFlag } from '../../../src/core/analysis/types'
+// Birth-date anchor per patient: a known exact birth date gives exact ages in
+// endpoint projections (`exactBirthDateByPatient` of cohortSeriesSpec).
+export { resolveBirthAnchor, type AgeResolution, type AgeResolutionInput } from '../../../src/core/demographics/resolveAge'
+export { parseAttributeDate } from '../../../src/core/demographics/resolve'
 export { cohortSeriesSpec, clinicalEventsByPatient } from '../../../src/core/cohort/specs'
 export {
   buildCohortRows,

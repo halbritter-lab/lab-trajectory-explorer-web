@@ -27,8 +27,8 @@ test('public API names are pinned', () => {
     'isUnrecognisedSex', 'isUnstableSlope', 'isUrineName', 'kdigoStage',
     'loadDatasetFromWorkbook', 'loadLabRows', 'loadLabRowsWithDiagnostics', 'mdrd4',
     'mentionsEgfr', 'normaliseSex', 'normaliseUnit', 'normalizeClinicalEvents',
-    'parseAnalysisSettings', 'patientIdKey', 'projectLinearThreshold', 'projectedCrossingTime',
-    'readWorkbook', 'readWorkbookSheets', 'summarizeByBezeichnung', 'theilSenConfig',
+    'parseAnalysisSettings', 'parseAttributeDate', 'patientIdKey', 'projectLinearThreshold', 'projectedCrossingTime',
+    'readWorkbook', 'readWorkbookSheets', 'resolveBirthAnchor', 'summarizeByBezeichnung', 'theilSenConfig',
     'validateClinicalEvents', 'windowContains',
   ])
 })
