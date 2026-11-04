@@ -17,8 +17,10 @@ interfaces are still evolving before 1.0.
 
 ### Fixed
 
-- The patient measurement records format dates from their UTC calendar day, so
-  dates no longer move one day earlier in time zones west of UTC.
+- The patient measurement record helper formats dates from their UTC calendar
+  day instead of the local one, which was a day early west of UTC. The workbook
+  export already overwrote that field with the UTC date, so exported files are
+  unchanged.
 
 ## [0.3.7] - 2026-10-15
 

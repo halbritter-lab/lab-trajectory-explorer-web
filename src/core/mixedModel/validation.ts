@@ -74,6 +74,7 @@ export function validateMixedModelRows(
     }
   }
 
+  let rankProblem: string | null = null
   if (config.factors !== undefined) {
     for (const [index, factor] of mixedModelFactors(config).entries()) {
       const column = mixedModelFactorColumn(factor, index)
@@ -87,8 +88,7 @@ export function validateMixedModelRows(
       if (new Set(values).size < 2 || (factor.kind === 'categorical' && !values.includes(factor.reference!))) {
         return failure('INVALID_FACTOR_VALUES', `Factor ${factor.key} requires variation and an observed reference level.`)
       }
-      const rankProblem = factor.effect === 'level_slope' ? slopeTermRankProblem(factor, column, rows) : null
-      if (rankProblem) return failure('RANK_DEFICIENT_FACTOR', rankProblem)
+      rankProblem ??= factor.effect === 'level_slope' ? slopeTermRankProblem(factor, column, rows) : null
     }
   }
 
@@ -124,6 +124,8 @@ export function validateMixedModelRows(
       `Mixed model fitting requires at least ${MIN_QUALIFYING_PATIENTS} patients with at least ${minimumDistinctTimes} distinct measurement times each.`,
     )
   }
+  // Reported after the size gates so a unit that is simply too small says so.
+  if (rankProblem) return failure('RANK_DEFICIENT_FACTOR', rankProblem)
 
   const patientTimeKeys = new Set<string>()
   let duplicatePatientTimeRowCount = 0

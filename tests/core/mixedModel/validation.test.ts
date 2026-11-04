@@ -259,6 +259,11 @@ describe('factor level checks', () => {
     })
   })
 
+  it('reports a too-small unit by its size before the level problem', () => {
+    const small = geneRows.filter((row) => ['1', '2', '11'].includes(row.patient_id))
+    expect(validateMixedModelRows(small, geneConfig('level_slope'))).toMatchObject({ ok: false, code: 'INSUFFICIENT_PATIENTS' })
+  })
+
   it('accepts the same level as a level-only term', () => {
     expect(validateMixedModelRows(geneRows, geneConfig('level')).ok).toBe(true)
   })

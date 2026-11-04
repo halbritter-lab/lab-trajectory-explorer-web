@@ -3269,6 +3269,8 @@ run in this order; the first failure is reported.
      equal to the sum of the interaction columns). For a numeric factor the
      rows with a non-zero time need at least two distinct values; otherwise
      `time_since_baseline:<column>` is a multiple of `time_since_baseline`.
+     Unlike the other factor checks, this failure is reported only after
+     items 4 and 5 pass, so a unit that is too small reports its size first.
      The failure (code `RANK_DEFICIENT_FACTOR`) names the factor, and for a
      categorical factor every such level with its number of patients, for
      example `Factor gene with level and slope: level "PKD2" (1 patient) has
