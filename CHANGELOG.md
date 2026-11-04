@@ -5,6 +5,13 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added
+
+- `packages/kidney/`: the kidney-function core as an unpublished ESM library with
+  type declarations, built with `pnpm build:kidney` and tested against the
+  build with `pnpm test:kidney`. It re-exports `src/core` unchanged; no numeric
+  change.
+
 ## [0.3.7] - 2026-10-15
 
 ### Added

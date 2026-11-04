@@ -100,3 +100,25 @@ Pick and test any other boundary convention explicitly.
    `pnpm test` and `pnpm build`. A clinical or numeric change also follows the
    owner-decision and fixture process in `CLAUDE.md` and
    `docs/method-algorithms.md`.
+
+## Library package
+
+`packages/kidney/` makes the kidney-function logic usable outside the web
+app (issue #36), for example by a local MCP server. Its `src/index.ts`
+re-exports selected functions and types from `src/core/` and the DOM-free
+workbook reader in `src/io/`. It contains no logic of its own, so the app and
+the package share one implementation and give identical numbers.
+
+- `pnpm build:kidney` bundles the entry point into one ESM file with Vite
+  library mode, with `xlsx` kept external, and writes declarations with `tsc`.
+  The declaration build has no DOM library, so a browser API reached from the
+  entry point fails the build.
+- `pnpm test:kidney` runs Node tests against the built output. They pin the
+  export names, check that the bundle contains only `src/core` and `src/io`
+  modules (no React, webR, mixed-model or workspace code), recompute reference
+  values, and type-check a consumer under `NodeNext` resolution.
+
+Mixed models are not exported, because webR only runs in a browser worker. An
+export added to or removed from the entry point is a public API change: update
+the pinned list and the package README in the same change. The package is
+private and unpublished until the owner approves publication.
