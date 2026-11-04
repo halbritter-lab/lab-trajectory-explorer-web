@@ -17,7 +17,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 export const egfrModule = {
   id: 'egfr' as const,
   label: 'eGFR',
-  description: 'Computed eGFR series from serum creatinine (CKD-EPI 2021, MDRD-4 or EKFC 2021).',
+  description: 'Computed eGFR series from serum creatinine (CKD-EPI 2021, CKD-EPI 2009, MDRD-4 or EKFC 2021).',
   defaultSettings: { formula: 'off', source: null } as EgfrModuleSettings,
   parseSettings: (value: unknown): EgfrModuleSettings | null => {
     if (!isRecord(value) || !FORMULAS.includes(value.formula as string)) return null

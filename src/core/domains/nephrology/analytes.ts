@@ -10,11 +10,12 @@
  */
 import { unitKey } from '../../parse/units'
 
-export type FormulaName = 'ckd-epi-2021' | 'mdrd-4' | 'ekfc-2021'
+export type FormulaName = 'ckd-epi-2021' | 'ckd-epi-2009' | 'mdrd-4' | 'ekfc-2021'
 
 /** Human-readable formula names, as they appear in computed series names. */
 export const EGFR_FORMULA_LABELS: Record<FormulaName, string> = {
   'ckd-epi-2021': 'CKD-EPI 2021',
+  'ckd-epi-2009': 'CKD-EPI 2009',
   'mdrd-4': 'MDRD-4',
   'ekfc-2021': 'EKFC 2021',
 }

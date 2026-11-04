@@ -128,6 +128,15 @@ describe('appendComputedEgfr', () => {
     expect(computed[0].wertNum).toBeCloseTo(86.1, 1)
   })
 
+  it('labels rows with the formula-specific computed name (CKD-EPI 2009)', () => {
+    const out = appendComputedEgfr([row({ wertNum: 1.2, patientAgeAtLab: 60 })], { formula: 'ckd-epi-2009' })
+    const computed = out.filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))
+    expect(computed).toHaveLength(1)
+    expect(computed[0].bezeichnung).toBe('eGFR (CKD-EPI 2009, computed)')
+    expect(computed[0].einheit).toBe('ml/min/1,73m²')
+    expect(computed[0].wertNum).toBe(65.3)
+  })
+
   it('defaults to the CKD-EPI 2021 formula when none is given', () => {
     const computed = appendComputedEgfr([row({ wertNum: 1.0 })])
       .filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))

@@ -1,5 +1,5 @@
 import type { LabRow, WertOperator } from '../../../types'
-import { ckdEpi2021, ekfc2021, mdrd4, normaliseSex, type EgfrInput } from './formulas'
+import { ckdEpi2009, ckdEpi2021, ekfc2021, mdrd4, normaliseSex, type EgfrInput } from './formulas'
 import { MGDL_PER_UMOLL } from '../constants'
 import {
   COMPUTED_EGFR_UNIT,
@@ -14,6 +14,7 @@ export { MGDL_PER_UMOLL } from '../constants'
 
 const FORMULA_FN: Record<FormulaName, (i: EgfrInput) => number> = {
   'ckd-epi-2021': ckdEpi2021,
+  'ckd-epi-2009': ckdEpi2009,
   'mdrd-4': mdrd4,
   'ekfc-2021': ekfc2021,
 }
