@@ -24,6 +24,16 @@ describe('patientMeasurementRecords', () => {
     expect(recs[0]).toMatchObject({ PatientID: 1, Bezeichnung: 'Kreatinin', Einheit: 'mg/dl', WertNum: 1.0 })
   })
 
+  it('keeps the UTC calendar date in a timezone west of UTC', () => {
+    const previous = process.env.TZ
+    process.env.TZ = 'America/New_York'
+    try {
+      const midnight = new Date(Date.UTC(2024, 0, 1))
+      expect(midnight.getDate()).toBe(31)
+      expect(patientMeasurementRecords([row({ labDatum: midnight })], 1)[0].Datum).toBe('2024-01-01')
+    } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous }
+  })
+
   it('formats missing values as empty strings', () => {
     const recs = patientMeasurementRecords([row({ patientId: 1, labDatum: null, wertNum: null, wert: 'n.d.', bezeichnung: 'HbA1c', einheit: '%' })], 1)
     expect(recs[0]).toMatchObject({ Datum: '', WertNum: '', Wert: 'n.d.' })

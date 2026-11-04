@@ -12,13 +12,8 @@ export interface PatientMeasurementRecord {
   Operator: string
 }
 
-function isoDate(d: Date): string {
-  // Local calendar date (yyyy-mm-dd) without timezone shifting.
-  const y = d.getFullYear()
-  const m = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
-  return `${y}-${m}-${day}`
-}
+// Imported dates are UTC midnight; local getters would shift them a day west of UTC.
+const isoDate = (d: Date): string => (Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : '')
 
 /** Long-format measurement table for one patient, sorted by date then name.
  * Rows without a name are skipped; rows without a date sort last. */

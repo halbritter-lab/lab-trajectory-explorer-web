@@ -11,6 +11,11 @@ interfaces are still evolving before 1.0.
   `last_eligible_date`, `intercept` and `slope_se` (OLS only) after the rolling
   columns. Values come from the existing fit; no estimate changes.
 
+### Fixed
+
+- The patient measurement records format dates from their UTC calendar day, so
+  dates no longer move one day earlier in time zones west of UTC.
+
 ## [0.3.7] - 2026-10-15
 
 ### Added
