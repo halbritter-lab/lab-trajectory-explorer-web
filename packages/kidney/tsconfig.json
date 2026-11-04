@@ -1,0 +1,20 @@
+{
+  // Declarations only; vite bundles the JavaScript. There is no DOM lib, so a
+  // browser API reached from the entry point fails this build.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["node", "vite/client"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "../..",
+    "declarationDir": "dist/types"
+  },
+  "files": ["src/index.ts"]
+}
