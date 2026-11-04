@@ -1,4 +1,4 @@
-import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFactors, mixedModelFactorColumn, validateMixedModelConfig, type MixedModelConfig } from './config'
+import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFactors, mixedModelFactorColumn, validateMixedModelConfig, type MixedModelConfig, type MixedModelFactor } from './config'
 import type { MixedModelFailureStage, MixedModelSpikeRow } from './types'
 
 export type MixedModelValidationCode =
@@ -12,6 +12,7 @@ export type MixedModelValidationCode =
   | 'UNSUPPORTED_CONFIG'
   | 'MISSING_BASELINE_AGE'
   | 'INVALID_FACTOR_VALUES'
+  | 'RANK_DEFICIENT_FACTOR'
 
 export type MixedModelValidationResult =
   | {
@@ -86,6 +87,8 @@ export function validateMixedModelRows(
       if (new Set(values).size < 2 || (factor.kind === 'categorical' && !values.includes(factor.reference!))) {
         return failure('INVALID_FACTOR_VALUES', `Factor ${factor.key} requires variation and an observed reference level.`)
       }
+      const rankProblem = factor.effect === 'level_slope' ? slopeTermRankProblem(factor, column, rows) : null
+      if (rankProblem) return failure('RANK_DEFICIENT_FACTOR', rankProblem)
     }
   }
 
@@ -152,6 +155,62 @@ export function validateMixedModelRows(
   }
 
   return { ok: true, warnings }
+}
+
+/** Why the factor's time interaction makes the fixed-effect design
+ * rank-deficient, or null. Categorical: per level the design has its own
+ * intercept and slope column, so every level needs two distinct model times
+ * among its rows. Numeric: `time:x` is collinear with `time` when every row
+ * with a non-zero time has the same value. Collinearity across several
+ * factors is left to the R rank check. */
+function slopeTermRankProblem(factor: MixedModelFactor, column: string, rows: readonly MixedModelSpikeRow[]): string | null {
+  if (factor.kind === 'numeric') {
+    const valuesWithTime = new Set(rows.filter(row => row.time_since_baseline !== 0).map(row => row.factorValues?.[column]))
+    return valuesWithTime.size >= 2 ? null
+      : `Factor ${factor.key} with level and slope needs measurements over time at two or more different values; otherwise its slope term duplicates the time slope (rank-deficient design). Use level only or change the selection.`
+  }
+  const levels = new Map<string, { times: Set<number>; patients: Set<string> }>()
+  for (const row of rows) {
+    const level = String(row.factorValues?.[column])
+    const entry = levels.get(level) ?? { times: new Set<number>(), patients: new Set<string>() }
+    entry.times.add(row.time_since_baseline)
+    entry.patients.add(row.patient_id)
+    levels.set(level, entry)
+  }
+  const flat = [...levels].filter(([, entry]) => entry.times.size < 2)
+  if (flat.length === 0) return null
+  const named = flat.map(([level, entry]) => `"${level}" (${entry.patients.size} patient${entry.patients.size === 1 ? '' : 's'})`).join(', ')
+  return `Factor ${factor.key} with level and slope: level${flat.length === 1 ? '' : 's'} ${named} ${flat.length === 1 ? 'has' : 'have'} measurements at only one model time, so ${flat.length === 1 ? 'its' : 'their'} slope cannot be estimated (rank-deficient design). Use level only, choose other levels or change the selection.`
+}
+
+export interface MixedModelLevelCount {
+  level: string
+  patients: number
+  /** Patients counted by qualifyingMixedModelPatients. */
+  qualifying: number
+}
+
+/** Patients and qualifying patients per level of every categorical factor,
+ * keyed by factor key; levels in ascending string order. */
+export function mixedModelFactorLevelCounts(rows: readonly MixedModelSpikeRow[], config: MixedModelConfig = DEFAULT_MIXED_MODEL_CONFIG): Map<string, MixedModelLevelCount[]> {
+  const out = new Map<string, MixedModelLevelCount[]>()
+  for (const [index, factor] of mixedModelFactors(config).entries()) {
+    if (factor.kind !== 'categorical') continue
+    const column = mixedModelFactorColumn(factor, index)
+    const byLevel = new Map<string, MixedModelSpikeRow[]>()
+    for (const row of rows) {
+      const level = String(row.factorValues?.[column] ?? '')
+      const bucket = byLevel.get(level)
+      if (bucket) bucket.push(row)
+      else byLevel.set(level, [row])
+    }
+    out.set(factor.key, [...byLevel].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([level, levelRows]) => ({
+      level,
+      patients: new Set(levelRows.map(row => row.patient_id)).size,
+      qualifying: qualifyingMixedModelPatients(levelRows, config),
+    })))
+  }
+  return out
 }
 
 /** Distinct measurement times a qualifying patient needs under this config. */

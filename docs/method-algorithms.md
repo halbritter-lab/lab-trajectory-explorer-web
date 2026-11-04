@@ -3258,10 +3258,38 @@ run in this order; the first failure is reported.
    - every model row carries a valid value (a finite number, or non-blank text);
    - the value is constant within each patient;
    - at least two distinct values occur across the model rows;
-   - for a categorical factor, the reference level occurs in the model rows.
+   - for a categorical factor, the reference level occurs in the model rows;
+   - for a factor with level and slope (since 2026-11-05), the time interaction
+     must not make the fixed-effect design rank-deficient. For a categorical
+     factor every level, the reference included, needs at least two distinct
+     `time_since_baseline` values among its rows: with treatment contrasts each
+     level has its own intercept and slope column, so a level whose patients
+     were all measured at one model time (every row at time 0) gives an
+     all-zero interaction column (or, for the reference level, a time column
+     equal to the sum of the interaction columns). For a numeric factor the
+     rows with a non-zero time need at least two distinct values; otherwise
+     `time_since_baseline:<column>` is a multiple of `time_since_baseline`.
+     The failure (code `RANK_DEFICIENT_FACTOR`) names the factor, and for a
+     categorical factor every such level with its number of patients, for
+     example `Factor gene with level and slope: level "PKD2" (1 patient) has
+     measurements at only one model time, so its slope cannot be estimated
+     (rank-deficient design).` The same level as a level-only term passes.
+     Collinearity that arises only from several factors together is not
+     checked here and is left to the R rank check below.
 
    There is no minimum number of patients per level; a level held by a single
-   patient passes.
+   patient passes unless the check above applies. A minimum per level is an
+   owner decision tracked in issue #4. Levels are always taken from the model
+   rows of the unit, so a level absent from a unit cannot enter its design;
+   only an absent reference level fails.
+
+   **Per-level counts.** `mixedModelFactorLevelCounts` reports, for each
+   categorical factor, the number of patients and of qualifying patients (the
+   rule in item 5) per level, levels in ascending string order. The Model
+   Studio shows them for the whole cohort's complete cases below the reference
+   categories, for example `Whole cohort, patients per level (with enough
+   measurement times): genotype: A 7 (7), B 3 (3)`. Groups are not listed
+   separately; a group's failing level is named in its validation message.
 4. At least 10 patients have a model row.
 5. At least 10 patients qualify. A patient qualifies with at least two rows and
    at least three distinct `time_since_baseline` values for a random intercept
@@ -3284,7 +3312,9 @@ not attached to the fitted result and not exported.
 separately with the same thresholds. *Fit* submits only the units that pass.
 
 **Rank-deficient design.** Before fitting, R builds the fixed-effect model
-matrix and compares its QR rank with its number of columns. A lower rank stops
+matrix and compares its QR rank with its number of columns. The level check in
+item 3 catches the single-factor cases first, so this message is left for
+collinearity across factors. A lower rank stops
 with "Fixed-effect design is rank deficient; no terms were dropped." For lme4, a
 fit that dropped fixed-effect columns is also rejected. A fit whose intercept or
 time slope is not finite, or that does not return a finite estimate for every
