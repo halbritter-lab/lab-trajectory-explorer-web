@@ -46,18 +46,22 @@ labRows.push({ ...labRows[0], labDatum: new Date(Date.UTC(2020, 5, 1)), wert: '<
 const fitConfig = generalExplorationConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
 fitConfig.timeBalancing = 'quarterly-median'
 const spec = { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', mode: 'global', fitConfig }
-const [entity] = workspaceModelEntities(labRows, Object.keys(attributes).concat('p23'), spec, config, attributes, [])
+// A second unit: a group literally named like the pooled unit, so the script must
+// select rows by unit_key and keep each fit's data in its own environment.
+const patientIds = Object.keys(attributes).concat('p23')
+const [entity, groupEntity] = workspaceModelEntities(labRows, patientIds, spec, config, attributes, [{ value: 'Whole cohort', patientIds: patientIds.slice(0, 16) }])
+assert.equal(groupEntity?.entity.value, 'Whole cohort')
 
-async function fit(workerPath) {
+async function fit(workerPath, unit = entity) {
   return page.evaluate(({ workerPath, request }) => new Promise((resolve, reject) => {
     const worker = new Worker(workerPath, { type: 'module' })
     const timer = setTimeout(() => reject(new Error('Real runtime fit exceeded 180 seconds')), 180_000)
     worker.onmessage = (event) => { clearTimeout(timer); worker.terminate(); resolve(event.data.result) }
     worker.postMessage(request)
   }), { workerPath, request: {
-    type: 'run-mixed-model', requestId: `export-${Date.now()}`, engine: 'webr-lme4', config, rows: entity.rows,
+    type: 'run-mixed-model', requestId: `export-${Date.now()}`, engine: 'webr-lme4', config, rows: unit.rows,
     formula: mixedModelFormula(config), formulaKey: mixedModelFormulaKey(config), datasetId: 'cohort',
-    fitConfigHash: 'verification', wasmAssetSource: 'cdn', preparation: entity.preparation,
+    fitConfigHash: 'verification', wasmAssetSource: 'cdn', preparation: unit.preparation,
   } })
 }
 
@@ -76,7 +80,12 @@ try {
     assert.equal(terms[index], term.term)
     assert.ok(Math.abs(term.standardError - Math.sqrt(matrix[index][index])) < 1e-12, term.term)
   })
-  const sheets = mixedModelExportSheets([{ entity: 'Whole cohort', result, identity: { seriesKey: 'eGFR|ml/min/1.73m2' }, rows: entity.rows, inputFlags: entity.inputFlags }])
+  const groupResult = await fit('/src/core/mixedModel/webr.worker.ts', groupEntity)
+  assert.equal(groupResult.status, 'success', JSON.stringify(groupResult))
+  const sheets = mixedModelExportSheets([
+    { entity: 'Whole cohort', result, identity: { seriesKey: 'eGFR|ml/min/1.73m2' }, rows: entity.rows, inputFlags: entity.inputFlags },
+    { entity: 'Whole cohort', result: groupResult, identity: { seriesKey: 'eGFR|ml/min/1.73m2', groupValue: 'Whole cohort' }, rows: groupEntity.rows, inputFlags: groupEntity.inputFlags },
+  ])
   const flags = sheets.find((sheet) => sheet.name === 'model_input_flags').rows
   for (const status of ['aggregated_into_median', 'excluded']) assert.ok(flags.some((flag) => flag.status === status), status)
   assert.ok(flags.some((flag) => flag.reason === 'bound_value') && flags.some((flag) => flag.reason.startsWith('patient_excluded')))
@@ -89,15 +98,27 @@ try {
     await webR.FS.writeFile('/home/web_user/cohort-models.xlsx', new Uint8Array(bytes))
     return JSON.parse(await webR.evalRString(`setwd("/home/web_user")
       source(textConnection(${JSON.stringify(script)}))
-      jsonlite::toJSON(lapply(mm_fits, function(f) list(fixef = as.list(lme4::fixef(f)), vcov = unname(as.matrix(vcov(f))))), auto_unbox = TRUE, digits = NA)`))
+      jsonlite::toJSON(lapply(mm_fits, function(f) {
+        # update() after every unit was fitted must refit this unit's own rows.
+        u <- update(f, REML = FALSE)
+        list(fixef = as.list(lme4::fixef(f)), vcov = unname(as.matrix(vcov(f))), nobs = nobs(f), updatedNobs = nobs(u), updatedRemlFixef = as.list(lme4::fixef(update(f))))
+      }), auto_unbox = TRUE, digits = NA)`))
   }, { bytes: [...sheetsToXlsxBytes(sheets)], script })
-  const refitted = refit['Whole cohort']
-  for (const [index, term] of result.fixedEffectTerms.entries()) {
-    // Browser estimates carry jsonlite's four decimal places (OD-30); vcov is full precision.
-    assert.ok(Math.abs(refitted.fixef[term.term] - term.estimate) <= 5e-5, `${term.term}: ${refitted.fixef[term.term]} vs ${term.estimate}`)
-    matrix[index].forEach((value, column) => assert.ok(Math.abs(refitted.vcov[index][column] - value) < 1e-9))
+  assert.deepEqual(Object.keys(refit), ['cohort', 'group:Whole cohort'])
+  for (const [key, browserFit, rows] of [['cohort', result, entity.rows], ['group:Whole cohort', groupResult, groupEntity.rows]]) {
+    const refitted = refit[key]
+    assert.equal(refitted.nobs, rows.length, key)
+    assert.equal(refitted.updatedNobs, rows.length, `${key}: update() refitted other rows`)
+    const covariance = browserFit.fixedEffectCovariance.matrix
+    for (const [index, term] of browserFit.fixedEffectTerms.entries()) {
+      // Browser estimates carry jsonlite's four decimal places (OD-30); vcov is full precision.
+      assert.ok(Math.abs(refitted.fixef[term.term] - term.estimate) <= 5e-5, `${key} ${term.term}: ${refitted.fixef[term.term]} vs ${term.estimate}`)
+      assert.ok(Math.abs(refitted.updatedRemlFixef[term.term] - refitted.fixef[term.term]) < 1e-9, `${key} ${term.term}: update() changed the fit`)
+      covariance[index].forEach((value, column) => assert.ok(Math.abs(refitted.vcov[index][column] - value) < 1e-9))
+    }
   }
-  console.log(JSON.stringify({ terms: result.fixedEffectTerms, packageVersions: result.metadata.packageVersions, rows: entity.rows.length, flags: flags.length }))
+  assert.notEqual(entity.rows.length, groupEntity.rows.length)
+  console.log(JSON.stringify({ terms: result.fixedEffectTerms, groupTerms: groupResult.fixedEffectTerms, packageVersions: result.metadata.packageVersions, rows: entity.rows.length, groupRows: groupEntity.rows.length, flags: flags.length }))
   console.log('R script refit matches the browser fit.')
   await browser.close()
   await server.close()

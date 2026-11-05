@@ -4,7 +4,7 @@ import type { MixedModelResultIdentity } from './resultIdentity'
 import { mixedModelIdentityEquals } from './resultIdentity'
 import type { ProjectionSnapshot, ProjectionResponse } from '../projection/projectionSnapshot'
 import type { MixedModelInputFlag, MixedModelResult, MixedModelSpikeRow, MixedModelSuccess } from './types'
-import { mixedModelRScript } from './rCode'
+import { mixedModelRScript, mixedModelUnitKey } from './rCode'
 
 export function mixedModelTermLabel(term: string, config?: MixedModelConfig): string {
   const factors = config ? mixedModelFactors(config) : []
@@ -101,10 +101,11 @@ export function mixedModelExportSheets(
       exclusions.push({ entity, patient_id: patient.patientId, reasons: patient.reasons.join('; ') })
     }
     const group = identity.groupValue ?? ''
+    const unitKey = mixedModelUnitKey(identity)
     const factorList = config ? mixedModelFactors(config) : []
     for (const row of rows ?? []) {
       modelRows.push({
-        entity, group, patient_id: row.patient_id, date: row.date ?? '', value: row.value, time_since_baseline: row.time_since_baseline,
+        entity, unit_key: unitKey, group, patient_id: row.patient_id, date: row.date ?? '', value: row.value, time_since_baseline: row.time_since_baseline,
         ...Object.fromEntries(factorList.flatMap((factor, index) => {
           const column = mixedModelFactorColumn(factor, index)
           // The value bindRows passes to R, then the value before centring.
@@ -119,6 +120,7 @@ export function mixedModelExportSheets(
       for (const coefficient of mixedModelCoefficientTerms(result)) {
         coefficients.push({
           entity,
+          unit_key: unitKey,
           outcome,
           unit: coefficientUnit(coefficient.term, outcomeUnit, config),
           term: coefficient.term,

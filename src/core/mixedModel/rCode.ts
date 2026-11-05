@@ -1,9 +1,16 @@
 import { mixedModelFactorColumn, mixedModelFactors, mixedModelFormula, type MixedModelConfig } from './config'
 import type { MixedModelResult } from './types'
+import { entityKey } from './cohortModelEntity'
 
-/** R string literal; JSON escapes are valid R escapes. */
+/** R string literal; JSON escapes are valid R escapes except \u0000 and lone
+ * surrogates, which R refuses to parse, so those become U+FFFD. */
 export function rStringLiteral(value: string): string {
-  return JSON.stringify(value)
+  return JSON.stringify(value.replace(/[\0\p{Cs}]/gu, '�'))
+}
+
+/** The unambiguous `unit_key` of an exported model: `cohort` or `group:<value>`. */
+export function mixedModelUnitKey(identity: { groupValue?: string } | undefined): string {
+  return entityKey(identity?.groupValue === undefined ? { kind: 'cohort' } : { kind: 'group', value: identity.groupValue })
 }
 
 /** Builds `mm_data` from the vectors `mm_patient_id`, `mm_value`, `mm_time`,
@@ -33,8 +40,8 @@ export function lme4ModelCall(config: MixedModelConfig): string {
 
 /** Lines of an R script that refits every successful lme4 model of a model
  * workbook from its `model_rows` sheet with the worker's own R code. */
-export function mixedModelRScript(models: readonly { entity: string; result: MixedModelResult }[]): string[] {
-  const comment = (text: string) => text.replace(/[\r\n]+/g, ' ')
+export function mixedModelRScript(models: readonly { entity: string; result: MixedModelResult; identity?: { groupValue?: string } }[]): string[] {
+  const comment = (text: string) => text.replace(/[\r\n\0\p{Cs}]+/gu, ' ')
   const lines = [
     '# Lab Trajectory Explorer: R refit of the cohort mixed models in this workbook.',
     '# Research use only. Not for clinical decision-making.',
@@ -48,30 +55,32 @@ export function mixedModelRScript(models: readonly { entity: string; result: Mix
     '# browser; factors, reference levels, contrasts and the lmer call are the same code.',
     '# Non-reference levels are ordered by sort(); another locale may order them, and',
     '# so the coefficients, differently without changing any estimate.',
+    '# Each unit is fitted in its own local() environment, so update(), anova() and',
+    '# emmeans on any fit in mm_fits use that unit\'s rows. mm_fits is keyed by the',
+    '# unit_key column of model_rows: "cohort" or "group:<value>".',
     '# Every model was fitted with REML = TRUE. For likelihood-ratio tests of fixed',
-    '# effects refit with maximum likelihood, e.g. update(mm_fit, REML = FALSE);',
+    '# effects refit with maximum likelihood, e.g. update(mm_fits[["cohort"]], REML = FALSE);',
     '# anova() on two lmer fits refits with ML itself.',
     '# For Satterthwaite degrees of freedom and p-values, run library(lmerTest) first',
     '# and replace lme4::lmer with lmerTest::lmer; the call is otherwise unchanged.',
     '',
     'mm_workbook <- "cohort-models.xlsx"',
-    'mm_rows <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "model_rows"))',
-    'mm_coefficients <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "coefficients"))',
+    'mm_rows <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "model_rows", trim_ws = FALSE))',
+    'mm_coefficients <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "coefficients", trim_ws = FALSE))',
     'mm_fits <- list()',
   ]
-  for (const { entity, result } of models) {
+  for (const { entity, result, identity } of models) {
     const config = result.metadata.modelConfig
     lines.push('')
     if (result.status !== 'success' || result.metadata.engine !== 'webr-lme4' || !config) {
       lines.push(`# ${comment(entity)}: not refitted (status ${result.status}, engine ${result.metadata.engine ?? 'unknown'}).`)
       continue
     }
-    const name = rStringLiteral(entity)
+    const name = rStringLiteral(mixedModelUnitKey(identity))
     const versions = Object.entries(result.metadata.packageVersions).map(([pkg, version]) => `${pkg} ${version}`).join('; ')
-    lines.push(
-      `# ${comment(entity)}`,
+    const unitLines = [
       `cat(${rStringLiteral(`Browser fit of ${entity}: R ${result.metadata.runtimeVersion ?? 'version unknown'} (webR); ${versions || 'package versions unknown'}`)}, "\\n")`,
-      `mm_unit <- mm_rows[mm_rows$entity == ${name}, , drop = FALSE]`,
+      `mm_unit <- mm_rows[mm_rows$unit_key == ${name}, , drop = FALSE]`,
       'mm_patient_id <- as.character(mm_unit$patient_id)',
       'mm_value <- mm_unit$value',
       'mm_time <- mm_unit$time_since_baseline',
@@ -83,11 +92,13 @@ export function mixedModelRScript(models: readonly { entity: string; result: Mix
       }),
       ...mixedModelDataRCode(config).split('\n').filter((line) => line.trim()).map((line) => line.replace(/^ {4}/, '')),
       `mm_fit <- ${lme4ModelCall(config)}`,
-      `mm_fits[[${name}]] <- mm_fit`,
       'print(summary(mm_fit))',
-      `mm_browser <- mm_coefficients[mm_coefficients$entity == ${name}, , drop = FALSE]`,
+      `mm_browser <- mm_coefficients[mm_coefficients$unit_key == ${name}, , drop = FALSE]`,
       'print(data.frame(term = mm_browser$term, browser = mm_browser$estimate, refit = unname(lme4::fixef(mm_fit)[mm_browser$term])))',
-    )
+      'mm_fit',
+    ]
+    // local() keeps each unit's mm_data in the formula environment of its fit.
+    lines.push(`# ${comment(entity)}`, `mm_fits[[${name}]] <- local({`, ...unitLines.map((line) => `  ${line}`), '})')
   }
   lines.push('', 'sessionInfo()')
   return lines

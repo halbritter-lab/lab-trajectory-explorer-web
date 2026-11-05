@@ -3,7 +3,7 @@ import { sheetsToXlsxBytes } from '../../../src/io/export'
 import { describe, it, expect } from 'vitest'
 import { mixedModelExportSheets, mixedModelTermLabel } from '../../../src/core/mixedModel/modelExport'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula } from '../../../src/core/mixedModel/config'
-import { lme4ModelCall, mixedModelDataRCode, mixedModelRScript } from '../../../src/core/mixedModel/rCode'
+import { lme4ModelCall, mixedModelDataRCode, mixedModelRScript, rStringLiteral } from '../../../src/core/mixedModel/rCode'
 import type { MixedModelSuccess } from '../../../src/core/mixedModel/types'
 import type { ProjectionSnapshot } from '../../../src/core/projection/projectionSnapshot'
 
@@ -87,8 +87,8 @@ describe('R reproduction export', () => {
 
   it('exports the exact model rows with passed and raw factor values', () => {
     expect(sheet('model_rows')).toEqual([
-      {entity:'G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,time_since_baseline:0,factor_0_:'A',raw_factor_0_:'A',factor_1_:-1.5,raw_factor_1_:2},
-      {entity:'G1',group:'G1',patient_id:'p2',date:'2020-03-01',value:58,time_since_baseline:0,factor_0_:'B',raw_factor_0_:'B',factor_1_:1.5,raw_factor_1_:5},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,time_since_baseline:0,factor_0_:'A',raw_factor_0_:'A',factor_1_:-1.5,raw_factor_1_:2},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p2',date:'2020-03-01',value:58,time_since_baseline:0,factor_0_:'B',raw_factor_0_:'B',factor_1_:1.5,raw_factor_1_:5},
     ])
     expect(sheet('model_input_flags')).toEqual([
       {entity:'G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01'},
@@ -114,8 +114,34 @@ describe('R reproduction export', () => {
     expect(script).toContain('mm_levels <- c("A", sort(setdiff(unique(mm_factor_0_), "A")))')
     expect(script).toContain('contrasts(mm_data$factor_0_) <- contr.treatment(mm_levels, base = 1)')
     expect(script).toContain('mm_factor_0_ <- as.character(mm_unit[["factor_0_"]])')
-    expect(script).toContain('mm_unit <- mm_rows[mm_rows$entity == "G1", , drop = FALSE]')
+    expect(script).toContain('mm_unit <- mm_rows[mm_rows$unit_key == "group:G1", , drop = FALSE]')
+    expect(script).toContain('mm_browser <- mm_coefficients[mm_coefficients$unit_key == "group:G1", , drop = FALSE]')
+    expect(sheet('coefficients')[0]).toMatchObject({entity:'G1',unit_key:'group:G1',unit:'ml/min'})
     expect(script).toContain('R 4.5.1 (webR); lme4 1.1-37; Matrix 1.7-3; jsonlite 2.0.0')
     expect(mixedModelRScript([{entity:'G2',result:{...result,metadata:{...result.metadata,runtimeVersion:null,packageVersions:{}}}}]).join('\n')).toContain('R version unknown (webR); package versions unknown')
+  })
+
+  it('fits every unit in its own local environment, keyed unambiguously', () => {
+    // A group literally named like the pooled unit must not select the pooled rows.
+    const script = mixedModelRScript([{entity:'Whole cohort',result},{entity:'Whole cohort',result,identity:{groupValue:'Whole cohort'}}])
+    const blocks = script.join('\n').split(/^mm_fits\[\[/m).slice(1)
+    expect(blocks.map(block => block.slice(0, block.indexOf(']]')))).toEqual(['"cohort"','"group:Whole cohort"'])
+    for (const block of blocks) {
+      // mm_data is built and fitted inside local(), so update() on an earlier fit keeps its own rows.
+      expect(block).toMatch(/^"[^"]+"\]\] <- local\(\{\n/)
+      expect(block).toContain('\n  mm_data <- data.frame(')
+      expect(block).toContain(`\n  mm_fit <- ${lme4ModelCall(config)}`)
+      expect(block).toMatch(/\n  mm_fit\n\}\)/)
+    }
+    expect(script.join('\n')).toContain('update(mm_fits[["cohort"]], REML = FALSE)')
+    expect(script.filter(line => /^mm_(data|fit|unit) <-/.test(line))).toEqual([])
+  })
+
+  it('writes R string literals R can parse from any name', () => {
+    expect(rStringLiteral('a\u0000b\ud800c\udc00d\u{1F600}"')).toBe('"a�b�c�d\u{1F600}\\""')
+    const script = mixedModelRScript([{entity:'G\u0000\ud800\nx',result,identity:{groupValue:'G\u0000\ud800'}}]).join('\n')
+    expect(script).not.toMatch(/\\u0000|\\ud8|[\0\ud800]/)
+    expect(script).toContain('# G x')
+    expect(script).toContain('mm_rows$unit_key == "group:G��"')
   })
 })
