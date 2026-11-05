@@ -49,6 +49,11 @@ describe('egfrModule', () => {
     expect(out.rows?.some((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))).toBe(true)
   })
 
+  it('accepts saved CKD-EPI 2009 settings and rejects unknown formulas', () => {
+    expect(egfrModule.parseSettings({ formula: 'ckd-epi-2009', source: null })).toEqual({ formula: 'ckd-epi-2009', source: null })
+    expect(egfrModule.parseSettings({ formula: 'ckd-epi-2008', source: null })).toBeNull()
+  })
+
   it('computes from the rows it is handed and does not apply manual demographics itself', () => {
     // Demographics resolution runs earlier in the pipeline, so a row that still
     // has no sex or age here stays uncomputable however the manual entry reads.
