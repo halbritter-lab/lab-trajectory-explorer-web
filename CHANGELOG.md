@@ -12,6 +12,11 @@ interfaces are still evolving before 1.0.
   `eGFR (CKD-EPI 2009, computed)`. The default stays Off and existing values
   are unchanged.
 
+### Fixed
+
+- The Data page names the active eGFR formula by its label (`CKD-EPI 2021`)
+  instead of its internal key (`ckd-epi-2021`).
+
 ## [0.3.7] - 2026-10-15
 
 ### Added
