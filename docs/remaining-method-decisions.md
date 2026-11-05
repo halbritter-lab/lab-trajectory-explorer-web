@@ -309,13 +309,18 @@ implementing pull request is his sign-off.
 
 - **Non-serum creatinine is not serum creatinine.** Besides urine (`urin`,
   `harn`, an upper-case `UR` suffix), names marking dialysate, puncture fluid,
-  ascites, pleura, liquor, drainage or "fluid", and the tokens `i.U.`, `SU`
-  (also in `24h-SU`) and a lone `U` (`U-Kreatinin`) are excluded. Such series
+  ascites, pleura, liquor, drainage, secretions (`sekret`), lymph (`lymphe`)
+  or "fluid", and the tokens `i.U.` (also `i. U.`), a lone `U` (`U-Kreatinin`,
+  `Kreatinin U.`, `Kreatinin/U`, `Kreatinin_U`), `SU` (also in `24h-SU`),
+  `SU24h`, `SPU`, `PU`, `CSF`, `Drain`, `PD` and `Serom` are excluded (token
+  list extended in the review follow-up of 2026-11-05; the slash now separates
+  tokens, so `Kreatinin U/l` is excluded too). Such series
   are no eGFR source, detect no AKI and supply no AKI episodes to other
   columns. Serum spellings such as `Kreatinin i.S.`, `Kreatinin (enzym.)`,
   `Kreatinin Serum` and `S-Kreatinin` stay eligible. Classification change:
   a dataset with such a series loses its eGFR source option and its AKI
-  episodes.
+  episodes. A saved session whose chosen source is now non-serum computes no
+  eGFR; the Data page says so and asks for another source.
 - **A computed eGFR takes its AKI episodes from its own source.** The
   creatinine pair the eGFR was derived from supplies the episodes of the
   computed eGFR column, instead of the patient's creatinine pair with the most

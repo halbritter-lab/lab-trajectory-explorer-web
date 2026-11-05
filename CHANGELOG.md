@@ -7,9 +7,10 @@ interfaces are still evolving before 1.0.
 
 ### Changed (creatinine source and AKI, issue #34)
 
-- Creatinine in urine (`i.U.`, `SU`, `24h-SU`, `U-`), dialysate, puncture and
-  other body fluids is no longer treated as serum creatinine: it is no eGFR
-  source and no AKI detection input.
+- Creatinine in urine (`i.U.`, `U.`, `/U`, `SU`, `24h-SU`, `SPU`, `U-`),
+  dialysate (`PD`), puncture fluid (`PU`), CSF, drains, seroma, lymph,
+  secretions and other body fluids is no longer treated as serum creatinine:
+  it is no eGFR source and no AKI detection input.
 - A computed eGFR column takes its AKI episodes and windows from the
   creatinine series it was computed from, not from the patient's creatinine
   series with the most rows.
@@ -18,6 +19,8 @@ interfaces are still evolving before 1.0.
 
 - The Data page warns about serum creatinine above 25 mg/dl and computed eGFR
   above 200 mL/min/1.73 m². Values are not changed.
+- The Data page explains when the selected creatinine source (for example from
+  a saved session) is not serum creatinine and therefore computes no eGFR.
 
 ## [0.3.7] - 2026-10-15
 

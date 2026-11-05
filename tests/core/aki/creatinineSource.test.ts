@@ -16,9 +16,16 @@ function row(date: string, value: number, p: Partial<LabRow> = {}): LabRow {
 describe('non-serum creatinine names', () => {
   const nonSerum = ['Kreatinin i.U.', 'Kreatinin i.U', 'U-Kreatinin', 'Kreatinin SU', 'Kreatinin 24h-SU', 'Kreatinin (U)',
     'Kreatinin Dialysat', 'Creatinine dialysate', 'Kreatinin Punktat', 'Creatinine, fluid', 'Kreatinin Aszites',
-    'Kreatinin im Urin', 'Kreatinin Harn', 'Urine creatinine', 'KreatininUR']
+    'Kreatinin im Urin', 'Kreatinin Harn', 'Urine creatinine', 'KreatininUR',
+    // Review follow-up 2026-11-05: dotted, slashed and underscored urine tokens, other fluids.
+    'Kreatinin U.', 'Kreatinin i. U.', 'Kreatinin/U', 'Kreatinin_U', 'Kreatinin SU24h', 'Kreatinin SPU', 'Kreatinin SpU',
+    'Kreatinin CSF', 'Creatinine CSF', 'Kreatinin Drain', 'Kreatinin PD', 'Kreatinin Serom', 'Kreatinin Lymphe',
+    'Kreatinin (Wund)sekret', 'Kreatinin PU',
+    // The slash separates tokens, so a name carrying the enzyme unit U/l is excluded too.
+    'Kreatinin U/l']
   const serum = ['Kreatinin', 'Kreatinin i.S.', 'Kreatinin (enzym.)', 'Kreatinin enzym.', 'Kreatinin Serum', 'S-Kreatinin',
-    'Kreatinin HP', 'Creatinine serum', 'Kreatinin ur']
+    'Kreatinin HP', 'Creatinine serum', 'Kreatinin ur', 'Kreatinin i.P.', 'Kreatinin Plasma', 'Kreatinin (S)',
+    'Kreatinin BGA', 'Kreatinin Vollblut', 'Kreatinin i. S.', 'Kreatinin mg/dl', 'Kreatinin µmol/l']
   it.each(nonSerum)('%s is not serum', (name) => {
     expect(isNonSerumName(name)).toBe(true)
     expect(isSerumCreatinineSeries(name, 'mg/dl')).toBe(false)

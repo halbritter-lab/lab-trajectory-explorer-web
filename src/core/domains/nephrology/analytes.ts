@@ -52,24 +52,28 @@ export function isCreatinineName(bez: string | null): boolean {
 }
 
 /** Name substrings (lower case) that mark a material other than serum or
- * plasma: urine, dialysate, puncture fluid and other body fluids. */
-const NON_SERUM_SUBSTRINGS = ['urin', 'harn', 'dialysat', 'punktat', 'fluid', 'aszites', 'ascites', 'pleura', 'liquor', 'drainage']
-/** Whole name tokens (lower case, split at whitespace, hyphens, commas,
- * semicolons and parentheses) that mark urine: `i.U.` (im Urin), `SU`
- * (Sammelurin, also in `24h-SU`) and a lone `U` (`U-Kreatinin`). */
-const NON_SERUM_TOKENS: ReadonlySet<string> = new Set(['i.u.', 'i.u', 'su', 'u'])
+ * plasma: urine, dialysate, puncture fluid, secretions, lymph and other body
+ * fluids. */
+const NON_SERUM_SUBSTRINGS = ['urin', 'harn', 'dialysat', 'punktat', 'fluid', 'aszites', 'ascites', 'pleura', 'liquor', 'drainage', 'sekret', 'lymphe']
+/** Whole name tokens (lower case, trailing dots removed) that mark a non-serum
+ * material: urine (`i.U.` im Urin, a lone `U`, `SU`/`SU24h` Sammelurin, `SPU`
+ * Spontanurin), `PU` (Punktat or Portionsurin, both non-serum), `CSF`,
+ * `Drain`, `PD` (peritoneal dialysate) and `Serom`. */
+const NON_SERUM_TOKENS: ReadonlySet<string> = new Set(['i.u', 'u', 'su', 'su24h', 'spu', 'pu', 'csf', 'drain', 'pd', 'serom'])
 
 /** Name marks a measurement in a material other than serum or plasma: a
  * substring of `NON_SERUM_SUBSTRINGS` in any case, a token of
- * `NON_SERUM_TOKENS`, or an upper-case "UR" suffix. Non-breaking spaces and
- * surrounding whitespace are ignored. Used by the eGFR source selection and,
- * through it, by KDIGO AKI detection. */
+ * `NON_SERUM_TOKENS`, or an upper-case "UR" suffix. Tokens are split at
+ * whitespace, `,`, `;`, `/`, `_`, `-` and parentheses, after `i. U` is read
+ * as `i.U`. Non-breaking spaces and surrounding whitespace are ignored. Used
+ * by the eGFR source selection and, through it, by KDIGO AKI detection. */
 export function isNonSerumName(bez: string | null): boolean {
   if (bez == null) return false
   const s = normalisedName(bez)
   const low = s.toLowerCase()
   if (NON_SERUM_SUBSTRINGS.some((part) => low.includes(part))) return true
-  if (low.split(/[\s,;()-]+/).some((token) => NON_SERUM_TOKENS.has(token))) return true
+  const tokens = low.replace(/\bi\.\s+u\b/g, 'i.u').split(/[\s,;()/_-]+/)
+  if (tokens.some((token) => NON_SERUM_TOKENS.has(token.replace(/\.+$/, '')))) return true
   return s.endsWith('UR')
 }
 

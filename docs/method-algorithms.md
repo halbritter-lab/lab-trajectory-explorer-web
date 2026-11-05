@@ -1715,19 +1715,32 @@ conditions hold (`isSerumCreatinineSeries`):
   ignored:
   - it contains, in any case, `urin`, `harn` (covering "Urin", "Urine",
     "Harn", "Sammelurin"), `dialysat` ("Dialysat", "dialysate"), `punktat`,
-    `fluid`, `aszites`, `ascites`, `pleura`, `liquor` or `drainage`;
-  - split at whitespace, hyphens, commas, semicolons and parentheses, one
-    token is, in any case, `i.U.` or `i.U` (im Urin), `SU` (Sammelurin; also
-    the `SU` of `24h-SU`) or a lone `U` (`U-Kreatinin`, `Kreatinin (U)`);
+    `fluid`, `aszites`, `ascites`, `pleura`, `liquor`, `drainage`, `sekret`
+    ("Sekret", "Wundsekret") or `lymphe`;
+  - after `i.` followed by whitespace and `U` is read as `i.U`, and split at
+    whitespace, commas, semicolons, slashes, underscores, hyphens and
+    parentheses, one token is, in any case and ignoring trailing dots, `i.U`
+    (im Urin), a lone `U` (`U-Kreatinin`, `Kreatinin (U)`, `Kreatinin U.`,
+    `Kreatinin/U`, `Kreatinin_U`), `SU` (Sammelurin; also the `SU` of
+    `24h-SU`), `SU24h`, `SPU` (Spontanurin), `PU` (Punktat or Portionsurin;
+    both are non-serum), `CSF`, `Drain`, `PD` (peritoneal dialysate) or
+    `Serom`;
   - it ends with upper-case `UR`. This suffix test is case-sensitive:
     `Kreatinin UR` is excluded, `Kreatinin ur` is not.
 
-  Excluded therefore: `Kreatinin i.U.`, `U-Kreatinin`, `Kreatinin SU`,
-  `Kreatinin 24h-SU`, `Kreatinin Dialysat`, `Kreatinin Punktat`. Still
-  eligible: `Kreatinin`, `Kreatinin i.S.`, `Kreatinin (enzym.)`,
-  `Kreatinin Serum`, `S-Kreatinin`, `Kreatinin HP`, `Creatinine serum`.
-  Tokens are compared whole: `Kreatinin U/l` stays eligible, because the
-  slash is no separator and the token is `U/l`. Prefixes such as `S-` or `P-`
+  Excluded therefore: `Kreatinin i.U.`, `Kreatinin i. U.`, `U-Kreatinin`,
+  `Kreatinin U.`, `Kreatinin/U`, `Kreatinin_U`, `Kreatinin SU`,
+  `Kreatinin 24h-SU`, `Kreatinin SU24h`, `Kreatinin SpU`, `Kreatinin PU`,
+  `Kreatinin CSF`, `Kreatinin Drain`, `Kreatinin PD`, `Kreatinin Serom`,
+  `Kreatinin Lymphe`, `Kreatinin (Wund)sekret`, `Kreatinin Dialysat`,
+  `Kreatinin Punktat`. Still eligible: `Kreatinin`, `Kreatinin i.S.`,
+  `Kreatinin i.P.`, `Kreatinin (enzym.)`, `Kreatinin (S)`, `Kreatinin Serum`,
+  `Kreatinin Plasma`, `S-Kreatinin`, `Kreatinin HP`, `Kreatinin BGA`,
+  `Kreatinin Vollblut`, `Creatinine serum`, `Kreatinin mg/dl`. Tokens are
+  compared whole, so `Kreatinin Pumpe` or `Kreatinin enzym.` mark nothing.
+  Since the review follow-up of 2026-11-05 the slash separates tokens:
+  `Kreatinin U/l` is excluded (token `U`). Creatinine is not reported in the
+  enzyme unit U/l, so no serum spelling is lost. Prefixes such as `S-` or `P-`
   mark nothing.
 - **Unit is mg/dl or µmol/l** after unit-key normalisation (below).
 
@@ -1956,6 +1969,8 @@ default-source rules 1, 2 and 4, µmol/l conversion and spellings, reversed
 bound, under-18 rows, rejected non-serum source),
 [creatinine source tests](../tests/core/aki/creatinineSource.test.ts)
 (non-serum and serum names, plausibility counts at both thresholds),
+[Data page tests](../tests/workspace/data-ui.test.tsx) (both plausibility
+notices, a saved non-serum source),
 [eGFR module tests](../tests/core/analysis/egfrModule.test.ts) (formula
 `off` contributes nothing), [unit-key tests](../tests/core/parse/units.test.ts)
 and [eGFR fixture tests](../tests/parity/egfr.parity.test.ts). No dedicated
@@ -1979,8 +1994,9 @@ thresholds are in `src/core/domains/nephrology/constants.ts`.
 
 AKI detection accepts the same eligible serum-creatinine name and unit pairs
 as eGFR derivation: a name containing "Kreatinin" or "Creatinin", excluding
-non-serum names (urine, dialysate, puncture and other body fluids; since
-2026-11-05 also `i.U.`, `SU`, `24h-SU` and `U-`), with mg/dl or µmol/l
+non-serum names (urine, dialysate, puncture fluid, secretions, lymph,
+CSF and other body fluids; since 2026-11-05 also tokens such as `i.U.`,
+`U`, `SU`, `SPU`, `PU`, `PD` and `U-`), with mg/dl or µmol/l
 (including common case, space and micro-sign spellings; see
 [eGFR derivation](#eligible-source-series) for the exact tokens). A non-serum
 series detects no episodes and supplies none to other columns.
