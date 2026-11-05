@@ -85,7 +85,7 @@ describe('rolling OLS in the cohort cell and the export', () => {
   })
   it('appends the rolling columns after every other column', () => {
     const [record] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
-    expect(Object.keys(record).slice(-5)).toEqual(['rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max'])
+    expect(Object.keys(record).slice(-10, -5)).toEqual(['rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max'])
     expect(record).toMatchObject({ slope_mode: 'rolling', fit_model: 'ols', rolling_window_days: 730, rolling_step_days: 180, rolling_windows: 5 })
     expect(record.rolling_slope_min).toBeCloseTo(-8, 10)
     const [short] = cohortExportRecords(buildCohortRows(rows.slice(0, 8), [1], [spec]))

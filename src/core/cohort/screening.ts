@@ -53,6 +53,15 @@ export interface CohortCell {
   fittedSpanDays: number
   spanDays: number
   slope: number // value-units per YEAR (x-axis is fractional years)
+  /** Fitted value at `firstFittedDate`, the time origin of the scalar fit. */
+  intercept: number
+  /** OLS slope standard error; NaN for Theil-Sen and the exact two-point line. */
+  slopeSe: number
+  firstFittedDate: Date | null
+  lastFittedDate: Date | null
+  /** Date of the last event-eligible measurement (see eventEligibleRows):
+   * exact, before KRT, outside complete acute dialysis intervals; no fit window. */
+  lastEligibleDate: Date | null
   r2: number
   ciLow: number
   ciHigh: number
@@ -183,6 +192,11 @@ export function buildCohortRows(
         fittedSpanDays: match?.fittedSpanDays ?? 0,
         spanDays: match?.spanDays ?? 0,
         slope,
+        intercept: match?.intercept ?? Number.NaN,
+        slopeSe: match?.slopeSe ?? Number.NaN,
+        firstFittedDate: match?.firstFittedDate ?? null,
+        lastFittedDate: match?.lastFittedDate ?? null,
+        lastEligibleDate: eventEligibleRows(cellEvents(spec, pid), seriesRows).at(-1)?.labDatum ?? null,
         r2: match?.r2 ?? Number.NaN,
         ciLow: match?.ciLow ?? Number.NaN,
         ciHigh: match?.ciHigh ?? Number.NaN,
@@ -222,15 +236,25 @@ function ageAtDate(date: Date, anchors: LabRow[]): number | null {
   return anchor.patientAgeAtLab! + (date.getTime() - anchor.labDatum!.getTime()) / MS_PER_YEAR
 }
 
-/** Endpoint inputs of one cell: exact finite dated measurements before KRT and
- * outside complete acute dialysis intervals, independent of display-fit
- * exclusions and aggregation. The projection fits those same rows. */
-function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel']): EndpointContext {
-  const events = spec.clinicalEventsByPatient?.[patientIdKey(patientId)] ?? spec.clinicalEvents ?? []
-  const endpointRows = filterEndpointPointsForEvents(
+/** Exact finite dated measurements before KRT and outside complete acute
+ * dialysis intervals. Event rules only, no fit exclusion window, so
+ * `last_eligible_date` does not depend on AKI or other display-fit settings. */
+function eventEligibleRows(events: readonly ClinicalEvent[], seriesRows: LabRow[]): LabRow[] {
+  return filterEndpointPointsForEvents(
     seriesRows.filter(row => isExactMeasurement(row) && Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
       .map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: null, row })), events,
   ).map(point => point.row)
+}
+
+function cellEvents(spec: CohortSeriesSpec, patientId: PatientId): readonly ClinicalEvent[] {
+  return spec.clinicalEventsByPatient?.[patientIdKey(patientId)] ?? spec.clinicalEvents ?? []
+}
+
+/** Endpoint inputs of one cell: the event-eligible rows, independent of
+ * display-fit exclusions and aggregation. The projection fits those same rows. */
+function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel']): EndpointContext {
+  const events = cellEvents(spec, patientId)
+  const endpointRows = eventEligibleRows(events, seriesRows)
   const birthDate = spec.exactBirthDateByPatient?.[patientIdKey(patientId)]
   const exactBirthDate = birthDate && Number.isFinite(birthDate.getTime()) ? birthDate : null
   const points = (withAges: boolean): EndpointPoint[] => {
@@ -295,7 +319,8 @@ export interface CohortExportRecord {
   // `rapid_progression` ('yes' for a rapid eGFR decline under the column's
   // threshold) and the CKD endpoint columns (`endpoint_*`). The rolling
   // columns (`rolling_*`) come last, appended so positional readers keep
-  // working; they are filled for slope mode `rolling` only.
+  // working; they are filled for slope mode `rolling` only. The fit dates,
+  // `intercept` and `slope_se` follow them, appended for the same reason.
   [moduleColumn: string]: string | number | undefined
 }
 
@@ -319,6 +344,7 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
+const dateOrBlank = (date: Date | null): string => (date && Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : '')
 
 /** Every badge of a fitted cell: those known before fitting plus those that
  * depend on the fit and the column's module settings (evaluated only for
@@ -372,6 +398,11 @@ export function cohortExportRecords(
         rolling_windows: c.rolling?.nWindows ?? '',
         rolling_slope_min: c.rolling ? numOrBlank(c.rolling.slopeMin) : '',
         rolling_slope_max: c.rolling ? numOrBlank(c.rolling.slopeMax) : '',
+        index_date: dateOrBlank(c.firstFittedDate),
+        last_fitted_date: dateOrBlank(c.lastFittedDate),
+        last_eligible_date: dateOrBlank(c.lastEligibleDate),
+        intercept: numOrBlank(c.intercept),
+        slope_se: numOrBlank(c.slopeSe),
       })
     }
   }

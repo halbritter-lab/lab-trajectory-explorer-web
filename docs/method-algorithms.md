@@ -985,6 +985,33 @@ slope.
 Example: eight raw values in two calendar quarters under quarterly medians give
 `nNumeric = 8` and `nFitted = 2`.
 
+### Fit dates, intercept and slope standard error
+
+Since 2026-11-05 the `cohort` and `slopes` sheets end with five further
+columns, placed after the rolling columns so that earlier column positions are
+unchanged. They are read from the existing fit; nothing is refitted.
+
+| Column | Content | Blank when |
+| --- | --- | --- |
+| `index_date` | Date (`YYYY-MM-DD`, UTC) of the first point the scalar fit consumed: the time origin `t0`, at which `intercept` applies. Under balancing it is the representative date of the first bin; in `chronic-ckd` the first point after the run-in; in `event-driven` the first point of the reported segment. | no point was fitted (`n_fitted = 0`, fit model `none` included) |
+| `last_fitted_date` | Date of the last point the scalar fit consumed, with the same conventions. With one fitted point it equals `index_date`. | as `index_date` |
+| `last_eligible_date` | Date of the last exact, finite, dated row of the series before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (the event rules of "Observed endpoints and individual prediction"; boundary dates as there). Only these event rules apply: no fit exclusion window (AKI windows included), run-in or balancing. It is filled for every column and fit model, also where endpoints are not evaluated. | the series has no such row |
+| `intercept` | Fitted value of the display fit (the fit behind `slope`) at `index_date`, unrounded (OLS: `ȳ − slope · x̄`; two-point line: the first value; Theil-Sen: separate-median intercept). | the estimator returns no slope |
+| `slope_se` | OLS standard error of the slope, `SE = sqrt(SSres / (n − 2) / Sxx)` from "95 % confidence interval for the slope", unrounded; `ci_low = slope − t · SE`. | Theil-Sen (no standard error is defined; its bounds are rank-based), the exact two-point line (`n − 2 = 0`), and every case without a slope |
+
+Rolling and segmented OLS report the global OLS fit, so these columns describe
+that fit, not a window or segment. Example: the worked OLS example dated
+2020-01-01 to 2023-01-01 exports `index_date = 2020-01-01`,
+`last_fitted_date = 2023-01-01`, `intercept = 60.203774` and
+`slope_se = 0.283741` (half-width 1.220837 / t 4.30265273). Adding values on
+2023-02-01 and 2023-03-01 under quarterly medians gives one bin dated
+2023-02-01, so `last_fitted_date = 2023-02-01` while
+`last_eligible_date = 2023-03-01`; a value after a kidney transplant on
+2023-06-01 changes neither. With AKI windows excluded from the fit, creatinine
+values of 1.0, 1.1, 1.05 and 1.15 mg/dl up to 2020-07-30, then 2.4 on
+2020-08-01 and 1.8 on 2020-08-10, give `last_fitted_date = 2020-07-30` and
+`last_eligible_date = 2020-08-10`. Evidence: [export record tests](../tests/core/cohort/exportRecords.test.ts).
+
 ### Rounding
 
 The core does not round. Slope, intercept, R² and confidence bounds are
@@ -1262,8 +1289,8 @@ With `df = n − 2`:
 percentile) for `df`. These bounds describe uncertainty in the slope under the
 usual linear-model assumptions. They are not bounds for the intercept and not a
 prediction interval for individual measurements. They are shown next to the
-slope, exported as `ci_low` and `ci_high`, and the endpoint-only fit uses the
-same calculation.
+slope, exported as `ci_low` and `ci_high` (and `SE` as `slope_se`), and the
+endpoint-only fit uses the same calculation.
 
 The critical value is read from a table in `tCritical95`, not computed:
 
@@ -1412,9 +1439,11 @@ window slopes were computed and discarded and no line was drawn):
 - **Overlay counts.** In rolling mode a series counts as fitted when a window
   line is drawn. A series with a global slope but no window is counted among
   the trajectories without an available fit and not among the uncertain fits.
-- **Export.** The cohort and slope sheets end with five columns, placed after
-  all other columns of the sheet (`n_fitted` and `fitted_span_days` included)
-  so that earlier column positions are unchanged:
+- **Export.** The cohort and slope sheets carry five rolling columns, placed
+  after all earlier columns of the sheet (`n_fitted` and `fitted_span_days`
+  included) so that those column positions are unchanged. Only the five
+  columns of [fit dates, intercept and slope standard error](#fit-dates-intercept-and-slope-standard-error)
+  follow them:
 
   | Column | Content for slope mode `rolling` | Other modes |
   | --- | --- | --- |
@@ -2974,8 +3003,8 @@ The export does not record:
   definitions, or the candidate rules;
 - the confidence level and method behind the OLS slope bounds (the `about`
   sheet names 95 % bounds for Theil-Sen only);
-- the endpoint fit's slope and intercept; the `slope` column is the display
-  fit;
+- the endpoint fit's slope and intercept; the `slope`, `intercept` and
+  `slope_se` columns are those of the display fit;
 - the number of endpoint-eligible rows; `n` counts raw rows and `n_fitted`
   the display fit;
 - the age anchor used for the projected age, or that row ages are whole
@@ -3234,10 +3263,40 @@ run in this order; the first failure is reported.
    - every model row carries a valid value (a finite number, or non-blank text);
    - the value is constant within each patient;
    - at least two distinct values occur across the model rows;
-   - for a categorical factor, the reference level occurs in the model rows.
+   - for a categorical factor, the reference level occurs in the model rows;
+   - for a factor with level and slope (since 2026-11-05), the time interaction
+     must not make the fixed-effect design rank-deficient. For a categorical
+     factor every level, the reference included, needs at least two distinct
+     `time_since_baseline` values among its rows: with treatment contrasts each
+     level has its own intercept and slope column, so a level whose patients
+     were all measured at one model time (every row at time 0) gives an
+     all-zero interaction column (or, for the reference level, a time column
+     equal to the sum of the interaction columns). For a numeric factor the
+     rows with a non-zero time need at least two distinct values; otherwise
+     `time_since_baseline:<column>` is a multiple of `time_since_baseline`.
+     Unlike the other factor checks, this failure is reported only after
+     items 4 and 5 pass, so a unit that is too small reports its size first.
+     The failure (code `RANK_DEFICIENT_FACTOR`) names the factor, and for a
+     categorical factor every such level with its number of patients, for
+     example `Factor gene with level and slope: level "PKD2" (1 patient) has
+     measurements at only one model time, so its slope cannot be estimated
+     (rank-deficient design).` The same level as a level-only term passes.
+     Collinearity that arises only from several factors together is not
+     checked here and is left to the R rank check below.
 
    There is no minimum number of patients per level; a level held by a single
-   patient passes.
+   patient passes unless the check above applies. A minimum per level is an
+   owner decision tracked in issue #4. Levels are always taken from the model
+   rows of the unit, so a level absent from a unit cannot enter its design;
+   only an absent reference level fails.
+
+   **Per-level counts.** `mixedModelFactorLevelCounts` reports, for each
+   categorical factor, the number of patients and of qualifying patients (the
+   rule in item 5) per level, levels in ascending string order. The Model
+   Studio shows them for the whole cohort's complete cases below the reference
+   categories, for example `Whole cohort, patients per level (with enough
+   measurement times): genotype: A 7 (7), B 3 (3)`. Groups are not listed
+   separately; a group's failing level is named in its validation message.
 4. At least 10 patients have a model row.
 5. At least 10 patients qualify. A patient qualifies with at least two rows and
    at least three distinct `time_since_baseline` values for a random intercept
@@ -3260,7 +3319,9 @@ not attached to the fitted result and not exported.
 separately with the same thresholds. *Fit* submits only the units that pass.
 
 **Rank-deficient design.** Before fitting, R builds the fixed-effect model
-matrix and compares its QR rank with its number of columns. A lower rank stops
+matrix and compares its QR rank with its number of columns. The level check in
+item 3 catches the single-factor cases first, so this message is left for
+collinearity across factors. A lower rank stops
 with "Fixed-effect design is rank deficient; no terms were dropped." For lme4, a
 fit that dropped fixed-effect columns is also rejected. A fit whose intercept or
 time slope is not finite, or that does not return a finite estimate for every

@@ -5,6 +5,23 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added
+
+- The cohort and patient slope sheets append `index_date`, `last_fitted_date`,
+  `last_eligible_date`, `intercept` and `slope_se` (OLS only) after the rolling
+  columns. Values come from the existing fit; no estimate changes.
+- Cohort models check factor levels before fitting. A factor with level and
+  slope fails with a message naming the level (or numeric factor) whose
+  patients give no time variation, instead of R's generic rank-deficiency
+  error. The Model Studio lists patients and qualifying patients per level.
+
+### Fixed
+
+- The patient measurement record helper formats dates from their UTC calendar
+  day instead of the local one, which was a day early west of UTC. The workbook
+  export already overwrote that field with the UTC date, so exported files are
+  unchanged.
+
 ## [0.3.7] - 2026-10-15
 
 ### Added

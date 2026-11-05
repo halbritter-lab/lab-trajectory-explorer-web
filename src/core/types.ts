@@ -56,5 +56,8 @@ export interface OlsFit {
   r2: number
   ciLow: number
   ciHigh: number
+  /** Standard error of the slope, sqrt(SSres / (n − 2) / Sxx). Set by the OLS
+   * kernel only; absent for the exact two-point line and for Theil-Sen. */
+  slopeSe?: number
   reason: FitReason
 }

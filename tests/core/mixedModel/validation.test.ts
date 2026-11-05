@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MixedModelConfig } from '../../../src/core/mixedModel/config'
-import { hashMixedModelInput, hashString, validateMixedModelRows } from '../../../src/core/mixedModel/validation'
+import { hashMixedModelInput, hashString, mixedModelFactorLevelCounts, validateMixedModelRows } from '../../../src/core/mixedModel/validation'
 import type { MixedModelSpikeRow } from '../../../src/core/mixedModel/types'
 
 const NO_COVARIATE_CONFIG: MixedModelConfig = {
@@ -237,5 +237,49 @@ describe('validateMixedModelRows', () => {
 describe('hashString', () => {
   it('returns an 8-character FNV-1a 32-bit hex hash for known input', () => {
     expect(hashString('hello')).toBe('4f9f2cab')
+  })
+})
+
+describe('factor level checks', () => {
+  // Patients 1–10 have three times; patient 11 holds the only "PKD2" value at a single time.
+  const gene = (id: number) => (id === 11 ? 'PKD2' : id % 2 ? 'PKD1' : 'none')
+  const geneRows: MixedModelSpikeRow[] = [
+    ...rows.map((row) => ({ ...row, factorValues: { factor_0_: gene(Number(row.patient_id)) } })),
+    { patient_id: '11', value: 40, time_since_baseline: 0, factorValues: { factor_0_: 'PKD2' } },
+  ]
+  const geneConfig = (effect: 'level' | 'level_slope'): MixedModelConfig => ({
+    ...NO_COVARIATE_CONFIG, factors: [{ key: 'gene', kind: 'categorical', effect, reference: 'none' }],
+  })
+
+  it('names a level with level and slope whose patients have only one model time', () => {
+    expect(validateMixedModelRows(geneRows, geneConfig('level_slope'))).toMatchObject({
+      ok: false,
+      code: 'RANK_DEFICIENT_FACTOR',
+      message: expect.stringContaining('level "PKD2" (1 patient) has measurements at only one model time'),
+    })
+  })
+
+  it('reports a too-small unit by its size before the level problem', () => {
+    const small = geneRows.filter((row) => ['1', '2', '11'].includes(row.patient_id))
+    expect(validateMixedModelRows(small, geneConfig('level_slope'))).toMatchObject({ ok: false, code: 'INSUFFICIENT_PATIENTS' })
+  })
+
+  it('accepts the same level as a level-only term', () => {
+    expect(validateMixedModelRows(geneRows, geneConfig('level')).ok).toBe(true)
+  })
+
+  it('rejects a numeric slope term whose time-varying rows share one value', () => {
+    const numericRows = geneRows.map((row) => ({ ...row, factorValues: { factor_0_: row.patient_id === '11' ? 5 : 1 } }))
+    const config: MixedModelConfig = { ...NO_COVARIATE_CONFIG, factors: [{ key: 'dose', kind: 'numeric', effect: 'level_slope' }] }
+    expect(validateMixedModelRows(numericRows, config)).toMatchObject({ ok: false, code: 'RANK_DEFICIENT_FACTOR', message: expect.stringContaining('Factor dose') })
+    expect(validateMixedModelRows(numericRows, { ...config, factors: [{ ...config.factors![0], effect: 'level' }] }).ok).toBe(true)
+  })
+
+  it('counts patients and qualifying patients per categorical level', () => {
+    expect(mixedModelFactorLevelCounts(geneRows, geneConfig('level_slope')).get('gene')).toEqual([
+      { level: 'PKD1', patients: 5, qualifying: 5 },
+      { level: 'PKD2', patients: 1, qualifying: 0 },
+      { level: 'none', patients: 5, qualifying: 5 },
+    ])
   })
 })

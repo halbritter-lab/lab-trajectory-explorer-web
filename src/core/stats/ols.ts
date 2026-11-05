@@ -104,6 +104,7 @@ export function fitOls(xYears: number[], values: number[]): OlsFit {
     r2,
     ciLow: slope - ciHalf,
     ciHigh: slope + ciHalf,
+    slopeSe: stderr,
     reason: null,
   }
 }
