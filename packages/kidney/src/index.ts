@@ -104,8 +104,15 @@ export { projectLinearThreshold, projectedCrossingTime, type ProjectionTarget, t
 export { generalExplorationConfig, theilSenConfig, STANDARD_PRESETS, type FitConfig, type FitPreset, type FitPresetDefinition } from '../../../src/core/analysis/fitConfig'
 export { ckdProgressionConfig, acuteReviewConfig, NEPHROLOGY_PRESETS } from '../../../src/core/domains/nephrology/fitConfig'
 
-// Cohort pipeline as the web app runs it: dataset modules (demographics, eGFR,
-// events), one series spec per parameter, one row per patient, export records.
+/**
+ * Cohort pipeline as the web app runs it: dataset modules (demographics, eGFR,
+ * events), one series spec per parameter, one row per patient, export records.
+ *
+ * @experimental Everything from here to the end of this file mirrors the web
+ * app's internal pipeline (settings objects, cohort cells with chart overlays,
+ * export records with the app's column names). It will change with the domain
+ * decoupling in issue #23, without a deprecation period.
+ */
 export {
   computeAnalysisResult,
   defaultAnalysisSettings,
@@ -117,15 +124,15 @@ export {
   type ComputeAnalysisResultOptions,
 } from '../../../src/core/analysis/registry'
 export type { AnalysisResult, AnalysisMessage, ManualDemographics, CohortFlag } from '../../../src/core/analysis/types'
-// Birth-date anchor per patient: a known exact birth date gives exact ages in
-// endpoint projections (`exactBirthDateByPatient` of cohortSeriesSpec).
-export { resolveBirthAnchor, type AgeResolution, type AgeResolutionInput } from '../../../src/core/demographics/resolveAge'
-export { parseAttributeDate } from '../../../src/core/demographics/resolve'
 export { cohortSeriesSpec, clinicalEventsByPatient } from '../../../src/core/cohort/specs'
+// Inputs of cohortSeriesSpec and cohortExportRecords as the app derives them.
+export { patientBirthAnchor, exactBirthDateByPatient, type PatientBirthAnchor } from '../../../src/core/demographics/exactBirthDate'
+export { demographicWarningsByPatient } from '../../../src/core/demographics/describe'
 export {
   buildCohortRows,
   cohortCellFlags,
   cohortExportRecords,
+  cohortSheetRecord,
   EXPORT_DISCLAIMER_ROWS,
   type CohortSeriesSpec,
   type CohortCell,

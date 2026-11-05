@@ -15,12 +15,13 @@ import {
   defaultAnalysisSettings,
   defaultColumnModuleSettings,
   defaultCreatinineSource,
+  demographicWarningsByPatient,
+  exactBirthDateByPatient,
   EXPORT_DISCLAIMER_ROWS,
   fitPresetById,
   fitPresetCatalog,
-  parseAttributeDate,
+  patientBirthAnchor,
   patientIdKey,
-  resolveBirthAnchor,
   type CohortExportRecord,
   type CohortRow,
   type FormulaName,
@@ -46,11 +47,8 @@ export interface CohortOptions {
   creatinineSource?: [string, string]
 }
 
-const validDate = (date: Date | null | undefined): date is Date => date != null && Number.isFinite(date.getTime())
-
-/** Exact birth dates by patientIdKey, as workspace-data.ts derives them with
- * no manual demographics: a birth date read from the attributes table or the
- * lab rows. Without one the endpoint projection uses ages in completed years. */
+/** Exact birth dates by patientIdKey with the app's rule and no manual
+ * demographics. Without one the endpoint projection uses completed years. */
 function exactBirthDates(dataset: LoadedDataset): Record<string, Date> {
   const byPatient = new Map<PatientId, LabRow[]>()
   for (const row of dataset.rows) {
@@ -58,16 +56,8 @@ function exactBirthDates(dataset: LoadedDataset): Record<string, Date> {
     if (bucket) bucket.push(row)
     else byPatient.set(row.patientId, [row])
   }
-  const out: Record<string, Date> = Object.create(null)
-  for (const [patientId, rows] of byPatient) {
-    const attributeBirthDate = parseAttributeDate(dataset.patientAttributes[patientIdKey(patientId)]?.birthDate)
-    const explicit = validDate(attributeBirthDate) || rows.some((r) => validDate(r.labDatum) && validDate(r.patientBirthDate))
-    if (!explicit) continue
-    const { birthAnchor } = resolveBirthAnchor({ patientId, attributeBirthDate, manualAge: undefined,
-      rows: rows.map((r) => ({ labDatum: r.labDatum, ageAtLab: r.patientAgeAtLab, birthDate: r.patientBirthDate })) })
-    if (birthAnchor) out[patientIdKey(patientId)] = birthAnchor
-  }
-  return out
+  return exactBirthDateByPatient([...byPatient].map(([id, rows]) => ({ id, ...patientBirthAnchor({
+    patientId: id, rows, attributeBirthDate: dataset.patientAttributes[patientIdKey(id)]?.birthDate, manualAge: undefined }) })))
 }
 
 export function runCohort(dataset: LoadedDataset, options: CohortOptions) {
@@ -103,8 +93,7 @@ export function runCohort(dataset: LoadedDataset, options: CohortOptions) {
   const patientIds = [...new Set(analysis.rows.map((r) => r.patientId))]
   const cohort = buildCohortRows(analysis.rows, patientIds, [spec])
   const columnSettings = defaultColumnModuleSettings()
-  // Same rule as workspace-export.ts: demographics messages carry the patient key from segment three.
-  const conflictKeys = new Set(analysis.messages.filter((m) => m.id.startsWith('demographics:')).map((m) => m.id.split(':').slice(2).join(':')))
+  const conflictKeys = new Set(demographicWarningsByPatient(analysis.messages).keys())
   const records = cohortExportRecords(cohort, columnSettings, conflictKeys)
   const method = {
     series: name,

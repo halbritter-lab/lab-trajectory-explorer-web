@@ -10,7 +10,7 @@
   "exports": {
     ".": {
       "types": "./dist/types/packages/kidney/src/index.d.ts",
-      "import": "./dist/index.js"
+      "default": "./dist/index.js"
     }
   },
   "types": "./dist/types/packages/kidney/src/index.d.ts",

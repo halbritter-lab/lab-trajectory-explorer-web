@@ -1,7 +1,8 @@
-import { cohortExportRecords, EXPORT_DISCLAIMER_ROWS, type CohortRow } from '../core/cohort/screening'
+import { cohortExportRecords, cohortSheetRecord, EXPORT_DISCLAIMER_ROWS, type CohortRow } from '../core/cohort/screening'
 import { patientMeasurementRecords } from '../core/patient/patientExport'
 import { patientAttributesExportRows } from '../core/attributes/attributes'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
+import { demographicWarningsByPatient } from '../core/demographics/describe'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString } from '../io/export'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
 import type { FitConfig } from '../core/analysis/fitConfig'
@@ -56,19 +57,13 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     }))
   })
   const attrs = Object.fromEntries(ids.map(id => [patientIdKey(id),data.patientAttributes[patientIdKey(id)] ?? {}]))
-  // conflictId's documented contract preserves colons inside IDs after segment two.
-  const demographicWarnings = data.analysis.messages.filter(message => message.id.startsWith('demographics:'))
-  const warningsFor = (id: PatientId) => demographicWarnings.filter(message => message.id.split(':').slice(2).join(':') === patientIdKey(id)).map(message => message.text)
+  const demographicWarnings = demographicWarningsByPatient(data.analysis.messages)
+  const warningsFor = (id: PatientId) => demographicWarnings.get(patientIdKey(id)) ?? []
   const conflictKeys = new Set(ids.filter(id => warningsFor(id).length > 0).map(patientIdKey))
   const specs = workspaceSpecs(data,requestedKeys,fitConfigByParameterKey)
   const columnSettings = (key: string): ColumnModuleSettings => moduleSettingsByParameterKey?.[key] ?? defaultColumnModuleSettings()
-  const summaries = cohortExportRecords(prepared,cellIndex => columnSettings(requestedKeys[cellIndex]),conflictKeys).map((record,index) => {
-    const cell = prepared[Math.floor(index / selectedParameters.length)].cells[index % selectedParameters.length]
-    // The rolling columns are the newest and stay last, so earlier column positions are unchanged.
-    const {Bezeichnung,Einheit,rolling_window_days,rolling_step_days,rolling_windows,rolling_slope_min,rolling_slope_max,...fields} = record
-    return {...fields,Parameter:Bezeichnung,Unit:Einheit,n_fitted:cell.nFitted,fitted_span_days:cell.fittedSpanDays,
-      rolling_window_days,rolling_step_days,rolling_windows,rolling_slope_min,rolling_slope_max}
-  })
+  const summaries = cohortExportRecords(prepared,cellIndex => columnSettings(requestedKeys[cellIndex]),conflictKeys).map((record,index) =>
+    cohortSheetRecord(record,prepared[Math.floor(index / selectedParameters.length)].cells[index % selectedParameters.length]))
   // Each column's module settings, one export column per configurable field.
   const moduleSettingColumns = (key: string) => Object.fromEntries(columnSettingModules().flatMap(module => (module.columnSettingFields ?? []).flatMap(field => {
     if (!field.exportKey) return []

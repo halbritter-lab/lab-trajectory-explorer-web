@@ -10,12 +10,21 @@ interfaces are still evolving before 1.0.
 - `packages/kidney/`: the kidney-function core as an unpublished ESM library with
   type declarations, built with `pnpm build:kidney` and tested against the
   build with `pnpm test:kidney`. It re-exports `src/core` unchanged; no numeric
-  change.
+  change. The cohort-pipeline exports are marked experimental until #23.
 - `packages/mcp/`: a local stdio MCP server (`lab-trajectory-mcp`) that loads
   a workbook from disk and runs the app's cohort pipeline through the kidney
   package. Results are aggregate by default; patient-level results go to a
   local export file. Built with `pnpm build:mcp`, tested with `pnpm test:mcp`.
   The repository is now a pnpm workspace (`packages/kidney`, `packages/mcp`).
+
+### Changed
+
+- The exact-birth-date rule for endpoint projections, the demographics
+  warnings per patient and the column order of the cohort export sheet moved
+  from the workspace into `src/core` (`patientBirthAnchor`,
+  `exactBirthDateByPatient`, `demographicWarningsByPatient`,
+  `cohortSheetRecord`), so the app and the package share them. No behaviour
+  change.
 
 ## [0.3.7] - 2026-10-15
 

@@ -1,6 +1,9 @@
 {
-  // Declarations only; vite bundles the JavaScript. There is no DOM lib, so a
-  // browser API reached from the entry point fails this build.
+  // Declarations only; vite bundles the JavaScript. Without the DOM lib, DOM-only
+  // types (HTMLElement, document) fail this build, but @types/node also declares
+  // web globals such as fetch, Blob and URL. The real guard is the bundle-source
+  // test in test/built-package.node.mjs. vite/client stays because
+  // src/io/loadDataset.ts types import.meta.env in its (tree-shaken) demo loaders.
   "compilerOptions": {
     "target": "ES2022",
     "lib": ["ES2022"],
