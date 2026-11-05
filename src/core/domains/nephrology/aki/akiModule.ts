@@ -2,6 +2,7 @@ import { akiExclusionBands, akiExclusionWindows, episodesForSeries, isAkiCreatin
 import type { AkiEpisode } from './kdigo'
 import { formatAkiChip, formatAkiEpisodeSummary } from './summary'
 import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
+import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../analytes'
 import { patientIdKey, type LabRow, type PatientId } from '../../../types'
 import { windowsWithLength } from '../../../exclusions/windows'
 import type { ClinicalEvent } from '../../../events/events'
@@ -63,10 +64,11 @@ export function akiFitInput(patientId: PatientId, seriesKey: SeriesKey, episodes
 }
 
 /** Cache key of the creatinine series whose episodes apply to `seriesKey`:
- * a KDIGO creatinine series detects on itself, every other series of the
- * patient shares the patient's creatinine source. */
+ * a KDIGO creatinine series detects on itself, a computed eGFR series on the
+ * series it was computed from, every other series of the patient shares the
+ * patient's creatinine source. */
 function episodeSourceKey(patientId: PatientId, seriesKey: SeriesKey): string {
-  return isAkiCreatinineSource(seriesKey.bezeichnung, seriesKey.einheit)
+  return isAkiCreatinineSource(seriesKey.bezeichnung, seriesKey.einheit) || seriesKey.bezeichnung.endsWith(COMPUTED_BEZEICHNUNG_SUFFIX)
     ? `${patientId}|${seriesKey.bezeichnung}|${seriesKey.einheit ?? ''}`
     : `${patientId}|creatinine-source`
 }
