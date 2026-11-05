@@ -76,7 +76,7 @@ owner decided all of them on the same day (see
 [method decisions](remaining-method-decisions.md)). Those settled since are
 listed under *Resolved decisions* below. Four remain, **OD-11, OD-21, OD-22
 and OD-29: to be changed after release 0.3.0.** Their behaviour is unchanged
-until then.
+until then. OD-30 was added on 2026-11-05 with the R reproduction export.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -84,6 +84,7 @@ until then.
 | OD-21 | [Cohort mixed models](#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+| OD-30 | [Cohort mixed models](#cohort-mixed-models) | Estimates, intervals and variance parameters are rounded to four decimal places when R returns them; small slopes lose precision, and values between 1e-5 and 5e-5 become 0. |
 
 ### Resolved decisions
 
@@ -3480,7 +3481,7 @@ The `models` worksheet has one row per fitted unit:
 | `optimizer` | Optimizer reported by lme4, or `lme4-default` when it reports none |
 | `tolerance` | Constant `1e-6` |
 | `runtimeVersion` | R version of the webR runtime |
-| `packageVersions` | JSON: loaded versions of `lme4` (or `nlme`) and `jsonlite` |
+| `packageVersions` | JSON: loaded versions of `lme4` and `Matrix` (or `nlme`) and `jsonlite`; `Matrix` since 2026-11-05 |
 | `browserUserAgent`, `wasmAssetSource` | Browser and runtime source (`cdn`) |
 | `datasetId`, `datasetHash`, `fitConfigHash` | The constant `cohort`, and hashes of the model rows and of the configuration |
 | `randomSeed` | Empty |
@@ -3490,8 +3491,84 @@ The `models` worksheet has one row per fitted unit:
 
 A fit that fails before the worker answers (for example a timeout) has only
 part of this provenance. The other worksheets are `coefficients` (every fixed
-effect with unit, estimate and interval bounds), `factors`, `centering`,
-`excluded_patients`, `projections` when a projection is applied, and `about`.
+effect with unit, estimate, standard error and interval bounds), `vcov`,
+`factors`, `centering`, `excluded_patients`, `model_rows`,
+`model_input_flags`, `projections` when a projection is applied, `r_script`
+and `about`.
+
+**R reproduction (since 2026-11-05).** These outputs let a fit be rebuilt and
+extended in R. They add no estimate and change none.
+
+- **`model_rows`.** One row per row the worker received for the stored result,
+  in the order sent, taken from the same prepared rows (`workspaceModelEntities`)
+  and not derived again: `entity`, `unit_key` (`cohort` for the whole cohort,
+  `group:<value>` for a group, so a group named "Whole cohort" stays distinct;
+  `coefficients` carries the same column), `group` (the group value, empty for
+  the whole cohort), `patient_id`, `date` (UTC date of the model point; for a
+  time-balancing median the date of the median point), `value`,
+  `time_since_baseline`, and per factor the column passed to R
+  (`baseline_age_centered`, `factor_<i>_`) followed by its value before
+  centring (`baseline_age`, `raw_factor_<i>_`). Categorical values are passed
+  unchanged, so both columns are equal. The date and raw values are not part of
+  the dataset hash; R never reads them.
+- **`model_input_flags`.** One row per measurement of the modelled series
+  (same name and unit) of every patient in the unit, patients in model order
+  and each patient's measurements in import order, with
+  `entity`, `group`, `patient_id`, `date`, `value`, `status`, `reason` and
+  `model_date`. `status` is `entered` (the value entered unchanged as the model
+  row dated `model_date`), `aggregated_into_median` (one of at least two
+  values of a calendar month or quarter whose median is the model row dated
+  `model_date`) or `excluded`. `reason` is set for `excluded` only, from the
+  first stage that removed the measurement (see *Which measurements enter*):
+  `no_date`, `no_numeric_value`, `bound_value` (operator other than `=`), the
+  reasons of every event or AKI window containing the date joined by `; `
+  (`post_kidney_transplant`, `post_chronic_dialysis`, `acute_dialysis`,
+  `unknown_dialysis_interval`, `aki`), `run_in` (the measurement or its median
+  lies in the chronic run-in), or `patient_excluded: <reasons>` when the
+  factor preparation removed the patient (for example
+  `patient_excluded: Missing genotype`). The window reasons come from the same
+  `applyExclusionWindows` decision and the aggregation from the same
+  `balanceSeriesPointGroups` grouping as the model rows; nothing is
+  recomputed. Example, the patient from *Which measurements enter* under CKD
+  progression: 2020-01-01 is `entered` with `model_date` 2020-01-01, and
+  2020-07-01 and 2021-01-01 are `excluded` with `post_kidney_transplant`.
+- **Standard errors and `vcov`.** The worker returns `vcov(fit)` as a matrix
+  and `sqrt(diag(vcov(fit)))` (lme4 and nlme alike). `std_error` in
+  `coefficients` is that square root. The `vcov` sheet has, per unit, one row
+  per term in the order of `coefficients` with `entity`, `term` and one column
+  per term; with several units the columns are the union of their terms and
+  cells of absent terms are empty. Both are serialized at R's full JSON
+  precision (`digits = NA`, 15 significant digits). Results fitted before this
+  change have neither; their cells are empty. A covariance that does not match
+  the term order or is not square does not fail the fit: it is dropped with
+  the warning "The fixed-effect covariance matrix could not be read; standard
+  errors and vcov are not exported for this fit.", and estimates and intervals
+  are kept.
+- **`r_script`.** An R script, one line per row in the column `line`, that
+  reads `model_rows` and `coefficients` with `readxl` (`trim_ws = FALSE`),
+  selects each unit's rows by `unit_key`, rebuilds `mm_data`,
+  factors, reference levels and treatment contrasts with the worker's own R
+  code (`mixedModelDataRCode`), runs the worker's exact call
+  `lme4::lmer(<formula>, data = mm_data, REML = TRUE, na.action = na.fail)`
+  per successful lme4 unit, prints the browser and refitted estimates side by
+  side and ends with `sessionInfo()`. Each unit runs inside its own `local()`
+  block whose value is stored in `mm_fits[[<unit_key>]]`; the fit's formula
+  environment holds that unit's `mm_data`, so `update()`, `anova()` or
+  `emmeans` on any fit use its own rows even after later units were fitted.
+  Names in string literals have NUL characters and unpaired UTF-16 surrogates
+  replaced by U+FFFD, since R cannot parse those escapes. It states the R and package versions of
+  the browser fit (`lme4`, `Matrix`, `jsonlite`), or "unknown" when not
+  recorded, how to refit with `REML = FALSE` for likelihood-ratio tests and
+  how to use `lmerTest` for Satterthwaite degrees of freedom. Non-reference
+  levels are ordered by R's `sort()`, so another locale can reorder, not
+  change, the coefficients. Verified with real webR, lme4 2.0.6 and readxl
+  (`scripts/verify_mixed_model_r_export.mjs`) for the whole cohort (138 rows)
+  and a group literally named "Whole cohort" (96 rows): each refit equals its
+  browser covariance to 1e-9 and its browser estimates to their four decimals,
+  and `update(fit, REML = FALSE)` on either fit, run after both, uses that
+  unit's row count.
+
+> **Open decision OD-30.** Estimates, interval bounds, random-effect standard deviations and the residual standard deviation are returned from R through `jsonlite::toJSON` with its default `digits = 4`. Values of at least 1e-4 in absolute value keep four decimal places, so a slope of 0.00034 mg/dl per year is stored, shown and exported as 0.0003 and an R refit differs in the fifth decimal. Smaller values are not uniformly rounded: `toJSON(c(0.00034, 3.4e-6, -0.000049))` gives `[0.0003, 3.4e-06, -0]`, so values below 1e-5 are written in scientific notation and keep their leading digits, while values between 1e-5 and 5e-5 become 0 or −0 (a slope of −0.00004 per year is shown as 0). Only the standard errors and `vcov` are returned at full precision. Behaviour is unchanged pending an owner decision.
 
 > **Open decision OD-21.** The exported `tolerance` (1e-6) is not used by any fit — the only tolerance in the fit is the 1e-4 singularity check — and the R packages are not version-pinned, so the export records the versions used but a later session can load different ones. Behaviour is unchanged pending an owner decision.
 

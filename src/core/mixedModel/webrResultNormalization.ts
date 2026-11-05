@@ -9,6 +9,7 @@ export interface FitExtractionResult {
   warnings: unknown
   fixedEffects: unknown
   fixedEffectTerms?: unknown
+  fixedEffectCovariance?: unknown
   fixedEffectConfidenceIntervals: unknown
   randomEffects: unknown
   residualSd: unknown
@@ -55,6 +56,12 @@ export function normalizeExtractedFitResult(
   if (!fixedEffects || !randomEffects) {
     throw new ResultExtractionError('webR fit result is missing fixed or random effect estimates.')
   }
+  const terms = extracted.fixedEffectTerms === undefined ? undefined : normalizeFixedEffectTerms(extracted.fixedEffectTerms)
+  const covariance = normalizeFixedEffectCovariance(extracted.fixedEffectCovariance, terms?.map(term => term.term))
+  // vcov is export-only: a malformed one is dropped instead of failing the fit.
+  if (covariance === null) warnings.push('The fixed-effect covariance matrix could not be read; standard errors and vcov are not exported for this fit.')
+  const fixedEffectCovariance = covariance?.covariance
+  const fixedEffectTerms = covariance ? terms?.map((term, index) => ({...term, standardError: covariance.standardErrors[index]})) : terms
 
   return {
     status: 'success',
@@ -70,7 +77,8 @@ export function normalizeExtractedFitResult(
     nPatients: new Set(request.rows.map((row) => row.patient_id)).size,
     nMeasurements: request.rows.length,
     fixedEffects,
-    ...(extracted.fixedEffectTerms === undefined ? {} : {fixedEffectTerms: normalizeFixedEffectTerms(extracted.fixedEffectTerms)}),
+    ...(fixedEffectTerms === undefined ? {} : {fixedEffectTerms}),
+    ...(fixedEffectCovariance === undefined ? {} : {fixedEffectCovariance}),
     fixedEffectConfidenceIntervals,
     randomEffects,
     residualSd,
@@ -99,6 +107,19 @@ function normalizeFixedEffectTerms(value: unknown): NonNullable<MixedModelSucces
     seen.add(item.term)
     return {term:item.term,estimate:requireFiniteNumber(item.estimate,'fixedEffectTerms.estimate'),confidenceInterval:requireNullableFiniteNumberPair(item.confidenceInterval,'fixedEffectTerms.confidenceInterval')}
   })
+}
+
+/** `vcov(fit)` and `sqrt(diag(vcov(fit)))` in fixed-effect term order; non-finite entries arrive as null.
+ * Undefined when absent, null when malformed. */
+function normalizeFixedEffectCovariance(value: unknown, terms: readonly string[] | undefined): { covariance: NonNullable<MixedModelSuccess['fixedEffectCovariance']>; standardErrors: Array<number | null> } | null | undefined {
+  if (value === undefined || value === null) return undefined
+  const nullableNumbers = (row: unknown) => Array.isArray(row) && row.length === terms?.length && row.every(cell => cell === null || (typeof cell === 'number' && Number.isFinite(cell)))
+  if (!isRecord(value) || !Array.isArray(value.terms) || !Array.isArray(value.matrix) || !terms ||
+      value.terms.length !== terms.length || value.terms.some((term, index) => term !== terms[index]) ||
+      value.matrix.length !== terms.length || !value.matrix.every(nullableNumbers) || !nullableNumbers(value.standardErrors)) {
+    return null
+  }
+  return {covariance:{terms:[...terms],matrix:value.matrix.map(row => [...(row as Array<number | null>)])},standardErrors:[...(value.standardErrors as Array<number | null>)]}
 }
 
 function normalizeFixedEffectConfidenceIntervals(value: unknown): MixedModelSuccess['fixedEffectConfidenceIntervals'] {

@@ -81,10 +81,10 @@ describe('controlled mixed-model cohort fixture', () => {
       'p4', 'p4', 'p4',
     ])
     expect(modelRows.filter((r) => r.patient_id === 'p1')).toEqual([
-      { patient_id: 'p1', value: 73, time_since_baseline: 0 },
-      { patient_id: 'p1', value: 70.5, time_since_baseline: 1.0020533881 },
-      { patient_id: 'p1', value: 69, time_since_baseline: 2.0013689254 },
-      { patient_id: 'p1', value: 67.5, time_since_baseline: 3.0006844627 },
+      { patient_id: 'p1', value: 73, date: '2020-01-01', time_since_baseline: 0 },
+      { patient_id: 'p1', value: 70.5, date: '2021-01-01', time_since_baseline: 1.0020533881 },
+      { patient_id: 'p1', value: 69, date: '2022-01-01', time_since_baseline: 2.0013689254 },
+      { patient_id: 'p1', value: 67.5, date: '2023-01-01', time_since_baseline: 3.0006844627 },
     ])
     expect(modelRows.filter((r) => r.patient_id === 'p4').map((r) => r.value)).toEqual([53, 49, 46])
 

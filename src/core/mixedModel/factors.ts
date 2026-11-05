@@ -65,6 +65,7 @@ export function prepareMixedModelFactors(
     if (reasons.length > 0) preparation.excludedPatients.push({ patientId, reasons })
     else complete.set(patientId, values)
   }
+  const raw = new Map([...complete].map(([patientId, values]) => [patientId, { ...values }]))
   for (const [index, factor] of factors.entries()) {
     if (factor.kind !== 'numeric' || complete.size === 0) continue
     const column = mixedModelFactorColumn(factor, index)
@@ -77,6 +78,7 @@ export function prepareMixedModelFactors(
     return {
       ...row,
       factorValues: { ...factorValues },
+      factorRawValues: raw.get(row.patient_id)!,
       ...(typeof factorValues.baseline_age_centered === 'number'
         ? { baseline_age_centered: factorValues.baseline_age_centered }
         : {}),

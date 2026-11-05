@@ -5,6 +5,14 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added
+
+- The cohort model workbook can be reproduced in R: `model_rows` holds the rows
+  each fit received, `model_input_flags` shows for every measurement whether it
+  entered, was aggregated into a median or why it was excluded, `coefficients`
+  gains standard errors, `vcov` holds the fixed-effect covariance matrix, and
+  `r_script` refits the models with the same lme4 call. No estimate changes.
+
 ## [0.3.7] - 2026-10-15
 
 ### Added

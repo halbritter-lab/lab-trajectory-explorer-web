@@ -47,6 +47,12 @@ describe('sheetsToXlsxBytes', () => {
     const ws = wb.Sheets['measurements']
     expect(ws['!cols']?.[1]?.wch).toBeGreaterThanOrEqual(12)
   })
+
+  it('sizes columns of sheets with more than 130k rows without overflowing the call stack', () => {
+    const rows = Array.from({ length: 140_000 }, (_, i) => ({ id: i === 139_999 ? 'x'.repeat(30) : 'p' }))
+    const wb = XLSX.read(sheetsToXlsxBytes([{ name: 'flags', rows }]), { type: 'array', cellStyles: true, sheetRows: 2 })
+    expect(wb.Sheets.flags['!cols']?.[0]?.wch).toBe(32)
+  })
 })
 
 describe('zipBytes', () => {

@@ -1,6 +1,7 @@
 import { WebR } from 'webr'
 import { mixedModelFormula, mixedModelFormulaKey, mixedModelFactors, mixedModelFactorColumn, validateMixedModelConfig, type MixedModelConfig } from './config'
 import { isRecord } from './guards'
+import { lme4ModelCall, mixedModelDataRCode, rStringLiteral } from './rCode'
 import {
   MIXED_MODEL_TOLERANCE,
   type MixedModelEngine,
@@ -255,7 +256,7 @@ function modelCallForRequest(request: MixedModelWorkerRequest): string | null {
   ) {
     return null
   }
-  if (request.engine === 'webr-lme4') return `lme4::lmer(${mixedModelFormula(request.config)}, data = mm_data, REML = TRUE, na.action = na.fail)`
+  if (request.engine === 'webr-lme4') return lme4ModelCall(request.config)
   if (request.engine === 'webr-nlme') return `nlme::lme(${fixedFormula(request.config)}, random = ~ ${request.config.randomEffects === 'intercept_slope' ? 'time_since_baseline' : '1'} | patient_id, data = mm_data, method = "REML", na.action = na.fail)`
   return null
 }
@@ -279,10 +280,6 @@ function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
-function rStringLiteral(value: string): string {
-  return JSON.stringify(value)
-}
-
 function postResult(request: MixedModelWorkerRequest, result: MixedModelResult): void {
   const response: MixedModelWorkerResponse = { type: 'mixed-model-result', requestId: request.requestId, result }
   self.postMessage(response)
@@ -299,20 +296,7 @@ function fixedFormula(config: MixedModelConfig): string {
 }
 
 function buildFitCode(modelCall: string, extraction: string, config: MixedModelConfig): string {
-  return `
-    mm_data <- data.frame(
-      patient_id = factor(mm_patient_id),
-      value = as.numeric(mm_value),
-      time_since_baseline = as.numeric(mm_time),
-      baseline_age_centered = as.numeric(mm_baseline_age_centered)
-    )
-    ${mixedModelFactors(config).map((factor,index) => {
-      const column = mixedModelFactorColumn(factor,index)
-      if (factor.kind === 'numeric') return `mm_data$${column} <- as.numeric(mm_${column})`
-      return `mm_levels <- c(${rStringLiteral(factor.reference!)}, sort(setdiff(unique(mm_${column}), ${rStringLiteral(factor.reference!)})))
-      mm_data$${column} <- factor(mm_${column}, levels = mm_levels)
-      contrasts(mm_data$${column}) <- contr.treatment(mm_levels, base = 1)`
-    }).join('\n')}
+  return `${mixedModelDataRCode(config)}
     mm_frame <- model.frame(${fixedFormula(config)}, data = mm_data, na.action = na.fail)
     mm_design <- model.matrix(${fixedFormula(config)}, data = mm_frame)
     if (qr(mm_design)$rank < ncol(mm_design)) stop("Fixed-effect design is rank deficient; no terms were dropped.")
@@ -342,6 +326,15 @@ function buildFitCode(modelCall: string, extraction: string, config: MixedModelC
         as.numeric(value[1:2])
       }
     }
+    # Export only: standard errors and the fixed-effect covariance never feed an
+    # estimate. Serialized at full precision (digits = NA) and inserted verbatim;
+    # every other field keeps toJSON's default of four decimal places.
+    mm_vcov <- tryCatch(as.matrix(stats::vcov(mm_fit)), error = function(e) NULL)
+    mm_covariance <- if (is.null(mm_vcov)) NULL else jsonlite::toJSON(list(
+      terms = colnames(mm_vcov),
+      standardErrors = unname(sqrt(diag(mm_vcov))),
+      matrix = unname(lapply(seq_len(nrow(mm_vcov)), function(i) as.numeric(mm_vcov[i, ])))
+    ), digits = NA, na = "null")
     mm_all_terms <- function(estimates, intervals) {
       if (length(estimates) != ncol(mm_design) || !all(is.finite(estimates))) stop("Missing or non-finite fixed effects; no terms may be dropped.")
       unname(lapply(names(estimates), function(term) list(
@@ -350,7 +343,7 @@ function buildFitCode(modelCall: string, extraction: string, config: MixedModelC
       )))
     }
     ${extraction}
-    jsonlite::toJSON(mm_out, auto_unbox = TRUE, null = "null", na = "null")
+    jsonlite::toJSON(mm_out, auto_unbox = TRUE, null = "null", na = "null", json_verbatim = TRUE)
   `
 }
 
@@ -399,6 +392,7 @@ function lme4FitCode(modelCall: string, config: MixedModelConfig): string {
         baselineAge = mm_nullable_number(mm_baseline_age)
       ),
       fixedEffectTerms = mm_all_terms(mm_fixed, mm_all_ci),
+      fixedEffectCovariance = mm_covariance,
       fixedEffectConfidenceIntervals = list(
         timeSinceBaseline = mm_time_ci_pair
       ),
@@ -411,6 +405,7 @@ function lme4FitCode(modelCall: string, config: MixedModelConfig): string {
       optimizer = as.character(mm_optimizer),
       packageVersions = list(
         lme4 = as.character(utils::packageVersion("lme4")),
+        Matrix = as.character(utils::packageVersion("Matrix")),
         jsonlite = as.character(utils::packageVersion("jsonlite"))
       )
     )`,
@@ -477,6 +472,7 @@ function nlmeFitCode(modelCall: string, config: MixedModelConfig): string {
         baselineAge = mm_named_number(mm_fixed, "baseline_age_centered")
       ),
       fixedEffectTerms = mm_all_terms(mm_fixed, mm_all_ci),
+      fixedEffectCovariance = mm_covariance,
       fixedEffectConfidenceIntervals = list(
         timeSinceBaseline = mm_time_ci_pair
       ),

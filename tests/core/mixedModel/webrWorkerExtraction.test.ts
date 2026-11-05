@@ -80,6 +80,22 @@ describe('webR worker fit extraction validation', () => {
     expect(normalizeExtractedFitResult({...request,preparation},metadata,{...validExtraction,fixedEffectTerms})).toMatchObject({fixedEffectTerms,metadata:{preparation}})
     expect(() => normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms:[{term:'factor_0_B',estimate:NaN,confidenceInterval:null}]})).toThrow(/finite/)
   })
+  it('keeps standard errors and the covariance matrix without touching estimates or intervals', () => {
+    const fixedEffectTerms = [{term:'(Intercept)',estimate:60,confidenceInterval:[55,65]}, {term:'time_since_baseline',estimate:-2,confidenceInterval:[-3,-1]}]
+    const fixedEffectCovariance = {terms:['(Intercept)','time_since_baseline'],standardErrors:[2.5,null],matrix:[[6.25,-0.1],[-0.1,null]]}
+    const normalized = normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms,fixedEffectCovariance})
+    expect(normalized.fixedEffectTerms).toEqual([{...fixedEffectTerms[0],standardError:2.5},{...fixedEffectTerms[1],standardError:null}])
+    expect(normalized.fixedEffectCovariance).toEqual({terms:fixedEffectCovariance.terms,matrix:fixedEffectCovariance.matrix})
+    const withoutExtras = normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms,fixedEffectCovariance:null})
+    expect(withoutExtras.fixedEffectTerms).toEqual(fixedEffectTerms)
+    expect('fixedEffectCovariance' in withoutExtras).toBe(false)
+    for (const malformed of [{...fixedEffectCovariance,standardErrors:[2.5]}, {...fixedEffectCovariance,terms:['time_since_baseline','(Intercept)']}, {...fixedEffectCovariance,matrix:[[1]]}]) {
+      const dropped = normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms,fixedEffectCovariance:malformed})
+      expect(dropped.fixedEffectTerms).toEqual(fixedEffectTerms)
+      expect('fixedEffectCovariance' in dropped).toBe(false)
+      expect(dropped.warnings).toEqual([expect.stringMatching(/covariance matrix could not be read/)])
+    }
+  })
   it('accepts nullable numeric fields and rejects malformed extracted payloads', () => {
     expect(normalizeExtractedFitResult(request, metadata, validExtraction)).toMatchObject({
       status: 'success',
