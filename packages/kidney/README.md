@@ -139,7 +139,7 @@ const records = cohortExportRecords(cohort) // one flat record per patient and s
 | Slopes | `fitGlobal` (OLS), `fitTheilSen`, `fitOls`, `datesToYears`, `balanceSeriesPoints`, `summarizeByBezeichnung`, `isUnstableSlope` |
 | Endpoints and projection | `computeCkdEndpoints`, `projectLinearThreshold`, `projectedCrossingTime`, `CKD_G4_EGFR_THRESHOLD`, `CKD_G5_EGFR_THRESHOLD`, `DEFAULT_CONFIRMATION_DAYS`, `DEFAULT_RAPID_EGFR_DECLINE` |
 | Fit presets | `generalExplorationConfig`, `theilSenConfig`, `ckdProgressionConfig`, `acuteReviewConfig`, `STANDARD_PRESETS`, `NEPHROLOGY_PRESETS` |
-| Cohort pipeline (experimental) | `computeAnalysisResult`, `defaultAnalysisSettings`, `parseAnalysisSettings`, `fitPresetCatalog`, `fitPresetById`, `cohortSeriesSpec`, `clinicalEventsByPatient`, `patientBirthAnchor`, `exactBirthDateByPatient`, `demographicWarningsByPatient`, `buildCohortRows`, `cohortCellFlags`, `cohortExportRecords`, `cohortSheetRecord`, `EXPORT_DISCLAIMER_ROWS` |
+| Cohort pipeline (experimental) | `computeAnalysisResult`, `defaultAnalysisSettings`, `defaultColumnModuleSettings`, `parseAnalysisSettings`, `fitPresetCatalog`, `fitPresetById`, `cohortSeriesSpec`, `clinicalEventsByPatient`, `patientBirthAnchor`, `exactBirthDateByPatient`, `demographicWarningsByPatient`, `buildCohortRows`, `cohortCellFlags`, `cohortExportRecords`, `cohortSheetRecord`, `EXPORT_DISCLAIMER_ROWS` |
 | Shared | `patientIdKey`, `comparePatientIds` and the types `LabRow`, `RawRow`, `PatientId`, `OlsFit`, `SeriesPoint`, `FitConfig`, `CohortRow`, `CohortCell`, `CkdEndpoints`, `AkiEpisode` and related |
 
 `test/built-package.node.mjs` pins this list. A change to it is a change to

@@ -122,3 +122,27 @@ Mixed models are not exported, because webR only runs in a browser worker. An
 export added to or removed from the entry point is a public API change: update
 the pinned list and the package README in the same change. The package is
 private and unpublished until the owner approves publication.
+
+## MCP analysis server
+
+`packages/mcp/` is a local MCP server over stdio (no network transport) built
+on the kidney package, which it consumes as a pnpm workspace dependency
+(`workspace:*`). It holds loaded workbooks in memory and assembles the cohort
+pipeline the app runs (`computeAnalysisResult`, `cohortSeriesSpec`,
+`buildCohortRows`, `cohortExportRecords`) from package exports only; its own
+code counts and summarises the returned cells and export records. Defaults
+match the app with no manual demographics: default analysis settings, the
+chosen preset's fit configuration, default column settings, and exact birth
+dates when the workbook has them.
+
+The rules the app and the server must share live in `src/core`: exact birth
+dates (`exactBirthDateByPatient`), demographics conflict keys
+(`demographicWarningsByPatient`) and the cohort sheet's columns
+(`cohortSheetRecord`). Do not copy workspace glue into the server.
+
+Tool results reach the model provider, so default results are aggregate with
+small cells suppressed, and patient-level results are written to a local file
+(`export_cohort`). See
+[packages/mcp/README.md](../packages/mcp/README.md). `pnpm build:mcp` and
+`pnpm test:mcp` run after `pnpm build:kidney`; the root Vitest run excludes
+`packages/`.

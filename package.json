@@ -11,6 +11,8 @@
     "build": "tsc -b && vite build",
     "build:kidney": "vite build packages/kidney && tsc -p packages/kidney && node packages/kidney/scripts/add-dts-extensions.mjs",
     "test:kidney": "tsc -p packages/kidney/test && node --test \"packages/kidney/test/*.node.mjs\"",
+    "build:mcp": "tsc -p packages/mcp",
+    "test:mcp": "vitest run --config packages/mcp/vitest.config.ts",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",

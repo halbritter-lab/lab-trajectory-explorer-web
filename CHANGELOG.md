@@ -11,6 +11,13 @@ interfaces are still evolving before 1.0.
   type declarations, built with `pnpm build:kidney` and tested against the
   build with `pnpm test:kidney`. It re-exports `src/core` unchanged; no numeric
   change. The cohort-pipeline exports are marked experimental until #23.
+- `packages/mcp/`: a local stdio MCP server (`lab-trajectory-mcp`) that loads
+  a workbook from disk and runs the app's cohort pipeline through the kidney
+  package. Results are aggregate by default; patient-level results go to a
+  local export file. Built with `pnpm build:mcp`, tested with `pnpm test:mcp`.
+  The repository is now a pnpm workspace (`packages/kidney`, `packages/mcp`).
+  Aggregates suppress counts below 5 and report no slope minimum or maximum
+  (open decision OD-31); network-share paths are rejected in every spelling.
 
 ### Changed
 

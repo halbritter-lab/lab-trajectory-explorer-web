@@ -76,7 +76,7 @@ owner decided all of them on the same day (see
 [method decisions](remaining-method-decisions.md)). Those settled since are
 listed under *Resolved decisions* below. Four remain, **OD-11, OD-21, OD-22
 and OD-29: to be changed after release 0.3.0.** Their behaviour is unchanged
-until then.
+until then. OD-31 (MCP server, 2026-11-05) awaits a decision.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -84,6 +84,7 @@ until then.
 | OD-21 | [Cohort mixed models](#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+| OD-31 | [MCP server aggregates](#mcp-server-aggregates-2026-11-05) | The small-cell threshold (5), the fields it covers and the absence of secondary suppression are implementer defaults. |
 
 ### Resolved decisions
 
@@ -3746,6 +3747,62 @@ Regression evidence:
 and the [browser projection workflow](../tests/e2e/model-projections.e2e.ts).
 No dedicated regression test: that a projection is still reported when the
 slope confidence interval includes zero.
+
+## MCP server aggregates (2026-11-05)
+
+The local MCP server (`packages/mcp/`) runs the cohort pipeline of one
+parameter column with the app's defaults: default analysis settings (eGFR
+computed only when a formula is passed, with the default creatinine source
+unless one is named), the chosen preset's fit configuration, the default
+column module settings (`defaultColumnModuleSettings`: rapid-decline threshold 5 per year), no manual demographics, and exact birth
+dates for patients whose attributes table or lab rows carry a readable birth
+date, by the same rule as the workspace (`patientBirthAnchor` and
+`exactBirthDateByPatient` in `src/core/demographics/exactBirthDate.ts`).
+`buildCohortRows` orders patients with `comparePatientIds`, as in the app. Per-patient
+values are the cohort export records unchanged; `export_cohort` writes them
+with the app's cohort-sheet columns (`cohortSheetRecord`). `analyse_cohort`
+then counts and summarises them; these cohort-level numbers exist only in the
+server:
+
+| Field | Definition |
+| --- | --- |
+| `patients_in_dataset` | Patients with at least one analysis row in any series. |
+| `patients_with_series` | Patients with `nNumeric > 0` in the analysed series. |
+| `patients_with_slope` | Export records with a numeric `slope`. |
+| `measurements_raw`, `points_fitted` | Sums of `nNumeric` and `nFitted` over `patients_with_series`. |
+| `slope_per_year` | Number, median, first and third quartile of those slopes; no minimum or maximum, which would always be one patient's value. Quartiles interpolate linearly between order statistics (R type 7): position `(n − 1) · p`, zero-based. |
+| `unstable_slope` | Records with a numeric slope and `unstable_slope = yes`; the share divides by `patients_with_slope`. |
+| `no_slope_reasons` | `reason` of patients with data but no numeric slope; `no_fit_requested` instead when the fit model is `none` (acute review), where the core reports `n_below_threshold` regardless of the point count. |
+| `rapid_decline_count`, `endpoints.*` | Records with `yes` in `rapid_progression` and the `endpoint_observed_*` and `endpoint_kidney_failure_reached` columns. |
+| `endpoints.evaluated_patients` | Per endpoint, patients with `nNumeric > 0` whose cell evaluated it (`endpoints.evaluated`). |
+| `aki` | Records with a non-empty `aki` badge, and counts per badge label. |
+| `exclusions` | Each point's exclusion reasons (`pointExclusionReasons`): points per reason, and patients with at least one point per reason. A point with two reasons counts under both. |
+| `projection_to_ckd_g5` | Records with a numeric projected age at G5, and counts of `endpoint_prediction_reason` values. |
+
+**Small cells.** `MIN_CELL` is 5 (`packages/mcp/src/cohort.ts`). Every count of
+patients or points from 1 to 4 is reported as the string `"<5"`; 0 and counts
+of 5 or more are exact. `measurements_raw` and `points_fitted` are `"<5"`
+when 1 to 4 patients have the series. Quartiles need at least 5 slopes:
+otherwise `median`, `q1` and `q3` are `null` and `suppressed` is `true`. The
+unstable share is `null` when its count is suppressed. `load_dataset` and
+`list_series` apply the same rule to patient counts and report a series' row
+count, and the dataset's `lab_rows`, as `"<5"` when fewer than 5 patients carry
+them. There is no secondary suppression: a suppressed count can sometimes be
+recovered by subtraction from exact totals.
+
+> **Open decision OD-31.** The small-cell threshold of 5, the choice of which
+> fields it covers, and the absence of secondary suppression are the
+> implementer's defaults, not an owner decision. Behaviour stays as described
+> until the owner decides.
+
+Worked example: slopes −6, −5, −4, −3, −2 and −1 per year give the median at
+position 2.5, (−4 + −3) / 2 = −3.5, and the first quartile at position 1.25,
+−5 + 0.25 · (−4 − (−5)) = −4.75. With four slopes all three are `null`.
+
+Tests: [server tests](../packages/mcp/test/server.test.ts) compare the
+aggregates with the package called directly on the fixture workbook, pin the
+quantile rule, check suppression on a one-patient file and check the
+exact-birth-date path of the G5 projection.
 
 ## Fit code not reachable from the interface
 
