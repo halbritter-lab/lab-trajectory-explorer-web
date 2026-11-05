@@ -17,17 +17,17 @@ test('public API names are pinned', () => {
     'REQUIRED_COLUMNS', 'SERUM_CREATININE_UNITS', 'STANDARD_PRESETS', 'acuteReviewConfig',
     'akiExclusionWindows', 'appendComputedEgfr', 'applyExclusionWindows', 'balanceSeriesPoints',
     'buildCohortRows', 'ckdEpi2021', 'ckdProgressionConfig', 'clinicalEventsByPatient',
-    'cohortCellFlags', 'cohortExportRecords', 'cohortSeriesSpec', 'comparePatientIds',
+    'cohortCellFlags', 'cohortExportRecords', 'cohortSeriesSpec', 'cohortSheetRecord', 'comparePatientIds',
     'computeAnalysisResult', 'computeCkdEndpoints', 'computedEgfrName', 'creatinineSourceOptions',
-    'datesToYears', 'defaultAnalysisSettings', 'defaultCreatinineSource', 'ekfc2021',
-    'episodesForSeries', 'exclusionReasonsAt', 'findKdigoAkiEpisodes', 'fitAkiAware',
+    'datesToYears', 'defaultAnalysisSettings', 'defaultCreatinineSource', 'demographicWarningsByPatient', 'ekfc2021',
+    'episodesForSeries', 'exactBirthDateByPatient', 'exclusionReasonsAt', 'findKdigoAkiEpisodes', 'fitAkiAware',
     'fitGlobal', 'fitOls', 'fitPresetById', 'fitPresetCatalog',
     'fitTheilSen', 'fixedLengthWindow', 'generalExplorationConfig', 'isCreatinineName',
     'isEgfrUnit', 'isKdigoCreatinineSeries', 'isSerumCreatinineSeries', 'isSerumCreatinineSource',
     'isUnrecognisedSex', 'isUnstableSlope', 'isUrineName', 'kdigoStage',
     'loadDatasetFromWorkbook', 'loadLabRows', 'loadLabRowsWithDiagnostics', 'mdrd4',
     'mentionsEgfr', 'normaliseSex', 'normaliseUnit', 'normalizeClinicalEvents',
-    'parseAnalysisSettings', 'patientIdKey', 'projectLinearThreshold', 'projectedCrossingTime',
+    'parseAnalysisSettings', 'patientBirthAnchor', 'patientIdKey', 'projectLinearThreshold', 'projectedCrossingTime',
     'readWorkbook', 'readWorkbookSheets', 'summarizeByBezeichnung', 'theilSenConfig',
     'validateClinicalEvents', 'windowContains',
   ])
@@ -37,6 +37,8 @@ test('the bundle reaches no browser, React, webR or mixed-model code', () => {
   const code = readFileSync(new URL('index.js', dist), 'utf8')
   const bare = [...code.matchAll(/^(?:import|export)[^'"]*from\s*['"]([^'"]+)['"]/gm)].map((m) => m[1])
   assert.deepEqual([...new Set(bare)], ['xlsx'])
+  // tsconfig keeps vite/client types for the app's demo loaders; none may reach the bundle.
+  assert.doesNotMatch(code, /import\.meta/)
   const { sources } = JSON.parse(readFileSync(new URL('index.js.map', dist), 'utf8'))
   const outside = sources.filter((s) => !/^\.\.\/\.\.\/\.\.\/src\/(core|io)\//.test(s) && s !== '../src/index.ts')
   assert.deepEqual(outside, [])

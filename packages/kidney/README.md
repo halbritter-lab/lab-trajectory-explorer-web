@@ -35,7 +35,9 @@ pnpm test:kidney    # Node tests and a NodeNext type check against dist
 The build bundles the core into one ESM file. SheetJS (`xlsx`) stays an
 external runtime dependency. Declarations are emitted by `tsc` with explicit
 `.js` extensions, so they resolve under `moduleResolution` `NodeNext` and
-`Bundler`. Node 20 or later is required.
+`Bundler`. Node 20 or later is required. The package is ESM only. Its
+`exports` map has a `default` condition, so `require()` also works where Node
+can load ES modules synchronously (Node 20.19 and 22.12 or later).
 
 ## Use from another local project
 
@@ -136,12 +138,23 @@ const records = cohortExportRecords(cohort) // one flat record per patient and s
 | AKI and exclusion windows | `findKdigoAkiEpisodes`, `kdigoStage`, `episodesForSeries`, `akiExclusionWindows`, `fitAkiAware`, `applyExclusionWindows`, `exclusionReasonsAt`, `fixedLengthWindow`, `windowContains`, `KDIGO_ABSOLUTE_RISE_MGDL`, `KDIGO_RELATIVE_RISE_RATIO`, `DEFAULT_AKI_EXCLUSION_DAYS` |
 | Slopes | `fitGlobal` (OLS), `fitTheilSen`, `fitOls`, `datesToYears`, `balanceSeriesPoints`, `summarizeByBezeichnung`, `isUnstableSlope` |
 | Endpoints and projection | `computeCkdEndpoints`, `projectLinearThreshold`, `projectedCrossingTime`, `CKD_G4_EGFR_THRESHOLD`, `CKD_G5_EGFR_THRESHOLD`, `DEFAULT_CONFIRMATION_DAYS`, `DEFAULT_RAPID_EGFR_DECLINE` |
-| Fit presets | `fitPresetCatalog`, `fitPresetById`, `generalExplorationConfig`, `theilSenConfig`, `ckdProgressionConfig`, `acuteReviewConfig`, `STANDARD_PRESETS`, `NEPHROLOGY_PRESETS` |
-| Cohort pipeline | `computeAnalysisResult`, `defaultAnalysisSettings`, `parseAnalysisSettings`, `cohortSeriesSpec`, `clinicalEventsByPatient`, `buildCohortRows`, `cohortCellFlags`, `cohortExportRecords`, `EXPORT_DISCLAIMER_ROWS` |
+| Fit presets | `generalExplorationConfig`, `theilSenConfig`, `ckdProgressionConfig`, `acuteReviewConfig`, `STANDARD_PRESETS`, `NEPHROLOGY_PRESETS` |
+| Cohort pipeline (experimental) | `computeAnalysisResult`, `defaultAnalysisSettings`, `parseAnalysisSettings`, `fitPresetCatalog`, `fitPresetById`, `cohortSeriesSpec`, `clinicalEventsByPatient`, `patientBirthAnchor`, `exactBirthDateByPatient`, `demographicWarningsByPatient`, `buildCohortRows`, `cohortCellFlags`, `cohortExportRecords`, `cohortSheetRecord`, `EXPORT_DISCLAIMER_ROWS` |
 | Shared | `patientIdKey`, `comparePatientIds` and the types `LabRow`, `RawRow`, `PatientId`, `OlsFit`, `SeriesPoint`, `FitConfig`, `CohortRow`, `CohortCell`, `CkdEndpoints`, `AkiEpisode` and related |
 
 `test/built-package.node.mjs` pins this list. A change to it is a change to
 the public API.
+
+### Experimental: the cohort pipeline
+
+The cohort-pipeline exports, with their types (`AnalysisSettings`,
+`AnalysisResult`, `CohortSeriesSpec`, `CohortRow`, `CohortCell`,
+`CohortExportRecord` and related), mirror the web app's internal pipeline:
+settings objects, cohort cells that carry chart overlays, and export records
+with the app's column names (`Bezeichnung`, `Einheit`). They are marked
+`@experimental` in `src/index.ts`. They will change with the domain decoupling
+in issue #23, without a deprecation period. The equation, AKI, slope, endpoint
+and projection functions above them are the stable part.
 
 ## What is not included
 
