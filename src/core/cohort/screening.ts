@@ -9,7 +9,7 @@ import { moduleCellFlags, moduleEndpoints, moduleExportValues, type CellEndpoint
 import { collectSeriesContributions, seriesContextFor, seriesRowsFor } from './seriesContributions'
 import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ClinicalEvent } from '../events/events'
-import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows'
+import { applyExclusionWindows, exclusionReasonsAt, type ExclusionWindow } from '../exclusions/windows'
 import type { FitConfig } from '../analysis/fitConfig'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
@@ -50,6 +50,8 @@ export interface CohortCell {
   /** Points the fit consumed, after exclusions and balancing. Falls back to
    * nNumeric only when the fit path reported none. */
   nFitted: number
+  /** Distinct calendar dates among the fitted points (see SeriesSummary). */
+  nFittedDates: number
   fittedSpanDays: number
   spanDays: number
   slope: number // value-units per YEAR (x-axis is fractional years)
@@ -151,7 +153,7 @@ export function buildCohortRows(
       const pointExclusionReasons = points.map((point, i) =>
         [...(!isExactMeasurement(seriesRows[i]) ? [CENSORED_VALUE_REASON] : []), ...(excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])])
       const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
-      const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel))
+      const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel, windows.exclusions))
       const exactPoints = points.filter((_, i) => isExactMeasurement(seriesRows[i]))
       const fitLines = exactPoints.length < 2
         ? []
@@ -180,6 +182,7 @@ export function buildCohortRows(
         fitModel,
         nNumeric: match?.nNumeric ?? 0,
         nFitted: match?.nFitted ?? match?.nNumeric ?? 0,
+        nFittedDates: match?.nFittedDates ?? 0,
         fittedSpanDays: match?.fittedSpanDays ?? 0,
         spanDays: match?.spanDays ?? 0,
         slope,
@@ -222,28 +225,36 @@ function ageAtDate(date: Date, anchors: LabRow[]): number | null {
   return anchor.patientAgeAtLab! + (date.getTime() - anchor.labDatum!.getTime()) / MS_PER_YEAR
 }
 
-/** Endpoint inputs of one cell: exact finite dated measurements before KRT and
- * outside complete acute dialysis intervals, independent of display-fit
- * exclusions and aggregation. The projection fits those same rows. */
-function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel']): EndpointContext {
+/** Endpoint inputs of one cell: exact finite dated measurements before KRT
+ * and outside complete acute dialysis intervals, independent of display-fit
+ * censoring options and aggregation. The decline baseline and the projection
+ * fit additionally leave out the column's fit exclusion windows (AKI windows
+ * when the column excludes them); observed G4/G5, total change and decline
+ * events do not (decided 2026-11-05). */
+function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel'], exclusions: readonly ExclusionWindow[]): EndpointContext {
   const events = spec.clinicalEventsByPatient?.[patientIdKey(patientId)] ?? spec.clinicalEvents ?? []
-  const endpointRows = filterEndpointPointsForEvents(
+  const eligible = filterEndpointPointsForEvents(
     seriesRows.filter(row => isExactMeasurement(row) && Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
       .map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: null, row })), events,
-  ).map(point => point.row)
+  )
+  const endpointRows = eligible.map(point => point.row)
+  const fitRows = applyExclusionWindows(eligible, exclusions).kept.map(point => point.row)
   const birthDate = spec.exactBirthDateByPatient?.[patientIdKey(patientId)]
   const exactBirthDate = birthDate && Number.isFinite(birthDate.getTime()) ? birthDate : null
-  const points = (withAges: boolean): EndpointPoint[] => {
+  const pointsOf = (rows: LabRow[], withAges: boolean): EndpointPoint[] => {
     if (withAges && exactBirthDate) {
       // Exact age in 365.25-day years; a measurement before the birth date has none.
-      return endpointRows.map(row => {
+      return rows.map(row => {
         const elapsed = row.labDatum!.getTime() - exactBirthDate.getTime()
         return { date: row.labDatum!, value: row.wertNum!, ageYears: elapsed >= 0 ? elapsed / MS_PER_YEAR : null }
       })
     }
+    // Anchors come from all eligible rows, so leaving out AKI rows loses no age.
     const ageAnchors = withAges ? ageAnchorsFor(endpointRows) : []
-    return endpointRows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: withAges ? ageAtDate(row.labDatum!, ageAnchors) : null }))
+    return rows.map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: withAges ? ageAtDate(row.labDatum!, ageAnchors) : null }))
   }
+  const points = (withAges: boolean) => pointsOf(endpointRows, withAges)
+  const fitPoints = (withAges: boolean) => pointsOf(fitRows, withAges)
   return {
     patientId,
     seriesKey: { bezeichnung: spec.bezeichnung, einheit: spec.einheit ?? null },
@@ -253,10 +264,11 @@ function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRow
     hasSeriesMeasurements: seriesRows.length > 0,
     scalarFitModel,
     points,
+    fitPoints,
     ageBasis: exactBirthDate ? 'birth_date' : 'whole_years',
     fit: () => {
       if (scalarFitModel === 'none') return { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
-      const all = points(false)
+      const all = fitPoints(false)
       return scalarFitModel === 'theil-sen' ? fitTheilSen(all) : fitGlobal(all)
     },
   }
@@ -282,7 +294,7 @@ export interface CohortExportRecord {
   ci_low: number | ''
   ci_high: number | ''
   reason: string
-  /** 'yes' when the slope rests on fewer than three fitted measurements or a
+  /** 'yes' when the slope rests on fewer than three fitted measurement dates or a
    * fitted span under a year. Broader than `reason`: a two-point fit is
    * reported by the reference implementation as a clean fit with r2 = 1, so
    * `reason` alone leaves it unflagged. */
@@ -315,7 +327,8 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
   { note: 'All derived values are algorithmic estimates requiring independent clinical verification.' },
   { note: 'Bounds (<x, >x), including bounds on derived eGFR, remain visible and count as raw numeric rows but are excluded from fits, endpoints, AKI detection and mixed models. Exact rows on the same date remain eligible.' },
   { note: 'Observed G4 <30 and G5 <15 use dated exact numeric eGFR measurements before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (boundary dates inclusive). KRT is reported separately as kidney failure reached, even without lab-confirmed G5. Confirmation interval is recorded per result.' },
-  { note: 'Individual endpoint prediction fits the same endpoint-eligible rows independently of display-fit AKI exclusions and aggregation. Theil-Sen requires three points, uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
+  { note: 'The 40 % and 57 % decline baseline and the individual endpoint prediction also leave out the AKI exclusion windows when the column excludes them from its fit; observed G4/G5, total change and decline events keep those rows.' },
+  { note: 'Individual endpoint prediction fits the same endpoint-eligible rows independently of display-fit censoring options and aggregation. It needs at least three distinct measurement dates (five for Theil-Sen) over at least 365 days. Theil-Sen uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
@@ -364,7 +377,7 @@ export function cohortExportRecords(
         ci_low: numOrBlank(c.ciLow),
         ci_high: numOrBlank(c.ciHigh),
         reason: c.reason ?? '',
-        unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
+        unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, nFittedDates: c.nFittedDates, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
         demographics_conflict: conflictPatientKeys.has(patientIdKey(r.patientId)) ? 'yes' : '',
         ...moduleExportValues({ flags: cohortCellFlags(c, r.patientId, settings), endpoints: c.endpoints, fitModel: c.fitModel }),
         rolling_window_days: c.rolling?.windowDays ?? '',

@@ -61,6 +61,15 @@ export function slopeQualityLabel(input: SlopeQualityInput): QualityLabel | null
       caveat: false,
     }
   }
+  if (input.nFittedDates < 3 && nFitted >= 3) {
+    return {
+      label: '< 3 dates',
+      title:
+        `A slope was fitted from ${nFitted} measurements on only ${input.nFittedDates} dates. ` +
+        'Repeated measurements on one day add no information about the trend over time — interpret with caution.',
+      caveat: true,
+    }
+  }
   if (nFitted < 3) {
     return {
       label: 'n < 3',
@@ -141,8 +150,16 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
       }
     case 'insufficient_points':
       return {
-        label: 'G5 n < 3',
-        title: 'Fewer than three usable measurements, so no projection was made.',
+        label: 'G5 < 3 dates',
+        title: 'Usable measurements on fewer than three distinct dates, so no projection was made.',
+        caveat,
+      }
+    case 'theil_sen_insufficient_points':
+      return {
+        label: 'G5 < 5 dates',
+        title:
+          'Theil–Sen projections need usable measurements on at least five distinct dates. With three or four, ' +
+          'its 95 % slope interval is the full range of pairwise slopes and covers the true slope only about 67 % or 92 % of the time, so no projection was made.',
         caveat,
       }
     case 'span_too_short':

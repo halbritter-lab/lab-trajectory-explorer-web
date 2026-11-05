@@ -7,6 +7,7 @@ import type { FitModel, TimeBalancing } from '../fitPipeline/types'
 import { applyExclusionWindows, type ExclusionWindow } from '../exclusions/windows'
 import { balanceSeriesPoints } from './timeBalancing'
 import { isExactMeasurement } from '../measurements/censored'
+import { distinctDateCount } from './time'
 
 /** How a series is segmented before fitting. 'chronic-ckd' fits after an
  * initial run-in (`cutoffDays`); 'aki-aware' is the global fit with its
@@ -41,6 +42,10 @@ export interface SeriesSummary {
    * measurements before any of that — quarterly-median balancing can collapse
    * eight raw values into two fitted ones. */
   nFitted: number
+  /** Distinct calendar dates among the points the fit consumed. The
+   * reliability rule counts these rather than nFitted, so same-day repeats
+   * cannot make a series look better supported than it is. */
+  nFittedDates: number
   /** Whole days between the first and last points consumed by the scalar fit. */
   fittedSpanDays: number
   nSegments?: number
@@ -137,12 +142,12 @@ export function summarizeByBezeichnung(
 
     let summary: SeriesSummary
     if (nNumeric === 0) {
-      summary = { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'no_numeric_values' }
+      summary = { ...base, ...emptyFit, nFitted: 0, nFittedDates: 0, fittedSpanDays: 0, reason: 'no_numeric_values' }
     } else if (fitModel === 'none') {
-      summary = { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'n_below_threshold' }
+      summary = { ...base, ...emptyFit, nFitted: 0, nFittedDates: 0, fittedSpanDays: 0, reason: 'n_below_threshold' }
     } else if (allPoints.length < 2) {
       fitPoints = applyExclusionWindows(fitPoints, fitExclusions).kept
-      summary = { ...base, ...emptyFit, nFitted: fitPoints.length, fittedSpanDays: 0, reason: 'n_below_threshold' }
+      summary = { ...base, ...emptyFit, nFitted: fitPoints.length, nFittedDates: distinctDateCount(fitPoints), fittedSpanDays: 0, reason: 'n_below_threshold' }
     } else if (mode === 'global-robust') {
       fitPoints = applyExclusionWindows(fitPoints, fitExclusions).kept
       fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
@@ -151,6 +156,7 @@ export function summarizeByBezeichnung(
       summary = {
         ...base,
         nFitted: fitPoints.length,
+        nFittedDates: distinctDateCount(fitPoints),
         fittedSpanDays,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
@@ -166,6 +172,7 @@ export function summarizeByBezeichnung(
       summary = {
         ...base,
         nFitted: points.length,
+        nFittedDates: distinctDateCount(points),
         fittedSpanDays,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,
@@ -186,7 +193,7 @@ export function summarizeByBezeichnung(
       const fits = ranges
         .map(([a, b]) => {
           const seg = fitPoints.slice(a, b)
-          return { range: [a, b] as [number, number], fit: fitGlobal(seg), n: seg.length, fittedSpanDays: spanDaysForPoints(seg) }
+          return { range: [a, b] as [number, number], fit: fitGlobal(seg), n: seg.length, nDates: distinctDateCount(seg), fittedSpanDays: spanDaysForPoints(seg) }
         })
       const fittable = fits.filter((f) => f.fit.reason === null)
       const best = fittable.sort((a, b) => Math.abs(b.fit.slope) - Math.abs(a.fit.slope))[0]
@@ -194,12 +201,13 @@ export function summarizeByBezeichnung(
         ? {
             ...base,
             nFitted: best.n,
+            nFittedDates: best.nDates,
             fittedSpanDays: best.fittedSpanDays,
             slope: best.fit.slope, intercept: best.fit.intercept, r2: best.fit.r2, ciLow: best.fit.ciLow, ciHigh: best.fit.ciHigh,
             reason: spanDays < 365 ? 'span_too_short' : null,
             nSegments: ranges.length,
           }
-        : { ...base, ...emptyFit, nFitted: 0, fittedSpanDays: 0, reason: 'n_below_threshold', nSegments: ranges.length }
+        : { ...base, ...emptyFit, nFitted: 0, nFittedDates: 0, fittedSpanDays: 0, reason: 'n_below_threshold', nSegments: ranges.length }
     } else {
       fitPoints = applyExclusionWindows(fitPoints, fitExclusions).kept
       fitPoints = balanceSeriesPoints(fitPoints, timeBalancing)
@@ -208,6 +216,7 @@ export function summarizeByBezeichnung(
       summary = {
         ...base,
         nFitted: fitPoints.length,
+        nFittedDates: distinctDateCount(fitPoints),
         fittedSpanDays,
         slope: fit.slope, intercept: fit.intercept, r2: fit.r2, ciLow: fit.ciLow, ciHigh: fit.ciHigh,
         reason: fit.reason === 'n_below_threshold' ? 'n_below_threshold' : spanDays < 365 ? 'span_too_short' : null,

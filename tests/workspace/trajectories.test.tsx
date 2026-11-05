@@ -766,7 +766,7 @@ describe('real-data trajectories workspace', () => {
     closeDisplay()
     const badge = document.querySelector('.wt-badge-endpoint')!
     expect(badge).toHaveTextContent(/^-50%, G5 @ ~63y$/)
-    expect(badge.getAttribute('title')).toBe('Total eGFR change -50.0% from first to latest eligible measurement (not per year). Projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded).')
+    expect(badge.getAttribute('title')).toBe('Total eGFR change -50.0% from first to latest eligible measurement (not per year). Projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds, AKI exclusion windows and kidney replacement therapy/acute dialysis periods excluded).')
   })
 
   it('publishes general and parameter settings for cohort models and withdraws them on unmount', () => {

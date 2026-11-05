@@ -31,7 +31,7 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
   for (const [threshold, event] of [[40, endpoints.observedDecline40], [57, endpoints.observedDecline57]] as const) {
     if (!event.met) continue
     labels.push(`${threshold}% decline`)
-    details.push(`confirmed ${threshold}% eGFR decline: baseline ${endpoints.declineBaselineValue}; event ${event.firstDate?.toISOString().slice(0, 10)} (${event.firstValue}), confirmed ${event.confirmedDate?.toISOString().slice(0, 10)} (${event.confirmedValue}); minimum ${endpoints.confirmationDays} days, maximum 12 calendar months`)
+    details.push(`confirmed ${threshold}% eGFR decline: baseline ${endpoints.declineBaselineValue}${endpoints.inputExcludesAkiWindows ? ' (AKI exclusion windows left out)' : ''}; event ${event.firstDate?.toISOString().slice(0, 10)} (${event.firstValue}), confirmed ${event.confirmedDate?.toISOString().slice(0, 10)} (${event.confirmedValue}); minimum ${endpoints.confirmationDays} days, maximum 12 calendar months`)
     if (event.recoveryDate) details.push(`${threshold}% decline recovery ${event.recoveryDate.toISOString().slice(0, 10)} (${event.recoveryValue}); confirmed event retained`)
   }
   // observedCkdG5.met is false both without an event and with the observed
@@ -44,9 +44,9 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
       const exact = endpoints.projectedAgeToCkdG5.ageBasis === 'birth_date'
       const shown = exact ? age.toFixed(1) : `~${Math.round(age)}`
       labels.push(`G5 @ ${shown}y`)
-      details.push(`projected age to CKD G5 ${exact ? `${shown} years` : `about ${Math.round(age)} years (no birth date: counted from the age in completed years, so the true value can be up to one year higher)`}; fitted curve using endpoint-eligible dated exact numeric measurements (bounds and kidney replacement therapy/acute dialysis periods excluded)`)
+      details.push(`projected age to CKD G5 ${exact ? `${shown} years` : `about ${Math.round(age)} years (no birth date: counted from the age in completed years, so the true value can be up to one year higher)`}; fitted curve using endpoint-eligible dated exact numeric measurements (bounds${endpoints.inputExcludesAkiWindows ? ', AKI exclusion windows' : ''} and kidney replacement therapy/acute dialysis periods excluded)`)
     } else if (measurementCount > 0 || endpoints.projectedAgeToCkdG5.reason !== 'insufficient_points') {
-      // A cell without any measurement already says so; "G5 n < 3" would only add noise.
+      // A cell without any measurement already says so; "G5 < 3 dates" would only add noise.
       const unavailable = projectedG5Label(endpoints)
       if (unavailable) { labels.push(unavailable.label); details.push(unavailable.title) }
     }

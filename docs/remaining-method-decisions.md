@@ -300,6 +300,53 @@ Taken by the project owner on the points the walkthrough had left open.
   ([checklist](research-acceptance.md)), then the release PR. Publication still
   needs the owner's explicit acceptance.
 
+## Decisions of 2026-11-05: endpoint and projection input (issue #34)
+
+Requested by the project owner after the clinical-research review of
+2026-11-03 (issue #34, section "Endpoint and projection input"). Merging the
+implementing pull request is the owner's sign-off. Details, boundaries and
+recomputed examples are in
+[method algorithms](method-algorithms.md#observed-endpoints-and-individual-prediction).
+
+- **Decline baseline and G5 projection leave out the column's AKI windows.**
+  When a column's fit excludes AKI windows (fit configuration switch on, as in
+  CKD progression, or slope mode `aki-aware`), the rows inside those windows
+  are left out of the decline baseline and of the G5 projection fit, exactly
+  the two inputs issue #34 named. Observed G4/G5, the total percent change and
+  the rows that start or confirm a 40 %/57 % decline keep every eligible row
+  (review follow-up of 2026-11-05: the first version removed the windows from
+  all endpoint input, and in advanced CKD, where the 0.3 mg/dl criterion fires
+  on ordinary variation, this lost a sustained observed G5 whose rows lay
+  103 of 104 inside AKI windows). Without AKI exclusion nothing changes.
+  `endpoint_input_policy` then ends in "; AKI exclusion windows excluded from
+  decline baseline and projection". Example: stable eGFR 34-36 for three years
+  followed by eight AKI values of 16-26 projected `G5 @ 65.0y` (bounds
+  [-7.43, -2.46]); it is now withheld as `non_declining_fit`, while the total
+  change stays -53 %. Values 20 and 25 during an AKI followed by 55, 58, 56,
+  33, 32 had a decline baseline of 33.3 and no 40 % decline; the baseline is
+  now 56.5 and the 40 % decline is confirmed, while the total change stays a
+  rise of 60 % from 20.
+- **Theil-Sen projection needs five distinct dates.** The Theil-Sen estimator
+  and its 95 % bounds are unchanged. With up to five observations those
+  bounds are the full range of pairwise slopes, whose actual coverage is
+  1 - 2/n! (67 % for three, 92 % for four, 98 % for five). The G5 projection
+  under Theil-Sen is therefore withheld below five distinct dates, with the
+  new reason `theil_sen_insufficient_points` (badge `G5 < 5 dates`). Example:
+  40, 39, 30 at years 0, 1, 2 gave bounds [-9.0, -1.0] and `G5 @ 65.8y`.
+- **Minimum counts count distinct dates.** The slope reliability rule
+  (`unstable_slope`, quality notes) and the projection's three-measurement
+  minimum count distinct calendar dates instead of rows. `n` and `n_fitted`
+  keep their meaning. Example: 40, 40.2 and 39.8 on one day and 30 a year
+  later were a reliable slope with `G5 @ 62.5y`; the slope is now unstable
+  (note "< 3 dates, uncertain slope") and the projection is withheld as
+  `insufficient_points`.
+
+Not changed: the display fit, `nNumeric`/`nFitted`, the Theil-Sen estimator,
+and the golden fixtures (none covers endpoints or the reliability rule, so no
+stored value moved). The methodology page still describes the earlier rules
+in three places; its wording is the maintainer's call and is listed in the
+pull request.
+
 ## Approved requirements
 
 ### Observed events and recovery

@@ -267,7 +267,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {shownOverlays.map(module => <p key={module.id} className="wt-muted wt-plot-key">{markerCount(module.id) > 0
       ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={module.presentation.color} /></svg>{module.presentation.markerLegend}{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${module.presentation.color}26`, borderColor: `${module.presentation.color}40` }} />{module.presentation.bandLegend}{cohortRows.length > 1 ? ', shown for the highlighted patient' : ''}.</>
       : module.presentation.emptyLegend}</p>)}
-    {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurements or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
+    {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurement dates or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
     {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Bounds marked &lt; or &gt; remain visible at their numeric limits. They are excluded from fits and endpoints.</p>}
     {!display.points && !display.connect && <p>Measurement points and connecting lines are hidden.</p>}
