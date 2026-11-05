@@ -89,9 +89,12 @@ describe('webR worker fit extraction validation', () => {
     const withoutExtras = normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms,fixedEffectCovariance:null})
     expect(withoutExtras.fixedEffectTerms).toEqual(fixedEffectTerms)
     expect('fixedEffectCovariance' in withoutExtras).toBe(false)
-    expect(() => normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms,fixedEffectCovariance:{...fixedEffectCovariance,standardErrors:[2.5]}})).toThrow(/fixedEffectCovariance/)
-    expect(() => normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms,fixedEffectCovariance:{...fixedEffectCovariance,terms:['time_since_baseline','(Intercept)']}})).toThrow(/fixedEffectCovariance/)
-    expect(() => normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms,fixedEffectCovariance:{...fixedEffectCovariance,matrix:[[1]]}})).toThrow(/fixedEffectCovariance/)
+    for (const malformed of [{...fixedEffectCovariance,standardErrors:[2.5]}, {...fixedEffectCovariance,terms:['time_since_baseline','(Intercept)']}, {...fixedEffectCovariance,matrix:[[1]]}]) {
+      const dropped = normalizeExtractedFitResult(request,metadata,{...validExtraction,fixedEffectTerms,fixedEffectCovariance:malformed})
+      expect(dropped.fixedEffectTerms).toEqual(fixedEffectTerms)
+      expect('fixedEffectCovariance' in dropped).toBe(false)
+      expect(dropped.warnings).toEqual([expect.stringMatching(/covariance matrix could not be read/)])
+    }
   })
   it('accepts nullable numeric fields and rejects malformed extracted payloads', () => {
     expect(normalizeExtractedFitResult(request, metadata, validExtraction)).toMatchObject({

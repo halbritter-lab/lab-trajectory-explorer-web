@@ -87,6 +87,7 @@ export function CohortModelTable({
   const projectionSettings = useAppStore((s) => s.projectionSettings)
   const setProjectionSettings = useAppStore((s) => s.setProjectionSettings)
   const [dirtyEditors, setDirtyEditors] = useState<Set<string>>(new Set())
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const entityRows = useMemo<EntityRow[]>(
     () =>
@@ -233,7 +234,12 @@ export function CohortModelTable({
     if (hasDirtyEditor || initializing || running) return
     const current = useAppStore.getState().cohortModelResults
     if (exportable.some((model) => current?.[model.key]?.result !== model.result || !mixedModelIdentityEquals(current?.[model.key]?.identity ?? null, model.identity))) return
-    downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable)), `cohort-models-${fileStamp()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    try {
+      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable)), `cohort-models-${fileStamp()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      setExportError(null)
+    } catch (error) {
+      setExportError(`Model export failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
   const adjusted = mixedModelFactors(config).length > 0
 
@@ -245,6 +251,7 @@ export function CohortModelTable({
         <button type="button" disabled={exportable.length === 0 || running || hasDirtyEditor || initializing} onClick={exportModels}>Export models (xlsx)</button>
         {hasDirtyEditor && <p role="status">Apply or cancel projection changes before exporting models.</p>}
         {exportable.filter((model) => model.projectionError).map((model) => <p role="alert" key={model.key}>{model.entity}: {model.projectionError} Refit the model before exporting.</p>)}
+        {exportError && <p role="alert">{exportError}</p>}
         <button
           type="button"
           onClick={() => void fitSelected()}

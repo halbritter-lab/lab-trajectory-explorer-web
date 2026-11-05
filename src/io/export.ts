@@ -50,11 +50,12 @@ function applyColumnWidths(ws: XLSX.WorkSheet, rows: readonly object[]): void {
   const headers = rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : []
   if (headers.length === 0) return
   ws['!cols'] = headers.map((header) => {
-    const values = rows.map((r) => (r as Record<string, unknown>)[header])
-    const maxLen = Math.max(
-      header.length,
-      ...values.map((v) => v == null ? 0 : String(v).length),
-    )
+    // A loop, not Math.max(...values): spreading ~100k values overflows the call stack.
+    let maxLen = header.length
+    for (const r of rows) {
+      const v = (r as Record<string, unknown>)[header]
+      if (v != null) maxLen = Math.max(maxLen, String(v).length)
+    }
     const isDateColumn = /(^|_)(datum|date)(_|$)/i.test(header) || /datum|date/i.test(header)
     return { wch: Math.min(Math.max(maxLen + 2, isDateColumn ? 12 : 8), 48) }
   })

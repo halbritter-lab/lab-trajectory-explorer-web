@@ -58,6 +58,8 @@ export function normalizeExtractedFitResult(
   }
   const terms = extracted.fixedEffectTerms === undefined ? undefined : normalizeFixedEffectTerms(extracted.fixedEffectTerms)
   const covariance = normalizeFixedEffectCovariance(extracted.fixedEffectCovariance, terms?.map(term => term.term))
+  // vcov is export-only: a malformed one is dropped instead of failing the fit.
+  if (covariance === null) warnings.push('The fixed-effect covariance matrix could not be read; standard errors and vcov are not exported for this fit.')
   const fixedEffectCovariance = covariance?.covariance
   const fixedEffectTerms = covariance ? terms?.map((term, index) => ({...term, standardError: covariance.standardErrors[index]})) : terms
 
@@ -107,14 +109,15 @@ function normalizeFixedEffectTerms(value: unknown): NonNullable<MixedModelSucces
   })
 }
 
-/** `vcov(fit)` and `sqrt(diag(vcov(fit)))` in fixed-effect term order; non-finite entries arrive as null. */
-function normalizeFixedEffectCovariance(value: unknown, terms: readonly string[] | undefined): { covariance: NonNullable<MixedModelSuccess['fixedEffectCovariance']>; standardErrors: Array<number | null> } | undefined {
+/** `vcov(fit)` and `sqrt(diag(vcov(fit)))` in fixed-effect term order; non-finite entries arrive as null.
+ * Undefined when absent, null when malformed. */
+function normalizeFixedEffectCovariance(value: unknown, terms: readonly string[] | undefined): { covariance: NonNullable<MixedModelSuccess['fixedEffectCovariance']>; standardErrors: Array<number | null> } | null | undefined {
   if (value === undefined || value === null) return undefined
   const nullableNumbers = (row: unknown) => Array.isArray(row) && row.length === terms?.length && row.every(cell => cell === null || (typeof cell === 'number' && Number.isFinite(cell)))
   if (!isRecord(value) || !Array.isArray(value.terms) || !Array.isArray(value.matrix) || !terms ||
       value.terms.length !== terms.length || value.terms.some((term, index) => term !== terms[index]) ||
       value.matrix.length !== terms.length || !value.matrix.every(nullableNumbers) || !nullableNumbers(value.standardErrors)) {
-    throw new ResultExtractionError('webR fit result field fixedEffectCovariance must be a square matrix with standard errors in fixed-effect term order.')
+    return null
   }
   return {covariance:{terms:[...terms],matrix:value.matrix.map(row => [...(row as Array<number | null>)])},standardErrors:[...(value.standardErrors as Array<number | null>)]}
 }
