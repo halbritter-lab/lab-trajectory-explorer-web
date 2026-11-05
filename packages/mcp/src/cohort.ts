@@ -7,6 +7,7 @@
 import {
   buildCohortRows,
   clinicalEventsByPatient,
+  comparePatientIds,
   cohortExportRecords,
   cohortSeriesSpec,
   computeAnalysisResult,
@@ -16,6 +17,7 @@ import {
   defaultColumnModuleSettings,
   defaultCreatinineSource,
   demographicWarningsByPatient,
+  EGFR_FORMULA_LABELS,
   exactBirthDateByPatient,
   EXPORT_DISCLAIMER_ROWS,
   fitPresetById,
@@ -35,7 +37,15 @@ export const RESEARCH_USE = String(EXPORT_DISCLAIMER_ROWS.find((row) => String(r
 
 export const METHOD_REFERENCE_URL = 'https://github.com/halbritter-lab/lab-trajectory-explorer-web/blob/main/docs/method-algorithms.md'
 
-export const EGFR_FORMULAS = ['ckd-epi-2021', 'mdrd-4', 'ekfc-2021'] as const
+/** The eGFR equations the package offers, in its label order. */
+export const EGFR_FORMULAS = Object.keys(EGFR_FORMULA_LABELS) as [FormulaName, ...FormulaName[]]
+
+/** Smallest cell size reported: patient and point counts from 1 to
+ * MIN_CELL − 1 become SUPPRESSED, and slope quartiles need MIN_CELL slopes.
+ * Pending owner decision (see docs/method-algorithms.md). */
+export const MIN_CELL = 5
+export const SUPPRESSED = `<${MIN_CELL}`
+export const cell = (n: number): number | string => (n === 0 || n >= MIN_CELL ? n : SUPPRESSED)
 
 export interface CohortOptions {
   /** Series name (Bezeichnung). Defaults to the computed eGFR when a formula is set. */
@@ -90,7 +100,7 @@ export function runCohort(dataset: LoadedDataset, options: CohortOptions) {
     exactBirthDateByPatient: exactBirthDates(dataset),
     fitInputs: analysis.fitInputs,
   })
-  const patientIds = [...new Set(analysis.rows.map((r) => r.patientId))]
+  const patientIds = [...new Set(analysis.rows.map((r) => r.patientId))].sort(comparePatientIds)
   const cohort = buildCohortRows(analysis.rows, patientIds, [spec])
   const columnSettings = defaultColumnModuleSettings()
   const conflictKeys = new Set(demographicWarningsByPatient(analysis.messages).keys())
@@ -124,44 +134,51 @@ export const countBy = (values: readonly string[]) => {
   for (const value of values) out[value] = (out[value] ?? 0) + 1
   return out
 }
-const yes = (records: readonly CohortExportRecord[], key: string) => records.filter((r) => r[key] === 'yes').length
+const cellsOf = (counts: Record<string, number>) => Object.fromEntries(Object.entries(counts).map(([key, n]) => [key, cell(n)]))
+const yes = (records: readonly CohortExportRecord[], key: string) => cell(records.filter((r) => r[key] === 'yes').length)
 
-/** Cohort-level counts and the slope distribution; no patient identifiers. */
+/** Cohort-level counts and the slope distribution; no patient identifiers.
+ * Small cells are suppressed (MIN_CELL); there is no minimum or maximum, which
+ * would always be one patient's value. */
 export function aggregate(cohort: readonly CohortRow[], records: readonly CohortExportRecord[]) {
   const cells = cohort.map((row) => row.cells[0])
   const withData = cells.filter((c) => c.nNumeric > 0)
   const fitted = records.filter((r) => typeof r.slope === 'number')
   const slopes = fitted.map((r) => r.slope as number).sort((a, b) => a - b)
-  const evaluated = withData[0]?.endpoints.evaluated
+  const distribution = slopes.length >= MIN_CELL
+  const unstable = fitted.filter((r) => r.unstable_slope === 'yes').length
   const reasons = withData.flatMap((c) => c.pointExclusionReasons.flat())
+  // Measurement totals of fewer than MIN_CELL patients describe those patients.
+  const total = (n: number) => (withData.length === 0 || withData.length >= MIN_CELL ? n : SUPPRESSED)
   return {
-    patients_in_dataset: cohort.length,
-    patients_with_series: withData.length,
-    patients_with_slope: fitted.length,
-    measurements_raw: withData.reduce((sum, c) => sum + c.nNumeric, 0),
-    points_fitted: withData.reduce((sum, c) => sum + c.nFitted, 0),
+    min_cell: MIN_CELL,
+    patients_in_dataset: cell(cohort.length),
+    patients_with_series: cell(withData.length),
+    patients_with_slope: cell(fitted.length),
+    measurements_raw: total(withData.reduce((sum, c) => sum + c.nNumeric, 0)),
+    points_fitted: total(withData.reduce((sum, c) => sum + c.nFitted, 0)),
     slope_per_year: {
-      n: slopes.length,
-      median: quantile(slopes, 0.5),
-      q1: quantile(slopes, 0.25),
-      q3: quantile(slopes, 0.75),
-      min: slopes[0] ?? null,
-      max: slopes.at(-1) ?? null,
+      n: cell(slopes.length),
+      median: distribution ? quantile(slopes, 0.5) : null,
+      q1: distribution ? quantile(slopes, 0.25) : null,
+      q3: distribution ? quantile(slopes, 0.75) : null,
+      suppressed: slopes.length > 0 && !distribution,
       quantile_method: 'linear interpolation (type 7)',
     },
-    unstable_slope: { count: yes(fitted, 'unstable_slope'), share_of_slopes: slopes.length ? yes(fitted, 'unstable_slope') / slopes.length : null,
+    unstable_slope: { count: cell(unstable), share_of_slopes: distribution && cell(unstable) !== SUPPRESSED ? unstable / slopes.length : null,
       rule: 'fewer than three fitted points or a fitted span under one year (isUnstableSlope)' },
     // With fit model 'none' (acute review) the core reports 'n_below_threshold' whatever the point count.
-    no_slope_reasons: countBy(records.flatMap((r, i) => cells[i].nNumeric > 0 && typeof r.slope !== 'number'
-      ? [cells[i].fitModel === 'none' ? 'no_fit_requested' : r.reason || 'none'] : [])),
+    no_slope_reasons: cellsOf(countBy(records.flatMap((r, i) => cells[i].nNumeric > 0 && typeof r.slope !== 'number'
+      ? [cells[i].fitModel === 'none' ? 'no_fit_requested' : r.reason || 'none'] : []))),
     rapid_decline_count: yes(records, 'rapid_progression'),
-    aki: { patients_with_episodes: records.filter((r) => r.aki).length, by_label: countBy(records.flatMap((r) => (r.aki ? [String(r.aki)] : []))) },
+    aki: { patients_with_episodes: cell(records.filter((r) => r.aki).length), by_label: cellsOf(countBy(records.flatMap((r) => (r.aki ? [String(r.aki)] : [])))) },
     exclusions: {
-      points_by_reason: countBy(reasons),
-      patients_by_reason: countBy(withData.flatMap((c) => [...new Set(c.pointExclusionReasons.flat())])),
+      points_by_reason: cellsOf(countBy(reasons)),
+      patients_by_reason: cellsOf(countBy(withData.flatMap((c) => [...new Set(c.pointExclusionReasons.flat())]))),
     },
     endpoints: {
-      evaluated: evaluated ?? null,
+      // Patients for whom each endpoint was evaluated (the preset enables it and the series carries it).
+      evaluated_patients: cellsOf(countBy(withData.flatMap((c) => Object.entries(c.endpoints.evaluated).flatMap(([key, on]) => (on ? [key] : []))))),
       observed_ckd_g4: yes(records, 'endpoint_observed_ckd_g4'),
       observed_ckd_g5: yes(records, 'endpoint_observed_ckd_g5'),
       observed_decline_40: yes(records, 'endpoint_observed_decline_40'),
@@ -169,8 +186,8 @@ export function aggregate(cohort: readonly CohortRow[], records: readonly Cohort
       kidney_failure_reached: yes(records, 'endpoint_kidney_failure_reached'),
     },
     projection_to_ckd_g5: {
-      projected: records.filter((r) => typeof r.endpoint_projected_age_to_ckd_g5 === 'number').length,
-      by_reason: countBy(records.flatMap((r) => (r.endpoint_prediction_reason ? [String(r.endpoint_prediction_reason)] : []))),
+      projected: cell(records.filter((r) => typeof r.endpoint_projected_age_to_ckd_g5 === 'number').length),
+      by_reason: cellsOf(countBy(records.flatMap((r) => (r.endpoint_prediction_reason ? [String(r.endpoint_prediction_reason)] : [])))),
     },
   }
 }

@@ -16,6 +16,8 @@ interfaces are still evolving before 1.0.
   package. Results are aggregate by default; patient-level results go to a
   local export file. Built with `pnpm build:mcp`, tested with `pnpm test:mcp`.
   The repository is now a pnpm workspace (`packages/kidney`, `packages/mcp`).
+  Aggregates suppress counts below 5 and report no slope minimum or maximum
+  (open decision OD-31); network-share paths are rejected in every spelling.
 
 ### Changed
 

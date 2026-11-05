@@ -23,10 +23,16 @@ returns is sent to the MCP client and from there to the model provider**
   dates or hospital identifiers you are not allowed to share with the model
   provider. A workbook may contain birth dates: they stay in server memory and
   are never returned, but pseudonymise anyway.
-- **Default results are aggregate.** `load_dataset`, `list_series` and
-  `analyse_cohort` return counts, distributions and settings, never patient
-  IDs. Row-level import messages are counted, not listed, because they can
-  quote raw cell values.
+- **Default results are aggregate, but aggregates are not anonymous.**
+  `load_dataset`, `list_series` and `analyse_cohort` return counts,
+  distributions and settings, never patient IDs. Row-level import messages
+  are counted, not listed, and an unreadable file gets a generic error,
+  because both can quote raw cell values. **Aggregates of a small cohort are
+  still personal data:** the median slope of one patient is that patient's
+  slope. Counts from 1 to 4 are therefore reported as `"<5"`, slope quartiles
+  need at least 5 slopes, and no minimum or maximum is reported. This reduces
+  the risk; it does not anonymise the results. The threshold is open owner
+  decision OD-31 in the [method reference](../../docs/method-algorithms.md).
 - **`patient_detail` returns patient-level results** for one patient ID that
   you name. Its tool description says so. Use it only when you need one patient
   in the conversation.
@@ -37,9 +43,21 @@ returns is sent to the MCP client and from there to the model provider**
 The server writes only where `export_cohort` is told to, and never overwrites
 an existing file.
 
+Paths must be absolute and local. URLs, network shares and Windows device paths
+are rejected in every spelling (`\\host`, `//host`, `/\host`, `\\?\UNC\…`,
+`\\.\…`), also when a symlink or junction leads there: the server resolves the
+file it reads, and the folder it writes to, before using them. Two limits:
+resolving a symlink that points to a share already contacts that share once,
+and a network drive mapped to a letter (`Z:`) is not detected.
+
+Loaded datasets stay in memory until `unload_dataset` or the end of the
+session. Loading the same unchanged file again returns its existing id; a
+changed file replaces the earlier data under that id. Files over 200 MB
+(`MAX_FILE_BYTES`) are refused.
+
 ## Build
 
-Node 20 or later. From the repository root:
+Node 20.11 or later. From the repository root:
 
 ```sh
 pnpm install
@@ -82,16 +100,18 @@ with escaped backslashes in JSON.
 | Tool | Returns | Patient-level |
 | --- | --- | --- |
 | `load_dataset(path)` | Dataset id, patients, lab rows, series with units and row counts, events, attribute rows, import diagnostics (sheet notes, counted row messages) | No |
+| `unload_dataset(dataset_id)` | Removes the dataset from memory | No |
 | `list_series(dataset_id)` | Series with unit, rows and patients; computable eGFR series and creatinine sources | No |
-| `analyse_cohort(dataset_id, series?, unit?, preset, egfr_formula?, creatinine_source?)` | Patients analysed, slope median, IQR and range, unstable share, no-fit reasons, rapid decline count, AKI counts, excluded points by reason, observed endpoints, projection counts, and the exact method settings | No |
+| `analyse_cohort(dataset_id, series?, unit?, preset, egfr_formula?, creatinine_source?)` | Patients analysed, slope median and IQR, unstable share, no-fit reasons, rapid decline count, AKI counts, excluded points by reason, observed endpoints, projection counts, and the exact method settings | No |
 | `patient_detail(..., patient_id)` | One patient's cohort export record (slope, CI, r², n, span, reason, flags, endpoints), fitted points, fitted span, distinct dates, excluded points by reason, AKI episodes and windows | **Yes** |
 | `export_cohort(..., output_path)` | Writes `.xlsx` (sheets `cohort`, `settings`, `about`) or `.csv` (research-use notes as leading `#` lines; read with `comment='#'` in pandas or `comment.char = "#"` in R); returns path and row count | Written to file only |
 | `methods_reference()` | Link to the method reference, presets, eGFR equations, export notes | No |
 
 `preset` is one of `general_exploration`, `theil_sen`, `ckd_progression`
-(default) and `acute_review`. `egfr_formula` (`ckd-epi-2021`, `mdrd-4`,
-`ekfc-2021`) computes eGFR from serum creatinine as the app does; without
-`series` the computed eGFR series is analysed.
+(default) and `acute_review`. `egfr_formula` is one of the equations the
+kidney package offers (`methods_reference` lists them, for example
+`ckd-epi-2021`). It computes eGFR from serum creatinine as the app does;
+without `series` the computed eGFR series is analysed.
 
 Example prompt: *"Load /data/pseudonymised/labs.xlsx, analyse computed
 CKD-EPI 2021 eGFR with the CKD progression preset, and export the per-patient
@@ -100,11 +120,12 @@ results to /data/out/cohort.xlsx."*
 ## Methods
 
 The server adds no analysis logic. It calls the package functions the app uses
-(`computeAnalysisResult`, `cohortSeriesSpec`, `buildCohortRows`,
-`cohortExportRecords`) with the app's defaults and no manual demographics, so
-the numbers match the app for the same workbook and settings. The aggregates
-count and summarise those results; quartiles use linear interpolation (R type
-7). Every rule, boundary and worked example is specified in the
+(`computeAnalysisResult`, `exactBirthDateByPatient`, `cohortSeriesSpec`,
+`buildCohortRows`, `cohortExportRecords`, `cohortSheetRecord`) with the app's
+defaults and no manual demographics, so the numbers and the export columns
+match the app for the same workbook and settings. The aggregates count and
+summarise those results; quartiles use linear interpolation (R type 7), and
+small cells are suppressed. Every rule, boundary and worked example is specified in the
 [method reference](../../docs/method-algorithms.md).
 
 Pitfalls carried over from the core: `n` counts raw measurements before

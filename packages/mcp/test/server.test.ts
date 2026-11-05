@@ -11,7 +11,7 @@ import { InMemoryTransport } from '@modelcontextprotocol/sdk/inMemory.js'
 import * as XLSX from 'xlsx'
 import * as kidney from '@halbritter-lab/kidney-trajectories'
 import { createServer } from '../src/server.js'
-import { quantile, RESEARCH_USE } from '../src/cohort.js'
+import { cell, quantile, RESEARCH_USE, SUPPRESSED } from '../src/cohort.js'
 
 const fixture = fileURLToPath(new URL('../../../tests/fixtures/test_labs.xlsx', import.meta.url))
 const client = new Client({ name: 'test', version: '0' })
@@ -33,7 +33,7 @@ function direct() {
   const analysis = kidney.computeAnalysisResult({ rows: dataset.rows, events: dataset.events, patientAttributes: dataset.patientAttributes, manualDemographics: {}, settings })
   const parameter = { bezeichnung: kidney.computedEgfrName('ckd-epi-2021'), einheit: kidney.COMPUTED_EGFR_UNIT }
   const spec = kidney.cohortSeriesSpec(parameter, kidney.ckdProgressionConfig(parameter), { clinicalEventsByPatient: kidney.clinicalEventsByPatient(dataset.events), fitInputs: analysis.fitInputs })
-  const cohort = kidney.buildCohortRows(analysis.rows, [...new Set(analysis.rows.map((r) => r.patientId))], [spec])
+  const cohort = kidney.buildCohortRows(analysis.rows, [...new Set(analysis.rows.map((r) => r.patientId))].sort(kidney.comparePatientIds), [spec])
   return { cohort, records: kidney.cohortExportRecords(cohort, kidney.defaultColumnModuleSettings()) }
 }
 
@@ -52,17 +52,59 @@ describe('lab-trajectory MCP server', () => {
   test('load_dataset returns aggregate counts without patient identifiers', async () => {
     const body = await call('load_dataset', { path: fixture })
     const dataset = kidney.loadDatasetFromWorkbook(readFileSync(fixture))
+    expect(body.dataset_id).toBe(id) // the unchanged file is not loaded twice
     expect(body.lab_rows).toBe(dataset.rows.length)
-    expect(body.patients).toBe(new Set(dataset.rows.map((r) => r.patientId)).size)
-    expect(body.series.reduce((sum: number, s: { rows: number }) => sum + s.rows, 0)).toBe(dataset.rows.length)
+    expect(body.patients).toBe(cell(new Set(dataset.rows.map((r) => r.patientId)).size))
+    for (const s of body.series) expect(s.rows === SUPPRESSED).toBe(s.patients === SUPPRESSED)
     const text = JSON.stringify(body)
     for (const pid of new Set(dataset.rows.map((r) => String(r.patientId)))) expect(text).not.toContain(`"${pid}"`)
   })
 
-  test('load_dataset rejects URLs, relative paths and network shares', async () => {
-    for (const path of ['https://example.org/labs.xlsx', 'labs.xlsx', '\\\\server\\share\\labs.xlsx', '//server/share/labs.xlsx']) {
-      await expect(call('load_dataset', { path })).rejects.toThrow()
+  const networkPaths = ['\\\\server\\share\\labs.xlsx', '//server/share/labs.xlsx', '/\\server\\share\\labs.xlsx', '\\/server/share/labs.xlsx',
+    '\\\\?\\UNC\\server\\share\\labs.xlsx', '\\\\.\\C:\\labs.xlsx']
+
+  test('load_dataset rejects URLs, relative paths and network shares in every spelling', async () => {
+    for (const path of ['https://example.org/labs.xlsx', 'file:///C:/labs.xlsx', 'labs.xlsx', 'C:labs.xlsx', ...networkPaths]) {
+      await expect(call('load_dataset', { path }), path).rejects.toThrow(/local|absolute/)
     }
+  })
+
+  test('export_cohort never writes to a network share', async () => {
+    for (const output_path of networkPaths.map((p) => p.replace('labs.xlsx', 'out.csv'))) {
+      await expect(call('export_cohort', { dataset_id: id, ...egfr, output_path }), output_path).rejects.toThrow('network shares')
+    }
+  })
+
+  test('an unreadable workbook gives a generic error without header or cell text', async () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'lab-mcp-')), 'headerless.csv')
+    writeFileSync(path, 'PAT-0042-MUELLER,2020-01-01,Kreatinin,mg/dl,1.1\nPAT-0042-MUELLER,2021-01-01,Kreatinin,mg/dl,1.4\n')
+    const error = await call('load_dataset', { path }).catch((e: Error) => e.message)
+    expect(error).toMatch(/^Could not read this workbook/)
+    expect(error).not.toMatch(/PAT-0042|2020-01-01|1\.1|Columns found/)
+  })
+
+  test('unload_dataset frees the id', async () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'lab-mcp-')), 'copy.xlsx')
+    writeFileSync(path, readFileSync(fixture))
+    const copy = (await call('load_dataset', { path })).dataset_id
+    expect(copy).not.toBe(id)
+    expect((await call('unload_dataset', { dataset_id: copy })).unloaded).toBe(true)
+    await expect(call('list_series', { dataset_id: copy })).rejects.toThrow('Unknown dataset_id')
+  })
+
+  test('aggregates of fewer than five patients are suppressed', async () => {
+    const path = join(mkdtempSync(join(tmpdir(), 'lab-mcp-')), 'one.csv')
+    const lines = [0, 1, 2, 3].map((y) => `P1,${2020 + y}-01-01,Kreatinin,mg/dl,${(1.1 + y * 0.3).toFixed(1)},m,1960-06-15`)
+    writeFileSync(path, ['patientId,labDate,testName,unit,value,sex,birthDate', ...lines].join('\n'))
+    const loaded = await call('load_dataset', { path })
+    expect([loaded.patients, loaded.lab_rows, loaded.series[0].rows]).toEqual([SUPPRESSED, SUPPRESSED, SUPPRESSED])
+    const { aggregate } = await call('analyse_cohort', { dataset_id: loaded.dataset_id, ...egfr })
+    expect(aggregate.patients_with_slope).toBe(SUPPRESSED)
+    expect(aggregate.measurements_raw).toBe(SUPPRESSED)
+    expect(aggregate.slope_per_year).toMatchObject({ n: SUPPRESSED, median: null, q1: null, q3: null, suppressed: true })
+    expect(aggregate.slope_per_year).not.toHaveProperty('min')
+    expect(aggregate.rapid_decline_count).toBe(SUPPRESSED)
+    expect(JSON.stringify(aggregate)).not.toMatch(/":\s*[1-4]\b/)
   })
 
   test('list_series offers the computed eGFR', async () => {
@@ -74,15 +116,17 @@ describe('lab-trajectory MCP server', () => {
     const { aggregate, method } = await call('analyse_cohort', { dataset_id: id, ...egfr })
     const { cohort, records } = direct()
     const slopes = records.flatMap((r) => (typeof r.slope === 'number' ? [r.slope] : [])).sort((a, b) => a - b)
-    expect(slopes.length).toBeGreaterThan(0)
+    expect(slopes.length).toBeGreaterThanOrEqual(5)
     expect(aggregate.patients_in_dataset).toBe(cohort.length)
     expect(aggregate.patients_with_slope).toBe(slopes.length)
     expect(aggregate.slope_per_year.median).toBe(quantile(slopes, 0.5))
     expect(aggregate.slope_per_year.q1).toBe(quantile(slopes, 0.25))
     expect(aggregate.slope_per_year.q3).toBe(quantile(slopes, 0.75))
-    expect(aggregate.unstable_slope.count).toBe(records.filter((r) => typeof r.slope === 'number' && r.unstable_slope === 'yes').length)
-    expect(aggregate.rapid_decline_count).toBe(records.filter((r) => r.rapid_progression === 'yes').length)
-    expect(aggregate.endpoints.observed_ckd_g4).toBe(records.filter((r) => r.endpoint_observed_ckd_g4 === 'yes').length)
+    expect(aggregate.slope_per_year).not.toHaveProperty('min')
+    expect(aggregate.unstable_slope.count).toBe(cell(records.filter((r) => typeof r.slope === 'number' && r.unstable_slope === 'yes').length))
+    expect(aggregate.rapid_decline_count).toBe(cell(records.filter((r) => r.rapid_progression === 'yes').length))
+    expect(aggregate.endpoints.observed_ckd_g4).toBe(cell(records.filter((r) => r.endpoint_observed_ckd_g4 === 'yes').length))
+    expect(aggregate.endpoints.evaluated_patients.observedCkdG5).toBe(cell(cohort.filter((row) => row.cells[0].nNumeric > 0 && row.cells[0].endpoints.evaluated.observedCkdG5).length))
     expect(aggregate.points_fitted).toBe(cohort.reduce((sum, row) => sum + row.cells[0].nFitted, 0))
     expect(method.preset.id).toBe('ckd_progression')
     expect(method.fit_config.timeBalancing).toBe(kidney.ckdProgressionConfig({ bezeichnung: method.series, einheit: method.unit }).timeBalancing)

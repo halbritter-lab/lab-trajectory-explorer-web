@@ -135,8 +135,14 @@ match the app with no manual demographics: default analysis settings, the
 chosen preset's fit configuration, default column settings, and exact birth
 dates when the workbook has them.
 
-Tool results reach the model provider, so default results are aggregate and
-patient-level results are written to a local file (`export_cohort`). See
+The rules the app and the server must share live in `src/core`: exact birth
+dates (`exactBirthDateByPatient`), demographics conflict keys
+(`demographicWarningsByPatient`) and the cohort sheet's columns
+(`cohortSheetRecord`). Do not copy workspace glue into the server.
+
+Tool results reach the model provider, so default results are aggregate with
+small cells suppressed, and patient-level results are written to a local file
+(`export_cohort`). See
 [packages/mcp/README.md](../packages/mcp/README.md). `pnpm build:mcp` and
 `pnpm test:mcp` run after `pnpm build:kidney`; the root Vitest run excludes
 `packages/`.
