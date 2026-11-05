@@ -995,8 +995,8 @@ unchanged. They are read from the existing fit; nothing is refitted.
 | --- | --- | --- |
 | `index_date` | Date (`YYYY-MM-DD`, UTC) of the first point the scalar fit consumed: the time origin `t0`, at which `intercept` applies. Under balancing it is the representative date of the first bin; in `chronic-ckd` the first point after the run-in; in `event-driven` the first point of the reported segment. | no point was fitted (`n_fitted = 0`, fit model `none` included) |
 | `last_fitted_date` | Date of the last point the scalar fit consumed, with the same conventions. With one fitted point it equals `index_date`. | as `index_date` |
-| `last_eligible_date` | Date of the last endpoint-eligible measurement: the last exact, finite, dated row of the series before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (the selection of "Observed endpoints and individual prediction"; boundary dates as there). It ignores display-fit AKI exclusions, run-in and balancing, and is filled for every column and fit model, also where endpoints are not evaluated. | the series has no such row |
-| `intercept` | Fitted value at `index_date`, unrounded (OLS: `ȳ − slope · x̄`; two-point line: the first value; Theil-Sen: separate-median intercept). | the estimator returns no slope |
+| `last_eligible_date` | Date of the last exact, finite, dated row of the series before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (the event rules of "Observed endpoints and individual prediction"; boundary dates as there). Only these event rules apply: no fit exclusion window (AKI windows included), run-in or balancing. It is filled for every column and fit model, also where endpoints are not evaluated. | the series has no such row |
+| `intercept` | Fitted value of the display fit (the fit behind `slope`) at `index_date`, unrounded (OLS: `ȳ − slope · x̄`; two-point line: the first value; Theil-Sen: separate-median intercept). | the estimator returns no slope |
 | `slope_se` | OLS standard error of the slope, `SE = sqrt(SSres / (n − 2) / Sxx)` from "95 % confidence interval for the slope", unrounded; `ci_low = slope − t · SE`. | Theil-Sen (no standard error is defined; its bounds are rank-based), the exact two-point line (`n − 2 = 0`), and every case without a slope |
 
 Rolling and segmented OLS report the global OLS fit, so these columns describe
@@ -1007,7 +1007,10 @@ that fit, not a window or segment. Example: the worked OLS example dated
 2023-02-01 and 2023-03-01 under quarterly medians gives one bin dated
 2023-02-01, so `last_fitted_date = 2023-02-01` while
 `last_eligible_date = 2023-03-01`; a value after a kidney transplant on
-2023-06-01 changes neither. Evidence: [export record tests](../tests/core/cohort/exportRecords.test.ts).
+2023-06-01 changes neither. With AKI windows excluded from the fit, creatinine
+values of 1.0, 1.1, 1.05 and 1.15 mg/dl up to 2020-07-30, then 2.4 on
+2020-08-01 and 1.8 on 2020-08-10, give `last_fitted_date = 2020-07-30` and
+`last_eligible_date = 2020-08-10`. Evidence: [export record tests](../tests/core/cohort/exportRecords.test.ts).
 
 ### Rounding
 
@@ -1436,9 +1439,11 @@ window slopes were computed and discarded and no line was drawn):
 - **Overlay counts.** In rolling mode a series counts as fitted when a window
   line is drawn. A series with a global slope but no window is counted among
   the trajectories without an available fit and not among the uncertain fits.
-- **Export.** The cohort and slope sheets end with five columns, placed after
-  all other columns of the sheet (`n_fitted` and `fitted_span_days` included)
-  so that earlier column positions are unchanged:
+- **Export.** The cohort and slope sheets carry five rolling columns, placed
+  after all earlier columns of the sheet (`n_fitted` and `fitted_span_days`
+  included) so that those column positions are unchanged. Only the five
+  columns of [fit dates, intercept and slope standard error](#fit-dates-intercept-and-slope-standard-error)
+  follow them:
 
   | Column | Content for slope mode `rolling` | Other modes |
   | --- | --- | --- |
@@ -2998,8 +3003,8 @@ The export does not record:
   definitions, or the candidate rules;
 - the confidence level and method behind the OLS slope bounds (the `about`
   sheet names 95 % bounds for Theil-Sen only);
-- the endpoint fit's slope and intercept; the `slope` column is the display
-  fit;
+- the endpoint fit's slope and intercept; the `slope`, `intercept` and
+  `slope_se` columns are those of the display fit;
 - the number of endpoint-eligible rows; `n` counts raw rows and `n_fitted`
   the display fit;
 - the age anchor used for the projected age, or that row ages are whole

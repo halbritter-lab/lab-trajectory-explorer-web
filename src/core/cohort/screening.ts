@@ -59,8 +59,8 @@ export interface CohortCell {
   slopeSe: number
   firstFittedDate: Date | null
   lastFittedDate: Date | null
-  /** Date of the last endpoint-eligible measurement (see endpointContext):
-   * exact, before KRT, outside complete acute dialysis intervals. */
+  /** Date of the last event-eligible measurement (see eventEligibleRows):
+   * exact, before KRT, outside complete acute dialysis intervals; no fit window. */
   lastEligibleDate: Date | null
   r2: number
   ciLow: number
@@ -160,8 +160,7 @@ export function buildCohortRows(
       const pointExclusionReasons = points.map((point, i) =>
         [...(!isExactMeasurement(seriesRows[i]) ? [CENSORED_VALUE_REASON] : []), ...(excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])])
       const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
-      const endpointInputs = endpointContext(spec, pid, seriesRows, fitModel)
-      const endpoints = moduleEndpoints(endpointInputs)
+      const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel))
       const exactPoints = points.filter((_, i) => isExactMeasurement(seriesRows[i]))
       const fitLines = exactPoints.length < 2
         ? []
@@ -197,7 +196,7 @@ export function buildCohortRows(
         slopeSe: match?.slopeSe ?? Number.NaN,
         firstFittedDate: match?.firstFittedDate ?? null,
         lastFittedDate: match?.lastFittedDate ?? null,
-        lastEligibleDate: endpointInputs.points(false).at(-1)?.date ?? null,
+        lastEligibleDate: eventEligibleRows(cellEvents(spec, pid), seriesRows).at(-1)?.labDatum ?? null,
         r2: match?.r2 ?? Number.NaN,
         ciLow: match?.ciLow ?? Number.NaN,
         ciHigh: match?.ciHigh ?? Number.NaN,
@@ -237,15 +236,25 @@ function ageAtDate(date: Date, anchors: LabRow[]): number | null {
   return anchor.patientAgeAtLab! + (date.getTime() - anchor.labDatum!.getTime()) / MS_PER_YEAR
 }
 
-/** Endpoint inputs of one cell: exact finite dated measurements before KRT and
- * outside complete acute dialysis intervals, independent of display-fit
- * exclusions and aggregation. The projection fits those same rows. */
-function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel']): EndpointContext {
-  const events = spec.clinicalEventsByPatient?.[patientIdKey(patientId)] ?? spec.clinicalEvents ?? []
-  const endpointRows = filterEndpointPointsForEvents(
+/** Exact finite dated measurements before KRT and outside complete acute
+ * dialysis intervals. Event rules only, no fit exclusion window, so
+ * `last_eligible_date` does not depend on AKI or other display-fit settings. */
+function eventEligibleRows(events: readonly ClinicalEvent[], seriesRows: LabRow[]): LabRow[] {
+  return filterEndpointPointsForEvents(
     seriesRows.filter(row => isExactMeasurement(row) && Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
       .map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: null, row })), events,
   ).map(point => point.row)
+}
+
+function cellEvents(spec: CohortSeriesSpec, patientId: PatientId): readonly ClinicalEvent[] {
+  return spec.clinicalEventsByPatient?.[patientIdKey(patientId)] ?? spec.clinicalEvents ?? []
+}
+
+/** Endpoint inputs of one cell: the event-eligible rows, independent of
+ * display-fit exclusions and aggregation. The projection fits those same rows. */
+function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel']): EndpointContext {
+  const events = cellEvents(spec, patientId)
+  const endpointRows = eventEligibleRows(events, seriesRows)
   const birthDate = spec.exactBirthDateByPatient?.[patientIdKey(patientId)]
   const exactBirthDate = birthDate && Number.isFinite(birthDate.getTime()) ? birthDate : null
   const points = (withAges: boolean): EndpointPoint[] => {

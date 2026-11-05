@@ -3,6 +3,7 @@ import { buildCohortRows, cohortExportRecords, type CohortSeriesSpec } from '../
 import { isRapidEgfrDecline } from '../../../src/core/domains/nephrology/rapidEgfrDeclineModule'
 import type { LabRow } from '../../../src/core/types'
 import { acuteReviewConfig, ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
+import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 import type { ClinicalEvent } from '../../../src/core/events/events'
 
 function row(p: Partial<LabRow>): LabRow {
@@ -341,6 +342,16 @@ describe('cohortExportRecords', () => {
       const fitConfig = acuteReviewConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
       const [rec] = cohortExportRecords(buildCohortRows(yearly, [1], [{ ...spec('global'), fitConfig }]))
       expect(rec).toMatchObject({ index_date: '', last_fitted_date: '', intercept: '', slope_se: '', last_eligible_date: '2023-01-01' })
+    })
+
+    it('keeps the last eligible date inside a display-fit AKI exclusion window', () => {
+      // AKI on 2020-08-01 (1.15 -> 2.4 mg/dl); its window excludes 2020-08-01 and 2020-08-10 from the fit.
+      const rows = [['2019-01-01', 1.0], ['2019-06-01', 1.1], ['2020-01-01', 1.05], ['2020-07-30', 1.15], ['2020-08-01', 2.4], ['2020-08-10', 1.8]]
+        .map(([date, wertNum]) => row({ labDatum: d(`${date}T00:00:00Z`), wertNum: wertNum as number }))
+      const fitConfig = generalExplorationConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
+      fitConfig.exclusions.excludeAkiWindows = true
+      const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...spec('global'), fitConfig }]))
+      expect(rec).toMatchObject({ last_fitted_date: '2020-07-30', last_eligible_date: '2020-08-10' })
     })
   })
 })
