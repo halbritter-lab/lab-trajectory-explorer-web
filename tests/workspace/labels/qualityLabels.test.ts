@@ -120,12 +120,12 @@ describe('projectedG5Label', () => {
     expect(title).toContain('Observed CKD G4:')
     expect(title).toContain('maximum 12 calendar months')
   })
-  it('omits "G5 n < 3" for a cell without measurements but keeps it for one or two', () => {
+  it('omits "G5 < 3 dates" for a cell without measurements but keeps it for one or two', () => {
     const empty = endpointsFor([], Number.NaN)
     expect(empty.projectedAgeToCkdG5.reason).toBe('insufficient_points')
     expect(endpointBadge(empty, 0)).toBeNull()
     const two = endpointsFor([{ date: '2020-01-01', value: 60 }, { date: '2021-01-01', value: 50 }], -10)
-    expect(endpointBadge(two, 2)?.label).toContain('G5 n < 3')
+    expect(endpointBadge(two, 2)?.label).toContain('G5 < 3 dates')
   })
   it('uses neutral wording when the fit is not declining', () => {
     const endpoints = endpointsFor([
@@ -152,7 +152,7 @@ describe('projectedG5Label', () => {
       { date: '2020-01-01', value: 60 },
       { date: '2023-01-01', value: 30 },
     ], -10)
-    expect(projectedG5Label(tooFew)?.label).toBe('G5 n < 3')
+    expect(projectedG5Label(tooFew)?.label).toBe('G5 < 3 dates')
 
     const tooShort = endpointsFor([
       { date: '2023-01-01', value: 60 },

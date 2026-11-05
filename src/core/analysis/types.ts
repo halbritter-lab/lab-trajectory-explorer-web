@@ -177,8 +177,12 @@ export interface EndpointContext {
    * it is counted from the nearest earlier eligible age-carrying row, whose
    * age is in completed years. `ageBasis` says which. */
   points(withAges: boolean): EndpointPoint[]
+  /** The same points outside the column's fit exclusion windows (AKI windows
+   * when the column excludes them). Only the decline baseline and the
+   * projection use them (decided 2026-11-05). */
+  fitPoints(withAges: boolean): EndpointPoint[]
   ageBasis: 'birth_date' | 'whole_years'
-  /** Global fit of those same endpoint-eligible measurements with the scalar model (OLS or
+  /** Global fit of `fitPoints` with the scalar model (OLS or
    * Theil-Sen); NaN slope and intercept when the model is 'none'. */
   fit(): { slope: number; intercept: number; ciLow: number; ciHigh: number }
 }

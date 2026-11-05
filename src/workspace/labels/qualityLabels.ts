@@ -150,13 +150,13 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
       }
     case 'insufficient_points':
       return {
-        label: 'G5 n < 3',
+        label: 'G5 < 3 dates',
         title: 'Usable measurements on fewer than three distinct dates, so no projection was made.',
         caveat,
       }
     case 'theil_sen_insufficient_points':
       return {
-        label: 'G5 n < 5',
+        label: 'G5 < 5 dates',
         title:
           'Theil–Sen projections need usable measurements on at least five distinct dates. With three or four, ' +
           'its 95 % slope interval is the full range of pairwise slopes and covers the true slope only about 67 % or 92 % of the time, so no projection was made.',

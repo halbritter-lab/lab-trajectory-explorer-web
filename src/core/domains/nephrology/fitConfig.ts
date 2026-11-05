@@ -116,7 +116,7 @@ export const NEPHROLOGY_PRESETS: readonly FitPresetDefinition[] = [
     category: 'Nephrology',
     description: 'Quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, G4/G5 endpoints on eligible exact eGFR data, OLS trend.',
     optionLabel: 'CKD progression (quarterly medians, censoring, AKI exclusion)',
-    summary: 'CKD progression: quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, OLS display trend. Endpoints and prediction use exact measurements before kidney replacement therapy and outside dated acute dialysis intervals.',
+    summary: 'CKD progression: quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, OLS display trend. Endpoints and prediction use exact measurements before kidney replacement therapy and outside dated acute dialysis intervals; the decline baseline and the G5 projection also leave out the AKI windows.',
     buildConfig: ckdProgressionConfig,
   },
   {

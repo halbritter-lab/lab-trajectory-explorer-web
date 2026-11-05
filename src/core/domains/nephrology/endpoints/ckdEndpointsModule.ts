@@ -55,7 +55,7 @@ export const ckdEndpointsModule = {
     const projecting = enabled.projectedAgeToCkdG5
     const kidneyFailureReached = ctx.hasSeriesMeasurements && isEgfrUnit(ctx.seriesKey.einheit) ? firstKidneyFailureEvent(ctx.events) : null
     const fit = projecting && !kidneyFailureReached ? ctx.fit() : { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
-    return computeCkdEndpoints({ points: ctx.points(projecting), slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
+    return computeCkdEndpoints({ points: ctx.points(projecting), fitPoints: ctx.fitPoints(projecting), slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
       kidneyFailureReached, ageBasis: ctx.ageBasis, fitModel: ctx.scalarFitModel,
       // The condition under which the AKI module supplies the column's exclusion windows.
       inputExcludesAkiWindows: ctx.mode === 'aki-aware' || (ctx.fitConfig?.exclusions.excludeAkiWindows ?? false) })
@@ -68,7 +68,7 @@ export const ckdEndpointsModule = {
     { key: 'endpoint_projected_age_to_ckd_g5', value: (c: Cell) => c.endpoints.projectedAgeToCkdG5.value ?? '' },
     { key: 'endpoint_observed_ckd_g4', value: (c: Cell) => c.endpoints.observedCkdG4.met ? 'yes' : '' },
     { key: 'endpoint_confirmation_days', value: (c: Cell) => confirmationUsed(c.endpoints) ? c.endpoints.confirmationDays : '' },
-    { key: 'endpoint_input_policy', value: (c: Cell) => anyEvaluated(c.endpoints) ? `${ENDPOINT_INPUT_POLICY}${c.endpoints.inputExcludesAkiWindows ? '; AKI exclusion windows excluded' : ''}` : '' },
+    { key: 'endpoint_input_policy', value: (c: Cell) => anyEvaluated(c.endpoints) ? `${ENDPOINT_INPUT_POLICY}${c.endpoints.inputExcludesAkiWindows ? '; AKI exclusion windows excluded from decline baseline and projection' : ''}` : '' },
     { key: 'endpoint_kidney_failure_reached', value: (c: Cell) => c.endpoints.kidneyFailureReached ? 'yes' : '' },
     { key: 'endpoint_kidney_failure_type', value: (c: Cell) => c.endpoints.kidneyFailureReached?.type ?? '' },
     { key: 'endpoint_kidney_failure_date', value: (c: Cell) => endpointDate(c.endpoints.kidneyFailureReached?.date ?? null) },

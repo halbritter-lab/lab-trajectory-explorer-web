@@ -38,13 +38,38 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
     const { cell, record } = cellFor(terminalAki, ckdProgressionConfig(egfr))
     expect(cell.excludedIdx).toEqual([13, 14, 15, 16, 17, 18, 19, 20])
     // Before: endpoint fit over all 21 rows, slope CI [-7.43, -2.46], "G5 @ 65.0y".
-    expect(cell.endpoints.endpointPointCount).toBe(13)
     expect(cell.endpoints.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'non_declining_fit' })
     expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-0.5432, 4)
     expect(cell.endpoints.projectedAgeToCkdG5.slopeCiHigh).toBeCloseTo(0.6311, 4)
-    expect(cell.endpoints.percentDecline).toMatchObject({ value: 0, baselineValue: 34, latestValue: 34 })
-    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded; AKI exclusion windows excluded')
-    expect(endpointBadge(cell.endpoints, cell.points.length)?.label).toBe('0%, G5 not projected')
+    // Total change keeps the AKI rows: 34 on 2020-01-01 to 16 on 2023-02-08.
+    expect(cell.endpoints.endpointPointCount).toBe(21)
+    expect(cell.endpoints.percentDecline).toMatchObject({ baselineValue: 34, latestValue: 16 })
+    expect(cell.endpoints.percentDecline.value).toBeCloseTo(52.941, 3)
+    // Baseline 34 (2020-04-01 is day 91); 16 is a 52.9 % decline but has no confirmation.
+    expect(cell.endpoints.declineBaselineValue).toBe(34)
+    expect(cell.endpoints.observedDecline40.met).toBe(false)
+    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded; AKI exclusion windows excluded from decline baseline and projection')
+    expect(endpointBadge(cell.endpoints, cell.points.length)?.label).toBe('-53%, G5 not projected')
+  })
+
+  it('keeps a sustained observed G5 that the AKI rule flags every two weeks (regression)', () => {
+    // Creatinine 4.5 and 4.85 mg/dl on consecutive days every two weeks for two
+    // years: each +0.35 rise above 4.0 mg/dl is a KDIGO stage-III episode.
+    const starts = Array.from({ length: 52 }, (_, i) => Date.UTC(2020, 0, 1) + i * 14 * 86_400_000)
+    const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+    const days = starts.flatMap((ms) => [iso(ms), iso(ms + 86_400_000)])
+    const rows = [
+      ...series(egfr, days.map((date, i): [string, number] => [date, i % 2 ? 13 : 14.2])),
+      ...series(crea, days.map((date, i): [string, number] => [date, i % 2 ? 4.85 : 4.5])),
+    ]
+    const { cell, record } = cellFor(rows, ckdProgressionConfig(egfr))
+    expect(cell.excludedIdx).toHaveLength(103)
+    expect(cell.endpoints.endpointPointCount).toBe(104)
+    // Before this follow-up only the first row stayed in the endpoint input and G5 was not met.
+    expect(cell.endpoints.observedCkdG5).toMatchObject({ met: true, firstDate: d('2020-01-01'), firstValue: 14.2 })
+    expect(cell.endpoints.observedCkdG4.met).toBe(true)
+    expect(record.endpoint_observed_ckd_g5).toBe('yes')
+    expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('observed_ckd_g5')
   })
 
   it('keeps AKI values in the endpoint input when the column does not exclude AKI windows', () => {
@@ -62,12 +87,18 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
       ...series(crea, [['2020-01-01', 1.0], ['2020-01-03', 2.6], ['2020-01-05', 2.2], ['2020-03-01', 1.0]]),
     ]
     const { cell, record } = cellFor(rows, ckdProgressionConfig(egfr))
-    // Before: baseline (20 + 25 + 55) / 3 = 33.3, percent decline -60, no 40 % event.
+    // Before: baseline (20 + 25 + 55) / 3 = 33.3, no 40 % event.
     expect(cell.endpoints.declineBaselineValue).toBe(56.5)
-    expect(cell.endpoints.percentDecline.value).toBeCloseTo(41.818, 3)
+    // Total change keeps the AKI rows: 20 on 2020-01-03 to 32, i.e. +60 %.
+    expect(cell.endpoints.percentDecline.value).toBeCloseTo(-60, 6)
+    // The events read all rows after the baseline period (2020-05-30); none lies in the AKI window.
     expect(cell.endpoints.observedDecline40).toMatchObject({ met: true, firstDate: d('2021-01-01'), firstValue: 33, confirmedDate: d('2021-06-01'), confirmedValue: 32 })
     expect(cell.endpoints.observedDecline57.met).toBe(false)
     expect(record.endpoint_observed_decline_40).toBe('yes')
+    // The projection fits the five rows from 2020-03-01 (before: seven rows, bounds included zero).
+    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-40.83, 2)
+    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiHigh).toBeCloseTo(-6.37, 2)
+    expect(cell.endpoints.projectedAgeToCkdG5.value).toBeCloseTo(62.0, 1)
   })
 })
 
@@ -80,7 +111,7 @@ describe('Theil-Sen projection needs five distinct dates', () => {
     expect(cell.endpoints.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'theil_sen_insufficient_points' })
     expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-9.006, 3)
     expect(record.endpoint_prediction_reason).toBe('theil_sen_insufficient_points')
-    expect(endpointBadge(cell.endpoints, cell.points.length)?.label).toBe('G5 n < 5')
+    expect(endpointBadge(cell.endpoints, cell.points.length)?.label).toBe('G5 < 5 dates')
   })
 
   it('counts dates, not rows, and projects from five distinct dates', () => {
@@ -112,6 +143,14 @@ describe('minimum counts count distinct measurement dates', () => {
     expect(slopeQualityLabel(cell)).toMatchObject({ label: '< 3 dates', caveat: true })
     expect(cell.endpoints.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'insufficient_points' })
     expect(record.n).toBe(4)
+  })
+
+  it('names dates, not rows, in the projection badge', () => {
+    const tenRowsTwoDates = series(egfr, [40, 40.5, 39.5, 41, 39, 30, 30.5, 29.5, 31, 29].map((v, i): [string, number] => [i < 5 ? '2020-01-01' : '2021-01-01', v]))
+    const { cell } = cellFor(tenRowsTwoDates, withProjection(generalExplorationConfig(egfr)))
+    expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('insufficient_points')
+    expect(endpointBadge(cell.endpoints, cell.points.length)?.label).toContain('G5 < 3 dates')
+    expect(endpointBadge(cell.endpoints, cell.points.length)?.label).not.toContain('n <')
   })
 
   it('reports distinct fitted dates in the summary without changing nFitted', () => {

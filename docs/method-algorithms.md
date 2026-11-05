@@ -2256,10 +2256,11 @@ display fit, clinical-event censoring is applied first, then the AKI windows
 remove exact measurements, then time balancing (monthly or quarterly medians)
 runs on what remains, so excluded values never enter a median. Excluded
 measurements stay visible and are marked as excluded from the fit; raw counts
-are unchanged. Since 2026-11-05 the same windows are also removed from the
-input of observed endpoints and the individual endpoint prediction when the
-column excludes them (see "Which measurements" under "Observed endpoints and
-individual prediction"); before, endpoints did not use AKI windows. Cohort mixed models use them when the analysis settings
+are unchanged. Since 2026-11-05 the same windows are also left out of the
+decline baseline and the individual endpoint prediction when the column
+excludes them; observed G4/G5, the total change and the decline events still
+keep those rows (see "Which measurements" under "Observed endpoints and
+individual prediction"). Before, endpoints did not use AKI windows. Cohort mixed models use them when the analysis settings
 chosen for that parameter under Trajectories have the switch on and the *Apply
 preset event and AKI exclusions* checkbox of the Cohort models page is on (see
 [cohort mixed models](#cohort-mixed-models)).
@@ -2577,17 +2578,21 @@ still truncates its endpoint input at kidney replacement therapy.
 **AKI windows (since 2026-11-05).** When the column's fit excludes AKI windows
 (the fit configuration's AKI exclusion is on, as in the CKD progression preset,
 or the slope mode is `aki-aware`), the rows inside those same windows are also
-removed from the endpoint input: each window runs from the episode onset to
+left out of two endpoint inputs: each window runs from the episode onset to
 onset plus the column's window length (30 days by default), both ends
 included, as in "AKI fit-exclusion window". The windows come from the same
 episodes, from the same creatinine source and with the same length as the
-display fit's. With AKI exclusion off nothing changes, and endpoints keep
-values measured during an AKI. The rule applies to every endpoint alike: the
-total percent change, the decline baseline and decline events, observed G4
-and G5, and the projection fit, so they continue to share one input. A low
-eGFR inside an AKI window therefore no longer starts or confirms an observed
-G4 or G5, and its decline is not counted. The export column
-`endpoint_input_policy` names the exclusion (see "Export provenance").
+display fit's. With AKI exclusion off nothing changes. The rule applies to
+exactly two inputs, as issue #34 requested: the rows that form the decline
+baseline and the rows of the projection fit (with its minimum dates, span and
+latest row; ages are still anchored on all eligible rows). Observed G4 and G5, the total percent change and
+the rows that start, confirm or recover a 40 % or 57 % decline still use every
+eligible row, AKI windows included. So a low eGFR inside an AKI window can
+still start or confirm an observed G4 or G5 or a decline event. This matters
+in advanced CKD: the absolute KDIGO criterion (a rise of 0.3 mg/dl within 48
+hours) is met by ordinary day-to-day variation at high creatinine, so whole
+stretches of a sustained G5 can lie inside AKI windows (Example 3). The export
+column `endpoint_input_policy` names the exclusion (see "Export provenance").
 
 Example 1 (decided 2026-11-05): eGFR 34, 35, 36, repeating, on the first day of
 each quarter from 2020-01-01 to 2023-01-01 (13 rows), then 26, 24, 22, 20,
@@ -2596,28 +2601,47 @@ each quarter from 2020-01-01 to 2023-01-01 (13 rows), then 26, 24, 22, 20,
 2023-02-01, window to 2023-03-03). Under CKD progression, with a birth date of
 1960-01-01, the display fit was already flat (slope 0.044 per year, bounds
 [-0.54, 0.63]). Before, the endpoint fit used all 21 rows: slope bounds
-[-7.43, -2.46] and a projected age of 65.0 (`G5 @ 65.0y`), and a total
-decline of 52.9 %. Now the eight AKI rows are removed, the endpoint fit equals
-the display fit, the projection is withheld as `non_declining_fit` and the
-total change is 0 %.
+[-7.43, -2.46] and a projected age of 65.0 (`G5 @ 65.0y`). Now the eight AKI
+rows are left out of the projection fit, which equals the display fit, and the
+projection is withheld as `non_declining_fit`. The total change still uses all
+21 rows: (34 - 16) / 34 = 52.9 % (badge `-53%, G5 not projected`). The decline
+baseline is 34 (2020-04-01 is day 91, outside the baseline period); 16 is a
+52.9 % decline from it but has no confirmation, so no decline event, G4 or G5
+is met.
 
 Example 2 (decided 2026-11-05): eGFR 20 and 25 on 2020-01-03 and 2020-01-05
 during an AKI (creatinine 1.0 on 2020-01-01, 2.6 on 2020-01-03, onset
 2020-01-03), then 55 (2020-03-01), 58 (2020-05-01), 56 (2020-07-01), 33
 (2021-01-01) and 32 (2021-06-01). Before, the baseline window ran from
-2020-01-03 and its mean was (20 + 25 + 55) / 3 = 33.33; every later row lay
-above it, so no 40 % decline was found, and the total change was a rise of
-60 % (`endpoint_percent_decline` -60). Now the input starts on 2020-03-01:
-the baseline is (55 + 58) / 2 = 56.5, 33 is a 41.6 % and 32 a 43.4 % decline,
-and the 40 % decline is confirmed with first date 2021-01-01 (33) and
-confirmation 2021-06-01 (32, 151 days later). The total decline is
-(55 - 32) / 55 = 41.8 %. The projection moves as well: before, the seven rows
+2020-01-03 and its mean was (20 + 25 + 55) / 3 = 33.33; the later rows 58,
+56, 33 and 32 are at most a 4.0 % decline from it (32), so no 40 % decline
+was found. Now the baseline starts at the first row outside the AKI window,
+2020-03-01: (55 + 58) / 2 = 56.5. The decline events read every eligible row
+after 2020-05-30 (56, 33, 32; none lies in the AKI window), so 33 is a 41.6 %
+and 32 a 43.4 % decline, and the 40 % decline is confirmed with first date
+2021-01-01 (33) and confirmation 2021-06-01 (32, 151 days later); the 57 %
+decline is not met. The total change keeps the AKI rows and stays a rise of
+60 % from 20 to 32 (`endpoint_percent_decline` -60, badge `+60%`), next to a
+confirmed 40 % decline: the two answer different questions. The projection
+moves as well: before, the seven rows
 gave slope bounds [-35.47, 33.46] and `slope_ci_includes_zero`; the five rows
 from 2020-03-01 give bounds [-40.83, -6.37] and, with a birth date of
 1960-01-01, a projected age of 62.0.
 
+Example 3 (regression, review follow-up of 2026-11-05): eGFR 14.2 and 13 with
+creatinine 4.5 and 4.85 mg/dl on consecutive days, every 14 days for two
+years from 2020-01-01 (104 rows of each). Each rise of 0.35 mg/dl within a day
+above 4.0 mg/dl is a KDIGO stage-III episode, so 52 episodes are found and
+their windows cover 103 of the 104 eGFR rows. When the AKI windows were
+removed from all endpoint input (the first version of this change), one row
+remained and the sustained observed G5 was lost. Now observed G4 and G5 use
+all 104 rows and G5 is met from 2020-01-01 (14.2); the projection reports
+`observed_ckd_g5`.
+
 Remaining rows are sorted by date; rows on the same date keep source order.
-The same eligible rows feed every endpoint and the projection fit.
+Without AKI exclusion the same eligible rows feed every endpoint and the
+projection fit; with it, the decline baseline and the projection fit read the
+subset outside the AKI windows.
 
 **Day resolution.** Import stores every lab and event date as its calendar day
 at midnight UTC. "Same timestamp" below therefore means the same calendar day,
@@ -2766,9 +2790,12 @@ first and latest coincide; the export keeps the computed 0.
 - Baseline (window confirmed by the owner on 2026-10-07): the arithmetic mean of all eligible rows from
   the first eligible UTC date through 90 elapsed UTC calendar days, inclusive
   of the whole final day. Duplicate rows each contribute. One row suffices.
-  When the column excludes AKI windows, the first eligible row is the first
-  one outside them (since 2026-11-05; see Example 2 under "Which
-  measurements").
+  When the column excludes AKI windows, the baseline is formed only from
+  eligible rows outside them, and its 90 days run from the first such row
+  (since 2026-11-05; see Example 2 under "Which measurements"). Without such
+  a row there is no baseline and no decline event.
+- The rows after the baseline window that can start, confirm or recover an
+  event are all eligible rows, AKI windows included.
 - Only rows after that window can start, confirm or recover an event, so no
   observation both defines the baseline and establishes a decline. This
   withholds early confirmed decline dates and can be revised on review.
@@ -2802,9 +2829,11 @@ estimated. Only an age is produced, not a calendar date.
 **Fit.** The projection fits the endpoint-eligible rows, without display-fit
 censoring options or time balancing. It therefore includes recovery after an
 acute dialysis interval and nothing from kidney replacement therapy on. When
-the column excludes AKI windows, the rows inside them are not eligible and
-are not fitted (since 2026-11-05; before, the endpoint fit kept them; see
-"Which measurements"). The estimator follows the column's fit model:
+the column excludes AKI windows, the rows inside them are not fitted and do
+not count towards the minimum dates, the span or the latest row (since
+2026-11-05; before, the endpoint fit kept them; see "Which measurements").
+Whether G5 was already observed, which withholds the projection, is decided on
+all eligible rows. The estimator follows the column's fit model:
 
 | Column fit model | Endpoint fit |
 | --- | --- |
@@ -2920,8 +2949,8 @@ exported in `endpoint_prediction_reason`; the label is the table badge.
 | --- | --- | --- | --- |
 | 1 | `observed_ckd_g5` | The eligible rows contain a confirmed observed G5, with or without later kidney replacement therapy and whether or not the observed-G5 endpoint is switched on. | With the observed-G5 endpoint on, none: the `CKD G5` badge with its dates is shown. With it off, `G5 not projected`, whose detail text names the confirmed event. |
 | 2 | `kidney_failure_reached` | Kidney failure reached and no confirmed observed G5. | `G5 not projected after KRT` |
-| 3 | `insufficient_points` | Eligible rows on fewer than three distinct dates. | `G5 n < 3` |
-| 4 | `theil_sen_insufficient_points` | Fit model Theil-Sen and eligible rows on three or four distinct dates (since 2026-11-05). | `G5 n < 5` |
+| 3 | `insufficient_points` | Eligible rows on fewer than three distinct dates. | `G5 < 3 dates` |
+| 4 | `theil_sen_insufficient_points` | Fit model Theil-Sen and eligible rows on three or four distinct dates (since 2026-11-05). | `G5 < 5 dates` |
 | 5 | `span_too_short` | First to latest eligible row under 365 days. | `G5 < 1 yr` |
 | 6 | `no_fit` | Slope or intercept of the endpoint fit not finite; with three dates over a year this means fit model "No fit". | `G5 no fit` |
 | 7 | `non_declining_fit` | Slope zero or positive. | `G5 not projected` |
@@ -2931,7 +2960,7 @@ exported in `endpoint_prediction_reason`; the label is the table badge.
 | 11 | `slope_ci_includes_zero` | Lower bound at or below zero and upper bound at or above zero. | `G5 not projected` |
 | 12 | `beyond_projection_horizon` | Crossing more than 20 years after the latest eligible row. | `G5 not projected` |
 
-A table cell without any measurement of its parameter shows no `G5 n < 3`
+A table cell without any measurement of its parameter shows no `G5 < 3 dates`
 badge (since 2026-10-12): the cell already reads "No numeric measurements with
 a date". The reason code is unchanged, and the export still carries
 `insufficient_points` for that patient and parameter. Other badges of the
@@ -3001,7 +3030,7 @@ endpoint tests supply slope bounds directly rather than from a fit. The
 two age bases, the 364-day versus 365-day span boundary, the projection with
 the observed-G5 toggle off and the 365-day limit of the confirmation
 interval. The [decision tests of 2026-11-05](../tests/core/endpoints/decisions20261105.test.ts)
-cover the AKI-window exclusion (Examples 1 and 2 under "Which measurements"),
+cover the AKI-window exclusion (Examples 1 to 3 under "Which measurements"),
 the distinct-date minimum and the five-date Theil-Sen minimum with the
 examples above. No dedicated regression test for the age of an earlier row carried
 forward or for the full reason order.
@@ -3022,7 +3051,7 @@ endpoint toggles on a series that passes the unit gate.
 | `endpoint_projected_age_to_ckd_g5` | A projection is reported. | Age in years, unrounded. |
 | `endpoint_observed_ckd_g4` | Observed G4 confirmed. | `yes` |
 | `endpoint_confirmation_days` | G4, G5, percent decline or the projection enabled. | Effective minimum interval in days, at most 365. |
-| `endpoint_input_policy` | Any endpoint enabled. | Fixed text: "dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded", followed by "; AKI exclusion windows excluded" when the column excludes AKI windows (since 2026-11-05). |
+| `endpoint_input_policy` | Any endpoint enabled. | Fixed text: "dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded", followed by "; AKI exclusion windows excluded from decline baseline and projection" when the column excludes AKI windows (since 2026-11-05). |
 | `endpoint_kidney_failure_reached` | Kidney failure reached, whatever the toggles. | `yes` |
 | `endpoint_kidney_failure_type` | As above. | `kidney_transplant` or `chronic_dialysis` |
 | `endpoint_kidney_failure_date` | As above. | Event date. |
@@ -3060,10 +3089,11 @@ enabled, the anchor reads `fitted curve` and the model `none`.
 
 The `about` sheet states that observed G4 below 30 and G5 below 15 use dated
 exact numeric eGFR before the first kidney transplant or chronic dialysis and
-outside complete acute dialysis intervals and, when the column excludes AKI
-windows from its fit, outside those windows, that kidney replacement therapy
-is reported separately, and that the individual prediction fits the same rows,
-needs at least three distinct measurement dates (five for Theil-Sen) over at
+outside complete acute dialysis intervals, that kidney replacement therapy
+is reported separately, that the decline baseline and the individual
+prediction also leave out the AKI exclusion windows when the column excludes
+them from its fit while observed G4/G5, total change and decline events keep
+those rows, and that the individual prediction fits the same rows, needs at least three distinct measurement dates (five for Theil-Sen) over at
 least 365 days, and has slope bounds that are not prediction intervals. The
 `events` sheet lists
 the exported patients' events.
