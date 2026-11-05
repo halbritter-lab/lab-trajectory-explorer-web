@@ -8,8 +8,7 @@ import type { ClinicalEvent } from '../core/events/events'
 import type { CohortSeriesSpec } from '../core/cohort/screening'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../io/loadDataset'
-import { resolveBirthAnchor } from '../core/demographics/resolveAge'
-import { parseAttributeDate } from '../core/demographics/resolve'
+import { exactBirthDateByPatient, patientBirthAnchor } from '../core/demographics/exactBirthDate'
 import { trajectoryFitConfig, type TrajectoryFitSettings } from './workspace-analysis'
 
 export interface WorkspaceParameter { key: string; label: string; bezeichnung: string; einheit: string | null; derived: boolean }
@@ -57,14 +56,8 @@ export function useWorkspaceData(): WorkspaceData {
       const sex = patientRows.find(r => r.patientSex !== null)?.patientSex ?? null
       if (sex) resolvedAttributes.sex = sex
       patientAttributes[patientIdKey(id)] = resolvedAttributes
-      const rawPatientRows = rawBuckets.get(id) ?? []
-      const dateText = attributes[patientIdKey(id)]?.birthDate
-      const attributeDate = parseAttributeDate(dateText)
-      const manualAge = manualDemographics[patientIdKey(id)]?.age
-      const { birthAnchor } = resolveBirthAnchor({ patientId: id, attributeBirthDate: attributeDate, manualAge,
-        rows: rawPatientRows.map(r => ({ labDatum: r.labDatum, ageAtLab: r.patientAgeAtLab, birthDate: r.patientBirthDate })) })
-      const explicitDateAvailable = (attributeDate !== null && Number.isFinite(attributeDate.getTime())) || rawPatientRows.some(r => r.labDatum && Number.isFinite(r.labDatum.getTime()) && r.patientBirthDate && Number.isFinite(r.patientBirthDate.getTime()))
-      const ageEstimated = manualAge !== undefined || (birthAnchor !== null && !explicitDateAvailable)
+      const { birthAnchor, ageEstimated } = patientBirthAnchor({ patientId: id, rows: rawBuckets.get(id) ?? [],
+        attributeBirthDate: attributes[patientIdKey(id)]?.birthDate, manualAge: manualDemographics[patientIdKey(id)]?.age })
       return { id, label: String(id), attributes: resolvedAttributes, baselineAge: earliest?.patientAgeAtLab ?? null, birthAnchor, ageEstimated }
     })
     return { rawRows, rows, fileName, parameters: [...parameterMap.values()], patients, events, patientAttributes, analysis, analysisSettings, manualDemographics }
@@ -80,11 +73,7 @@ export function workspaceModelSpec(data: WorkspaceData, parameterKey: string, se
 
 export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>): CohortSeriesSpec[] {
   const parameters = new Map(data.parameters.map(p => [p.key, p]))
-  // A birth date read from the attributes table or the lab rows gives exact
-  // ages; a manual or inferred age (ageEstimated) is known in whole years only.
-  const exactBirthDateByPatient: Record<string, Date> = Object.create(null)
-  for (const patient of data.patients) if (patient.birthAnchor && patient.ageEstimated === false) exactBirthDateByPatient[patientIdKey(patient.id)] = patient.birthAnchor
-  const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), exactBirthDateByPatient, fitInputs: data.analysis?.fitInputs ?? Object.create(null) }
+  const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), exactBirthDateByPatient: exactBirthDateByPatient(data.patients), fitInputs: data.analysis?.fitInputs ?? Object.create(null) }
   return parameterKeys.flatMap(key => {
     const parameter = parameters.get(key)
     return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], context)] : []

@@ -10,6 +10,18 @@ export function conflictId(conflict: DemographicsConflict): string {
   return `demographics:${kind}:${patientIdKey(conflict.patientId)}`
 }
 
+/** Demographics warning texts by patientIdKey, in message order, read back
+ * from analysis message ids built by conflictId. */
+export function demographicWarningsByPatient(messages: readonly { id: string; text: string }[]): Map<string, string[]> {
+  const out = new Map<string, string[]>()
+  for (const message of messages) {
+    if (!message.id.startsWith('demographics:')) continue
+    const key = message.id.split(':').slice(2).join(':')
+    out.set(key, [...(out.get(key) ?? []), message.text])
+  }
+  return out
+}
+
 /** One sentence per conflict: what disagreed, and what won. Kept out of the
  * module so the wording can be tested without building a pipeline context. */
 export function describeConflict(conflict: DemographicsConflict): string {
