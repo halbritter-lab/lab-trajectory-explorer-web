@@ -1,0 +1,27 @@
+{
+  "name": "@halbritter-lab/kidney-trajectories",
+  "version": "0.1.0",
+  "description": "Kidney-function trajectory analysis from the Lab Trajectory Explorer: eGFR equations, KDIGO creatinine AKI detection, per-patient slopes and CKD endpoints. Research use only.",
+  "private": true,
+  "author": "Jan-Paul Lerch",
+  "license": "MIT",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/types/packages/kidney/src/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "types": "./dist/types/packages/kidney/src/index.d.ts",
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
+  }
+}

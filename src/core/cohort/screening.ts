@@ -377,3 +377,13 @@ export function cohortExportRecords(
   }
   return out
 }
+
+/** One row of the workbook's cohort sheet: an export record with the sheet's
+ * column names and order (`Parameter`, `Unit`, the fitted counts of its cell).
+ * The rolling columns are the newest and stay last, so earlier column positions
+ * are unchanged. */
+export function cohortSheetRecord(record: CohortExportRecord, cell: Pick<CohortCell, 'nFitted' | 'fittedSpanDays'>) {
+  const { Bezeichnung, Einheit, rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max, ...fields } = record
+  return { ...fields, Parameter: Bezeichnung, Unit: Einheit, n_fitted: cell.nFitted, fitted_span_days: cell.fittedSpanDays,
+    rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max }
+}
