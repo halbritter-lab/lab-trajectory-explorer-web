@@ -33,7 +33,7 @@ function direct() {
   const analysis = kidney.computeAnalysisResult({ rows: dataset.rows, events: dataset.events, patientAttributes: dataset.patientAttributes, manualDemographics: {}, settings })
   const parameter = { bezeichnung: kidney.computedEgfrName('ckd-epi-2021'), einheit: kidney.COMPUTED_EGFR_UNIT }
   const spec = kidney.cohortSeriesSpec(parameter, kidney.ckdProgressionConfig(parameter), { clinicalEventsByPatient: kidney.clinicalEventsByPatient(dataset.events), fitInputs: analysis.fitInputs })
-  const cohort = kidney.buildCohortRows(analysis.rows, [...new Set(analysis.rows.map((r) => r.patientId))].sort(kidney.comparePatientIds), [spec])
+  const cohort = kidney.buildCohortRows(analysis.rows, [...new Set(analysis.rows.map((r) => r.patientId))], [spec])
   return { cohort, records: kidney.cohortExportRecords(cohort, kidney.defaultColumnModuleSettings()) }
 }
 

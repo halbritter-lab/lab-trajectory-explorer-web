@@ -3758,7 +3758,7 @@ column module settings (`defaultColumnModuleSettings`: rapid-decline threshold 5
 dates for patients whose attributes table or lab rows carry a readable birth
 date, by the same rule as the workspace (`patientBirthAnchor` and
 `exactBirthDateByPatient` in `src/core/demographics/exactBirthDate.ts`).
-Patients are ordered with `comparePatientIds`, as in the app. Per-patient
+`buildCohortRows` orders patients with `comparePatientIds`, as in the app. Per-patient
 values are the cohort export records unchanged; `export_cohort` writes them
 with the app's cohort-sheet columns (`cohortSheetRecord`). `analyse_cohort`
 then counts and summarises them; these cohort-level numbers exist only in the

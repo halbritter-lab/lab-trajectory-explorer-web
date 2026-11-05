@@ -7,7 +7,6 @@
 import {
   buildCohortRows,
   clinicalEventsByPatient,
-  comparePatientIds,
   cohortExportRecords,
   cohortSeriesSpec,
   computeAnalysisResult,
@@ -100,7 +99,7 @@ export function runCohort(dataset: LoadedDataset, options: CohortOptions) {
     exactBirthDateByPatient: exactBirthDates(dataset),
     fitInputs: analysis.fitInputs,
   })
-  const patientIds = [...new Set(analysis.rows.map((r) => r.patientId))].sort(comparePatientIds)
+  const patientIds = [...new Set(analysis.rows.map((r) => r.patientId))]
   const cohort = buildCohortRows(analysis.rows, patientIds, [spec])
   const columnSettings = defaultColumnModuleSettings()
   const conflictKeys = new Set(demographicWarningsByPatient(analysis.messages).keys())
