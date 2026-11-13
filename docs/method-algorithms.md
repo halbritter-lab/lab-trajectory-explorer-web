@@ -987,7 +987,7 @@ Example: eight raw values in two calendar quarters under quarterly medians give
 
 ### Fit dates, intercept and slope standard error
 
-Since 2026-11-05 the `cohort` and `slopes` sheets end with five further
+Since 2026-11-05 the `cohort` and `slopes` sheets end with six further
 columns, placed after the rolling columns so that earlier column positions are
 unchanged. They are read from the existing fit; nothing is refitted.
 
@@ -995,6 +995,7 @@ unchanged. They are read from the existing fit; nothing is refitted.
 | --- | --- | --- |
 | `index_date` | Date (`YYYY-MM-DD`, UTC) of the first point the scalar fit consumed: the time origin `t0`, at which `intercept` applies. Under balancing it is the representative date of the first bin; in `chronic-ckd` the first point after the run-in; in `event-driven` the first point of the reported segment. | no point was fitted (`n_fitted = 0`, fit model `none` included) |
 | `last_fitted_date` | Date of the last point the scalar fit consumed, with the same conventions. With one fitted point it equals `index_date`. | as `index_date` |
+| `first_eligible_date` | Date of the first row of the same row set as `last_eligible_date` (added 2026-11-13, owner decision). Run-in, fit windows and balancing do not move it, so it can be earlier than `index_date`. It serves as a data-based start for time-to-event work; a study-specific index date is set in the analysis itself. | as `last_eligible_date` |
 | `last_eligible_date` | Date of the last exact, finite, dated row of the series before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (the event rules of "Observed endpoints and individual prediction"; boundary dates as there). Only these event rules apply: no fit exclusion window (AKI windows included), run-in or balancing. It is filled for every column and fit model, also where endpoints are not evaluated. | the series has no such row |
 | `intercept` | Fitted value of the display fit (the fit behind `slope`) at `index_date`, unrounded (OLS: `ȳ − slope · x̄`; two-point line: the first value; Theil-Sen: separate-median intercept). | the estimator returns no slope |
 | `slope_se` | OLS standard error of the slope, `SE = sqrt(SSres / (n − 2) / Sxx)` from "95 % confidence interval for the slope", unrounded; `ci_low = slope − t · SE`. | Theil-Sen (no standard error is defined; its bounds are rank-based), the exact two-point line (`n − 2 = 0`), and every case without a slope |
@@ -1010,7 +1011,12 @@ that fit, not a window or segment. Example: the worked OLS example dated
 2023-06-01 changes neither. With AKI windows excluded from the fit, creatinine
 values of 1.0, 1.1, 1.05 and 1.15 mg/dl up to 2020-07-30, then 2.4 on
 2020-08-01 and 1.8 on 2020-08-10, give `last_fitted_date = 2020-07-30` and
-`last_eligible_date = 2020-08-10`. Evidence: [export record tests](../tests/core/cohort/exportRecords.test.ts).
+`last_eligible_date = 2020-08-10`. Values of 62, 60 and 61 on 2020-01-05,
+2020-02-01 and 2020-03-01, then 56, 50 and 46 on 1 January 2021 to 2023,
+under quarterly medians (CKD progression) give one 2020 Q1 bin dated
+2020-02-01: `index_date = 2020-02-01` and `first_eligible_date = 2020-01-05`.
+A kidney transplant before the first value leaves both eligible dates blank.
+Evidence: [export record tests](../tests/core/cohort/exportRecords.test.ts).
 
 ### Rounding
 

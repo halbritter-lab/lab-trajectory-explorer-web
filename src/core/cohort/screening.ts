@@ -59,8 +59,9 @@ export interface CohortCell {
   slopeSe: number
   firstFittedDate: Date | null
   lastFittedDate: Date | null
-  /** Date of the last event-eligible measurement (see eventEligibleRows):
-   * exact, before KRT, outside complete acute dialysis intervals; no fit window. */
+  /** Dates of the first and last event-eligible measurement (see eventEligibleRows):
+   * exact, before KRT, outside complete acute dialysis intervals; no run-in, fit window or balancing. */
+  firstEligibleDate: Date | null
   lastEligibleDate: Date | null
   r2: number
   ciLow: number
@@ -178,6 +179,7 @@ export function buildCohortRows(
               exclusionWindows: windows,
             },
           )
+      const eligibleRows = eventEligibleRows(cellEvents(spec, pid), seriesRows)
       const slope = match?.slope ?? Number.NaN
       const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match && match.nFitted > 0
         ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN }
@@ -196,7 +198,8 @@ export function buildCohortRows(
         slopeSe: match?.slopeSe ?? Number.NaN,
         firstFittedDate: match?.firstFittedDate ?? null,
         lastFittedDate: match?.lastFittedDate ?? null,
-        lastEligibleDate: eventEligibleRows(cellEvents(spec, pid), seriesRows).at(-1)?.labDatum ?? null,
+        firstEligibleDate: eligibleRows[0]?.labDatum ?? null,
+        lastEligibleDate: eligibleRows.at(-1)?.labDatum ?? null,
         r2: match?.r2 ?? Number.NaN,
         ciLow: match?.ciLow ?? Number.NaN,
         ciHigh: match?.ciHigh ?? Number.NaN,
@@ -400,6 +403,7 @@ export function cohortExportRecords(
         rolling_slope_max: c.rolling ? numOrBlank(c.rolling.slopeMax) : '',
         index_date: dateOrBlank(c.firstFittedDate),
         last_fitted_date: dateOrBlank(c.lastFittedDate),
+        first_eligible_date: dateOrBlank(c.firstEligibleDate),
         last_eligible_date: dateOrBlank(c.lastEligibleDate),
         intercept: numOrBlank(c.intercept),
         slope_se: numOrBlank(c.slopeSe),

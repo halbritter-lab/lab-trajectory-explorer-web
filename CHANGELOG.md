@@ -8,8 +8,9 @@ interfaces are still evolving before 1.0.
 ### Added
 
 - The cohort and patient slope sheets append `index_date`, `last_fitted_date`,
-  `last_eligible_date`, `intercept` and `slope_se` (OLS only) after the rolling
-  columns. Values come from the existing fit; no estimate changes.
+  `first_eligible_date`, `last_eligible_date`, `intercept` and `slope_se` (OLS
+  only) after the rolling columns. Values come from the existing fit; no
+  estimate changes.
 - Cohort models check factor levels before fitting. A factor with level and
   slope fails with a message naming the level (or numeric factor) whose
   patients give no time variation, instead of R's generic rank-deficiency

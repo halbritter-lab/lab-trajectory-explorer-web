@@ -65,10 +65,10 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const summaries = cohortExportRecords(prepared,cellIndex => columnSettings(requestedKeys[cellIndex]),conflictKeys).map((record,index) => {
     const cell = prepared[Math.floor(index / selectedParameters.length)].cells[index % selectedParameters.length]
     // The newest columns stay last, rolling then fit dates, so earlier column positions are unchanged.
-    const {Bezeichnung,Einheit,rolling_window_days,rolling_step_days,rolling_windows,rolling_slope_min,rolling_slope_max,index_date,last_fitted_date,last_eligible_date,intercept,slope_se,...fields} = record
+    const {Bezeichnung,Einheit,rolling_window_days,rolling_step_days,rolling_windows,rolling_slope_min,rolling_slope_max,index_date,last_fitted_date,first_eligible_date,last_eligible_date,intercept,slope_se,...fields} = record
     return {...fields,Parameter:Bezeichnung,Unit:Einheit,n_fitted:cell.nFitted,fitted_span_days:cell.fittedSpanDays,
       rolling_window_days,rolling_step_days,rolling_windows,rolling_slope_min,rolling_slope_max,
-      index_date,last_fitted_date,last_eligible_date,intercept,slope_se}
+      index_date,last_fitted_date,first_eligible_date,last_eligible_date,intercept,slope_se}
   })
   // Each column's module settings, one export column per configurable field.
   const moduleSettingColumns = (key: string) => Object.fromEntries(columnSettingModules().flatMap(module => (module.columnSettingFields ?? []).flatMap(field => {
