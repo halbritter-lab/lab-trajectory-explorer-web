@@ -76,7 +76,8 @@ owner decided all of them on the same day (see
 [method decisions](remaining-method-decisions.md)). Those settled since are
 listed under *Resolved decisions* below. Four remain, **OD-11, OD-21, OD-22
 and OD-29: to be changed after release 0.3.0.** Their behaviour is unchanged
-until then. OD-30 was added on 2026-11-05 with the R reproduction export.
+until then. OD-30, added on 2026-11-05 with the R reproduction export, was
+decided on 2026-11-13.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -84,7 +85,6 @@ until then. OD-30 was added on 2026-11-05 with the R reproduction export.
 | OD-21 | [Cohort mixed models](#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
-| OD-30 | [Cohort mixed models](#cohort-mixed-models) | Estimates, intervals and variance parameters are rounded to four decimal places when R returns them; small slopes lose precision, and values between 1e-5 and 5e-5 become 0. |
 
 ### Resolved decisions
 
@@ -120,6 +120,7 @@ methodology page. The numbers are not reused.
 | OD-26 | Lab rows without a patient ID are listed as rejected. | [Import and value interpretation](#import-and-value-interpretation) |
 | OD-27 | An empty pre-parsed operator beside a number means an exact value. | [Import and value interpretation](#import-and-value-interpretation) |
 | OD-28 | Implausible stated ages are reported as `age_implausible`. | [Demographics resolution](#demographics-resolution) |
+| OD-30 | Every number returned from R is serialized at full precision (`digits = NA`); decided 2026-11-13. | [Cohort mixed models](#cohort-mixed-models) |
 
 ## Import and value interpretation
 
@@ -3310,8 +3311,13 @@ therefore heads these columns *Reference intercept* and *Reference slope* when
 factors are configured.
 
 **Categorical coding.** Treatment contrasts with the configured reference level
-first and the remaining observed levels in R's sort order
-(`contr.treatment(levels, base = 1)`). Each non-reference level has one
+first and the remaining observed levels in code-point order,
+`sort(..., method = "radix")` (`contr.treatment(levels, base = 1)`). Radix
+sorting ignores the R locale and gives the same order as the browser's
+JavaScript default sort, so the order of the coefficients does not depend on
+the machine: levels `b`, `Ä`, `B`, `a`, `A` with reference `A` give
+`B`, `a`, `b`, `Ä`, where a German collation would give `a`, `Ä`, `B`, `b`
+(decided 2026-11-13; before, plain `sort()` used the R session's locale). Each non-reference level has one
 coefficient, the difference from the reference level, named
 `<column><level>`. With level and slope, `time_since_baseline:<column><level>`
 is the difference in slope per year from the reference level.
@@ -3560,15 +3566,15 @@ extended in R. They add no estimate and change none.
   the browser fit (`lme4`, `Matrix`, `jsonlite`), or "unknown" when not
   recorded, how to refit with `REML = FALSE` for likelihood-ratio tests and
   how to use `lmerTest` for Satterthwaite degrees of freedom. Non-reference
-  levels are ordered by R's `sort()`, so another locale can reorder, not
-  change, the coefficients. Verified with real webR, lme4 2.0.6 and readxl
+  levels are ordered by `sort(method = "radix")`, so every locale gives the
+  browser's order (see *Categorical coding*). Verified with real webR, lme4 2.0.6 and readxl
   (`scripts/verify_mixed_model_r_export.mjs`) for the whole cohort (138 rows)
   and a group literally named "Whole cohort" (96 rows): each refit equals its
-  browser covariance to 1e-9 and its browser estimates to their four decimals,
+  browser covariance and its browser estimates to 1e-9,
   and `update(fit, REML = FALSE)` on either fit, run after both, uses that
   unit's row count.
 
-> **Open decision OD-30.** Estimates, interval bounds, random-effect standard deviations and the residual standard deviation are returned from R through `jsonlite::toJSON` with its default `digits = 4`. Values of at least 1e-4 in absolute value keep four decimal places, so a slope of 0.00034 mg/dl per year is stored, shown and exported as 0.0003 and an R refit differs in the fifth decimal. Smaller values are not uniformly rounded: `toJSON(c(0.00034, 3.4e-6, -0.000049))` gives `[0.0003, 3.4e-06, -0]`, so values below 1e-5 are written in scientific notation and keep their leading digits, while values between 1e-5 and 5e-5 become 0 or −0 (a slope of −0.00004 per year is shown as 0). Only the standard errors and `vcov` are returned at full precision. Behaviour is unchanged pending an owner decision.
+**Precision of returned numbers** (OD-30, decided 2026-11-13). Every number the worker returns from R, including estimates, interval bounds, random-effect standard deviations, the residual standard deviation, standard errors and `vcov`, is serialized by `jsonlite::toJSON` with `digits = NA`, that is 15 significant digits. Before, `toJSON`'s default `digits = 4` rounded all but the standard errors and `vcov`: a slope of 0.00034 per year was stored, shown and exported as 0.0003, and values between 1e-5 and 5e-5 became 0 or −0 (`toJSON(c(0.00034, 3.4e-6, -0.000049))` gave `[0.0003, 3.4e-06, -0]`). Stored results and exports carry the full value, so an R refit now matches the browser estimates to 1e-9. Results fitted and saved before this change keep their four-decimal values until they are refitted.
 
 > **Open decision OD-21.** The exported `tolerance` (1e-6) is not used by any fit — the only tolerance in the fit is the 1e-4 singularity check — and the R packages are not version-pinned, so the export records the versions used but a later session can load different ones. Behaviour is unchanged pending an owner decision.
 

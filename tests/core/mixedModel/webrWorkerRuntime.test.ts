@@ -76,6 +76,8 @@ describe('webR worker runtime behavior', () => {
       expect(code).toContain(mixedModelDataRCode(config))
       expect(code).toContain('fixedEffectCovariance = mm_covariance')
       expect(code).toContain('stats::vcov(mm_fit)')
+      // OD-30 (resolved 2026-11-13): every returned number at full precision.
+      expect(code).toContain('json_verbatim = TRUE, digits = NA)')
     }
     expect(codes[0]).toContain(lme4ModelCall(config))
     expect(codes[0]).toContain('col.dropped')

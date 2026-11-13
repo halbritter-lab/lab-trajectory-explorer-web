@@ -90,7 +90,7 @@ try {
   for (const status of ['aggregated_into_median', 'excluded']) assert.ok(flags.some((flag) => flag.status === status), status)
   assert.ok(flags.some((flag) => flag.reason === 'bound_value') && flags.some((flag) => flag.reason.startsWith('patient_excluded')))
   const script = sheets.find((sheet) => sheet.name === 'r_script').rows.map((row) => row.line).join('\n')
-  const refit = await page.evaluate(async ({ bytes, script }) => {
+  const refitResult = await page.evaluate(async ({ bytes, script }) => {
     const { WebR } = await import('https://webr.r-wasm.org/v0.6.0/webr.mjs')
     const webR = new WebR()
     await webR.init()
@@ -98,12 +98,15 @@ try {
     await webR.FS.writeFile('/home/web_user/cohort-models.xlsx', new Uint8Array(bytes))
     return JSON.parse(await webR.evalRString(`setwd("/home/web_user")
       source(textConnection(${JSON.stringify(script)}))
-      jsonlite::toJSON(lapply(mm_fits, function(f) {
+      jsonlite::toJSON(list(radix = sort(c("b", "Ä", "B", "a", "A"), method = "radix"), fits = lapply(mm_fits, function(f) {
         # update() after every unit was fitted must refit this unit's own rows.
         u <- update(f, REML = FALSE)
         list(fixef = as.list(lme4::fixef(f)), vcov = unname(as.matrix(vcov(f))), nobs = nobs(f), updatedNobs = nobs(u), updatedRemlFixef = as.list(lme4::fixef(update(f))))
-      }), auto_unbox = TRUE, digits = NA)`))
+      })), auto_unbox = TRUE, digits = NA)`))
   }, { bytes: [...sheetsToXlsxBytes(sheets)], script })
+  // The browser orders levels by code point (JS sort); R must agree in any locale.
+  assert.deepEqual(refitResult.radix, ['b', 'Ä', 'B', 'a', 'A'].sort())
+  const refit = refitResult.fits
   assert.deepEqual(Object.keys(refit), ['cohort', 'group:Whole cohort'])
   for (const [key, browserFit, rows] of [['cohort', result, entity.rows], ['group:Whole cohort', groupResult, groupEntity.rows]]) {
     const refitted = refit[key]
@@ -111,8 +114,8 @@ try {
     assert.equal(refitted.updatedNobs, rows.length, `${key}: update() refitted other rows`)
     const covariance = browserFit.fixedEffectCovariance.matrix
     for (const [index, term] of browserFit.fixedEffectTerms.entries()) {
-      // Browser estimates carry jsonlite's four decimal places (OD-30); vcov is full precision.
-      assert.ok(Math.abs(refitted.fixef[term.term] - term.estimate) <= 5e-5, `${key} ${term.term}: ${refitted.fixef[term.term]} vs ${term.estimate}`)
+      // Browser estimates and vcov are both full precision (digits = NA).
+      assert.ok(Math.abs(refitted.fixef[term.term] - term.estimate) < 1e-9, `${key} ${term.term}: ${refitted.fixef[term.term]} vs ${term.estimate}`)
       assert.ok(Math.abs(refitted.updatedRemlFixef[term.term] - refitted.fixef[term.term]) < 1e-9, `${key} ${term.term}: update() changed the fit`)
       covariance[index].forEach((value, column) => assert.ok(Math.abs(refitted.vcov[index][column] - value) < 1e-9))
     }

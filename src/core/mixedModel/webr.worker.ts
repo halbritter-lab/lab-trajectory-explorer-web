@@ -327,8 +327,7 @@ function buildFitCode(modelCall: string, extraction: string, config: MixedModelC
       }
     }
     # Export only: standard errors and the fixed-effect covariance never feed an
-    # estimate. Serialized at full precision (digits = NA) and inserted verbatim;
-    # every other field keeps toJSON's default of four decimal places.
+    # estimate. Serialized at full precision (digits = NA) and inserted verbatim.
     mm_vcov <- tryCatch(as.matrix(stats::vcov(mm_fit)), error = function(e) NULL)
     mm_covariance <- if (is.null(mm_vcov)) NULL else jsonlite::toJSON(list(
       terms = colnames(mm_vcov),
@@ -343,7 +342,7 @@ function buildFitCode(modelCall: string, extraction: string, config: MixedModelC
       )))
     }
     ${extraction}
-    jsonlite::toJSON(mm_out, auto_unbox = TRUE, null = "null", na = "null", json_verbatim = TRUE)
+    jsonlite::toJSON(mm_out, auto_unbox = TRUE, null = "null", na = "null", json_verbatim = TRUE, digits = NA)
   `
 }
 

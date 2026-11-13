@@ -27,7 +27,7 @@ export function mixedModelDataRCode(config: MixedModelConfig): string {
     ${mixedModelFactors(config).map((factor,index) => {
       const column = mixedModelFactorColumn(factor,index)
       if (factor.kind === 'numeric') return `mm_data$${column} <- as.numeric(mm_${column})`
-      return `mm_levels <- c(${rStringLiteral(factor.reference!)}, sort(setdiff(unique(mm_${column}), ${rStringLiteral(factor.reference!)})))
+      return `mm_levels <- c(${rStringLiteral(factor.reference!)}, sort(setdiff(unique(mm_${column}), ${rStringLiteral(factor.reference!)}), method = "radix"))
       mm_data$${column} <- factor(mm_${column}, levels = mm_levels)
       contrasts(mm_data$${column}) <- contr.treatment(mm_levels, base = 1)`
     }).join('\n')}`
@@ -53,8 +53,8 @@ export function mixedModelRScript(models: readonly { entity: string; result: Mix
     '#',
     '# The rows come from the model_rows sheet exactly as they were passed to R in the',
     '# browser; factors, reference levels, contrasts and the lmer call are the same code.',
-    '# Non-reference levels are ordered by sort(); another locale may order them, and',
-    '# so the coefficients, differently without changing any estimate.',
+    '# Non-reference levels are ordered by sort(method = "radix"): by code point,',
+    '# the same order in every locale and the same as in the browser.',
     '# Each unit is fitted in its own local() environment, so update(), anova() and',
     '# emmeans on any fit in mm_fits use that unit\'s rows. mm_fits is keyed by the',
     '# unit_key column of model_rows: "cohort" or "group:<value>".',

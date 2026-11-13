@@ -152,6 +152,7 @@ export function mixedModelExportSheets(
       ...EXPORT_DISCLAIMER_ROWS,
       { note: 'Adjusted intercept and slope refer to the selected reference categories and centered numeric predictors. Time is years since the first retained measurement. Associations are conditional on the selected model and population.' },
       { note: 'model_rows holds the rows each model received in R, with factor values as passed to R and before centring. model_input_flags lists every measurement of the series per unit with whether it entered, was aggregated into a time-balancing median, or why it was excluded. vcov is the fixed-effect variance-covariance matrix; std_error is the square root of its diagonal. r_script refits the models in R from model_rows.' },
+      { note: 'readxl guesses column types from the first 1000 rows. In model_rows the group column is blank for the whole-cohort rows, which come first, so a plain read_excel can read group as logical and turn later group values into NA. Set col_types or guess_max (for example guess_max = Inf) when reading model_rows yourself; r_script selects units by unit_key and is not affected.' },
     ] },
   ]
 }

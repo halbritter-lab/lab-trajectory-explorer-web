@@ -290,6 +290,21 @@ Taken by the project owner on the points the walkthrough had left open.
   proposed; the entries of 2026-10-06 above keep their marks as the record of
   that day.
 
+### Decisions of 2026-11-13 (R reproduction export, PR #43)
+
+- **OD-30, full precision.** Estimates, intervals and variance parameters are
+  returned from R at full precision (`digits = NA`) instead of four decimal
+  places. A deliberate numeric change to stored results and exports; values
+  move in the fifth decimal and beyond, and values between 1e-5 and 5e-5 are
+  no longer stored as 0. No golden fixture holds a webR result, so none moved.
+- **Level order.** Non-reference factor levels are ordered by code point
+  (`sort(method = "radix")` in R, JavaScript default sort in the browser), so
+  the coefficient order does not depend on the locale.
+- **Accepted as implemented:** calendar dates outside the dataset hash, one
+  `vcov` sheet with one block per model, `unit_key` next to `group`, a dropped
+  `vcov` reported as a fit warning. The readxl type-guessing caveat for
+  `group` is documented in the `about` sheet.
+
 ### Release gate
 
 - The retained extensions (dated interventions, event-time analysis, input
