@@ -1696,8 +1696,8 @@ Decided 2026-10-07 (formerly OD-5): the default stays `off`. The methodology pag
 
 Computed rows are appended to the imported rows; source rows are never
 changed. The series name is `eGFR (<formula label>, computed)` with the labels
-`CKD-EPI 2021`, `CKD-EPI 2009`, `MDRD-4` and `EKFC 2021`, so a CKD-EPI 2009
-series (`eGFR (CKD-EPI 2009, computed)`) is a separate parameter from a
+`CKD-EPI 2021`, `CKD-EPI 2009 (race-free)`, `MDRD-4` and `EKFC 2021`, so a
+CKD-EPI 2009 series (`eGFR (CKD-EPI 2009 (race-free), computed)`) is a separate parameter from a
 CKD-EPI 2021 series in tables, fits and exports. The unit is written
 `ml/min/1,73m²`. The workspace blocks the calculation when an imported series
 already has that name and unit, so imported and computed values are never
@@ -1825,7 +1825,8 @@ eGFR = 142 × min(Scr/κ, 1)^α × max(Scr/κ, 1)^(−1.200) × 0.9938^age × F
 it (see [method decisions](remaining-method-decisions.md#ckd-epi-2009-equation-2026-11-05)).
 The published race coefficient (× 1.159) is not applied, because the data
 model carries no race; this is a deviation from the published equation, and
-the result equals the published value for a non-Black patient. The conditions,
+the result equals the published value for a non-Black patient. The label
+`CKD-EPI 2009 (race-free)` says so (owner decision 2026-11-13). The conditions,
 age, sex handling and rounding are the same as for CKD-EPI 2021:
 
 ```

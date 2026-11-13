@@ -312,11 +312,12 @@ doi:10.1016/j.ekir.2025.11.021).
 - The default stays `off` (OD-5); CKD-EPI 2021, MDRD-4 and EKFC 2021 values are
   unchanged.
 - Same conditions, age limit, sex handling (`d` as male) and rounding as
-  CKD-EPI 2021. The series name is `eGFR (CKD-EPI 2009, computed)`.
+  CKD-EPI 2021. The series name is `eGFR (CKD-EPI 2009 (race-free), computed)`.
 - Deviation from the published equation: the race coefficient (× 1.159) is not
-  applied, because the data model carries no race. Open for the owner: whether
-  the label should say so, for example "CKD-EPI 2009 (no race term)". Changing
-  the label renames the computed series.
+  applied, because the data model carries no race. The result equals the
+  published equation for a non-Black patient. Decided 2026-11-13: the label is
+  `CKD-EPI 2009 (race-free)`, so the series name and export keys say so; the
+  selector lists it directly after CKD-EPI 2021.
 - Coefficients and worked values:
   [method algorithms](method-algorithms.md#formulas).
 

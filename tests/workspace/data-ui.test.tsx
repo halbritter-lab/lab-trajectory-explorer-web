@@ -93,7 +93,7 @@ it('previews EKFC without applying it, then applies and turns derivation off', (
   expect(screen.getByText('Active: EKFC 2021, 1 computed value')).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2009' } })
   fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
-  expect(screen.getByText('Active: CKD-EPI 2009, 1 computed value')).toBeInTheDocument()
+  expect(screen.getByText('Active: CKD-EPI 2009 (race-free), 1 computed value')).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'off' } })
   fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
   expect(useAppStore.getState().analysisResult().rows).toHaveLength(1)

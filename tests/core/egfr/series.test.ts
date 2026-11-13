@@ -132,7 +132,7 @@ describe('appendComputedEgfr', () => {
     const out = appendComputedEgfr([row({ wertNum: 1.2, patientAgeAtLab: 60 })], { formula: 'ckd-epi-2009' })
     const computed = out.filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))
     expect(computed).toHaveLength(1)
-    expect(computed[0].bezeichnung).toBe('eGFR (CKD-EPI 2009, computed)')
+    expect(computed[0].bezeichnung).toBe('eGFR (CKD-EPI 2009 (race-free), computed)')
     expect(computed[0].einheit).toBe('ml/min/1,73m²')
     expect(computed[0].wertNum).toBe(65.3)
   })
