@@ -10,7 +10,8 @@ interfaces are still evolving before 1.0.
 - `packages/kidney/`: the kidney-function core as an unpublished ESM library with
   type declarations, built with `pnpm build:kidney` and tested against the
   build with `pnpm test:kidney`. It re-exports `src/core` unchanged; no numeric
-  change. The cohort-pipeline exports are marked experimental until #23.
+  change. The app's cohort pipeline is not exported; it may return with the
+  deferred MCP server (#42).
 
 ### Changed
 

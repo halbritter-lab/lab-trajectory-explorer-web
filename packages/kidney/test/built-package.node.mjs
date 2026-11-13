@@ -12,22 +12,19 @@ test('public API names are pinned', () => {
   // Changing this list changes the package's public API: update the README too.
   assert.deepEqual(Object.keys(kidney).sort(), [
     'CKD_G4_EGFR_THRESHOLD', 'CKD_G5_EGFR_THRESHOLD', 'COMPUTED_EGFR_UNIT', 'DEFAULT_AKI_EXCLUSION_DAYS',
-    'DEFAULT_CONFIRMATION_DAYS', 'DEFAULT_RAPID_EGFR_DECLINE', 'EGFR_FORMULA_LABELS', 'EXPORT_DISCLAIMER_ROWS',
-    'KDIGO_ABSOLUTE_RISE_MGDL', 'KDIGO_RELATIVE_RISE_RATIO', 'MGDL_PER_UMOLL', 'NEPHROLOGY_PRESETS',
+    'DEFAULT_CONFIRMATION_DAYS', 'DEFAULT_RAPID_EGFR_DECLINE', 'EGFR_FORMULA_LABELS', 'KDIGO_ABSOLUTE_RISE_MGDL', 'KDIGO_RELATIVE_RISE_RATIO', 'MGDL_PER_UMOLL', 'NEPHROLOGY_PRESETS',
     'REQUIRED_COLUMNS', 'SERUM_CREATININE_UNITS', 'STANDARD_PRESETS', 'acuteReviewConfig',
     'akiExclusionWindows', 'appendComputedEgfr', 'applyExclusionWindows', 'balanceSeriesPoints',
-    'buildCohortRows', 'ckdEpi2021', 'ckdProgressionConfig', 'clinicalEventsByPatient',
-    'cohortCellFlags', 'cohortExportRecords', 'cohortSeriesSpec', 'cohortSheetRecord', 'comparePatientIds',
-    'computeAnalysisResult', 'computeCkdEndpoints', 'computedEgfrName', 'creatinineSourceOptions',
-    'datesToYears', 'defaultAnalysisSettings', 'defaultCreatinineSource', 'demographicWarningsByPatient', 'ekfc2021',
-    'episodesForSeries', 'exactBirthDateByPatient', 'exclusionReasonsAt', 'findKdigoAkiEpisodes', 'fitAkiAware',
-    'fitGlobal', 'fitOls', 'fitPresetById', 'fitPresetCatalog',
-    'fitTheilSen', 'fixedLengthWindow', 'generalExplorationConfig', 'isCreatinineName',
+    'ckdEpi2021', 'ckdProgressionConfig', 'comparePatientIds',
+    'computeCkdEndpoints', 'computedEgfrName', 'creatinineSourceOptions',
+    'datesToYears', 'defaultCreatinineSource', 'ekfc2021',
+    'episodesForSeries', 'exclusionReasonsAt', 'findKdigoAkiEpisodes', 'fitAkiAware',
+    'fitGlobal', 'fitOls', 'fitTheilSen', 'fixedLengthWindow', 'generalExplorationConfig', 'isCreatinineName',
     'isEgfrUnit', 'isKdigoCreatinineSeries', 'isSerumCreatinineSeries', 'isSerumCreatinineSource',
     'isUnrecognisedSex', 'isUnstableSlope', 'isUrineName', 'kdigoStage',
     'loadDatasetFromWorkbook', 'loadLabRows', 'loadLabRowsWithDiagnostics', 'mdrd4',
     'mentionsEgfr', 'normaliseSex', 'normaliseUnit', 'normalizeClinicalEvents',
-    'parseAnalysisSettings', 'patientBirthAnchor', 'patientIdKey', 'projectLinearThreshold', 'projectedCrossingTime',
+    'patientIdKey', 'projectLinearThreshold', 'projectedCrossingTime',
     'readWorkbook', 'readWorkbookSheets', 'summarizeByBezeichnung', 'theilSenConfig',
     'validateClinicalEvents', 'windowContains',
   ])
@@ -72,19 +69,16 @@ test('fitGlobal fits a per-year slope', () => {
   assert.ok(Math.abs(fit.slope + 5) < 0.01, `slope ${fit.slope}`)
 })
 
-test('a workbook read from disk runs through the cohort pipeline', () => {
+test('a workbook read from disk yields computed eGFR and a slope', () => {
   const dataset = kidney.loadDatasetFromWorkbook(readFileSync(new URL('../../../tests/fixtures/test_labs.xlsx', import.meta.url)))
   assert.ok(dataset.rows.length > 0)
   const source = kidney.defaultCreatinineSource(kidney.creatinineSourceOptions(dataset.rows))
   assert.ok(source)
-  const settings = { ...kidney.defaultAnalysisSettings(), egfr: { formula: 'ckd-epi-2021', source } }
-  const analysis = kidney.computeAnalysisResult({ rows: dataset.rows, events: dataset.events, patientAttributes: dataset.patientAttributes, manualDemographics: {}, settings })
-  const parameter = { bezeichnung: kidney.computedEgfrName('ckd-epi-2021'), einheit: kidney.COMPUTED_EGFR_UNIT }
-  assert.ok(analysis.rows.some((r) => r.bezeichnung === parameter.bezeichnung), 'computed eGFR rows')
-  const spec = kidney.cohortSeriesSpec(parameter, kidney.ckdProgressionConfig(parameter), { fitInputs: analysis.fitInputs })
-  const patientIds = [...new Set(analysis.rows.map((r) => r.patientId))]
-  const cohort = kidney.buildCohortRows(analysis.rows, patientIds, [spec])
-  assert.equal(cohort.length, patientIds.length)
-  assert.ok(cohort.some((row) => Number.isFinite(row.cells[0].slope)), 'at least one fitted slope')
-  assert.equal(kidney.cohortExportRecords(cohort).length, patientIds.length)
+  const rows = kidney.appendComputedEgfr(dataset.rows, { formula: 'ckd-epi-2021', source })
+  const name = kidney.computedEgfrName('ckd-epi-2021')
+  const egfr = rows.filter((r) => r.bezeichnung === name)
+  assert.ok(egfr.length > 0, 'computed eGFR rows')
+  const summaries = [...new Set(egfr.map((r) => r.patientId))]
+    .flatMap((id) => kidney.summarizeByBezeichnung(rows, id).filter((s) => s.bezeichnung === name))
+  assert.ok(summaries.some((s) => Number.isFinite(s.slope)), 'at least one fitted slope')
 })

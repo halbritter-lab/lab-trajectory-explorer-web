@@ -19,8 +19,9 @@ rule, boundary convention and worked example is specified in the
 
 The package is not published to npm or any other registry, and `package.json`
 is marked `"private": true` so that it cannot be published by accident.
-Publication needs the owner's explicit approval (issue #36). The package name
-is provisional.
+Decided 2026-11-13 (issue #36): the package is used locally, from its folder
+or a tarball, until a separate decision on publication. It keeps its own
+version, starting at `0.1.0`, independent of the app's version.
 
 ## Build
 
@@ -89,45 +90,6 @@ dataset.events      // validated clinical events (Events sheet)
 dataset.diagnostics // import warnings and rejected rows
 ```
 
-### The cohort pipeline the web app runs
-
-```ts
-import {
-  buildCohortRows,
-  ckdProgressionConfig,
-  clinicalEventsByPatient,
-  cohortExportRecords,
-  cohortSeriesSpec,
-  computeAnalysisResult,
-  computedEgfrName,
-  COMPUTED_EGFR_UNIT,
-  creatinineSourceOptions,
-  defaultAnalysisSettings,
-  defaultCreatinineSource,
-  loadDatasetFromWorkbook,
-} from '@halbritter-lab/kidney-trajectories'
-
-const { rows, events, patientAttributes } = loadDatasetFromWorkbook(data)
-
-// Dataset modules: demographics, computed eGFR (off by default), events.
-const source = defaultCreatinineSource(creatinineSourceOptions(rows))
-const settings = { ...defaultAnalysisSettings(), egfr: { formula: 'ckd-epi-2021' as const, source } }
-const analysis = computeAnalysisResult({ rows, events, patientAttributes, manualDemographics: {}, settings })
-
-// One series spec per parameter; here computed eGFR with the CKD-progression preset.
-const parameter = { bezeichnung: computedEgfrName('ckd-epi-2021'), einheit: COMPUTED_EGFR_UNIT }
-const spec = cohortSeriesSpec(parameter, ckdProgressionConfig(parameter), {
-  clinicalEventsByPatient: clinicalEventsByPatient(events),
-  fitInputs: analysis.fitInputs,
-})
-const patientIds = [...new Set(analysis.rows.map((r) => r.patientId))]
-const cohort = buildCohortRows(analysis.rows, patientIds, [spec])
-const records = cohortExportRecords(cohort) // one flat record per patient and series
-```
-
-`fitPresetCatalog` and `fitPresetById` list every preset the app offers;
-`preset.buildConfig(parameter)` returns its `FitConfig`.
-
 ## What is included
 
 | Area | Exports |
@@ -139,22 +101,10 @@ const records = cohortExportRecords(cohort) // one flat record per patient and s
 | Slopes | `fitGlobal` (OLS), `fitTheilSen`, `fitOls`, `datesToYears`, `balanceSeriesPoints`, `summarizeByBezeichnung`, `isUnstableSlope` |
 | Endpoints and projection | `computeCkdEndpoints`, `projectLinearThreshold`, `projectedCrossingTime`, `CKD_G4_EGFR_THRESHOLD`, `CKD_G5_EGFR_THRESHOLD`, `DEFAULT_CONFIRMATION_DAYS`, `DEFAULT_RAPID_EGFR_DECLINE` |
 | Fit presets | `generalExplorationConfig`, `theilSenConfig`, `ckdProgressionConfig`, `acuteReviewConfig`, `STANDARD_PRESETS`, `NEPHROLOGY_PRESETS` |
-| Cohort pipeline (experimental) | `computeAnalysisResult`, `defaultAnalysisSettings`, `parseAnalysisSettings`, `fitPresetCatalog`, `fitPresetById`, `cohortSeriesSpec`, `clinicalEventsByPatient`, `patientBirthAnchor`, `exactBirthDateByPatient`, `demographicWarningsByPatient`, `buildCohortRows`, `cohortCellFlags`, `cohortExportRecords`, `cohortSheetRecord`, `EXPORT_DISCLAIMER_ROWS` |
-| Shared | `patientIdKey`, `comparePatientIds` and the types `LabRow`, `RawRow`, `PatientId`, `OlsFit`, `SeriesPoint`, `FitConfig`, `CohortRow`, `CohortCell`, `CkdEndpoints`, `AkiEpisode` and related |
+| Shared | `patientIdKey`, `comparePatientIds` and the types `LabRow`, `RawRow`, `PatientId`, `OlsFit`, `SeriesPoint`, `FitConfig`, `CkdEndpoints`, `AkiEpisode` and related |
 
 `test/built-package.node.mjs` pins this list. A change to it is a change to
 the public API.
-
-### Experimental: the cohort pipeline
-
-The cohort-pipeline exports, with their types (`AnalysisSettings`,
-`AnalysisResult`, `CohortSeriesSpec`, `CohortRow`, `CohortCell`,
-`CohortExportRecord` and related), mirror the web app's internal pipeline:
-settings objects, cohort cells that carry chart overlays, and export records
-with the app's column names (`Bezeichnung`, `Einheit`). They are marked
-`@experimental` in `src/index.ts`. They will change with the domain decoupling
-in issue #23, without a deprecation period. The equation, AKI, slope, endpoint
-and projection functions above them are the stable part.
 
 ## What is not included
 
@@ -163,6 +113,10 @@ and projection functions above them are the stable part.
   workspace.
 - The bundled demo-data fetchers, which load from the web app's `public/`
   folder.
+- The app's cohort pipeline (analysis settings, cohort rows, export records).
+  It mirrors internal structures that change with issue #23. It may be
+  exported again, marked experimental, if the deferred MCP server (#42)
+  resumes.
 
 ## Pitfalls carried over from the core
 
