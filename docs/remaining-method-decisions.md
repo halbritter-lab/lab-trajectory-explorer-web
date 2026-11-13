@@ -328,9 +328,15 @@ implementing pull request is his sign-off.
   2.0, 1.9 mg/dl on consecutive days plus five later rows of
   `Kreatinin enzym.` now give the computed eGFR column the stage-II episode
   (before: none, both AKI values stayed in the eGFR slope).
-- **Creatinine plausibility warning** *(proposed thresholds)*. The Data page
+- **Creatinine plausibility warning** *(thresholds confirmed by the owner, 2026-11-13)*. The Data page
   counts exact serum creatinine above 25 mg/dl (µmol/l converted) and computed
-  eGFR above 200 mL/min/1.73 m². Warning only; no value changes.
+  eGFR above 200 mL/min/1.73 m². Warning only; no value changes. The thresholds
+  target a µmol/l column labelled mg/dl and similar unit errors; a urine series
+  that escapes the name rule can stay below 25 mg/dl, so the name rule remains
+  the protection against urine. The deny-list of non-serum spellings stays
+  (owner decision 2026-11-13, no allow-list), and imported eGFR columns keep
+  taking their episodes from the patient's serum creatinine pair with the most
+  rows.
 
 Details and boundaries: [eGFR derivation](method-algorithms.md#eligible-source-series)
 and [KDIGO creatinine AKI detection](method-algorithms.md#input-series-and-conversion).

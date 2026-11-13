@@ -1903,8 +1903,8 @@ limit and no plausibility range for creatinine other than the positivity
 condition. For example, CKD-EPI 2021 for 0.3 mg/dl in a woman aged 18 gives
 157.6.
 
-**Plausibility warnings** (added 2026-11-05, issue #34; thresholds proposed
-for the owner's confirmation). Warnings only: no value is changed, removed or
+**Plausibility warnings** (added 2026-11-05, issue #34; thresholds confirmed
+by the owner on 2026-11-13: they target swapped units, not urine). Warnings only: no value is changed, removed or
 excluded. The Data page shows, with the number of affected values:
 
 - under *Demographics and data quality*, exact dated serum creatinine values
