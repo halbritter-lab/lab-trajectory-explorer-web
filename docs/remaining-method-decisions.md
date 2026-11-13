@@ -347,6 +347,19 @@ stored value moved). The methodology page still describes the earlier rules
 in three places; its wording is the maintainer's call and is listed in the
 pull request.
 
+Owner answers to the review questions (2026-11-13):
+
+- The AKI-window scope stays as described: decline baseline and projection
+  only. Observed G4/G5 and confirmed declines keep every eligible row; their
+  90-day confirmation protects them against transient AKI dips.
+- The G5 projection stays an independent fit on unbalanced rows, so a
+  balanced display note such as "n < 3, uncertain slope" can still sit next
+  to a projection.
+- `theil_sen_insufficient_points` keeps its position, directly after
+  `insufficient_points`, and its export value.
+- The methodology wording is written after the merges, together with the
+  split of `method-algorithms.md` (issue #44).
+
 ## Approved requirements
 
 ### Observed events and recovery
