@@ -112,7 +112,7 @@ test('renders every G5 projection outcome in its patient row', async ({ page }) 
     ['1', 'G5 not projected'],
     ['2', 'G5 now'],
     ['3', 'G5 no age'],
-    ['4', 'G5 n < 3'],
+    ['4', 'G5 < 3 dates'],
     ['5', 'G5 < 1 yr'],
   ])
   for (const [patient, label] of expected) {

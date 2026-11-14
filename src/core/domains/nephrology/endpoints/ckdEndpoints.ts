@@ -13,6 +13,7 @@ import {
 } from '../../../endpoints/thresholdEndpoints'
 import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS, MAX_CONFIRMATION_DAYS } from '../constants'
 import type { KidneyFailureReached } from './endpointEventPolicy'
+import type { FitModel } from '../../../fitPipeline/types'
 
 export type { EndpointPoint } from '../../../endpoints/thresholdEndpoints'
 
@@ -32,6 +33,7 @@ export type CkdProjectionReason =
   | 'no_fit'
   | 'non_declining_fit'
   | 'insufficient_points'
+  | 'theil_sen_insufficient_points'
   | 'span_too_short'
   | 'already_below_threshold'
   | 'missing_age'
@@ -43,6 +45,10 @@ export type CkdProjectionReason =
 export interface CkdEndpoints {
   kidneyFailureReached: KidneyFailureReached | null
   endpointPointCount: number
+  /** Whether the column's AKI exclusion windows were removed from the decline
+   * baseline and projection input (never from observed G4/G5, total change or
+   * decline events). */
+  inputExcludesAkiWindows: boolean
   percentDecline: {
     value: number | null
     baselineValue: number | null
@@ -50,7 +56,8 @@ export interface CkdEndpoints {
   }
   observedCkdG4: ObservedCkdEvent
   observedCkdG5: ObservedCkdEvent
-  /** Mean of all eligible values in elapsed UTC days 0–90. */
+  /** Mean of the eligible values outside the column's AKI exclusion windows
+   * in elapsed UTC days 0–90 from the first such value. */
   declineBaselineValue: number | null
   observedDecline40: ObservedCkdEvent
   observedDecline57: ObservedCkdEvent
@@ -75,7 +82,11 @@ export type EndpointAgeBasis = 'birth_date' | 'whole_years'
 
 export interface ComputeCkdEndpointsInput {
   kidneyFailureReached?: KidneyFailureReached | null
+  /** Observed G4/G5, total change and decline events read these. */
   points: EndpointPoint[]
+  /** `points` outside the column's AKI exclusion windows: the decline baseline
+   * and the projection read these (decided 2026-11-05). Defaults to `points`. */
+  fitPoints?: EndpointPoint[]
   slopePerYear: number
   /** Intercept at the first valid point's date; callers pass the raw-data fit. */
   intercept?: number
@@ -87,6 +98,10 @@ export interface ComputeCkdEndpointsInput {
   confirmationDays?: number
   /** Basis of the points' ages; `whole_years` when omitted. */
   ageBasis?: EndpointAgeBasis
+  /** Estimator of the endpoint fit; Theil–Sen raises the projection's minimum dates. */
+  fitModel?: FitModel
+  /** Recorded for provenance; the caller has already removed those rows from `fitPoints`. */
+  inputExcludesAkiWindows?: boolean
 }
 
 /** The observed CKD G-stage endpoints as generic threshold crossings: G4 and
@@ -102,6 +117,7 @@ export function ckdCrossingDefinitions(confirmationDays: number, g5Threshold = C
 const PROJECTION_REASONS: Record<ProjectedCrossingReason, CkdProjectionReason> = {
   observed: 'observed_ckd_g5',
   insufficient_points: 'insufficient_points',
+  theil_sen_insufficient_points: 'theil_sen_insufficient_points',
   span_too_short: 'span_too_short',
   no_fit: 'no_fit',
   not_approaching: 'non_declining_fit',
@@ -113,6 +129,7 @@ function emptyEndpoints(): CkdEndpoints {
   return {
     kidneyFailureReached: null,
     endpointPointCount: 0,
+    inputExcludesAkiWindows: false,
     percentDecline: { value: null, baselineValue: null, latestValue: null },
     observedCkdG4: emptyObservedCrossing(),
     observedCkdG5: emptyObservedCrossing(),
@@ -138,6 +155,7 @@ export function normalizeConfirmationDays(value: number | undefined): number {
 export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoints {
   const out = emptyEndpoints()
   out.kidneyFailureReached = input.kidneyFailureReached ?? null
+  out.inputExcludesAkiWindows = input.inputExcludesAkiWindows ?? false
   const threshold = input.threshold ?? CKD_G5_EGFR_THRESHOLD
   const confirmationDays = normalizeConfirmationDays(input.confirmationDays ?? input.enabled.confirmationDays)
   const definitions = ckdCrossingDefinitions(confirmationDays, threshold)
@@ -149,13 +167,17 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
     projectedAgeToCkdG5: input.enabled.projectedAgeToCkdG5,
   }
   const points = validEndpointPoints(input.points)
+  const fitPoints = input.fitPoints ? validEndpointPoints(input.fitPoints) : points
   out.endpointPointCount = points.length
 
   if (input.enabled.percentDecline && points.length > 0) {
     out.percentDecline = percentDeclineFromBaseline(points)
+  }
+  if (input.enabled.percentDecline && fitPoints.length > 0) {
     const utcDay = (date: Date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
-    const baselineEnd = utcDay(points[0].date) + 90 * 86_400_000
-    const baselinePoints = points.filter(p => utcDay(p.date) <= baselineEnd)
+    // Baseline outside AKI windows; the events it anchors use every eligible row.
+    const baselineEnd = utcDay(fitPoints[0].date) + 90 * 86_400_000
+    const baselinePoints = fitPoints.filter(p => utcDay(p.date) <= baselineEnd)
     const baseline = baselinePoints.reduce((sum, p) => sum + p.value, 0) / baselinePoints.length
     out.declineBaselineValue = baseline
     if (Number.isFinite(baseline) && baseline > 0) {
@@ -186,12 +208,13 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
       return out
     }
     const projected = projectAgeAtCrossing({
-      points,
+      points: fitPoints,
       slopePerYear: input.slopePerYear,
-      intercept: input.intercept ?? fitGlobal(points).intercept,
+      intercept: input.intercept ?? fitGlobal(fitPoints).intercept,
       threshold,
       direction: 'below',
       observed: observedG5,
+      fitModel: input.fitModel,
     })
     let reason = projected.reason === null ? null : PROJECTION_REASONS[projected.reason]
     let value = projected.value
@@ -201,7 +224,7 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
       } else if (input.slopeCiLow! <= 0 && input.slopeCiHigh! >= 0) {
         reason = 'slope_ci_includes_zero'
       } else {
-        const latest = points[points.length - 1]
+        const latest = fitPoints[fitPoints.length - 1]
         if (value - latest.ageYears! > 20) reason = 'beyond_projection_horizon'
       }
       if (reason) value = null
