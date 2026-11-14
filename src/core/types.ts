@@ -43,6 +43,10 @@ export interface LabRow {
    * anchor from integer ages. Optional: datasets persisted before this field
    * existed, and row literals in tests, simply omit it. */
   patientBirthDate?: Date | null
+  /** On a derived row (computed eGFR): the (name, unit) of the imported series
+   * it was computed from, so AKI detection for the derived series uses that
+   * series. Absent on imported rows. */
+  sourceSeries?: { bezeichnung: string; einheit: string }
 }
 
 export type FitReason =
@@ -56,5 +60,8 @@ export interface OlsFit {
   r2: number
   ciLow: number
   ciHigh: number
+  /** Standard error of the slope, sqrt(SSres / (n − 2) / Sxx). Set by the OLS
+   * kernel only; absent for the exact two-point line and for Theil-Sen. */
+  slopeSe?: number
   reason: FitReason
 }

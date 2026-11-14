@@ -867,7 +867,8 @@ Filtering is by row operator before fitting, aggregation and endpoint order,
 not by date. An exact value on the same date as a bound remains eligible. A
 bound alone cannot start, confirm, interrupt or recover an observed endpoint;
 it cannot establish an AKI episode. For a series that is not itself an eligible
-creatinine series, the patient's creatinine series with the most exact dated
+creatinine series and not a computed eGFR (which uses its own source series),
+the patient's creatinine series with the most exact dated
 numeric values supplies the AKI episodes (first in row order on a tie); bounds
 do not win source selection by inflating row count.
 Bound-only series retain their displayed
@@ -974,6 +975,7 @@ fitted count is zero and no trend line exists.
 | `spanDays` | `span_days` | Whole days between the first and last of those rows; 0 when there is none. |
 | `nFitted` | `n_fitted` | Points handed to the scalar fit after steps 1 to 4. One monthly or quarterly bin counts as one point. |
 | `fittedSpanDays` | `fitted_span_days` | Whole days between the first and last of those fitted points; 0 with fewer than two. |
+| `nFittedDates` | none | Distinct UTC calendar days among those fitted points (since 2026-11-05). Read by the slope reliability rule only. |
 
 Day counts are elapsed milliseconds divided by 86 400 000 and truncated towards
 zero. `nFitted` is 0 when the fit model is `none`. When the series has fewer
@@ -985,7 +987,41 @@ those bins. `nFitted` is reported even when the estimator then returns no
 slope.
 
 Example: eight raw values in two calendar quarters under quarterly medians give
-`nNumeric = 8` and `nFitted = 2`.
+`nNumeric = 8` and `nFitted = 2`. Three raw values on 2020-01-01 and one on
+2021-01-01 without balancing give `nFitted = 4` and `nFittedDates = 2`.
+
+### Fit dates, intercept and slope standard error
+
+Since 2026-11-05 the `cohort` and `slopes` sheets end with six further
+columns, placed after the rolling columns so that earlier column positions are
+unchanged. They are read from the existing fit; nothing is refitted.
+
+| Column | Content | Blank when |
+| --- | --- | --- |
+| `index_date` | Date (`YYYY-MM-DD`, UTC) of the first point the scalar fit consumed: the time origin `t0`, at which `intercept` applies. Under balancing it is the representative date of the first bin; in `chronic-ckd` the first point after the run-in; in `event-driven` the first point of the reported segment. | no point was fitted (`n_fitted = 0`, fit model `none` included) |
+| `last_fitted_date` | Date of the last point the scalar fit consumed, with the same conventions. With one fitted point it equals `index_date`. | as `index_date` |
+| `first_eligible_date` | Date of the first row of the same row set as `last_eligible_date` (added 2026-11-13, owner decision). Run-in, fit windows and balancing do not move it, so it can be earlier than `index_date`. It serves as a data-based start for time-to-event work; a study-specific index date is set in the analysis itself. | as `last_eligible_date` |
+| `last_eligible_date` | Date of the last exact, finite, dated row of the series before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (the event rules of "Observed endpoints and individual prediction"; boundary dates as there). Only these event rules apply: no fit exclusion window (AKI windows included), run-in or balancing. It is filled for every column and fit model, also where endpoints are not evaluated. | the series has no such row |
+| `intercept` | Fitted value of the display fit (the fit behind `slope`) at `index_date`, unrounded (OLS: `ȳ − slope · x̄`; two-point line: the first value; Theil-Sen: separate-median intercept). | the estimator returns no slope |
+| `slope_se` | OLS standard error of the slope, `SE = sqrt(SSres / (n − 2) / Sxx)` from "95 % confidence interval for the slope", unrounded; `ci_low = slope − t · SE`. | Theil-Sen (no standard error is defined; its bounds are rank-based), the exact two-point line (`n − 2 = 0`), and every case without a slope |
+
+Rolling and segmented OLS report the global OLS fit, so these columns describe
+that fit, not a window or segment. Example: the worked OLS example dated
+2020-01-01 to 2023-01-01 exports `index_date = 2020-01-01`,
+`last_fitted_date = 2023-01-01`, `intercept = 60.203774` and
+`slope_se = 0.283741` (half-width 1.220837 / t 4.30265273). Adding values on
+2023-02-01 and 2023-03-01 under quarterly medians gives one bin dated
+2023-02-01, so `last_fitted_date = 2023-02-01` while
+`last_eligible_date = 2023-03-01`; a value after a kidney transplant on
+2023-06-01 changes neither. With AKI windows excluded from the fit, creatinine
+values of 1.0, 1.1, 1.05 and 1.15 mg/dl up to 2020-07-30, then 2.4 on
+2020-08-01 and 1.8 on 2020-08-10, give `last_fitted_date = 2020-07-30` and
+`last_eligible_date = 2020-08-10`. Values of 62, 60 and 61 on 2020-01-05,
+2020-02-01 and 2020-03-01, then 56, 50 and 46 on 1 January 2021 to 2023,
+under quarterly medians (CKD progression) give one 2020 Q1 bin dated
+2020-02-01: `index_date = 2020-02-01` and `first_eligible_date = 2020-01-05`.
+A kidney transplant before the first value leaves both eligible dates blank.
+Evidence: [export record tests](../tests/core/cohort/exportRecords.test.ts).
 
 ### Rounding
 
@@ -1264,8 +1300,8 @@ With `df = n − 2`:
 percentile) for `df`. These bounds describe uncertainty in the slope under the
 usual linear-model assumptions. They are not bounds for the intercept and not a
 prediction interval for individual measurements. They are shown next to the
-slope, exported as `ci_low` and `ci_high`, and the endpoint-only fit uses the
-same calculation.
+slope, exported as `ci_low` and `ci_high` (and `SE` as `slope_se`), and the
+endpoint-only fit uses the same calculation.
 
 The critical value is read from a table in `tCritical95`, not computed:
 
@@ -1333,6 +1369,11 @@ With C=1.959963984540054*sqrt(V), use zero-based sorted-slope ranks
 Exact half-integers round to even to match NumPy. Undefined variance/ranks
 produce unavailable bounds. These are slope bounds, not confidence bounds for
 the intercept or prediction intervals for individual future observations.
+For n = 3, 4 and 5 without ties the ranks are 0 and N-1, so the bounds are
+the lowest and highest pairwise slope, with an actual coverage of 1 - 2/n!
+(66.7 %, 91.7 %, 98.3 %). The individual G5 projection therefore needs five
+distinct dates under Theil-Sen (since 2026-11-05; see "Individual G5
+projection"); the bounds themselves are unchanged.
 
 The kernel expects valid numeric points from preparation. The minimum applies
 to the actual prepared observations when used for a display fit. All pairs are
@@ -1414,9 +1455,11 @@ window slopes were computed and discarded and no line was drawn):
 - **Overlay counts.** In rolling mode a series counts as fitted when a window
   line is drawn. A series with a global slope but no window is counted among
   the trajectories without an available fit and not among the uncertain fits.
-- **Export.** The cohort and slope sheets end with five columns, placed after
-  all other columns of the sheet (`n_fitted` and `fitted_span_days` included)
-  so that earlier column positions are unchanged:
+- **Export.** The cohort and slope sheets carry five rolling columns, placed
+  after all earlier columns of the sheet (`n_fitted` and `fitted_span_days`
+  included) so that those column positions are unchanged. Only the five
+  columns of [fit dates, intercept and slope standard error](#fit-dates-intercept-and-slope-standard-error)
+  follow them:
 
   | Column | Content for slope mode `rolling` | Other modes |
   | --- | --- | --- |
@@ -1554,14 +1597,23 @@ value was excluded, with a raw span of 731 days, give: no slope, no reason,
 
 1. Fit model `none`: not unstable. There is no slope to qualify.
 2. `reason` is `no_numeric_values` or `n_below_threshold`: unstable.
-3. `nFitted < 3`: unstable.
+3. `nFittedDates < 3`: unstable, that is fewer than three distinct calendar
+   days among the fitted points.
 4. `fittedSpanDays < 365`: unstable.
 5. Otherwise unstable only if `reason` is `span_too_short`. For the reachable
    slope modes the fitted span never exceeds the raw span, so this step adds
    nothing after step 4.
 
 Step 3 catches the exact two-point fit and series that balancing or windows
-reduced to two points. Step 4 uses 365 whole days, truncated, not 365.25: a
+reduced to two points. It counts distinct dates, not fitted points (decided
+2026-11-05, issue #34): repeated measurements on one day add no information
+about the change over time. Example: 40, 40.2 and 39.8 on 2020-01-01 and 30
+on 2021-01-01 under General exploration give `nFitted = 4`,
+`nFittedDates = 2`, `fittedSpanDays = 366` and an OLS slope of -9.98 per year
+with bounds [-10.97, -8.99]. Until 2026-11-05 the rule counted `nFitted` and
+called this slope reliable; it is now unstable and `unstable_slope` is `yes`.
+Under balancing one bin has one representative date, so `nFittedDates`
+equals `nFitted` there. Step 4 uses 365 whole days, truncated, not 365.25: a
 fitted span from 2021-01-01 to 2022-01-01 is 365 days and passes; 2021-01-01 to
 2021-12-31 is 364 days and is unstable; 2020-01-01 to 2020-12-31 is 365 days
 and passes because 2020 is a leap year. The rule does not look at R², the
@@ -1579,8 +1631,9 @@ matching row applies.
 | 2 | `nFitted = 0` | No fitted measurements | grey |
 | 3 | `reason = n_below_threshold` | n < 3 | grey |
 | 4 | `fittedSpanDays = 0` | All fitted measurements on one date | grey |
-| 5 | `nFitted < 3` | n < 3, uncertain slope | amber |
-| 6 | Otherwise | Follow-up < 1 year, uncertain slope | amber |
+| 5 | `nFittedDates < 3` and `nFitted >= 3` (since 2026-11-05) | < 3 dates, uncertain slope | amber |
+| 6 | `nFitted < 3` | n < 3, uncertain slope | amber |
+| 7 | Otherwise | Follow-up < 1 year, uncertain slope | amber |
 
 Grey means that no slope exists; amber that a slope exists and is
 unreliable. Row 2 covers a series whose points were all removed by bounds or
@@ -1687,17 +1740,20 @@ validated clinical result. The implementation is `appendComputedEgfr` in
 
 ### Activation, default and output series
 
-The eGFR module setting holds one formula (`off`, `ckd-epi-2021`, `mdrd-4` or
-`ekfc-2021`) and one optional source pair. The default is `formula: 'off'`,
+The eGFR module setting holds one formula (`off`, `ckd-epi-2021`,
+`ckd-epi-2009`, `mdrd-4` or `ekfc-2021`) and one optional source pair. The default is `formula: 'off'`,
 `source: null`: no eGFR series exists until a formula is applied under Data.
 With `off` the module contributes nothing. Only one formula is active at a
-time.
+time. A saved setting whose formula is not one of these values is rejected
+when settings are loaded.
 
 Decided 2026-10-07 (formerly OD-5): the default stays `off`. The methodology page no longer labels CKD-EPI 2021 the default.
 
 Computed rows are appended to the imported rows; source rows are never
 changed. The series name is `eGFR (<formula label>, computed)` with the labels
-`CKD-EPI 2021`, `MDRD-4` and `EKFC 2021`, and the unit is written
+`CKD-EPI 2021`, `CKD-EPI 2009 (race-free)`, `MDRD-4` and `EKFC 2021`, so a
+CKD-EPI 2009 series (`eGFR (CKD-EPI 2009 (race-free), computed)`) is a separate parameter from a
+CKD-EPI 2021 series in tables, fits and exports. The unit is written
 `ml/min/1,73m²`. The workspace blocks the calculation when an imported series
 already has that name and unit, so imported and computed values are never
 combined.
@@ -1709,10 +1765,40 @@ conditions hold (`isSerumCreatinineSeries`):
 
 - **Name contains** `kreatinin` or `creatinin`. The test ignores case,
   surrounding whitespace and non-breaking spaces. It is a substring test.
-- **Name is not a urine name.** A name is a urine name when it contains
-  `urin` or `harn` in any case (this covers "Urin", "Urine", "Harn"), or when
-  it ends with upper-case `UR`. The suffix test is case-sensitive:
-  `Kreatinin UR` is excluded, `Kreatinin ur` is not.
+- **Name is not a non-serum name** (`isNonSerumName`, decided 2026-11-05,
+  issue #34; before, only the urine rule below existed and was called
+  `isUrineName`). A name marks a material other than serum or plasma when any
+  of these holds, after non-breaking spaces and surrounding whitespace are
+  ignored:
+  - it contains, in any case, `urin`, `harn` (covering "Urin", "Urine",
+    "Harn", "Sammelurin"), `dialysat` ("Dialysat", "dialysate"), `punktat`,
+    `fluid`, `aszites`, `ascites`, `pleura`, `liquor`, `drainage`, `sekret`
+    ("Sekret", "Wundsekret") or `lymphe`;
+  - after `i.` followed by whitespace and `U` is read as `i.U`, and split at
+    whitespace, commas, semicolons, slashes, underscores, hyphens and
+    parentheses, one token is, in any case and ignoring trailing dots, `i.U`
+    (im Urin), a lone `U` (`U-Kreatinin`, `Kreatinin (U)`, `Kreatinin U.`,
+    `Kreatinin/U`, `Kreatinin_U`), `SU` (Sammelurin; also the `SU` of
+    `24h-SU`), `SU24h`, `SPU` (Spontanurin), `PU` (Punktat or Portionsurin;
+    both are non-serum), `CSF`, `Drain`, `PD` (peritoneal dialysate) or
+    `Serom`;
+  - it ends with upper-case `UR`. This suffix test is case-sensitive:
+    `Kreatinin UR` is excluded, `Kreatinin ur` is not.
+
+  Excluded therefore: `Kreatinin i.U.`, `Kreatinin i. U.`, `U-Kreatinin`,
+  `Kreatinin U.`, `Kreatinin/U`, `Kreatinin_U`, `Kreatinin SU`,
+  `Kreatinin 24h-SU`, `Kreatinin SU24h`, `Kreatinin SpU`, `Kreatinin PU`,
+  `Kreatinin CSF`, `Kreatinin Drain`, `Kreatinin PD`, `Kreatinin Serom`,
+  `Kreatinin Lymphe`, `Kreatinin (Wund)sekret`, `Kreatinin Dialysat`,
+  `Kreatinin Punktat`. Still eligible: `Kreatinin`, `Kreatinin i.S.`,
+  `Kreatinin i.P.`, `Kreatinin (enzym.)`, `Kreatinin (S)`, `Kreatinin Serum`,
+  `Kreatinin Plasma`, `S-Kreatinin`, `Kreatinin HP`, `Kreatinin BGA`,
+  `Kreatinin Vollblut`, `Creatinine serum`, `Kreatinin mg/dl`. Tokens are
+  compared whole, so `Kreatinin Pumpe` or `Kreatinin enzym.` mark nothing.
+  Since the review follow-up of 2026-11-05 the slash separates tokens:
+  `Kreatinin U/l` is excluded (token `U`). Creatinine is not reported in the
+  enzyme unit U/l, so no serum spelling is lost. Prefixes such as `S-` or `P-`
+  mark nothing.
 - **Unit is mg/dl or µmol/l** after unit-key normalisation (below).
 
 No other material or method is distinguished. Any name that passes these tests
@@ -1782,7 +1868,7 @@ yields nothing; no placeholder row is written.
 | Sex | resolved to `m`, `w` or `d` |
 | Age | present and at least 18 (`age >= 18`; 17 gives no value, 18 does) |
 
-All three formulas are adult-only here. This includes EKFC, whose published
+All four formulas are adult-only here. This includes EKFC, whose published
 form covers the full age spectrum. If no row in the dataset carries a sex and
 no row carries an age, the derivation returns the input rows unchanged without
 looking at the source.
@@ -1794,12 +1880,12 @@ compared on UTC calendar dates. It is an integer and changes on the
 (resolved or assumed) birthday; fractional age is not used. When a patient has
 no anchor, the row keeps its stated age, which the import truncates toward
 zero to an integer. One further completed year lowers CKD-EPI 2021 by 0.62 %
-(factor 0.9938) and EKFC above 40 years by 1.0 % (factor 0.990), so a series
+(factor 0.9938), CKD-EPI 2009 by 0.70 % (factor 0.993) and EKFC above 40 years by 1.0 % (factor 0.990), so a series
 shows a small step at each birthday. The rules that resolve sex and the
 birth-date anchor are not repeated here.
 
 **Sex.** The resolved patient sex is used. `m` and `w` select the male and
-female coefficients. `d` uses the male coefficients in all three formulas,
+female coefficients. `d` uses the male coefficients in all four formulas,
 including the EKFC Q value. An unresolved or unrecognised sex gives no value.
 
 ### Formulas
@@ -1818,6 +1904,27 @@ eGFR = 142 × min(Scr/κ, 1)^α × max(Scr/κ, 1)^(−1.200) × 0.9938^age × F
 | --- | ---: | ---: | ---: |
 | `w` | 0.7 | −0.241 | 1.012 |
 | `m`, `d` | 0.9 | −0.302 | 1.000 |
+
+**CKD-EPI 2009 creatinine** (Levey et al., Annals of Internal Medicine
+2009;150:604-612), added 2026-11-05 for comparability with analyses that use
+it (see [method decisions](remaining-method-decisions.md#ckd-epi-2009-equation-2026-11-05)).
+The published race coefficient (× 1.159) is not applied, because the data
+model carries no race; this is a deviation from the published equation, and
+the result equals the published value for a non-Black patient. The label
+`CKD-EPI 2009 (race-free)` says so (owner decision 2026-11-13). The conditions,
+age, sex handling and rounding are the same as for CKD-EPI 2021:
+
+```
+eGFR = 141 × min(Scr/κ, 1)^α × max(Scr/κ, 1)^(−1.209) × 0.993^age × F
+```
+
+| Sex | κ | α | F |
+| --- | ---: | ---: | ---: |
+| `w` | 0.7 | −0.329 | 1.018 |
+| `m`, `d` | 0.9 | −0.411 | 1.000 |
+
+At `Scr = κ` both branches give 1, so the two branches meet there; the α branch
+applies only below κ.
 
 **MDRD-4**, IDMS-traceable 175 form (Levey et al., Annals of Internal Medicine
 2006). The published race coefficient is not applied:
@@ -1874,6 +1981,24 @@ limit and no plausibility range for creatinine other than the positivity
 condition. For example, CKD-EPI 2021 for 0.3 mg/dl in a woman aged 18 gives
 157.6.
 
+**Plausibility warnings** (added 2026-11-05, issue #34; thresholds confirmed
+by the owner on 2026-11-13: they target swapped units, not urine). Warnings only: no value is changed, removed or
+excluded. The Data page shows, with the number of affected values:
+
+- under *Demographics and data quality*, exact dated serum creatinine values
+  strictly above **25 mg/dl** (`IMPLAUSIBLE_CREATININE_ABOVE_MGDL`;
+  `implausiblyHighCreatinineCount`), µmol/l values divided by 88.42 first, so
+  the µmol/l limit is 2210.5 µmol/l (2210 is not counted, 2211 is). Only
+  eligible serum-creatinine pairs are counted; bounds such as `>30` are not.
+  The typical cause is a µmol/l column labelled mg/dl: 120 "mg/dl" gives
+  CKD-EPI 2021 0.3 (0.275614) for a male aged 60 and silent G5 endpoints.
+- under *Derive eGFR*, for the previewed calculation, exact computed eGFR
+  values strictly above **200 mL/min/1.73 m²** (`IMPLAUSIBLE_EGFR_ABOVE`;
+  `implausiblyHighEgfrCount`). Bounds are not counted: `<0,3` mg/dl gives a
+  `>` bound, not an implausible measurement. Imported eGFR series are not
+  checked. Example: CKD-EPI 2021 for a male aged 20 gives 243.5 at 0.1 mg/dl
+  (counted) and 149.7 at 0.5 mg/dl (not counted).
+
 ### Duplicates and bounded rows
 
 Each eligible source row produces its own eGFR row. Rows of the same patient
@@ -1909,20 +2034,32 @@ are the values returned by the formula functions.
 | CKD-EPI 2021 | `m` | 142 × 1 × (1.2/0.9)^−1.2 × 0.9938^60 = 142 × 0.708066 × 0.688556 | 69.231128 | 69.2 |
 | CKD-EPI 2021 | `w` | 142 × 1 × (1.2/0.7)^−1.2 × 0.688556 × 1.012 | 51.821330 | 51.8 |
 | CKD-EPI 2021 | `w`, 0.6 mg/dl | 142 × (0.6/0.7)^−0.241 × 1 × 0.688556 × 1.012 | 102.693411 | 102.7 |
+| CKD-EPI 2009 | `m` | 141 × 1 × (1.2/0.9)^−1.209 × 0.993^60 = 141 × 0.706235 × 0.656077 | 65.331569 | 65.3 |
+| CKD-EPI 2009 | `w` | 141 × 1 × (1.2/0.7)^−1.209 × 0.656077 × 1.018 = 141 × 0.521187 × 0.656077 × 1.018 | 49.081204 | 49.1 |
+| CKD-EPI 2009 | `w`, 0.6 mg/dl, 40 years | 141 × (0.6/0.7)^−0.329 × 1 × 0.993^40 × 1.018 = 141 × 1.052024 × 0.755040 × 1.018 | 114.015087 | 114.0 |
+| CKD-EPI 2009 | `m`, 0.6 mg/dl, 40 years | 141 × (0.6/0.9)^−0.411 × 1 × 0.993^40 | 125.765801 | 125.8 |
 | MDRD-4 | `m` | 175 × 1.2^−1.154 × 60^−0.203 = 175 × 0.810261 × 0.435547 | 61.758706 | 61.8 |
 | MDRD-4 | `w` | the male result × 0.742 | 45.824960 | 45.8 |
 | EKFC 2021 | `m` | 107.3 × (1.2/0.90)^−1.132 × 0.990^20 = 107.3 × 0.722053 × 0.817907 | 63.368432 | 63.4 |
 | EKFC 2021 | `m`, 20 years, 0.9 mg/dl | Q = 76.1966/88.4 = 0.861953; 107.3 × (0.9/0.861953)^−1.132 | 102.179692 | 102.2 |
 
 Regression evidence: [formula tests](../tests/core/egfr/formulas.test.ts)
-(invalid inputs, `d` as male, EKFC reference values including the
+(invalid inputs, `d` as male, CKD-EPI 2009 values of the worked examples,
+EKFC reference values including the
 age-specific Q, sex spellings),
 [eGFR source tests](../tests/core/egfr/series.test.ts) (urine exclusion,
+formula-specific series names including CKD-EPI 2009,
 default-source rules 1, 2 and 4, µmol/l conversion and spellings, reversed
 bound, under-18 rows, rejected non-serum source),
+[creatinine source tests](../tests/core/aki/creatinineSource.test.ts)
+(non-serum and serum names, plausibility counts at both thresholds),
+[Data page tests](../tests/workspace/data-ui.test.tsx) (both plausibility
+notices, a saved non-serum source),
 [eGFR module tests](../tests/core/analysis/egfrModule.test.ts) (formula
-`off` contributes nothing), [unit-key tests](../tests/core/parse/units.test.ts)
-and [eGFR fixture tests](../tests/parity/egfr.parity.test.ts). No dedicated
+`off` contributes nothing, saved formula names validated), [unit-key tests](../tests/core/parse/units.test.ts)
+and [eGFR fixture tests](../tests/parity/egfr.parity.test.ts). The golden
+fixtures carry no CKD-EPI 2009 values; its values are pinned by the formula
+tests only. No dedicated
 regression test: one-decimal rounding at a threshold, the absence of caps,
 same-date duplicate source rows and default-source rule 3. The inherited
 operator of a non-exact source row is covered by the
@@ -1943,16 +2080,24 @@ thresholds are in `src/core/domains/nephrology/constants.ts`.
 
 AKI detection accepts the same eligible serum-creatinine name and unit pairs
 as eGFR derivation: a name containing "Kreatinin" or "Creatinin", excluding
-urine names, with mg/dl or µmol/l (including common case, space and micro-sign
-spellings; see [eGFR derivation](#egfr-derivation) for the exact tokens).
+non-serum names (urine, dialysate, puncture fluid, secretions, lymph,
+CSF and other body fluids; since 2026-11-05 also tokens such as `i.U.`,
+`U`, `SU`, `SPU`, `PU`, `PD` and `U-`), with mg/dl or µmol/l
+(including common case, space and micro-sign spellings; see
+[eGFR derivation](#eligible-source-series) for the exact tokens). A non-serum
+series detects no episodes and supplies none to other columns.
 Only dated exact numeric rows enter detection; bounded rows (`<x`, `>x`) and
 rows without a number are ignored and cannot establish an episode.
 
-Each eligible creatinine series detects AKI on itself. For any other analyte
-column the patient's eligible creatinine pair with the most exact dated rows
-is used; ties retain the first encountered pair. Bounds do not win source
-selection by inflating the row count. The choice is made per patient. Rows
-with different names or units are never pooled into one detection series.
+Each eligible creatinine series detects AKI on itself. A computed eGFR column
+uses the creatinine pair it was computed from (decided 2026-11-05, issue #34):
+every computed row carries its source pair (`LabRow.sourceSeries`), and the
+patient's rows of that pair are the detection input. Before, a computed eGFR
+column was treated like any other analyte. For any other analyte column the
+patient's eligible creatinine pair with the most exact dated rows is used;
+ties retain the first encountered pair. Bounds do not win source selection by
+inflating the row count. The choice is made per patient. Rows with different
+names or units are never pooled into one detection series.
 
 A µmol/l value is converted to mg/dl by dividing by **88.42 µmol/l per
 mg/dl** before any comparison. Thus 97.262 and 123.788 µmol/l correspond to
@@ -1966,9 +2111,11 @@ as eGFR derivation rejects it. Before, a baseline of 0 gave an infinite ratio
 and stage III, and 0 followed by 0.3 mg/dl fired the absolute criterion. The
 neighbouring positive values are evaluated as if the value were absent: 1.0,
 0 and 1.6 mg/dl on three consecutive days give one stage-I episode with
-baseline 1.0. No other plausibility check is applied. The Data page reports
+baseline 1.0. No other value is removed. The Data page reports
 the number of exact dated serum-creatinine rows of zero or less ("… not
-plausible, so not used for AKI detection or eGFR").
+plausible, so not used for AKI detection or eGFR") and warns about values
+above 25 mg/dl, which stay in detection (see the
+[plausibility warnings](#rounding-and-limits) of eGFR derivation).
 
 **Dialysis.** Creatinine measured under dialysis is left out before detection
 (decided 2026-10-07, formerly OD-14), because it reflects the dialysis
@@ -2107,16 +2254,23 @@ stage reached by several as `n×` and the numeral: `AKI I`, `AKI I, II`,
 "3 AKI episodes: 2× stage I, 1× stage II". Without episodes there is no chip
 and the export cell is empty.
 
-Because a creatinine column detects on itself and every other column uses the
-patient's creatinine pair with the most exact dated rows, two creatinine
-columns of one patient can show different episodes, and the AKI source of a
-computed eGFR column need not be the series the eGFR was derived from.
-Example: a patient has `Kreatinin [mg/dl]` with 1.0 and 1.6 mg/dl on
-consecutive days and `Kreatinin HP [µmol/l]` with 90, 91 and 92 µmol/l on
-three days. The eGFR default source is `Kreatinin [mg/dl]`, and the computed
-CKD-EPI 2021 eGFR falls from 86.2 to 49.0 (male, 60 years). The `Kreatinin` column shows
-one stage-I episode. The computed eGFR column shows none, because its AKI
-source is the `Kreatinin HP` pair with three rows.
+Because a creatinine column detects on itself and every other imported column
+uses the patient's creatinine pair with the most exact dated rows, two
+creatinine columns of one patient can show different episodes, and an
+imported eGFR column can take its episodes from another creatinine pair than
+the one it was measured with. A computed eGFR column always uses the pair it
+was derived from (since 2026-11-05).
+Example (issue #34): a patient has `Kreatinin [mg/dl]` with 1.0, 2.0 and
+1.9 mg/dl on 2020-01-01, -02 and -03, and five rows of
+`Kreatinin enzym. [mg/dl]` in 2021, after the laboratory switched method. The
+eGFR default source is `Kreatinin [mg/dl]`; the computed CKD-EPI 2021 eGFR is
+86.2, 37.5 and 39.9 (male, 60 years). The `Kreatinin` column shows one
+stage-II episode with onset 2020-01-02 (peak 2.0, baseline 1.0). The computed
+eGFR column now shows the same episode, and with AKI exclusion its 30-day
+window from 2020-01-02 removes 37.5 and 39.9 from the eGFR fit. Before, the
+computed eGFR column used `Kreatinin enzym.` (five rows), showed no episode
+and kept both AKI values in its slope. A `HbA1c` column of the same patient
+still uses `Kreatinin enzym.` and shows none.
 
 ### Not implemented
 
@@ -2172,7 +2326,9 @@ Regression evidence: [KDIGO boundary tests](../tests/core/aki/kdigo.test.ts)
 (tolerance, exact 0.3 mg/dl and 1.5-fold boundaries, stage values, the
 4.0 mg/dl rule), [AKI source tests](../tests/core/aki/akiAware.test.ts)
 (eligible names and units, µmol/l conversion, source selection without
-pooling, bounded rows), [AKI module tests](../tests/core/analysis/akiModule.test.ts)
+pooling, bounded rows), [creatinine source tests](../tests/core/aki/creatinineSource.test.ts)
+(non-serum names, the computed eGFR source example above, its fit input and
+episode cache), [AKI module tests](../tests/core/analysis/akiModule.test.ts)
 (episodes reused on computed eGFR and other columns),
 [AKI fixture tests](../tests/parity/aki.parity.test.ts) (episode dates,
 stages and criteria on fixture series),
@@ -2241,8 +2397,11 @@ display fit, clinical-event censoring is applied first, then the AKI windows
 remove exact measurements, then time balancing (monthly or quarterly medians)
 runs on what remains, so excluded values never enter a median. Excluded
 measurements stay visible and are marked as excluded from the fit; raw counts
-are unchanged. Observed endpoints and the individual endpoint prediction do
-not use AKI windows. Cohort mixed models use them when the analysis settings
+are unchanged. Since 2026-11-05 the same windows are also left out of the
+decline baseline and the individual endpoint prediction when the column
+excludes them; observed G4/G5, the total change and the decline events still
+keep those rows (see "Which measurements" under "Observed endpoints and
+individual prediction"). Before, endpoints did not use AKI windows. Cohort mixed models use them when the analysis settings
 chosen for that parameter under Trajectories have the switch on and the *Apply
 preset event and AKI exclusions* checkbox of the Cohort models page is on (see
 [cohort mixed models](#cohort-mixed-models)).
@@ -2554,10 +2713,76 @@ filter (`filterEndpointPointsForEvents`):
   events remove nothing.
 
 Dates compare by UTC calendar day. The filter is independent of the display-fit
-censoring options, AKI windows and time balancing; a column with all censoring
-options off still truncates its endpoint input at kidney replacement therapy.
+censoring options and time balancing; a column with all censoring options off
+still truncates its endpoint input at kidney replacement therapy.
+
+**AKI windows (since 2026-11-05).** When the column's fit excludes AKI windows
+(the fit configuration's AKI exclusion is on, as in the CKD progression preset,
+or the slope mode is `aki-aware`), the rows inside those same windows are also
+left out of two endpoint inputs: each window runs from the episode onset to
+onset plus the column's window length (30 days by default), both ends
+included, as in "AKI fit-exclusion window". The windows come from the same
+episodes, from the same creatinine source and with the same length as the
+display fit's. With AKI exclusion off nothing changes. The rule applies to
+exactly two inputs, as issue #34 requested: the rows that form the decline
+baseline and the rows of the projection fit (with its minimum dates, span and
+latest row; ages are still anchored on all eligible rows). Observed G4 and G5, the total percent change and
+the rows that start, confirm or recover a 40 % or 57 % decline still use every
+eligible row, AKI windows included. So a low eGFR inside an AKI window can
+still start or confirm an observed G4 or G5 or a decline event. This matters
+in advanced CKD: the absolute KDIGO criterion (a rise of 0.3 mg/dl within 48
+hours) is met by ordinary day-to-day variation at high creatinine, so whole
+stretches of a sustained G5 can lie inside AKI windows (Example 3). The export
+column `endpoint_input_policy` names the exclusion (see "Export provenance").
+
+Example 1 (decided 2026-11-05): eGFR 34, 35, 36, repeating, on the first day of
+each quarter from 2020-01-01 to 2023-01-01 (13 rows), then 26, 24, 22, 20,
+18, 17, 16, 16 daily from 2023-02-01, with creatinine 1.8 mg/dl up to
+2023-01-31 and 2.8 to 3.5 mg/dl from 2023-02-01 (AKI stage I, onset
+2023-02-01, window to 2023-03-03). Under CKD progression, with a birth date of
+1960-01-01, the display fit was already flat (slope 0.044 per year, bounds
+[-0.54, 0.63]). Before, the endpoint fit used all 21 rows: slope bounds
+[-7.43, -2.46] and a projected age of 65.0 (`G5 @ 65.0y`). Now the eight AKI
+rows are left out of the projection fit, which equals the display fit, and the
+projection is withheld as `non_declining_fit`. The total change still uses all
+21 rows: (34 - 16) / 34 = 52.9 % (badge `-53%, G5 not projected`). The decline
+baseline is 34 (2020-04-01 is day 91, outside the baseline period); 16 is a
+52.9 % decline from it but has no confirmation, so no decline event, G4 or G5
+is met.
+
+Example 2 (decided 2026-11-05): eGFR 20 and 25 on 2020-01-03 and 2020-01-05
+during an AKI (creatinine 1.0 on 2020-01-01, 2.6 on 2020-01-03, onset
+2020-01-03), then 55 (2020-03-01), 58 (2020-05-01), 56 (2020-07-01), 33
+(2021-01-01) and 32 (2021-06-01). Before, the baseline window ran from
+2020-01-03 and its mean was (20 + 25 + 55) / 3 = 33.33; the later rows 58,
+56, 33 and 32 are at most a 4.0 % decline from it (32), so no 40 % decline
+was found. Now the baseline starts at the first row outside the AKI window,
+2020-03-01: (55 + 58) / 2 = 56.5. The decline events read every eligible row
+after 2020-05-30 (56, 33, 32; none lies in the AKI window), so 33 is a 41.6 %
+and 32 a 43.4 % decline, and the 40 % decline is confirmed with first date
+2021-01-01 (33) and confirmation 2021-06-01 (32, 151 days later); the 57 %
+decline is not met. The total change keeps the AKI rows and stays a rise of
+60 % from 20 to 32 (`endpoint_percent_decline` -60, badge `+60%`), next to a
+confirmed 40 % decline: the two answer different questions. The projection
+moves as well: before, the seven rows
+gave slope bounds [-35.47, 33.46] and `slope_ci_includes_zero`; the five rows
+from 2020-03-01 give bounds [-40.83, -6.37] and, with a birth date of
+1960-01-01, a projected age of 62.0.
+
+Example 3 (regression, review follow-up of 2026-11-05): eGFR 14.2 and 13 with
+creatinine 4.5 and 4.85 mg/dl on consecutive days, every 14 days for two
+years from 2020-01-01 (104 rows of each). Each rise of 0.35 mg/dl within a day
+above 4.0 mg/dl is a KDIGO stage-III episode, so 52 episodes are found and
+their windows cover 103 of the 104 eGFR rows. When the AKI windows were
+removed from all endpoint input (the first version of this change), one row
+remained and the sustained observed G5 was lost. Now observed G4 and G5 use
+all 104 rows and G5 is met from 2020-01-01 (14.2); the projection reports
+`observed_ckd_g5`.
+
 Remaining rows are sorted by date; rows on the same date keep source order.
-The same eligible rows feed every endpoint and the projection fit.
+Without AKI exclusion the same eligible rows feed every endpoint and the
+projection fit; with it, the decline baseline and the projection fit read the
+subset outside the AKI windows.
 
 **Day resolution.** Import stores every lab and event date as its calendar day
 at midnight UTC. "Same timestamp" below therefore means the same calendar day,
@@ -2706,6 +2931,12 @@ first and latest coincide; the export keeps the computed 0.
 - Baseline (window confirmed by the owner on 2026-10-07): the arithmetic mean of all eligible rows from
   the first eligible UTC date through 90 elapsed UTC calendar days, inclusive
   of the whole final day. Duplicate rows each contribute. One row suffices.
+  When the column excludes AKI windows, the baseline is formed only from
+  eligible rows outside them, and its 90 days run from the first such row
+  (since 2026-11-05; see Example 2 under "Which measurements"). Without such
+  a row there is no baseline and no decline event.
+- The rows after the baseline window that can start, confirm or recover an
+  event are all eligible rows, AKI windows included.
 - Only rows after that window can start, confirm or recover an event, so no
   observation both defines the baseline and establishes a decline. This
   withholds early confirmed decline dates and can be revised on review.
@@ -2721,8 +2952,10 @@ first and latest coincide; the export keeps the computed 0.
   not the percentages.
 
 Regression evidence: [endpoint tests](../tests/core/endpoints/ckdEndpoints.test.ts),
-[badge tests](../tests/workspace/labels/qualityLabels.test.ts) and
-[method contract tests](../tests/workspace/method-contract.test.tsx). No
+[badge tests](../tests/workspace/labels/qualityLabels.test.ts),
+[method contract tests](../tests/workspace/method-contract.test.tsx) and the
+[decision tests of 2026-11-05](../tests/core/endpoints/decisions20261105.test.ts)
+for the baseline after an AKI window. No
 dedicated regression test for the unavailable total change at a non-positive
 first value or for the opposite signs of badge and export.
 
@@ -2735,9 +2968,13 @@ an expected event time or a probability, and its uncertainty in time is not
 estimated. Only an age is produced, not a calendar date.
 
 **Fit.** The projection fits the endpoint-eligible rows, without display-fit
-censoring options, AKI exclusion or time balancing. It therefore includes
-recovery after an acute dialysis interval and nothing from kidney replacement
-therapy on. The estimator follows the column's fit model:
+censoring options or time balancing. It therefore includes recovery after an
+acute dialysis interval and nothing from kidney replacement therapy on. When
+the column excludes AKI windows, the rows inside them are not fitted and do
+not count towards the minimum dates, the span or the latest row (since
+2026-11-05; before, the endpoint fit kept them; see "Which measurements").
+Whether G5 was already observed, which withholds the projection, is decided on
+all eligible rows. The estimator follows the column's fit model:
 
 | Column fit model | Endpoint fit |
 | --- | --- |
@@ -2790,8 +3027,32 @@ The export carries the unrounded value in both cases and the basis in
 `endpoint_prediction_age_basis`. The 20-year horizon is measured from the same
 age and is unaffected by the basis.
 
-**Minimum data.** At least three eligible rows are required; rows are counted,
-not distinct dates. The follow-up between the first and latest eligible rows
+**Minimum data.** Eligible rows on at least three distinct UTC calendar dates
+are required (`MIN_PROJECTION_DATES`), and on at least five with the Theil-Sen
+fit model (`MIN_THEIL_SEN_PROJECTION_DATES`). Both count dates, not rows
+(decided 2026-11-05, issue #34; until then three rows sufficed for either
+model, wherever they lay). Rows on one date still all enter the fit.
+
+- Distinct dates. 40, 40.2 and 39.8 on 2020-01-01 and 30 on 2021-01-01 under
+  OLS were projected before: slope -9.98 per year, bounds [-10.97, -8.99] and,
+  with a birth date of 1960-01-01, `G5 @ 62.5y`. They are two dates and are
+  now withheld as `insufficient_points`.
+- Theil-Sen. With n observations on distinct dates and n up to 5, the 95 %
+  rank bounds of "Theil-Sen" select the lowest and the highest pairwise slope.
+  That range misses the true slope only when the residuals happen to be
+  ordered like the dates, increasing or decreasing, so for independent errors
+  without ties it covers the true slope with probability 1 - 2/n!: 66.7 % for
+  n = 3, 91.7 % for n = 4 and 98.3 % for n = 5. Below five dates the "95 %"
+  bounds are therefore not a 95 % interval, and the confidence gate passes
+  every monotone series. 40, 39 and 30 on 2020-01-01, 2021-01-01 and
+  2022-01-01 have pairwise slopes -1.00, -5.00 and -9.01 per year; the bounds
+  were [-9.01, -1.00] and `G5 @ 65.8y` was reported, while OLS withholds the
+  same series (bounds include zero). Now Theil-Sen withholds it as
+  `theil_sen_insufficient_points`. Five rows on four dates are withheld in
+  the same way. The estimator and its bounds are unchanged; only the
+  projection gate moved.
+
+The follow-up between the first and latest eligible rows
 must be at least 365 days (`MIN_PROJECTION_SPAN_DAYS`), the same number as the
 minimum fitted span of the slope reliability rule (decided 2026-10-07,
 formerly OD-17; before, 365.25 days were required and one calendar year
@@ -2815,7 +3076,7 @@ then 1.959963985). For Theil-Sen the bounds are the 95 % rank bounds of the
 "Theil-Sen" section. These are slope bounds, not prediction intervals. The
 level is not configurable.
 
-Decided 2026-10-07 (formerly OD-4): the three-measurement minimum and the confidence gate stay. With three points the OLS 95 % interval uses t(1) = 12.706, so three measurements almost never yield a projection; the methodology page says so and shows the withheld example (60, 50, 25) beside one that is reported.
+Decided 2026-10-07 (formerly OD-4): the three-measurement minimum and the confidence gate stay. With three points the OLS 95 % interval uses t(1) = 12.706, so three measurements almost never yield a projection; the methodology page says so and shows the withheld example (60, 50, 25) beside one that is reported. That statement holds for OLS only: with three dates the Theil-Sen bounds pass every monotone series, which is why Theil-Sen needs five dates since 2026-11-05 (see "Minimum data"). The methodology page does not say so yet.
 
 **Horizon.** Confirmed by the owner on 2026-10-07. The crossing must lie no more than 20 years after
 the latest eligible row, in 365.25-day years. Exactly 20 years is reported.
@@ -2829,17 +3090,18 @@ exported in `endpoint_prediction_reason`; the label is the table badge.
 | --- | --- | --- | --- |
 | 1 | `observed_ckd_g5` | The eligible rows contain a confirmed observed G5, with or without later kidney replacement therapy and whether or not the observed-G5 endpoint is switched on. | With the observed-G5 endpoint on, none: the `CKD G5` badge with its dates is shown. With it off, `G5 not projected`, whose detail text names the confirmed event. |
 | 2 | `kidney_failure_reached` | Kidney failure reached and no confirmed observed G5. | `G5 not projected after KRT` |
-| 3 | `insufficient_points` | Fewer than three eligible rows. | `G5 n < 3` |
-| 4 | `span_too_short` | First to latest eligible row under 365 days. | `G5 < 1 yr` |
-| 5 | `no_fit` | Slope or intercept of the endpoint fit not finite; with three rows over a year this means fit model "No fit". | `G5 no fit` |
-| 6 | `non_declining_fit` | Slope zero or positive. | `G5 not projected` |
-| 7 | `already_below_threshold` | The fitted line reaches 15 at or before the latest eligible row (`t <= span`). | `G5 now` |
-| 8 | `missing_age` | The latest eligible row has no age (see "Age at the latest eligible row"). | `G5 no age` |
-| 9 | `slope_ci_unavailable` | A slope bound is missing or not finite, or the bounds are inverted. | `G5 not projected` |
-| 10 | `slope_ci_includes_zero` | Lower bound at or below zero and upper bound at or above zero. | `G5 not projected` |
-| 11 | `beyond_projection_horizon` | Crossing more than 20 years after the latest eligible row. | `G5 not projected` |
+| 3 | `insufficient_points` | Eligible rows on fewer than three distinct dates. | `G5 < 3 dates` |
+| 4 | `theil_sen_insufficient_points` | Fit model Theil-Sen and eligible rows on three or four distinct dates (since 2026-11-05). | `G5 < 5 dates` |
+| 5 | `span_too_short` | First to latest eligible row under 365 days. | `G5 < 1 yr` |
+| 6 | `no_fit` | Slope or intercept of the endpoint fit not finite; with three dates over a year this means fit model "No fit". | `G5 no fit` |
+| 7 | `non_declining_fit` | Slope zero or positive. | `G5 not projected` |
+| 8 | `already_below_threshold` | The fitted line reaches 15 at or before the latest eligible row (`t <= span`). | `G5 now` |
+| 9 | `missing_age` | The latest eligible row has no age (see "Age at the latest eligible row"). | `G5 no age` |
+| 10 | `slope_ci_unavailable` | A slope bound is missing or not finite, or the bounds are inverted. | `G5 not projected` |
+| 11 | `slope_ci_includes_zero` | Lower bound at or below zero and upper bound at or above zero. | `G5 not projected` |
+| 12 | `beyond_projection_horizon` | Crossing more than 20 years after the latest eligible row. | `G5 not projected` |
 
-A table cell without any measurement of its parameter shows no `G5 n < 3`
+A table cell without any measurement of its parameter shows no `G5 < 3 dates`
 badge (since 2026-10-12): the cell already reads "No numeric measurements with
 a date". The reason code is unchanged, and the export still carries
 `insufficient_points` for that patient and parameter. Other badges of the
@@ -2908,7 +3170,10 @@ endpoint tests supply slope bounds directly rather than from a fit. The
 [decision tests](../tests/core/endpoints/decisions20261007.test.ts) cover the
 two age bases, the 364-day versus 365-day span boundary, the projection with
 the observed-G5 toggle off and the 365-day limit of the confirmation
-interval. No dedicated regression test for the age of an earlier row carried
+interval. The [decision tests of 2026-11-05](../tests/core/endpoints/decisions20261105.test.ts)
+cover the AKI-window exclusion (Examples 1 to 3 under "Which measurements"),
+the distinct-date minimum and the five-date Theil-Sen minimum with the
+examples above. No dedicated regression test for the age of an earlier row carried
 forward or for the full reason order.
 
 ### Export provenance
@@ -2927,7 +3192,7 @@ endpoint toggles on a series that passes the unit gate.
 | `endpoint_projected_age_to_ckd_g5` | A projection is reported. | Age in years, unrounded. |
 | `endpoint_observed_ckd_g4` | Observed G4 confirmed. | `yes` |
 | `endpoint_confirmation_days` | G4, G5, percent decline or the projection enabled. | Effective minimum interval in days, at most 365. |
-| `endpoint_input_policy` | Any endpoint enabled. | Fixed text: "dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded". |
+| `endpoint_input_policy` | Any endpoint enabled. | Fixed text: "dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded", followed by "; AKI exclusion windows excluded from decline baseline and projection" when the column excludes AKI windows (since 2026-11-05). |
 | `endpoint_kidney_failure_reached` | Kidney failure reached, whatever the toggles. | `yes` |
 | `endpoint_kidney_failure_type` | As above. | `kidney_transplant` or `chronic_dialysis` |
 | `endpoint_kidney_failure_date` | As above. | Event date. |
@@ -2965,9 +3230,13 @@ enabled, the anchor reads `fitted curve` and the model `none`.
 
 The `about` sheet states that observed G4 below 30 and G5 below 15 use dated
 exact numeric eGFR before the first kidney transplant or chronic dialysis and
-outside complete acute dialysis intervals, that kidney replacement therapy is
-reported separately, and that the individual prediction fits the same rows
-with slope bounds that are not prediction intervals. The `events` sheet lists
+outside complete acute dialysis intervals, that kidney replacement therapy
+is reported separately, that the decline baseline and the individual
+prediction also leave out the AKI exclusion windows when the column excludes
+them from its fit while observed G4/G5, total change and decline events keep
+those rows, and that the individual prediction fits the same rows, needs at least three distinct measurement dates (five for Theil-Sen) over at
+least 365 days, and has slope bounds that are not prediction intervals. The
+`events` sheet lists
 the exported patients' events.
 
 The export does not record:
@@ -2976,8 +3245,8 @@ The export does not record:
   definitions, or the candidate rules;
 - the confidence level and method behind the OLS slope bounds (the `about`
   sheet names 95 % bounds for Theil-Sen only);
-- the endpoint fit's slope and intercept; the `slope` column is the display
-  fit;
+- the endpoint fit's slope and intercept; the `slope`, `intercept` and
+  `slope_se` columns are those of the display fit;
 - the number of endpoint-eligible rows; `n` counts raw rows and `n_fitted`
   the display fit;
 - the age anchor used for the projected age, or that row ages are whole
@@ -3236,10 +3505,40 @@ run in this order; the first failure is reported.
    - every model row carries a valid value (a finite number, or non-blank text);
    - the value is constant within each patient;
    - at least two distinct values occur across the model rows;
-   - for a categorical factor, the reference level occurs in the model rows.
+   - for a categorical factor, the reference level occurs in the model rows;
+   - for a factor with level and slope (since 2026-11-05), the time interaction
+     must not make the fixed-effect design rank-deficient. For a categorical
+     factor every level, the reference included, needs at least two distinct
+     `time_since_baseline` values among its rows: with treatment contrasts each
+     level has its own intercept and slope column, so a level whose patients
+     were all measured at one model time (every row at time 0) gives an
+     all-zero interaction column (or, for the reference level, a time column
+     equal to the sum of the interaction columns). For a numeric factor the
+     rows with a non-zero time need at least two distinct values; otherwise
+     `time_since_baseline:<column>` is a multiple of `time_since_baseline`.
+     Unlike the other factor checks, this failure is reported only after
+     items 4 and 5 pass, so a unit that is too small reports its size first.
+     The failure (code `RANK_DEFICIENT_FACTOR`) names the factor, and for a
+     categorical factor every such level with its number of patients, for
+     example `Factor gene with level and slope: level "PKD2" (1 patient) has
+     measurements at only one model time, so its slope cannot be estimated
+     (rank-deficient design).` The same level as a level-only term passes.
+     Collinearity that arises only from several factors together is not
+     checked here and is left to the R rank check below.
 
    There is no minimum number of patients per level; a level held by a single
-   patient passes.
+   patient passes unless the check above applies. A minimum per level is an
+   owner decision tracked in issue #4. Levels are always taken from the model
+   rows of the unit, so a level absent from a unit cannot enter its design;
+   only an absent reference level fails.
+
+   **Per-level counts.** `mixedModelFactorLevelCounts` reports, for each
+   categorical factor, the number of patients and of qualifying patients (the
+   rule in item 5) per level, levels in ascending string order. The Model
+   Studio shows them for the whole cohort's complete cases below the reference
+   categories, for example `Whole cohort, patients per level (with enough
+   measurement times): genotype: A 7 (7), B 3 (3)`. Groups are not listed
+   separately; a group's failing level is named in its validation message.
 4. At least 10 patients have a model row.
 5. At least 10 patients qualify. A patient qualifies with at least two rows and
    at least three distinct `time_since_baseline` values for a random intercept
@@ -3262,7 +3561,9 @@ not attached to the fitted result and not exported.
 separately with the same thresholds. *Fit* submits only the units that pass.
 
 **Rank-deficient design.** Before fitting, R builds the fixed-effect model
-matrix and compares its QR rank with its number of columns. A lower rank stops
+matrix and compares its QR rank with its number of columns. The level check in
+item 3 catches the single-factor cases first, so this message is left for
+collinearity across factors. A lower rank stops
 with "Fixed-effect design is rank deficient; no terms were dropped." For lme4, a
 fit that dropped fixed-effect columns is also rejected. A fit whose intercept or
 time slope is not finite, or that does not return a finite estimate for every

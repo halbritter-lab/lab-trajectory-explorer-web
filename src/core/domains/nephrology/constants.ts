@@ -30,6 +30,12 @@ export const KDIGO_STAGE_3_ABSOLUTE_MGDL = 4.0
 /** Serum creatinine µmol/l per mg/dl used by eGFR and AKI derivation. */
 export const MGDL_PER_UMOLL = 88.42
 
+/** Plausibility warnings on the Data page (warning only, no value changes):
+ * serum creatinine strictly above this value in mg/dl (µmol/l converted)... */
+export const IMPLAUSIBLE_CREATININE_ABOVE_MGDL = 25
+/** ...and computed eGFR strictly above this value in mL/min/1.73 m². */
+export const IMPLAUSIBLE_EGFR_ABOVE = 200
+
 /** Default rapid eGFR decline threshold (mL/min/1.73 m² per year). */
 export const DEFAULT_RAPID_EGFR_DECLINE = 5
 /** Default length of the AKI exclusion window after an episode onset (days). */

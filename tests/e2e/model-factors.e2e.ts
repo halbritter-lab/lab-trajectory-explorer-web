@@ -46,6 +46,7 @@ test('real workbook previews complete-case factor selection before fitting', asy
   await studio.getByLabel('genotype reference').selectOption('A')
   await expect(studio.locator('.cm-sample-meta')).toHaveText('Complete cases: 10 patients / 11 (30 measurements)')
   await expect(studio.getByLabel('Readable formula')).toContainText('Time (years):"genotype"')
+  await expect(studio.getByLabel('Patients per level')).toHaveText('Whole cohort, patients per level (with enough measurement times): genotype: A 7 (7), B 3 (3)')
   await studio.getByText('Excluded patients (1)', { exact: true }).click()
   await expect(studio.getByRole('list', { name: 'Patients excluded from the model' })).toContainText('11: Missing genotype')
 

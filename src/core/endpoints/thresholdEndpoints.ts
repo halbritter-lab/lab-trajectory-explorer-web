@@ -4,12 +4,21 @@
  * evaluate them on the dated exact numeric measurements supplied by the domain.
  */
 import { projectedCrossingTime } from '../projection/linearProjection'
+import { distinctDateCount } from '../stats/time'
+import type { FitModel } from '../fitPipeline/types'
 
 const MS_PER_DAY = 86_400_000
 const MS_PER_YEAR = 365.25 * MS_PER_DAY
 /** Minimum follow-up of a projection, equal to the slope reliability rule's
  * minimum fitted span (`MIN_RELIABLE_SPAN_DAYS`). */
 export const MIN_PROJECTION_SPAN_DAYS = 365
+/** Minimum distinct measurement dates of a projection. */
+export const MIN_PROJECTION_DATES = 3
+/** Minimum distinct measurement dates of a Theil–Sen projection: with n
+ * distinct dates up to 5 the 95 % rank bounds are the full range of pairwise
+ * slopes, which covers the true slope with probability 1 - 2/n! (67 % at
+ * n = 3, 92 % at n = 4, 98 % at n = 5). */
+export const MIN_THEIL_SEN_PROJECTION_DATES = 5
 
 export interface EndpointPoint {
   date: Date
@@ -129,6 +138,7 @@ export function percentDeclineFromBaseline(points: readonly EndpointPoint[]): Pe
 export type ProjectedCrossingReason =
   | 'observed'
   | 'insufficient_points'
+  | 'theil_sen_insufficient_points'
   | 'span_too_short'
   | 'no_fit'
   | 'not_approaching'
@@ -144,7 +154,7 @@ export interface ProjectedAgeAtCrossing {
  * Age at which the fitted line (intercept at the first point's date, slope
  * per year) crosses the threshold, projected from the latest measurement.
  * Withheld when the crossing was already observed, with fewer than three
- * points or under 365 days of follow-up (the span of the slope reliability
+ * distinct measurement dates (five for Theil–Sen) or under 365 days of follow-up (the span of the slope reliability
  * rule), without a finite fit, when the line
  * does not move towards the threshold, when it crosses at or before the
  * latest measurement, or without an age at the latest measurement.
@@ -156,10 +166,14 @@ export function projectAgeAtCrossing(input: {
   threshold: number
   direction: Exclude<CrossingDirection, 'above_or_equal'>
   observed: boolean
+  /** Estimator of the fit; Theil–Sen needs more distinct dates. */
+  fitModel?: FitModel
 }): ProjectedAgeAtCrossing {
   const { points, slopePerYear, intercept, threshold, direction, observed } = input
   if (observed) return { value: null, reason: 'observed' }
-  if (points.length < 3) return { value: null, reason: 'insufficient_points' }
+  const dates = distinctDateCount(points)
+  if (dates < MIN_PROJECTION_DATES) return { value: null, reason: 'insufficient_points' }
+  if (input.fitModel === 'theil-sen' && dates < MIN_THEIL_SEN_PROJECTION_DATES) return { value: null, reason: 'theil_sen_insufficient_points' }
   const first = points[0]
   const latest = points[points.length - 1]
   const spanMs = latest.date.getTime() - first.date.getTime()

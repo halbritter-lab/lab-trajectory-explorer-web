@@ -37,7 +37,7 @@ imported eGFR with 5 of 14 patients, below the ten-patient minimum.
   "Refit model".
 - Single Fit model action ("Refit model" after a current fit), Cohort models
   restyled with workspace tokens, "Show trends and slopes" switch, contrast
-  ≥ 4.5:1, singular counts, no "G5 n < 3" in empty cells; checked by screenshot
+  ≥ 4.5:1, singular counts, no "G5 < 3 dates" in empty cells; checked by screenshot
   at 1440 and 390 px.
 - `pnpm test`: 908/908 in 96 files. `pnpm build`: passed. `pnpm test:e2e`:
   46/46 in Chromium (development server).
