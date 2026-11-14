@@ -26,6 +26,19 @@ export function ckdEpi2021({ scrMgdl, ageYears, sex }: EgfrInput): number {
   return 142.0 * Math.min(ratio, 1.0) ** alpha * Math.max(ratio, 1.0) ** -1.2 * 0.9938 ** ageYears * sexFactor
 }
 
+/** CKD-EPI 2009 creatinine equation (Levey 2009). ml/min/1.73m².
+ * The published race coefficient (x1.159) is not applied: the data model carries
+ * no race. Same conditions as ckdEpi2021; 'd' uses male coefficients. */
+export function ckdEpi2009({ scrMgdl, ageYears, sex }: EgfrInput): number {
+  const s = normaliseSex(sex)
+  if (invalid(scrMgdl, ageYears, s)) return Number.NaN
+  let kappa: number, alpha: number, sexFactor: number
+  if (s === 'w') { kappa = 0.7; alpha = -0.329; sexFactor = 1.018 }
+  else { kappa = 0.9; alpha = -0.411; sexFactor = 1.0 } // m or d
+  const ratio = scrMgdl / kappa
+  return 141.0 * Math.min(ratio, 1.0) ** alpha * Math.max(ratio, 1.0) ** -1.209 * 0.993 ** ageYears * sexFactor
+}
+
 /** MDRD-4 (IDMS-traceable, Levey 2006). ml/min/1.73m². 'd' uses male factor.
  * Mirrors analyses/egfr.py:mdrd_4. */
 export function mdrd4({ scrMgdl, ageYears, sex }: EgfrInput): number {

@@ -32,7 +32,7 @@ export {
 } from '../../../src/core/events/events'
 
 // eGFR equations, units and series classification
-export { ckdEpi2021, mdrd4, ekfc2021, normaliseSex, isUnrecognisedSex, type EgfrInput } from '../../../src/core/domains/nephrology/egfr/formulas'
+export { ckdEpi2021, ckdEpi2009, mdrd4, ekfc2021, normaliseSex, isUnrecognisedSex, type EgfrInput } from '../../../src/core/domains/nephrology/egfr/formulas'
 export {
   appendComputedEgfr,
   creatinineSourceOptions,
@@ -48,7 +48,7 @@ export {
   computedEgfrName,
   normaliseUnit,
   isCreatinineName,
-  isUrineName,
+  isNonSerumName,
   isSerumCreatinineSeries,
   isKdigoCreatinineSeries,
   isEgfrUnit,

@@ -11,6 +11,21 @@ export interface MixedModelSpikeRow {
   /** Patient baseline age centered at the modeled cohort's patient-weighted mean baseline age. */
   baseline_age_centered?: number
   factorValues?: Record<string, number | string>
+  /** Factor values before centring, by the same column names. Export only; R never reads them. */
+  factorRawValues?: Record<string, number | string>
+  /** UTC date (YYYY-MM-DD) of the model point. Export only; R never reads it. */
+  date?: string
+}
+
+/** What happened to one measurement of the modelled series on its way into a
+ * model unit. `model_date` names the model row it fed, empty when excluded. */
+export interface MixedModelInputFlag {
+  patient_id: string
+  date: string
+  value: number | null
+  status: 'entered' | 'aggregated_into_median' | 'excluded'
+  reason: string
+  model_date: string
 }
 
 export interface MixedModelPreparationSummary {
@@ -60,7 +75,9 @@ export interface MixedModelSuccess {
     timeSinceBaseline: number
     baselineAge?: number
   }
-  fixedEffectTerms?: Array<{ term: string; estimate: number; confidenceInterval: [number, number] | null }>
+  fixedEffectTerms?: Array<{ term: string; estimate: number; confidenceInterval: [number, number] | null; standardError?: number | null }>
+  /** `vcov(fit)` with rows and columns in `terms` order; absent for results fitted before it was recorded. */
+  fixedEffectCovariance?: { terms: string[]; matrix: Array<Array<number | null>> }
   fixedEffectConfidenceIntervals: {
     timeSinceBaseline: [number, number] | null
   }

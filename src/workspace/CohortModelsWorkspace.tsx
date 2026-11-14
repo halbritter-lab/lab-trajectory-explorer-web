@@ -17,7 +17,7 @@ import {
 } from '../core/mixedModel/config'
 import { prepareMixedModelCohortRows } from '../core/mixedModel/cohortDataset'
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mixedModel/factors'
-import { MIN_QUALIFYING_PATIENTS, qualifyingMixedModelPatients, validateMixedModelRows } from '../core/mixedModel/validation'
+import { MIN_QUALIFYING_PATIENTS, mixedModelFactorLevelCounts, qualifyingMixedModelPatients, validateMixedModelRows } from '../core/mixedModel/validation'
 import { entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
 import { defaultModelParameterKey } from './cohort-model-parameter'
@@ -374,6 +374,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   })
   const inactiveFactors = availableFactors.filter(f => !activeFactors.some(af => af.key === f.key))
   const sampleSummary = prepareMixedModelFactors(mixedModelRows, mixedModelConfig, data.patientAttributes ?? {}, data.rows ?? [])
+  const levelCounts = [...mixedModelFactorLevelCounts(sampleSummary.rows, mixedModelConfig)]
 
   return (
     <div className="cohort-models-workspace stack">
@@ -615,6 +616,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         {!noFit && <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>}
         {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label="Reference categories">
           Reference categories: {categoricalReferences.map(item => `${item.label} = ${item.reference}${item.isDefault ? ' (first level by default; change it next to the factor)' : ''}`).join('; ')}
+        </p>}
+        {levelCounts.length > 0 && <p className="muted cm-level-counts" aria-label="Patients per level">
+          Whole cohort, patients per level (with enough measurement times): {levelCounts.map(([key, levels]) => `${key === 'sex' ? 'Sex' : key}: ${levels.map(item => `${item.level} ${item.patients} (${item.qualifying})`).join(', ')}`).join('; ')}
         </p>}
         {sampleSummary.preparation.excludedPatients.length > 0 && <details className="cm-excluded-patients">
           <summary>Excluded patients ({sampleSummary.preparation.excludedPatients.length})</summary>

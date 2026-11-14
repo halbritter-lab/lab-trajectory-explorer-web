@@ -19,6 +19,15 @@ const config: MixedModelConfig = { ...DEFAULT_MIXED_MODEL_CONFIG, factors: [
   { key: 'baseline_age', kind: 'numeric', effect: 'level_slope' },
 ] }
 
+describe('availableMixedModelFactors level order', () => {
+  it('orders levels by code point, independent of the locale (matches R sort(method = "radix"))', () => {
+    const attributes = { '1': { gene: 'b' }, '2': { gene: 'Ä' }, '3': { gene: 'B' }, '4': { gene: 'a' }, '5': { gene: 'A' } }
+    const gene = availableMixedModelFactors([1, 2, 3, 4, 5].map((id) => lab(id)), attributes).find((f) => f.key === 'gene')!
+    // German locale order would be A, a, Ä, B, b.
+    expect(gene.levels).toEqual(['A', 'B', 'a', 'b', 'Ä'])
+  })
+})
+
 describe('prepareMixedModelFactors', () => {
   it('excludes whole incomplete patients and centers after exclusion with one vote per patient', () => {
     const result = prepareMixedModelFactors(rows, config, { '1': { genotype: 'A' }, '2': { genotype: 'B' } }, [])

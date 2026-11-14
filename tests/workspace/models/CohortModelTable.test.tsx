@@ -294,6 +294,17 @@ it('labels a singular fit and withholds its projection while keeping model expor
   expect(screen.getByText(/Projection unavailable:.*singular/i)).toBeInTheDocument()
 })
 
+it('shows a failed model export instead of failing silently', async () => {
+  const createObjectURL = vi.spyOn(URL, 'createObjectURL').mockImplementation(() => { throw new Error('Out of memory') })
+  try {
+    renderTable({runJob:async () => ({...success(-2),singular:true})})
+    await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
+    await waitFor(() => expect(screen.getByRole('button',{name:'Export models (xlsx)'})).toBeEnabled())
+    await userEvent.click(screen.getByRole('button',{name:'Export models (xlsx)'}))
+    expect(screen.getByRole('alert')).toHaveTextContent('Model export failed: Out of memory')
+  } finally { createObjectURL.mockRestore() }
+})
+
 it.each([
   ['runtime-load', 'WEBR_INIT_FAILED', 'runtime-error'],
   ['package-load', 'PACKAGE_UNAVAILABLE', 'unsupported'],

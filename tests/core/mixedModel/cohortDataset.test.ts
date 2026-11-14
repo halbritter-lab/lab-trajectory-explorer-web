@@ -35,6 +35,42 @@ describe('mixedModelRowsFromCohortInputs', () => {
     expect(prepareMixedModelCohortRows(rows, [7], spec, 'apply')).toMatchObject({ excludedByPreset: 2, rows: [{ value: 60 }] })
     expect(prepareMixedModelCohortRows(rows, [7], spec, 'skip')).toMatchObject({ excludedByPreset: 0, rows: [{ value: 60 }, { value: 50 }, { value: 40 }] })
   })
+  it('flags every series measurement with how it entered or why not', () => {
+    const transplant: ClinicalEvent = { patientId: 7, type: 'kidney_transplant', date: d('2020-03-01T00:00:00Z'), title: 'Transplant', description: null, endDate: null, intent: null, warning: '' }
+    const fitConfig = generalExplorationConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' })
+    fitConfig.timeBalancing = 'monthly-median'
+    fitConfig.censoring.censorAfterKidneyTransplant = true
+    const rows = [
+      row({ labDatum: d('2020-01-01T00:00:00Z'), wertNum: 60 }),
+      row({ labDatum: d('2020-01-20T00:00:00Z'), wertNum: 58 }),
+      row({ labDatum: d('2020-02-01T00:00:00Z'), wertNum: 5, wert: '<5', wertOperator: '<' }),
+      row({ labDatum: d('2020-02-10T00:00:00Z'), wertNum: null, wert: 'n.d.' }),
+      row({ labDatum: d('2020-02-15T00:00:00Z'), wertNum: 56 }),
+      row({ labDatum: d('2020-04-01T00:00:00Z'), wertNum: 50 }),
+      row({ labDatum: null, wertNum: 55 }),
+      row({ labDatum: d('2020-02-15T00:00:00Z'), bezeichnung: 'Creatinine', wertNum: 1 }),
+    ]
+    const flags = (spec: CohortSeriesSpec) => prepareMixedModelCohortRows(rows, [7], spec).inputFlags.map(({ date, status, reason, model_date }) => [date, status, reason, model_date])
+    expect(flags({ bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', mode: 'global', fitConfig, clinicalEventsByPatient: { 7: [transplant] } })).toEqual([
+      ['2020-01-01', 'aggregated_into_median', '', '2020-01-01'],
+      ['2020-01-20', 'aggregated_into_median', '', '2020-01-01'],
+      ['2020-02-01', 'excluded', 'bound_value', ''],
+      ['2020-02-10', 'excluded', 'no_numeric_value', ''],
+      ['2020-02-15', 'entered', '', '2020-02-15'],
+      ['2020-04-01', 'excluded', 'post_kidney_transplant', ''],
+      ['', 'excluded', 'no_date', ''],
+    ])
+    expect(flags({ bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', mode: 'chronic-ckd', cutoffDays: 30 }).map(flag => flag.slice(1))).toEqual([
+      ['excluded', 'run_in', ''],
+      ['excluded', 'run_in', ''],
+      ['excluded', 'bound_value', ''],
+      ['excluded', 'no_numeric_value', ''],
+      ['entered', '', '2020-02-15'],
+      ['entered', '', '2020-04-01'],
+      ['excluded', 'no_date', ''],
+    ])
+  })
+
   it('uses included raw fit points and years since first included point', () => {
     const spec: CohortSeriesSpec = { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', mode: 'global' }
     const rows = [
@@ -44,9 +80,9 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [7], spec)).toEqual([
-      { patient_id: '7', value: 60, time_since_baseline: 0 },
-      { patient_id: '7', value: 59, time_since_baseline: 0.4982888433 },
-      { patient_id: '7', value: 58, time_since_baseline: 1.0020533881 },
+      { patient_id: '7', value: 60, date: '2020-01-01', time_since_baseline: 0 },
+      { patient_id: '7', value: 59, date: '2020-07-01', time_since_baseline: 0.4982888433 },
+      { patient_id: '7', value: 58, date: '2021-01-01', time_since_baseline: 1.0020533881 },
     ])
   })
 
@@ -80,8 +116,8 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [7], spec)).toEqual([
-      { patient_id: '7', value: 59, time_since_baseline: 0 },
-      { patient_id: '7', value: 56, time_since_baseline: 0.0848733744 },
+      { patient_id: '7', value: 59, date: '2020-01-01', time_since_baseline: 0 },
+      { patient_id: '7', value: 56, date: '2020-02-01', time_since_baseline: 0.0848733744 },
     ])
   })
 
@@ -109,7 +145,7 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [7], spec)).toEqual([
-      { patient_id: '7', value: 60, time_since_baseline: 0 },
+      { patient_id: '7', value: 60, date: '2020-01-01', time_since_baseline: 0 },
     ])
   })
 
@@ -135,8 +171,8 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [7], spec)).toEqual([
-      { patient_id: '7', value: 60, time_since_baseline: 0 },
-      { patient_id: '7', value: 54, time_since_baseline: 0.3011635866 },
+      { patient_id: '7', value: 60, date: '2020-01-01', time_since_baseline: 0 },
+      { patient_id: '7', value: 54, date: '2020-04-20', time_since_baseline: 0.3011635866 },
     ])
   })
 
@@ -190,8 +226,8 @@ describe('mixedModelRowsFromCohortInputs', () => {
     ]
 
     expect(mixedModelRowsFromCohortInputs(rows, [10, 2, 10], spec)).toEqual([
-      { patient_id: '2', value: 60, time_since_baseline: 0 },
-      { patient_id: '10', value: 70, time_since_baseline: 0 },
+      { patient_id: '2', value: 60, date: '2020-01-01', time_since_baseline: 0 },
+      { patient_id: '10', value: 70, date: '2020-01-01', time_since_baseline: 0 },
     ])
   })
 })

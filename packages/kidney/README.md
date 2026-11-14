@@ -95,8 +95,8 @@ dataset.diagnostics // import warnings and rejected rows
 | Area | Exports |
 | --- | --- |
 | Import | `loadDatasetFromWorkbook`, `readWorkbook`, `readWorkbookSheets`, `loadLabRows`, `loadLabRowsWithDiagnostics`, `REQUIRED_COLUMNS`, `normalizeClinicalEvents`, `validateClinicalEvents` |
-| eGFR and units | `ckdEpi2021`, `mdrd4`, `ekfc2021`, `appendComputedEgfr`, `creatinineSourceOptions`, `defaultCreatinineSource`, `isSerumCreatinineSource`, `normaliseSex`, `isUnrecognisedSex`, `normaliseUnit`, `computedEgfrName`, `EGFR_FORMULA_LABELS`, `COMPUTED_EGFR_UNIT`, `SERUM_CREATININE_UNITS`, `MGDL_PER_UMOLL` |
-| Series classification | `isCreatinineName`, `isUrineName`, `isSerumCreatinineSeries`, `isKdigoCreatinineSeries`, `isEgfrUnit`, `mentionsEgfr` |
+| eGFR and units | `ckdEpi2021`, `ckdEpi2009` (CKD-EPI 2009 race-free), `mdrd4`, `ekfc2021`, `appendComputedEgfr`, `creatinineSourceOptions`, `defaultCreatinineSource`, `isSerumCreatinineSource`, `normaliseSex`, `isUnrecognisedSex`, `normaliseUnit`, `computedEgfrName`, `EGFR_FORMULA_LABELS`, `COMPUTED_EGFR_UNIT`, `SERUM_CREATININE_UNITS`, `MGDL_PER_UMOLL` |
+| Series classification | `isCreatinineName`, `isNonSerumName`, `isSerumCreatinineSeries`, `isKdigoCreatinineSeries`, `isEgfrUnit`, `mentionsEgfr` |
 | AKI and exclusion windows | `findKdigoAkiEpisodes`, `kdigoStage`, `episodesForSeries`, `akiExclusionWindows`, `fitAkiAware`, `applyExclusionWindows`, `exclusionReasonsAt`, `fixedLengthWindow`, `windowContains`, `KDIGO_ABSOLUTE_RISE_MGDL`, `KDIGO_RELATIVE_RISE_RATIO`, `DEFAULT_AKI_EXCLUSION_DAYS` |
 | Slopes | `fitGlobal` (OLS), `fitTheilSen`, `fitOls`, `datesToYears`, `balanceSeriesPoints`, `summarizeByBezeichnung`, `isUnstableSlope` |
 | Endpoints and projection | `computeCkdEndpoints`, `projectLinearThreshold`, `projectedCrossingTime`, `CKD_G4_EGFR_THRESHOLD`, `CKD_G5_EGFR_THRESHOLD`, `DEFAULT_CONFIRMATION_DAYS`, `DEFAULT_RAPID_EGFR_DECLINE` |

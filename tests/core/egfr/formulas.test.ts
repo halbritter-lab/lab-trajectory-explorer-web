@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { ckdEpi2021, ekfc2021, mdrd4, normaliseSex, isUnrecognisedSex } from '../../../src/core/domains/nephrology/egfr/formulas'
+import { ckdEpi2009, ckdEpi2021, ekfc2021, mdrd4, normaliseSex, isUnrecognisedSex } from '../../../src/core/domains/nephrology/egfr/formulas'
 
 const close = (a: number, b: number, eps = 0.05) => Math.abs(a - b) <= eps
 
@@ -19,6 +19,26 @@ describe('ckdEpi2021', () => {
   })
   it("treats 'd' (diverse) like male", () => {
     expect(ckdEpi2021({ scrMgdl: 1.0, ageYears: 50, sex: 'd' })).toBe(ckdEpi2021({ scrMgdl: 1.0, ageYears: 50, sex: 'm' }))
+  })
+})
+
+describe('ckdEpi2009', () => {
+  // Expected values computed independently from Levey 2009 (without race term).
+  it('matches hand-computed values for both creatinine branches', () => {
+    expect(ckdEpi2009({ scrMgdl: 1.2, ageYears: 60, sex: 'm' })).toBeCloseTo(65.331569, 5)
+    expect(ckdEpi2009({ scrMgdl: 1.2, ageYears: 60, sex: 'w' })).toBeCloseTo(49.081204, 5)
+    expect(ckdEpi2009({ scrMgdl: 0.6, ageYears: 40, sex: 'w' })).toBeCloseTo(114.015087, 5)
+    expect(ckdEpi2009({ scrMgdl: 0.6, ageYears: 40, sex: 'm' })).toBeCloseTo(125.765801, 5)
+  })
+  it('returns NaN under the same conditions as CKD-EPI 2021', () => {
+    expect(Number.isNaN(ckdEpi2009({ scrMgdl: 1, ageYears: 50, sex: null }))).toBe(true)
+    expect(Number.isNaN(ckdEpi2009({ scrMgdl: 1, ageYears: 17, sex: 'm' }))).toBe(true)
+    expect(Number.isNaN(ckdEpi2009({ scrMgdl: 0, ageYears: 50, sex: 'm' }))).toBe(true)
+    expect(Number.isNaN(ckdEpi2009({ scrMgdl: 1, ageYears: 50, sex: 'unknown' }))).toBe(true)
+    expect(Number.isNaN(ckdEpi2009({ scrMgdl: 1, ageYears: 18, sex: 'm' }))).toBe(false)
+  })
+  it("treats 'd' (diverse) like male", () => {
+    expect(ckdEpi2009({ scrMgdl: 1.0, ageYears: 50, sex: 'd' })).toBe(ckdEpi2009({ scrMgdl: 1.0, ageYears: 50, sex: 'm' }))
   })
 })
 
@@ -79,6 +99,7 @@ describe('sex aliases in the equations', () => {
   it('gives an English spelling the same eGFR as its German equivalent', () => {
     const input = { scrMgdl: 1.1, ageYears: 55 }
     expect(ckdEpi2021({ ...input, sex: 'female' })).toBe(ckdEpi2021({ ...input, sex: 'w' }))
+    expect(ckdEpi2009({ ...input, sex: 'female' })).toBe(ckdEpi2009({ ...input, sex: 'w' }))
     expect(mdrd4({ ...input, sex: 'male' })).toBe(mdrd4({ ...input, sex: 'm' }))
     expect(ekfc2021({ ...input, sex: 'f' })).toBe(ekfc2021({ ...input, sex: 'w' }))
   })

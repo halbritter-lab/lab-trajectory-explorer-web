@@ -9,6 +9,8 @@ export interface SlopeQualityInput {
   reason: SlopeReason
   /** Points the fit consumed, after censoring, AKI exclusion and balancing. */
   nFitted: number
+  /** Distinct calendar dates among those points; the count the rule checks. */
+  nFittedDates: number
   /** Whole days between the first and last points consumed by the scalar fit. */
   fittedSpanDays: number
   /** 'none' means no fit was requested, so there is no slope to qualify. */
@@ -26,21 +28,23 @@ export interface SlopeQualityInput {
  * suggests the opposite. Checking the point count alongside reason catches it
  * without changing any numeric output, so parity is preserved.
  *
- * Counts nFitted, not nNumeric: quarterly-median balancing — the default in the
+ * Counts the fitted points' dates, not nNumeric: quarterly-median balancing — the default in the
  * CKD-progression preset — can collapse eight raw measurements into two fitted
  * points, which is exactly the case this rule exists to catch.
  *
  * Thresholds follow a common clinical rule of thumb: fewer than three fitted
- * measurements, or under a year between the first and last fitted points.
+ * measurement dates, or under a year between the first and last fitted points.
+ * Dates rather than points (decided 2026-11-05): three same-day rows and one
+ * value a year later are two observations in time, not four.
  */
-export function isUnstableSlope({ reason, nFitted, fittedSpanDays, fitModel }: SlopeQualityInput): boolean {
+export function isUnstableSlope({ reason, nFittedDates, fittedSpanDays, fitModel }: SlopeQualityInput): boolean {
   // No fit requested (the "Acute review" preset): there is no slope to caveat.
   // summarize reports reason 'n_below_threshold' for this case regardless of how
   // many points exist, so reading reason alone would claim "fewer than three
   // measurements" for a series with dozens.
   if (fitModel === 'none') return false
   if (reason === 'no_numeric_values' || reason === 'n_below_threshold') return true
-  if (nFitted < 3) return true
+  if (nFittedDates < 3) return true
   if (fittedSpanDays < 365) return true
   return reason === 'span_too_short'
 }

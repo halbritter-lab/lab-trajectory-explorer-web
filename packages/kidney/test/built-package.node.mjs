@@ -15,13 +15,13 @@ test('public API names are pinned', () => {
     'DEFAULT_CONFIRMATION_DAYS', 'DEFAULT_RAPID_EGFR_DECLINE', 'EGFR_FORMULA_LABELS', 'KDIGO_ABSOLUTE_RISE_MGDL', 'KDIGO_RELATIVE_RISE_RATIO', 'MGDL_PER_UMOLL', 'NEPHROLOGY_PRESETS',
     'REQUIRED_COLUMNS', 'SERUM_CREATININE_UNITS', 'STANDARD_PRESETS', 'acuteReviewConfig',
     'akiExclusionWindows', 'appendComputedEgfr', 'applyExclusionWindows', 'balanceSeriesPoints',
-    'ckdEpi2021', 'ckdProgressionConfig', 'comparePatientIds',
+    'ckdEpi2009', 'ckdEpi2021', 'ckdProgressionConfig', 'comparePatientIds',
     'computeCkdEndpoints', 'computedEgfrName', 'creatinineSourceOptions',
     'datesToYears', 'defaultCreatinineSource', 'ekfc2021',
     'episodesForSeries', 'exclusionReasonsAt', 'findKdigoAkiEpisodes', 'fitAkiAware',
     'fitGlobal', 'fitOls', 'fitTheilSen', 'fixedLengthWindow', 'generalExplorationConfig', 'isCreatinineName',
-    'isEgfrUnit', 'isKdigoCreatinineSeries', 'isSerumCreatinineSeries', 'isSerumCreatinineSource',
-    'isUnrecognisedSex', 'isUnstableSlope', 'isUrineName', 'kdigoStage',
+    'isEgfrUnit', 'isKdigoCreatinineSeries', 'isNonSerumName', 'isSerumCreatinineSeries', 'isSerumCreatinineSource',
+    'isUnrecognisedSex', 'isUnstableSlope', 'kdigoStage',
     'loadDatasetFromWorkbook', 'loadLabRows', 'loadLabRowsWithDiagnostics', 'mdrd4',
     'mentionsEgfr', 'normaliseSex', 'normaliseUnit', 'normalizeClinicalEvents',
     'patientIdKey', 'projectLinearThreshold', 'projectedCrossingTime',
@@ -45,6 +45,8 @@ test('the bundle reaches no browser, React, webR or mixed-model code', () => {
 test('CKD-EPI 2021 reproduces the reference values', () => {
   assert.equal(kidney.ckdEpi2021({ scrMgdl: 1.2, ageYears: 60, sex: 'm' }).toFixed(6), '69.231128')
   assert.equal(kidney.ckdEpi2021({ scrMgdl: 1.2, ageYears: 60, sex: 'w' }).toFixed(6), '51.821330')
+  assert.equal(kidney.ckdEpi2009({ scrMgdl: 1.0, ageYears: 50, sex: 'm' }).toFixed(1), '87.4')
+  assert.equal(kidney.isNonSerumName('Kreatinin i.U.'), true)
 })
 
 test('KDIGO detects a 0.3 mg/dl rise within 48 h as a stage 1 episode', () => {
