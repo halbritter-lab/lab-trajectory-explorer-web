@@ -276,7 +276,7 @@ describe('cohortExportRecords', () => {
     fitConfig.endpoints = { ...fitConfig.endpoints, projectedAgeToCkdG5: false }
     const rows = [60, 45, 30].map((wertNum, i) => row({ ...parameter, labDatum: d(`202${i}-01-01`), wertNum, patientAgeAtLab: 60 + i }))
     const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig }]))
-    expect(rec).toMatchObject({ endpoint_confirmation_days: 90, endpoint_input_policy: 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded',
+    expect(rec).toMatchObject({ endpoint_confirmation_days: 90, endpoint_input_policy: 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded; AKI exclusion windows excluded from decline baseline and projection',
       endpoint_prediction_anchor: '', endpoint_prediction_model: '', endpoint_projected_age_to_ckd_g5: '' })
   })
 
