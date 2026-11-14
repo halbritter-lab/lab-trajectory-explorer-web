@@ -25,6 +25,8 @@ jobs:
       - run: pnpm test
       # tsc -b runs as part of build, so this also type-checks the change.
       - run: pnpm build
+      - run: pnpm build:kidney
+      - run: pnpm test:kidney
       - name: Get Playwright version
         id: playwright-version
         run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"

@@ -1,0 +1,23 @@
+{
+  // Declarations only; vite bundles the JavaScript. Without the DOM lib, DOM-only
+  // types (HTMLElement, document) fail this build, but @types/node also declares
+  // web globals such as fetch, Blob and URL. The real guard is the bundle-source
+  // test in test/built-package.node.mjs. vite/client stays because
+  // src/io/loadDataset.ts types import.meta.env in its (tree-shaken) demo loaders.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": ["node", "vite/client"],
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "strict": true,
+    "skipLibCheck": true,
+    "isolatedModules": true,
+    "resolveJsonModule": true,
+    "declaration": true,
+    "emitDeclarationOnly": true,
+    "rootDir": "../..",
+    "declarationDir": "dist/types"
+  },
+  "files": ["src/index.ts"]
+}

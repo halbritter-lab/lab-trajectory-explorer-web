@@ -80,7 +80,7 @@ const ATTRIBUTES_SHEET_NAMES = new Set(['attributes', 'attribute', 'patientattri
  * sheets (e.g. labs, events, attributes), all three are parsed and validated in
  * one pass.
  */
-export function loadDatasetFromWorkbook(data: ArrayBuffer): LoadedDataset {
+export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array): LoadedDataset {
   try {
     const wb = readWorkbookSheets(data)
     if (wb.sheetNames.length === 0) {

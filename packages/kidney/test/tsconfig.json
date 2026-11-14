@@ -1,0 +1,13 @@
+{
+  // Strict Node ESM resolution, the strictest setting a consumer is likely to use.
+  "compilerOptions": {
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "types": [],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "strict": true,
+    "noEmit": true
+  },
+  "files": ["consumer.ts"]
+}
