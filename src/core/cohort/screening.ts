@@ -61,7 +61,7 @@ export interface CohortCell {
   slopeSe: number
   firstFittedDate: Date | null
   lastFittedDate: Date | null
-  /** Dates of the first and last event-eligible measurement (see eventEligibleRows):
+  /** Dates of the first and last event-eligible measurement (see eventEligiblePoints):
    * exact, before KRT, outside complete acute dialysis intervals; no run-in, fit window or balancing. */
   firstEligibleDate: Date | null
   lastEligibleDate: Date | null
@@ -163,7 +163,9 @@ export function buildCohortRows(
       const pointExclusionReasons = points.map((point, i) =>
         [...(!isExactMeasurement(seriesRows[i]) ? [CENSORED_VALUE_REASON] : []), ...(excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])])
       const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
-      const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel, windows.exclusions))
+      // One list for the endpoint input and the eligible dates, so both describe the same rows.
+      const eligible = eventEligiblePoints(cellEvents(spec, pid), seriesRows)
+      const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel, windows.exclusions, eligible))
       const exactPoints = points.filter((_, i) => isExactMeasurement(seriesRows[i]))
       const fitLines = exactPoints.length < 2
         ? []
@@ -181,7 +183,7 @@ export function buildCohortRows(
               exclusionWindows: windows,
             },
           )
-      const eligibleRows = eventEligibleRows(cellEvents(spec, pid), seriesRows)
+      const eligibleRows = eligible.map(point => point.row)
       const slope = match?.slope ?? Number.NaN
       const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match && match.nFitted > 0
         ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN }
@@ -253,10 +255,6 @@ function eventEligiblePoints(events: readonly ClinicalEvent[], seriesRows: LabRo
   )
 }
 
-function eventEligibleRows(events: readonly ClinicalEvent[], seriesRows: LabRow[]): LabRow[] {
-  return eventEligiblePoints(events, seriesRows).map(point => point.row)
-}
-
 function cellEvents(spec: CohortSeriesSpec, patientId: PatientId): readonly ClinicalEvent[] {
   return spec.clinicalEventsByPatient?.[patientIdKey(patientId)] ?? spec.clinicalEvents ?? []
 }
@@ -266,9 +264,9 @@ function cellEvents(spec: CohortSeriesSpec, patientId: PatientId): readonly Clin
  * projection fit additionally leave out the column's fit exclusion windows
  * (AKI windows when the column excludes them); observed G4/G5, total change
  * and decline events do not (decided 2026-11-05). */
-function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel'], exclusions: readonly ExclusionWindow[]): EndpointContext {
+function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRows: LabRow[], scalarFitModel: FitConfig['fitModel'], exclusions: readonly ExclusionWindow[],
+  eligible: ReturnType<typeof eventEligiblePoints>): EndpointContext {
   const events = cellEvents(spec, patientId)
-  const eligible = eventEligiblePoints(events, seriesRows)
   const endpointRows = eligible.map(point => point.row)
   const fitRows = applyExclusionWindows(eligible, exclusions).kept.map(point => point.row)
   const birthDate = spec.exactBirthDateByPatient?.[patientIdKey(patientId)]

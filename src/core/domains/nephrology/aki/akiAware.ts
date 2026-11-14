@@ -122,13 +122,16 @@ export function implausiblyHighCreatinineCount(rows: readonly LabRow[]): number 
  * patient's clinical events) is left out before detection.
  * Returns [] when no eligible creatinine data exists. */
 export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null, events: readonly ClinicalEvent[] = []): AkiEpisode[] {
-  const sub = rows.filter((r) => r.patientId === patientId && r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
-  const derivedFrom = rows.find((r) => r.patientId === patientId && r.bezeichnung === bezeichnung && (r.einheit ?? null) === (einheit ?? null) && r.sourceSeries)?.sourceSeries
+  // One pass over the dataset per call; callers pass every patient's rows.
+  const own = rows.filter((r) => r.patientId === patientId)
+  const sub = own.filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
+  const sameSeries = (r: LabRow) => r.bezeichnung === bezeichnung && (r.einheit ?? null) === (einheit ?? null)
+  let derivedFrom: LabRow['sourceSeries']
   let source: LabRow[]
   if (bezeichnung !== null && isAkiCreatinineSource(bezeichnung, einheit)) {
-    source = sub.filter((r) => r.bezeichnung === bezeichnung && (r.einheit ?? null) === (einheit ?? null))
-  } else if (derivedFrom) {
-    source = sub.filter((r) => r.bezeichnung === derivedFrom.bezeichnung && r.einheit === derivedFrom.einheit)
+    source = sub.filter(sameSeries)
+  } else if ((derivedFrom = own.find((r) => sameSeries(r) && r.sourceSeries)?.sourceSeries)) {
+    source = sub.filter((r) => r.bezeichnung === derivedFrom!.bezeichnung && r.einheit === derivedFrom!.einheit)
   } else {
     const groups = new Map<string, LabRow[]>()
     for (const r of sub) {

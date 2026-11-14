@@ -102,6 +102,10 @@ export function slopeQualityLabel(input: SlopeQualityInput): QualityLabel | null
 export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
   if (endpoints.projectedAgeToCkdG5.value !== null) return null
   const caveat = false
+  // The series itself may have many dates over years when the column leaves
+  // AKI windows out of the projection; the title then names the exclusion.
+  const aki = endpoints.inputExcludesAkiWindows
+  const akiLead = 'Measurements inside AKI exclusion windows are left out of the projection. '
   switch (endpoints.projectedAgeToCkdG5.reason) {
     case 'observed_ckd_g5':
       return endpoints.evaluated.observedCkdG5 ? null : {
@@ -151,13 +155,16 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
     case 'insufficient_points':
       return {
         label: 'G5 < 3 dates',
-        title: 'Usable measurements on fewer than three distinct dates, so no projection was made.',
+        title: aki
+          ? `${akiLead}The measurements used fall on fewer than three distinct dates, so no projection was made.`
+          : 'Usable measurements on fewer than three distinct dates, so no projection was made.',
         caveat,
       }
     case 'theil_sen_insufficient_points':
       return {
         label: 'G5 < 5 dates',
         title:
+          (aki ? akiLead : '') +
           'Theil–Sen projections need usable measurements on at least five distinct dates. With three or four, ' +
           'its 95 % slope interval is the full range of pairwise slopes and covers the true slope only about 67 % or 92 % of the time, so no projection was made.',
         caveat,
@@ -165,7 +172,9 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
     case 'span_too_short':
       return {
         label: 'G5 < 1 yr',
-        title: 'Less than one year between first and last measurement, so no projection was made.',
+        title: aki
+          ? `${akiLead}The measurements used span less than one year, so no projection was made.`
+          : 'Less than one year between first and last measurement, so no projection was made.',
         caveat,
       }
     // 'disabled' and 'observed_ckd_g5' are not failures: the endpoint is off, or

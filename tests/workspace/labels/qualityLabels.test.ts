@@ -160,6 +160,15 @@ describe('projectedG5Label', () => {
       { date: '2023-07-01', value: 40 },
     ], -10)
     expect(projectedG5Label(tooShort)?.label).toBe('G5 < 1 yr')
+
+    // Release review 2026-11-15: with AKI windows left out of the projection, the
+    // series itself may have many dates over years; the title must not blame it.
+    expect(projectedG5Label(tooFew)?.title).toBe('Usable measurements on fewer than three distinct dates, so no projection was made.')
+    expect(projectedG5Label({ ...tooFew, inputExcludesAkiWindows: true })?.title)
+      .toBe('Measurements inside AKI exclusion windows are left out of the projection. The measurements used fall on fewer than three distinct dates, so no projection was made.')
+    expect(projectedG5Label(tooShort)?.title).toBe('Less than one year between first and last measurement, so no projection was made.')
+    expect(projectedG5Label({ ...tooShort, inputExcludesAkiWindows: true })?.title)
+      .toBe('Measurements inside AKI exclusion windows are left out of the projection. The measurements used span less than one year, so no projection was made.')
   })
 
   it('flags a missing age anchor', () => {

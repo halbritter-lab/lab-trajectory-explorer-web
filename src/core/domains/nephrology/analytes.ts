@@ -62,18 +62,26 @@ const NON_SERUM_SUBSTRINGS = ['urin', 'harn', 'dialysat', 'punktat', 'fluid', 'a
  * `Drain`, `PD` (peritoneal dialysate) and `Serom`. */
 const NON_SERUM_TOKENS: ReadonlySet<string> = new Set(['i.u', 'u', 'su', 'su24h', 'spu', 'pu', 'csf', 'drain', 'pd', 'serom'])
 
+/** A lone `u` or `u.` standing between two words, separated from both by
+ * whitespace only, is the German abbreviation of "und" ("Serum u. Plasma",
+ * "vor u. nach Dialyse"), not urine. The word before ends in a letter, a dot
+ * or a closing bracket; the word after starts with a letter. */
+const UND_ABBREVIATION = /(?<=[\p{L}.)\]]\s+)u\.?\s+(?=\p{L})/gu
+
 /** Name marks a measurement in a material other than serum or plasma: a
  * substring of `NON_SERUM_SUBSTRINGS` in any case, a token of
  * `NON_SERUM_TOKENS`, or an upper-case "UR" suffix. Tokens are split at
- * whitespace, `,`, `;`, `/`, `_`, `-` and parentheses, after `i. U` is read
- * as `i.U`. Non-breaking spaces and surrounding whitespace are ignored. Used
- * by the eGFR source selection and, through it, by KDIGO AKI detection. */
+ * whitespace, `,`, `;`, `:`, `/`, `_`, `-`, parentheses and square brackets,
+ * after `i. U` is read as `i.U` and a `u` that abbreviates "und" (see
+ * `UND_ABBREVIATION`; decided 2026-11-15) is removed. Non-breaking spaces and
+ * surrounding whitespace are ignored. Used by the eGFR source selection and,
+ * through it, by KDIGO AKI detection. */
 export function isNonSerumName(bez: string | null): boolean {
   if (bez == null) return false
   const s = normalisedName(bez)
   const low = s.toLowerCase()
   if (NON_SERUM_SUBSTRINGS.some((part) => low.includes(part))) return true
-  const tokens = low.replace(/\bi\.\s+u\b/g, 'i.u').split(/[\s,;()/_-]+/)
+  const tokens = low.replace(/\bi\.\s+u\b/g, 'i.u').replace(UND_ABBREVIATION, '').split(/[\s,;:()[\]/_-]+/)
   if (tokens.some((token) => NON_SERUM_TOKENS.has(token.replace(/\.+$/, '')))) return true
   return s.endsWith('UR')
 }

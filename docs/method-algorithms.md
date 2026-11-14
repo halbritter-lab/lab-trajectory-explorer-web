@@ -77,7 +77,9 @@ owner decided all of them on the same day (see
 listed under *Resolved decisions* below. Four remain, **OD-11, OD-21, OD-22
 and OD-29: to be changed after release 0.3.0.** Their behaviour is unchanged
 until then. OD-30, added on 2026-11-05 with the R reproduction export, was
-decided on 2026-11-13.
+decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
+`u` that abbreviates "und" in creatinine names and is open. OD-31 is not
+used on `main`; the number is reserved by the deferred MCP server work.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -85,6 +87,7 @@ decided on 2026-11-13.
 | OD-21 | [Cohort mixed models](#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+| OD-32 | [eGFR derivation](#eligible-source-series) | A whitespace-separated lone `U` followed by any word is read as "und", so `Kreatinin U mg/dl` and `Kreatinin U spontan` count as serum creatinine. |
 
 ### Resolved decisions
 
@@ -1774,10 +1777,12 @@ conditions hold (`isSerumCreatinineSeries`):
     "Harn", "Sammelurin"), `dialysat` ("Dialysat", "dialysate"), `punktat`,
     `fluid`, `aszites`, `ascites`, `pleura`, `liquor`, `drainage`, `sekret`
     ("Sekret", "Wundsekret") or `lymphe`;
-  - after `i.` followed by whitespace and `U` is read as `i.U`, and split at
-    whitespace, commas, semicolons, slashes, underscores, hyphens and
-    parentheses, one token is, in any case and ignoring trailing dots, `i.U`
-    (im Urin), a lone `U` (`U-Kreatinin`, `Kreatinin (U)`, `Kreatinin U.`,
+  - after `i.` followed by whitespace and `U` is read as `i.U`, a `u` that
+    abbreviates "und" is removed (next paragraph), and the name is split at
+    whitespace, commas, semicolons, colons, slashes, underscores, hyphens,
+    parentheses and square brackets, one token is, in any case and ignoring
+    trailing dots, `i.U` (im Urin), a lone `U` (`U-Kreatinin`,
+    `Kreatinin (U)`, `Kreatinin [U]`, `Kreatinin:U`, `Kreatinin U.`,
     `Kreatinin/U`, `Kreatinin_U`), `SU` (Sammelurin; also the `SU` of
     `24h-SU`), `SU24h`, `SPU` (Spontanurin), `PU` (Punktat or Portionsurin;
     both are non-serum), `CSF`, `Drain`, `PD` (peritoneal dialysate) or
@@ -1790,7 +1795,8 @@ conditions hold (`isSerumCreatinineSeries`):
   `Kreatinin 24h-SU`, `Kreatinin SU24h`, `Kreatinin SpU`, `Kreatinin PU`,
   `Kreatinin CSF`, `Kreatinin Drain`, `Kreatinin PD`, `Kreatinin Serom`,
   `Kreatinin Lymphe`, `Kreatinin (Wund)sekret`, `Kreatinin Dialysat`,
-  `Kreatinin Punktat`. Still eligible: `Kreatinin`, `Kreatinin i.S.`,
+  `Kreatinin Punktat`, `Kreatinin [U]`, `Kreatinin:U`. Still eligible:
+  `Kreatinin`, `Kreatinin i.S.`,
   `Kreatinin i.P.`, `Kreatinin (enzym.)`, `Kreatinin (S)`, `Kreatinin Serum`,
   `Kreatinin Plasma`, `S-Kreatinin`, `Kreatinin HP`, `Kreatinin BGA`,
   `Kreatinin Vollblut`, `Creatinine serum`, `Kreatinin mg/dl`. Tokens are
@@ -1799,6 +1805,32 @@ conditions hold (`isSerumCreatinineSeries`):
   `Kreatinin U/l` is excluded (token `U`). Creatinine is not reported in the
   enzyme unit U/l, so no serum spelling is lost. Prefixes such as `S-` or `P-`
   mark nothing.
+
+  **A `u` that abbreviates "und"** (decided 2026-11-15; `UND_ABBREVIATION`).
+  A lone `u`, in any case and with or without one dot, is not urine when it
+  stands between two words: the text before it ends in a letter, a dot or a
+  closing bracket, the text after it starts with a letter, and only whitespace
+  separates it from both. It is then removed before the name is split.
+  `Kreatinin im Serum u. Plasma`, `Kreatinin (Serum u. Plasma)`,
+  `Kreatinin i.S. u. P.`, `Kreatinin vor u. nach Dialyse` and
+  `Kreatinin Serum u Plasma` are therefore eligible, as they were up to
+  version 0.3.7; between 2026-11-05 and 2026-11-15 the development version
+  excluded them. A lone `U` stays urine in every other position:
+  - at the end of the name: `Kreatinin U.`, `Kreatinin u`, `Kreatinin (U)`;
+  - at the start of the name: `U Kreatinin`, `U-Kreatinin` (nothing precedes
+    it);
+  - before a number or a bracket: `Kreatinin U 24h`, `Kreatinin U (24h)`;
+  - next to any separator other than whitespace: `Kreatinin/U`,
+    `Kreatinin U/l`, `Kreatinin_U`, `Kreatinin:U`.
+
+  > **Open decision OD-32.** Any word after a whitespace-separated lone `U`
+  > makes it "und", whatever the word is: `Kreatinin U mg/dl` and
+  > `Kreatinin U spontan` are read as "Kreatinin und …" and are eligible as
+  > serum creatinine, although they may name urine. The owner's rule of
+  > 2026-11-15 ("a lone `u` counts as urine only when no further word
+  > follows") does not say whether a trailing unit or a material word counts
+  > as a further word, nor whether the case of the letter (`U` against `u.`)
+  > should matter. Behaviour is as described pending an owner decision.
 - **Unit is mg/dl or µmol/l** after unit-key normalisation (below).
 
 No other material or method is distinguished. Any name that passes these tests

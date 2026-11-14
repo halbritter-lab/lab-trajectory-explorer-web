@@ -22,10 +22,18 @@ describe('non-serum creatinine names', () => {
     'Kreatinin CSF', 'Creatinine CSF', 'Kreatinin Drain', 'Kreatinin PD', 'Kreatinin Serom', 'Kreatinin Lymphe',
     'Kreatinin (Wund)sekret', 'Kreatinin PU',
     // The slash separates tokens, so a name carrying the enzyme unit U/l is excluded too.
-    'Kreatinin U/l']
+    'Kreatinin U/l',
+    // Decided 2026-11-15: square brackets and colons separate tokens; a lone U at the start, at the end or
+    // before a number stays urine.
+    'Kreatinin [U]', 'Kreatinin:U', 'Kreatinin: U', 'U Kreatinin', 'Kreatinin U 24h', 'Kreatinin u']
   const serum = ['Kreatinin', 'Kreatinin i.S.', 'Kreatinin (enzym.)', 'Kreatinin enzym.', 'Kreatinin Serum', 'S-Kreatinin',
     'Kreatinin HP', 'Creatinine serum', 'Kreatinin ur', 'Kreatinin i.P.', 'Kreatinin Plasma', 'Kreatinin (S)',
-    'Kreatinin BGA', 'Kreatinin Vollblut', 'Kreatinin i. S.', 'Kreatinin mg/dl', 'Kreatinin µmol/l']
+    'Kreatinin BGA', 'Kreatinin Vollblut', 'Kreatinin i. S.', 'Kreatinin mg/dl', 'Kreatinin µmol/l',
+    // Decided 2026-11-15: "u." between two words abbreviates "und" and is not urine (serum in v0.3.7 as well).
+    'Kreatinin im Serum u. Plasma', 'Kreatinin (Serum u. Plasma)', 'Kreatinin i.S. u. P.', 'Kreatinin vor u. nach Dialyse',
+    'Kreatinin Serum u Plasma',
+    // As implemented, open decision OD-32: any word after a lone U reads it as "und", a trailing unit included.
+    'Kreatinin U mg/dl', 'Kreatinin U spontan']
   it.each(nonSerum)('%s is not serum', (name) => {
     expect(isNonSerumName(name)).toBe(true)
     expect(isSerumCreatinineSeries(name, 'mg/dl')).toBe(false)
