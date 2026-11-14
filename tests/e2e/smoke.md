@@ -399,3 +399,50 @@ mobile method navigation. The 929 unit/component tests also passed.
 
 This records the reviewed technical workflows and owner publication acceptance;
 it does not claim research, clinical or representative-user validation.
+
+## Release review: paths added since v0.3.7 (2026-11-15)
+
+1. Upload a CSV with serum creatinine 1.0 and 120 mg/dl for one patient and
+   0.1 mg/dl for a 20-year-old male. The Data page shows "1 serum creatinine
+   value above 25 mg/dl (µmol/l converted): not plausible, check the unit. The
+   values are used unchanged."
+2. Choose the eGFR formula "CKD-EPI 2009 (race-free)". The preview shows "1
+   computed eGFR value above 200 mL/min/1.73 m²: not plausible, …". After
+   *Apply calculation* the page reads "Active: CKD-EPI 2009 (race-free), 3
+   computed values", and Trajectories offers the parameter
+   `eGFR (CKD-EPI 2009 (race-free), computed)`.
+3. Upload an imported eGFR of 40 and 38 with creatinine 4.5 and 4.85 mg/dl on
+   two consecutive days every two weeks for two years (104 values each). Give
+   the eGFR column the CKD progression preset and show badges as text. The
+   endpoint badge ends in `G5 < 3 dates` (the label since 2026-11-05, formerly
+   `G5 n < 3`), and its tooltip says "Measurements inside AKI exclusion
+   windows are left out of the projection. The measurements used fall on fewer
+   than three distinct dates, so no projection was made." It does not say the
+   series has measurements on fewer than three dates.
+4. *Export cohort (XLSX)* in that state: the last six columns of `cohort` are
+   `index_date`, `last_fitted_date`, `first_eligible_date`,
+   `last_eligible_date`, `intercept`, `slope_se`; the row has
+   `first_eligible_date` 2020-01-01, `last_eligible_date` 2021-12-16 and
+   `last_fitted_date` 2020-01-01, and `endpoint_input_policy` ends in "AKI
+   exclusion windows excluded from decline baseline and projection".
+5. Cohort models: fit, apply a projection, *Export models (xlsx)*. The sheets
+   are, in order, `models`, `coefficients`, `factors`, `centering`,
+   `excluded_patients`, `projections`, `about`, `vcov`, `model_rows`,
+   `model_input_flags`, `r_script`; every sheet that names a unit has a
+   `unit_key` column (`cohort` or `group:<value>`).
+6. Open a saved session whose creatinine source is no longer a serum name. The
+   Data page shows the amber notice that no eGFR is computed from it.
+
+Verified 2026-11-15 in Chromium: steps 1 to 4 by
+`tests/e2e/release-review.e2e.ts`, step 5 by
+`tests/e2e/model-projections.e2e.ts` (intercepted worker, real download). All
+53 automated checks passed against the production build (`CI=1 pnpm
+test:e2e`). The R reproduction export was also refitted with real webR by
+`node scripts/verify_mixed_model_r_export.mjs`: the generated script rebuilt
+two units, one of them a group named "Whole cohort", from the exported sheets
+and matched the browser estimates.
+
+Not verified: step 6 in a browser (a session of the same version cannot hold a
+non-serum source; `tests/workspace/data-ui.test.tsx` covers the notice), a real
+webR fit through the interface, PNG export, the exported workbooks opened in
+Excel or desktop R, a screen reader.
