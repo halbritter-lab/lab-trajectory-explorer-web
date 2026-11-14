@@ -17,7 +17,7 @@ test('public API names are pinned', () => {
     'akiExclusionWindows', 'appendComputedEgfr', 'applyExclusionWindows', 'balanceSeriesPoints',
     'ckdEpi2009', 'ckdEpi2021', 'ckdProgressionConfig', 'comparePatientIds',
     'computeCkdEndpoints', 'computedEgfrName', 'creatinineSourceOptions',
-    'datesToYears', 'defaultCreatinineSource', 'ekfc2021',
+    'datesToYears', 'defaultCreatinineSource', 'distinctDateCount', 'ekfc2021',
     'episodesForSeries', 'exclusionReasonsAt', 'findKdigoAkiEpisodes', 'fitAkiAware',
     'fitGlobal', 'fitOls', 'fitTheilSen', 'fixedLengthWindow', 'generalExplorationConfig', 'isCreatinineName',
     'isEgfrUnit', 'isKdigoCreatinineSeries', 'isNonSerumName', 'isSerumCreatinineSeries', 'isSerumCreatinineSource',
@@ -45,8 +45,20 @@ test('the bundle reaches no browser, React, webR or mixed-model code', () => {
 test('CKD-EPI 2021 reproduces the reference values', () => {
   assert.equal(kidney.ckdEpi2021({ scrMgdl: 1.2, ageYears: 60, sex: 'm' }).toFixed(6), '69.231128')
   assert.equal(kidney.ckdEpi2021({ scrMgdl: 1.2, ageYears: 60, sex: 'w' }).toFixed(6), '51.821330')
+})
+
+test('CKD-EPI 2009 (race-free) reproduces the reference value', () => {
   assert.equal(kidney.ckdEpi2009({ scrMgdl: 1.0, ageYears: 50, sex: 'm' }).toFixed(1), '87.4')
+})
+
+test('urine creatinine is not a serum name', () => {
   assert.equal(kidney.isNonSerumName('Kreatinin i.U.'), true)
+})
+
+test('isUnstableSlope flags two fitted dates over a long span', () => {
+  const points = [{ date: new Date(Date.UTC(2020, 0, 1)), value: 60 }, { date: new Date(Date.UTC(2021, 1, 4)), value: 50 }]
+  const input = { reason: null, nFittedDates: kidney.distinctDateCount(points), fittedSpanDays: 400, fitModel: 'ols' }
+  assert.equal(kidney.isUnstableSlope(input), true)
 })
 
 test('KDIGO detects a 0.3 mg/dl rise within 48 h as a stage 1 episode', () => {
