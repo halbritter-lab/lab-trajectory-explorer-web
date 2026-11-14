@@ -98,7 +98,7 @@ dataset.diagnostics // import warnings and rejected rows
 | eGFR and units | `ckdEpi2021`, `ckdEpi2009` (CKD-EPI 2009 race-free), `mdrd4`, `ekfc2021`, `appendComputedEgfr`, `creatinineSourceOptions`, `defaultCreatinineSource`, `isSerumCreatinineSource`, `normaliseSex`, `isUnrecognisedSex`, `normaliseUnit`, `computedEgfrName`, `EGFR_FORMULA_LABELS`, `COMPUTED_EGFR_UNIT`, `SERUM_CREATININE_UNITS`, `MGDL_PER_UMOLL` |
 | Series classification | `isCreatinineName`, `isNonSerumName`, `isSerumCreatinineSeries`, `isKdigoCreatinineSeries`, `isEgfrUnit`, `mentionsEgfr` |
 | AKI and exclusion windows | `findKdigoAkiEpisodes`, `kdigoStage`, `episodesForSeries`, `akiExclusionWindows`, `fitAkiAware`, `applyExclusionWindows`, `exclusionReasonsAt`, `fixedLengthWindow`, `windowContains`, `KDIGO_ABSOLUTE_RISE_MGDL`, `KDIGO_RELATIVE_RISE_RATIO`, `DEFAULT_AKI_EXCLUSION_DAYS` |
-| Slopes | `fitGlobal` (OLS), `fitTheilSen`, `fitOls`, `datesToYears`, `balanceSeriesPoints`, `summarizeByBezeichnung`, `isUnstableSlope` |
+| Slopes | `fitGlobal` (OLS), `fitTheilSen`, `fitOls`, `datesToYears`, `distinctDateCount`, `balanceSeriesPoints`, `summarizeByBezeichnung`, `isUnstableSlope` |
 | Endpoints and projection | `computeCkdEndpoints`, `projectLinearThreshold`, `projectedCrossingTime`, `CKD_G4_EGFR_THRESHOLD`, `CKD_G5_EGFR_THRESHOLD`, `DEFAULT_CONFIRMATION_DAYS`, `DEFAULT_RAPID_EGFR_DECLINE` |
 | Fit presets | `generalExplorationConfig`, `theilSenConfig`, `ckdProgressionConfig`, `acuteReviewConfig`, `STANDARD_PRESETS`, `NEPHROLOGY_PRESETS` |
 | Shared | `patientIdKey`, `comparePatientIds` and the types `LabRow`, `RawRow`, `PatientId`, `OlsFit`, `SeriesPoint`, `FitConfig`, `CkdEndpoints`, `AkiEpisode` and related |
@@ -123,7 +123,11 @@ the public API.
 These are documented at their call sites and in the method reference:
 
 - `fitGlobal` returns the exact slope with `r2 = 1` and `reason: null` for
-  exactly two points. Use `isUnstableSlope` before acting on a slope.
+  exactly two points. Use `isUnstableSlope` before acting on a slope. It needs
+  `nFittedDates`, the number of distinct fitted calendar dates
+  (`summarizeByBezeichnung` supplies it; `distinctDateCount(points)` computes
+  it for your own points). Without that field, plain JavaScript callers get
+  `false` (stable) for a two-point series.
 - `summarizeByBezeichnung` reports `reason: 'n_below_threshold'` whenever the
   fit model is `'none'`, regardless of the point count.
 - `nNumeric` counts raw measurements before censoring, AKI exclusion and time
