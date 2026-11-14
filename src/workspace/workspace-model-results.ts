@@ -1,4 +1,5 @@
 import { entityGroupValue, entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
+import type { MixedModelInputFlag } from '../core/mixedModel/types'
 import { buildMixedModelResultIdentity, mixedModelIdentityEquals } from '../core/mixedModel/resultIdentity'
 import { prepareMixedModelCohortRows, type PresetExclusionPolicy } from '../core/mixedModel/cohortDataset'
 import { prepareMixedModelFactors } from '../core/mixedModel/factors'
@@ -67,7 +68,7 @@ export function workspaceModelEntities(
   groups: readonly PatientGroup[],
   exclusionPolicy: PresetExclusionPolicy = 'apply',
 ): CohortModelEntityRows[] {
-  const list: Array<{ entity: CohortModelEntityRows['entity']; rows: CohortModelEntityRows['rows']; excludedByPreset: number }> = [
+  const list: Array<{ entity: CohortModelEntityRows['entity']; rows: CohortModelEntityRows['rows']; excludedByPreset: number; inputFlags: MixedModelInputFlag[] }> = [
     { entity: { kind: 'cohort' }, ...prepareMixedModelCohortRows(rows, patientIds, spec, exclusionPolicy) },
   ]
   if (groups.length > 0) {
@@ -78,10 +79,14 @@ export function workspaceModelEntities(
   }
   return list.map(item => {
     const prepared = prepareMixedModelFactors(item.rows, config, patientAttributes, rows)
+    const factorReasons = new Map(prepared.preparation.excludedPatients.map(patient => [patient.patientId, patient.reasons.join('; ')]))
     return {
       entity: item.entity,
       rows: prepared.rows,
       preparation: { ...prepared.preparation, presetExclusionPolicy: exclusionPolicy, excludedByPreset: item.excludedByPreset },
+      inputFlags: item.inputFlags.map(flag => flag.status !== 'excluded' && factorReasons.has(flag.patient_id)
+        ? { ...flag, status: 'excluded' as const, reason: `patient_excluded: ${factorReasons.get(flag.patient_id)}`, model_date: '' }
+        : flag),
     }
   })
 }

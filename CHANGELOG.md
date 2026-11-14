@@ -64,6 +64,27 @@ interfaces are still evolving before 1.0.
   export already overwrote that field with the UTC date, so exported files are
   unchanged.
 
+### Added (model export for R)
+
+- The cohort model workbook can be reproduced in R: `model_rows` holds the rows
+  each fit received, `model_input_flags` shows for every measurement whether it
+  entered, was aggregated into a median or why it was excluded, `coefficients`
+  gains standard errors, `vcov` holds the fixed-effect covariance matrix, and
+  `r_script` refits the models with the same lme4 call.
+
+### Changed (model export for R)
+
+- Cohort-model estimates, intervals and variance parameters are stored and
+  exported at full precision instead of four decimal places (owner decision
+  OD-30, 2026-11-13). Values move in the fifth decimal and beyond; slopes
+  between 1e-5 and 5e-5 per year are no longer stored as 0. Results saved
+  before keep their rounded values until refitted.
+- Non-reference factor levels are ordered by code point in R as in the
+  browser (`sort(method = "radix")`), so the coefficient order no longer
+  depends on the R locale.
+- The model workbook's `about` sheet notes that readxl may read the `group`
+  column of `model_rows` as logical; set `col_types` or `guess_max`.
+
 ## [0.3.7] - 2026-10-15
 
 ### Added

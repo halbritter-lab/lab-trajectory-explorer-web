@@ -59,6 +59,7 @@ interface EntityRow {
   nMeasurements: number
   /** Passes the same pooled validity gate as the single fit. */
   preparation?: CohortModelEntityRows['preparation']
+  inputFlags?: CohortModelEntityRows['inputFlags']
   validationMessage: string | null
   eligible: boolean
 }
@@ -86,11 +87,12 @@ export function CohortModelTable({
   const projectionSettings = useAppStore((s) => s.projectionSettings)
   const setProjectionSettings = useAppStore((s) => s.setProjectionSettings)
   const [dirtyEditors, setDirtyEditors] = useState<Set<string>>(new Set())
+  const [exportError, setExportError] = useState<string | null>(null)
 
   const entityRows = useMemo<EntityRow[]>(
     () =>
       entities
-        .map(({ entity, rows, preparation }) => {
+        .map(({ entity, rows, preparation, inputFlags }) => {
           const validation = validateMixedModelRows(rows, config)
           const key = entityKey(entity)
           return {
@@ -102,6 +104,7 @@ export function CohortModelTable({
             nPatients: new Set(rows.map((row) => row.patient_id)).size,
             nMeasurements: rows.length,
             preparation,
+            inputFlags,
             validationMessage: validation.ok ? null : validation.message,
             eligible: validation.ok,
           }
@@ -223,7 +226,7 @@ export function CohortModelTable({
       try { projection = buildProjectionSnapshot(stored.result,stored.identity,sourceResponse,row.rows,applied.settings) }
       catch (error) { projectionError = error instanceof Error ? error.message : 'Projection settings or source fit are invalid.' }
     }
-    return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError}]
+    return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError, rows: row.rows, inputFlags: row.inputFlags}]
   })
   const hasDirtyEditor = exportable.some((model) => dirtyEditors.has(model.key))
   const initializing = exportable.some((model) => model.result.status === 'success' && model.result.converged && !model.result.singular && !model.projection)
@@ -231,7 +234,12 @@ export function CohortModelTable({
     if (hasDirtyEditor || initializing || running) return
     const current = useAppStore.getState().cohortModelResults
     if (exportable.some((model) => current?.[model.key]?.result !== model.result || !mixedModelIdentityEquals(current?.[model.key]?.identity ?? null, model.identity))) return
-    downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable)), `cohort-models-${fileStamp()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    try {
+      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable)), `cohort-models-${fileStamp()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      setExportError(null)
+    } catch (error) {
+      setExportError(`Model export failed: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }
   const adjusted = mixedModelFactors(config).length > 0
 
@@ -243,6 +251,7 @@ export function CohortModelTable({
         <button type="button" disabled={exportable.length === 0 || running || hasDirtyEditor || initializing} onClick={exportModels}>Export models (xlsx)</button>
         {hasDirtyEditor && <p role="status">Apply or cancel projection changes before exporting models.</p>}
         {exportable.filter((model) => model.projectionError).map((model) => <p role="alert" key={model.key}>{model.entity}: {model.projectionError} Refit the model before exporting.</p>)}
+        {exportError && <p role="alert">{exportError}</p>}
         <button
           type="button"
           onClick={() => void fitSelected()}
