@@ -300,6 +300,49 @@ Taken by the project owner on the points the walkthrough had left open.
   ([checklist](research-acceptance.md)), then the release PR. Publication still
   needs the owner's explicit acceptance.
 
+## Decisions of 2026-11-05 (clinical-research review, issue #34)
+
+The owner requested these fixes on 2026-11-05 in issue #34; merging the
+implementing pull request is his sign-off.
+
+### Creatinine source and AKI
+
+- **Non-serum creatinine is not serum creatinine.** Besides urine (`urin`,
+  `harn`, an upper-case `UR` suffix), names marking dialysate, puncture fluid,
+  ascites, pleura, liquor, drainage, secretions (`sekret`), lymph (`lymphe`)
+  or "fluid", and the tokens `i.U.` (also `i. U.`), a lone `U` (`U-Kreatinin`,
+  `Kreatinin U.`, `Kreatinin/U`, `Kreatinin_U`), `SU` (also in `24h-SU`),
+  `SU24h`, `SPU`, `PU`, `CSF`, `Drain`, `PD` and `Serom` are excluded (token
+  list extended in the review follow-up of 2026-11-05; the slash now separates
+  tokens, so `Kreatinin U/l` is excluded too). Such series
+  are no eGFR source, detect no AKI and supply no AKI episodes to other
+  columns. Serum spellings such as `Kreatinin i.S.`, `Kreatinin (enzym.)`,
+  `Kreatinin Serum` and `S-Kreatinin` stay eligible. Classification change:
+  a dataset with such a series loses its eGFR source option and its AKI
+  episodes. A saved session whose chosen source is now non-serum computes no
+  eGFR; the Data page says so and asks for another source.
+- **A computed eGFR takes its AKI episodes from its own source.** The
+  creatinine pair the eGFR was derived from supplies the episodes of the
+  computed eGFR column, instead of the patient's creatinine pair with the most
+  rows. Other non-creatinine columns are unchanged. Example: `Kreatinin` 1.0,
+  2.0, 1.9 mg/dl on consecutive days plus five later rows of
+  `Kreatinin enzym.` now give the computed eGFR column the stage-II episode
+  (before: none, both AKI values stayed in the eGFR slope).
+- **Creatinine plausibility warning** *(thresholds confirmed by the owner, 2026-11-13)*. The Data page
+  counts exact serum creatinine above 25 mg/dl (µmol/l converted) and computed
+  eGFR above 200 mL/min/1.73 m². Warning only; no value changes. The thresholds
+  target a µmol/l column labelled mg/dl and similar unit errors; a urine series
+  that escapes the name rule can stay below 25 mg/dl, so the name rule remains
+  the protection against urine. The deny-list of non-serum spellings stays
+  (owner decision 2026-11-13, no allow-list), and imported eGFR columns keep
+  taking their episodes from the patient's serum creatinine pair with the most
+  rows.
+
+Details and boundaries: [eGFR derivation](method-algorithms.md#eligible-source-series)
+and [KDIGO creatinine AKI detection](method-algorithms.md#input-series-and-conversion).
+The golden fixtures contain only `Kreatinin` (mg/dl and µmol/l) and no value
+above either threshold; they are unchanged.
+
 ## Approved requirements
 
 ### Observed events and recovery

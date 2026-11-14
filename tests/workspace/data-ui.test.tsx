@@ -201,3 +201,30 @@ it('drops the previous rejected-event list when an events re-import fails', asyn
   expect(screen.queryByRole('table', { name: 'Rejected events' })).not.toBeInTheDocument()
   expect(useAppStore.getState().events).toHaveLength(1)
 })
+it('warns about creatinine above 25 mg/dl and computed eGFR above 200 without changing values', () => {
+  useAppStore.getState().replaceDataset({ rows: [
+    { ...row, patientSex: 'm', patientAgeAtLab: 50, wert: '30', wertNum: 30 },
+    { ...row, patientId: 'P-02', patientSex: 'm', patientAgeAtLab: 20, wert: '0.1', wertNum: 0.1 },
+  ] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  expect(screen.getByText(/^1 serum creatinine value above 25 mg\/dl/)).toHaveClass('notice', 'amber')
+  expect(screen.queryByText(/computed eGFR value above 200/)).not.toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  expect(screen.getByText(/^1 computed eGFR value above 200 mL\/min\/1.73 m²/)).toHaveClass('notice', 'amber')
+  expect(screen.getByText('2 computed values in preview')).toBeInTheDocument()
+})
+it('explains that a saved non-serum creatinine source computes no eGFR', () => {
+  useAppStore.getState().replaceDataset({ rows: [
+    { ...row, patientSex: 'm', patientAgeAtLab: 50 },
+    { ...row, bezeichnung: 'Kreatinin SPU', patientSex: 'm', patientAgeAtLab: 50 },
+  ] })
+  // A session saved before this spelling counted as non-serum.
+  useAppStore.getState().setEgfrSource(['Kreatinin SPU', 'mg/dl'])
+  useAppStore.getState().setEgfrFormula('ckd-epi-2021')
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  expect(screen.getByText('0 computed values in preview')).toBeInTheDocument()
+  expect(screen.getByText(/^The selected creatinine source Kreatinin SPU \(mg\/dl\) is not serum creatinine/)).toHaveClass('notice', 'amber')
+  fireEvent.change(screen.getByLabelText('Creatinine source'), { target: { value: 'null' } })
+  expect(screen.queryByText(/is not serum creatinine/)).not.toBeInTheDocument()
+  expect(screen.getByText('1 computed value in preview')).toBeInTheDocument()
+})
