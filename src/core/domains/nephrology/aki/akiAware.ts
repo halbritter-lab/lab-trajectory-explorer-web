@@ -5,7 +5,7 @@ import { fitOls } from '../../../stats/ols'
 import { datesToYears } from '../../../stats/time'
 import { findKdigoAkiEpisodes, type AkiEpisode } from './kdigo'
 import { isKdigoCreatinineSeries, normaliseUnit } from '../analytes'
-import { DEFAULT_AKI_EXCLUSION_DAYS, MGDL_PER_UMOLL } from '../constants'
+import { DEFAULT_AKI_EXCLUSION_DAYS, IMPLAUSIBLE_CREATININE_ABOVE_MGDL, MGDL_PER_UMOLL } from '../constants'
 import { fixedLengthWindow, type ReasonedExclusionWindow } from '../../../exclusions/windows'
 import type { ClinicalEvent } from '../../../events/events'
 
@@ -105,17 +105,30 @@ export function nonPositiveCreatinineCount(rows: readonly LabRow[]): number {
     && isExactMeasurement(r) && isAkiCreatinineSource(r.bezeichnung, r.einheit)).length
 }
 
+/** Exact dated serum creatinine values above IMPLAUSIBLE_CREATININE_ABOVE_MGDL
+ * (µmol/l converted to mg/dl first), often a µmol/l column labelled mg/dl. The
+ * Data page warns about their number; the values are used unchanged. */
+export function implausiblyHighCreatinineCount(rows: readonly LabRow[]): number {
+  return rows.filter((r) => r.bezeichnung !== null && r.labDatum !== null && r.wertNum !== null
+    && isExactMeasurement(r) && isAkiCreatinineSource(r.bezeichnung, r.einheit)
+    && (normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum / MGDL_PER_UMOLL : r.wertNum) > IMPLAUSIBLE_CREATININE_ABOVE_MGDL).length
+}
+
 /** Episodes for aki-aware fits: an eligible serum creatinine series detects on itself;
- * any other analyte (e.g. computed eGFR) uses the same patient's creatinine
- * series with the most exact dated rows. Names and units are never pooled.
+ * a derived series (computed eGFR) uses the creatinine series it was computed
+ * from (`LabRow.sourceSeries`); any other analyte uses the same patient's
+ * creatinine series with the most exact dated rows. Names and units are never pooled.
  * Creatinine measured under dialysis (see `isUnderDialysis`; `events` are the
  * patient's clinical events) is left out before detection.
  * Returns [] when no eligible creatinine data exists. */
 export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null, events: readonly ClinicalEvent[] = []): AkiEpisode[] {
   const sub = rows.filter((r) => r.patientId === patientId && r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
+  const derivedFrom = rows.find((r) => r.patientId === patientId && r.bezeichnung === bezeichnung && (r.einheit ?? null) === (einheit ?? null) && r.sourceSeries)?.sourceSeries
   let source: LabRow[]
   if (bezeichnung !== null && isAkiCreatinineSource(bezeichnung, einheit)) {
     source = sub.filter((r) => r.bezeichnung === bezeichnung && (r.einheit ?? null) === (einheit ?? null))
+  } else if (derivedFrom) {
+    source = sub.filter((r) => r.bezeichnung === derivedFrom.bezeichnung && r.einheit === derivedFrom.einheit)
   } else {
     const groups = new Map<string, LabRow[]>()
     for (const r of sub) {

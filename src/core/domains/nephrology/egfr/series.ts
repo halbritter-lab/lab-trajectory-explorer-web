@@ -1,6 +1,7 @@
 import type { LabRow, WertOperator } from '../../../types'
 import { ckdEpi2021, ekfc2021, mdrd4, normaliseSex, type EgfrInput } from './formulas'
-import { MGDL_PER_UMOLL } from '../constants'
+import { IMPLAUSIBLE_EGFR_ABOVE, MGDL_PER_UMOLL } from '../constants'
+import { isExactMeasurement } from '../../../measurements/censored'
 import {
   COMPUTED_EGFR_UNIT,
   computedEgfrName,
@@ -101,8 +102,15 @@ export function appendComputedEgfr(rows: LabRow[], opts: EgfrOptions = {}): LabR
       loinc: null,
       patientSex: r.patientSex,
       patientAgeAtLab: r.patientAgeAtLab,
+      sourceSeries: { bezeichnung: bez, einheit },
     })
   }
   if (computed.length === 0) return rows
   return [...rows, ...computed]
+}
+
+/** Exact computed eGFR values above IMPLAUSIBLE_EGFR_ABOVE. The Data page warns
+ * about their number before the calculation is applied; values are unchanged. */
+export function implausiblyHighEgfrCount(rows: readonly LabRow[]): number {
+  return rows.filter((r) => r.sourceSeries && r.wertNum !== null && isExactMeasurement(r) && r.wertNum > IMPLAUSIBLE_EGFR_ABOVE).length
 }
