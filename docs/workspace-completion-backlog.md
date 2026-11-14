@@ -143,7 +143,7 @@ Update numerical contracts and parity expectations explicitly during implementat
   confirmation interval (90 days by default); G4/G5 defaults remain below 30/15.
 - [x] Select all-data individual prediction continuing the fitted curve
   (input superseded 2026-10-06: endpoint-eligible exact measurements; see
-  [method algorithms](method-algorithms.md#observed-endpoints-and-individual-prediction)).
+  [method algorithms](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction)).
 - [x] Select Theil-Sen minimum three observations, Python intercept convention
   and Python-reference slope confidence bounds.
 - [x] Implement independent observed G4/G5 endpoints and confirmation settings

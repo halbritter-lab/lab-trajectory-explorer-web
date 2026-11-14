@@ -1,0 +1,631 @@
+# Method reference: Endpoints and individual projection
+
+Part of the [implemented method algorithms](../method-algorithms.md), which
+hold the reading conventions and the list of open decisions. Research use
+only.
+
+## Observed endpoints and individual prediction
+
+These rules are owner-approved research definitions (2026-09-23, revised
+2026-10-06). `computeCkdEndpoints` evaluates them for one patient and one
+parameter column; `endpointContext` in the cohort builder supplies the input.
+Cohort-model projections are a different calculation; see "Cohort-model
+projections".
+
+### Eligibility and kidney failure reached
+
+**Which series.** Endpoints are evaluated for a column when its unit is mL/min/1.73 m². The unit is compared after
+lower-casing, removing whitespace, and reading a decimal comma as a point and
+`²` or `^2` as `2`; the result must equal one of four spellings
+(`isEgfrUnit`):
+
+| Result of the comparison form | Qualifying units, for example |
+| --- | --- |
+| `ml/min/1.73m2` | `ml/min/1,73m²`, `mL/min/1.73 m2`, `ML/MIN/1,73M^2` |
+| `ml/min/{1.73_m2}` | `mL/min/{1.73_m2}` (UCUM), `ml/min/{1,73_m²}` |
+| `ml/min/1.73qm` | `ml/min/1.73qm`, `ML/MIN/1,73 QM` |
+| `ml/minper1.73m2` | `mL/min per 1.73 m2`, `ml/min per 1,73m²` |
+
+`ml/min`, `ml/min/1.73` and `mL/min/m²` do not qualify. Nor does any other way
+of writing the unit, such as `ml per min per 1.73 m2`, `ml/min/{1.73}` or a
+unit with trailing text such as `ml/min/1,73 m² KOF`; the unit of such a series
+must be rewritten before import for it to receive endpoints. The parameter name
+is not read. Every other column reports all endpoints as not evaluated,
+whatever its settings. The same rule controls kidney failure reached, the
+rapid-decline flag and the preset targets of cohort-model projections
+(decided 2026-10-07, formerly OD-20; the owner accepted the UCUM, `qm` and
+`per` spellings on 2026-10-08). Until 2026-10-07 any unit containing `ml/min`
+received endpoints, so a creatinine clearance in ml/min did; an eGFR series
+imported with the bare unit `ml/min` no longer does.
+
+A third, name-only test (the name contains `egfr`, in any case) is used only
+to preselect the outcome on the Cohort models page (since 2026-10-12;
+`src/workspace/cohort-model-parameter.ts`). Candidates are the parameters with
+at least one finite numeric value. They are ordered by that name test (eGFR
+first), then by the number of patients with exact (`=`) numeric measurements
+on at least three distinct dates, then by import order; this count is taken on
+the analysed rows before any window, run-in or time balancing. The first
+candidate whose count reaches 10 and whose whole-cohort rows, prepared with the
+column's Trajectories settings and the page's preset-exclusion choice, pass the
+model validation for the standard model (random intercept and slope, no
+factors) is preselected. When no candidate passes, the first candidate is shown
+and the page explains why it cannot be fitted. Example: the demo workbook's
+imported eGFR has 25 qualifying patients and passes, so it is preselected ahead
+of Kreatinin [mg/dl] (26). The preselection is recomputed whenever the data or those
+settings change, until the user picks a parameter; choosing a model preset or
+factors does not change it.
+
+**Which endpoints.** The column's fit configuration has four toggles: observed
+CKD G4, observed CKD G5, percent eGFR decline, and projected age to CKD G5,
+plus the minimum confirmation interval. The CKD progression preset turns all
+four on with 90 days. General exploration, Theil–Sen robust trend and Acute
+review turn all four off.
+
+**Which measurements.** Endpoint input is the column's measurements of the
+patient that have a valid date, a finite numeric value and the operator `=`
+(bounds are excluded by row; see "Bounded measurements"), after this event
+filter (`filterEndpointPointsForEvents`):
+
+- Values on or after the earliest kidney transplant or chronic dialysis start
+  are removed. The start day itself is removed.
+- Values within a complete dated acute dialysis interval are removed,
+  including its start and end dates. Later values remain eligible. An interval
+  is complete when it has an end date not before its start date.
+- Unknown-intent dialysis, acute dialysis without an end date and `other`
+  events remove nothing.
+
+Dates compare by UTC calendar day. The filter is independent of the display-fit
+censoring options and time balancing; a column with all censoring options off
+still truncates its endpoint input at kidney replacement therapy.
+
+**AKI windows (since 2026-11-05).** When the column's fit excludes AKI windows
+(the fit configuration's AKI exclusion is on, as in the CKD progression preset,
+or the slope mode is `aki-aware`), the rows inside those same windows are also
+left out of two endpoint inputs: each window runs from the episode onset to
+onset plus the column's window length (30 days by default), both ends
+included, as in "AKI fit-exclusion window". The windows come from the same
+episodes, from the same creatinine source and with the same length as the
+display fit's. With AKI exclusion off nothing changes. The rule applies to
+exactly two inputs, as issue #34 requested: the rows that form the decline
+baseline and the rows of the projection fit (with its minimum dates, span and
+latest row; ages are still anchored on all eligible rows). Observed G4 and G5, the total percent change and
+the rows that start, confirm or recover a 40 % or 57 % decline still use every
+eligible row, AKI windows included. So a low eGFR inside an AKI window can
+still start or confirm an observed G4 or G5 or a decline event. This matters
+in advanced CKD: the absolute KDIGO criterion (a rise of 0.3 mg/dl within 48
+hours) is met by ordinary day-to-day variation at high creatinine, so whole
+stretches of a sustained G5 can lie inside AKI windows (Example 3). The export
+column `endpoint_input_policy` names the exclusion (see "Export provenance").
+
+Example 1 (decided 2026-11-05): eGFR 34, 35, 36, repeating, on the first day of
+each quarter from 2020-01-01 to 2023-01-01 (13 rows), then 26, 24, 22, 20,
+18, 17, 16, 16 daily from 2023-02-01, with creatinine 1.8 mg/dl up to
+2023-01-31 and 2.8 to 3.5 mg/dl from 2023-02-01 (AKI stage I, onset
+2023-02-01, window to 2023-03-03). Under CKD progression, with a birth date of
+1960-01-01, the display fit was already flat (slope 0.044 per year, bounds
+[-0.54, 0.63]). Before, the endpoint fit used all 21 rows: slope bounds
+[-7.43, -2.46] and a projected age of 65.0 (`G5 @ 65.0y`). Now the eight AKI
+rows are left out of the projection fit, which equals the display fit, and the
+projection is withheld as `non_declining_fit`. The total change still uses all
+21 rows: (34 - 16) / 34 = 52.9 % (badge `-53%, G5 not projected`). The decline
+baseline is 34 (2020-04-01 is day 91, outside the baseline period); 16 is a
+52.9 % decline from it but has no confirmation, so no decline event, G4 or G5
+is met.
+
+Example 2 (decided 2026-11-05): eGFR 20 and 25 on 2020-01-03 and 2020-01-05
+during an AKI (creatinine 1.0 on 2020-01-01, 2.6 on 2020-01-03, onset
+2020-01-03), then 55 (2020-03-01), 58 (2020-05-01), 56 (2020-07-01), 33
+(2021-01-01) and 32 (2021-06-01). Before, the baseline window ran from
+2020-01-03 and its mean was (20 + 25 + 55) / 3 = 33.33; the later rows 58,
+56, 33 and 32 are at most a 4.0 % decline from it (32), so no 40 % decline
+was found. Now the baseline starts at the first row outside the AKI window,
+2020-03-01: (55 + 58) / 2 = 56.5. The decline events read every eligible row
+after 2020-05-30 (56, 33, 32; none lies in the AKI window), so 33 is a 41.6 %
+and 32 a 43.4 % decline, and the 40 % decline is confirmed with first date
+2021-01-01 (33) and confirmation 2021-06-01 (32, 151 days later); the 57 %
+decline is not met. The total change keeps the AKI rows and stays a rise of
+60 % from 20 to 32 (`endpoint_percent_decline` -60, badge `+60%`), next to a
+confirmed 40 % decline: the two answer different questions. The projection
+moves as well: before, the seven rows
+gave slope bounds [-35.47, 33.46] and `slope_ci_includes_zero`; the five rows
+from 2020-03-01 give bounds [-40.83, -6.37] and, with a birth date of
+1960-01-01, a projected age of 62.0.
+
+Example 3 (regression, review follow-up of 2026-11-05): eGFR 14.2 and 13 with
+creatinine 4.5 and 4.85 mg/dl on consecutive days, every 14 days for two
+years from 2020-01-01 (104 rows of each). Each rise of 0.35 mg/dl within a day
+above 4.0 mg/dl is a KDIGO stage-III episode, so 52 episodes are found and
+their windows cover 103 of the 104 eGFR rows. When the AKI windows were
+removed from all endpoint input (the first version of this change), one row
+remained and the sustained observed G5 was lost. Now observed G4 and G5 use
+all 104 rows and G5 is met from 2020-01-01 (14.2); the projection reports
+`observed_ckd_g5`.
+
+Remaining rows are sorted by date; rows on the same date keep source order.
+Without AKI exclusion the same eligible rows feed every endpoint and the
+projection fit; with it, the decline baseline and the projection fit read the
+subset outside the AKI windows.
+
+**Day resolution.** Import stores every lab and event date as its calendar day
+at midnight UTC. "Same timestamp" below therefore means the same calendar day,
+and an elapsed interval is a whole number of days. The evaluators themselves
+compare timestamps for same-time grouping, the minimum interval and the
+follow-up span, and UTC calendar days for the event filter, the 12-month
+maximum and the baseline window.
+
+**Kidney failure reached.** The earliest dated kidney transplant or chronic
+dialysis start of the patient (`firstKidneyFailureEvent`) is reported as
+kidney failure reached with its type and date. When a transplant and a chronic
+dialysis start share that earliest date, the transplant is reported. Unknown-
+intent and acute dialysis never count. Kidney failure reached is independent
+of lab-confirmed G5: an earlier lab-confirmed G5 and a later kidney
+replacement therapy are both reported, and kidney replacement therapy is
+reported without any low eGFR value.
+
+It is reported for every column that passes the unit gate and has at least one
+dated numeric row of the patient, counting bounds and rows on or after the
+event. It does not depend on any endpoint toggle or preset: a General
+exploration column with all endpoints off still shows the badge and fills the
+kidney-failure export columns. A column without any dated numeric row for the
+patient reports nothing, so a patient with events but no eGFR rows has no
+kidney-failure result. A series whose every lab is on or after kidney
+replacement therapy reports kidney failure reached with zero eligible rows.
+
+Regression evidence: [cohort cell tests](../../tests/core/cohort/screening.test.ts),
+[bounded measurement tests](../../tests/core/censoredMeasurements.test.ts) and
+[method contract tests](../../tests/workspace/method-contract.test.tsx). No
+The unit rule is covered by the
+[decision tests](../../tests/core/endpoints/decisions20261007.test.ts). No
+dedicated regression test for the same-date transplant tie or for kidney
+failure reached with all endpoint toggles off.
+
+### Observed G4/G5
+
+G4 is reached strictly below 30 and G5 strictly below 15 mL/min/1.73 m². A
+value equal to the threshold is not below it; no numeric tolerance applies.
+The thresholds are not configurable. G4 and G5 are evaluated independently
+with the same rules (`observeThresholdCrossing`); a G5 recovery need not be a
+G4 recovery.
+
+Eligible rows are processed in chronological order:
+
+1. The first low value starts a candidate. This includes the first eligible
+   measurement of a patient: a patient who is already below the threshold at
+   first measurement gets an event dated at that measurement. Prevalent and
+   incident states are not distinguished.
+2. A later low value confirms the candidate when at least the minimum
+   interval has elapsed and it lies within the maximum window. Confirmation
+   happens at the first such date. Low values before the minimum interval has
+   elapsed do not move the candidate or restart the interval.
+3. A value at or above the threshold before confirmation clears the
+   candidate. The next low value starts a new candidate.
+4. A low value later than the maximum window expires the old candidate and
+   becomes the new candidate itself.
+5. Confirmation records the candidate's date and value (first crossing) and
+   the confirming date and value. A candidate alone is not an event.
+6. After confirmation the first value at or above the threshold is recorded
+   as recovery with its date and value. Recovery does not revoke or redate
+   the event, and evaluation of that endpoint stops there.
+
+**Minimum interval.** The default is 90 days. The test is elapsed time divided
+by 86 400 000 ms, at least the configured number of days, so exactly 90 days
+confirms. 2020-01-01 and 2020-04-01 are 91 days apart and confirm at the
+default. `normalizeConfirmationDays` accepts a finite value of at least 1 and
+rounds it down to whole days (90.7 becomes 90, 1.9 becomes 1); a missing,
+non-finite or smaller value, including 0.5, 0 and negative numbers, becomes
+90. The upper bound is 365 days (`MAX_CONFIRMATION_DAYS`; decided 2026-10-07,
+formerly OD-19): a confirming value must follow within 12 calendar months,
+which is 365 or 366 days, so a longer interval could never confirm, and 366
+days only across a leap day. The settings input commits whole numbers from 1
+to 365 only; a larger entry is not applied, the value the field held before
+the edit is restored, and the reason is shown beside the input ("366 days not applied: a confirming value must follow within 12
+calendar months, so the minimum interval cannot exceed 365 days."). A larger
+value in a stored configuration is evaluated as 365, and the export records
+the effective value. An interval of 365 days can confirm: 2021-01-01 and
+2022-01-01 are 365 days apart and inside the window.
+
+**Maximum window.** Confirmed by the owner on 2026-10-07. Confirmation must occur within 12 UTC
+calendar months of the candidate, inclusive of the anniversary day. Month
+addition clamps to the last day of the destination month (2020-02-29 to
+2021-02-28). The value 12 is fixed in code.
+
+**Consequence of expiry.** The candidate is always the first low value of a
+run until it expires; intermediate low values are never promoted. With the
+default interval, low values on 2020-01-01, 2020-03-01 and 2021-02-01 give no
+confirmed event: 2020-03-01 is only 60 days after the candidate, and
+2021-02-01 lies after the 12-month window of 2020-01-01, so it becomes the new
+candidate, although it is 337 days after 2020-03-01. A further low value on
+2021-06-01 confirms an event with first crossing 2021-02-01. Had the third
+value been on 2021-01-01, the event would be first crossing 2020-01-01,
+confirmed 2021-01-01. Sparse follow-up can thus leave a persistently low
+series unconfirmed or date its event late.
+
+**Same date.** Rows sharing a timestamp are one observation. If any of them is
+at or above the threshold, the observation is not low: it clears an
+unconfirmed candidate and cannot confirm, whatever the source order. When all
+are low, the first in source order supplies the recorded value. Confirmation
+needs a later timestamp; same-time repeats cannot satisfy a positive interval.
+After confirmation, the first non-low value of a same-time group is the
+recovery value.
+
+Missing dates and non-finite values are ignored. A bound cannot start,
+confirm, interrupt or recover an event.
+
+Examples (G5, default interval): values below 15 on January 14 and May 13 and
+a value of 15 or more on November 20 give a January crossing, May confirmation
+and November recovery. Low on January 14, 15 or more on March 20, low on May
+13 gives no event yet: March clears the January candidate and May starts a new
+one.
+
+Regression evidence: [endpoint tests](../../tests/core/endpoints/ckdEndpoints.test.ts)
+and [method contract tests](../../tests/workspace/method-contract.test.tsx). No
+dedicated regression test for rounding a fractional interval down, for an
+interval longer than the maximum window, or for the non-promotion of
+intermediate low values.
+
+### Total percent change and confirmed 40 %/57 % decline
+
+One toggle, "Percent eGFR decline", switches three results on together: the
+total first-to-latest change and the two confirmed decline events. They cannot
+be enabled separately.
+
+**Total change.** With `first` the earliest and `latest` the last eligible
+value (`percentDeclineFromBaseline`):
+
+`decline = (first - latest) / first * 100`
+
+The result is unavailable when `first` is zero or negative, and when there is
+no eligible row. It is a total over the whole eligible follow-up, not a rate
+per year, and it is not confirmed.
+
+The two outputs use opposite signs. The workbook column
+`endpoint_percent_decline` holds `decline` unrounded: positive for a fall,
+negative for a rise. The table badge shows the change, `-decline`, rounded to
+a whole percent with an explicit plus sign for a rise, and its detail text
+gives one decimal. First 50 and latest 30 export `40` and display `-40%`;
+first 40 and latest 50 export `-25` and display `+25%`. The badge is not shown
+with fewer than two eligible rows or fewer than two displayed points, where
+first and latest coincide; the export keeps the computed 0.
+
+**Confirmed 40 % and 57 % decline.** These are separate observed events. The
+57 % boundary serves as a serum-creatinine doubling surrogate.
+
+- Baseline (window confirmed by the owner on 2026-10-07): the arithmetic mean of all eligible rows from
+  the first eligible UTC date through 90 elapsed UTC calendar days, inclusive
+  of the whole final day. Duplicate rows each contribute. One row suffices.
+  When the column excludes AKI windows, the baseline is formed only from
+  eligible rows outside them, and its 90 days run from the first such row
+  (since 2026-11-05; see Example 2 under "Which measurements"). Without such
+  a row there is no baseline and no decline event.
+- The rows after the baseline window that can start, confirm or recover an
+  event are all eligible rows, AKI windows included.
+- Only rows after that window can start, confirm or recover an event, so no
+  observation both defines the baseline and establishes a decline. This
+  withholds early confirmed decline dates and can be revised on review.
+- Each later row is converted to `(baseline - value) / baseline * 100`. A row
+  crosses when that percentage is at least 40 or 57; equality counts, with a
+  tolerance of 1e-12 percentage points against binary rounding.
+- A baseline of zero or less yields no decline event; the baseline value is
+  still exported.
+- Candidate, minimum interval, 12-month maximum, expiry, same-date and
+  recovery rules are those of G4/G5. Recovery is the first later row whose
+  decline is below the boundary.
+- The recorded first, confirmation and recovery values are the eGFR values,
+  not the percentages.
+
+Regression evidence: [endpoint tests](../../tests/core/endpoints/ckdEndpoints.test.ts),
+[badge tests](../../tests/workspace/labels/qualityLabels.test.ts),
+[method contract tests](../../tests/workspace/method-contract.test.tsx) and the
+[decision tests of 2026-11-05](../../tests/core/endpoints/decisions20261105.test.ts)
+for the baseline after an AKI window. No
+dedicated regression test for the unavailable total change at a non-positive
+first value or for the opposite signs of badge and export.
+
+### Individual G5 projection
+
+The projection reports the age at which the patient's fitted line reaches
+15 mL/min/1.73 m². It is the intersection of a straight line with a boundary,
+conditional on the fitted trend continuing unchanged. It is not a prognosis,
+an expected event time or a probability, and its uncertainty in time is not
+estimated. Only an age is produced, not a calendar date.
+
+**Fit.** The projection fits the endpoint-eligible rows, without display-fit
+censoring options or time balancing. It therefore includes recovery after an
+acute dialysis interval and nothing from kidney replacement therapy on. When
+the column excludes AKI windows, the rows inside them are not fitted and do
+not count towards the minimum dates, the span or the latest row (since
+2026-11-05; before, the endpoint fit kept them; see "Which measurements").
+Whether G5 was already observed, which withholds the projection, is decided on
+all eligible rows. The estimator follows the column's fit model:
+
+| Column fit model | Endpoint fit |
+| --- | --- |
+| OLS, rolling OLS, segmented OLS | Global OLS over all eligible rows (`fitGlobal`). |
+| Theil-Sen | Theil-Sen over all eligible rows (`fitTheilSen`; see "Theil-Sen"). |
+| No fit | No endpoint fit; the projection is withheld. |
+
+Time is elapsed UTC milliseconds since the first eligible row divided by
+365.25 days per year, and the intercept refers to that first row. Display
+slopes and their confidence bounds can differ from the endpoint fit, because
+the display fit can use other rows. Once kidney failure is reached, no
+endpoint fit is run, so no counterfactual projection for the time before
+kidney replacement therapy exists (confirmed by the owner on 2026-10-08).
+
+**Crossing.** For `y(t) = a + b*t` the target 15 is reached at
+`t = (15 - a) / b` years after the first eligible row. With `span` the years
+between the first and latest eligible rows:
+
+`projected age = age at latest eligible row + t - span`
+
+The fitted line is continued; the latest measured value does not shift it.
+
+**Age at the latest eligible row.** Two cases are distinguished (decided
+2026-10-07, formerly OD-16), and `ageBasis` records which applies.
+
+- **Birth date known** (`birth_date`). When the patient's birth-date anchor
+  is an explicit birth date, from the attributes table or from dated lab rows
+  (rules 2 and 3 of "Demographics resolution"), the age at a date is the
+  elapsed time from the birth date to that date in 365.25-day years. A date
+  before the birth date has no age.
+- **No birth date** (`whole_years`). With a manual age, or an anchor inferred
+  from stated ages, the age is known in completed years only. Each lab row
+  carries that whole number. The age at a date is the age of the latest
+  eligible age-carrying row at or before that date, or of the earliest such
+  row when none precedes it, plus the elapsed time to the date in 365.25-day
+  years. When the latest eligible row carries an age, which is the normal
+  case, the age used is that row's whole number, so the projected age is up
+  to one year too low.
+
+Bounds and rows removed by the event filter supply no age. The projection is
+withheld as `missing_age` when the latest eligible row has no age: in the
+first case only when it lies before the birth date, in the second when no
+eligible row carries an age.
+
+The table badge shows a projected age on a birth-date basis with one decimal
+(`G5 @ 66.3y`). On a whole-year basis it shows the value rounded to a whole
+number and marked as approximate (`G5 @ ~66y`), and the tooltip states that it
+was counted from the age in completed years and can be up to one year higher.
+The export carries the unrounded value in both cases and the basis in
+`endpoint_prediction_age_basis`. The 20-year horizon is measured from the same
+age and is unaffected by the basis.
+
+**Minimum data.** Eligible rows on at least three distinct UTC calendar dates
+are required (`MIN_PROJECTION_DATES`), and on at least five with the Theil-Sen
+fit model (`MIN_THEIL_SEN_PROJECTION_DATES`). Both count dates, not rows
+(decided 2026-11-05, issue #34; until then three rows sufficed for either
+model, wherever they lay). Rows on one date still all enter the fit.
+
+- Distinct dates. 40, 40.2 and 39.8 on 2020-01-01 and 30 on 2021-01-01 under
+  OLS were projected before: slope -9.98 per year, bounds [-10.97, -8.99] and,
+  with a birth date of 1960-01-01, `G5 @ 62.5y`. They are two dates and are
+  now withheld as `insufficient_points`.
+- Theil-Sen. With n observations on distinct dates and n up to 5, the 95 %
+  rank bounds of "Theil-Sen" select the lowest and the highest pairwise slope.
+  That range misses the true slope only when the residuals happen to be
+  ordered like the dates, increasing or decreasing, so for independent errors
+  without ties it covers the true slope with probability 1 - 2/n!: 66.7 % for
+  n = 3, 91.7 % for n = 4 and 98.3 % for n = 5. Below five dates the "95 %"
+  bounds are therefore not a 95 % interval, and the confidence gate passes
+  every monotone series. 40, 39 and 30 on 2020-01-01, 2021-01-01 and
+  2022-01-01 have pairwise slopes -1.00, -5.00 and -9.01 per year; the bounds
+  were [-9.01, -1.00] and `G5 @ 65.8y` was reported, while OLS withholds the
+  same series (bounds include zero). Now Theil-Sen withholds it as
+  `theil_sen_insufficient_points`. Five rows on four dates are withheld in
+  the same way. The estimator and its bounds are unchanged; only the
+  projection gate moved.
+
+The follow-up between the first and latest eligible rows
+must be at least 365 days (`MIN_PROJECTION_SPAN_DAYS`), the same number as the
+minimum fitted span of the slope reliability rule (decided 2026-10-07,
+formerly OD-17; before, 365.25 days were required and one calendar year
+without a leap day was withheld). The two rules still look at different rows:
+endpoint-eligible rows here, fitted rows there. 2021-01-01, 2021-07-01,
+2022-01-01 (365 days) is projected; 2021-01-01, 2021-07-01, 2021-12-31 (364
+days) is withheld as `span_too_short`. The conversion of elapsed time to years
+for the fit and the crossing is unchanged at 365.25 days per year.
+
+**Confidence gate.** A crossing is reported only when both slope confidence
+bounds of the endpoint fit are finite, ordered (low not above high) and the
+interval does not contain zero (`low <= 0 and high >= 0` withholds). Because
+the endpoint fit's slope is already negative and lies inside its own interval,
+this means both bounds are strictly below zero. An interval touching or
+straddling zero withholds the crossing. For OLS the
+bounds are the two-sided 95 % Student-t interval `b ± t(0.975, n-2) * SE(b)`
+with `SE(b) = sqrt(SSR / (n-2) / Sxx)`; the t quantile comes from a table for
+1 to 40 degrees of freedom and from a stepwise table above that (the values
+for 40, 50, 60, 80 and 100 degrees of freedom up to 50, 60, 80, 100 and 120,
+then 1.959963985). For Theil-Sen the bounds are the 95 % rank bounds of the
+"Theil-Sen" section. These are slope bounds, not prediction intervals. The
+level is not configurable.
+
+Decided 2026-10-07 (formerly OD-4): the three-measurement minimum and the confidence gate stay. With three points the OLS 95 % interval uses t(1) = 12.706, so three measurements almost never yield a projection; the methodology page says so and shows the withheld example (60, 50, 25) beside one that is reported. That statement holds for OLS only: with three dates the Theil-Sen bounds pass every monotone series, which is why Theil-Sen needs five dates since 2026-11-05 (see "Minimum data"). The methodology page does not say so yet.
+
+**Horizon.** Confirmed by the owner on 2026-10-07. The crossing must lie no more than 20 years after
+the latest eligible row, in 365.25-day years. Exactly 20 years is reported.
+The value 20 is fixed in code.
+
+**Withheld reasons.** When the projection toggle is on and no age is reported,
+exactly one reason is set, the first that applies in this order. The code is
+exported in `endpoint_prediction_reason`; the label is the table badge.
+
+| Order | Code | Condition | Badge label |
+| --- | --- | --- | --- |
+| 1 | `observed_ckd_g5` | The eligible rows contain a confirmed observed G5, with or without later kidney replacement therapy and whether or not the observed-G5 endpoint is switched on. | With the observed-G5 endpoint on, none: the `CKD G5` badge with its dates is shown. With it off, `G5 not projected`, whose detail text names the confirmed event. |
+| 2 | `kidney_failure_reached` | Kidney failure reached and no confirmed observed G5. | `G5 not projected after KRT` |
+| 3 | `insufficient_points` | Eligible rows on fewer than three distinct dates. | `G5 < 3 dates` |
+| 4 | `theil_sen_insufficient_points` | Fit model Theil-Sen and eligible rows on three or four distinct dates (since 2026-11-05). | `G5 < 5 dates` |
+| 5 | `span_too_short` | First to latest eligible row under 365 days. | `G5 < 1 yr` |
+| 6 | `no_fit` | Slope or intercept of the endpoint fit not finite; with three dates over a year this means fit model "No fit". | `G5 no fit` |
+| 7 | `non_declining_fit` | Slope zero or positive. | `G5 not projected` |
+| 8 | `already_below_threshold` | The fitted line reaches 15 at or before the latest eligible row (`t <= span`). | `G5 now` |
+| 9 | `missing_age` | The latest eligible row has no age (see "Age at the latest eligible row"). | `G5 no age` |
+| 10 | `slope_ci_unavailable` | A slope bound is missing or not finite, or the bounds are inverted. | `G5 not projected` |
+| 11 | `slope_ci_includes_zero` | Lower bound at or below zero and upper bound at or above zero. | `G5 not projected` |
+| 12 | `beyond_projection_horizon` | Crossing more than 20 years after the latest eligible row. | `G5 not projected` |
+
+A table cell without any measurement of its parameter shows no `G5 < 3 dates`
+badge (since 2026-10-12): the cell already reads "No numeric measurements with
+a date". The reason code is unchanged, and the export still carries
+`insufficient_points` for that patient and parameter. Other badges of the
+cell, such as `Kidney failure reached`, are still shown.
+
+The `G5 not projected` cases (`non_declining_fit`, `slope_ci_unavailable`,
+`slope_ci_includes_zero`, `beyond_projection_horizon`, and `observed_ckd_g5`
+with the observed-G5 endpoint off) are told apart by the badge's detail text.
+`G5 now` states only that the fitted line is at or below 15 at the latest
+measurement; it does not establish an observed event. The internal code
+`disabled` (toggle off) is never exported. The order has consequences: a
+column with fit model "No fit" reports `insufficient_points` or
+`span_too_short` before `no_fit`, and a flat series with two rows reports
+`insufficient_points`, not `non_declining_fit`.
+
+A confirmed observed G5 event takes precedence over a future projection,
+whether or not the observed-G5 endpoint is switched on (decided 2026-10-07,
+formerly OD-18). With that endpoint off the event is still evaluated for this
+purpose with the column's confirmation interval; the projection is withheld
+as `observed_ckd_g5` and the badge reads `G5 not projected`, while the event
+itself is not reported and its own export columns stay blank. The export
+fills `endpoint_confirmation_days` and `endpoint_confirmation_max_months`
+whenever the projection is enabled, because they decide this result. Before, a future G5 age was projected for such a patient.
+This also holds after a recorded recovery: once G5 is confirmed, the projection
+stays withheld as `observed_ckd_g5` however far eGFR recovers. Measurements
+dated after the confirmation cannot revoke or redate the event (the first value
+of 15 or more is recorded as recovery); they can change a projection. A
+measurement added on or before the confirmation date can change the event: a
+value of 15 or more between candidate and confirmation, or on the confirmation
+day itself, removes it, and an earlier low value redates the first crossing.
+The whole series is re-evaluated in date order each time.
+
+**Example 1: crossing arithmetic, withheld by the confidence gate.** Model
+years [0, 1, 2], values [60, 50, 25] give OLS a=62.5, b=-17.5. Target 15 is
+reached at t=2.7142857, that is 0.7142857 years after year 2, rather than
+0.5714286 from the former last-measurement anchor. The app does not report
+this crossing: SE(b)=4.3301 and t(1)=12.7062 give slope bounds
+[-72.519, 37.519], which include zero, so the reason is
+`slope_ci_includes_zero`. On the calendar dates 2020-01-01, 2021-01-01 and
+2022-01-01 the time axis is 0, 1.00205 and 2.00137 years and the bounds are
+[-72.642, 37.673], with the same result.
+
+**Example 2: reported projection.** A patient born 1960-06-01 has eGFR 48, 44,
+41, 36, 33 and 29 on 15 January of 2018 to 2023. The time axis is 0, 0.99932,
+1.99863, 3.00068, 4 and 4.99932 years; the row ages are 57 to 62.
+
+- OLS: a=47.9987, b=-3.8000 per year, R²=0.9969.
+- Slope bounds with t(4)=2.776445: [-4.0953, -3.5047], strictly below zero.
+- Span: 1826 days = 4.99932 years; fitted value at the latest row 29.0013.
+- Crossing: t=(15-47.9987)/(-3.8000)=8.68389 years after the first row, which
+  is 3.68457 years after the latest row and within the 20-year horizon.
+- Projected age with the birth date known (from the attributes table or the
+  lab rows): the exact age at the latest row is 62.623 years, so
+  62.623 + 3.68457 = 66.307; the badge shows `G5 @ 66.3y`.
+- Projected age without a birth date (the file states only ages 57 to 62):
+  62 + 3.68457 = 65.68457; the badge shows `G5 @ ~66y`.
+- With Theil-Sen selected: slope -3.8005, intercept 48, bounds
+  [-4.0027, -3.0021], crossing 3.68371 years after the latest row.
+
+Regression evidence: [endpoint tests](../../tests/core/endpoints/ckdEndpoints.test.ts),
+[cohort cell tests](../../tests/core/cohort/screening.test.ts),
+[export tests](../../tests/core/cohort/exportRecords.test.ts),
+[label tests](../../tests/workspace/labels/qualityLabels.test.ts) and
+[method contract tests](../../tests/workspace/method-contract.test.tsx). The
+endpoint tests supply slope bounds directly rather than from a fit. The
+[decision tests](../../tests/core/endpoints/decisions20261007.test.ts) cover the
+two age bases, the 364-day versus 365-day span boundary, the projection with
+the observed-G5 toggle off and the 365-day limit of the confirmation
+interval. The [decision tests of 2026-11-05](../../tests/core/endpoints/decisions20261105.test.ts)
+cover the AKI-window exclusion (Examples 1 to 3 under "Which measurements"),
+the distinct-date minimum and the five-date Theil-Sen minimum with the
+examples above. No dedicated regression test for the age of an earlier row carried
+forward or for the full reason order.
+
+### Export provenance
+
+The cohort sheet (`cohort`, or `slopes` for a single patient) carries one row
+per patient and parameter with these endpoint columns, in this order (within
+each event block the three dates precede the three values). The
+first three keep their original position; later columns are appended. Dates
+are UTC calendar days as `YYYY-MM-DD`. "Enabled" refers to the column's
+endpoint toggles on a series that passes the unit gate.
+
+| Column | Filled when | Content |
+| --- | --- | --- |
+| `endpoint_percent_decline` | Percent decline enabled, at least one eligible row, first value above zero. | Total decline in percent, positive for a fall, unrounded. |
+| `endpoint_observed_ckd_g5` | Observed G5 confirmed. | `yes` |
+| `endpoint_projected_age_to_ckd_g5` | A projection is reported. | Age in years, unrounded. |
+| `endpoint_observed_ckd_g4` | Observed G4 confirmed. | `yes` |
+| `endpoint_confirmation_days` | G4, G5, percent decline or the projection enabled. | Effective minimum interval in days, at most 365. |
+| `endpoint_input_policy` | Any endpoint enabled. | Fixed text: "dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded", followed by "; AKI exclusion windows excluded from decline baseline and projection" when the column excludes AKI windows (since 2026-11-05). |
+| `endpoint_kidney_failure_reached` | Kidney failure reached, whatever the toggles. | `yes` |
+| `endpoint_kidney_failure_type` | As above. | `kidney_transplant` or `chronic_dialysis` |
+| `endpoint_kidney_failure_date` | As above. | Event date. |
+| `endpoint_prediction_anchor` | Projection enabled and no kidney failure reached. | `fitted curve` |
+| `endpoint_prediction_model` | Projection enabled and no kidney failure reached. | `ols`, `theil-sen` or `none`: the estimator of the endpoint fit. |
+| `endpoint_prediction_reason` | Projection enabled and withheld. | A code from the table above. |
+| `endpoint_prediction_slope_ci_low`, `endpoint_prediction_slope_ci_high` | Projection enabled and the endpoint fit has that bound finite. | Slope bounds of the endpoint fit, per year. Filled also when another reason withholds the projection. |
+| `endpoint_prediction_max_years` | Projection enabled. | `20` |
+| `endpoint_g4_first_date`, `endpoint_g4_confirmed_date`, `endpoint_g4_recovery_date`, `endpoint_g4_first_value`, `endpoint_g4_confirmed_value`, `endpoint_g4_recovery_value` | First and confirmed: observed G4 confirmed. Recovery: recovery recorded after a confirmed G4. | First crossing, confirmation and recovery (first value of 30 or more). |
+| `endpoint_g5_*` (same six, same order) | As for G4. | Threshold 15. |
+| `endpoint_confirmation_max_months` | G4, G5, percent decline or the projection enabled. | `12` |
+| `endpoint_decline_baseline_value` | Percent decline enabled and at least one eligible row. | Mean baseline eGFR, also when it is zero or negative. |
+| `endpoint_observed_decline_40`, `endpoint_observed_decline_57` | Decline event confirmed. | `yes` |
+| `endpoint_decline_40_*`, then `endpoint_decline_57_*` (each: first, confirmed and recovery date, then first, confirmed and recovery value) | As for G4. | Dates and eGFR values, not percentages. |
+| `endpoint_prediction_age_basis` | A projection is reported. | `birth date` or `age in completed years`; see "Age at the latest eligible row". |
+
+Blank provenance means the endpoint was not evaluated for that series (for
+example a unit other than mL/min/1.73 m² or a preset with endpoints off), not that it
+was not met. A blank `yes` column alone does not distinguish "not met" from
+"not evaluated". `endpoint_confirmation_days` and
+`endpoint_confirmation_max_months` are filled when any of G4, G5, percent
+decline or the projection is enabled, and `endpoint_input_policy` when any endpoint is enabled;
+they show that the series passed the unit gate with some endpoint on, not which
+one. With G4 on and G5 off, a blank `endpoint_observed_ckd_g5` sits beside a
+filled confirmation interval. Per endpoint, only the `endpoints` section of the
+`fit_config` JSON on the `settings` sheet tells; `endpoint_decline_baseline_value`
+additionally shows that percent decline was evaluated on at least one eligible
+row, and `endpoint_prediction_max_years` that the projection was. The kidney-failure columns are
+the exception: they are filled whenever kidney failure is reached. When a
+future projection is withheld after kidney replacement therapy without a prior
+observed G5, projected age, anchor, model and slope bounds are blank and the
+reason is `kidney_failure_reached`. A prior observed G5 keeps its own lab
+dates alongside the event date. With fit model "No fit" and the projection
+enabled, the anchor reads `fitted curve` and the model `none`.
+
+The `about` sheet states that observed G4 below 30 and G5 below 15 use dated
+exact numeric eGFR before the first kidney transplant or chronic dialysis and
+outside complete acute dialysis intervals, that kidney replacement therapy
+is reported separately, that the decline baseline and the individual
+prediction also leave out the AKI exclusion windows when the column excludes
+them from its fit while observed G4/G5, total change and decline events keep
+those rows, and that the individual prediction fits the same rows, needs at least three distinct measurement dates (five for Theil-Sen) over at
+least 365 days, and has slope bounds that are not prediction intervals. The
+`events` sheet lists
+the exported patients' events.
+
+The export does not record:
+
+- the length of the decline baseline window (90 days), the 40 % and 57 %
+  definitions, or the candidate rules;
+- the confidence level and method behind the OLS slope bounds (the `about`
+  sheet names 95 % bounds for Theil-Sen only);
+- the endpoint fit's slope and intercept; the `slope`, `intercept` and
+  `slope_se` columns are those of the display fit;
+- the number of endpoint-eligible rows; `n` counts raw rows and `n_fitted`
+  the display fit;
+- the age anchor used for the projected age, or that row ages are whole
+  completed years;
+- which measurements the event filter removed, and the same-date transplant
+  tie rule;
+- the G4/G5 thresholds as columns (they appear in the `about` text only).
+
+Regression evidence: [export tests](../../tests/core/cohort/exportRecords.test.ts),
+[workbook tests](../../tests/workspace/export.test.ts) and
+[method contract tests](../../tests/workspace/method-contract.test.tsx).
+
+These definitions intentionally replace the historical web rules. They are
+owner-approved research definitions, not claims of clinical validation. The
+owner confirmed the 12-month maximum confirmation window, the 90-day decline
+baseline window and the 20-year projection horizon on 2026-10-07, and the
+absence of a pre-KRT counterfactual projection on 2026-10-08. No default
+remains marked as proposed. A projected crossing is a property of a
+fitted line and must not be read or presented as a prognosis.
+

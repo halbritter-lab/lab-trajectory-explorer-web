@@ -102,6 +102,15 @@ interfaces are still evolving before 1.0.
   `cohortSheetRecord`), so the app and the package share them. No behaviour
   change.
 
+### Changed (documentation, issue #44)
+
+- The method reference is split into topic files under
+  `docs/method-algorithms/`. `docs/method-algorithms.md` stays as the index
+  with the reading conventions, the contents and the decision lists. Text was
+  moved only; no rule, value or example changed. `node
+  scripts/check_doc_links.mjs` checks the relative links and heading anchors
+  of the Markdown files.
+
 ## [0.3.7] - 2026-10-15
 
 ### Added
