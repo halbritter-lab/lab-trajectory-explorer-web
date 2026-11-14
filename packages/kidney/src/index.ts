@@ -82,7 +82,7 @@ export {
 // Per-patient slope fits and the reliability rule
 export { fitGlobal, fitTheilSen, type SeriesPoint } from '../../../src/core/stats/series'
 export { fitOls } from '../../../src/core/stats/ols'
-export { datesToYears } from '../../../src/core/stats/time'
+export { datesToYears, distinctDateCount } from '../../../src/core/stats/time'
 export { balanceSeriesPoints } from '../../../src/core/stats/timeBalancing'
 export { summarizeByBezeichnung, type SeriesSummary, type SlopeMode, type SummarizeParams } from '../../../src/core/stats/summarize'
 export { isUnstableSlope, type SlopeQualityInput, type SlopeReason } from '../../../src/core/stats/slopeQuality'
