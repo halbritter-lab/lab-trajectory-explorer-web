@@ -7,6 +7,7 @@ import type { FitModel, TimeBalancing } from '../fitPipeline/types'
 import { applyExclusionWindows, type ExclusionWindow } from '../exclusions/windows'
 import { balanceSeriesPoints } from './timeBalancing'
 import { isExactMeasurement } from '../measurements/censored'
+import { distinctDateCount } from './time'
 
 /** How a series is segmented before fitting. 'chronic-ckd' fits after an
  * initial run-in (`cutoffDays`); 'aki-aware' is the global fit with its
@@ -41,6 +42,10 @@ export interface SeriesSummary {
    * measurements before any of that — quarterly-median balancing can collapse
    * eight raw values into two fitted ones. */
   nFitted: number
+  /** Distinct calendar dates among the points the fit consumed. The
+   * reliability rule counts these rather than nFitted, so same-day repeats
+   * cannot make a series look better supported than it is. */
+  nFittedDates: number
   /** Whole days between the first and last points consumed by the scalar fit. */
   fittedSpanDays: number
   /** Dates of the first and last points consumed by the scalar fit; null when
@@ -82,7 +87,7 @@ function spanDaysForPoints(points: readonly SeriesPoint[]): number {
 
 /** Count, span and first/last dates of the date-sorted points a fit consumed. */
 function fittedFields(points: readonly SeriesPoint[]) {
-  return { nFitted: points.length, fittedSpanDays: spanDaysForPoints(points), firstFittedDate: points[0]?.date ?? null, lastFittedDate: points.at(-1)?.date ?? null }
+  return { nFitted: points.length, nFittedDates: distinctDateCount(points), fittedSpanDays: spanDaysForPoints(points), firstFittedDate: points[0]?.date ?? null, lastFittedDate: points.at(-1)?.date ?? null }
 }
 
 function fitFields(fit: OlsFit) {

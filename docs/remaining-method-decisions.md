@@ -300,6 +300,130 @@ Taken by the project owner on the points the walkthrough had left open.
   ([checklist](research-acceptance.md)), then the release PR. Publication still
   needs the owner's explicit acceptance.
 
+## Decisions of 2026-11-05 (clinical-research review, issue #34)
+
+The owner requested these fixes on 2026-11-05 in issue #34; merging the
+implementing pull request is his sign-off.
+
+### Creatinine source and AKI
+
+- **Non-serum creatinine is not serum creatinine.** Besides urine (`urin`,
+  `harn`, an upper-case `UR` suffix), names marking dialysate, puncture fluid,
+  ascites, pleura, liquor, drainage, secretions (`sekret`), lymph (`lymphe`)
+  or "fluid", and the tokens `i.U.` (also `i. U.`), a lone `U` (`U-Kreatinin`,
+  `Kreatinin U.`, `Kreatinin/U`, `Kreatinin_U`), `SU` (also in `24h-SU`),
+  `SU24h`, `SPU`, `PU`, `CSF`, `Drain`, `PD` and `Serom` are excluded (token
+  list extended in the review follow-up of 2026-11-05; the slash now separates
+  tokens, so `Kreatinin U/l` is excluded too). Such series
+  are no eGFR source, detect no AKI and supply no AKI episodes to other
+  columns. Serum spellings such as `Kreatinin i.S.`, `Kreatinin (enzym.)`,
+  `Kreatinin Serum` and `S-Kreatinin` stay eligible. Classification change:
+  a dataset with such a series loses its eGFR source option and its AKI
+  episodes. A saved session whose chosen source is now non-serum computes no
+  eGFR; the Data page says so and asks for another source.
+- **A computed eGFR takes its AKI episodes from its own source.** The
+  creatinine pair the eGFR was derived from supplies the episodes of the
+  computed eGFR column, instead of the patient's creatinine pair with the most
+  rows. Other non-creatinine columns are unchanged. Example: `Kreatinin` 1.0,
+  2.0, 1.9 mg/dl on consecutive days plus five later rows of
+  `Kreatinin enzym.` now give the computed eGFR column the stage-II episode
+  (before: none, both AKI values stayed in the eGFR slope).
+- **Creatinine plausibility warning** *(thresholds confirmed by the owner, 2026-11-13)*. The Data page
+  counts exact serum creatinine above 25 mg/dl (µmol/l converted) and computed
+  eGFR above 200 mL/min/1.73 m². Warning only; no value changes. The thresholds
+  target a µmol/l column labelled mg/dl and similar unit errors; a urine series
+  that escapes the name rule can stay below 25 mg/dl, so the name rule remains
+  the protection against urine. The deny-list of non-serum spellings stays
+  (owner decision 2026-11-13, no allow-list), and imported eGFR columns keep
+  taking their episodes from the patient's serum creatinine pair with the most
+  rows.
+
+Details and boundaries: [eGFR derivation](method-algorithms.md#eligible-source-series)
+and [KDIGO creatinine AKI detection](method-algorithms.md#input-series-and-conversion).
+The golden fixtures contain only `Kreatinin` (mg/dl and µmol/l) and no value
+above either threshold; they are unchanged.
+
+## Decisions of 2026-11-05: endpoint and projection input (issue #34)
+
+Requested by the project owner after the clinical-research review of
+2026-11-03 (issue #34, section "Endpoint and projection input"). Merging the
+implementing pull request is the owner's sign-off. Details, boundaries and
+recomputed examples are in
+[method algorithms](method-algorithms.md#observed-endpoints-and-individual-prediction).
+
+- **Decline baseline and G5 projection leave out the column's AKI windows.**
+  When a column's fit excludes AKI windows (fit configuration switch on, as in
+  CKD progression, or slope mode `aki-aware`), the rows inside those windows
+  are left out of the decline baseline and of the G5 projection fit, exactly
+  the two inputs issue #34 named. Observed G4/G5, the total percent change and
+  the rows that start or confirm a 40 %/57 % decline keep every eligible row
+  (review follow-up of 2026-11-05: the first version removed the windows from
+  all endpoint input, and in advanced CKD, where the 0.3 mg/dl criterion fires
+  on ordinary variation, this lost a sustained observed G5 whose rows lay
+  103 of 104 inside AKI windows). Without AKI exclusion nothing changes.
+  `endpoint_input_policy` then ends in "; AKI exclusion windows excluded from
+  decline baseline and projection". Example: stable eGFR 34-36 for three years
+  followed by eight AKI values of 16-26 projected `G5 @ 65.0y` (bounds
+  [-7.43, -2.46]); it is now withheld as `non_declining_fit`, while the total
+  change stays -53 %. Values 20 and 25 during an AKI followed by 55, 58, 56,
+  33, 32 had a decline baseline of 33.3 and no 40 % decline; the baseline is
+  now 56.5 and the 40 % decline is confirmed, while the total change stays a
+  rise of 60 % from 20.
+- **Theil-Sen projection needs five distinct dates.** The Theil-Sen estimator
+  and its 95 % bounds are unchanged. With up to five observations those
+  bounds are the full range of pairwise slopes, whose actual coverage is
+  1 - 2/n! (67 % for three, 92 % for four, 98 % for five). The G5 projection
+  under Theil-Sen is therefore withheld below five distinct dates, with the
+  new reason `theil_sen_insufficient_points` (badge `G5 < 5 dates`). Example:
+  40, 39, 30 at years 0, 1, 2 gave bounds [-9.0, -1.0] and `G5 @ 65.8y`.
+- **Minimum counts count distinct dates.** The slope reliability rule
+  (`unstable_slope`, quality notes) and the projection's three-measurement
+  minimum count distinct calendar dates instead of rows. `n` and `n_fitted`
+  keep their meaning. Example: 40, 40.2 and 39.8 on one day and 30 a year
+  later were a reliable slope with `G5 @ 62.5y`; the slope is now unstable
+  (note "< 3 dates, uncertain slope") and the projection is withheld as
+  `insufficient_points`.
+
+Not changed: the display fit, `nNumeric`/`nFitted`, the Theil-Sen estimator,
+and the golden fixtures (none covers endpoints or the reliability rule, so no
+stored value moved). The methodology page still describes the earlier rules
+in three places; its wording is the maintainer's call and is listed in the
+pull request.
+
+Owner answers to the review questions (2026-11-13):
+
+- The AKI-window scope stays as described: decline baseline and projection
+  only. Observed G4/G5 and confirmed declines keep every eligible row; their
+  90-day confirmation protects them against transient AKI dips.
+- The G5 projection stays an independent fit on unbalanced rows, so a
+  balanced display note such as "n < 3, uncertain slope" can still sit next
+  to a projection.
+- `theil_sen_insufficient_points` keeps its position, directly after
+  `insufficient_points`, and its export value.
+- The methodology wording is written after the merges, together with the
+  split of `method-algorithms.md` (issue #44).
+
+## CKD-EPI 2009 equation (2026-11-05)
+
+Requested by the project owner on 2026-11-05 in issue #4 ("Clinical review
+2026-11-03: decisions needed", eGFR equations): CKD-EPI 2009 (Levey et al.,
+Annals of Internal Medicine 2009;150:604-612) becomes a selectable eGFR
+formula, so that computed series can be compared with GCKD analyses that used
+it (Behning et al., Kidney International Reports 2026;11(2):103696,
+doi:10.1016/j.ekir.2025.11.021).
+
+- The default stays `off` (OD-5); CKD-EPI 2021, MDRD-4 and EKFC 2021 values are
+  unchanged.
+- Same conditions, age limit, sex handling (`d` as male) and rounding as
+  CKD-EPI 2021. The series name is `eGFR (CKD-EPI 2009 (race-free), computed)`.
+- Deviation from the published equation: the race coefficient (× 1.159) is not
+  applied, because the data model carries no race. The result equals the
+  published equation for a non-Black patient. Decided 2026-11-13: the label is
+  `CKD-EPI 2009 (race-free)`, so the series name and export keys say so; the
+  selector lists it directly after CKD-EPI 2021.
+- Coefficients and worked values:
+  [method algorithms](method-algorithms.md#formulas).
+
 ## Approved requirements
 
 ### Observed events and recovery

@@ -5,8 +5,50 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
-### Added
+### Changed (creatinine source and AKI, issue #34)
 
+- Creatinine in urine (`i.U.`, `U.`, `/U`, `SU`, `24h-SU`, `SPU`, `U-`),
+  dialysate (`PD`), puncture fluid (`PU`), CSF, drains, seroma, lymph,
+  secretions and other body fluids is no longer treated as serum creatinine:
+  it is no eGFR source and no AKI detection input.
+- A computed eGFR column takes its AKI episodes and windows from the
+  creatinine series it was computed from, not from the patient's creatinine
+  series with the most rows.
+
+### Added (creatinine source and AKI, issue #34)
+
+- The Data page warns about serum creatinine above 25 mg/dl and computed eGFR
+  above 200 mL/min/1.73 m². Values are not changed.
+- The Data page explains when the selected creatinine source (for example from
+  a saved session) is not serum creatinine and therefore computes no eGFR.
+
+### Changed (endpoint and projection input, issue #34)
+
+- Endpoint input (issue #34): a column that excludes AKI windows from its fit
+  now also leaves them out of the decline baseline and the G5 projection fit,
+  so a terminal AKI admission no longer produces a projection or a misplaced
+  decline baseline; observed G4/G5, total change and decline events still use
+  every eligible row. `endpoint_input_policy` records the exclusion. The G5
+  projection needs measurements on three distinct dates, five under
+  Theil–Sen (new reason `theil_sen_insufficient_points`, badge `G5 < 5 dates`),
+  and the slope reliability rule counts distinct dates instead of rows
+  (new note "< 3 dates, uncertain slope"). The projection badge for too few
+  dates reads `G5 < 3 dates` (formerly `G5 n < 3`).
+
+### Added (eGFR formula)
+
+- The eGFR formula selector offers CKD-EPI 2009 (creatinine, without the race
+  coefficient) next to CKD-EPI 2021, MDRD-4 and EKFC 2021, labelled
+  `CKD-EPI 2009 (race-free)`. Its series is named
+  `eGFR (CKD-EPI 2009 (race-free), computed)`. The default stays Off and
+  existing values are unchanged.
+
+### Fixed (eGFR formula)
+
+- The Data page names the active eGFR formula by its label (`CKD-EPI 2021`)
+  instead of its internal key (`ckd-epi-2021`).
+
+### Added (cohort export)
 - The cohort and patient slope sheets append `index_date`, `last_fitted_date`,
   `first_eligible_date`, `last_eligible_date`, `intercept` and `slope_se` (OLS
   only) after the rolling columns. Values come from the existing fit; no
@@ -16,8 +58,7 @@ interfaces are still evolving before 1.0.
   patients give no time variation, instead of R's generic rank-deficiency
   error. The Model Studio lists patients and qualifying patients per level.
 
-### Fixed
-
+### Fixed (cohort export)
 - The patient measurement record helper formats dates from their UTC calendar
   day instead of the local one, which was a day early west of UTC. The workbook
   export already overwrote that field with the UTC date, so exported files are
