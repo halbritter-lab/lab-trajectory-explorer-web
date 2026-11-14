@@ -234,7 +234,7 @@ window slopes were computed and discarded and no line was drawn):
   the trajectories without an available fit and not among the uncertain fits.
 - **Export.** The cohort and slope sheets carry five rolling columns, placed
   after all earlier columns of the sheet (`n_fitted` and `fitted_span_days`
-  included) so that those column positions are unchanged. Only the five
+  included) so that those column positions are unchanged. Only the six
   columns of [fit dates, intercept and slope standard error](fit-input-presets-and-time-balancing.md#fit-dates-intercept-and-slope-standard-error)
   follow them:
 
