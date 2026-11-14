@@ -1,4 +1,5 @@
 import type { LabRow, PatientId } from '../types'
+import { utcDateOrBlank as isoDate } from '../format'
 
 /** One row per measurement for a single patient. Includes synthesised eGFR rows
  * when the caller passes display rows with computed eGFR appended. */
@@ -12,8 +13,6 @@ export interface PatientMeasurementRecord {
   Operator: string
 }
 
-// Imported dates are UTC midnight; local getters would shift them a day west of UTC.
-const isoDate = (d: Date): string => (Number.isFinite(d.getTime()) ? d.toISOString().slice(0, 10) : '')
 
 /** Long-format measurement table for one patient, sorted by date then name.
  * Rows without a name are skipped; rows without a date sort last. */

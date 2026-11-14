@@ -5,6 +5,27 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Fixed (release review, 2026-11-15)
+
+- Creatinine names with the abbreviation "u." for "und", such as
+  `Kreatinin im Serum u. Plasma` or `Kreatinin vor u. nach Dialyse`, count as
+  serum creatinine again. `Kreatinin [U]` and `Kreatinin:U` are recognised as
+  urine.
+- When AKI windows are left out of the G5 projection, the detail text of
+  `G5 < 3 dates`, `G5 < 5 dates` and `G5 < 1 yr` says so instead of describing
+  the series as having too few dates or too short a span.
+- Cohort model workbook: sheets and columns keep their 0.3.7 positions (new
+  sheets follow `about`, `std_error` and `unit_key` are the last columns of
+  `coefficients`), and `unit_key` is on every sheet that names a fitted unit.
+- Loading and re-analysing large datasets is fast again: AKI detection no
+  longer scans every patient's rows for each series.
+- The Cohort models page no longer shows an empty "patients per level" list
+  when no patient has complete factor values.
+- `isUnstableSlope` in the library package flags fewer than three fitted
+  points even when called without `nFittedDates`.
+- `pnpm test:kidney` no longer relies on a glob that only Node 21 and later
+  expand.
+
 ### Changed (creatinine source and AKI, issue #34)
 
 - Creatinine in urine (`i.U.`, `U.`, `/U`, `SU`, `24h-SU`, `SPU`, `U-`),

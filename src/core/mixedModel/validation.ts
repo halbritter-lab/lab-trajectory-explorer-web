@@ -193,7 +193,8 @@ export interface MixedModelLevelCount {
 }
 
 /** Patients and qualifying patients per level of every categorical factor,
- * keyed by factor key; levels in ascending string order. */
+ * keyed by factor key; levels in ascending string order. A factor without
+ * rows has no entry. */
 export function mixedModelFactorLevelCounts(rows: readonly MixedModelSpikeRow[], config: MixedModelConfig = DEFAULT_MIXED_MODEL_CONFIG): Map<string, MixedModelLevelCount[]> {
   const out = new Map<string, MixedModelLevelCount[]>()
   for (const [index, factor] of mixedModelFactors(config).entries()) {
@@ -206,7 +207,7 @@ export function mixedModelFactorLevelCounts(rows: readonly MixedModelSpikeRow[],
       if (bucket) bucket.push(row)
       else byLevel.set(level, [row])
     }
-    out.set(factor.key, [...byLevel].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([level, levelRows]) => ({
+    if (byLevel.size > 0) out.set(factor.key, [...byLevel].sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0)).map(([level, levelRows]) => ({
       level,
       patients: new Set(levelRows.map(row => row.patient_id)).size,
       qualifying: qualifyingMixedModelPatients(levelRows, config),

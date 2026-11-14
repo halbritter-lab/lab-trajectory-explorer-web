@@ -2,6 +2,7 @@ import { cohortExportRecords, cohortSheetRecord, EXPORT_DISCLAIMER_ROWS, type Co
 import { patientMeasurementRecords } from '../core/patient/patientExport'
 import { patientAttributesExportRows } from '../core/attributes/attributes'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
+import { utcDateOrBlank as utcDate } from '../core/format'
 import { demographicWarningsByPatient } from '../core/demographics/describe'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString } from '../io/export'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
@@ -21,10 +22,6 @@ export interface WorkspaceExportInput {
 }
 
 const seriesIdentity = (name: string | null, unit: string | null) => JSON.stringify([name,unit])
-function utcDate(date: Date | null): string {
-  if (!date || !Number.isFinite(date.getTime())) return ''
-  return date.toISOString().slice(0,10)
-}
 
 /** All sheets share the supplied visible scope; summaries are never fitted again. */
 export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey}: WorkspaceExportInput): {name:string;rows:object[]}[] {

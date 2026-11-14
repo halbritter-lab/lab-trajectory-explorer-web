@@ -439,6 +439,52 @@ doi:10.1016/j.ekir.2025.11.021).
 - Coefficients and worked values:
   [method algorithms](method-algorithms.md#formulas).
 
+## Release review of 2026-11-15
+
+A review of everything merged since version 0.3.7 found the points below. The
+owner decided the creatinine name rule on 2026-11-15; the other items restore
+or protect documented behaviour and change no fitted number.
+
+- **A `u` between two words is "und", not urine** (owner decision
+  2026-11-15). The token rule of 2026-11-05 read the German abbreviation
+  "u." as urine, so `Kreatinin im Serum u. Plasma`,
+  `Kreatinin (Serum u. Plasma)`, `Kreatinin i.S. u. P.` and
+  `Kreatinin vor u. nach Dialyse` lost their eGFR and AKI detection, although
+  they were eligible in 0.3.7. A lone `u`, with or without a dot, is now
+  removed when a word precedes it and a word starting with a letter follows,
+  each separated by whitespace only. Square brackets and colons separate
+  tokens, so `Kreatinin [U]` and `Kreatinin:U` are non-serum. Classification
+  change in both directions; no released version is affected, because the
+  token rule was never released. Left open as **OD-32**: any word after a
+  whitespace-separated lone `U` makes it "und", so `Kreatinin U mg/dl` and
+  `Kreatinin U spontan` count as serum creatinine.
+- **Withheld G5 projection names the AKI exclusion.** When a column leaves AKI
+  windows out of the projection, the badge detail for `G5 < 3 dates`,
+  `G5 < 5 dates` and `G5 < 1 yr` starts with "Measurements inside AKI
+  exclusion windows are left out of the projection." and speaks of "the
+  measurements used". Before, a series of 104 values over two years, 103 of
+  them inside AKI windows, was described as having measurements on fewer than
+  three dates. Labels, reasons and export values are unchanged.
+- **Reliability rule also tests the point count.** `isUnstableSlope` returns
+  unstable for `nFitted < 3` as well as `nFittedDates < 3`. Dates never exceed
+  points, so no result of the application changes; a caller of the library
+  package without `nFittedDates` no longer gets "stable" for two points.
+- **Cohort model workbook: stable positions and `unit_key` everywhere.**
+  Sheets and columns of 0.3.7 keep their positions: `vcov`, `model_rows`,
+  `model_input_flags` and `r_script` follow `about`, and `std_error` and
+  `unit_key` are the last columns of `coefficients`. Every sheet that names a
+  unit carries `unit_key`, so the two covariance matrices of a pooled model
+  and a group named "Whole cohort" can be told apart.
+- **AKI detection scans each patient's rows once.** The dataset pass buckets
+  rows per patient. Same episodes and windows; a dataset of 1,500 patients
+  with 120 creatinine values each is analysed in 2.5 s instead of 43.8 s on
+  the development machine.
+
+Details: [eGFR derivation](method-algorithms.md#eligible-source-series),
+[reliability rule](method-algorithms.md#reliability-rule) and
+[cohort mixed models](method-algorithms.md#cohort-mixed-models). The golden
+fixtures contain only `Kreatinin` and are unchanged.
+
 ## Approved requirements
 
 ### Observed events and recovery

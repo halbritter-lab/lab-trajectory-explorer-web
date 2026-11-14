@@ -57,7 +57,7 @@ describe('mixed model export', () => {
       expect.objectContaining({term:'factor_2_',unit:'ml/min/1.73m2 per unit of dose'}),
       expect.objectContaining({term:'time_since_baseline:factor_2_',unit:'ml/min/1.73m2 per year per unit of dose'}),
     ]))
-    expect(XLSX.utils.sheet_to_json(workbook.Sheets.excluded_patients)).toEqual([{entity:'Whole cohort',patient_id:'p4',reasons:'Missing sex'}])
+    expect(XLSX.utils.sheet_to_json(workbook.Sheets.excluded_patients)).toEqual([{entity:'Whole cohort',patient_id:'p4',reasons:'Missing sex',unit_key:'cohort'}])
     expect(mixedModelTermLabel('factor_0_B',config)).toBe('genotype: B (reference A)')
   })
 })
@@ -91,8 +91,8 @@ describe('R reproduction export', () => {
       {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p2',date:'2020-03-01',value:58,time_since_baseline:0,factor_0_:'B',raw_factor_0_:'B',factor_1_:1.5,raw_factor_1_:5},
     ])
     expect(sheet('model_input_flags')).toEqual([
-      {entity:'G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01'},
-      {entity:'G1',group:'G1',patient_id:'p1',date:'2020-02-01',value:40,status:'excluded',reason:'aki',model_date:''},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01'},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-02-01',value:40,status:'excluded',reason:'aki',model_date:''},
     ])
   })
 
@@ -101,6 +101,33 @@ describe('R reproduction export', () => {
     const vcov = sheet('vcov')
     expect(vcov.map(row => row.term)).toEqual(terms)
     expect(vcov[2]).toMatchObject({entity:'G1',factor_0_B:0.2**2,'(Intercept)':0.001})
+  })
+
+  // Release review 2026-11-15.
+  it('names the unit by unit_key on every sheet, also when a group is called like the pooled unit', () => {
+    const prepared = {...result,metadata:{...result.metadata,preparation:{centers:{factor_1_:3.5},excludedPatients:[{patientId:'p9',reasons:['Missing dose']}]}}} as unknown as MixedModelSuccess
+    const both = mixedModelExportSheets([
+      {entity:'Whole cohort',result:prepared,identity:{seriesKey:'eGFR|ml/min'},rows,inputFlags},
+      {entity:'Whole cohort',result:prepared,identity:{seriesKey:'eGFR|ml/min',groupValue:'Whole cohort'},rows,inputFlags},
+    ])
+    const keys = (name: string) => [...new Set(both.find(sheet => sheet.name === name)!.rows.map(row => (row as Record<string, unknown>).unit_key))]
+    for (const name of ['models','coefficients','vcov','factors','centering','excluded_patients','model_rows','model_input_flags']) {
+      expect(keys(name),name).toEqual(['cohort','group:Whole cohort'])
+    }
+    // Two matrices with the same entity label stay apart.
+    const vcov = both.find(sheet => sheet.name === 'vcov')!.rows as Record<string, unknown>[]
+    expect(vcov.filter(row => row.unit_key === 'cohort').map(row => row.term)).toEqual(terms)
+    expect(vcov.filter(row => row.unit_key === 'group:Whole cohort').map(row => row.term)).toEqual(terms)
+  })
+
+  it('keeps the sheet and column positions of 0.3.7 and appends what is new', () => {
+    expect(sheets.map(sheet => sheet.name)).toEqual(['models','coefficients','factors','centering','excluded_patients','about','vcov','model_rows','model_input_flags','r_script'])
+    const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name],{header:1})[0]
+    expect(header('coefficients')).toEqual(['entity','outcome','unit','term','label','estimate','ci_lower','ci_upper','std_error','unit_key'])
+    expect(header('factors').slice(0,1)).toEqual(['entity'])
+    expect(header('factors').at(-1)).toBe('unit_key')
+    expect(header('models').slice(0,2)).toEqual(['entity','series_key'])
+    expect(header('models').at(-1)).toBe('unit_key')
   })
 
   it('generates an R script with the worker data, contrast and model code', () => {

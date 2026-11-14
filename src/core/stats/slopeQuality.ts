@@ -37,14 +37,16 @@ export interface SlopeQualityInput {
  * Dates rather than points (decided 2026-11-05): three same-day rows and one
  * value a year later are two observations in time, not four.
  */
-export function isUnstableSlope({ reason, nFittedDates, fittedSpanDays, fitModel }: SlopeQualityInput): boolean {
+export function isUnstableSlope({ reason, nFitted, nFittedDates, fittedSpanDays, fitModel }: SlopeQualityInput): boolean {
   // No fit requested (the "Acute review" preset): there is no slope to caveat.
   // summarize reports reason 'n_below_threshold' for this case regardless of how
   // many points exist, so reading reason alone would claim "fewer than three
   // measurements" for a series with dozens.
   if (fitModel === 'none') return false
   if (reason === 'no_numeric_values' || reason === 'n_below_threshold') return true
-  if (nFittedDates < 3) return true
+  // Dates never exceed points, so the point count changes no typed call; it
+  // guards untyped callers that still pass the shape without nFittedDates.
+  if (nFitted < 3 || nFittedDates < 3) return true
   if (fittedSpanDays < 365) return true
   return reason === 'span_too_short'
 }

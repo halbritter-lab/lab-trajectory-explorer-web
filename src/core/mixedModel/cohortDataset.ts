@@ -4,6 +4,7 @@ import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows
 import type { PatientGroup } from '../grouping/grouping'
 import { balanceSeriesPointGroups } from '../stats/timeBalancing'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
+import { utcDateOrBlank as isoDate } from '../format'
 import type { MixedModelInputFlag, MixedModelSpikeRow } from './types'
 import { roundTo10Decimals } from './validation'
 import { isExactMeasurement } from '../measurements/censored'
@@ -176,9 +177,6 @@ export function mixedModelRowsByGroup(
   return byGroup
 }
 
-function isoDate(date: Date | null): string {
-  return date && Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : ''
-}
 
 function roundYears(value: number): number {
   return roundTo10Decimals(value)

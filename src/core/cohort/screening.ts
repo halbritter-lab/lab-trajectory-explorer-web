@@ -1,4 +1,5 @@
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
+import { utcDateOrBlank as dateOrBlank } from '../format'
 import type { SeriesPoint } from '../stats/series'
 import { fitGlobal, fitTheilSen } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
@@ -363,7 +364,6 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
-const dateOrBlank = (date: Date | null): string => (date && Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : '')
 
 /** Every badge of a fitted cell: those known before fitting plus those that
  * depend on the fit and the column's module settings (evaluated only for
