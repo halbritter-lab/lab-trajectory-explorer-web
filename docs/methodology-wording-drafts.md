@@ -22,6 +22,10 @@ identical values only from three points on (two identical values give slope 0
 and R² = 1); in B6, the birth date comes from the earliest dated lab row that
 carries one. The blocks below show the adjusted wording.
 
+**Part C was drafted on 2026-11-14 and is not applied.** It covers the
+changes of the clinical-review pull requests (#37, #39, #41) and a proposal
+on which trend method suits which case. It awaits the owner's approval.
+
 ## Part A: passages that no longer match the application
 
 ### A1. Cohort models follow the Trajectories settings (OD-1)
@@ -456,3 +460,372 @@ removed; every remaining sentence is the earlier wording.
 - The existing Fit Pipeline paragraph says a singular fit withholds
   projections and model lines; a non-converged fit does so as well, as B7
   states.
+
+## Part C: drafts after the clinical-review changes (2026-11-14, not applied)
+
+Drafted 2026-11-14 for [issue #44](https://github.com/halbritter-lab/lab-trajectory-explorer-web/issues/44),
+after the pull requests #37, #39 and #41 were merged. **Nothing in Part C is
+on the methodology page yet.** Until it is approved and applied, the page
+contradicts the application in the places listed under C5 to C10.
+
+Each draft names the file and line of the current text
+(`src/workspace/methods/topics/`, state of 2026-11-14), the proposed text, and
+the rule of the [method reference](method-algorithms.md) it reflects.
+
+### Status of the earlier checklist in issue #4
+
+The eight open boxes of the 2026-10-07 list in issue #4 ("Methodology page
+wording") are covered by blocks that are already applied. The boxes can be
+ticked once the owner agrees:
+
+| Box in issue #4 | Applied block | On the page |
+| --- | --- | --- |
+| Time balancing | B1 | `Fits.tsx`, *Time Balancing: Monthly and Quarterly Medians* |
+| OLS | B2 | `Fits.tsx`, *Ordinary Least Squares (OLS)* |
+| Preset contents | B3 | `Fits.tsx`, *Analysis Presets* |
+| AKI timing, episodes, exclusion window | B4 | `Aki.tsx`, *AKI Timing, Episodes and the Fit-Exclusion Window* |
+| eGFR rounding, age, conditions | B5 | `Data.tsx`, *eGFR: Conditions, Age and Rounding* |
+| Sex and age resolution | B6 | `Data.tsx`, *Resolving Sex and Age* |
+| Endpoints: withheld reasons, three-point example | A6, A8 | `Endpoints.tsx`; one badge is still missing, see C9 |
+| Cohort models | B7 | `Cohort.tsx`, *Cohort Model Specification, Intervals and Projections* |
+
+### C1. Creatinine from other materials is not used
+
+`Aki.tsx`, lines 5–6. Current, unchanged: "AKI detection accepts serum
+creatinine in mg/dl or µmol/l; µmol/l values are divided by 88.42 before KDIGO
+comparisons."
+
+Proposed, to follow that sentence:
+
+> A creatinine series whose name marks another material is not used: urine
+> (for example "Kreatinin i.U.", "U-Kreatinin", "Sammelurin"), dialysate,
+> puncture fluid, drain fluid, CSF, lymph, secretions and other body fluids.
+> The rule reads the parameter name only. A name it does not recognise is
+> treated as serum creatinine, so check the source list under Data.
+
+Reflects: [eligible source series](method-algorithms/egfr.md#eligible-source-series)
+and [AKI input series](method-algorithms/aki.md#input-series-and-conversion).
+
+### C2. Which creatinine series supplies the episodes of a column
+
+`Aki.tsx`, lines 48–53. Current, unchanged: "AKI chips in the patient table
+summarise detected stages as Roman numerals (e.g. *AKI I, II*). …"
+
+Proposed, as a new paragraph after it:
+
+> Every column of a patient shows the episodes that apply to it. A creatinine
+> column detects episodes on its own values. A computed eGFR column uses the
+> creatinine series it was computed from. Every other column, an imported eGFR
+> included, uses the patient's serum creatinine series with the most dated
+> exact values. Two columns of one patient can therefore show different
+> episodes.
+
+Reflects: [where results appear](method-algorithms/aki.md#where-results-appear).
+
+### C3. Plausibility warnings
+
+`Data.tsx`, line 46, bullet **Units**. Current, unchanged: "A value stored
+under the wrong unit would therefore yield a wrong eGFR."
+
+Proposed, to follow that sentence:
+
+> The Data page warns when exact serum creatinine values lie above 25 mg/dl
+> (2210.5 µmol/l) and when computed eGFR values lie above
+> 200 mL/min/1.73 m². The usual cause is a µmol/l column labelled mg/dl. These
+> are warnings only: no value is changed or excluded. They are meant to catch
+> unit errors. A urine series that the name rule misses can stay below both
+> limits. Imported eGFR series are not checked.
+
+Reflects: the paragraph "Plausibility warnings" under
+[rounding and limits](method-algorithms/egfr.md#rounding-and-limits).
+
+### C4. A source that is not serum creatinine
+
+`Data.tsx`, lines 45–46, bullet **Units**. Current: "Values recorded in
+*µmol/l* are converted automatically (÷ 88.42); other units are not used as an
+eGFR source."
+
+Proposed, to follow that sentence:
+
+> Creatinine from urine, dialysate or another body fluid is not used as an
+> eGFR source either; AKI detection describes the name rule. If a saved
+> session selects such a series, the Data page says so and computes no eGFR
+> until another source or Automatic is chosen.
+
+Reflects: [eligible source series](method-algorithms/egfr.md#eligible-source-series)
+and [source selection](method-algorithms/egfr.md#source-selection) ("An
+explicitly selected pair that is not an eligible serum-creatinine source
+produces no eGFR rows").
+
+### C5. CKD-EPI 2009 (race-free)
+
+`Data.tsx`, after the **CKD-EPI 2021** bullet (lines 12–16). The selector
+offers the equation, but the page does not describe it.
+
+Proposed new bullet:
+
+> **CKD-EPI 2009 (race-free)** — creatinine equation published by Levey et al.
+> (Annals of Internal Medicine 2009). It is offered for comparison with
+> analyses that use it. The published coefficient for Black race (× 1.159) is
+> not applied, because the data carry no race; the name says so. Where that
+> coefficient would not apply, the result equals the published equation. Used
+> when the formula selector is set to *CKD-EPI 2009 (race-free)*.
+
+`Sources.tsx`, list *Medical Sources*, after the CKD-EPI 2021 item (lines
+54–63). Proposed new item, with the link
+`https://doi.org/10.7326/0003-4819-150-9-200905050-00006`:
+
+> CKD-EPI 2009 creatinine equation: Levey AS et al., Annals of Internal
+> Medicine 2009;150(9):604-612.
+
+Reflects: [formulas](method-algorithms/egfr.md#formulas).
+
+### C6. Endpoint input and AKI windows
+
+`Endpoints.tsx`, line 6. Current: "Display-fit AKI exclusions and time
+aggregation do not change these endpoint inputs."
+
+Proposed replacement:
+
+> Time aggregation does not change these endpoint inputs. AKI exclusion
+> changes two of them. When a column excludes AKI windows from its fit, the
+> same windows are left out of the baseline for the 40% and 57% decline and of
+> the G5 projection fit. Observed G4 and G5, the total percent change and the
+> values that start or confirm a decline use every eligible measurement, also
+> inside AKI windows. At high creatinine the AKI criterion is often met by
+> ordinary variation, so a sustained G5 can lie inside AKI windows and must
+> still count.
+
+`Endpoints.tsx`, lines 59–60. Current: "Display-fit AKI exclusions and
+aggregation do not affect this endpoint prediction."
+
+Proposed replacement:
+
+> Time aggregation does not affect this endpoint prediction. When the column
+> excludes AKI windows, measurements inside them are not fitted and do not
+> count towards the minimum number of dates, the follow-up span or the latest
+> measurement.
+
+`Endpoints.tsx`, lines 45–47 (decline baseline). Current: "Their baseline is
+the arithmetic mean of all eligible exact eGFR measurements from the first
+eligible date through 90 elapsed UTC days inclusive, counting duplicate rows."
+
+Proposed, to follow that sentence:
+
+> When the column excludes AKI windows, the baseline uses only measurements
+> outside them, and its 90 days start at the first such measurement.
+
+`Fits.tsx`, lines 137–139. Current: "Endpoints use dated exact numeric eGFR
+measurements before the first kidney transplant or chronic dialysis start and
+outside complete dated acute dialysis intervals, independently of display-fit
+AKI exclusions or aggregation."
+
+Proposed replacement of the last clause:
+
+> … and outside complete dated acute dialysis intervals, independently of time
+> aggregation. AKI exclusion applies to the decline baseline and the G5
+> projection only; see Endpoints.
+
+Reflects: the paragraph "AKI windows" under
+[eligibility and kidney failure reached](method-algorithms/endpoints-and-projection.md#eligibility-and-kidney-failure-reached),
+the baseline rule under
+[total percent change and confirmed decline](method-algorithms/endpoints-and-projection.md#total-percent-change-and-confirmed-40-57--decline)
+and the paragraph "Fit" under
+[individual G5 projection](method-algorithms/endpoints-and-projection.md#individual-g5-projection).
+
+### C7. Minimum for a projection: dates, not measurements
+
+`Endpoints.tsx`, lines 68–69. Current: "Require three measurements, at least
+365 days between the first and the latest, a finite declining fit, a future
+crossing and an age at the latest measurement."
+
+Proposed replacement:
+
+> Require measurements on three different dates, or on five different dates
+> with Theil–Sen, at least 365 days between the first and the latest, a finite
+> declining fit, a future crossing and an age at the latest measurement.
+> Several measurements on one day count as one date.
+
+Reflects: [individual G5 projection](method-algorithms/endpoints-and-projection.md#individual-g5-projection),
+reasons `insufficient_points` and `theil_sen_insufficient_points`.
+
+### C8. The three-point interval holds for OLS only
+
+`Endpoints.tsx`, lines 73–76. Current: "With only three measurements this
+interval is so wide that it almost always includes zero: for values 60, 50, 25
+at years 0, 1, 2 the slope is −17.5 per year but its interval runs from −72.5
+to 37.5, so no crossing is reported. In practice a projection needs more
+measurements."
+
+Proposed replacement (the example is unchanged):
+
+> With OLS and only three measurements this interval is so wide that it almost
+> always includes zero: for values 60, 50, 25 at years 0, 1, 2 the slope is
+> −17.5 per year but its interval runs from −72.5 to 37.5, so no crossing is
+> reported. With Theil–Sen and fewer than five dates the bounds are the
+> smallest and the largest pairwise slope. They contain the true slope less
+> often than 95% (about 67% with three dates, 92% with four) and would pass
+> every steadily falling series. A Theil–Sen projection therefore needs five
+> dates. In practice a projection needs more measurements.
+
+Reflects: [Theil-Sen](method-algorithms/trend-estimators.md#theil-sen-2026-09-23)
+and the example "Theil-Sen" under
+[individual G5 projection](method-algorithms/endpoints-and-projection.md#individual-g5-projection).
+
+### C9. Status table: new badges
+
+`Endpoints.tsx`, lines 24–25, last row of the table *Endpoint status
+explanations*. Current: "**G5 n < 3** and **G5 < 1 yr** — fewer than three
+eligible measurements, or fewer than 365 days between the first and the
+latest. …" with "Check the eligible point count and follow-up span;
+display-fit counts can differ."
+
+Proposed replacement of that row (the two sentences after the first stay):
+
+> **G5 < 3 dates**, **G5 < 5 dates** and **G5 < 1 yr** — eligible
+> measurements on fewer than three different dates; with Theil–Sen, on fewer
+> than five (export reason `theil_sen_insufficient_points`); or fewer than 365
+> days between the first and the latest.
+>
+> What to check: Check the number of measurement dates and the follow-up
+> span; display-fit counts can differ.
+
+Proposed new row. The badge exists and the table does not list it:
+
+> **G5 not projected after KRT** — kidney replacement therapy has started and
+> no G5 was confirmed before it. No projection is made for the time after it.
+>
+> What to check: Review the kidney replacement therapy event and its date.
+
+Reflects: the reason table under
+[individual G5 projection](method-algorithms/endpoints-and-projection.md#individual-g5-projection).
+
+### C10. Reliability rule counts dates
+
+`Fits.tsx`, lines 45–47. Current: "The badge and the `unstable_slope` export
+column therefore test both the fitted count and fitted span directly: fewer
+than three fitted measurements, or under a year between the first and last
+fitted points."
+
+Proposed replacement:
+
+> The badge and the `unstable_slope` export column therefore test the fitted
+> dates and the fitted span directly: fitted measurements on fewer than three
+> different dates, or under a year between the first and last fitted points.
+> Three values from one day and one value a year later are two dates, so
+> their slope is marked as uncertain.
+
+`Fits.tsx`, lines 32–34, list of amber notes. Current: "an amber note
+(*n < 3, uncertain slope*, *Follow-up < 1 year, uncertain slope*) means a
+slope exists but should be treated as unstable."
+
+Proposed: add the third note to the list:
+
+> an amber note (*n < 3, uncertain slope*, *< 3 dates, uncertain slope*,
+> *Follow-up < 1 year, uncertain slope*) means a slope exists but should be
+> treated as unstable.
+
+Reflects: [reliability rule](method-algorithms/slope-quality.md#reliability-rule)
+and [labels](method-algorithms/slope-quality.md#labels).
+
+### C11. What 57% stands for
+
+`Endpoints.tsx`, lines 44–45. Current: "Confirmed 40% and 57% eGFR decline are
+independent observed endpoints; 57% is a serum-creatinine doubling surrogate."
+
+Proposed, to follow that sentence:
+
+> The match with a doubling is approximate and depends on the equation. A
+> doubling of creatinine lowers eGFR by 56.5% with CKD-EPI 2021, 56.7% with
+> CKD-EPI 2009, 55.1% with MDRD-4 and 54.4% with EKFC, as long as creatinine
+> is above the bend of the equation (0.7 mg/dl for women and 0.9 mg/dl for men
+> in CKD-EPI). Below it the decline is smaller: about 50% for a woman whose
+> creatinine rises from 0.6 to 1.2 mg/dl with CKD-EPI 2021. The 40% threshold
+> is defined on eGFR itself.
+
+Reflects: the method reference states only that 57 % "serves as a
+serum-creatinine doubling surrogate"
+([confirmed decline](method-algorithms/endpoints-and-projection.md#total-percent-change-and-confirmed-40-57--decline)).
+The percentages are arithmetic on the exponents under
+[formulas](method-algorithms/egfr.md#formulas): 1 − 2^−1.200 = 56.5 %,
+1 − 2^−1.209 = 56.7 %, 1 − 2^−1.154 = 55.1 %, 1 − 2^−1.132 = 54.4 %; below the
+bend, 1 − (1.2/0.7)^−1.2 / (0.6/0.7)^−0.241 = 49.5 %.
+
+### C12. Proposal: which trend method for which case
+
+**This block is a methodological recommendation and therefore the
+maintainer's to write.** It is a proposal that only restates what each method
+does according to the method reference. It answers the question for which
+kinds of cases each method is meant.
+
+`Fits.tsx`, lines 6–12, table *Fit model comparison* under *Choosing a Fit
+Model*. The five existing rows and their "When to use it" texts stay. Proposed
+changes: one addition to the Theil–Sen row and three new rows for the settings
+and the model that the table does not cover.
+
+Theil–Sen row, column "What the summary slope means". Current: "Median of
+pairwise slopes; at least three observations and two distinct dates."
+Proposed:
+
+> Median of pairwise slopes; at least three observations and two distinct
+> dates. No R². A G5 projection needs five dates.
+
+Proposed new rows (columns: Model or setting, When to use it, What it does):
+
+> **AKI exclusion** (setting, with any model) — Short acute dips should not
+> shape a chronic trend. — Leaves out the measurements from each AKI onset
+> through 30 days later from the fit, the decline baseline and the G5
+> projection. At high creatinine the AKI criterion is also met by ordinary
+> variation and can remove much of a series; compare n and n fitted.
+>
+> **Monthly or quarterly medians** (setting, with any model) — Measurement
+> density varies strongly, for example many inpatient values next to few
+> outpatient ones. — One point per calendar period, so a dense period does
+> not outweigh a sparse one. Minimum counts and the follow-up span refer to
+> these points.
+>
+> **Cohort mixed model** (Cohort models page) — The question concerns a group:
+> its average slope, or the difference between groups, when patients
+> contribute different numbers of measurements. — One linear mixed model for
+> all patients, by default with a random intercept and slope per patient. It
+> estimates population associations, not the course of one patient.
+
+Proposed sentence below the table:
+
+> Rolling and segmented OLS change what the chart shows, not the reported
+> slope: the table and the export keep the global OLS slope.
+
+Reflects: [fit model and slope mode](method-algorithms/fit-input-presets-and-time-balancing.md#fit-model-and-slope-mode),
+[Theil-Sen](method-algorithms/trend-estimators.md#theil-sen-2026-09-23),
+[rolling and segmented OLS](method-algorithms/trend-estimators.md#rolling-and-segmented-ols),
+[AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window),
+[time balancing](method-algorithms/fit-input-presets-and-time-balancing.md#time-balancing)
+and [model specification](method-algorithms/cohort-models.md#model-specification).
+
+### Points to check in Part C
+
+- **Line numbers** refer to the topic files as of 2026-11-14 and move with any
+  edit.
+- **C1.** The page would list examples only. The full token list is in the
+  method reference; the suffix `UR` is case-sensitive there.
+- **C3.** The limits are strict: exactly 25 mg/dl and exactly 200 are not
+  reported. Bounded values (`>30`) are not counted.
+- **C6.** The last sentence gives the reason for the rule. It can be dropped
+  if the page should state rules only.
+- **C6, total change.** A rise in total percent change can stand next to a
+  confirmed 40 % decline, because the total change starts at the first
+  eligible value and the decline at the baseline outside AKI windows (Example
+  2 of the method reference). The draft does not mention this.
+- **C8.** The coverage figures (67 %, 92 %) hold for independent errors
+  without tied values; the draft says "about".
+- **C11.** Not in the draft: the age term lowers eGFR by a further 0.6 % to
+  1.0 % per year, depending on the equation, which adds to a decline over a
+  long follow-up. The percentages are computed here, not taken from a test.
+- **C12.** The slope mode `aki-aware` exists in the code but cannot be
+  selected in the interface
+  ([code not reachable](method-algorithms/unreachable-code.md#fit-code-not-reachable-from-the-interface));
+  the draft therefore describes the AKI exclusion setting. "When to use it"
+  for the two settings and the cohort model is new recommendation text, not a
+  restatement of an approved sentence.
+- **Not drafted:** a note for imported eGFR series whose laboratory changed
+  the equation mid-series. It is deferred as a feature in issue #4.
