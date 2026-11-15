@@ -463,13 +463,19 @@ or protect documented behaviour and change no fitted number.
   `main` before this change, only the "und" names above become eligible and
   only `[U]` and `:U` become non-serum; no released version is affected,
   because the token rule was never released.
-- **Withheld G5 projection names the AKI exclusion.** When a column leaves AKI
-  windows out of the projection, the badge detail for `G5 < 3 dates`,
-  `G5 < 5 dates` and `G5 < 1 yr` starts with "Measurements inside AKI
-  exclusion windows are left out of the projection." and speaks of "the
-  measurements used". Before, a series of 104 values over two years, 103 of
-  them inside AKI windows, was described as having measurements on fewer than
-  three dates. Labels, reasons and export values are unchanged.
+- **Withheld G5 projection names the AKI exclusion.** When AKI windows
+  removed at least one row from a cell's projection input, the badge detail
+  for `G5 < 3 dates`, `G5 < 5 dates` and `G5 < 1 yr` starts with
+  "Measurements inside AKI exclusion windows are left out of the projection."
+  and speaks of "the measurements used"; the details for a crossing beyond
+  20 years and for a fitted curve already below 15 get the same lead and name
+  "the latest measurement used". Before, a series of 104 values over two
+  years, 103 of them inside AKI windows, was described as having measurements
+  on fewer than three dates. A column that excludes AKI windows by its preset
+  but lost no row to one keeps the plain detail, so AKI is not named as the
+  cause where it is not (review of the fix, same day). Labels, reasons and
+  export values are unchanged; the endpoint result gains
+  `projectionPointCount`.
 - **Reliability rule also tests the point count.** `isUnstableSlope` returns
   unstable for `nFitted < 3` as well as `nFittedDates < 3`. Dates never exceed
   points, so no result of the application changes; a caller of the library

@@ -12,9 +12,10 @@ interfaces are still evolving before 1.0.
   `Kreatinin im Serum u. Plasma` or `Kreatinin vor u. nach Dialyse`, count as
   serum creatinine again. A lone `U` next to any other word stays urine.
   `Kreatinin [U]` and `Kreatinin:U` are recognised as urine.
-- When AKI windows are left out of the G5 projection, the detail text of
-  `G5 < 3 dates`, `G5 < 5 dates` and `G5 < 1 yr` says so instead of describing
-  the series as having too few dates or too short a span.
+- When AKI windows removed measurements from a G5 projection, the detail text
+  of the withheld-projection badges says so and speaks of the measurements
+  used, instead of describing the series as having too few dates or too short
+  a span. Cells that lost no measurement to an AKI window keep the plain text.
 - Cohort model workbook: sheets and columns keep their 0.3.7 positions (new
   sheets follow `about`; `std_error` and `unit_key` are the last columns of
   the earlier sheets, also when rows differ in shape), and `unit_key` is on

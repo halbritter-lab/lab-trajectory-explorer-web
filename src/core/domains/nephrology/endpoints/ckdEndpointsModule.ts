@@ -1,10 +1,9 @@
 import type { AnalysisModule, EndpointContext, ModuleExportCell, SeriesKey } from '../../../analysis/types'
-import type { CkdEndpointConfig } from '../fitConfig'
+import { excludesAkiWindows, type CkdEndpointConfig } from '../fitConfig'
 import { isEgfrUnit } from '../analytes'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from './ckdEndpoints'
 import { projectionTargetPresets as renalProjectionTargets } from '../projectionPresets'
 import { firstKidneyFailureEvent } from './endpointEventPolicy'
-import { excludesAkiWindows } from '../aki/akiModule'
 
 export const CKD_ENDPOINTS_MODULE_ID = 'ckdEndpoints'
 

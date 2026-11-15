@@ -2,6 +2,7 @@ import { akiExclusionBands, akiExclusionWindows, episodesForSeries, isAkiCreatin
 import type { AkiEpisode } from './kdigo'
 import { formatAkiChip, formatAkiEpisodeSummary } from './summary'
 import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
+import { excludesAkiWindows } from '../fitConfig'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../analytes'
 import { patientIdKey, type LabRow, type PatientId } from '../../../types'
 import { windowsWithLength } from '../../../exclusions/windows'
@@ -93,13 +94,6 @@ function preparedInput(ctx: SeriesContext): ExclusionWindowContribution | undefi
  * The same length shapes the excluded windows and the drawn bands. */
 function akiWindowDays(ctx: SeriesContext): number {
   return ctx.exclusionDays ?? ctx.fitConfig?.exclusions.akiExclusionDays ?? preparedInput(ctx)?.lengthDays ?? DEFAULT_AKI_EXCLUSION_DAYS
-}
-
-/** Whether a column leaves AKI windows out of its fit. The one condition
- * under which this module contributes exclusion windows; the endpoint module
- * reads it to name the policy, so the two cannot drift apart. */
-export function excludesAkiWindows(ctx: Pick<SeriesContext, 'mode' | 'fitConfig'>): boolean {
-  return ctx.mode === 'aki-aware' || (ctx.fitConfig?.exclusions.excludeAkiWindows ?? false)
 }
 
 /** AKI windows applied to one column: when its slope mode is 'aki-aware' or

@@ -161,14 +161,55 @@ describe('projectedG5Label', () => {
     ], -10)
     expect(projectedG5Label(tooShort)?.label).toBe('G5 < 1 yr')
 
-    // Release review 2026-11-15: with AKI windows left out of the projection, the
-    // series itself may have many dates over years; the title must not blame it.
     expect(projectedG5Label(tooFew)?.title).toBe('Usable measurements on fewer than three distinct dates, so no projection was made.')
-    expect(projectedG5Label({ ...tooFew, inputExcludesAkiWindows: true })?.title)
-      .toBe('Measurements inside AKI exclusion windows are left out of the projection. The measurements used fall on fewer than three distinct dates, so no projection was made.')
     expect(projectedG5Label(tooShort)?.title).toBe('Less than one year between first and last measurement, so no projection was made.')
-    expect(projectedG5Label({ ...tooShort, inputExcludesAkiWindows: true })?.title)
-      .toBe('Measurements inside AKI exclusion windows are left out of the projection. The measurements used span less than one year, so no projection was made.')
+    // A column that excludes AKI windows by rule but lost no row to one: AKI is not the cause and is not named.
+    expect(projectedG5Label({ ...tooFew, inputExcludesAkiWindows: true })?.title).toBe('Usable measurements on fewer than three distinct dates, so no projection was made.')
+    expect(projectedG5Label({ ...tooShort, inputExcludesAkiWindows: true })?.title).toBe('Less than one year between first and last measurement, so no projection was made.')
+  })
+
+  // Release review 2026-11-15: when AKI windows removed rows from the projection
+  // input, the series itself may have many dates over years; the title names the
+  // exclusion and speaks of the measurements used.
+  describe('when AKI windows removed rows from the projection input', () => {
+    const lead = 'Measurements inside AKI exclusion windows are left out of the projection. '
+    const at = (list: [string, number][]) => list.map(([date, value]) => ({ date: new Date(date), value, ageYears: 50 }))
+    const eligible: [string, number][] = [['2020-01-01', 60], ['2021-01-01', 55], ['2022-01-01', 50], ['2023-01-01', 45], ['2023-06-01', 30]]
+    const withRemoved = (used: [string, number][], slopePerYear: number, ci: [number, number], all = eligible) => computeCkdEndpoints({
+      points: at(all), fitPoints: at(used), slopePerYear, slopeCiLow: ci[0], slopeCiHigh: ci[1], enabled: ALL_ENDPOINTS, inputExcludesAkiWindows: true,
+    })
+
+    it('names the exclusion for too few dates and too short a span', () => {
+      const tooFew = withRemoved([['2020-01-01', 60], ['2023-01-01', 45]], -5, [-6, -4])
+      expect(tooFew).toMatchObject({ endpointPointCount: 5, projectionPointCount: 2 })
+      expect(projectedG5Label(tooFew)).toMatchObject({ label: 'G5 < 3 dates',
+        title: `${lead}The measurements used fall on fewer than three distinct dates, so no projection was made.` })
+      const tooShort = withRemoved([['2023-01-01', 45], ['2023-03-01', 40], ['2023-06-01', 30]], -30, [-31, -29])
+      expect(projectedG5Label(tooShort)).toMatchObject({ label: 'G5 < 1 yr',
+        title: `${lead}The measurements used span less than one year, so no projection was made.` })
+    })
+
+    it('names the latest measurement used when the crossing lies beyond the horizon', () => {
+      const used: [string, number][] = [['2020-01-01', 80], ['2021-01-01', 79.75], ['2022-01-01', 79.5]]
+      const all: [string, number][] = [...used, ['2022-06-01', 60]]
+      const endpoints = withRemoved(used, -0.25, [-0.3, -0.2], all)
+      expect(endpoints.projectedAgeToCkdG5.reason).toBe('beyond_projection_horizon')
+      expect(projectedG5Label(endpoints)?.title)
+        .toBe(`${lead}The fitted crossing is more than 20 years after the latest measurement used, so no future age at CKD G5 was reported.`)
+      expect(projectedG5Label({ ...endpoints, projectionPointCount: endpoints.endpointPointCount })?.title)
+        .toBe('The fitted crossing is more than 20 years after the latest eligible eGFR measurement, so no future age at CKD G5 was reported.')
+    })
+
+    it('names the latest measurement used when the fitted curve is already below the threshold', () => {
+      const used: [string, number][] = [['2020-01-01', 20], ['2021-01-01', 16], ['2022-01-01', 12]]
+      const all: [string, number][] = [...used, ['2022-06-01', 25]]
+      const endpoints = withRemoved(used, -4, [-5, -3], all)
+      expect(endpoints.projectedAgeToCkdG5.reason).toBe('already_below_threshold')
+      expect(projectedG5Label(endpoints)?.title)
+        .toBe(`${lead}The fitted curve reaches 15 at or before the latest measurement used, so there is no future crossing to project. This does not establish an observed event.`)
+      expect(projectedG5Label({ ...endpoints, projectionPointCount: endpoints.endpointPointCount })?.title)
+        .toBe('The fitted curve reaches 15 at or before the latest measurement, so there is no future crossing to project. This does not establish an observed event.')
+    })
   })
 
   it('flags a missing age anchor', () => {

@@ -102,9 +102,11 @@ export function slopeQualityLabel(input: SlopeQualityInput): QualityLabel | null
 export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
   if (endpoints.projectedAgeToCkdG5.value !== null) return null
   const caveat = false
-  // The series itself may have many dates over years when the column leaves
-  // AKI windows out of the projection; the title then names the exclusion.
-  const aki = endpoints.inputExcludesAkiWindows
+  // The series itself may have many dates over years when AKI windows removed
+  // rows from the projection; the title then names the exclusion. Only then:
+  // a column that excludes AKI windows by rule but lost no row here must not
+  // suggest that AKI caused the gap.
+  const aki = endpoints.inputExcludesAkiWindows && endpoints.projectionPointCount < endpoints.endpointPointCount
   const akiLead = 'Measurements inside AKI exclusion windows are left out of the projection. '
   switch (endpoints.projectedAgeToCkdG5.reason) {
     case 'observed_ckd_g5':
@@ -137,12 +139,19 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
     case 'slope_ci_unavailable':
       return { label: 'G5 not projected', title: 'Endpoint fit slope confidence bounds are unavailable, so no future age at CKD G5 was computed.', caveat }
     case 'beyond_projection_horizon':
-      return { label: 'G5 not projected', title: 'The fitted crossing is more than 20 years after the latest eligible eGFR measurement, so no future age at CKD G5 was reported.', caveat }
+      return {
+        label: 'G5 not projected',
+        title: aki
+          ? `${akiLead}The fitted crossing is more than 20 years after the latest measurement used, so no future age at CKD G5 was reported.`
+          : 'The fitted crossing is more than 20 years after the latest eligible eGFR measurement, so no future age at CKD G5 was reported.',
+        caveat,
+      }
     case 'already_below_threshold':
       return {
         label: 'G5 now',
         title:
-          `The fitted curve reaches ${CKD_G5_EGFR_THRESHOLD} at or before the latest measurement, ` +
+          (aki ? akiLead : '') +
+          `The fitted curve reaches ${CKD_G5_EGFR_THRESHOLD} at or before the latest measurement${aki ? ' used' : ''}, ` +
           'so there is no future crossing to project. This does not establish an observed event.',
         caveat,
       }
