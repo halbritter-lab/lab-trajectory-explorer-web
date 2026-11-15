@@ -7,10 +7,11 @@ interfaces are still evolving before 1.0.
 
 ### Fixed (release review, 2026-11-15)
 
-- Creatinine names with the abbreviation "u." for "und", such as
+- Creatinine names with the abbreviation "u." for "und" between two blood
+  materials (Serum, Plasma, Vollblut, HP, S, P) or in "vor u. nach", such as
   `Kreatinin im Serum u. Plasma` or `Kreatinin vor u. nach Dialyse`, count as
-  serum creatinine again. `Kreatinin [U]` and `Kreatinin:U` are recognised as
-  urine.
+  serum creatinine again. A lone `U` next to any other word stays urine.
+  `Kreatinin [U]` and `Kreatinin:U` are recognised as urine.
 - When AKI windows are left out of the G5 projection, the detail text of
   `G5 < 3 dates`, `G5 < 5 dates` and `G5 < 1 yr` says so instead of describing
   the series as having too few dates or too short a span.

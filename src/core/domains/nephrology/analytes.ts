@@ -62,11 +62,16 @@ const NON_SERUM_SUBSTRINGS = ['urin', 'harn', 'dialysat', 'punktat', 'fluid', 'a
  * `Drain`, `PD` (peritoneal dialysate) and `Serom`. */
 const NON_SERUM_TOKENS: ReadonlySet<string> = new Set(['i.u', 'u', 'su', 'su24h', 'spu', 'pu', 'csf', 'drain', 'pd', 'serom'])
 
-/** A lone `u` or `u.` standing between two words, separated from both by
- * whitespace only, is the German abbreviation of "und" ("Serum u. Plasma",
- * "vor u. nach Dialyse"), not urine. The word before ends in a letter, a dot
- * or a closing bracket; the word after starts with a letter. */
-const UND_ABBREVIATION = /(?<=[\p{L}.)\]]\s+)u\.?\s+(?=\p{L})/gu
+/** A lone `u` or `u.` is the German abbreviation of "und", not urine, only
+ * between two blood-material words (Serum, Plasma, Vollblut, HP, S, P; `i.S.`
+ * and `i.P.` end in S and P) or in "vor u. nach" (decided 2026-11-15). Only
+ * whitespace separates it from both words; the word before may carry one dot
+ * and a closing bracket, the word after an opening bracket. Any other lone
+ * `u` stays urine, so an unknown spelling is excluded visibly rather than
+ * read as serum. */
+const BLOOD_WORD = String.raw`(?<![\p{L}\p{N}])(?:serum|plasma|vollblut|hp|s|p)(?![\p{L}\p{N}])`
+const UND_ABBREVIATION = new RegExp(
+  String.raw`(?<=${BLOOD_WORD}\.?[)\]]?\s+)u\.?\s+(?=[(\[]?${BLOOD_WORD})|(?<=(?<![\p{L}\p{N}])vor\s+)u\.?\s+(?=nach(?![\p{L}\p{N}]))`, 'gu')
 
 /** Name marks a measurement in a material other than serum or plasma: a
  * substring of `NON_SERUM_SUBSTRINGS` in any case, a token of

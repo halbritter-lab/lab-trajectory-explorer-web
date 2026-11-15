@@ -445,19 +445,24 @@ A review of everything merged since version 0.3.7 found the points below. The
 owner decided the creatinine name rule on 2026-11-15; the other items restore
 or protect documented behaviour and change no fitted number.
 
-- **A `u` between two words is "und", not urine** (owner decision
-  2026-11-15). The token rule of 2026-11-05 read the German abbreviation
-  "u." as urine, so `Kreatinin im Serum u. Plasma`,
+- **A `u` between two blood-material words is "und", not urine** (owner
+  decision 2026-11-15, resolves OD-32). The token rule of 2026-11-05 read the
+  German abbreviation "u." as urine, so `Kreatinin im Serum u. Plasma`,
   `Kreatinin (Serum u. Plasma)`, `Kreatinin i.S. u. P.` and
   `Kreatinin vor u. nach Dialyse` lost their eGFR and AKI detection, although
   they were eligible in 0.3.7. A lone `u`, with or without a dot, is now
-  removed when a word precedes it and a word starting with a letter follows,
-  each separated by whitespace only. Square brackets and colons separate
-  tokens, so `Kreatinin [U]` and `Kreatinin:U` are non-serum. Classification
-  change in both directions; no released version is affected, because the
-  token rule was never released. Left open as **OD-32**: any word after a
-  whitespace-separated lone `U` makes it "und", so `Kreatinin U mg/dl` and
-  `Kreatinin U spontan` count as serum creatinine.
+  removed only between two of the words Serum, Plasma, Vollblut, HP, S and P
+  (so also `i.S.` and `i.P.`), or between `vor` and `nach`, separated by
+  whitespace only. Everywhere else it stays urine: `Kreatinin U enzymatisch`,
+  `24h U Kreatinin`, `Kreatinin U mg/dl`, `Kreatinin U u. S` and
+  `Kreatinin S u. U` are non-serum. The owner chose this after a review showed
+  that a wider first rule (any word on both sides) turned urine names into
+  serum creatinine; an unknown spelling is now excluded, which the Data page
+  shows, instead of being used silently. Square brackets and colons separate
+  tokens, so `Kreatinin [U]` and `Kreatinin:U` are non-serum. Compared with
+  `main` before this change, only the "und" names above become eligible and
+  only `[U]` and `:U` become non-serum; no released version is affected,
+  because the token rule was never released.
 - **Withheld G5 projection names the AKI exclusion.** When a column leaves AKI
   windows out of the projection, the badge detail for `G5 < 3 dates`,
   `G5 < 5 dates` and `G5 < 1 yr` starts with "Measurements inside AKI
