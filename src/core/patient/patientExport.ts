@@ -1,5 +1,5 @@
 import type { LabRow, PatientId } from '../types'
-import { utcDateOrBlank as isoDate } from '../format'
+import { utcDateOrBlank } from '../format'
 
 /** One row per measurement for a single patient. Includes synthesised eGFR rows
  * when the caller passes display rows with computed eGFR appended. */
@@ -27,7 +27,7 @@ export function patientMeasurementRecords(rows: LabRow[], patientId: PatientId):
     })
     .map((r) => ({
       PatientID: r.patientId,
-      Datum: r.labDatum ? isoDate(r.labDatum) : '',
+      Datum: utcDateOrBlank(r.labDatum),
       Bezeichnung: r.bezeichnung ?? '',
       Einheit: r.einheit ?? '',
       Wert: r.wert ?? '',

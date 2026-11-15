@@ -10,7 +10,7 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "build:kidney": "vite build packages/kidney && tsc -p packages/kidney && node packages/kidney/scripts/add-dts-extensions.mjs",
-    "test:kidney": "tsc -p packages/kidney/test && node --test packages/kidney/test/built-package.node.mjs",
+    "test:kidney": "tsc -p packages/kidney/test && node packages/kidney/test/run-tests.mjs",
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",

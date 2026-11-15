@@ -2,7 +2,7 @@ import { cohortExportRecords, cohortSheetRecord, EXPORT_DISCLAIMER_ROWS, type Co
 import { patientMeasurementRecords } from '../core/patient/patientExport'
 import { patientAttributesExportRows } from '../core/attributes/attributes'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
-import { utcDateOrBlank as utcDate } from '../core/format'
+import { utcDateOrBlank } from '../core/format'
 import { demographicWarningsByPatient } from '../core/demographics/describe'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString } from '../io/export'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
@@ -46,7 +46,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const measurementRows = (rows: LabRow[], raw = false) => scopedRows(rows).flatMap(row => {
     const parameter = bySeries.get(seriesIdentity(row.bezeichnung,row.einheit))!
     return patientMeasurementRecords([row],row.patientId).map(record => ({
-      PatientID:record.PatientID,Date:utcDate(row.labDatum),Parameter:record.Bezeichnung,Unit:record.Einheit,Value:record.Wert,NumericValue:record.WertNum,Operator:record.Operator,
+      PatientID:record.PatientID,Date:utcDateOrBlank(row.labDatum),Parameter:record.Bezeichnung,Unit:record.Einheit,Value:record.Wert,NumericValue:record.WertNum,Operator:record.Operator,
       origin:!raw && parameter.derived ? 'derived' : 'imported',
       formula:!raw && parameter.derived ? data.analysisSettings.egfr.formula : '',
       patient_sex:row.patientSex ?? '',patient_age_at_lab:row.patientAgeAtLab,
@@ -71,11 +71,11 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     {name:'measurements',rows:measurementRows(data.rows)},
     {name:'raw_measurements',rows:measurementRows(data.rawRows,true)},
     {name:patientId === undefined ? 'cohort' : 'slopes',rows:summaries},
-    {name:'events',rows:data.events.filter(event => idSet.has(event.patientId)).map(event => ({...event,date:utcDate(event.date),endDate:utcDate(event.endDate)}))},
+    {name:'events',rows:data.events.filter(event => idSet.has(event.patientId)).map(event => ({...event,date:utcDateOrBlank(event.date),endDate:utcDateOrBlank(event.endDate)}))},
     {name:'patient_attributes',rows:patientAttributesExportRows(attrs)},
     {name:'demographics',rows:ids.map(id => {
       const patient = data.patients.find(patient => patient.id === id)
-      return {patientId:id,baseline_age:patient?.baselineAge ?? null,birth_anchor:utcDate(patient?.birthAnchor ?? null),age_estimated:patient?.ageEstimated ?? null,manual_override:JSON.stringify(data.manualDemographics[patientIdKey(id)] ?? {}),warnings:warningsFor(id).join('; ')}
+      return {patientId:id,baseline_age:patient?.baselineAge ?? null,birth_anchor:utcDateOrBlank(patient?.birthAnchor ?? null),age_estimated:patient?.ageEstimated ?? null,manual_override:JSON.stringify(data.manualDemographics[patientIdKey(id)] ?? {}),warnings:warningsFor(id).join('; ')}
     })},
     {name:'parameters',rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : ''}))},
     {name:'settings',rows:specs.map((spec,index) => ({parameter_key:requestedKeys[index],parameter:spec.bezeichnung,unit:spec.einheit ?? '',mode:spec.mode,fit_config:JSON.stringify(spec.fitConfig ?? {}),...moduleSettingColumns(requestedKeys[index]),analysis_settings:JSON.stringify(data.analysisSettings),patient_ids:JSON.stringify(ids),source_file:data.fileName ?? '',scope:patientId === undefined ? 'visible cohort' : 'selected patient'}))},

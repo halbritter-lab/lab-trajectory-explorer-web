@@ -4,7 +4,7 @@ import { applyExclusionWindows, exclusionReasonsAt } from '../exclusions/windows
 import type { PatientGroup } from '../grouping/grouping'
 import { balanceSeriesPointGroups } from '../stats/timeBalancing'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
-import { utcDateOrBlank as isoDate } from '../format'
+import { utcDateOrBlank } from '../format'
 import type { MixedModelInputFlag, MixedModelSpikeRow } from './types'
 import { roundTo10Decimals } from './validation'
 import { isExactMeasurement } from '../measurements/censored'
@@ -75,7 +75,7 @@ function buildMixedModelRows(
     const flagFor = new Map<LabRow, MixedModelInputFlag>()
     for (const row of allSeriesRows) {
       const reason = row.labDatum === null ? 'no_date' : row.wertNum === null ? 'no_numeric_value' : !isExactMeasurement(row) ? 'bound_value' : ''
-      const flag: MixedModelInputFlag = { patient_id: patientKey, date: isoDate(row.labDatum), value: row.wertNum, status: 'excluded', reason, model_date: '' }
+      const flag: MixedModelInputFlag = { patient_id: patientKey, date: utcDateOrBlank(row.labDatum), value: row.wertNum, status: 'excluded', reason, model_date: '' }
       flagFor.set(row, flag)
       inputFlags.push(flag)
     }
@@ -121,7 +121,7 @@ function buildMixedModelRows(
       const kept = selectedPoints.has(balanced[index])
       for (const { flag } of members) {
         if (!kept) flag.reason = 'run_in'
-        else Object.assign(flag, { status: members.length > 1 ? 'aggregated_into_median' : 'entered', model_date: isoDate(balanced[index].date) })
+        else Object.assign(flag, { status: members.length > 1 ? 'aggregated_into_median' : 'entered', model_date: utcDateOrBlank(balanced[index].date) })
       }
     })
     if (selected.length === 0) continue
@@ -145,7 +145,7 @@ function buildMixedModelRows(
       out.push({
         patient_id: series.patientKey,
         value: point.value,
-        date: isoDate(point.date),
+        date: utcDateOrBlank(point.date),
         time_since_baseline: roundYears((point.date.getTime() - baselineDate) / MS_PER_YEAR),
         baseline_age: baselineAge ?? undefined,
         baseline_age_centered: baselineAge !== null && meanBaselineAge !== null
@@ -176,7 +176,6 @@ export function mixedModelRowsByGroup(
   }
   return byGroup
 }
-
 
 function roundYears(value: number): number {
   return roundTo10Decimals(value)

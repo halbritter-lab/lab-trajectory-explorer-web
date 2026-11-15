@@ -1,5 +1,5 @@
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../types'
-import { utcDateOrBlank as dateOrBlank } from '../format'
+import { utcDateOrBlank } from '../format'
 import type { SeriesPoint } from '../stats/series'
 import { fitGlobal, fitTheilSen } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
@@ -417,10 +417,10 @@ export function cohortExportRecords(
         rolling_windows: c.rolling?.nWindows ?? '',
         rolling_slope_min: c.rolling ? numOrBlank(c.rolling.slopeMin) : '',
         rolling_slope_max: c.rolling ? numOrBlank(c.rolling.slopeMax) : '',
-        index_date: dateOrBlank(c.firstFittedDate),
-        last_fitted_date: dateOrBlank(c.lastFittedDate),
-        first_eligible_date: dateOrBlank(c.firstEligibleDate),
-        last_eligible_date: dateOrBlank(c.lastEligibleDate),
+        index_date: utcDateOrBlank(c.firstFittedDate),
+        last_fitted_date: utcDateOrBlank(c.lastFittedDate),
+        first_eligible_date: utcDateOrBlank(c.firstEligibleDate),
+        last_eligible_date: utcDateOrBlank(c.lastEligibleDate),
         intercept: numOrBlank(c.intercept),
         slope_se: numOrBlank(c.slopeSe),
       })

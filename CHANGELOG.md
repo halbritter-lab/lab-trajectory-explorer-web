@@ -27,7 +27,7 @@ interfaces are still evolving before 1.0.
 - `isUnstableSlope` in the library package flags fewer than three fitted
   points even when called without `nFittedDates`.
 - `pnpm test:kidney` no longer relies on a glob that only Node 21 and later
-  expand.
+  expand: a small runner starts every `*.node.mjs` test of the package.
 
 ### Changed (creatinine source and AKI, issue #34)
 
