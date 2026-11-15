@@ -3876,11 +3876,18 @@ carries `unit_key`: `cohort` for the whole cohort and `group:<value>` for a
 group. `entity` is the display label and can repeat: a group whose value is
 "Whole cohort" has the same `entity` as the pooled model and the `unit_key`
 `group:Whole cohort`. On the sheets that predate it (`models`, `coefficients`,
-`factors`, `centering`, `excluded_patients`, `projections`) `unit_key` is the
-last value of each row; on `vcov`, `model_rows` and `model_input_flags` it
-follows `entity`. `models` and `projections` have rows of different shapes
-(failed fits, projections without targets), so the column of `unit_key` on
-those two sheets depends on the rows exported.
+`factors`, `centering`, `excluded_patients`, `projections`) the columns added
+since 0.3.7, `std_error` and `unit_key`, are the last columns of the sheet,
+after every 0.3.7 column (`newColumnsLast`). This also holds when the rows of
+a sheet have different shapes. The 0.3.7 columns keep the order in which
+they first appear across the rows, which is how the workbook was written
+then; that order depends on the rows exported, as it did in 0.3.7. Example:
+with the factors baseline age (numeric, no reference) and sex (categorical),
+`factors` reads `entity`, `key`, `kind`, `effect`, `column`, `reference`,
+`unit_key`, and the baseline-age row has an empty `reference` cell; with a
+successful whole-cohort fit and a failed group fit, `models` ends in
+`singular`, `message`, `unit_key`. On `vcov`, `model_rows` and
+`model_input_flags` `unit_key` follows `entity`.
 
 **R reproduction (since 2026-11-05).** These outputs let a fit be rebuilt and
 extended in R. They add no estimate and change none.

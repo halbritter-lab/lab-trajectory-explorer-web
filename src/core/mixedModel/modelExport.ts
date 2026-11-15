@@ -142,12 +142,12 @@ export function mixedModelExportSheets(
     }
   }
   return [
-    { name: 'models', rows: settings },
-    { name: 'coefficients', rows: coefficients },
-    { name: 'factors', rows: factors },
-    { name: 'centering', rows: centers },
-    { name: 'excluded_patients', rows: exclusions },
-    ...(models.some((model) => model.projection) ? [{ name: 'projections', rows: projections }] : []),
+    { name: 'models', rows: newColumnsLast(settings) },
+    { name: 'coefficients', rows: newColumnsLast(coefficients) },
+    { name: 'factors', rows: newColumnsLast(factors) },
+    { name: 'centering', rows: newColumnsLast(centers) },
+    { name: 'excluded_patients', rows: newColumnsLast(exclusions) },
+    ...(models.some((model) => model.projection) ? [{ name: 'projections', rows: newColumnsLast(projections) }] : []),
     { name: 'about', rows: [
       ...EXPORT_DISCLAIMER_ROWS,
       { note: 'Adjusted intercept and slope refer to the selected reference categories and centered numeric predictors. Time is years since the first retained measurement. Associations are conditional on the selected model and population.' },
@@ -161,6 +161,24 @@ export function mixedModelExportSheets(
     { name: 'model_input_flags', rows: inputFlags },
     { name: 'r_script', rows: mixedModelRScript(models).map((line) => ({ line })) },
   ]
+}
+
+/** Columns added to the 0.3.7 sheets. */
+const COLUMNS_SINCE_0_3_7 = ['std_error', 'unit_key']
+
+/** Gives every row of a 0.3.7 sheet the same keys in one order: the 0.3.7
+ * columns in the order they first appear across the rows, as the workbook
+ * writer ordered them then, followed by the columns added since. Rows of one
+ * sheet differ in shape (a failed fit has `message`, a numeric factor no
+ * `reference`), and the writer takes columns in order of first appearance, so
+ * a new key at the end of an early row would otherwise land before a 0.3.7
+ * column that only a later row has. A key a row lacks is `undefined`, which
+ * the writer leaves as an empty cell. */
+function newColumnsLast(rows: readonly object[]): object[] {
+  const records = rows as readonly Record<string, unknown>[]
+  const keys = [...new Set(records.flatMap((row) => Object.keys(row)))]
+  const header = [...keys.filter((key) => !COLUMNS_SINCE_0_3_7.includes(key)), ...COLUMNS_SINCE_0_3_7.filter((key) => keys.includes(key))]
+  return records.map((row) => Object.fromEntries(header.map((key) => [key, row[key]])))
 }
 
 function coefficientUnit(term: string, outcomeUnit: string, config?: MixedModelConfig): string {

@@ -477,7 +477,9 @@ or protect documented behaviour and change no fitted number.
 - **Cohort model workbook: stable positions and `unit_key` everywhere.**
   Sheets and columns of 0.3.7 keep their positions: `vcov`, `model_rows`,
   `model_input_flags` and `r_script` follow `about`, and `std_error` and
-  `unit_key` are the last columns of `coefficients`. Every sheet that names a
+  `unit_key` are the last columns of every 0.3.7 sheet, also when its rows
+  have different shapes (a failed fit beside a successful one, a numeric
+  factor beside a categorical one). Every sheet that names a
   unit carries `unit_key`, so the two covariance matrices of a pooled model
   and a group named "Whole cohort" can be told apart.
 - **AKI detection scans each patient's rows once.** The dataset pass buckets

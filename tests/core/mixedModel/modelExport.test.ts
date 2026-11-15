@@ -130,6 +130,38 @@ describe('R reproduction export', () => {
     expect(header('models').at(-1)).toBe('unit_key')
   })
 
+  // Review of PR #47: rows of one sheet differ in shape, and the writer orders columns by first appearance.
+  it('keeps new columns last when rows of a sheet have different shapes', () => {
+    const header = (list: ReturnType<typeof mixedModelExportSheets>, name: string) =>
+      XLSX.utils.sheet_to_json<string[]>(XLSX.read(sheetsToXlsxBytes(list),{type:'array'}).Sheets[name],{header:1})[0]
+    // A numeric factor (no `reference`) before a categorical one.
+    const config = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'baseline_age',kind:'numeric' as const,effect:'level_slope' as const}, {key:'sex',kind:'categorical' as const,effect:'level_slope' as const,reference:'m'}]}
+    const fitted = {...result,metadata:{...result.metadata,modelConfig:config}} as unknown as MixedModelSuccess
+    // A successful cohort fit before a failed group fit (`message` appears only in the second row).
+    const failed = {status:'error',message:'Too few patients',metadata:{...result.metadata,modelConfig:config},warnings:[]} as unknown as MixedModelSuccess
+    const mixed = mixedModelExportSheets([
+      {entity:'Whole cohort',result:fitted,identity:{seriesKey:'eGFR|ml/min'}},
+      {entity:'G1',result:failed,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'}},
+    ])
+    expect(header(mixed,'factors')).toEqual(['entity','key','kind','effect','column','reference','unit_key'])
+    expect(header(mixed,'models').slice(-3)).toEqual(['singular','message','unit_key'])
+    expect(XLSX.utils.sheet_to_json(XLSX.read(sheetsToXlsxBytes(mixed),{type:'array'}).Sheets.factors)[0]).toEqual({entity:'Whole cohort',key:'baseline_age',kind:'numeric',effect:'level_slope',column:'baseline_age_centered',unit_key:'cohort'})
+    // A unit without projection targets (fewer columns) before one with a target.
+    const base = {status:'success', converged:true, singular:false, metadata:{}, warnings:[], fixedEffects:{intercept:80,timeSinceBaseline:5}, fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as unknown as MixedModelSuccess
+    const second = {...base} as MixedModelSuccess
+    const target = {id:'custom',label:'Study boundary',outcome:'eGFR',unit:'ml/min',threshold:100,direction:'above' as const,enabled:true}
+    const projectionFor = (source: MixedModelSuccess, groupValue: string | undefined, targets: typeof target[]) => ({sourceResult:source,sourceIdentity:{seriesKey:'eGFR|ml/min',groupValue},sourceResponse:{outcome:'eGFR',unit:'ml/min'},
+      settings:{targets,profile:{},referenceTimeYears:0,horizonYears:20},line:{status:'ready',intercept:80,slopePerYear:5},
+      rows:targets.map(row => ({target:row,status:'crossing',reason:null,modelTimeYears:4,remainingYears:4}))}) as unknown as ProjectionSnapshot
+    const projected = mixedModelExportSheets([
+      {entity:'Whole cohort',result:base,identity:{seriesKey:'eGFR|ml/min'},projection:projectionFor(base,undefined,[])},
+      {entity:'G1',result:second,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'},projection:projectionFor(second,'G1',[target])},
+    ])
+    const projectionHeader = header(projected,'projections')
+    expect(projectionHeader.at(-1)).toBe('unit_key')
+    expect(projectionHeader).toContain('target_id')
+  })
+
   it('generates an R script with the worker data, contrast and model code', () => {
     const script = sheet('r_script').map(row => row.line).join('\n')
     expect(script).toContain('Research use only')

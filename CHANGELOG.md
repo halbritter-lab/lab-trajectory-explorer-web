@@ -16,8 +16,9 @@ interfaces are still evolving before 1.0.
   `G5 < 3 dates`, `G5 < 5 dates` and `G5 < 1 yr` says so instead of describing
   the series as having too few dates or too short a span.
 - Cohort model workbook: sheets and columns keep their 0.3.7 positions (new
-  sheets follow `about`, `std_error` and `unit_key` are the last columns of
-  `coefficients`), and `unit_key` is on every sheet that names a fitted unit.
+  sheets follow `about`; `std_error` and `unit_key` are the last columns of
+  the earlier sheets, also when rows differ in shape), and `unit_key` is on
+  every sheet that names a fitted unit.
 - Loading and re-analysing large datasets is fast again: AKI detection no
   longer scans every patient's rows for each series.
 - The Cohort models page no longer shows an empty "patients per level" list
