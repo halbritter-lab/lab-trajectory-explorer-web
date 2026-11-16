@@ -22,14 +22,62 @@ identical values only from three points on (two identical values give slope 0
 and R² = 1); in B6, the birth date comes from the earliest dated lab row that
 carries one. The blocks below show the adjusted wording.
 
-**Part C was drafted on 2026-11-14 and is not applied.** It covers the
-changes of the clinical-review pull requests (#37, #39, #41) and a proposal
-on which trend method suits which case. It awaits the owner's approval.
+**Part C was approved by the owner on 2026-11-16 and is applied** (pull
+request #53). It covers the changes of the clinical-review pull requests
+(#37, #39, #41) and which trend method suits which case. C11 went onto the
+page in a two-sentence version; the blocks below keep the drafted wording
+and the notes say where the page differs.
 
-**Part D was drafted on 2026-11-16 and is not applied.** It follows two
-audits of the scientific basis: a full reference list for the Sources page, a
-list of the tool's own rules that are not published standards, and corrected
-statements. It awaits the owner's approval.
+**Part D was approved by the owner on 2026-11-16 and is applied, except
+D1 (a)** (pull request #53; D3 (c) and (d2) already with #50). It follows
+two audits of the scientific basis. **The full reference list D1 (a) is
+still open:** it waits until the owner has compared the EKFC coefficients
+with the paper and the EMA guideline is confirmed. Of the "Notes for code
+changes", the settings heading and the whole-year display of the projected
+age are made; the lme4 citation in the R script is not.
+
+**Part E (E1) was approved by the owner on 2026-11-16 and is applied** (pull
+request #53).
+
+**How the page differs from the blocks of Parts C, D and E** (code and page
+win over the draft):
+
+- C1: the paragraph is split after the new text; "Only dated exact numeric
+  values are used" starts its own paragraph.
+- C3, C4, E1: order in the **Units** bullet of `Data.tsx` is the existing
+  conversion sentence with "A value stored under the wrong unit would
+  therefore yield a wrong eGFR", then E1, then C4; C3 is its own bullet.
+- C5: the `Sources.tsx` entry was added to the existing list in its style.
+- C8: the six-value example stays in the OLS paragraph; the Theil–Sen part
+  follows as its own paragraph.
+- C9: in addition, the row **G5 no fit** names Trend being switched off, the
+  method No fit, or a failed fit, as the badge tooltip does.
+- C11: two sentences only: "The 57% threshold only approximates a doubling
+  of serum creatinine, and the match depends on the equation. Below the
+  equation's breakpoint the decline is smaller."
+- D2: "have not been validated against outcomes" instead of "are not
+  validated"; the example chip is *AKI I, 2×II, III*; the opening says the
+  thresholds "are published standards" and the 40 % and 57 % "are published
+  endpoint thresholds", not "come from the publications below", because the
+  reference list D1 (a) is not on the page yet.
+- D3 (a): reduced to dropping "95%" from "The reported 95% bounds" in
+  `Fits.tsx` and from "95% slope bounds" in `Sources.tsx`; the sentence added
+  with #50 stays.
+- D3 (d2): the sentence approved with #50 stays ("… to the lowest value of
+  the previous 7 days:"); the stage list now refers to that lowest value, and
+  the sentence "An episode gets the highest stage that any of its values
+  reaches." follows the list.
+- D3 (f): without a literature reference.
+- D1 (b): the EKFC entry in `Sources.tsx` links to
+  `https://doi.org/10.7326/M20-4366`.
+- "Projection" replaces "prediction" in headings, navigation labels and text
+  of the page; the section id `prediction` is unchanged. The sentence on the
+  displayed age now says that the table shows a whole number marked as
+  approximate on either age basis and that the export keeps the unrounded
+  value.
+- Follow-up edits: "aggregation" and "Display-fit AKI exclusions" are gone
+  from the page, "Theil–Sen" and "1.73 m²" are uniform, and the 20-year
+  horizon reads "latest measurement used".
 
 ## Part A: passages that no longer match the application
 
@@ -467,13 +515,15 @@ removed; every remaining sentence is the earlier wording.
   projections and model lines; a non-converged fit does so as well, as B7
   states.
 
-## Part C: drafts after the clinical-review changes (revised 2026-11-16, not applied)
+## Part C: drafts after the clinical-review changes (applied 2026-11-16, PR #53)
 
 Drafted 2026-11-14 for [issue #44](https://github.com/halbritter-lab/lab-trajectory-explorer-web/issues/44),
 after the pull requests #37, #39 and #41 were merged, and revised on
-2026-11-16 after #47. **Nothing in Part C is on the methodology page yet.**
-Until it is approved and applied, the page contradicts the application in the
-places listed under C6 to C10.
+2026-11-16 after #47. **Part C was approved by the owner on 2026-11-16 and is
+on the methodology page since pull request #53**; "Current" below refers to
+the text it replaced or follows, and the line numbers to the files before
+that change. Where the page differs from a block, the list at the top of this
+file says so.
 
 **What was checked on 2026-11-16.**
 
@@ -1116,11 +1166,13 @@ are wording only; none changes a statement.
 - **Not drafted:** a note for imported eGFR series whose laboratory changed
   the equation mid-series. It is deferred as a feature in issue #4.
 
-## Part D: sources, own rules and corrected statements after the science audits (2026-11-16, not applied)
+## Part D: sources, own rules and corrected statements after the science audits (applied 2026-11-16, PR #53, except D1 a)
 
 Drafted 2026-11-16 after two read-only audits of the nephrology and the
-statistical methods on `main`. **Nothing in Part D is on the methodology page
-yet**, and no source file was changed. Result of the audits in one sentence:
+statistical methods on `main`. **Part D was approved by the owner on
+2026-11-16 and is on the methodology page since pull request #53, except the
+reference list D1 (a), which is still open** (D3 (c) and (d2) went in with
+#50, D3 (d) is superseded). Result of the audits in one sentence:
 every coefficient and threshold in the code matched its published source; the
 gaps are missing or incomplete citations, a few statements that claim too
 much, and own rules that a reader could take for published standards.
@@ -1147,6 +1199,11 @@ written as text with their target; every target was checked against the topic
 and section ids of the page.
 
 ### D1. Sources page: a full reference list
+
+**D1 (a) is NOT applied (open).** The owner decided on 2026-11-16 that the
+full list waits until he has compared the EKFC coefficients with the paper
+and the EMA guideline is confirmed. Only the CKD-EPI 2009 entry (C5) and the
+DOI link of the EKFC entry were added to the existing list. D1 (b) is applied.
 
 **(a)** `Sources.tsx`, list *Medical Sources* (lines 52–92). Current: five
 items that are link texts without authors, title, year, volume, pages or DOI:
@@ -1674,10 +1731,13 @@ dialysis for at least four weeks), which the audit had from memory only. The
 first clause of the current sentence is replaced by C6 (d); apply both
 together.
 
-### Notes for code changes from Part D (not made)
+### Notes for code changes from Part D
 
 These are decisions about the interface, not wording of the methodology page.
-None was changed.
+Made on 2026-11-16 (pull request #53): the settings heading with its hint, and
+the projected age in whole years on either age basis (`G5 @ ~64y`; the export
+keeps the unrounded value). Made earlier that day: the "Slope range" label and
+the AKI staging. Not made: the lme4 citation in the R export.
 
 - **Settings heading "AKI exclusions (KDIGO)"**
   (`src/workspace/trajectory-ui/NephrologySettings.tsx` line 67 and
@@ -1720,11 +1780,11 @@ None was changed.
   (i) and C6 (d) touch the same sentence in `Fits.tsx`; D3 (h) and the
   follow-up list of Part C both correct "1.73m²" in `Trajectories.tsx`.
 
-## Part E: draft after the simulated-user case studies (2026-11-16, not applied)
+## Part E: draft after the simulated-user case studies (applied 2026-11-16, PR #53)
 
 One sentence of the methodology page was read wrongly in the simulated-user
-case studies of 2026-11-16 (case A, own data). As in Parts C and D,
-the wording is the maintainer's and nothing here is applied.
+case studies of 2026-11-16 (case A, own data). The owner approved
+E1 on 2026-11-16 and it is applied (pull request #53).
 
 ### E1. What "converted automatically" covers
 
