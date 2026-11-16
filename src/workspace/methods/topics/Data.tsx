@@ -15,6 +15,14 @@ export function Data() { return <>
           creatinine assays. Used when the formula selector is set to <em>CKD-EPI 2021</em>.
         </li>
         <li>
+          <strong>CKD-EPI 2009 (race-free)</strong> — creatinine equation published by Levey et al.
+          (Annals of Internal Medicine 2009). It is offered so that results can be compared with
+          analyses that use this equation. The published coefficient for Black race (× 1.159) is{' '}
+          <strong>not applied</strong>, because the app records no race. For patients to whom that
+          coefficient does not apply, the result equals the published equation. Used when the
+          formula selector is set to <em>CKD-EPI 2009 (race-free)</em>.
+        </li>
+        <li>
           <strong>MDRD-4</strong> — four-variable (IDMS-traceable) Modification of Diet in Renal
           Disease equation, using the re-expressed 175-coefficient form for standardized
           creatinine. Used when the formula selector is set to <em>MDRD-4</em>. The published race
@@ -26,9 +34,12 @@ export function Data() { return <>
           published by Pottel et al. in Annals of Internal Medicine. It rescales creatinine by sex-
           and age-specific Q values
           (age-specific for 18-25 years, then 0.90 mg/dl for male and 0.70 mg/dl for female).
-          The NIDDK notes that EKFC creatinine was developed mainly in White European populations,
-          uses population-specific Q scaling, and does not meet US race-free equation
-          recommendations.
+          The{' '}
+          <a href="https://www.niddk.nih.gov/research-funding/research-programs/kidney-clinical-research-epidemiology/laboratory/glomerular-filtration-rate-equations/children-adolescents-young-adults" target="_blank" rel="noreferrer">NIDDK</a>{' '}
+          notes that the EKFC creatinine equation was developed in a population of White European
+          children and adults, has not yet been fully validated in diverse populations, rescales
+          creatinine by a Q value for which no factors have been established for the United States,
+          and does not meet recommendations for race-free equations.
         </li>
       </ul>
       <p>
@@ -43,9 +54,27 @@ export function Data() { return <>
         <li>
           <strong>Units</strong> — creatinine is expected in <em>mg/dl</em>. Values recorded in{' '}
           <em>µmol/l</em> are converted automatically (÷ 88.42); other units are not used as an eGFR
-          source. A value stored under the wrong unit would therefore yield a wrong eGFR. The EKFC
+          source. A value stored under the wrong unit would therefore yield a wrong eGFR. The
+          calculation reads one creatinine source: one test name with one unit. If that source is
+          recorded in <em>µmol/l</em>, its values are converted. Creatinine values of the same
+          patient under another test name or in another unit form a separate parameter and are not
+          added to the source. The Data page lists such series under “Not used for this eGFR”.
+          Creatinine from urine, dialysate or another body fluid is not used as an eGFR source
+          either (see <a href="#methods/aki/detection">AKI detection</a> for how such series are
+          recognised). If a saved session selects such a series, or a series in another unit, the
+          Data page says so while a formula is selected, and computes no eGFR until another source
+          or <em>Automatic</em> is chosen. The EKFC
           equation's own age-specific Q values for ages 18 to 25 are converted with the factor
           88.4; the difference changes an eGFR by at most about 0.03 mL/min/1.73 m².
+        </li>
+        <li>
+          <strong>Plausibility warnings</strong> — the Data page warns when dated exact values of
+          any serum creatinine series are above 25 mg/dl (2210.5 µmol/l), and when exact computed
+          eGFR values in the preview under <em>3. Derive eGFR</em> are above 200 mL/min/1.73 m². A
+          value of exactly 25 mg/dl or exactly 200 gives no warning. The usual cause is a µmol/l
+          column labelled mg/dl. No value is changed or excluded. The warnings do not detect every
+          wrong source: a urine series with an unrecognised name can stay below both limits.
+          Imported eGFR series are not checked.
         </li>
         <li>
           <strong>Sex</strong> — the equations use sex-specific coefficients for{' '}

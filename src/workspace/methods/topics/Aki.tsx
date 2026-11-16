@@ -3,7 +3,19 @@ export function Aki() { return <>
 
       <p>
         AKI detection accepts serum creatinine in mg/dl or µmol/l; µmol/l values are divided by
-        88.42 before KDIGO comparisons. Only dated exact numeric values are used. Values of zero or
+        88.42 before KDIGO comparisons. Creatinine from other materials is not used. A series
+        counts as creatinine when its name contains “Kreatinin” or “Creatinin” and its unit is
+        mg/dl or µmol/l. It is left out when the name points to another material: urine (for
+        example “Kreatinin i.U.”, “U-Kreatinin”, “Sammelurin”), dialysate, ascites, pleural or
+        another fluid, cerebrospinal fluid (“Liquor”, “CSF”) or a drain. Aspirate, seroma,
+        secretions and lymph are recognised in their German spelling only (“Punktat”, “Serom”,
+        “Sekret”, “Lymphe”). A single letter “U” in the name also counts as urine, except where
+        “u.” stands for “und” between two blood materials (“Serum u. Plasma”) or in “vor u. nach”.
+        The rule reads the parameter name only. Every other creatinine name is treated as serum
+        creatinine, so check the <em>Creatinine source</em> under Data.
+      </p>
+      <p>
+        Only dated exact numeric values are used. Values of zero or
         less are ignored. Creatinine measured under dialysis is ignored as well: from the start of
         a chronic dialysis until a later kidney transplant, and during an acute dialysis with a
         recorded end date, both boundary days included. Detection continues after
@@ -28,17 +40,18 @@ export function Aki() { return <>
       <p>AKI episodes are staged by the ratio of creatinine to the lowest value of the previous 7 days:</p>
       <ul>
         <li>
-          <strong>Stage I</strong> — rise ≥ 0.3 mg/dl or peak/baseline ≥ 1.5×, unless a higher stage
-          applies.
+          <strong>Stage I</strong> — ≥ 1.5× that lowest value, or ≥ 0.3 mg/dl above it, unless a
+          higher stage applies.
         </li>
         <li>
-          <strong>Stage II</strong> — peak/baseline ≥ 2.0× and &lt; 3.0×.
+          <strong>Stage II</strong> — ≥ 2.0× and &lt; 3.0× that lowest value.
         </li>
         <li>
-          <strong>Stage III</strong> — peak/baseline ≥ 3.0×, or absolute peak creatinine ≥ 4.0 mg/dl
-          (the absolute peak override applies regardless of baseline ratio).
+          <strong>Stage III</strong> — ≥ 3.0× that lowest value, or creatinine ≥ 4.0 mg/dl
+          (the absolute level applies regardless of the ratio).
         </li>
       </ul>
+      <p>An episode gets the highest stage that any of its values reaches.</p>
       <p>
         Detection compares each value with the <strong>lowest creatinine within the lookback window</strong>
         {' '}(48 h for the absolute criterion, 7 days for the relative criterion). The stage always
@@ -51,6 +64,14 @@ export function Aki() { return <>
         patient charts and in the overlay when <em>AKI windows and episodes</em> is switched on.
         Grey open circles indicate values excluded from the active fit, so they remain visible even
         when AKI display is off.
+      </p>
+      <p>
+        Each parameter column shows the AKI episodes that apply to it. A serum creatinine column
+        (mg/dl or µmol/l) shows the episodes detected in its own values. A computed eGFR column
+        uses the creatinine series it was computed from. Every other column, including an imported
+        eGFR and a creatinine column in another material or unit, uses the patient&apos;s serum
+        creatinine series that has the largest number of dated exact values. Two columns of the
+        same patient can therefore show different episodes.
       </p>
       <p><strong>Important limitations of AKI detection:</strong></p>
       <ul>
@@ -96,7 +117,9 @@ export function Aki() { return <>
       <p>
         With AKI exclusion on, each episode removes from the fit all measurements from the onset
         date through onset + 30 days (default), both ends included: onset 2 January 2020 excludes
-        2 January to 1 February 2020.
+        2 January to 1 February 2020. For an eGFR column, the same windows are also left out of
+        the baseline of the 40% and 57% decline and of the G5 projection. Observed G4 and G5 still
+        use every eligible measurement (see <a href="#methods/endpoints/observed">Endpoints</a>).
       </p>
 </section>
 </details>
