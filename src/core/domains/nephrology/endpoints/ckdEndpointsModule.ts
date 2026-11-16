@@ -62,7 +62,9 @@ export const ckdEndpointsModule = {
   // Column order is part of the export format: the first three predate the
   // others, which were appended so positional readers keep working.
   exportColumns: [
-    { key: 'endpoint_percent_decline', value: (c: Cell) => c.endpoints.percentDecline.value ?? '' },
+    // Total change with the sign the badge shows: negative for a fall. The
+    // result field stays a decline (positive for a fall); `0 -` avoids -0.
+    { key: 'endpoint_percent_change', value: (c: Cell) => c.endpoints.percentDecline.value === null ? '' : 0 - c.endpoints.percentDecline.value },
     { key: 'endpoint_observed_ckd_g5', value: (c: Cell) => c.endpoints.observedCkdG5.met ? 'yes' : '' },
     { key: 'endpoint_projected_age_to_ckd_g5', value: (c: Cell) => c.endpoints.projectedAgeToCkdG5.value ?? '' },
     { key: 'endpoint_observed_ckd_g4', value: (c: Cell) => c.endpoints.observedCkdG4.met ? 'yes' : '' },

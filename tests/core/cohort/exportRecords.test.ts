@@ -5,6 +5,7 @@ import type { LabRow } from '../../../src/core/types'
 import { acuteReviewConfig, ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
 import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 import type { ClinicalEvent } from '../../../src/core/events/events'
+import { endpointBadge } from '../../../src/workspace/labels/endpointLabels'
 
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: new Date('2019-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',
@@ -217,6 +218,29 @@ describe('cohortExportRecords', () => {
     expect(Object.keys(grouped[0])[0]).toBe('group')
   })
 
+  it.each([
+    ['falling', [60, 45, 30], -50, '-50%'],
+    ['rising', [30, 36, 45], 50, '+50%'],
+  ] as const)('exports the total percent change of a %s series with the sign of the badge', (_name, values, change, label) => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const spec: CohortSeriesSpec = { ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter) }
+    const rows = values.map((wertNum, i) => row({ ...parameter, labDatum: d(`${2020 + i}-01-01`), wertNum, patientAgeAtLab: 60 + i }))
+    const cohort = buildCohortRows(rows, [1], [spec])
+    const [rec] = cohortExportRecords(cohort)
+    expect(rec.endpoint_percent_change).toBeCloseTo(change)
+    expect('endpoint_percent_decline' in rec).toBe(false)
+    const cell = cohort[0].cells[0]
+    // The badge shows the same number, rounded.
+    expect(endpointBadge(cell.endpoints, cell.nNumeric)?.label.split(',')[0]).toBe(label)
+  })
+
+  it('leaves the total percent change blank when it is not evaluated', () => {
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const rows = [60, 45, 30].map((wertNum, i) => row({ ...parameter, labDatum: d(`${2020 + i}-01-01`), wertNum }))
+    const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: generalExplorationConfig(parameter) }]))
+    expect(rec.endpoint_percent_change).toBe('')
+  })
+
   it('exports CKD endpoint values for eGFR cohort records', () => {
     const spec: CohortSeriesSpec = {
       bezeichnung: 'eGFR',
@@ -232,7 +256,7 @@ describe('cohortExportRecords', () => {
 
     const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
 
-    expect(rec.endpoint_percent_decline).toBeCloseTo(50)
+    expect(rec.endpoint_percent_change).toBeCloseTo(-50)
     expect(rec.endpoint_observed_ckd_g5).toBe('')
     expect(rec.endpoint_projected_age_to_ckd_g5).toBeCloseTo(63, 1)
     expect(rec.endpoint_prediction_slope_ci_low).toBeLessThan(0)
@@ -284,8 +308,8 @@ describe('cohortExportRecords', () => {
   it('keeps the original endpoint columns ahead of later additions', () => {
     const [rec] = cohortExportRecords(buildCohortRows([row({})], [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }]))
     const keys = Object.keys(rec)
-    expect(keys.slice(keys.indexOf('endpoint_percent_decline'), keys.indexOf('endpoint_percent_decline') + 4))
-      .toEqual(['endpoint_percent_decline', 'endpoint_observed_ckd_g5', 'endpoint_projected_age_to_ckd_g5', 'endpoint_observed_ckd_g4'])
+    expect(keys.slice(keys.indexOf('endpoint_percent_change'), keys.indexOf('endpoint_percent_change') + 4))
+      .toEqual(['endpoint_percent_change', 'endpoint_observed_ckd_g5', 'endpoint_projected_age_to_ckd_g5', 'endpoint_observed_ckd_g4'])
   })
 
   it('flags patients whose demographics were contradictory', () => {
