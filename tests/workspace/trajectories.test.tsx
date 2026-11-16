@@ -909,7 +909,7 @@ describe('real-data trajectories workspace', () => {
     expect(useAppStore.getState().trajectoryFitSettings).toMatchObject({ shared: { presetId: 'general_exploration' }, columns: {} })
   })
 
-  it('shows the projected G5 age with one decimal when the birth date is known', () => {
+  it('shows the projected G5 age in whole years when the birth date is known', () => {
     const parameter = { key: JSON.stringify(['eGFR', 'mL/min/1.73m²']), label: 'eGFR [mL/min/1.73m²]', bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', derived: false }
     const rows: LabRow[] = [60, 45, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2020 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 60 + i }))
     const patient = { id: 'P1', label: 'P1', attributes: {}, baselineAge: 60, birthAnchor: new Date(Date.UTC(1959, 6, 1)), ageEstimated: false }
@@ -923,8 +923,9 @@ describe('real-data trajectories workspace', () => {
     fireEvent.change(screen.getByLabelText('Warning display'), { target: { value: 'text' } })
     closeDisplay()
     const badge = document.querySelector('.wt-badge-endpoint')!
-    expect(badge).toHaveTextContent(/^-50%, G5 @ 63\.5y$/)
-    expect(badge.getAttribute('title')).toContain('Projected age to CKD G5 63.5 years; fitted curve')
+    // 63.5 exactly; whole years since 2026-11-16, the export keeps the unrounded value.
+    expect(badge).toHaveTextContent(/^-50%, G5 @ ~64y$/)
+    expect(badge.getAttribute('title')).toContain('Projected age to CKD G5 about 64 years (the projection has no interval; the export holds the unrounded value); fitted curve')
   })
 
   it('reverses a metric sort and keeps patients without a value last', () => {

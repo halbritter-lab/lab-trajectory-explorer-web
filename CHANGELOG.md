@@ -41,6 +41,32 @@ interfaces are still evolving before 1.0.
   7 days, says that no earlier baseline is used, and gives the sustained-rise
   example as stages I, II, II and III. The Fits page says that Theil–Sen
   bounds on fewer than five dates are not a 95% interval.
+- The methodology page follows the changes since the clinical review
+  (wording approved by the maintainer on 2026-11-16): which creatinine series
+  count as serum creatinine and which series supplies a column's AKI episodes;
+  the plausibility warnings; CKD-EPI 2009 (race-free) with its citation; what
+  "converted automatically" covers; AKI exclusion in the decline baseline and
+  the G5 projection; minimum counts in dates, five for Theil–Sen; the badges
+  `G5 < 3 dates`, `G5 < 5 dates`, `G5 < 1 yr` and `G5 not projected after
+  KRT`; what the intervals of OLS and of cohort models assume; what the
+  projection assumes; and what "kidney failure reached" means here.
+- New on the page: a table of the settings that change which measurements are
+  fitted, with when to consider them, and a list of the rules of this tool
+  that are not published standards.
+- "Projection" replaces "prediction" in the headings, navigation and text of
+  the page ("Endpoints & projection", "Projection algorithm"). Links to
+  `#methods/endpoints/prediction` keep working.
+
+### Changed (interface wording, 2026-11-16)
+
+- The projected age at CKD G5 is shown as a whole number marked as
+  approximate on either age basis (`G5 @ ~64y` instead of `G5 @ 63.5y`),
+  because the projection has no interval. The export keeps the unrounded
+  value.
+- The settings heading reads "AKI exclusion windows" instead of "AKI
+  exclusions (KDIGO)", with the hint that episodes are detected with the
+  KDIGO creatinine criteria and the window length is a rule of this tool. The
+  endpoint hint says "Endpoints and projection".
 
 ### Changed (AKI staging, 2026-11-16)
 

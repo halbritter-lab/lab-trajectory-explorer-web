@@ -6,10 +6,15 @@ export function Fits() { return <>
 <p>All five models describe change over time. Choose according to the shape of the course and the question you want to explore; none is more correct in general.</p>
 <ReferenceTable label="Fit model comparison"><table><thead><tr><th>Model</th><th>When to use it</th><th>What the summary slope means</th></tr></thead><tbody>
 <tr><th scope="row">OLS</th><td>A roughly linear course without extreme values.</td><td>One least-squares trend through the fitted measurements.</td></tr>
-<tr><th scope="row">Theil–Sen</th><td>A course with isolated outlying measurements.</td><td>Median of pairwise slopes; at least three observations and two distinct dates.</td></tr>
+<tr><th scope="row">Theil–Sen</th><td>A course with isolated outlying measurements.</td><td>Median of pairwise slopes; at least three observations and two distinct dates. No R² is reported. A G5 projection needs five distinct dates.</td></tr>
 <tr><th scope="row">Rolling OLS</th><td>Inspect changes in the rate over time.</td><td>The table reports global OLS; short chart lines show local two-year fits.</td></tr>
 <tr><th scope="row">Segmented OLS</th><td>Inspect stretches separated by gaps longer than 180 days.</td><td>The table reports global OLS; chart lines show the fitted segments.</td></tr>
 <tr><th scope="row">No fit</th><td>Review measurements without imposing a trend.</td><td>No trend or slope is calculated.</td></tr></tbody></table></ReferenceTable>
+<p><strong>Settings that change which measurements are fitted</strong></p>
+<ReferenceTable label="Settings that change which measurements are fitted"><table><thead><tr><th>Setting</th><th>When to consider it</th><th>What it does</th></tr></thead><tbody>
+<tr><th scope="row">Exclude AKI windows from fit</th><td>The question concerns the long-term trend, and acute episodes should not influence it.</td><td>Leaves out all measurements from each AKI onset date through 30 days after it, both ends included; the length is a default and can be changed. This applies to the fit and, for an eGFR column with endpoints switched on, to the decline baseline and the G5 projection. At high creatinine, ordinary variation can meet the AKI criterion and remove much of a series; compare the two counts in “x fitted of y measurements”.</td></tr>
+<tr><th scope="row">Time balancing (monthly or quarterly median)</th><td>Measurement density varies strongly, for example many inpatient values next to few outpatient values.</td><td>Uses one point per calendar month or quarter, so a densely measured period does not outweigh a sparse one. The display fit&apos;s minimum counts and span refer to these points; endpoints and the G5 projection use the single measurements.</td></tr></tbody></table></ReferenceTable>
+<p>For questions about a group (its average slope, or a difference between groups, which needs the grouping variable as a factor in the model), use <a href="#methods/cohort">Cohort models</a> instead: one linear mixed model for all patients, which estimates population associations, not the course of one patient.</p>
 <p>Slope confidence intervals describe uncertainty in the estimated slope, not the range of future measurements. OLS has automated and external comparison checks; the other estimators have automated checks only. See <a href="#methods/sources">validation scope and limitations</a>.</p>
 </section><section className="methodology-section"><h3 id="methods-quality" tabIndex={-1}>Quality Flags</h3>
 
@@ -30,7 +35,8 @@ export function Fits() { return <>
         the overlay draws affected fit lines dotted. The colour says which kind of problem it is,
         not which threshold was crossed: grey text (<span className="wt-muted">n &lt; 3</span>)
         means no slope was produced at all, an amber note (<span className="wt-warning">n &lt; 3,
-        uncertain slope</span>, <span className="wt-warning">Follow-up &lt; 1 year, uncertain
+        uncertain slope</span>, <span className="wt-warning">&lt; 3 dates, uncertain slope</span>,{' '}
+        <span className="wt-warning">Follow-up &lt; 1 year, uncertain
         slope</span>) means a slope exists but should be treated as unstable. The same <em>n &lt;
         3</em> label therefore appears in either colour depending on whether a slope came out of it.
         When all fitted measurements share one date, the grey note reads “All fitted measurements
@@ -42,9 +48,10 @@ export function Fits() { return <>
         two-point slope and reports R² = 1 with no reason set, because two points always define a
         line perfectly. Censoring, exclusions, or time balancing can also leave a much thinner or
         shorter fitted window than the raw series suggests. The badge and the{' '}
-        <code>unstable_slope</code> export column therefore test both the fitted count and fitted
-        span directly: fewer than three fitted measurements, or under a year between the first and
-        last fitted points. The numeric <strong>reason</strong> field is left unchanged,
+        <code>unstable_slope</code> export column therefore test the number of fitted dates and
+        the fitted span directly: fitted measurements on fewer than three different dates, or under
+        a year between the first and last fitted points. Three values from one day and one value a
+        year later are two dates, so their slope is marked as uncertain. The numeric <strong>reason</strong> field is left unchanged,
         so it can differ from this stricter displayed reliability rule.
       </p>
 </section><details className="methodology-calculations"><summary>Calculation details</summary>
@@ -61,12 +68,15 @@ export function Fits() { return <>
           extreme values. It is also the most thoroughly verified of the five (see below).
         </li>
         <li>
-          <strong>Theil-Sen</strong> — the median of all pairwise slopes, which makes it insensitive
-          to a minority of outlying points. Appropriate when isolated extreme values — an AKI spike,
+          <strong>Theil–Sen</strong> — the median of all pairwise slopes, which makes it less
+          sensitive than OLS to single outlying measurements in a longer series. With three
+          measurements it gives no protection, because one outlier changes two of the three
+          pairwise slopes: 60, 55 and 10 at years 0, 1 and 2 give about −25 per year. With five
+          measurements, 60, 57, 54, 51 and 10 give −3.0 per year. Appropriate when isolated extreme values — an AKI spike,
           a suspected lab error, a single post-operative measurement — would tilt an OLS line, and
           you would rather not remove them by hand. It costs statistical efficiency when the data
           are in fact clean. At least three observations and two distinct dates are required.
-          The intercept is median(value) minus slope times median(time). The reported 95% bounds
+          The intercept is median(value) minus slope times median(time). The reported bounds
           describe uncertainty in the slope, not a prediction interval for individual values.
           With fewer than five dates the reported bounds are not a 95% interval; the table then
           labels them ‘Slope range’.
@@ -107,7 +117,7 @@ export function Fits() { return <>
         filtering, optional event and AKI exclusions, time balancing, model fitting, endpoint
         derivation, and export. All slopes are expressed{' '}
         <strong>per year</strong> (the regression x-axis is time in fractional years), so a
-        creatinine slope is in mg/dl per year and an eGFR slope is in mL/min/1.73m² per year — the
+        creatinine slope is in mg/dl per year and an eGFR slope is in mL/min/1.73 m² per year — the
         usual convention for reporting renal function decline.
       </p>
       <ul>
@@ -121,10 +131,10 @@ export function Fits() { return <>
         <li>
           <strong>Time balancing</strong> — raw values, monthly medians, or quarterly medians can
           be used for the fit after exclusions are applied, so post-event values are not merged into
-          pre-event aggregates.
+          pre-event medians.
         </li>
         <li>
-          <strong>Fit model</strong> — no fit, OLS, Theil-Sen, rolling OLS, and segmented OLS are
+          <strong>Fit model</strong> — no fit, OLS, Theil–Sen, rolling OLS, and segmented OLS are
           available. The trend legend names the active model, and no trend legend is shown when the
           model is off. In the exported slope table, <strong>fit_model</strong> names the estimator
           that produced the scalar slope, while <strong>slope_mode</strong> records rolling,
@@ -138,9 +148,14 @@ export function Fits() { return <>
           independent observed G4 (&lt;30) and G5 (&lt;15), and projected age to G5.
           Endpoints use dated exact numeric eGFR measurements before the first kidney transplant
           or chronic dialysis start and outside complete dated acute dialysis intervals,
-          independently of display-fit AKI exclusions or aggregation. Kidney replacement therapy
+          independently of time balancing. AKI exclusion applies to the decline baseline and the
+          G5 projection only; see <a href="#methods/endpoints">Endpoints</a>. Kidney replacement therapy
           is reported separately as kidney failure reached with its type and date, independently
-          of lab-confirmed G5. After kidney replacement therapy, no future individual G5
+          of lab-confirmed G5. “Kidney failure reached” here means the first dated kidney
+          transplant or the first dialysis recorded as chronic. This is narrower than the usual
+          term, which also covers a GFR below 15 without kidney replacement therapy; the tool
+          reports that as CKD G5. Whether a dialysis is chronic is taken from the imported event;
+          no minimum duration is checked. After kidney replacement therapy, no future individual G5
           crossing is projected. The minimum confirmation interval defaults to 90 days
           and can be set from 1 to 365 whole days; a longer interval could never be met, because a
           confirming value must follow within 12 calendar months.
@@ -153,7 +168,7 @@ export function Fits() { return <>
       </ul>
       <p>Values marked &lt; or &gt; are bounds. They remain visible with their numeric
         limits and count as raw numeric measurements, but are excluded from slopes,
-        endpoint evaluation and prediction, AKI detection, and cohort mixed models.
+        endpoint evaluation and projection, AKI detection, and cohort mixed models.
         Exact measurements on the same date remain eligible.</p>
 </section>
 </details><details className="methodology-detail"><summary>Analysis Presets</summary>
@@ -185,7 +200,7 @@ export function Fits() { return <>
         </li>
       </ul>
       <p>
-        Every preset sets the rapid-decline threshold to 5 mL/min/1.73m² per year. Endpoint
+        Every preset sets the rapid-decline threshold to 5 mL/min/1.73 m² per year. Endpoint
         settings take effect on eGFR series only.
       </p>
 </section>
@@ -229,7 +244,10 @@ export function Fits() { return <>
         The 95% interval is the slope ± t × standard error, where the standard error comes from
         the residual sum of squares with n − 2 degrees of freedom and t is the two-sided 95% value
         of Student&apos;s t distribution. It describes uncertainty in the slope, not a prediction
-        interval.
+        interval. The interval assumes independent measurement errors of equal size. Repeated
+        eGFR values of one patient are usually correlated, so the interval tends to be too narrow.
+        With time balancing it describes the monthly or quarterly medians, not the single
+        measurements.
       </p>
 </section>
 </details>
