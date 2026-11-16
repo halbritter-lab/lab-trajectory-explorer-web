@@ -469,6 +469,31 @@ a date". The reason code is unchanged, and the export still carries
 `insufficient_points` for that patient and parameter. Other badges of the
 cell, such as `Kidney failure reached`, are still shown.
 
+Reasons 3 to 5 count the rows of the projection fit, which leave out the
+column's AKI exclusion windows when it excludes them. The badge detail says so
+(since 2026-11-15) when a window actually removed a row of this cell, that is
+when the projection used fewer points than the endpoint input holds
+(`projectionPointCount < endpointPointCount`). It then starts with
+"Measurements inside AKI exclusion windows are left out of the projection."
+and continues "The measurements used fall on fewer than three distinct dates,
+…" or "The measurements used span less than one year, …"; the Theil-Sen text
+follows the same first sentence. The same lead precedes two further details,
+which then name "the latest measurement used": "The fitted crossing is more
+than 20 years after the latest measurement used, …" (`G5 not projected`) and
+"The fitted curve reaches 15 at or before the latest measurement used, …"
+(`G5 now`), because both are measured from the last row outside the AKI
+windows. When no row was removed, also in a column that excludes AKI windows
+by its preset, the details read as before: "Usable measurements on fewer than
+three distinct dates, …", "Less than one year between first and last
+measurement, …", "… after the latest eligible eGFR measurement, …" and "… at
+or before the latest measurement, …". Example: a CKD-progression column with
+two eGFR values and no AKI episode shows `G5 < 3 dates` with the plain
+detail. Labels, reason codes and export values are the same in all cases. Example: 104 eGFR values of 40 and
+38 over two years with creatinine 4.5 and 4.85 mg/dl on consecutive days every
+two weeks leave one row outside the AKI windows; the badge is `G5 < 3 dates`
+with the AKI sentence. The first sentence states the column's rule and appears
+whether or not a window removed a row of that patient.
+
 The `G5 not projected` cases (`non_declining_fit`, `slope_ci_unavailable`,
 `slope_ci_includes_zero`, `beyond_projection_horizon`, and `observed_ckd_g5`
 with the observed-G5 endpoint off) are told apart by the badge's detail text.

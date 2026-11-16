@@ -81,7 +81,10 @@ owner decided all of them on the same day (see
 listed under *Resolved decisions* below. Four remain, **OD-11, OD-21, OD-22
 and OD-29: to be changed after release 0.3.0.** Their behaviour is unchanged
 until then. OD-30, added on 2026-11-05 with the R reproduction export, was
-decided on 2026-11-13.
+decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
+`u` that abbreviates "und" in creatinine names and was decided the same day.
+OD-31 is not used on `main`; the number is reserved by the deferred MCP
+server work.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -125,4 +128,5 @@ methodology page. The numbers are not reused.
 | OD-27 | An empty pre-parsed operator beside a number means an exact value. | [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation) |
 | OD-28 | Implausible stated ages are reported as `age_implausible`. | [Demographics resolution](method-algorithms/demographics.md#demographics-resolution) |
 | OD-30 | Every number returned from R is serialized at full precision (`digits = NA`); decided 2026-11-13. | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) |
+| OD-32 | A lone `u` in a creatinine name is "und" only between two blood-material words or in "vor u. nach"; next to any other word it stays urine; decided 2026-11-15. | [eGFR derivation](method-algorithms/egfr.md#eligible-source-series) |
 

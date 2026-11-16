@@ -49,7 +49,10 @@ value was excluded, with a raw span of 731 days, give: no slope, no reason,
 1. Fit model `none`: not unstable. There is no slope to qualify.
 2. `reason` is `no_numeric_values` or `n_below_threshold`: unstable.
 3. `nFittedDates < 3`: unstable, that is fewer than three distinct calendar
-   days among the fitted points.
+   days among the fitted points. `nFitted < 3` is tested as well (since
+   2026-11-15). Distinct dates never exceed fitted points, so this changes no
+   result of the application; it keeps a caller of the library package that
+   passes no `nFittedDates` from getting "stable" for a two-point fit.
 4. `fittedSpanDays < 365`: unstable.
 5. Otherwise unstable only if `reason` is `span_too_short`. For the reachable
    slope modes the fitted span never exceeds the raw span, so this step adds

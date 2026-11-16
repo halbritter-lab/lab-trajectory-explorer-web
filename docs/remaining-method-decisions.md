@@ -439,6 +439,65 @@ doi:10.1016/j.ekir.2025.11.021).
   `vcov` reported as a fit warning. The readxl type-guessing caveat for
   `group` is documented in the `about` sheet.
 
+## Release review of 2026-11-15
+
+A review of everything merged since version 0.3.7 found the points below. The
+owner decided the creatinine name rule on 2026-11-15; the other items restore
+or protect documented behaviour and change no fitted number.
+
+- **A `u` between two blood-material words is "und", not urine** (owner
+  decision 2026-11-15, resolves OD-32). The token rule of 2026-11-05 read the
+  German abbreviation "u." as urine, so `Kreatinin im Serum u. Plasma`,
+  `Kreatinin (Serum u. Plasma)`, `Kreatinin i.S. u. P.` and
+  `Kreatinin vor u. nach Dialyse` lost their eGFR and AKI detection, although
+  they were eligible in 0.3.7. A lone `u`, with or without a dot, is now
+  removed only between two of the words Serum, Plasma, Vollblut, HP, S and P
+  (so also `i.S.` and `i.P.`), or between `vor` and `nach`, separated by
+  whitespace only. Everywhere else it stays urine: `Kreatinin U enzymatisch`,
+  `24h U Kreatinin`, `Kreatinin U mg/dl`, `Kreatinin U u. S` and
+  `Kreatinin S u. U` are non-serum. The owner chose this after a review showed
+  that a wider first rule (any word on both sides) turned urine names into
+  serum creatinine; an unknown spelling is now excluded, which the Data page
+  shows, instead of being used silently. Square brackets and colons separate
+  tokens, so `Kreatinin [U]` and `Kreatinin:U` are non-serum. Compared with
+  `main` before this change, only the "und" names above become eligible and
+  only `[U]` and `:U` become non-serum; no released version is affected,
+  because the token rule was never released.
+- **Withheld G5 projection names the AKI exclusion.** When AKI windows
+  removed at least one row from a cell's projection input, the badge detail
+  for `G5 < 3 dates`, `G5 < 5 dates` and `G5 < 1 yr` starts with
+  "Measurements inside AKI exclusion windows are left out of the projection."
+  and speaks of "the measurements used"; the details for a crossing beyond
+  20 years and for a fitted curve already below 15 get the same lead and name
+  "the latest measurement used". Before, a series of 104 values over two
+  years, 103 of them inside AKI windows, was described as having measurements
+  on fewer than three dates. A column that excludes AKI windows by its preset
+  but lost no row to one keeps the plain detail, so AKI is not named as the
+  cause where it is not (review of the fix, same day). Labels, reasons and
+  export values are unchanged; the endpoint result gains
+  `projectionPointCount`.
+- **Reliability rule also tests the point count.** `isUnstableSlope` returns
+  unstable for `nFitted < 3` as well as `nFittedDates < 3`. Dates never exceed
+  points, so no result of the application changes; a caller of the library
+  package without `nFittedDates` no longer gets "stable" for two points.
+- **Cohort model workbook: stable positions and `unit_key` everywhere.**
+  Sheets and columns of 0.3.7 keep their positions: `vcov`, `model_rows`,
+  `model_input_flags` and `r_script` follow `about`, and `std_error` and
+  `unit_key` are the last columns of every 0.3.7 sheet, also when its rows
+  have different shapes (a failed fit beside a successful one, a numeric
+  factor beside a categorical one). Every sheet that names a
+  unit carries `unit_key`, so the two covariance matrices of a pooled model
+  and a group named "Whole cohort" can be told apart.
+- **AKI detection scans each patient's rows once.** The dataset pass buckets
+  rows per patient. Same episodes and windows; a dataset of 1,500 patients
+  with 120 creatinine values each is analysed in 2.5 s instead of 43.8 s on
+  the development machine.
+
+Details: [eGFR derivation](method-algorithms/egfr.md#eligible-source-series),
+[reliability rule](method-algorithms/slope-quality.md#reliability-rule) and
+[cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models). The golden
+fixtures contain only `Kreatinin` and are unchanged.
+
 ## Approved requirements
 
 ### Observed events and recovery

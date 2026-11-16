@@ -49,10 +49,12 @@ conditions hold (`isSerumCreatinineSeries`):
     "Harn", "Sammelurin"), `dialysat` ("Dialysat", "dialysate"), `punktat`,
     `fluid`, `aszites`, `ascites`, `pleura`, `liquor`, `drainage`, `sekret`
     ("Sekret", "Wundsekret") or `lymphe`;
-  - after `i.` followed by whitespace and `U` is read as `i.U`, and split at
-    whitespace, commas, semicolons, slashes, underscores, hyphens and
-    parentheses, one token is, in any case and ignoring trailing dots, `i.U`
-    (im Urin), a lone `U` (`U-Kreatinin`, `Kreatinin (U)`, `Kreatinin U.`,
+  - after `i.` followed by whitespace and `U` is read as `i.U`, a `u` that
+    abbreviates "und" is removed (next paragraph), and the name is split at
+    whitespace, commas, semicolons, colons, slashes, underscores, hyphens,
+    parentheses and square brackets, one token is, in any case and ignoring
+    trailing dots, `i.U` (im Urin), a lone `U` (`U-Kreatinin`,
+    `Kreatinin (U)`, `Kreatinin [U]`, `Kreatinin:U`, `Kreatinin U.`,
     `Kreatinin/U`, `Kreatinin_U`), `SU` (Sammelurin; also the `SU` of
     `24h-SU`), `SU24h`, `SPU` (Spontanurin), `PU` (Punktat or Portionsurin;
     both are non-serum), `CSF`, `Drain`, `PD` (peritoneal dialysate) or
@@ -65,7 +67,8 @@ conditions hold (`isSerumCreatinineSeries`):
   `Kreatinin 24h-SU`, `Kreatinin SU24h`, `Kreatinin SpU`, `Kreatinin PU`,
   `Kreatinin CSF`, `Kreatinin Drain`, `Kreatinin PD`, `Kreatinin Serom`,
   `Kreatinin Lymphe`, `Kreatinin (Wund)sekret`, `Kreatinin Dialysat`,
-  `Kreatinin Punktat`. Still eligible: `Kreatinin`, `Kreatinin i.S.`,
+  `Kreatinin Punktat`, `Kreatinin [U]`, `Kreatinin:U`. Still eligible:
+  `Kreatinin`, `Kreatinin i.S.`,
   `Kreatinin i.P.`, `Kreatinin (enzym.)`, `Kreatinin (S)`, `Kreatinin Serum`,
   `Kreatinin Plasma`, `S-Kreatinin`, `Kreatinin HP`, `Kreatinin BGA`,
   `Kreatinin Vollblut`, `Creatinine serum`, `Kreatinin mg/dl`. Tokens are
@@ -74,6 +77,45 @@ conditions hold (`isSerumCreatinineSeries`):
   `Kreatinin U/l` is excluded (token `U`). Creatinine is not reported in the
   enzyme unit U/l, so no serum spelling is lost. Prefixes such as `S-` or `P-`
   mark nothing.
+
+  **A `u` that abbreviates "und"** (decided 2026-11-15, formerly OD-32;
+  `UND_ABBREVIATION`). A lone `u`, in any case and with or without one dot,
+  is not urine in exactly two positions, and is then removed before the name
+  is split:
+  - between two blood-material words. The words are `Serum`, `Plasma`,
+    `Vollblut`, `HP`, `S` and `P`, in any case and as whole words (no letter
+    or digit directly before or after), so `i.S.` and `i.P.` count through
+    their `S` and `P`. Only whitespace separates the `u` from both words;
+    the word before may be followed by one dot and one closing bracket, the
+    word after may be preceded by one opening bracket;
+  - between `vor` and `nach`, separated by whitespace only.
+
+  `Kreatinin im Serum u. Plasma`, `Kreatinin (Serum u. Plasma)`,
+  `Kreatinin i.S. u. P.`, `Kreatinin Serum u Plasma`,
+  `Kreatinin HP u. Vollblut`, `Kreatinin (S) u. (P)` and
+  `Kreatinin vor u. nach Dialyse` are therefore eligible, as they were up to
+  version 0.3.7; between 2026-11-05 and 2026-11-15 the development version
+  excluded them. A lone `U` stays urine everywhere else, so an unknown
+  spelling is excluded visibly instead of being read as serum:
+  - at the end or the start of the name: `Kreatinin U.`, `Kreatinin u`,
+    `Kreatinin (U)`, `U Kreatinin`, `U-Kreatinin`;
+  - next to any word that is not a blood-material word:
+    `24h U Kreatinin`, `Spontan U Kreatinin`, `Kreatinin im U quant.`,
+    `Kreatinin U enzymatisch`, `Kreatinin U. enzym.`, `Kreatinin U mg/dl`,
+    `Kreatinin U spontan`, `Kreatinin U, enzymatisch`,
+    `Kreatinin U. (enzym.)`, `Kreatinin Serum u. Urin`,
+    `Kreatinin vor u. Dialyse`;
+  - when only one side is a blood-material word, which includes a `U` beside
+    the abbreviation itself: `Kreatinin U u. S` and `Kreatinin S u. U` name
+    urine and serum and are excluded;
+  - before a number, or next to any separator other than whitespace:
+    `Kreatinin U 24h`, `Kreatinin/U`, `Kreatinin U/l`, `Kreatinin_U`,
+    `Kreatinin:U`, `Kreatinin [U]`.
+
+  A first version of this rule (same day, never merged) read a `u` between
+  any two words as "und"; it turned `Kreatinin U enzymatisch` and
+  `24h U Kreatinin` into serum creatinine and was replaced by the owner's
+  decision above.
 - **Unit is mg/dl or µmol/l** after unit-key normalisation (below).
 
 No other material or method is distinguished. Any name that passes these tests

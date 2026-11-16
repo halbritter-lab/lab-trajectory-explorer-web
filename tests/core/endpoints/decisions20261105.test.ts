@@ -72,6 +72,38 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
     expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('observed_ckd_g5')
   })
 
+  it('names the AKI exclusion when it leaves the projection too few dates (release review 2026-11-15)', () => {
+    // The same creatinine pattern with an eGFR of 40 and 38: 104 values over two
+    // years, 103 of them inside AKI windows, one date left for the projection.
+    const starts = Array.from({ length: 52 }, (_, i) => Date.UTC(2020, 0, 1) + i * 14 * 86_400_000)
+    const iso = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+    const days = starts.flatMap((ms) => [iso(ms), iso(ms + 86_400_000)])
+    const rows = [
+      ...series(egfr, days.map((date, i): [string, number] => [date, i % 2 ? 38 : 40])),
+      ...series(crea, days.map((date, i): [string, number] => [date, i % 2 ? 4.85 : 4.5])),
+    ]
+    const { cell } = cellFor(rows, ckdProgressionConfig(egfr))
+    expect(cell.excludedIdx).toHaveLength(103)
+    expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('insufficient_points')
+    const badge = endpointBadge(cell.endpoints, cell.points.length)
+    expect(badge?.label).toContain('G5 < 3 dates')
+    expect(badge?.title).toContain('Measurements inside AKI exclusion windows are left out of the projection. The measurements used fall on fewer than three distinct dates')
+    expect(badge?.title).not.toContain('Usable measurements on fewer than three distinct dates')
+    expect(cell.endpoints).toMatchObject({ endpointPointCount: 104, projectionPointCount: 1 })
+  })
+
+  it('does not name AKI when the column excludes AKI windows but none removed a row (review of PR #47)', () => {
+    // CKD progression excludes AKI windows by preset; two eGFR values, no creatinine, no episode.
+    const { cell, record } = cellFor(series(egfr, [['2020-01-01', 40], ['2022-01-01', 30]]), ckdProgressionConfig(egfr))
+    expect(cell.endpoints).toMatchObject({ inputExcludesAkiWindows: true, endpointPointCount: 2, projectionPointCount: 2 })
+    expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('insufficient_points')
+    const badge = endpointBadge(cell.endpoints, cell.points.length)
+    expect(badge?.title).toContain('Usable measurements on fewer than three distinct dates')
+    expect(badge?.title).not.toContain('AKI exclusion windows')
+    // The policy column names the column's rule, as before.
+    expect(record.endpoint_input_policy).toContain('AKI exclusion windows excluded from decline baseline and projection')
+  })
+
   it('keeps AKI values in the endpoint input when the column does not exclude AKI windows', () => {
     const { cell, record } = cellFor(terminalAki, withProjection(generalExplorationConfig(egfr)))
     expect(cell.endpoints.endpointPointCount).toBe(21)

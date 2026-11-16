@@ -534,11 +534,33 @@ The `models` worksheet has one row per fitted unit:
 | `message` | Failed fits |
 
 A fit that fails before the worker answers (for example a timeout) has only
-part of this provenance. The other worksheets are `coefficients` (every fixed
-effect with unit, estimate, standard error and interval bounds), `vcov`,
-`factors`, `centering`, `excluded_patients`, `model_rows`,
-`model_input_flags`, `projections` when a projection is applied, `r_script`
-and `about`.
+part of this provenance. The other worksheets are, in workbook order,
+`coefficients` (every fixed effect with unit, estimate, interval bounds and
+standard error), `factors`, `centering`, `excluded_patients`, `projections`
+when a projection is applied, `about`, and then the sheets added after
+version 0.3.7: `vcov`, `model_rows`, `model_input_flags` and `r_script`.
+
+**Positions and `unit_key` (since 2026-11-15).** Sheets and columns that
+existed in version 0.3.7 keep their positions; new sheets follow `about` and
+new columns are the last of their sheet. `coefficients` therefore reads
+`entity`, `outcome`, `unit`, `term`, `label`, `estimate`, `ci_lower`,
+`ci_upper`, `std_error`, `unit_key`. Every sheet that names a fitted unit
+carries `unit_key`: `cohort` for the whole cohort and `group:<value>` for a
+group. `entity` is the display label and can repeat: a group whose value is
+"Whole cohort" has the same `entity` as the pooled model and the `unit_key`
+`group:Whole cohort`. On the sheets that predate it (`models`, `coefficients`,
+`factors`, `centering`, `excluded_patients`, `projections`) the columns added
+since 0.3.7, `std_error` and `unit_key`, are the last columns of the sheet,
+after every 0.3.7 column (`newColumnsLast`). This also holds when the rows of
+a sheet have different shapes. The 0.3.7 columns keep the order in which
+they first appear across the rows, which is how the workbook was written
+then; that order depends on the rows exported, as it did in 0.3.7. Example:
+with the factors baseline age (numeric, no reference) and sex (categorical),
+`factors` reads `entity`, `key`, `kind`, `effect`, `column`, `reference`,
+`unit_key`, and the baseline-age row has an empty `reference` cell; with a
+successful whole-cohort fit and a failed group fit, `models` ends in
+`singular`, `message`, `unit_key`. On `vcov`, `model_rows` and
+`model_input_flags` `unit_key` follows `entity`.
 
 **R reproduction (since 2026-11-05).** These outputs let a fit be rebuilt and
 extended in R. They add no estimate and change none.
@@ -546,8 +568,8 @@ extended in R. They add no estimate and change none.
 - **`model_rows`.** One row per row the worker received for the stored result,
   in the order sent, taken from the same prepared rows (`workspaceModelEntities`)
   and not derived again: `entity`, `unit_key` (`cohort` for the whole cohort,
-  `group:<value>` for a group, so a group named "Whole cohort" stays distinct;
-  `coefficients` carries the same column), `group` (the group value, empty for
+  `group:<value>` for a group, so a group named "Whole cohort" stays distinct),
+  `group` (the group value, empty for
   the whole cohort), `patient_id`, `date` (UTC date of the model point; for a
   time-balancing median the date of the median point), `value`,
   `time_since_baseline`, and per factor the column passed to R
@@ -558,8 +580,8 @@ extended in R. They add no estimate and change none.
 - **`model_input_flags`.** One row per measurement of the modelled series
   (same name and unit) of every patient in the unit, patients in model order
   and each patient's measurements in import order, with
-  `entity`, `group`, `patient_id`, `date`, `value`, `status`, `reason` and
-  `model_date`. `status` is `entered` (the value entered unchanged as the model
+  `entity`, `unit_key`, `group`, `patient_id`, `date`, `value`, `status`,
+  `reason` and `model_date`. `status` is `entered` (the value entered unchanged as the model
   row dated `model_date`), `aggregated_into_median` (one of at least two
   values of a calendar month or quarter whose median is the model row dated
   `model_date`) or `excluded`. `reason` is set for `excluded` only, from the
@@ -579,8 +601,8 @@ extended in R. They add no estimate and change none.
 - **Standard errors and `vcov`.** The worker returns `vcov(fit)` as a matrix
   and `sqrt(diag(vcov(fit)))` (lme4 and nlme alike). `std_error` in
   `coefficients` is that square root. The `vcov` sheet has, per unit, one row
-  per term in the order of `coefficients` with `entity`, `term` and one column
-  per term; with several units the columns are the union of their terms and
+  per term in the order of `coefficients` with `entity`, `unit_key`, `term`
+  and one column per term; with several units the columns are the union of their terms and
   cells of absent terms are empty. Both are serialized at R's full JSON
   precision (`digits = NA`, 15 significant digits). Results fitted before this
   change have neither; their cells are empty. A covariance that does not match

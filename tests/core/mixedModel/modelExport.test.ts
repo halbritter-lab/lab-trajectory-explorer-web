@@ -57,7 +57,7 @@ describe('mixed model export', () => {
       expect.objectContaining({term:'factor_2_',unit:'ml/min/1.73m2 per unit of dose'}),
       expect.objectContaining({term:'time_since_baseline:factor_2_',unit:'ml/min/1.73m2 per year per unit of dose'}),
     ]))
-    expect(XLSX.utils.sheet_to_json(workbook.Sheets.excluded_patients)).toEqual([{entity:'Whole cohort',patient_id:'p4',reasons:'Missing sex'}])
+    expect(XLSX.utils.sheet_to_json(workbook.Sheets.excluded_patients)).toEqual([{entity:'Whole cohort',patient_id:'p4',reasons:'Missing sex',unit_key:'cohort'}])
     expect(mixedModelTermLabel('factor_0_B',config)).toBe('genotype: B (reference A)')
   })
 })
@@ -91,8 +91,8 @@ describe('R reproduction export', () => {
       {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p2',date:'2020-03-01',value:58,time_since_baseline:0,factor_0_:'B',raw_factor_0_:'B',factor_1_:1.5,raw_factor_1_:5},
     ])
     expect(sheet('model_input_flags')).toEqual([
-      {entity:'G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01'},
-      {entity:'G1',group:'G1',patient_id:'p1',date:'2020-02-01',value:40,status:'excluded',reason:'aki',model_date:''},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01'},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-02-01',value:40,status:'excluded',reason:'aki',model_date:''},
     ])
   })
 
@@ -101,6 +101,65 @@ describe('R reproduction export', () => {
     const vcov = sheet('vcov')
     expect(vcov.map(row => row.term)).toEqual(terms)
     expect(vcov[2]).toMatchObject({entity:'G1',factor_0_B:0.2**2,'(Intercept)':0.001})
+  })
+
+  // Release review 2026-11-15.
+  it('names the unit by unit_key on every sheet, also when a group is called like the pooled unit', () => {
+    const prepared = {...result,metadata:{...result.metadata,preparation:{centers:{factor_1_:3.5},excludedPatients:[{patientId:'p9',reasons:['Missing dose']}]}}} as unknown as MixedModelSuccess
+    const both = mixedModelExportSheets([
+      {entity:'Whole cohort',result:prepared,identity:{seriesKey:'eGFR|ml/min'},rows,inputFlags},
+      {entity:'Whole cohort',result:prepared,identity:{seriesKey:'eGFR|ml/min',groupValue:'Whole cohort'},rows,inputFlags},
+    ])
+    const keys = (name: string) => [...new Set(both.find(sheet => sheet.name === name)!.rows.map(row => (row as Record<string, unknown>).unit_key))]
+    for (const name of ['models','coefficients','vcov','factors','centering','excluded_patients','model_rows','model_input_flags']) {
+      expect(keys(name),name).toEqual(['cohort','group:Whole cohort'])
+    }
+    // Two matrices with the same entity label stay apart.
+    const vcov = both.find(sheet => sheet.name === 'vcov')!.rows as Record<string, unknown>[]
+    expect(vcov.filter(row => row.unit_key === 'cohort').map(row => row.term)).toEqual(terms)
+    expect(vcov.filter(row => row.unit_key === 'group:Whole cohort').map(row => row.term)).toEqual(terms)
+  })
+
+  it('keeps the sheet and column positions of 0.3.7 and appends what is new', () => {
+    expect(sheets.map(sheet => sheet.name)).toEqual(['models','coefficients','factors','centering','excluded_patients','about','vcov','model_rows','model_input_flags','r_script'])
+    const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name],{header:1})[0]
+    expect(header('coefficients')).toEqual(['entity','outcome','unit','term','label','estimate','ci_lower','ci_upper','std_error','unit_key'])
+    expect(header('factors').slice(0,1)).toEqual(['entity'])
+    expect(header('factors').at(-1)).toBe('unit_key')
+    expect(header('models').slice(0,2)).toEqual(['entity','series_key'])
+    expect(header('models').at(-1)).toBe('unit_key')
+  })
+
+  // Review of PR #47: rows of one sheet differ in shape, and the writer orders columns by first appearance.
+  it('keeps new columns last when rows of a sheet have different shapes', () => {
+    const header = (list: ReturnType<typeof mixedModelExportSheets>, name: string) =>
+      XLSX.utils.sheet_to_json<string[]>(XLSX.read(sheetsToXlsxBytes(list),{type:'array'}).Sheets[name],{header:1})[0]
+    // A numeric factor (no `reference`) before a categorical one.
+    const config = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'baseline_age',kind:'numeric' as const,effect:'level_slope' as const}, {key:'sex',kind:'categorical' as const,effect:'level_slope' as const,reference:'m'}]}
+    const fitted = {...result,metadata:{...result.metadata,modelConfig:config}} as unknown as MixedModelSuccess
+    // A successful cohort fit before a failed group fit (`message` appears only in the second row).
+    const failed = {status:'error',message:'Too few patients',metadata:{...result.metadata,modelConfig:config},warnings:[]} as unknown as MixedModelSuccess
+    const mixed = mixedModelExportSheets([
+      {entity:'Whole cohort',result:fitted,identity:{seriesKey:'eGFR|ml/min'}},
+      {entity:'G1',result:failed,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'}},
+    ])
+    expect(header(mixed,'factors')).toEqual(['entity','key','kind','effect','column','reference','unit_key'])
+    expect(header(mixed,'models').slice(-3)).toEqual(['singular','message','unit_key'])
+    expect(XLSX.utils.sheet_to_json(XLSX.read(sheetsToXlsxBytes(mixed),{type:'array'}).Sheets.factors)[0]).toEqual({entity:'Whole cohort',key:'baseline_age',kind:'numeric',effect:'level_slope',column:'baseline_age_centered',unit_key:'cohort'})
+    // A unit without projection targets (fewer columns) before one with a target.
+    const base = {status:'success', converged:true, singular:false, metadata:{}, warnings:[], fixedEffects:{intercept:80,timeSinceBaseline:5}, fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as unknown as MixedModelSuccess
+    const second = {...base} as MixedModelSuccess
+    const target = {id:'custom',label:'Study boundary',outcome:'eGFR',unit:'ml/min',threshold:100,direction:'above' as const,enabled:true}
+    const projectionFor = (source: MixedModelSuccess, groupValue: string | undefined, targets: typeof target[]) => ({sourceResult:source,sourceIdentity:{seriesKey:'eGFR|ml/min',groupValue},sourceResponse:{outcome:'eGFR',unit:'ml/min'},
+      settings:{targets,profile:{},referenceTimeYears:0,horizonYears:20},line:{status:'ready',intercept:80,slopePerYear:5},
+      rows:targets.map(row => ({target:row,status:'crossing',reason:null,modelTimeYears:4,remainingYears:4}))}) as unknown as ProjectionSnapshot
+    const projected = mixedModelExportSheets([
+      {entity:'Whole cohort',result:base,identity:{seriesKey:'eGFR|ml/min'},projection:projectionFor(base,undefined,[])},
+      {entity:'G1',result:second,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'},projection:projectionFor(second,'G1',[target])},
+    ])
+    const projectionHeader = header(projected,'projections')
+    expect(projectionHeader.at(-1)).toBe('unit_key')
+    expect(projectionHeader).toContain('target_id')
   })
 
   it('generates an R script with the worker data, contrast and model code', () => {

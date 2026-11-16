@@ -57,8 +57,10 @@ test('urine creatinine is not a serum name', () => {
 
 test('isUnstableSlope flags two fitted dates over a long span', () => {
   const points = [{ date: new Date(Date.UTC(2020, 0, 1)), value: 60 }, { date: new Date(Date.UTC(2021, 1, 4)), value: 50 }]
-  const input = { reason: null, nFittedDates: kidney.distinctDateCount(points), fittedSpanDays: 400, fitModel: 'ols' }
+  const input = { reason: null, nFitted: 2, nFittedDates: kidney.distinctDateCount(points), fittedSpanDays: 400, fitModel: 'ols' }
   assert.equal(kidney.isUnstableSlope(input), true)
+  // The shape before the date-based rule, as an untyped caller may still pass it.
+  assert.equal(kidney.isUnstableSlope({ reason: null, nFitted: 2, fittedSpanDays: 400, fitModel: 'ols' }), true)
 })
 
 test('KDIGO detects a 0.3 mg/dl rise within 48 h as a stage 1 episode', () => {

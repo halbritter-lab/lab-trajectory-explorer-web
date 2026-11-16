@@ -23,6 +23,14 @@ export interface AkiExclusionConfig {
 }
 
 /** Which CKD endpoints an eGFR column evaluates. */
+/** Whether a column leaves AKI windows out of its fit: slope mode
+ * `aki-aware`, or the fit configuration's AKI exclusion switched on. The one
+ * condition under which the AKI module contributes exclusion windows; the
+ * endpoint module reads it to name the policy, so the two cannot drift apart. */
+export function excludesAkiWindows(ctx: { mode: string; fitConfig?: { exclusions: AkiExclusionConfig } }): boolean {
+  return ctx.mode === 'aki-aware' || (ctx.fitConfig?.exclusions.excludeAkiWindows ?? false)
+}
+
 export interface CkdEndpointConfig {
   percentDecline: boolean
   observedCkdG4?: boolean

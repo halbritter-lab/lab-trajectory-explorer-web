@@ -102,6 +102,12 @@ export function slopeQualityLabel(input: SlopeQualityInput): QualityLabel | null
 export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
   if (endpoints.projectedAgeToCkdG5.value !== null) return null
   const caveat = false
+  // The series itself may have many dates over years when AKI windows removed
+  // rows from the projection; the title then names the exclusion. Only then:
+  // a column that excludes AKI windows by rule but lost no row here must not
+  // suggest that AKI caused the gap.
+  const aki = endpoints.inputExcludesAkiWindows && endpoints.projectionPointCount < endpoints.endpointPointCount
+  const akiLead = 'Measurements inside AKI exclusion windows are left out of the projection. '
   switch (endpoints.projectedAgeToCkdG5.reason) {
     case 'observed_ckd_g5':
       return endpoints.evaluated.observedCkdG5 ? null : {
@@ -133,12 +139,19 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
     case 'slope_ci_unavailable':
       return { label: 'G5 not projected', title: 'Endpoint fit slope confidence bounds are unavailable, so no future age at CKD G5 was computed.', caveat }
     case 'beyond_projection_horizon':
-      return { label: 'G5 not projected', title: 'The fitted crossing is more than 20 years after the latest eligible eGFR measurement, so no future age at CKD G5 was reported.', caveat }
+      return {
+        label: 'G5 not projected',
+        title: aki
+          ? `${akiLead}The fitted crossing is more than 20 years after the latest measurement used, so no future age at CKD G5 was reported.`
+          : 'The fitted crossing is more than 20 years after the latest eligible eGFR measurement, so no future age at CKD G5 was reported.',
+        caveat,
+      }
     case 'already_below_threshold':
       return {
         label: 'G5 now',
         title:
-          `The fitted curve reaches ${CKD_G5_EGFR_THRESHOLD} at or before the latest measurement, ` +
+          (aki ? akiLead : '') +
+          `The fitted curve reaches ${CKD_G5_EGFR_THRESHOLD} at or before the latest measurement${aki ? ' used' : ''}, ` +
           'so there is no future crossing to project. This does not establish an observed event.',
         caveat,
       }
@@ -151,13 +164,16 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
     case 'insufficient_points':
       return {
         label: 'G5 < 3 dates',
-        title: 'Usable measurements on fewer than three distinct dates, so no projection was made.',
+        title: aki
+          ? `${akiLead}The measurements used fall on fewer than three distinct dates, so no projection was made.`
+          : 'Usable measurements on fewer than three distinct dates, so no projection was made.',
         caveat,
       }
     case 'theil_sen_insufficient_points':
       return {
         label: 'G5 < 5 dates',
         title:
+          (aki ? akiLead : '') +
           'Theil–Sen projections need usable measurements on at least five distinct dates. With three or four, ' +
           'its 95 % slope interval is the full range of pairwise slopes and covers the true slope only about 67 % or 92 % of the time, so no projection was made.',
         caveat,
@@ -165,7 +181,9 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
     case 'span_too_short':
       return {
         label: 'G5 < 1 yr',
-        title: 'Less than one year between first and last measurement, so no projection was made.',
+        title: aki
+          ? `${akiLead}The measurements used span less than one year, so no projection was made.`
+          : 'Less than one year between first and last measurement, so no projection was made.',
         caveat,
       }
     // 'disabled' and 'observed_ckd_g5' are not failures: the endpoint is off, or

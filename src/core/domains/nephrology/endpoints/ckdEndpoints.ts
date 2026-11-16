@@ -49,6 +49,10 @@ export interface CkdEndpoints {
    * baseline and projection input (never from observed G4/G5, total change or
    * decline events). */
   inputExcludesAkiWindows: boolean
+  /** Points the decline baseline and projection used: `endpointPointCount`
+   * less the rows inside the column's exclusion windows. Fewer than
+   * `endpointPointCount` means a window removed at least one row. */
+  projectionPointCount: number
   percentDecline: {
     value: number | null
     baselineValue: number | null
@@ -130,6 +134,7 @@ function emptyEndpoints(): CkdEndpoints {
     kidneyFailureReached: null,
     endpointPointCount: 0,
     inputExcludesAkiWindows: false,
+    projectionPointCount: 0,
     percentDecline: { value: null, baselineValue: null, latestValue: null },
     observedCkdG4: emptyObservedCrossing(),
     observedCkdG5: emptyObservedCrossing(),
@@ -169,6 +174,7 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
   const points = validEndpointPoints(input.points)
   const fitPoints = input.fitPoints ? validEndpointPoints(input.fitPoints) : points
   out.endpointPointCount = points.length
+  out.projectionPointCount = fitPoints.length
 
   if (input.enabled.percentDecline && points.length > 0) {
     out.percentDecline = percentDeclineFromBaseline(points)
