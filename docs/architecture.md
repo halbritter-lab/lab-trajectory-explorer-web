@@ -98,8 +98,8 @@ Pick and test any other boundary convention explicitly.
 5. Test the module predicate and target, settings validation if it has
    settings, and the relevant consumer behavior. Run the focused tests,
    `pnpm test` and `pnpm build`. A clinical or numeric change also follows the
-   owner-decision and fixture process in `CLAUDE.md` and
-   `docs/method-algorithms.md`.
+   owner-decision and fixture process in `CLAUDE.md` and the method reference
+   (`docs/method-algorithms.md` and its topic files).
 
 ## Library package
 

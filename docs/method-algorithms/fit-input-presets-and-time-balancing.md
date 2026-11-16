@@ -1,0 +1,349 @@
+# Method reference: Fit input, presets and time balancing
+
+Part of the [implemented method algorithms](../method-algorithms.md), which
+hold the reading conventions and the list of open decisions. Research use
+only.
+
+## Fit pipeline and fit-input selection
+
+This section describes how an individual display fit selects its input and
+what the counts next to a slope mean. The same prepared points feed the patient
+table, the patient chart, the cohort overlay and the workbook export; nothing is
+refitted for export. Endpoint evaluation and individual endpoint prediction
+select their input separately (see "Observed endpoints and individual prediction").
+
+### Series identity and fit candidates
+
+A series is one patient, one parameter name (`bezeichnung`) and one unit
+(`einheit`) as stored after import. Rows with a different name or a different
+unit are never pooled into one fit. A row is a fit candidate when it has a date
+and a numeric value. Rows without a date or without a numeric value are never
+fitted.
+
+Imported dates are calendar days at midnight UTC; a time of day in the source
+is dropped at import. Two measurements taken on the same day therefore carry an
+identical timestamp. Points are sorted by date before every calculation; rows
+on the same date keep their source order.
+
+### Order of operations
+
+`summarizeByBezeichnung` (`src/core/stats/summarize.ts`) and the trend-line
+path (`buildCohortRows`, then `buildSlopeLines` in
+`src/core/stats/slopeLines.ts`) apply the same five steps in the same order;
+for the line, step 1 is done by `buildCohortRows` before it calls
+`buildSlopeLines`:
+
+1. Exact rows only. Every row whose operator is not `=` is removed by operator,
+   not by date. These are the bounds `<` and `>` (see "Bounded measurements")
+   and, with pre-parsed value columns, numeric rows whose operator is `range`
+   or unrecognised. An empty operator cell beside a number is exact.
+2. Censoring windows. Points inside any censoring window of the series are
+   removed. These windows come from clinical events under the column's
+   censoring options.
+3. Fit-exclusion windows. Points inside any fit-exclusion window are removed.
+   These are the AKI windows when the column excludes them.
+4. Time balancing. The remaining points are aggregated per calendar month or
+   quarter when the column asks for it (see "Time balancing").
+5. Fit. The estimator selected by the fit model runs on the result.
+
+Steps 2 and 3 have the same effect on a point; the two classes differ only in
+which module supplies them and in the reason recorded for the excluded point.
+Because balancing runs after both, a value inside a window never contributes to
+a monthly or quarterly median.
+
+### Window semantics
+
+`src/core/exclusions/windows.ts` defines what "inside a window" means for every
+caller. A window has a start and an end. A point is inside when
+`start <= date <= end`; both bounds are inclusive. A window whose end is absent
+is open-ended and contains every date from its start on, including the start
+date. A point inside at least one window is excluded once, however many windows
+contain it. A fixed-length window of N days is `[start, start + N days]`, so it
+covers N + 1 calendar dates; with N = 0 it still contains the start date.
+
+### Fit axis
+
+The regression x value is always elapsed time in years from the first fitted
+point (see "Ordinary least squares"). Every slope is therefore in value units
+per year. The chart axis control (age, calendar date, time since first
+measurement) changes the drawing only. The `xAxis` value stored in a preset is
+metadata: it is written to the exported `fit_config` and is part of the
+mixed-model result identity, but no fit and no chart reads it.
+
+### Fit model and slope mode
+
+The column's fit model selects a slope mode (`modeForFitModel`) and the
+estimator that produces the reported scalar slope (`scalarFitModelFor`). Both
+are exported, as `slope_mode` and `fit_model`.
+
+| Fit model setting | Slope mode | Scalar estimator (`fit_model`) |
+| --- | --- | --- |
+| `none` | `global` | `none` |
+| `ols` | `global` | `ols` |
+| `theil-sen` | `global-robust` | `theil-sen` |
+| `rolling-ols` | `rolling` | `ols` |
+| `segmented-ols` | `gap-split` | `ols` |
+
+With `none`, no fit runs: slope, R² and confidence bounds are unavailable, the
+fitted count is zero and no trend line exists.
+
+### Counts and spans
+
+| Field | Export column | What it counts |
+| --- | --- | --- |
+| `nNumeric` | `n` | Dated numeric rows of the series, non-exact rows (bounds and other operators than `=`) included, before any window or balancing. |
+| `spanDays` | `span_days` | Whole days between the first and last of those rows; 0 when there is none. |
+| `nFitted` | `n_fitted` | Points handed to the scalar fit after steps 1 to 4. One monthly or quarterly bin counts as one point. |
+| `fittedSpanDays` | `fitted_span_days` | Whole days between the first and last of those fitted points; 0 with fewer than two. |
+| `nFittedDates` | none | Distinct UTC calendar days among those fitted points (since 2026-11-05). Read by the slope reliability rule only. |
+
+Day counts are elapsed milliseconds divided by 86 400 000 and truncated towards
+zero. `nFitted` is 0 when the fit model is `none`. When the series has fewer
+than two exact rows, `nFitted` is the number of exact rows left after both
+window classes (0 or 1) and `fittedSpanDays` is 0. Under balancing,
+`fittedSpanDays` is measured between the representative dates of the first and
+last bin, so it can be shorter than the span of the measurements that entered
+those bins. `nFitted` is reported even when the estimator then returns no
+slope.
+
+Example: eight raw values in two calendar quarters under quarterly medians give
+`nNumeric = 8` and `nFitted = 2`. Three raw values on 2020-01-01 and one on
+2021-01-01 without balancing give `nFitted = 4` and `nFittedDates = 2`.
+
+### Fit dates, intercept and slope standard error
+
+Since 2026-11-05 the `cohort` and `slopes` sheets end with six further
+columns, placed after the rolling columns so that earlier column positions are
+unchanged. They are read from the existing fit; nothing is refitted.
+
+| Column | Content | Blank when |
+| --- | --- | --- |
+| `index_date` | Date (`YYYY-MM-DD`, UTC) of the first point the scalar fit consumed: the time origin `t0`, at which `intercept` applies. Under balancing it is the representative date of the first bin; in `chronic-ckd` the first point after the run-in; in `event-driven` the first point of the reported segment. | no point was fitted (`n_fitted = 0`, fit model `none` included) |
+| `last_fitted_date` | Date of the last point the scalar fit consumed, with the same conventions. With one fitted point it equals `index_date`. | as `index_date` |
+| `first_eligible_date` | Date of the first row of the same row set as `last_eligible_date` (added 2026-11-13, owner decision). Run-in, fit windows and balancing do not move it, so it can be earlier than `index_date`. It serves as a data-based start for time-to-event work; a study-specific index date is set in the analysis itself. | as `last_eligible_date` |
+| `last_eligible_date` | Date of the last exact, finite, dated row of the series before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (the event rules of "Observed endpoints and individual prediction"; boundary dates as there). Only these event rules apply: no fit exclusion window (AKI windows included), run-in or balancing. It is filled for every column and fit model, also where endpoints are not evaluated. | the series has no such row |
+| `intercept` | Fitted value of the display fit (the fit behind `slope`) at `index_date`, unrounded (OLS: `ȳ − slope · x̄`; two-point line: the first value; Theil-Sen: separate-median intercept). | the estimator returns no slope |
+| `slope_se` | OLS standard error of the slope, `SE = sqrt(SSres / (n − 2) / Sxx)` from "95 % confidence interval for the slope", unrounded; `ci_low = slope − t · SE`. | Theil-Sen (no standard error is defined; its bounds are rank-based), the exact two-point line (`n − 2 = 0`), and every case without a slope |
+
+Rolling and segmented OLS report the global OLS fit, so these columns describe
+that fit, not a window or segment. Example: the worked OLS example dated
+2020-01-01 to 2023-01-01 exports `index_date = 2020-01-01`,
+`last_fitted_date = 2023-01-01`, `intercept = 60.203774` and
+`slope_se = 0.283741` (half-width 1.220837 / t 4.30265273). Adding values on
+2023-02-01 and 2023-03-01 under quarterly medians gives one bin dated
+2023-02-01, so `last_fitted_date = 2023-02-01` while
+`last_eligible_date = 2023-03-01`; a value after a kidney transplant on
+2023-06-01 changes neither. With AKI windows excluded from the fit, creatinine
+values of 1.0, 1.1, 1.05 and 1.15 mg/dl up to 2020-07-30, then 2.4 on
+2020-08-01 and 1.8 on 2020-08-10, give `last_fitted_date = 2020-07-30` and
+`last_eligible_date = 2020-08-10`. Values of 62, 60 and 61 on 2020-01-05,
+2020-02-01 and 2020-03-01, then 56, 50 and 46 on 1 January 2021 to 2023,
+under quarterly medians (CKD progression) give one 2020 Q1 bin dated
+2020-02-01: `index_date = 2020-02-01` and `first_eligible_date = 2020-01-05`.
+A kidney transplant before the first value leaves both eligible dates blank.
+Evidence: [export record tests](../../tests/core/cohort/exportRecords.test.ts).
+
+### Rounding
+
+The core does not round. Slope, intercept, R² and confidence bounds are
+double-precision values, and the workbook export writes them unrounded. Only
+day counts are truncated to whole days. The interface formats numbers for
+display; that formatting does not feed back into any calculation.
+
+### Trend line
+
+`buildSlopeLines` draws each fitted line as two points: the first fitted point's
+date at the fitted intercept, and the last fitted point's date at
+`intercept + slope * elapsed years`. The line covers the fitted span only and is
+not extrapolated. It bridges excluded windows that lie between fitted points.
+Under balancing, the line starts and ends at representative bin dates. No line
+exists when the fit model is `none`, when the series has fewer than two exact
+rows, when the estimator returns no slope, or in the `rolling` mode (see
+"Rolling and segmented OLS"). Showing the fit for a column is a display toggle;
+summaries and exports are computed whether or not it is on.
+
+Regression evidence: [summary tests](../../tests/core/stats/summarize.test.ts),
+[slope-line tests](../../tests/core/stats/slopeLines.test.ts),
+[censored measurement tests](../../tests/core/censoredMeasurements.test.ts),
+[event exclusion tests](../../tests/core/events/fitExclusions.test.ts) for
+the inclusive start bound, and
+[export record tests](../../tests/core/cohort/exportRecords.test.ts) for
+`slope_mode`, `fit_model` and the fitted count behind `unstable_slope`.
+`src/core/exclusions/windows.ts` has no test file of its own and is exercised
+through these tests. No dedicated regression test covers the fixed-length
+window with N = 0, a point exactly on the end date of a window, the `n_fitted`
+and `fitted_span_days` export columns,
+unrounded export values, or the fact that the preset `xAxis` is not read.
+
+## Fit presets
+
+A preset is a named starting configuration over the pipeline above. The catalog
+is `STANDARD_PRESETS` (`src/core/analysis/fitConfig.ts`) followed by
+`NEPHROLOGY_PRESETS` (`src/core/domains/nephrology/fitConfig.ts`). Each preset
+fixes every setting in the table.
+
+| Setting | General exploration | Theil–Sen robust trend | CKD progression | Acute review |
+| --- | --- | --- | --- | --- |
+| Menu id | `general_exploration` | `theil_sen` | `ckd_progression` | `acute_review` |
+| `preset` recorded in `fit_config` | `general_exploration` | `custom` | `ckd_progression` | `acute_review` |
+| `xAxis` (metadata only) | `calendar_time` | `calendar_time` | `age` | `calendar_time` |
+| Censor after kidney transplant | off | off | on | off |
+| Censor after chronic dialysis | off | off | on | off |
+| Exclude acute dialysis intervals | off | off | on | off |
+| Unknown-intent dialysis policy | `flag-only` | `flag-only` | `exclude-dated-interval` | `flag-only` |
+| Exclude AKI windows from fit | off | off | on | off |
+| AKI exclusion days | 30 (stored, inactive) | 30 (stored, inactive) | 30 | 30 (stored, inactive) |
+| Time balancing | `raw` | `raw` | `quarterly-median` | `raw` |
+| Fit model | `ols` | `theil-sen` | `ols` | `none` |
+| Endpoint: percent decline | off | off | on | off |
+| Endpoint: observed CKD G4 | off | off | on | off |
+| Endpoint: observed CKD G5 | off | off | on | off |
+| Endpoint: projected age to CKD G5 | off | off | on | off |
+| Confirmation days | 90 (stored, inactive) | 90 (stored, inactive) | 90 | 90 (stored, inactive) |
+| Rapid-decline threshold (column module setting) | 5 | 5 | 5 | 5 |
+
+"Stored, inactive" means the value is kept in the configuration so that it is
+already set when the corresponding option is switched on. Endpoint toggles only
+take effect on eGFR series. For the AKI exclusion days, inactive refers to the
+fit only: the shaded AKI band in charts is drawn with the stored length whether
+or not the exclusion is on (see "AKI fit-exclusion window"). The construction
+of AKI windows and the endpoint rules are specified in their own sections.
+
+The Theil–Sen preset is general exploration with the Theil–Sen estimator. Its
+configuration is recorded with `preset: custom`, so an export cannot
+distinguish it from a manually edited configuration that has the same values.
+
+Defaults and inheritance:
+
+- The workspace starts with shared settings built from General exploration.
+- Shared defaults offer only general presets. Specialist presets are assigned
+  explicitly to one parameter, including when chosen in Cohort models; they do
+  not become shared defaults for unrelated measurements.
+- A column without its own configuration uses the shared settings. Editing
+  settings while a column is selected creates an independent configuration for
+  that column; "Use shared settings" removes it.
+- Selecting a preset replaces every setting in the table, including the
+  column's rapid-decline threshold, which returns to 5.
+
+- Changing any single advanced setting, including the rapid-decline threshold,
+  marks the configuration as custom. It is then recorded with `preset: custom`
+  and `xAxis: calendar_time`, whichever preset it started from.
+- A series specification built without a fit configuration (`cohortSeriesSpec`)
+  uses General exploration.
+
+Trajectory calculation and visibility are separate. *Analyse trend* starts off
+for each parameter and supplies `fitModel: none` to that parameter's trajectory
+summary until enabled. With values 10, 8 and 6 on 1 January in 2020, 2021 and
+2022, disabling analysis retains the three measurements and supplies no slope
+or fit line; enabling OLS computes the existing negative slope. *Show trend
+line* changes only the drawing and retains the slope and export results. The
+configured model and preparation remain stored; Cohort models uses those
+settings independently of the trajectory activation switch. Choosing a No fit
+method disables trajectory activation and line visibility and clears slope
+sorting for that parameter. A derived-parameter replacement transfers activation,
+line visibility and own settings to its replacement key.
+
+The export `settings` sheet records, per column, the slope mode (column
+`mode`), the complete `fit_config` JSON and the rapid-decline threshold
+(`rapid_egfr_threshold`).
+
+Regression evidence: [preset builder tests](../../tests/core/fitPipeline/types.test.ts)
+for General exploration and CKD progression,
+[workspace trajectory tests](../../tests/workspace/trajectories.test.tsx) for
+preset selection and the custom state, and
+[workspace export tests](../../tests/workspace/export.test.ts) for the settings
+sheet. No dedicated regression test asserts the complete Acute review or
+Theil–Sen configuration, or the reset of the rapid-decline threshold on preset
+selection.
+
+## Time balancing
+
+Time balancing (`balanceSeriesPoints`, `src/core/stats/timeBalancing.ts`)
+reduces repeated measurements in a calendar period to one point. It runs after
+bounds and windows and before the fit, for every estimator and every analyte.
+It is the default in the CKD progression preset (`quarterly-median`).
+
+Modes:
+
+- `raw`: no aggregation. Points are sorted by date; every row is its own point.
+- `monthly-median`: one point per UTC calendar month.
+- `quarterly-median`: one point per UTC calendar quarter (January to March,
+  April to June, July to September, October to December).
+
+Bins are calendar bins keyed by UTC year and month or quarter. They are not
+anchored at the patient's first measurement. 31 December and 1 January fall in
+different bins in both modes.
+
+For each bin that contains at least one point:
+
+- The value is the median of the bin's values. With an even count it is the
+  arithmetic mean of the two middle values.
+- The date is the date of the lower-middle observation in date order: position
+  `floor((n - 1) / 2)` counted from zero. With one point it is that point's
+  date, with two the earlier date, with three the middle date, with four the
+  second date. It is always a date on which a measurement exists, never the
+  middle of the calendar period.
+
+Value and date are chosen independently. The representative date need not be
+the date on which the median value was measured, and with an even count the
+value may not have been measured at all. Bins without points produce nothing:
+no value is interpolated or carried forward, and the result has a gap there.
+
+Consequences for later steps:
+
+- `nFitted` counts bins, and every minimum point count applies to bins.
+- `fittedSpanDays`, the trend-line ends and the one-year reliability threshold
+  use representative dates.
+- The time origin of the fit is the representative date of the first bin.
+- Gap splitting and rolling windows operate on representative dates.
+- Same-date rows collapse into their bin instead of entering as separate
+  points.
+
+The cohort mixed-model dataset code uses the same function on its own retained
+rows, with the time balancing chosen for that parameter under Trajectories
+(see "Cohort mixed models").
+
+Example. Seven exact values of one series in 2021:
+
+| Date | Value |
+| --- | ---: |
+| 2021-01-10 | 50 |
+| 2021-02-20 | 44 |
+| 2021-03-05 | 47 |
+| 2021-03-25 | 41 |
+| 2021-04-15 | 40 |
+| 2021-11-02 | 38 |
+| 2021-12-01 | 42 |
+
+`monthly-median` gives six points. March holds 47 and 41, so its value is 44
+and its date is the earlier one, 2021-03-05. All other months keep their single
+value and date.
+
+`quarterly-median` gives three points:
+
+| Quarter | Values in date order | Point |
+| --- | --- | --- |
+| Q1 | 50, 44, 47, 41 | 2021-02-20, 45.5 |
+| Q2 | 40 | 2021-04-15, 40 |
+| Q3 | none | no point |
+| Q4 | 38, 42 | 2021-11-02, 40 |
+
+The Q1 value 45.5 is the mean of 44 and 47; its date is the second of four,
+on which 44 was measured. `nNumeric` is 7 and `nFitted` is 3. The raw span is
+325 days (2021-01-10 to 2021-12-01); the fitted span is 255 days (2021-02-20 to
+2021-11-02). The gap between the second and third point is 201 days, so
+segmented OLS splits there. The global OLS slope is −7.66 per year on the raw
+points and −5.73 per year on the quarterly points.
+
+A second example for the date rule with an odd count: 9 on 2021-01-05, 1 on
+2021-02-10 and 5 on 2021-03-20 give the quarterly point (2021-02-10, 5). The
+date is the middle date; the value 5 was measured on 2021-03-20.
+
+Regression evidence: [slope-line tests](../../tests/core/stats/slopeLines.test.ts)
+(quarterly balancing before the line, representative date with three points),
+[mixed-model dataset tests](../../tests/core/mixedModel/cohortDataset.test.ts)
+(monthly median of two values and the earlier date as origin) and
+[export record tests](../../tests/core/cohort/exportRecords.test.ts) (eight raw
+values collapsing to two fitted points). No dedicated regression test covers
+`balanceSeriesPoints` directly, the year boundary, or empty bins.
+

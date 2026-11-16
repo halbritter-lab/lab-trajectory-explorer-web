@@ -87,7 +87,7 @@ of that day.
   a rise of exactly 0.3 mg/dl or exactly 1.5× is detected despite binary
   rounding. The stage-1 floor and stage-2/3 boundaries use the same rule;
   episode clustering and staging priority are unchanged and are written out in
-  [method algorithms](method-algorithms.md#kdigo-creatinine-aki-detection). A clinically smaller
+  [method algorithms](method-algorithms/aki.md#kdigo-creatinine-aki-detection). A clinically smaller
   rise such as 0.299999 mg/dl remains below threshold. Implemented in this P4
   package.
 - **AKI detection and eGFR derivation** accept eligible serum creatinine in
@@ -277,7 +277,7 @@ Taken by the project owner on the points the walkthrough had left open.
   Implemented as a list of four accepted comparison forms, so nothing else is
   widened: a unit with trailing text such as `ml/min/1,73 m² KOF` and
   `ml per min per 1.73 m2` are still not recognised. Tests, the changelog and
-  [method algorithms](method-algorithms.md#eligibility-and-kidney-failure-reached)
+  [method algorithms](method-algorithms/endpoints-and-projection.md#eligibility-and-kidney-failure-reached)
   are updated; the golden fixtures contain no such unit and are unchanged.
 - **OD-8 confirmed.** The implemented reading stands: text with exactly three
   digits after a point is a decimal (`1.234` is 1.234, `0.850` is 0.85), and
@@ -289,21 +289,6 @@ Taken by the project owner on the points the walkthrough had left open.
   [method algorithms](method-algorithms.md), where no value remains marked as
   proposed; the entries of 2026-10-06 above keep their marks as the record of
   that day.
-
-### Decisions of 2026-11-13 (R reproduction export, PR #43)
-
-- **OD-30, full precision.** Estimates, intervals and variance parameters are
-  returned from R at full precision (`digits = NA`) instead of four decimal
-  places. A deliberate numeric change to stored results and exports; values
-  move in the fifth decimal and beyond, and values between 1e-5 and 5e-5 are
-  no longer stored as 0. No golden fixture holds a webR result, so none moved.
-- **Level order.** Non-reference factor levels are ordered by code point
-  (`sort(method = "radix")` in R, JavaScript default sort in the browser), so
-  the coefficient order does not depend on the locale.
-- **Accepted as implemented:** calendar dates outside the dataset hash, one
-  `vcov` sheet with one block per model, `unit_key` next to `group`, a dropped
-  `vcov` reported as a fit warning. The readxl type-guessing caveat for
-  `group` is documented in the `about` sheet.
 
 ### Release gate
 
@@ -353,8 +338,8 @@ implementing pull request is his sign-off.
   taking their episodes from the patient's serum creatinine pair with the most
   rows.
 
-Details and boundaries: [eGFR derivation](method-algorithms.md#eligible-source-series)
-and [KDIGO creatinine AKI detection](method-algorithms.md#input-series-and-conversion).
+Details and boundaries: [eGFR derivation](method-algorithms/egfr.md#eligible-source-series)
+and [KDIGO creatinine AKI detection](method-algorithms/aki.md#input-series-and-conversion).
 The golden fixtures contain only `Kreatinin` (mg/dl and µmol/l) and no value
 above either threshold; they are unchanged.
 
@@ -364,7 +349,7 @@ Requested by the project owner after the clinical-research review of
 2026-11-03 (issue #34, section "Endpoint and projection input"). Merging the
 implementing pull request is the owner's sign-off. Details, boundaries and
 recomputed examples are in
-[method algorithms](method-algorithms.md#observed-endpoints-and-individual-prediction).
+[method algorithms](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction).
 
 - **Decline baseline and G5 projection leave out the column's AKI windows.**
   When a column's fit excludes AKI windows (fit configuration switch on, as in
@@ -437,7 +422,22 @@ doi:10.1016/j.ekir.2025.11.021).
   `CKD-EPI 2009 (race-free)`, so the series name and export keys say so; the
   selector lists it directly after CKD-EPI 2021.
 - Coefficients and worked values:
-  [method algorithms](method-algorithms.md#formulas).
+  [method algorithms](method-algorithms/egfr.md#formulas).
+
+## Decisions of 2026-11-13 (R reproduction export, PR #43)
+
+- **OD-30, full precision.** Estimates, intervals and variance parameters are
+  returned from R at full precision (`digits = NA`) instead of four decimal
+  places. A deliberate numeric change to stored results and exports; values
+  move in the fifth decimal and beyond, and values between 1e-5 and 5e-5 are
+  no longer stored as 0. No golden fixture holds a webR result, so none moved.
+- **Level order.** Non-reference factor levels are ordered by code point
+  (`sort(method = "radix")` in R, JavaScript default sort in the browser), so
+  the coefficient order does not depend on the locale.
+- **Accepted as implemented:** calendar dates outside the dataset hash, one
+  `vcov` sheet with one block per model, `unit_key` next to `group`, a dropped
+  `vcov` reported as a fit warning. The readxl type-guessing caveat for
+  `group` is documented in the `about` sheet.
 
 ## Release review of 2026-11-15
 
@@ -493,9 +493,9 @@ or protect documented behaviour and change no fitted number.
   with 120 creatinine values each is analysed in 2.5 s instead of 43.8 s on
   the development machine.
 
-Details: [eGFR derivation](method-algorithms.md#eligible-source-series),
-[reliability rule](method-algorithms.md#reliability-rule) and
-[cohort mixed models](method-algorithms.md#cohort-mixed-models). The golden
+Details: [eGFR derivation](method-algorithms/egfr.md#eligible-source-series),
+[reliability rule](method-algorithms/slope-quality.md#reliability-rule) and
+[cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models). The golden
 fixtures contain only `Kreatinin` and are unchanged.
 
 ## Approved requirements
@@ -506,7 +506,7 @@ fixtures contain only `Kreatinin` and are unchanged.
 > calendar months of the candidate (a later low value then starts a new
 > candidate), and input is limited to endpoint-eligible exact measurements
 > before kidney replacement therapy. See "Decisions of 2026-10-06" above and
-> [observed endpoints and individual prediction](method-algorithms.md#observed-endpoints-and-individual-prediction).
+> [observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction).
 > The steps below are kept as the 2026-09-23 record.
 
 Evaluate G4 and G5 independently, using default eGFR thresholds of strictly
@@ -540,7 +540,7 @@ candidate requiring its own later confirmation.
 > dialysis intervals and bounds; a crossing is withheld when the slope
 > confidence interval includes zero or lies more than 20 years ahead. See
 > "Decisions of 2026-10-06" above and
-> [observed endpoints and individual prediction](method-algorithms.md#observed-endpoints-and-individual-prediction).
+> [observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction).
 > Only the first sentence of the first paragraph below is superseded: within
 > the eligible rows the input is still not truncated at an observed laboratory
 > event, and recovery values stay in the fit. The fitted-curve anchor in the

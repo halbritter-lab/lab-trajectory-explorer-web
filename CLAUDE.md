@@ -76,22 +76,29 @@ these. Keep it separate from `reason` for exactly that reason.
 
 ## Method reference: complete and as implemented
 
-[docs/method-algorithms.md](docs/method-algorithms.md) specifies every rule
-that decides which data are analysed, how a number is derived and how a result
-is classified — import and parsing included, not only statistics. The owner
-requires it to stay complete: a change to such a rule updates the matching
-section in the same change, with concrete values, boundary conventions and a
-recomputed example.
+The method reference specifies every rule that decides which data are
+analysed, how a number is derived and how a result is classified — import and
+parsing included, not only statistics. Its index,
+[docs/method-algorithms.md](docs/method-algorithms.md), holds the reading
+conventions, the contents and the decision lists; the rules are in the topic
+files under [docs/method-algorithms/](docs/method-algorithms/) (import,
+demographics, eGFR, AKI, fits, endpoints, cohort models and others). The
+owner requires it to stay complete: a change to such a rule updates the
+matching section of its topic file in the same change, with concrete values,
+boundary conventions and a recomputed example.
+
+After moving or renaming a heading, run `node scripts/check_doc_links.mjs docs/`:
+it checks every relative link and heading anchor in the Markdown files.
 
 It describes what the code does, not what was intended. Where behaviour
 conflicts with other documentation or looks unintended, describe it as it is
-and add an `Open decision OD-n` marker plus a row in that file's list; do not
+and add an `Open decision OD-n` marker plus a row in the index's list; do not
 quietly fix either side. Removing a marker needs the owner's decision. Read
 the open-decision list before touching the affected code: several entries
 describe behaviour the interface does not make visible, such as the default
 reference level of a model factor being taken from all patients of the
 dataset (OD-29). Resolved
-entries stay listed under "Resolved decisions" in that file; their numbers are
+entries stay listed under "Resolved decisions" in the index; their numbers are
 not reused.
 
 ## Issues and pull requests

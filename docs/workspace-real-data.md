@@ -29,7 +29,7 @@ imported parameter names and patient attributes retain their original values.
 1. Under **Data**, import an XLSX/CSV file or load the supplied demo data.
    A workbook can contain `labs`, `attributes` and `events`. Downloadable templates
    show the core columns; all accepted headers and sheet names are listed in the
-   [algorithm reference](method-algorithms.md#import-and-value-interpretation),
+   [algorithm reference](method-algorithms/import-and-values.md#import-and-value-interpretation),
    and the demo workbook, events and attributes can be downloaded as examples; arbitrary column mapping is a later extension.
    Loaded events and rejected event rows are listed with their reason.
 2. Review import diagnostics and missing or conflicting demographics. Manual age
