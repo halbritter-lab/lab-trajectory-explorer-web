@@ -452,8 +452,9 @@ removed; every remaining sentence is the earlier wording.
     date.
   - B2: points that all share one date give no slope; same-date rows each
     count as a point.
-  - B4: the absolute criterion is tested first and fixes the 48-hour baseline,
-    so a stage can be lower than against the 7-day minimum; the window length
+  - B4: the absolute criterion is tested first and fixes the 48-hour baseline
+    (until 2026-11-16 a stage could therefore be lower than against the 7-day
+    minimum; stages now use the 7-day minimum, see D3 (d2)); the window length
     can be changed; the windows apply to any analyte column with the switch on.
   - B6: the row vote counts all lab rows and is a plurality; an explicit birth
     date always wins over stated ages; the 29 February rule.
@@ -1507,7 +1508,11 @@ Reflects: [detection](method-algorithms/aki.md#detection) and
 Checked 2026-11-16 by running `findKdigoAkiEpisodes` on both examples: no
 episode in either.
 
-**(d) AKI stage and the order of the criteria.** `Aki.tsx`, line 28, and the
+**(d) AKI stage and the order of the criteria. SUPERSEDED on 2026-11-16: do
+not apply this block; apply (d2) below instead.** The owner decided to grade
+every stage against the seven-day minimum, and the code now does so, so the
+limitation this block describes no longer exists. The block is kept as the
+record of the earlier behaviour. `Aki.tsx`, line 28, and the
 stage list, lines 29–41. Current: "AKI episodes are staged by the ratio of
 peak creatinine to the reference baseline:". The sentence stays. Proposed
 addition after the list:
@@ -1528,9 +1533,43 @@ Checked 2026-11-16 by running `findKdigoAkiEpisodes`: two episodes, onset
 6 January (baseline 1.0, peak 2.9, stage II, relative criterion) and onset
 7 January (baseline 2.9, peak 3.3, stage I, absolute criterion).
 
-This block describes the code as it is. The owner decided on 2026-10-06 not
-to change AKI episode merging and staging and is deciding again whether to
-grade against the lower baseline. If the code changes, drop this block.
+This block described the code as it was until 2026-11-16. The owner had
+decided on 2026-10-06 not to change AKI episode merging and staging; on
+2026-11-16 he decided to grade against the seven-day minimum. With the new
+code the same values give Stage II (2.9 against 1.0) and Stage III (3.3
+against 1.0).
+
+**(d2) AKI stage: reference value, and a sentence that is now wrong
+(needed, replaces (d)).** Since the staging change of 2026-11-16 one sentence
+of the page states a wrong result and one is incomplete.
+
+`Aki.tsx`, line 28. Current: "AKI episodes are staged by the ratio of peak
+creatinine to the reference baseline:". Proposed:
+
+> AKI episodes are staged by the ratio of creatinine to the lowest value of
+> the seven days before the measurement, whichever criterion detected the
+> episode. An episode gets the highest stage that one of its measurements
+> reaches:
+
+`Aki.tsx`, lines 91–92. Current: "… a sustained rise is reported as a chain
+of episodes: daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give four
+Stage I episodes." This is no longer what the app shows. Proposed:
+
+> … a sustained rise is reported as a chain of episodes: daily values of 1.0,
+> 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give four episodes of Stage I, II, II and
+> III, each staged against the lowest value of the last seven days (1.0).
+
+Reflects: [staging](method-algorithms/aki.md#staging) and
+[known limitations](method-algorithms/aki.md#known-limitations).
+
+Checked 2026-11-16 by running `findKdigoAkiEpisodes` with the new rule: the
+chain gives onsets 2, 4, 5 and 6 January with stages I, II, II, III (chip
+`AKI I, 2×II, III`); 1.0, 1.2 and 3.2 mg/dl on days 0, 3 and 4 give one
+Stage III episode.
+
+Left out on purpose: that the recorded detection baseline can be higher than
+the staging reference (the interface does not show the baseline), and that
+the stage of an episode need not come from its peak measurement.
 
 **(e) What the OLS interval assumes.** `Fits.tsx`, lines 226–231. Current:
 "The 95% interval is the slope ± t × standard error, where the standard error
@@ -1641,18 +1680,21 @@ None was changed.
   KDIGO, the window is not. Proposed heading: "AKI exclusion windows", with
   the hint "Episodes are detected with the KDIGO creatinine criteria. The
   length of the window is a rule of this tool."
-- **Table cell "95% slope CI"** (`src/workspace/TrajectoriesWorkspace.tsx`
-  line 107) is shown for Theil–Sen with any number of dates. Options: name
-  it "slope bounds" below five dates, or add the coverage to the tooltip.
+- **Table cell "95% slope CI"** (`src/workspace/TrajectoriesWorkspace.tsx`).
+  Decided and changed on 2026-11-16: for Theil–Sen on fewer than five
+  distinct fitted dates the cell reads "Slope range" and its hint gives the
+  coverage (about 67% with three dates, 92% with four). D3 (a) should use the
+  same term when it is applied.
 - **Projected age with one decimal** ("G5 @ 54.3y" when the birth date is
   known, `src/workspace/labels/endpointLabels.ts`). The projection has no
   interval, so one decimal suggests more precision than it has. Option: whole
   years, as already shown without a birth date.
 - **R export.** The exported script and workbook name no reference for lme4
   or R. Option: add the lme4 citation from D1 to the script header.
-- **AKI staging order** (D3 d): grade against the lower of the two baselines,
-  or keep the code and publish D3 (d). A change alters stages and needs an
-  entry in the method decisions.
+- **AKI staging order** (D3 d). Decided and changed on 2026-11-16: every
+  stage is graded against the seven-day minimum. D3 (d) is superseded by
+  D3 (d2), which is now needed because one page sentence states the old
+  result.
 
 ### Points to check in Part D
 
@@ -1662,8 +1704,9 @@ None was changed.
   "Could not be verified" wait.
 - **D2.** The list states rules; the sentence "they are not validated" is the
   maintainer's to confirm.
-- **D3 (c) and (d)** change how the AKI page describes its own limits; D3 (d)
-  depends on the pending decision about the staging order.
+- **D3 (c) and (d2)** change how the AKI page describes its own limits. The
+  staging order was decided on 2026-11-16: D3 (d) is superseded, and D3 (d2)
+  corrects a page sentence that states the old result.
 - **D3 (e) and (f)** are statistical statements that do not follow from the
   code.
 - **Overlap with Part C.** D3 (a) and C8 give the same coverage figures; D3

@@ -138,10 +138,14 @@ episode.
 
 ### Staging
 
-`kdigoStage` grades an episode from its baseline and peak value. The ratio is
-peak divided by baseline; a baseline of zero or less gives an infinite ratio,
-which detection never passes on because such values are removed beforehand.
-The rows are tested from top to bottom and the first match applies.
+`kdigoStage` grades a crossing from a reference value and the crossing value.
+The **reference is the lowest positive value of the seven days before the
+crossing** (the 7-day baseline of [Detection](#detection), with the same
+window bounds and the same tie rule), whichever criterion detected the
+crossing. The ratio is crossing value divided by reference; a reference of
+zero or less gives an infinite ratio, which detection never passes on because
+such values are removed beforehand. The rows are tested from top to bottom and
+the first match applies.
 
 | Stage | Condition (inclusive, with the 1e-12 tolerance) |
 | --- | --- |
@@ -149,9 +153,28 @@ The rows are tested from top to bottom and the first match applies.
 | II | ratio at least 2.0 |
 | I | ratio at least 1.5, **or** peak minus baseline at least 0.3 mg/dl |
 
-The 4.0 mg/dl rule applies to every detected episode whatever the size of the
+The 4.0 mg/dl rule applies to every detected crossing whatever the size of the
 rise: 4.2 to 4.5 mg/dl on consecutive days is stage III. Exactly 2.0-fold is
 stage II and exactly 3.0-fold is stage III.
+
+**The staging reference can be lower than the recorded baseline** (decided
+2026-11-16). The absolute criterion is tested first and records the 48-hour
+baseline; the stage still uses the 7-day minimum, which is never higher,
+because the 48-hour window lies inside the 7-day window. When both are the
+same value, nothing differs. Until 2026-11-16 the stage was graded against the
+recorded baseline, so an extra measurement on the day before a peak lowered
+the stage.
+
+| Values (mg/dl) and days | Recorded baseline | Staging reference | Stage | Before 2026-11-16 |
+| --- | --- | --- | --- | --- |
+| 1.0 (day 0), 3.2 (day 4) | 1.0, relative criterion | 1.0 | III (3.2-fold) | III |
+| 1.0 (day 0), 1.2 (day 3), 3.2 (day 4) | 1.2, absolute criterion | 1.0 | III (3.2-fold) | II (2.67-fold) |
+| 1.0 (day 0), 1.4 (day 1) | 1.0, absolute criterion | 1.0 | I | I |
+
+The stage is never lower than under the earlier rule. Detection, the recorded
+baseline, the grouping into episodes, onset dates and exclusion windows are
+unchanged; only the stage and what is derived from it (chip, marker label and
+tooltip, the `aki` export column) can differ.
 
 ### Episodes
 
@@ -166,11 +189,19 @@ episode. An episode consists of:
 | Baseline | baseline date and value of the first crossing |
 | Peak | highest crossing value of the episode and its date; the earlier date on equal values |
 | Criterion | criterion of the first crossing |
-| Stage | `kdigoStage(baseline value, peak value)`, the highest stage reached within the episode |
+| Stage | the highest stage of the episode's crossings, each graded against its own 7-day minimum (see [Staging](#staging)) |
 
 Example: 1.0, 1.6 and 2.1 mg/dl on 1, 2 and 3 January form one episode. Both
 later values cross against the 1 January baseline, so the onset is 2 January,
 the peak is 2.1 mg/dl on 3 January and the stage is II.
+
+The stage need not come from the peak crossing, because the 7-day minimum
+moves as earlier values leave the window. Values of 1.0 mg/dl on day 0, 1.4 on
+day 6, 3.1 on day 7 and 3.3 on day 8 form one episode (baseline 1.4 on day 6,
+onset day 7, peak 3.3 on day 8). On day 7 the 7-day minimum is still 1.0
+(exactly seven days back, inside the window): 3.1-fold, stage III. On day 8
+the 1.0 has left the window and the minimum is 1.4: 3.3 is 2.36-fold,
+stage II. The episode is stage III.
 
 ### Where results appear
 
@@ -220,8 +251,9 @@ still uses `Kreatinin enzym.` and shows none.
 
 ### Known limitations
 
-The following three properties are deliberate current behaviour. The owner
-decided on 2026-10-06 not to change AKI episode merging and staging (see
+The following two properties are deliberate current behaviour. The owner
+decided on 2026-10-06 not to change AKI episode merging, and on 2026-11-16 to
+keep it while changing the staging reference (see
 [method decisions](../remaining-method-decisions.md)); they are documented here
 so that episode counts and stages are read correctly.
 
@@ -233,35 +265,38 @@ each move starts a new episode.
 **There is no episode end, recovery rule or minimum gap.** An episode does not
 last until creatinine returns towards baseline, and nothing prevents a new
 episode from starting the day after the previous one. A sustained rise is
-therefore reported as a chain of episodes, each graded against its own recent
+therefore reported as a chain of episodes, each detected against its own recent
 baseline. Daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl from 1 to
 6 January give four episodes:
 
-| Onset | Baseline | Peak | Stage |
+| Onset | Baseline | Peak | Stage (against the 7-day minimum 1.0) |
 | --- | --- | --- | --- |
-| 2 January | 1.0 (1 January) | 1.8 (3 January) | I |
-| 4 January | 1.4 (2 January) | 2.2 | I |
-| 5 January | 1.8 (3 January) | 2.6 | I |
-| 6 January | 2.2 (4 January) | 3.0 | I |
+| 2 January | 1.0 (1 January) | 1.8 (3 January) | I (1.8-fold) |
+| 4 January | 1.4 (2 January) | 2.2 | II (2.2-fold) |
+| 5 January | 1.8 (3 January) | 2.6 | II (2.6-fold) |
+| 6 January | 2.2 (4 January) | 3.0 | III (3.0-fold) |
 
-The chip reads `AKI 4×I`, although creatinine tripled within five days. A
+The chip reads `AKI I, 2×II, III` for one continuous rise (until 2026-11-16:
+`AKI 4×I`, each episode graded against its own baseline). A
 plateau behaves the same way: 1.0, 1.0, 1.3 and 1.3 mg/dl on four consecutive
 days give two stage-I episodes, because the second 1.3 is compared with the
 1.0 of the second day once the first day has left the 48-hour window. Episode
 counts are counts of baseline-specific crossings, not of clinical events.
 
-**The absolute criterion decides the baseline first.** When the absolute
-criterion fires, the relative criterion is not tested, and the recorded
-baseline is the 48-hour minimum even when the 7-day minimum is lower. The
-stage is graded against that recorded baseline. Values of 1.0 mg/dl on
-1 January, 1.4 on 5 January and 3.2 on 6 January give one episode with onset
-6 January, baseline 1.4 mg/dl and stage II (ratio 2.29), although 3.2 mg/dl
-is 3.2 times the 7-day minimum of 1.0. Stages can therefore be lower than a
-grading against the 7-day minimum would give.
+**The absolute criterion decides the recorded baseline first.** When the
+absolute criterion fires, the relative criterion is not tested, and the
+recorded baseline is the 48-hour minimum even when the 7-day minimum is lower.
+This affects the baseline field and the grouping into episodes, not the stage
+(see [Staging](#staging)). Values of 1.0 mg/dl on 1 January, 1.4 on 5 January
+and 3.2 on 6 January give one episode with onset 6 January and recorded
+baseline 1.4 mg/dl; its stage is III, because 3.2 mg/dl is 3.2 times the 7-day
+minimum of 1.0 (until 2026-11-16: stage II, ratio 2.29 against 1.4). The
+interface and the exports show the stage, onset and peak of an episode, not
+its recorded baseline.
 
 Regression evidence: [KDIGO boundary tests](../../tests/core/aki/kdigo.test.ts)
 (tolerance, exact 0.3 mg/dl and 1.5-fold boundaries, stage values, the
-4.0 mg/dl rule), [AKI source tests](../../tests/core/aki/akiAware.test.ts)
+4.0 mg/dl rule, staging against the 7-day minimum with the examples above), [AKI source tests](../../tests/core/aki/akiAware.test.ts)
 (eligible names and units, µmol/l conversion, source selection without
 pooling, bounded rows), [creatinine source tests](../../tests/core/aki/creatinineSource.test.ts)
 (non-serum names, the computed eGFR source example above, its fit input and
@@ -274,8 +309,7 @@ tooltip text) and
 [censored measurement tests](../../tests/core/censoredMeasurements.test.ts).
 No dedicated regression test: inclusive window bounds at exactly two and
 seven days, the oldest-value tie rule for the baseline, same-date row order,
-the sustained-rise and plateau chains, the stage effect of the absolute-first
-order, and a computed eGFR column whose AKI source differs from its eGFR
+the sustained-rise and plateau chains, and a computed eGFR column whose AKI source differs from its eGFR
 source. Non-positive values and creatinine under dialysis are covered by the
 [dialysis and positivity tests](../../tests/core/aki/dialysisAndPositivity.test.ts).
 

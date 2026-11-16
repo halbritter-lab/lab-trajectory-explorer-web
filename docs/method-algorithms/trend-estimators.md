@@ -152,6 +152,22 @@ the lowest and highest pairwise slope, with an actual coverage of 1 - 2/n!
 distinct dates under Theil-Sen (since 2026-11-05; see "Individual G5
 projection"); the bounds themselves are unchanged.
 
+**Label of the bounds** (decided 2026-11-16). The table and the patient view
+call the bounds `95% slope CI`. For a Theil-Sen fit on fewer than five
+distinct fitted dates (`nFittedDates < 5`) they read `Slope range` instead,
+with the hint "Not a 95% interval: with one measurement on each of three
+dates these Theil–Sen bounds contain the true slope about 67% of the time,
+with four dates about 92%". From five dates on the label is `95% slope CI`
+(coverage 98.3 % at five). The rule counts dates, not points: with several
+measurements on one date the bounds can be narrower than the full range of
+pairwise slopes and their coverage is not established, so the label stays
+`Slope range` until five dates are reached. Example: 10, 11 and 12 on
+1 January of three consecutive years give `Slope range [1, 1]`; the same
+series over five years gives `95% slope CI [1, 1]`. The numbers and the
+export columns `ci_low` and `ci_high` are unchanged; the workbook's `about`
+sheet carries a note with the same statement. OLS fits always read
+`95% slope CI`.
+
 The kernel expects valid numeric points from preparation. The minimum applies
 to the actual prepared observations when used for a display fit. All pairs are
 enumerated, so time and temporary storage grow quadratically with point count.

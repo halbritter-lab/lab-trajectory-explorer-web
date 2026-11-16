@@ -84,6 +84,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Measurements, summaries, events and attributes are restricted to the selected patients and parameters. Events and attributes apply at patient level.'},
       {note:'measurements contains analysis values with resolved demographics and explicitly marked derived values; raw_measurements contains only imported values for the selected parameters. Unselected source measurements are not added.'},
       {note:'Slopes and quality information come directly from the displayed summary; export does not refit the data. n counts raw measurements; n_fitted counts the points actually fitted.'},
+      {note:'ci_low and ci_high are the 95 % interval of the slope. For a Theil-Sen fit on fewer than five distinct dates they are a range of pairwise slopes, not a 95 % interval: with one measurement per date it covers the true slope about 67 % of the time with three dates and 92 % with four.'},
       {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},
     ]},
   ]

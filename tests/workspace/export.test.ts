@@ -97,6 +97,7 @@ describe('workspace workbook', () => {
     expect(records(workbook,'parameters')).toEqual(expect.arrayContaining([expect.objectContaining({formula:'ekfc-2021',source_parameter:'Creatinine',source_unit:'mg/dl'})]))
     expect(records(workbook,'about').some(row => String(row.note).includes('Research use only'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('numeric limits remain'))).toBe(true)
+    expect(records(workbook,'about').some(row => String(row.note).includes('For a Theil-Sen fit on fewer than five distinct dates they are a range of pairwise slopes, not a 95 % interval'))).toBe(true)
   })
   it('intersects individual selection with visible IDs and rejects empty or missing summaries', () => {
     const input = exportFixture()

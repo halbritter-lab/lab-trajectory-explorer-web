@@ -498,6 +498,37 @@ Details: [eGFR derivation](method-algorithms/egfr.md#eligible-source-series),
 [cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models). The golden
 fixtures contain only `Kreatinin` and are unchanged.
 
+## Decisions of 2026-11-16 (science audit)
+
+Taken by the project owner after an audit of the methods against their
+published sources. Merging the implementing pull request is the owner's
+sign-off. Details, boundaries and recomputed examples are in
+[AKI staging](method-algorithms/aki.md#staging) and
+[trend estimators](method-algorithms/trend-estimators.md).
+
+- **AKI stages are graded against the seven-day minimum.** Until now a
+  crossing detected by the absolute criterion (at least 0.3 mg/dl above the
+  48-hour minimum) was graded against that 48-hour value, so an extra
+  measurement on the day before a peak lowered the stage: 1.0 mg/dl on day 0,
+  1.2 on day 3 and 3.2 on day 4 gave stage II (2.67-fold), where KDIGO grades
+  3.2 against 1.0 as stage III. Now every crossing is graded against the
+  lowest positive value of the seven days before it, and an episode reports
+  the highest stage of its crossings. This revises the staging part of the
+  2026-10-06 decision "Not changed for now: AKI episode merging and staging".
+  Episode merging stays as decided then: detection, the recorded baseline,
+  the grouping of crossings into episodes, onset dates and exclusion windows
+  are unchanged, so 1.0, 2.9 and 3.2 mg/dl on days 0, 5 and 6 remain two
+  episodes (now stages II and III, formerly II and I). A stage is never lower
+  than before. Slopes, endpoints and exclusion windows do not depend on the
+  stage; chips, marker labels, tooltips and the `aki` export column can
+  change. No golden fixture value and no stage in the bundled demo workbook
+  moved (8 episodes checked).
+- **Theil-Sen bounds on fewer than five dates are labelled a range.** The
+  interface reads `Slope range` instead of `95% slope CI` for a Theil-Sen fit
+  on fewer than five distinct fitted dates, with the actual coverage in the
+  hint (about 67 % with three dates, 92 % with four). Numbers and export
+  values are unchanged; the workbook's `about` sheet says the same.
+
 ## Approved requirements
 
 ### Observed events and recovery

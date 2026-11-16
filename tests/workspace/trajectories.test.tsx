@@ -253,12 +253,26 @@ describe('real-data trajectories workspace', () => {
     const table = screen.getByRole('table', { name: 'Measurements Marker · unit-0', hidden: true })
     expect(within(table).getByText('Excluded: censored value (limit, not exact)')).toBeInTheDocument()
   })
-  it('shows Theil-Sen slope confidence bounds with the displayed trend', () => {
-    renderWorkspace(<TrajectoriesWorkspace data={fixture()} />)
+  // Decided 2026-11-16: below five distinct fitted dates the Theil–Sen bounds are a range, not a 95% interval.
+  it.each([[3, 'Slope range'], [4, 'Slope range'], [5, '95% slope CI']])('labels Theil-Sen bounds on %i dates as "%s"', (dates, label) => {
+    const data = fixture()
+    data.parameters = data.parameters.slice(0, 1)
+    data.rows = data.rows.filter(row => row.einheit === 'unit-0' && row.labDatum!.getUTCFullYear() === 2020)
+      .flatMap(row => Array.from({ length: dates }, (_, year) => ({ ...row, labDatum: new Date(Date.UTC(2020 + year, 0, 1)), wert: String(10 + year), wertNum: 10 + year })))
+    data.rawRows = data.rows
+    renderWorkspace(<TrajectoriesWorkspace data={data} />)
     preset('theil_sen')
     closeSettings()
     enableTrend()
-    expect(screen.getAllByText(/95% slope CI/)).toHaveLength(2)
+    expect(screen.getAllByText(text => text.startsWith(`${label} [`))).toHaveLength(2)
+    expect(screen.queryAllByText(label === 'Slope range' ? /95% slope CI/ : /Slope range/)).toHaveLength(0)
+    expect(screen.queryAllByTitle(/Not a 95% interval: with one measurement on each of three dates these Theil–Sen bounds contain the true slope about 67% of the time, with four dates about 92%/)).toHaveLength(label === 'Slope range' ? 2 : 0)
+  })
+  it('keeps the 95% label for an OLS slope on three dates', () => {
+    renderWorkspace(<TrajectoriesWorkspace data={fixture()} />)
+    enableTrend()
+    expect(screen.getAllByText(/^95% slope CI \[/)).toHaveLength(2)
+    expect(screen.queryAllByText(/Slope range/)).toHaveLength(0)
   })
   it('identifies event-excluded measurements in patient detail without refitting', () => {
     const data = fixture()

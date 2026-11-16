@@ -22,6 +22,9 @@ export interface AkiEpisode {
   peakValue: number
   peakDate: Date
   criterion: 'absolute_0_3_mg_dl_48h' | 'relative_1_5x_7d'
+  /** Highest stage reached by a crossing of the episode, each graded against
+   * the lowest value of the seven days before it (decided 2026-11-16). That
+   * value can be lower than `baselineValue`, the detection baseline. */
   stage: number
 }
 
@@ -46,24 +49,26 @@ interface RawCrossing {
   peakValue: number
   peakDate: Date
   criterion: AkiEpisode['criterion']
+  stage: number
 }
 
 /** Merge consecutive crossings sharing a baseline into one episode keeping the
- * max peak. Mirrors analyses/methods.py:_cluster_aki_episodes. */
+ * max peak and the highest stage. Clustering mirrors
+ * analyses/methods.py:_cluster_aki_episodes. */
 function clusterEpisodes(raw: RawCrossing[]): AkiEpisode[] {
   const clusters: RawCrossing[] = []
   for (const c of raw) {
     const last = clusters[clusters.length - 1]
     if (last && last.baselineDate.getTime() === c.baselineDate.getTime()) {
       if (c.peakValue > last.peakValue) { last.peakValue = c.peakValue; last.peakDate = c.date }
+      if (c.stage > last.stage) last.stage = c.stage
     } else {
       clusters.push({ ...c, peakDate: c.date })
     }
   }
   return clusters.map((g) => ({
     date: g.date, baselineDate: g.baselineDate, baselineValue: g.baselineValue,
-    peakValue: g.peakValue, peakDate: g.peakDate, criterion: g.criterion,
-    stage: kdigoStage(g.baselineValue, g.peakValue),
+    peakValue: g.peakValue, peakDate: g.peakDate, criterion: g.criterion, stage: g.stage,
   }))
 }
 
@@ -92,7 +97,8 @@ class MinWindow {
 }
 
 /** Detect KDIGO AKI episodes on creatinine values already in mg/dl. O(n) via
- * two sliding-window minima (48h absolute, 7d relative). The window and
+ * two sliding-window minima (48h absolute, 7d relative). Each crossing is
+ * staged against the seven-day minimum. The window and
  * clustering algorithm follows the original Python implementation; threshold
  * comparisons use the owner's numeric tolerance. Values of zero or less are
  * not creatinine concentrations and take no part: they are neither a baseline
@@ -114,16 +120,15 @@ export function findKdigoAkiEpisodes(points: SeriesPoint[]): AkiEpisode[] {
     win7.expire(times, tj, KDIGO_RELATIVE_WINDOW_MS)
 
     const i48 = win48.argmin()
-    let fired = false
+    const i7 = win7.argmin()
+    // The stage is graded against the seven-day minimum even when the 48-hour
+    // criterion detects the crossing: an extra value the day before must not
+    // lower the stage. The 48-hour window lies inside the seven-day one, so
+    // i7 exists whenever i48 does and its value is never higher.
     if (i48 >= 0 && atLeast(vj - values[i48], KDIGO_ABSOLUTE_RISE_MGDL)) {
-      raw.push({ date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h' })
-      fired = true
-    }
-    if (!fired) {
-      const i7 = win7.argmin()
-      if (i7 >= 0 && values[i7] > 0 && atLeast(vj / values[i7], KDIGO_RELATIVE_RISE_RATIO)) {
-        raw.push({ date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d' })
-      }
+      raw.push({ date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h', stage: kdigoStage(values[i7], vj) })
+    } else if (i7 >= 0 && values[i7] > 0 && atLeast(vj / values[i7], KDIGO_RELATIVE_RISE_RATIO)) {
+      raw.push({ date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d', stage: kdigoStage(values[i7], vj) })
     }
 
     win48.push(j)

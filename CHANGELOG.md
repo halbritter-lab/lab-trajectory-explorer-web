@@ -5,6 +5,25 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (AKI staging, 2026-11-16)
+
+- AKI stages are graded against the lowest creatinine of the seven days
+  before a crossing, whichever criterion detected it; an episode reports the
+  highest stage of its crossings. Before, a crossing detected by the 0.3 mg/dl
+  criterion was graded against the 48-hour minimum, so 1.0, 1.2 and 3.2 mg/dl
+  on days 0, 3 and 4 gave stage II instead of III. Stages can be higher than
+  before, never lower. Detection, episode grouping, onset dates, exclusion
+  windows, slopes and endpoints are unchanged; AKI chips, marker labels and
+  the `aki` export column can change. No stage in the demo workbook changes.
+
+### Changed (Theil–Sen interval label, 2026-11-16)
+
+- For a Theil–Sen fit on fewer than five distinct dates the table and the
+  patient view label the bounds `Slope range` instead of `95% slope CI` and
+  give the actual coverage (about 67 % with three dates, 92 % with four). The
+  numbers and the export columns are unchanged; the workbook's `about` sheet
+  carries a note.
+
 ### Fixed (endpoint settings hint)
 
 - The endpoint hint in the analysis settings no longer says that AKI exclusions

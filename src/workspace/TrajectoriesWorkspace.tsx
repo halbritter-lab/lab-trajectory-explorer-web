@@ -103,8 +103,14 @@ function CellSummary({
     ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'}, local slopes ${formatWorkspaceNumber(cell.rolling.slopeMin)} to ${formatWorkspaceNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
     : `No ${cell.rolling.windowDays}-day window with three fitted measurements; no local slopes`)
   const hasCi = Number.isFinite(cell.ciLow) && Number.isFinite(cell.ciHigh)
-  const ciTitle = 'Uncertainty in the estimated slope; not a prediction interval for future measurements'
-  const ciText = `95% slope CI [${formatWorkspaceNumber(cell.ciLow)}, ${formatWorkspaceNumber(cell.ciHigh)}] ${cell.einheit ?? ''}/year`
+  // Below five distinct fitted dates the Theil–Sen bounds are not a 95% interval
+  // (decided 2026-11-16). Several values on one date raise the point count, not
+  // the date count; the coverage is then not established, so the label stays.
+  const slopeRange = cell.fitModel === 'theil-sen' && cell.nFittedDates < 5
+  const ciTitle = slopeRange
+    ? 'Not a 95% interval: with one measurement on each of three dates these Theil–Sen bounds contain the true slope about 67% of the time, with four dates about 92%'
+    : 'Uncertainty in the estimated slope; not a prediction interval for future measurements'
+  const ciText = `${slopeRange ? 'Slope range' : '95% slope CI'} [${formatWorkspaceNumber(cell.ciLow)}, ${formatWorkspaceNumber(cell.ciHigh)}] ${cell.einheit ?? ''}/year`
   const qualityLabel = quality && `${qualityText}${quality.caveat ? ', uncertain slope' : ''}`
   const excludedText = `${markedCount} excluded from the fit (${markedLabels.join(', ')})`
 
