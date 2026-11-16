@@ -223,12 +223,12 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
           <div className="wt-pipeline-group">
             <h2>eGFR endpoints & thresholds</h2>
             <p className="wt-muted">Applies only to parameters with eGFR units.</p>
-            <p className="wt-muted">Endpoints and prediction use exact dated eGFR measurements before the first transplant or chronic dialysis start, excluding complete dated acute dialysis intervals. Later values after acute dialysis remain eligible. Values marked &lt; or &gt; are excluded. Display-fit AKI exclusions and aggregation do not apply. Kidney failure reached is reported separately from observed G5.</p>
+            <p className="wt-muted">Endpoints and prediction use exact dated eGFR measurements before the first transplant or chronic dialysis start, excluding complete dated acute dialysis intervals. Later values after acute dialysis remain eligible. Values marked &lt; or &gt; are excluded. Time balancing does not apply. When AKI windows are excluded from the fit, they are also left out of the decline baseline and the G5 projection. Kidney failure reached is reported separately from observed G5.</p>
             <label><input type="checkbox" aria-label="Observed CKD G4" checked={fitSettings.endpoints.observedCkdG4 ?? false} onChange={e => updateSettings({ endpoints: { ...fitSettings.endpoints, observedCkdG4: e.target.checked } })} />Observed CKD G4</label>
             <label>Minimum confirmation interval (days)
               <ConfirmationDaysInput value={fitSettings.endpoints.confirmationDays ?? DEFAULT_CONFIRMATION_DAYS} onChange={days => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: days } })} />
             </label>
-            <p className="wt-muted">G4: below {CKD_G4_EGFR_THRESHOLD}; G5: below {CKD_G5_EGFR_THRESHOLD} mL/min/1.73m². Confirm within 12 calendar months of the first crossing. Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event.</p>
+            <p className="wt-muted">G4: below {CKD_G4_EGFR_THRESHOLD}; G5: below {CKD_G5_EGFR_THRESHOLD} mL/min/1.73m². Confirm within 12 calendar months of the first crossing. Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event. A confirmed eGFR below {CKD_G4_EGFR_THRESHOLD} (CKD G4) is what some groups call advanced CKD (aCKD).</p>
             <label>
               <input
                 type="checkbox"

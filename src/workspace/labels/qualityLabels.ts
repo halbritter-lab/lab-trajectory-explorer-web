@@ -174,7 +174,7 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
         label: 'G5 < 5 dates',
         title:
           (aki ? akiLead : '') +
-          'Theil–Sen projections need usable measurements on at least five distinct dates. With three or four, ' +
+          'Theil–Sen projections need usable measurements on at least five distinct dates. With one measurement on each of three or four dates, ' +
           'its 95 % slope interval is the full range of pairwise slopes and covers the true slope only about 67 % or 92 % of the time, so no projection was made.',
         caveat,
       }
