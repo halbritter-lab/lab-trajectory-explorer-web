@@ -5,6 +5,13 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Fixed (endpoint settings hint)
+
+- The endpoint hint in the analysis settings no longer says that AKI exclusions
+  do not apply to endpoints. It now says that excluded AKI windows are also left
+  out of the decline baseline and the G5 projection, as implemented since the
+  endpoint-input change.
+
 ### Added (interface text, 2026-11-16)
 
 - The Data page explains next to the example files that the demo workbook
