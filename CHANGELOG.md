@@ -5,6 +5,41 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (methodology page)
+
+- The AKI page describes staging against the lowest value of the previous
+  7 days, says that no earlier baseline is used, and gives the sustained-rise
+  example as stages I, II, II and III. The Fits page says that Theil–Sen
+  bounds on fewer than five dates are not a 95% interval.
+
+### Changed (AKI staging, 2026-11-16)
+
+- AKI stages are graded against the lowest creatinine of the seven days
+  before a crossing, whichever criterion detected it; an episode reports the
+  highest stage of its crossings. Before, a crossing detected by the 0.3 mg/dl
+  criterion was graded against the 48-hour minimum, so 1.0, 1.2 and 3.2 mg/dl
+  on days 0, 3 and 4 gave stage II instead of III. Stages can be higher than
+  before, never lower. Detection, episode grouping, onset dates, exclusion
+  windows, slopes and endpoints are unchanged; AKI chips, marker labels and
+  the `aki` export column can change. No stage in the demo workbook changes.
+- The AKI marker tooltip names the value and the seven-day reference that
+  give the stage ("staged against 1 mg/dl, the lowest value of the 7 days
+  before") instead of the detection baseline, which no longer explained it.
+  Episodes carry these as `stageValue`, `stageDate`, `stageReferenceValue`
+  and `stageReferenceDate`.
+
+### Changed (Theil–Sen interval label, 2026-11-16)
+
+- For a Theil–Sen fit on fewer than five distinct dates the table and the
+  patient view label the bounds `Slope range` instead of `95% slope CI`. A
+  hint printed under the bounds says why and gives the coverage for one
+  measurement on each of three or four dates (about 67 % or 92 %). The values
+  of `ci_low` and `ci_high` are unchanged; the workbook's `about` sheet
+  carries a note.
+- The `cohort` and `slopes` sheets end with a new column `n_fitted_dates`
+  (distinct fitted dates), so rows affected by that note can be identified.
+  Earlier column positions are unchanged.
+
 ### Fixed (defects found in the simulated-user case studies)
 
 - Cohort models: with a factor that changes the slope, the chip above the model

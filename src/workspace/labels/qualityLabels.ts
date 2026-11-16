@@ -89,6 +89,13 @@ export function slopeQualityLabel(input: SlopeQualityInput): QualityLabel | null
   }
 }
 
+/** Why Theil–Sen bounds on few dates are not a 95 % interval. Shared by the
+ * withheld-projection tooltip, the slope cell and the export note. It holds
+ * for one measurement per date only; with several per date the bounds are
+ * rank-based and their coverage is not established. */
+export const THEIL_SEN_FEW_DATES_COVERAGE =
+  'With one measurement on each of three or four dates, the Theil–Sen bounds are the full range of pairwise slopes and cover the true slope only about 67 % or 92 % of the time'
+
 /**
  * Why no projected age to CKD G5 was produced. Returns null when a projection
  * exists, when the endpoint is off, or when G5 was observed and the observed
@@ -174,8 +181,7 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
         label: 'G5 < 5 dates',
         title:
           (aki ? akiLead : '') +
-          'Theil–Sen projections need usable measurements on at least five distinct dates. With one measurement on each of three or four dates, ' +
-          'its 95 % slope interval is the full range of pairwise slopes and covers the true slope only about 67 % or 92 % of the time, so no projection was made.',
+          `Theil–Sen projections need usable measurements on at least five distinct dates. ${THEIL_SEN_FEW_DATES_COVERAGE}, so no projection was made.`,
         caveat,
       }
     case 'span_too_short':

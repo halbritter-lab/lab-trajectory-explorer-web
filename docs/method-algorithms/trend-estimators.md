@@ -152,6 +152,38 @@ the lowest and highest pairwise slope, with an actual coverage of 1 - 2/n!
 distinct dates under Theil-Sen (since 2026-11-05; see "Individual G5
 projection"); the bounds themselves are unchanged.
 
+**Label of the bounds** (decided 2026-11-16). The table and the patient view
+call the bounds `95% slope CI`. For a Theil-Sen fit on fewer than five
+distinct fitted dates (`nFittedDates < 5`, the minimum of a Theil-Sen
+projection, `MIN_THEIL_SEN_PROJECTION_DATES`) they read `Slope range`
+instead, followed by the hint "Not a 95% interval: the fit has fewer than 5
+distinct dates. With one measurement on each of three or four dates, the
+Theil–Sen bounds are the full range of pairwise slopes and cover the true
+slope only about 67 % or 92 % of the time." The hint is printed under the
+bounds and precedes the general hint ("Uncertainty in the estimated slope; not
+a prediction interval for future measurements") in the tooltip. From five
+dates on the label is `95% slope CI` (coverage 98.3 % at five). The rule
+counts dates, not points, and the hint is worded to hold for every input that
+takes this branch: with two dates, or with several measurements on one date,
+the bounds are rank-based rather than the lowest and highest pairwise slope
+and their coverage is not established, so the label stays `Slope range` and
+the coverage figures are given for the one-measurement-per-date case only.
+Examples: 10, 11 and 12 on 1 January of three consecutive years give
+`Slope range [1, 1]`; the same series over five years gives
+`95% slope CI [1, 1]`; five values on four dates (two on the last) still read
+`Slope range`. The numbers and the export columns `ci_low` and `ci_high` are
+unchanged. The export column `n_fitted_dates` (see
+[fit dates, intercept and slope standard error](fit-input-presets-and-time-balancing.md#fit-dates-intercept-and-slope-standard-error))
+identifies the affected rows, and the workbook's `about` sheet says: "ci_low
+and ci_high are the 95 % interval of the slope. For a Theil-Sen fit with
+n_fitted_dates below 5 they are Theil-Sen bounds, not a 95 % interval. With
+one measurement on each of three or four dates, the Theil–Sen bounds are the
+full range of pairwise slopes and cover the true slope only about 67 % or
+92 % of the time." OLS fits always read `95% slope CI`.
+
+The methodology page of the app (`Fits.tsx`) carries the same qualification
+(wording approved 2026-11-16, formerly OD-33).
+
 The kernel expects valid numeric points from preparation. The minimum applies
 to the actual prepared observations when used for a display fit. All pairs are
 enumerated, so time and temporary storage grow quadratically with point count.
@@ -234,7 +266,7 @@ window slopes were computed and discarded and no line was drawn):
   the trajectories without an available fit and not among the uncertain fits.
 - **Export.** The cohort and slope sheets carry five rolling columns, placed
   after all earlier columns of the sheet (`n_fitted` and `fitted_span_days`
-  included) so that those column positions are unchanged. Only the six
+  included) so that those column positions are unchanged. Only the seven
   columns of [fit dates, intercept and slope standard error](fit-input-presets-and-time-balancing.md#fit-dates-intercept-and-slope-standard-error)
   follow them:
 

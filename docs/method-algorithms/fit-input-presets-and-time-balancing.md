@@ -112,8 +112,8 @@ Example: eight raw values in two calendar quarters under quarterly medians give
 
 ### Fit dates, intercept and slope standard error
 
-Since 2026-11-05 the `cohort` and `slopes` sheets end with six further
-columns, placed after the rolling columns so that earlier column positions are
+Since 2026-11-05 the `cohort` and `slopes` sheets end with seven further
+columns (`n_fitted_dates` since 2026-11-16), placed after the rolling columns so that earlier column positions are
 unchanged. They are read from the existing fit; nothing is refitted.
 
 | Column | Content | Blank when |
@@ -124,6 +124,7 @@ unchanged. They are read from the existing fit; nothing is refitted.
 | `last_eligible_date` | Date of the last exact, finite, dated row of the series before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (the event rules of "Observed endpoints and individual prediction"; boundary dates as there). Only these event rules apply: no fit exclusion window (AKI windows included), run-in or balancing. It is filled for every column and fit model, also where endpoints are not evaluated. | the series has no such row |
 | `intercept` | Fitted value of the display fit (the fit behind `slope`) at `index_date`, unrounded (OLS: `ȳ − slope · x̄`; two-point line: the first value; Theil-Sen: separate-median intercept). | the estimator returns no slope |
 | `slope_se` | OLS standard error of the slope, `SE = sqrt(SSres / (n − 2) / Sxx)` from "95 % confidence interval for the slope", unrounded; `ci_low = slope − t · SE`. | Theil-Sen (no standard error is defined; its bounds are rank-based), the exact two-point line (`n − 2 = 0`), and every case without a slope |
+| `n_fitted_dates` | Number of distinct calendar dates among the points the scalar fit consumed (`nFittedDates`); `n_fitted` counts the points. For a Theil-Sen fit a value below 5 means that `ci_low` and `ci_high` are not a 95 % interval (see "Label of the bounds" under Theil-Sen). Example: three values on 2020-01-01 and one on 2021-01-01 give `n_fitted = 4` and `n_fitted_dates = 2`. | never; `0` when no point was fitted |
 
 Rolling and segmented OLS report the global OLS fit, so these columns describe
 that fit, not a window or segment. Example: the worked OLS example dated

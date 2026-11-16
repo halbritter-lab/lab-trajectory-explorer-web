@@ -498,6 +498,55 @@ Details: [eGFR derivation](method-algorithms/egfr.md#eligible-source-series),
 [cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models). The golden
 fixtures contain only `Kreatinin` and are unchanged.
 
+## Decisions of 2026-11-16 (science audit)
+
+Taken by the project owner after an audit of the methods against their
+published sources. Merging the implementing pull request is the owner's
+sign-off. Details, boundaries and recomputed examples are in
+[AKI staging](method-algorithms/aki.md#staging) and
+[trend estimators](method-algorithms/trend-estimators.md).
+
+- **AKI stages are graded against the seven-day minimum.** Until now a
+  crossing detected by the absolute criterion (at least 0.3 mg/dl above the
+  48-hour minimum) was graded against that 48-hour value, so an extra
+  measurement on the day before a peak lowered the stage: 1.0 mg/dl on day 0,
+  1.2 on day 3 and 3.2 on day 4 gave stage II (2.67-fold), where KDIGO grades
+  3.2 against 1.0 as stage III. Now every crossing is graded against the
+  lowest positive value of the seven days before it, and an episode reports
+  the highest stage of its crossings. This revises the staging part of the
+  2026-10-06 decision "Not changed for now: AKI episode merging and staging".
+  Episode merging stays as decided then: detection, the recorded baseline,
+  the grouping of crossings into episodes, onset dates and exclusion windows
+  are unchanged, so 1.0, 2.9 and 3.2 mg/dl on days 0, 5 and 6 remain two
+  episodes (now stages II and III, formerly II and I). A stage is never lower
+  than before. Slopes, endpoints and exclusion windows do not depend on the
+  stage; chips, marker labels, tooltips and the `aki` export column can
+  change. No golden fixture value and no stage in the bundled demo workbook
+  moved (8 episodes checked). The episode marker's tooltip names the value and
+  the seven-day reference that give the stage ("staged against 1 mg/dl, the
+  lowest value of the 7 days before") in place of the detection baseline it
+  printed before, which no longer explained the stage (3.2 against a
+  "baseline 1.2" is 2.67-fold, not stage III).
+- **Theil-Sen bounds on fewer than five dates are labelled a range.** The
+  interface reads `Slope range` instead of `95% slope CI` for a Theil-Sen fit
+  on fewer than five distinct fitted dates. The hint under the bounds says
+  that this is not a 95 % interval because the fit has fewer than five
+  distinct dates, and gives the coverage for one measurement on each of three
+  or four dates (about 67 % or 92 %); with two dates or several measurements
+  on one date no coverage figure is claimed. Numbers and the values of
+  `ci_low` and `ci_high` are unchanged. The export gains the column
+  `n_fitted_dates`, appended last, so that the affected rows can be
+  identified, and the workbook's `about` sheet refers to it.
+- **The methodology page follows both decisions (OD-33, resolved).** The
+  maintainer approved four sentences on 2026-11-16: `Aki.tsx` now says that
+  episodes are staged against the lowest value of the previous 7 days, that
+  no earlier baseline is used (so an AKI present at the first measurement or
+  a rise slower than 7 days is not detected), and that daily values of 1.0 to
+  3.0 mg/dl give four episodes of stages I, II, II and III; `Fits.tsx` says
+  that Theil-Sen bounds on fewer than five dates are not a 95% interval. The
+  fuller texts of the [wording drafts](methodology-wording-drafts.md) (C8,
+  D3) are still to be approved.
+
 ## Approved requirements
 
 ### Observed events and recovery

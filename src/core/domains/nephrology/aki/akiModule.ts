@@ -123,7 +123,9 @@ function akiOverlays(ctx: SeriesContext, episodes: readonly AkiEpisode[]): Serie
       moduleId: AKI_MODULE_ID,
       date: episode.peakDate,
       label: `AKI ${stage}`,
-      title: `AKI stage ${stage}, onset ${formatDisplayDate(episode.date)}, creatinine peak ${formatDisplayNumber(episode.peakValue)} mg/dl on ${formatDisplayDate(episode.peakDate)} (baseline ${formatDisplayNumber(episode.baselineValue)} mg/dl)`,
+      // The stage must follow from the numbers shown: name the value that set
+      // it when that is not the peak, and its seven-day reference.
+      title: `AKI stage ${stage}, onset ${formatDisplayDate(episode.date)}, creatinine peak ${formatDisplayNumber(episode.peakValue)} mg/dl on ${formatDisplayDate(episode.peakDate)}; staged ${episode.stageDate.getTime() === episode.peakDate.getTime() ? '' : `from ${formatDisplayNumber(episode.stageValue)} mg/dl on ${formatDisplayDate(episode.stageDate)} `}against ${formatDisplayNumber(episode.stageReferenceValue)} mg/dl, the lowest value of the 7 days before`,
       snapWithinDays: AKI_MARKER_TOLERANCE_DAYS,
       offMeasurementNote: '; no measurement of this parameter on that date',
     }

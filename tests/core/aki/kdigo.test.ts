@@ -68,3 +68,52 @@ describe('findKdigoAkiEpisodes', () => {
     expect(findKdigoAkiEpisodes(pts)).toEqual([])
   })
 })
+
+// Decided 2026-11-16: the stage is graded against the lowest value of the
+// seven days before a crossing, not against the 48-hour detection baseline.
+describe('findKdigoAkiEpisodes staging against the seven-day minimum', () => {
+  const day = (n: number) => new Date(Date.UTC(2024, 0, 1 + n))
+  const run = (pts: [number, number][]) => findKdigoAkiEpisodes(pts.map(([n, value]) => ({ date: day(n), value })))
+
+  it('does not lower the stage when a value the day before the peak exists', () => {
+    // 3.2 / 1.0 = 3.2-fold. The 48-hour criterion fires against 1.2 (2.67-fold, formerly stage 2).
+    expect(run([[0, 1.0], [3, 1.2], [4, 3.2]])).toMatchObject([
+      { date: day(4), baselineDate: day(3), baselineValue: 1.2, peakValue: 3.2, criterion: 'absolute_0_3_mg_dl_48h', stage: 3,
+        stageValue: 3.2, stageDate: day(4), stageReferenceValue: 1.0, stageReferenceDate: day(0) },
+    ])
+    expect(run([[0, 1.0], [4, 3.2]])).toMatchObject([{ baselineValue: 1.0, criterion: 'relative_1_5x_7d', stage: 3 }])
+  })
+
+  it('keeps two episodes when the baseline moves and stages each against its seven-day minimum', () => {
+    // The second episode is detected against 2.9 and was stage 1; 3.2 / 1.0 is stage 3.
+    expect(run([[0, 1.0], [5, 2.9], [6, 3.2]])).toMatchObject([
+      { date: day(5), baselineDate: day(0), peakValue: 2.9, stage: 2 },
+      { date: day(6), baselineDate: day(5), baselineValue: 2.9, peakValue: 3.2, stage: 3 },
+    ])
+  })
+
+  it('reports the highest stage reached by any crossing of an episode', () => {
+    // Day 7: 3.1 against the seven-day minimum 1.0 (exactly seven days back, still inside) is stage 3.
+    // Day 8: 3.3 is the peak, but 1.0 has left the window; 3.3 / 1.4 = 2.36-fold is stage 2.
+    expect(run([[0, 1.0], [6, 1.4], [7, 3.1], [8, 3.3]])).toMatchObject([
+      { date: day(7), baselineDate: day(6), baselineValue: 1.4, peakValue: 3.3, peakDate: day(8), stage: 3,
+        stageValue: 3.1, stageDate: day(7), stageReferenceValue: 1.0, stageReferenceDate: day(0) },
+    ])
+  })
+
+  it('reports the crossing and reference that reproduce every stage', () => {
+    for (const pts of [[[0, 1.0], [3, 1.2], [4, 3.2]], [[0, 1.0], [5, 2.9], [6, 3.2]], [[0, 1.0], [6, 1.4], [7, 3.1], [8, 3.3]]] as [number, number][][]) {
+      for (const episode of run(pts)) expect(kdigoStage(episode.stageReferenceValue, episode.stageValue)).toBe(episode.stage)
+    }
+  })
+
+  it('stages a sustained daily rise as I, II, II, III', () => {
+    // Four episodes because the 48-hour baseline moves; every crossing is graded against 1.0 while it is within seven days.
+    expect(run([[0, 1.0], [1, 1.4], [2, 1.8], [3, 2.2], [4, 2.6], [5, 3.0]]).map(e => e.stage)).toEqual([1, 2, 2, 3])
+  })
+
+  it('changes nothing when the seven-day minimum is the detection baseline', () => {
+    expect(run([[0, 1.0], [1, 1.4]])).toMatchObject([{ baselineValue: 1.0, stage: 1 }])
+    expect(run([[0, 1.0], [1, 2.1]])).toMatchObject([{ baselineValue: 1.0, stage: 2 }])
+  })
+})

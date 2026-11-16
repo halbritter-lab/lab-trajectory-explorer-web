@@ -339,7 +339,8 @@ export interface CohortExportRecord {
   // threshold) and the CKD endpoint columns (`endpoint_*`). The rolling
   // columns (`rolling_*`) come last, appended so positional readers keep
   // working; they are filled for slope mode `rolling` only. The fit dates,
-  // `intercept` and `slope_se` follow them, appended for the same reason.
+  // `intercept`, `slope_se` and `n_fitted_dates` follow them, appended for the
+  // same reason.
   [moduleColumn: string]: string | number | undefined
 }
 
@@ -423,6 +424,7 @@ export function cohortExportRecords(
         last_eligible_date: utcDateOrBlank(c.lastEligibleDate),
         intercept: numOrBlank(c.intercept),
         slope_se: numOrBlank(c.slopeSe),
+        n_fitted_dates: c.nFittedDates,
       })
     }
   }
@@ -435,8 +437,8 @@ export function cohortExportRecords(
  * positions are unchanged. */
 export function cohortSheetRecord(record: CohortExportRecord, cell: Pick<CohortCell, 'nFitted' | 'fittedSpanDays'>) {
   const { Bezeichnung, Einheit, rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max,
-    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, ...fields } = record
+    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates, ...fields } = record
   return { ...fields, Parameter: Bezeichnung, Unit: Einheit, n_fitted: cell.nFitted, fitted_span_days: cell.fittedSpanDays,
     rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max,
-    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se }
+    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates }
 }
