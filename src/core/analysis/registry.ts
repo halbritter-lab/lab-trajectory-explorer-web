@@ -116,19 +116,21 @@ export function defaultColumnModuleSettings(): ColumnModuleSettings {
   return settings as ColumnModuleSettings
 }
 
-/** Validate a column's stored module settings: every entry must belong to a
- * column-configurable module and pass that module's own validation. */
-export function parseColumnModuleSettings(value: unknown): ColumnModuleSettings | null {
+/** Read a column's stored module settings over the current defaults, so the
+ * result always has every column-configurable module. Entries of a module
+ * that is unknown or not column-configurable, and entries that fail the
+ * module's own validation, are left out and returned in `ignored`. */
+export function parseColumnModuleSettings(value: unknown): { settings: ColumnModuleSettings; ignored: string[] } | null {
   if (!isRecord(value)) return null
-  const parsed: Record<string, unknown> = {}
+  const settings: Record<string, unknown> = defaultColumnModuleSettings()
+  const ignored: string[] = []
   for (const [id, stored] of Object.entries(value)) {
     const module = (analysisModules as readonly RegisteredAnalysisModule[]).find((m) => m.id === id)
-    if (!module?.columnSettingFields?.length || !isSettingsModule(module)) return null
-    const settings = module.parseSettings(stored)
-    if (settings === null) return null
-    parsed[id] = settings
+    const parsed = module?.columnSettingFields?.length && isSettingsModule(module) ? module.parseSettings(stored) : null
+    if (parsed === null) ignored.push(id)
+    else settings[id] = parsed
   }
-  return parsed as ColumnModuleSettings
+  return { settings: settings as ColumnModuleSettings, ignored }
 }
 
 /** Modules a column can configure, in registry order. */

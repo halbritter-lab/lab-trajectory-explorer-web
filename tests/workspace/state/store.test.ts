@@ -266,16 +266,26 @@ describe('useAppStore - cohort model runs and projections', () => {
   })
 })
 
-describe('supplementalImport', () => {
+describe('pristineDemo', () => {
   beforeEach(() => useAppStore.getState().reset())
 
-  it('is set by an events or attributes import and cleared when the dataset is replaced', () => {
-    expect(useAppStore.getState().supplementalImport).toBe(false)
-    useAppStore.getState().setPatientAttributes({ P1: { cohort: 'A' } })
-    expect(useAppStore.getState().supplementalImport).toBe(true)
+  it('holds only for the demo as loaded and ends with any change to its data', () => {
+    const demo = () => useAppStore.getState().replaceDataset({ rows: [], pristineDemo: true })
+    expect(useAppStore.getState().pristineDemo).toBe(false)
     useAppStore.getState().replaceDataset({ rows: [] })
-    expect(useAppStore.getState().supplementalImport).toBe(false)
-    useAppStore.getState().setEvents([])
-    expect(useAppStore.getState().supplementalImport).toBe(true)
+    expect(useAppStore.getState().pristineDemo).toBe(false)
+    const changes: (() => void)[] = [
+      () => useAppStore.getState().setEvents([]),
+      () => useAppStore.getState().setPatientAttributes({ P1: { cohort: 'A' } }),
+      () => useAppStore.getState().setManualDemographics('P1', { sex: 'm' }),
+      () => useAppStore.getState().setEgfrFormula('ckd-epi-2021'),
+      () => useAppStore.getState().setEgfrSource(null),
+    ]
+    for (const change of changes) {
+      demo()
+      expect(useAppStore.getState().pristineDemo).toBe(true)
+      change()
+      expect(useAppStore.getState().pristineDemo).toBe(false)
+    }
   })
 })

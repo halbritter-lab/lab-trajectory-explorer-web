@@ -55,13 +55,18 @@ export interface DatasetReplacement {
   manualDemographics?: Record<string, ManualDemographics>
   analysisSettings?: AnalysisSettings
   notice?: Notice | null
+  /** The bundled demo exactly as shipped (see AppState.pristineDemo). */
+  pristineDemo?: boolean
 }
 
 export interface AppState {
   rows: LabRow[]
   fileName: string | null
-  /** An events or attributes file was imported on top of the loaded dataset. */
-  supplementalImport: boolean
+  /** The loaded dataset is the bundled demo exactly as shipped, which loads
+   * again with one click. Any import on top of it, demographic edit or change
+   * of the derivation settings ends that, and a copy restored from this device
+   * never counts. */
+  pristineDemo: boolean
   manualDemographics: Record<string, ManualDemographics>
   events: ClinicalEvent[]
   /** Event rows rejected by the latest event import (session only). */
@@ -114,14 +119,14 @@ export interface AppState {
 /** Resettable data fields (no actions). Single source of truth for both the
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
-  | 'rows' | 'fileName' | 'supplementalImport' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'patientAttributes'
+  | 'rows' | 'fileName' | 'pristineDemo' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'patientAttributes'
   | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
   | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
 
 const initialState = (): AppData => ({
   rows: [],
   fileName: null,
-  supplementalImport: false,
+  pristineDemo: false,
   manualDemographics: {},
   events: [],
   rejectedEvents: [],
@@ -221,25 +226,29 @@ export const useAppStore = create<AppState>((set, get) => ({
       manualDemographics: dataset.manualDemographics ?? {},
       analysisSettings: dataset.analysisSettings ?? initial.analysisSettings,
       notice: dataset.notice ?? null,
+      pristineDemo: dataset.pristineDemo ?? false,
     })
   },
   setEgfrFormula: (f) => set((s) => ({
     analysisSettings: { ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, formula: f } },
+    pristineDemo: false,
     ...clearedMixedModelResults(),
   })),
   setEgfrSource: (src) => set((s) => ({
     analysisSettings: { ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: src } },
+    pristineDemo: false,
     ...clearedMixedModelResults(),
   })),
   setManualDemographics: (patientId, demo) => set((s) => ({
     manualDemographics: { ...s.manualDemographics, [patientId]: demo },
+    pristineDemo: false,
     ...clearedMixedModelResults(),
   })),
-  setEvents: (events) => set({ events, supplementalImport: true, ...clearedMixedModelResults() }),
+  setEvents: (events) => set({ events, pristineDemo: false, ...clearedMixedModelResults() }),
   // Re-importing attributes can re-partition the cohort (group membership and
   // values change), so any cached pooled/per-group fit is stale: invalidate them
   // alongside, exactly like every other data-policy setter.
-  setPatientAttributes: (byPatient) => set({ patientAttributes: byPatient, supplementalImport: true, ...clearedMixedModelResults() }),
+  setPatientAttributes: (byPatient) => set({ patientAttributes: byPatient, pristineDemo: false, ...clearedMixedModelResults() }),
   analysisResult: () => {
     const s = get()
     return computeStoreAnalysisResult(

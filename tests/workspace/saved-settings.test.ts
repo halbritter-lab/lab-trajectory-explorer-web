@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { defaultTrajectoryView, losesDataOnUnload, restoreSavedSettings, SAVED_SETTINGS_VERSION, type SavedSettings } from '../../src/workspace/saved-settings'
-import { defaultFitSettings, defaultTrajectoryFitSettings } from '../../src/workspace/workspace-analysis'
+import { defaultFitSettings, defaultTrajectoryFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
 
 const EGFR = JSON.stringify(['eGFR', 'ml/min/1,73m²'])
 const GONE = JSON.stringify(['Gone', null])
@@ -59,7 +59,7 @@ describe('restoreSavedSettings', () => {
   })
 
   it('rejects a shared setting with an unknown preset or a malformed section', () => {
-    for (const change of [{ presetId: 'removed_preset' }, { timeBalancing: 'weekly' }, { exclusions: { excludeAkiWindows: true, akiExclusionDays: -1 } }, { moduleSettings: { unknownModule: {} } }]) {
+    for (const change of [{ presetId: 'removed_preset' }, { timeBalancing: 'weekly' }, { exclusions: { excludeAkiWindows: true, akiExclusionDays: -1 } }, { moduleSettings: 'not a record' }]) {
       const value = saved()
       const restored = restoreSavedSettings({ ...value, trajectoryFitSettings: { ...value.trajectoryFitSettings, shared: { ...value.trajectoryFitSettings.shared, ...change } } }, keys)
       expect(restored.notRestored).toEqual(['shared analysis settings'])
@@ -147,5 +147,49 @@ describe('losesDataOnUnload', () => {
   it('does not ask for the untouched demo data, which load again with one click', () => {
     expect(losesDataOnUnload(true, { enabled: false, status: 'session' }, true)).toBe(false)
     expect(losesDataOnUnload(true, { enabled: false, status: 'session' }, false)).toBe(true)
+  })
+})
+
+describe('what a demoted preset changes', () => {
+  it('changes the exported preset name and time axis and nothing a fit reads', () => {
+    const value = JSON.parse(JSON.stringify(saved())) as Record<string, any>
+    value.trajectoryFitSettings.columns[EGFR].exclusions.akiExclusionDays = 14
+    const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
+    const asSaved = toFitConfig(value.trajectoryFitSettings.columns[EGFR], parameter)
+    const restored = toFitConfig(restoreSavedSettings(value, keys).trajectoryFitSettings.columns[EGFR], parameter)
+    expect([asSaved.preset, asSaved.xAxis]).toEqual(['ckd_progression', 'age'])
+    expect([restored.preset, restored.xAxis]).toEqual(['custom', 'calendar_time'])
+    expect({ ...restored, preset: asSaved.preset, xAxis: asSaved.xAxis }).toEqual(asSaved)
+  })
+})
+
+describe('module settings of a column', () => {
+  it('fills modules the stored settings lack from the defaults, without a complaint', () => {
+    const value = JSON.parse(JSON.stringify(saved())) as Record<string, any>
+    value.trajectoryFitSettings.shared.moduleSettings = {}
+    const restored = restoreSavedSettings(value, keys)
+    expect(restored.trajectoryFitSettings.shared).toEqual(defaultFitSettings())
+    expect(restored.notRestored).toEqual([])
+  })
+  it('ignores and names a module this version does not have, keeping the other settings', () => {
+    const value = JSON.parse(JSON.stringify(saved())) as Record<string, any>
+    value.trajectoryFitSettings.columns[EGFR].moduleSettings['removed-module'] = { threshold: 1 }
+    const restored = restoreSavedSettings(value, keys)
+    expect(restored.trajectoryFitSettings.columns[EGFR]).toEqual(defaultFitSettings('ckd_progression'))
+    expect(restored.notRestored).toEqual(['module settings "removed-module" (own settings of eGFR [ml/min/1,73m²])'])
+  })
+})
+
+describe('corrupt lists and keys', () => {
+  it('drops repeated parameter keys and names of Object.prototype among the display options', () => {
+    const value = JSON.parse(JSON.stringify(saved())) as Record<string, any>
+    value.trajectoryView.parameterKeys = [EGFR, EGFR]
+    value.trajectoryView.trendKeys = [EGFR, EGFR]
+    value.trajectoryView.fitKeys = [EGFR, EGFR]
+    value.trajectoryView.display = { events: true, toString: true }
+    const restored = restoreSavedSettings(value, keys)
+    expect(restored.trajectoryView).toMatchObject({ parameterKeys: [EGFR], trendKeys: [EGFR], fitKeys: [EGFR] })
+    expect(Object.keys(restored.trajectoryView.display)).toEqual(['events'])
+    expect(restored.notRestored).toEqual(['display option "toString"'])
   })
 })

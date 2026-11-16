@@ -50,8 +50,12 @@ interface StorageStatus {
   /** Data saved by the former interface found at start-up: removed, or found
    * but not (completely) removable. Shown once as a notice. */
   legacyData: 'none' | 'removed' | 'removal-failed'
+  /** The last write of the analysis settings alone failed. Shown next to the
+   * status, which keeps describing the dataset copy; cleared by the next
+   * successful write. */
+  settingsError: string | null
 }
-export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyData: 'none' }))
+export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null }))
 
 const nullableText = (v: unknown) => v === null || typeof v === 'string'
 const nullableNumber = (v: unknown) => v === null || typeof v === 'number' && Number.isFinite(v)
@@ -159,7 +163,7 @@ export function restoredNotice({ stored, notRestored, keptAsCustom }: Pick<Resto
   if (stored === 'none') return `Dataset restored from this device. No analysis settings were saved with this copy, so presets, trend and display settings start from their defaults. ${notSaved}`
   if (stored === 'discarded') return `Dataset restored from this device. Its saved analysis settings could not be used (saved by another version), so presets, trend and display settings start from their defaults. ${notSaved}`
   return `Dataset and analysis settings (presets, trend and display choices) restored from this device. ${notSaved}`
-    + (keptAsCustom.length ? ` Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: ${keptAsCustom.join('; ')}.` : '')
+    + (keptAsCustom.length ? ` Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: ${keptAsCustom.join('; ')}. The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom" and time axis "calendar_time".` : '')
     + (notRestored.length ? ` Not restored, the defaults are used instead: ${notRestored.join('; ')}.` : '')
 }
 
@@ -203,7 +207,12 @@ function writeCopy(value: Snapshot): Promise<void> {
         store.put(value, WORKSPACE_STORAGE_KEY)
         store.put(settingsRecord(value.writeToken), WORKSPACE_SETTINGS_KEY)
         resolve(promisifyRequest(store.transaction))
-      } catch (error) { reject(error) }
+      } catch (error) {
+        // Neither record may be committed alone: the dataset under a new token
+        // would look like another tab's copy to the next save.
+        store.transaction.abort()
+        reject(error)
+      }
     }
   }))
 }
@@ -223,7 +232,7 @@ function save(): Promise<void> {
       await writeCopy(value)
       lastWriteToken = value.writeToken
       claimPending = false
-      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null })
+      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null, settingsError: null })
     } catch (error) {
       if (error instanceof StorageConflict) {
         ++revision
@@ -235,11 +244,14 @@ function save(): Promise<void> {
 
 let settingsRevision = 0
 /**
- * Write the analysis settings alone. The dataset copy is not read, validated
- * or rewritten, and the storage status stays "saved": the dataset is saved.
- * Only a tab whose dataset is the saved copy writes: after another tab saved
- * data, the settings record carries that copy's token and this tab's settings
- * are skipped without an error. Two tabs on the same copy: the last write wins.
+ * Write the analysis settings alone. The dataset copy is never validated or
+ * rewritten, and the storage status keeps describing it: a failure here is
+ * reported on its own. Only a tab whose dataset is the saved copy writes; two
+ * tabs on the same copy: the last write wins. A settings record that already
+ * carries this tab's token is overwritten directly. Otherwise (no record, or
+ * one of another copy) the dataset record decides, so a copy saved without
+ * settings gets them with the first change, and a tab whose dataset was
+ * replaced by another tab writes nothing.
  */
 function saveSettings(): void {
   const currentRevision = ++settingsRevision
@@ -249,16 +261,20 @@ function saveSettings(): void {
     const value = settingsRecord(token)
     try {
       await workspaceIdbStore()('readwrite', store => new Promise<void>((resolve, reject) => {
+        const put = () => { try { store.put(value, WORKSPACE_SETTINGS_KEY); resolve(promisifyRequest(store.transaction)) } catch (error) { reject(error) } }
         const request = store.get(WORKSPACE_SETTINGS_KEY)
         request.onerror = () => reject(request.error)
         request.onsuccess = () => {
           const previous: unknown = request.result
-          if (previous !== undefined && (!record(previous) || previous.datasetToken !== token)) { resolve(); return }
-          try { store.put(value, WORKSPACE_SETTINGS_KEY); resolve(promisifyRequest(store.transaction)) } catch (error) { reject(error) }
+          if (record(previous) && previous.datasetToken === token) { put(); return }
+          const dataset = store.get(WORKSPACE_STORAGE_KEY)
+          dataset.onerror = () => reject(dataset.error)
+          dataset.onsuccess = () => { if (record(dataset.result) && dataset.result.writeToken === token) put(); else resolve() }
         }
       }))
+      if (useWorkspaceStorage.getState().settingsError !== null) useWorkspaceStorage.setState({ settingsError: null })
     } catch {
-      reportError('Could not save the analysis settings on this device. The dataset copy is unchanged; retry saving or export your data.')
+      useWorkspaceStorage.setState({ settingsError: 'Could not save the analysis settings on this device. The dataset copy is unchanged and its seven days are not extended; the next settings change is saved again.' })
     }
   })
 }
@@ -274,7 +290,7 @@ export async function setWorkspaceRemember(enabled: boolean): Promise<void> {
       await delMany([WORKSPACE_STORAGE_KEY, WORKSPACE_SETTINGS_KEY], workspaceIdbStore())
       lastWriteToken = undefined
       claimPending = false
-      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null })
+      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null, settingsError: null })
     } catch {
       if (currentRevision === revision) reportError('Could not remove the saved copy. Retry clearing saved data on this device.')
     }
@@ -287,7 +303,7 @@ export async function startWorkspaceStorage(): Promise<() => void> {
   await writes
   lastWriteToken = undefined
   claimPending = false
-  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyData: 'none' })
+  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null })
   const legacy: LegacyStorageOutcome = { formerInterfaceData: false, legacyWorkspaceCopy: null }
   let legacyCleanupFailed = false
   try {

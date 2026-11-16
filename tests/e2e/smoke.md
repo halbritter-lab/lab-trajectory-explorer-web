@@ -464,8 +464,10 @@ Excel or desktop R, a screen reader.
 4. Without "Remember on this device", reloading a page with a loaded dataset
    brings up the browser's leave-page question. It does not appear when
    nothing is loaded, when the dataset is remembered, when moving between
-   Data, Trajectories, Cohort models and Methods, or for the unchanged demo
-   data; after deriving eGFR on the demo data it appears.
+   Data, Trajectories, Cohort models and Methods, or for the demo data as
+   loaded; after deriving eGFR on the demo data, editing a patient or
+   importing events or attributes on top of them it appears, and also for a
+   demo copy restored from this device once "Clear saved data" was used.
 5. *Export cohort (XLSX)*: the column is named `endpoint_percent_change` and
    is negative for a fall, as in the badge (`-50`).
 6. With the dataset remembered, change a preset or a display option and

@@ -95,7 +95,7 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
     // together, so observers never see new rows with old overrides.
     useAppStore.getState().replaceDataset({
       rows: dataset.rows, events: dataset.events, rejectedEvents: dataset.rejectedEvents,
-      patientAttributes: dataset.patientAttributes, fileName: file?.name ?? DEMO_FILE_NAME,
+      patientAttributes: dataset.patientAttributes, fileName: file?.name ?? DEMO_FILE_NAME, pristineDemo: !file,
       notice: { kind: 'info', text: `${countLabel(dataset.rows.length, 'lab value')}, ${countLabel(dataset.events.length, 'event')} and ${countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row')} loaded. ${countLabel(rejected, 'row')} rejected; ${countLabel(dataset.diagnostics.length - rejected, 'warning')}.`, details: dataset.diagnostics },
     })
   } catch (error) {

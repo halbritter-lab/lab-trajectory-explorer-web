@@ -7,8 +7,7 @@ import { TrajectoriesWorkspace } from './TrajectoriesWorkspace'
 import { CohortModelsWorkspace } from './CohortModelsWorkspace'
 import { useWorkspaceData } from './workspace-data'
 import { useAppStore } from './state/store'
-import { defaultAnalysisSettings } from '../core/analysis/registry'
-import { countLabel, DEMO_FILE_NAME } from './workspace-labels'
+import { countLabel } from './workspace-labels'
 import { useWorkspaceStorage } from './workspace-storage'
 import { losesDataOnUnload } from './saved-settings'
 import { getMethodLocation, type HelpWorkspace } from './methods/method-navigation'
@@ -34,10 +33,8 @@ export function WorkspaceApp() {
   const storageEnabled = useWorkspaceStorage(s => s.enabled)
   // Session-only data are lost on reload or close: let the browser ask first.
   // In-app navigation changes only the hash or history state and never unloads.
-  // The bundled demo counts as untouched until the user edits demographics,
-  // changes the derivation settings or imports events or attributes on top of it.
-  const untouchedDemo = useAppStore(s => s.fileName === DEMO_FILE_NAME && !s.supplementalImport && Object.keys(s.manualDemographics).length === 0
-    && JSON.stringify(s.analysisSettings) === JSON.stringify(defaultAnalysisSettings()))
+  // The pristine bundled demo loads again with one click and is not worth a question.
+  const untouchedDemo = useAppStore(s => s.pristineDemo)
   const unsaved = losesDataOnUnload(hasData, { enabled: storageEnabled, status: storageStatus }, untouchedDemo)
   useEffect(() => {
     if (!unsaved) return

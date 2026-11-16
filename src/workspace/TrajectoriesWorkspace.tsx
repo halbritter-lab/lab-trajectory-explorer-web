@@ -237,9 +237,18 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const [display, setDisplay] = useState<WorkspaceDisplay>({ ...DEFAULT_WORKSPACE_DISPLAY, ...savedView.display })
   const [fitKeys, setFitKeys] = useState<string[]>(savedView.fitKeys)
   const [trendKeys, setTrendKeys] = useState<string[]>(savedView.trendKeys)
+  // The view reaches the store, and with it the saved settings, only once it
+  // differs from what the page mounted with: mounting alone writes nothing, so
+  // it cannot replace stored settings with the page's defaults.
+  const view = { parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons }
+  const viewJson = JSON.stringify(view)
+  const [mountedViewJson] = useState(viewJson)
+  const viewChanged = useRef(false)
   useEffect(() => {
-    useAppStore.getState().setTrajectoryView({ parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons })
-  }, [parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons])
+    if (!viewChanged.current && viewJson === mountedViewJson) return
+    viewChanged.current = true
+    useAppStore.getState().setTrajectoryView(JSON.parse(viewJson) as typeof view)
+  }, [viewJson, mountedViewJson])
   const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
   const fitSettings = trajectoryFitSettings.shared
   const columnSettings = trajectoryFitSettings.columns

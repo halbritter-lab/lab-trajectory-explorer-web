@@ -64,7 +64,8 @@ const oneOf = <T extends string>(list: readonly T[], v: unknown): v is T => list
 const canonical = (v: unknown): string => JSON.stringify(v, (_key, value: unknown) =>
   record(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : 1)) : value)
 
-function parseFitSettings(v: unknown): WorkspaceFitSettings | null {
+/** `ignoredModules` receives the ids of stored module settings that were left at their defaults. */
+function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSettings | null {
   if (!record(v) || typeof v.presetId !== 'string' || (v.presetId !== 'custom' && !fitPresetById(v.presetId))) return null
   if (!oneOf(FIT_MODELS, v.fitModel) || !oneOf(TIME_BALANCING, v.timeBalancing)) return null
   const { censoring: c, exclusions: x, endpoints: e } = v
@@ -73,8 +74,9 @@ function parseFitSettings(v: unknown): WorkspaceFitSettings | null {
   if (!record(e) || !bool(e.percentDecline) || !bool(e.observedCkdG5) || !bool(e.projectedAgeToCkdG5)) return null
   const { observedCkdG4, confirmationDays } = e
   if ((observedCkdG4 !== undefined && !bool(observedCkdG4)) || (confirmationDays !== undefined && !days(confirmationDays))) return null
-  const moduleSettings = parseColumnModuleSettings(v.moduleSettings)
-  if (moduleSettings === null) return null
+  const modules = parseColumnModuleSettings(v.moduleSettings)
+  if (modules === null) return null
+  ignoredModules.push(...modules.ignored)
   return {
     presetId: v.presetId, fitModel: v.fitModel, timeBalancing: v.timeBalancing,
     censoring: { censorAfterKidneyTransplant: c.censorAfterKidneyTransplant, censorAfterChronicDialysis: c.censorAfterChronicDialysis, excludeAcuteDialysisPeriods: c.excludeAcuteDialysisPeriods, unknownDialysisPolicy: c.unknownDialysisPolicy },
@@ -82,7 +84,7 @@ function parseFitSettings(v: unknown): WorkspaceFitSettings | null {
     // Key order is part of the exported fit_config JSON (see nephrology/fitConfig.ts).
     endpoints: { percentDecline: e.percentDecline, ...(observedCkdG4 !== undefined ? { observedCkdG4 } : {}), observedCkdG5: e.observedCkdG5,
       ...(confirmationDays !== undefined ? { confirmationDays } : {}), projectedAgeToCkdG5: e.projectedAgeToCkdG5 },
-    moduleSettings,
+    moduleSettings: modules.settings,
   }
 }
 
@@ -135,14 +137,20 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
     out.keptAsCustom.push(label)
     return { ...settings, presetId: 'custom' }
   }
+  const parse = (stored: unknown, label: string): WorkspaceFitSettings | null => {
+    const ignored: string[] = []
+    const parsed = parseFitSettings(stored, ignored)
+    for (const id of ignored) out.notRestored.push(`module settings "${id}" (${label})`)
+    return parsed && underCurrentPreset(parsed, label)
+  }
   const fit = value.trajectoryFitSettings
   if (record(fit)) {
-    const shared = parseFitSettings(fit.shared)
-    if (shared) out.trajectoryFitSettings.shared = underCurrentPreset(shared, 'shared settings')
+    const shared = parse(fit.shared, 'shared settings')
+    if (shared) out.trajectoryFitSettings.shared = shared
     else out.notRestored.push('shared analysis settings')
     for (const [key, stored] of Object.entries(record(fit.columns) ? fit.columns : {})) {
-      const own = keeps(key) ? parseFitSettings(stored) : null
-      if (own) out.trajectoryFitSettings.columns[key] = underCurrentPreset(own, `own settings of ${parameterKeyLabel(key)}`)
+      const own = keeps(key) ? parse(stored, `own settings of ${parameterKeyLabel(key)}`) : null
+      if (own) out.trajectoryFitSettings.columns[key] = own
       else out.notRestored.push(`own settings of ${parameterKeyLabel(key)}${keeps(key) ? '' : ' (parameter not in this dataset)'}`)
     }
   } else out.notRestored.push('analysis settings of all parameters')
@@ -152,15 +160,16 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
   const keyList = (name: 'trendKeys' | 'fitKeys', label: string) => {
     const stored = view[name]
     if (!Array.isArray(stored) || !stored.every(k => typeof k === 'string')) { out.notRestored.push(`${label} choices`); return }
-    for (const key of stored as string[]) {
+    for (const key of new Set(stored as string[])) {
       if (keeps(key)) out.trajectoryView[name].push(key)
       else out.notRestored.push(`${label} of ${parameterKeyLabel(key)} (parameter not in this dataset)`)
     }
   }
   if (view.parameterKeys !== null) {
     if (Array.isArray(view.parameterKeys) && view.parameterKeys.every(k => typeof k === 'string')) {
-      const shown = (view.parameterKeys as string[]).filter(keeps)
-      for (const key of view.parameterKeys as string[]) if (!keeps(key)) out.notRestored.push(`column ${parameterKeyLabel(key)} (parameter not in this dataset)`)
+      const stored = [...new Set(view.parameterKeys as string[])]
+      const shown = stored.filter(keeps)
+      for (const key of stored) if (!keeps(key)) out.notRestored.push(`column ${parameterKeyLabel(key)} (parameter not in this dataset)`)
       out.trajectoryView.parameterKeys = shown.some(key => parameterKeys.has(key)) ? shown : null
     } else out.notRestored.push('selected parameters')
   }
@@ -168,7 +177,7 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
   keyList('fitKeys', 'trend line')
   if (record(view.display)) {
     for (const [key, shown] of Object.entries(view.display)) {
-      if (key in DEFAULT_WORKSPACE_DISPLAY && bool(shown)) out.trajectoryView.display[key] = shown
+      if (Object.hasOwn(DEFAULT_WORKSPACE_DISPLAY, key) && bool(shown)) out.trajectoryView.display[key] = shown
       else out.notRestored.push(`display option "${key}"`)
     }
   } else out.notRestored.push('display options')

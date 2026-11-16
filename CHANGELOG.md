@@ -19,10 +19,16 @@ interfaces are still evolving before 1.0.
   write wins). Choices for a computed eGFR parameter that the derivation does
   not produce at the moment are kept and apply again when it is back.
   Settings saved under a preset that has changed since are restored with
-  their saved values as "Custom configuration".
+  their saved values as "Custom configuration"; results do not change, the
+  exported fit configuration then names the preset "custom". Settings are
+  written only when the user changes one (opening the page writes nothing),
+  a copy saved without settings gets them with the first change, and a
+  failed settings write is reported on its own without marking the dataset
+  copy as unsaved.
 - While a dataset is loaded and not saved on this device, the browser asks
-  before the page is reloaded or closed. It does not ask for the unchanged
-  bundled demo data.
+  before the page is reloaded or closed. It does not ask for the bundled demo
+  data as loaded; it asks once something was imported on top of them, a
+  patient was edited or the eGFR derivation was changed.
 
 ### Changed (breaking for scripts that read the export)
 
