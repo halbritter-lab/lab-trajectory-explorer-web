@@ -40,16 +40,20 @@ export function lme4ModelCall(config: MixedModelConfig): string {
 
 /** Lines of an R script that refits every successful lme4 model of a model
  * workbook from its `model_rows` sheet with the worker's own R code. */
-export function mixedModelRScript(models: readonly { entity: string; result: MixedModelResult; identity?: { groupValue?: string } }[]): string[] {
+export function mixedModelRScript(models: readonly { entity: string; result: MixedModelResult; identity?: { groupValue?: string } }[], workbookName = 'cohort-models.xlsx'): string[] {
+  // File names come from the app (letters, digits, dot, hyphen); anything else falls back to the default.
+  const workbook = /^[\w.-]+$/.test(workbookName) ? workbookName : 'cohort-models.xlsx'
   const comment = (text: string) => text.replace(/[\r\n\0\p{Cs}]+/gu, ' ')
   const lines = [
     '# Lab Trajectory Explorer: R refit of the cohort mixed models in this workbook.',
     '# Research use only. Not for clinical decision-making.',
     '#',
     '# Save this sheet as refit.R, for example:',
-    '#   x <- readxl::read_excel("cohort-models.xlsx", sheet = "r_script")$line',
+    `#   x <- readxl::read_excel("${workbook}", sheet = "r_script")$line`,
     '#   x[is.na(x)] <- ""; writeLines(x, "refit.R")',
-    '# then set mm_workbook below and run source("refit.R"). Needs lme4 and readxl.',
+    '# then run source("refit.R") in the folder that holds the workbook. mm_workbook below',
+    '# is the file name as downloaded; change it if you renamed or moved the file.',
+    '# Needs lme4 and readxl.',
     '#',
     '# The rows come from the model_rows sheet exactly as they were passed to R in the',
     '# browser; factors, reference levels, contrasts and the lmer call are the same code.',
@@ -64,7 +68,7 @@ export function mixedModelRScript(models: readonly { entity: string; result: Mix
     '# For Satterthwaite degrees of freedom and p-values, run library(lmerTest) first',
     '# and replace lme4::lmer with lmerTest::lmer; the call is otherwise unchanged.',
     '',
-    'mm_workbook <- "cohort-models.xlsx"',
+    `mm_workbook <- "${workbook}"`,
     'mm_rows <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "model_rows", trim_ws = FALSE))',
     'mm_coefficients <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "coefficients", trim_ws = FALSE))',
     'mm_fits <- list()',

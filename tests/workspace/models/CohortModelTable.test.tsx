@@ -160,8 +160,8 @@ describe('CohortModelTable', () => {
     await waitFor(() => expect(useAppStore.getState().cohortModelResults).not.toBeNull())
     expect(runJob).toHaveBeenCalledTimes(2) // cohort + A, never B
     for (const call of runJob.mock.calls) expect(call[0].rows).not.toBe(groupBRows)
-    expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('-2 ml/min/1.73m2/yr')
-    expect(within(rowByEntity('group:A')).getByTestId('cohort-model-status')).toHaveTextContent('-2 ml/min/1.73m2/yr')
+    expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/^Fitted/)
+    expect(within(rowByEntity('group:A')).getByTestId('cohort-model-status')).toHaveTextContent(/^Fitted/)
   })
 
   it('rounds slope and intercept like the preview legend', async () => {
@@ -169,7 +169,7 @@ describe('CohortModelTable', () => {
     // while the legend's formatter gives -9.99. Both now use the same formatter.
     renderTable({ runJob: vi.fn(async () => ({ ...success(-9.985), fixedEffects: { intercept: 1234.5, timeSinceBaseline: -9.985 } })) })
     await userEvent.click(screen.getByRole('button', { name: 'Fit selected' }))
-    await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('/yr'))
+    await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('Fitted'))
     const cells = within(rowByEntity('cohort')).getAllByRole('cell')
     expect(cells[4]).toHaveTextContent(`${formatWorkspaceNumber(-9.985)} ml/min/1.73m2/yr`)
     expect(cells[4]).toHaveTextContent('-9.99 ml/min/1.73m2/yr')
@@ -234,7 +234,7 @@ describe('CohortModelTable', () => {
     renderTable()
     await userEvent.click(screen.getByRole('button', { name: 'Fit selected' }))
     await waitFor(() =>
-      expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('/yr'),
+      expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('Fitted'),
     )
 
     await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
@@ -256,7 +256,7 @@ describe('CohortModelTable', () => {
     })
     await userEvent.click(screen.getByRole('button', { name: 'Fit selected' }))
     await waitFor(() =>
-      expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('/yr'),
+      expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('Fitted'),
     )
 
     await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))

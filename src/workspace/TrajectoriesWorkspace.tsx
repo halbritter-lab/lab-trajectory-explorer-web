@@ -235,19 +235,29 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   useEffect(() => () => useAppStore.getState().setTrajectoryFitSettings(defaultTrajectoryFitSettings()), [])
   const [requestedSettingsScope, setSettingsScope] = useState('')
   const settingsScope = parameterKeys.includes(requestedSettingsScope) && data.parameters.some(p => p.key === requestedSettingsScope) ? requestedSettingsScope : ''
+  // Trend columns switched off by a no-fit setting (Acute review); they come back
+  // when the column gets a fit method again, so its slopes and badges return.
+  const suspendedTrend = useRef(new Set<string>())
+  const suspendTrend = (keys: Iterable<string>) => { for (const key of keys) if (trendKeys.includes(key)) suspendedTrend.current.add(key) }
+  const resumeTrend = (keys: Iterable<string>) => {
+    const resumed = [...keys].filter(key => suspendedTrend.current.delete(key))
+    if (resumed.length) setTrendKeys(previous => [...new Set([...previous, ...resumed])])
+  }
   const changeSettings = (settings: WorkspaceFitSettings) => {
+    const affected = new Set(settingsScope ? [settingsScope] : data.parameters.filter(parameter => !columnSettings[parameter.key]).map(parameter => parameter.key))
     if (settings.fitModel === 'none') {
-      const affected = new Set(settingsScope ? [settingsScope] : data.parameters.filter(parameter => !columnSettings[parameter.key]).map(parameter => parameter.key))
+      suspendTrend(affected)
       setTrendKeys(previous => previous.filter(key => !affected.has(key)))
       setFitKeys(previous => previous.filter(key => !affected.has(key)))
-    }
+    } else resumeTrend(affected)
     if (settingsScope) setColumnSettings(previous => ({ ...previous, [settingsScope]: settings }))
     else setFitSettings(settings)
   }
   const changeParameterMethod = (key: string, model: WorkspaceFitSettings['fitModel']) => {
     const current = columnSettings[key] ?? fitSettings
     setColumnSettings(previous => ({ ...previous, [key]: { ...current, fitModel: model, presetId: 'custom' } }))
-    if (model === 'none') { setTrendKeys(previous => previous.filter(item => item !== key)); setFitKeys(previous => previous.filter(item => item !== key)) }
+    if (model === 'none') { suspendTrend([key]); setTrendKeys(previous => previous.filter(item => item !== key)); setFitKeys(previous => previous.filter(item => item !== key)) }
+    else resumeTrend([key])
   }
   const resetColumnSettings = () => setColumnSettings(previous => {
     const next = { ...previous }

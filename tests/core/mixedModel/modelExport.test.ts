@@ -179,6 +179,10 @@ describe('R reproduction export', () => {
     expect(sheet('coefficients')[0]).toMatchObject({entity:'G1',unit_key:'group:G1',unit:'ml/min'})
     expect(script).toContain('R 4.5.1 (webR); lme4 1.1-37; Matrix 1.7-3; jsonlite 2.0.0')
     expect(mixedModelRScript([{entity:'G2',result:{...result,metadata:{...result.metadata,runtimeVersion:null,packageVersions:{}}}}]).join('\n')).toContain('R version unknown (webR); package versions unknown')
+    // The script names the workbook as downloaded; a name it cannot quote safely falls back.
+    expect(script).toContain('mm_workbook <- "cohort-models.xlsx"')
+    expect(mixedModelRScript([], 'cohort-models-20261116-1612.xlsx')).toContain('mm_workbook <- "cohort-models-20261116-1612.xlsx"')
+    expect(mixedModelRScript([], 'a"; system("x").xlsx')).toContain('mm_workbook <- "cohort-models.xlsx"')
   })
 
   it('fits every unit in its own local environment, keyed unambiguously', () => {

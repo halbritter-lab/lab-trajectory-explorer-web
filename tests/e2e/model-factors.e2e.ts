@@ -47,8 +47,8 @@ test('real workbook previews complete-case factor selection before fitting', asy
   await expect(studio.locator('.cm-sample-meta')).toHaveText('Complete cases: 10 patients / 11 (30 measurements)')
   await expect(studio.getByLabel('Readable formula')).toContainText('Time (years):"genotype"')
   await expect(studio.getByLabel('Patients per level')).toHaveText('Whole cohort, patients per level (with enough measurement times): genotype: A 7 (7), B 3 (3)')
-  await studio.getByText('Excluded patients (1)', { exact: true }).click()
-  await expect(studio.getByRole('list', { name: 'Patients excluded from the model' })).toContainText('11: Missing genotype')
+  await studio.getByText('Patients not in the model (1)', { exact: true }).click()
+  await expect(studio.getByRole('list', { name: 'Patients not in the model' })).toContainText('11: Missing genotype')
 
   const studioFit = studio.getByRole('button', { name: /Fit model/ })
   await expect(studioFit).toBeEnabled()
@@ -56,6 +56,6 @@ test('real workbook previews complete-case factor selection before fitting', asy
   const row = page.getByTestId('cohort-model-row')
   await expect(row.getByRole('cell').nth(2)).toHaveText('10')
   await expect(row.getByRole('cell').nth(3)).toHaveText('30')
-  await expect(page.locator('.cm-slope-badge')).toContainText('Whole cohort:')
+  await expect(page.locator('.cm-slope-badge')).toContainText('Whole cohort, reference profile:')
   await expect(page.getByRole('columnheader', { name: 'Reference slope', exact: true })).toBeVisible()
 })

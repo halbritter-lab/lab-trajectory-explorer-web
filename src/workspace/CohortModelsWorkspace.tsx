@@ -203,7 +203,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   ).join(' ')
   const canFit = eligibleEntities.length > 0 && !cohortModelRunning && !noFit
   const fitUnavailableReason = cohortModelRunning
-    ? (cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Fitting model …')
+    ? `${cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Fitting model …'} The first fit after opening the page downloads R (webR with lme4) once and can take a few minutes.`
     : noFit ? 'Model fitting is disabled because the data preparation uses No fit. Choose another data preparation above or a fit model under Trajectories.'
     : eligibleEntities.length === 0 ? `No model can be fitted with the current data and settings. ${validationReasons || 'Mixed model fitting requires at least one measurement row.'}`
     : null
@@ -374,6 +374,12 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   })
   const inactiveFactors = availableFactors.filter(f => !activeFactors.some(af => af.key === f.key))
   const sampleSummary = prepareMixedModelFactors(mixedModelRows, mixedModelConfig, data.patientAttributes ?? {}, data.rows ?? [])
+  // Every patient behind "Complete cases: n / all": left out for a factor value, or
+  // without a usable measurement of the outcome after data preparation.
+  const completePatients = new Set(sampleSummary.rows.map(r => String(r.patient_id)))
+  const factorReasons = new Map(sampleSummary.preparation.excludedPatients.map(patient => [String(patient.patientId), patient.reasons.join('; ')]))
+  const patientsNotInModel = data.patients.map(patient => String(patient.id)).filter(id => !completePatients.has(id))
+    .map(patientId => ({ patientId, reason: factorReasons.get(patientId) ?? 'No usable measurement of this parameter after data preparation' }))
   const levelCounts = [...mixedModelFactorLevelCounts(sampleSummary.rows, mixedModelConfig)]
 
   return (
@@ -620,9 +626,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         {levelCounts.length > 0 && <p className="muted cm-level-counts" aria-label="Patients per level">
           Whole cohort, patients per level (with enough measurement times): {levelCounts.map(([key, levels]) => `${key === 'sex' ? 'Sex' : key}: ${levels.map(item => `${item.level} ${item.patients} (${item.qualifying})`).join(', ')}`).join('; ')}
         </p>}
-        {sampleSummary.preparation.excludedPatients.length > 0 && <details className="cm-excluded-patients">
-          <summary>Excluded patients ({sampleSummary.preparation.excludedPatients.length})</summary>
-          <ul aria-label="Patients excluded from the model">{sampleSummary.preparation.excludedPatients.map(patient => <li key={String(patient.patientId)}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul>
+        {patientsNotInModel.length > 0 && <details className="cm-excluded-patients">
+          <summary>Patients not in the model ({patientsNotInModel.length})</summary>
+          <ul aria-label="Patients not in the model">{patientsNotInModel.map(patient => <li key={patient.patientId}>{patient.patientId}: {patient.reason}</li>)}</ul>
         </details>}
 
         {/* Studio Footer with Primary Fit Action */}

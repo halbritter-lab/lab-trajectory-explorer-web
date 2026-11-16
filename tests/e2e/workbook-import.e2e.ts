@@ -42,9 +42,9 @@ test('reads a German semicolon CSV as text and lists its import diagnostics', as
   await expect(page.locator('.workspace-dataset')).toContainText('2 patients')
   await expect(page.getByText(/3 lab values.*1 row rejected; 3 warnings\./)).toBeVisible()
   await page.getByText(/import diagnostics — show details/).click()
-  await expect(page.getByText('Sheet1, patient 12, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.')).toBeVisible()
+  await expect(page.getByText('labs.csv, patient 12, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.')).toBeVisible()
   await expect(page.getByText(/read day-first/)).toBeVisible()
-  await expect(page.getByText('Sheet1, warning: Kreatinin: unit spellings "µmol/l" (2), "umol/L" (1) were merged as "µmol/l".')).toBeVisible()
+  await expect(page.getByText('labs.csv, warning: Kreatinin: unit spellings "µmol/l" (2), "umol/L" (1) were merged as "µmol/l".')).toBeVisible()
   await expect(page.getByText(/Kreatinin \[µmol\/l\]: 1 censored value/)).toBeVisible()
 })
 

@@ -38,6 +38,8 @@ export function mixedModelExportSheets(
     /** The rows the worker received for this result, and how the series' measurements reached them. */
     rows?: readonly MixedModelSpikeRow[]; inputFlags?: readonly MixedModelInputFlag[]
   }[],
+  /** Name of the downloaded workbook, so the R script reads the file as saved. */
+  workbookName?: string,
 ): { name: string; rows: object[] }[] {
   const settings: object[] = []
   const coefficients: object[] = []
@@ -159,7 +161,7 @@ export function mixedModelExportSheets(
     { name: 'vcov', rows: covariances },
     { name: 'model_rows', rows: modelRows },
     { name: 'model_input_flags', rows: inputFlags },
-    { name: 'r_script', rows: mixedModelRScript(models).map((line) => ({ line })) },
+    { name: 'r_script', rows: mixedModelRScript(models, workbookName).map((line) => ({ line })) },
   ]
 }
 

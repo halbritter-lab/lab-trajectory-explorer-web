@@ -87,6 +87,8 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
   try {
     const dataset = file ? loadDatasetFromWorkbook(await file.arrayBuffer()) : { ...await loadBundledFixtureData(), diagnostics: [], rejectedEvents: [] }
     if (!dataset.rows.length) throw new Error('No usable lab values in this file.')
+    // A CSV has no sheets; the reader's "Sheet1" would name something the user never saw.
+    if (file && !/\.xls[xmb]?$/i.test(file.name)) dataset.diagnostics = dataset.diagnostics.map(d => ({ ...d, sheet: file.name }))
     const rejected = dataset.diagnostics.filter(d => d.severity === 'rejected').length
     // replaceDataset aborts running model jobs and commits data and defaults
     // together, so observers never see new rows with old overrides.

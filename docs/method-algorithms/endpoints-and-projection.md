@@ -615,7 +615,12 @@ reason is `kidney_failure_reached`. A prior observed G5 keeps its own lab
 dates alongside the event date. With fit model "No fit" and the projection
 enabled, the anchor reads `fitted curve` and the model `none`.
 
-The `about` sheet states that observed G4 below 30 and G5 below 15 use dated
+The `about` sheet states that `endpoint_percent_decline` is a decline
+(positive for a fall, negative for a rise) while the badge shows the same
+number as a change with the opposite sign, and that only eGFR series whose
+name ends in "computed" are calculated by the app (since 2026-11-16; before,
+it said that eGFR is computed from creatinine, also for imported eGFR). It
+also states that observed G4 below 30 and G5 below 15 use dated
 exact numeric eGFR before the first kidney transplant or chronic dialysis and
 outside complete acute dialysis intervals, that kidney replacement therapy
 is reported separately, that the decline baseline and the individual
