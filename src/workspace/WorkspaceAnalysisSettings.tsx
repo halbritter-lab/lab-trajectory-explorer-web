@@ -195,7 +195,8 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
             </label>
           </div>
           <div className="wt-pipeline-group">
-            <h2>AKI exclusions (KDIGO)</h2>
+            <h2>AKI exclusion windows</h2>
+            <p className="wt-muted">Episodes are detected with the KDIGO creatinine criteria. The length of the window is a rule of this tool.</p>
             <label>
               <input
                 type="checkbox"
@@ -223,7 +224,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
           <div className="wt-pipeline-group">
             <h2>eGFR endpoints & thresholds</h2>
             <p className="wt-muted">Applies only to parameters with eGFR units.</p>
-            <p className="wt-muted">Endpoints and prediction use exact dated eGFR measurements before the first transplant or chronic dialysis start, excluding complete dated acute dialysis intervals. Later values after acute dialysis remain eligible. Values marked &lt; or &gt; are excluded. Time balancing does not apply. When AKI windows are excluded from the fit, they are also left out of the decline baseline and the G5 projection. Kidney failure reached is reported separately from observed G5.</p>
+            <p className="wt-muted">Endpoints and projection use exact dated eGFR measurements before the first transplant or chronic dialysis start, excluding complete dated acute dialysis intervals. Later values after acute dialysis remain eligible. Values marked &lt; or &gt; are excluded. Time balancing does not apply. When AKI windows are excluded from the fit, they are also left out of the decline baseline and the G5 projection. Kidney failure reached is reported separately from observed G5.</p>
             <label><input type="checkbox" aria-label="Observed CKD G4" checked={fitSettings.endpoints.observedCkdG4 ?? false} onChange={e => updateSettings({ endpoints: { ...fitSettings.endpoints, observedCkdG4: e.target.checked } })} />Observed CKD G4</label>
             <label>Minimum confirmation interval (days)
               <ConfirmationDaysInput value={fitSettings.endpoints.confirmationDays ?? DEFAULT_CONFIRMATION_DAYS} onChange={days => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: days } })} />

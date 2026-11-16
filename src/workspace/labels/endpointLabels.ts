@@ -41,12 +41,12 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
   if (!endpoints.observedCkdG5.met) {
     if (endpoints.projectedAgeToCkdG5.value !== null) {
       const age = endpoints.projectedAgeToCkdG5.value
-      // Without a birth date the age is known in completed years only, so one
-      // decimal would claim a precision the input does not have.
+      // Whole years on either age basis (decided 2026-11-16): the projection has
+      // no interval, so a decimal would claim a precision it does not have. The
+      // export keeps the unrounded value.
       const exact = endpoints.projectedAgeToCkdG5.ageBasis === 'birth_date'
-      const shown = exact ? age.toFixed(1) : `~${Math.round(age)}`
-      labels.push(`G5 @ ${shown}y`)
-      details.push(`projected age to CKD G5 ${exact ? `${shown} years` : `about ${Math.round(age)} years (no birth date: counted from the age in completed years, so the true value can be up to one year higher)`}; fitted curve using endpoint-eligible dated exact numeric measurements (bounds${endpoints.inputExcludesAkiWindows ? ', AKI exclusion windows' : ''} and kidney replacement therapy/acute dialysis periods excluded)`)
+      labels.push(`G5 @ ~${Math.round(age)}y`)
+      details.push(`projected age to CKD G5 about ${Math.round(age)} years${exact ? ' (the projection has no interval; the export holds the unrounded value)' : ' (no birth date: counted from the age in completed years, so the true value can be up to one year higher)'}; fitted curve using endpoint-eligible dated exact numeric measurements (bounds${endpoints.inputExcludesAkiWindows ? ', AKI exclusion windows' : ''} and kidney replacement therapy/acute dialysis periods excluded)`)
     } else if (measurementCount > 0 || endpoints.projectedAgeToCkdG5.reason !== 'insufficient_points') {
       // A cell without any measurement already says so; "G5 < 3 dates" would only add noise.
       const unavailable = projectedG5Label(endpoints)

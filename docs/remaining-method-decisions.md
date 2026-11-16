@@ -547,6 +547,45 @@ sign-off. Details, boundaries and recomputed examples are in
   fuller texts of the [wording drafts](methodology-wording-drafts.md) (C8,
   D3) are still to be approved.
 
+## Methodology wording approved on 2026-11-16
+
+The project owner approved the wording drafts of Parts C, D and E1 of the
+[methodology wording drafts](methodology-wording-drafts.md) for the in-app
+methodology page, after a fact check against the code, an editorial review
+and a pre-analysis. No rule and no numeric result changes with them.
+
+- **Approved as a block:** C1 to C10 and C13, D1 (b), D3 (a) in its reduced
+  form, D3 (b), (h) and (i), E1, and the alignment of terms ("time
+  balancing", "Theil–Sen", "1.73 m²"). Two gaps found by the pre-analysis are
+  closed with them: the AKI stage list refers to the lowest value of the
+  previous 7 days and says that an episode gets the highest stage that any of
+  its values reaches, and the status row "G5 no fit" names Trend being
+  switched off.
+- **Clinical rationale kept:** "at high creatinine, ordinary variation can
+  meet the AKI criterion, so a sustained G5 can lie inside AKI windows and is
+  still counted" (C6, C12).
+- **C11 in two sentences:** the 57 % threshold only approximates a doubling
+  of serum creatinine and depends on the equation; the percentages stay in the
+  drafts file and are not on the page.
+- **C12 approved:** the settings table "Settings that change which
+  measurements are fitted" and the sentence on cohort models.
+- **D2 approved:** the list "Rules of this tool that are not published
+  standards", with "have not been validated against outcomes".
+- **D3 (e), (f), (g) approved,** (f) without a literature reference.
+- **Three interface wordings:** "projection" replaces "prediction" in the
+  headings, navigation labels and text of the methodology page and in the
+  endpoint hint of the settings (the section id `prediction` and with it the
+  link `#methods/endpoints/prediction` stay); the projected age is shown as a
+  whole number marked as approximate on either age basis (`G5 @ ~66y`), which
+  extends the display rule of OD-16 to the birth-date basis, while the export
+  keeps the unrounded value; the settings heading reads "AKI exclusion
+  windows" instead of "AKI exclusions (KDIGO)", with a hint that detection
+  follows KDIGO and the window length is a rule of this tool.
+- **Not approved yet:** the full reference list D1 (a). It waits until the
+  owner has compared the EKFC coefficients with the paper and the EMA
+  guideline is confirmed. Only the CKD-EPI 2009 citation (C5) was added to
+  the existing list.
+
 ## Approved requirements
 
 ### Observed events and recovery

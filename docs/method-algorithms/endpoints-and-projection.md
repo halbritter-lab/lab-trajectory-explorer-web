@@ -381,10 +381,13 @@ withheld as `missing_age` when the latest eligible row has no age: in the
 first case only when it lies before the birth date, in the second when no
 eligible row carries an age.
 
-The table badge shows a projected age on a birth-date basis with one decimal
-(`G5 @ 66.3y`). On a whole-year basis it shows the value rounded to a whole
-number and marked as approximate (`G5 @ ~66y`), and the tooltip states that it
-was counted from the age in completed years and can be up to one year higher.
+The table badge shows the projected age rounded to a whole number and marked
+as approximate on either basis (`G5 @ ~66y`; decided 2026-11-16, because the
+projection has no interval; until then a birth-date basis showed one decimal,
+`G5 @ 66.3y`). `Math.round` is used, so 63.5 shows as `~64y`. On a whole-year
+basis the tooltip states that the age was counted from the age in completed
+years and can be up to one year higher; on a birth-date basis it states that
+the projection has no interval and that the export holds the unrounded value.
 The export carries the unrounded value in both cases and the basis in
 `endpoint_prediction_age_basis`. The 20-year horizon is measured from the same
 age and is unaffected by the basis.
@@ -542,7 +545,8 @@ this crossing: SE(b)=4.3301 and t(1)=12.7062 give slope bounds
   is 3.68457 years after the latest row and within the 20-year horizon.
 - Projected age with the birth date known (from the attributes table or the
   lab rows): the exact age at the latest row is 62.623 years, so
-  62.623 + 3.68457 = 66.307; the badge shows `G5 @ 66.3y`.
+  62.623 + 3.68457 = 66.307; the badge shows `G5 @ ~66y` and the export
+  holds 66.307.
 - Projected age without a birth date (the file states only ages 57 to 62):
   62 + 3.68457 = 65.68457; the badge shows `G5 @ ~66y`.
 - With Theil-Sen selected: slope -3.8005, intercept 48, bounds

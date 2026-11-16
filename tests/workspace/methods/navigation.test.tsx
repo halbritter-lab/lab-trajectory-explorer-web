@@ -41,7 +41,7 @@ describe('help topics', () => {
       window.history.replaceState(null, '', '/#methods/endpoints')
       window.dispatchEvent(new PopStateEvent('popstate'))
     })
-    expect(screen.getByRole('heading', { name: 'Endpoints & prediction', level: 2 })).toBeVisible()
+    expect(screen.getByRole('heading', { name: 'Endpoints & projection', level: 2 })).toBeVisible()
     navigate('#methods/unknown')
     expect(screen.getByRole('heading', { name: 'Start here', level: 2 })).toBeVisible()
   })

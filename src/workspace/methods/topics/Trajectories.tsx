@@ -41,8 +41,9 @@ export function Trajectories() { return <>
         <strong>rapid eGFR decline</strong>. An eGFR series whose fitted slope falls faster than the
         configured threshold is marked <span className="rapid-badge rapid-badge-inline">rapid ↓</span>{' '}
         in the table when the fit is shown, and carries a <code>rapid_progression</code> column in
-        the export. The default threshold of <strong>5 mL/min/1.73m² per year</strong> is the
-        number KDIGO uses for rapid CKD progression, which KDIGO defines as a sustained decline.
+        the export. The default threshold of <strong>5 mL/min/1.73 m² per year</strong> comes
+        from the KDIGO 2012 CKD guideline, which defines rapid progression as a sustained decline
+        in eGFR of more than 5 mL/min/1.73 m² per year.
         The flag itself does not test whether a decline is sustained: it is set for any computed
         slope beyond the threshold, including one from two measurements or from a few weeks of
         follow-up. Read it together with the reliability note of the same cell. The

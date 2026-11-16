@@ -8,7 +8,7 @@ export function Cohort() { return <>
         Data preparation select on the Cohort models page changes the same settings; specialist
         presets create independent settings for the selected parameter. The trajectory's Trend
         activation switch does not disable cohort model preparation. With general exploration, the setting of a newly loaded dataset, nothing is
-        excluded or aggregated. The Cohort models page states the settings in use. A separate
+        excluded and no time balancing is applied. The Cohort models page states the settings in use. A separate
         checkbox, on by default, applies the event censoring and AKI windows; turning it off
         retains the eligible exact dated measurements inside those windows, while time balancing
         still applies. A parameter set to “No fit” supplies no model rows. The preview, each model
@@ -46,7 +46,10 @@ export function Cohort() { return <>
         interaction with time. Numeric factors, including baseline age, are centred at their mean
         over the modelled patients, one value each. Categorical factors use treatment contrasts:
         each coefficient is the difference from the reference level. Fixed effects have 95% Wald
-        intervals; no p-values are computed.
+        intervals (estimate ± 1.96 standard errors). They are approximate and tend to be too
+        narrow when the model has few patients. No degrees of freedom and no p-values are
+        computed, and nothing is adjusted for testing several coefficients or groups. For tests,
+        the exported R script names the lmerTest package.
       </p>
       <p>
         The model line shows the reference profile — numeric factors at their centres,
