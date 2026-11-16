@@ -13,6 +13,8 @@ for (const method of ['show', 'showModal', 'close'] as const) {
 if (!window.matchMedia) Object.defineProperty(window, 'matchMedia', { configurable: true, writable: true, value() {} })
 
 beforeEach(() => {
+  // The page no longer resets the shared store when it unmounts (the app replaces or clears the dataset instead).
+  useAppStore.getState().reset()
   vi.spyOn(HTMLDialogElement.prototype, 'show').mockImplementation(function (this: HTMLDialogElement) { this.setAttribute('open', '') })
   vi.spyOn(HTMLDialogElement.prototype, 'showModal').mockImplementation(function (this: HTMLDialogElement) { this.setAttribute('open', '') })
   vi.spyOn(HTMLDialogElement.prototype, 'close').mockImplementation(function (this: HTMLDialogElement) { this.removeAttribute('open') })
@@ -651,6 +653,24 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByText(/Unavailable selected parameters: eGFR EKFC/)).toBeInTheDocument()
   })
 
+  it('keeps restored choices of a computed parameter that is absent and applies them when it is back', () => {
+    const data = fixture()
+    data.parameters = data.parameters.slice(0, 2)
+    const computed = { key: JSON.stringify(['eGFR (CKD-EPI 2021, computed)', 'unit-0']), label: 'eGFR (CKD-EPI 2021, computed) [unit-0]', bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'unit-0', derived: true }
+    // As restored from this device: the column, its Trend and its line were chosen, the derivation is off now.
+    useAppStore.setState({ trajectoryView: { ...useAppStore.getState().trajectoryView, parameterKeys: [data.parameters[0].key, computed.key], trendKeys: [computed.key], fitKeys: [computed.key] } })
+    const result = render(<TrajectoriesWorkspace data={data} />)
+    expect(screen.getByText(/Unavailable selected parameters: eGFR \(CKD-EPI 2021, computed\) \[unit-0\]/)).toBeInTheDocument()
+    // The choices are still in the saved view, so the next reload brings them again without a complaint.
+    expect(useAppStore.getState().trajectoryView).toMatchObject({ parameterKeys: [data.parameters[0].key, computed.key], trendKeys: [computed.key], fitKeys: [computed.key] })
+    // The derivation is switched on again.
+    const rows = [...data.rows, ...data.rows.filter(row => row.einheit === 'unit-0').map(row => ({ ...row, bezeichnung: computed.bezeichnung }))]
+    result.rerender(<TrajectoriesWorkspace data={{ ...data, rows, rawRows: data.rows, parameters: [...data.parameters, computed] }} />)
+    expect(screen.queryByText(/Unavailable selected parameters/)).not.toBeInTheDocument()
+    expect(screen.getByRole('checkbox', { name: `Analyse trend: ${computed.label}` })).toBeChecked()
+    expect(screen.getByRole('button', { name: `Show trend line: ${computed.label}` })).toHaveAttribute('aria-pressed', 'true')
+  })
+
   it('plots continuous age from an exact birth anchor and identifies inferred ages', () => {
     const data = fixture()
     data.patients[0].birthAnchor = new Date('1979-06-15T00:00:00Z')
@@ -874,9 +894,9 @@ describe('real-data trajectories workspace', () => {
     expect(badge.getAttribute('title')).toBe('Total eGFR change -50.0% from first to latest eligible measurement (not per year). This is not a confirmed 40% decline event: that event is measured from the baseline (mean of the first 90 days, 60.0) and needs a confirming measurement at least 90 days and at most 12 months later. Projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds, AKI exclusion windows and kidney replacement therapy/acute dialysis periods excluded).')
   })
 
-  it('publishes general and parameter settings for cohort models and withdraws them on unmount', () => {
+  it('publishes general and parameter settings for cohort models; clearing the dataset withdraws them', () => {
     const data = fixture()
-    const view = renderWorkspace(<TrajectoriesWorkspace data={data} />)
+    renderWorkspace(<TrajectoriesWorkspace data={data} />)
     expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('general_exploration')
     preset('theil_sen')
     expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('theil_sen')
@@ -884,7 +904,8 @@ describe('real-data trajectories workspace', () => {
     preset('ckd_progression', data.parameters[0].label)
     expect(useAppStore.getState().trajectoryFitSettings.columns[data.parameters[0].key]).toMatchObject({ presetId: 'ckd_progression', timeBalancing: 'quarterly-median' })
     expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('theil_sen')
-    view.unmount()
+    // The page is keyed by the dataset; the store resets the settings when the dataset is cleared or replaced.
+    act(() => useAppStore.getState().reset())
     expect(useAppStore.getState().trajectoryFitSettings).toMatchObject({ shared: { presetId: 'general_exploration' }, columns: {} })
   })
 

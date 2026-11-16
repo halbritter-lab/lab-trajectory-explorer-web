@@ -13,8 +13,16 @@ interfaces are still evolving before 1.0.
   reload the table is calculated as before. A stored setting that no longer
   fits this version or the dataset falls back to its default and is named in
   the restore notice. Cohort model settings and results are still not saved.
+  The settings are kept in their own record: changing them does not extend
+  the seven days of the saved dataset copy, does not rewrite the data and
+  does not conflict with another tab on the same copy (for settings the last
+  write wins). Choices for a computed eGFR parameter that the derivation does
+  not produce at the moment are kept and apply again when it is back.
+  Settings saved under a preset that has changed since are restored with
+  their saved values as "Custom configuration".
 - While a dataset is loaded and not saved on this device, the browser asks
-  before the page is reloaded or closed.
+  before the page is reloaded or closed. It does not ask for the unchanged
+  bundled demo data.
 
 ### Changed (breaking for scripts that read the export)
 

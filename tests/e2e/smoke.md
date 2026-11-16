@@ -463,10 +463,16 @@ Excel or desktop R, a screen reader.
    "Not restored, the defaults are used instead: …" to the notice.
 4. Without "Remember on this device", reloading a page with a loaded dataset
    brings up the browser's leave-page question. It does not appear when
-   nothing is loaded, when the dataset is remembered, or when moving between
-   Data, Trajectories, Cohort models and Methods.
+   nothing is loaded, when the dataset is remembered, when moving between
+   Data, Trajectories, Cohort models and Methods, or for the unchanged demo
+   data; after deriving eGFR on the demo data it appears.
 5. *Export cohort (XLSX)*: the column is named `endpoint_percent_change` and
    is negative for a fall, as in the badge (`-50`).
+6. With the dataset remembered, change a preset or a display option and
+   reload: the save time of the dataset copy (IndexedDB database
+   `lab-trajectory-explorer`, key `lab-explorer:workspace:v1`, field
+   `savedAt`) is unchanged; the settings are in
+   `lab-explorer:workspace-settings:v1`.
 
 Verified 2026-11-16 in Chromium: steps 1 to 4 by
 `tests/e2e/saved-settings.e2e.ts` against the development server (all 56

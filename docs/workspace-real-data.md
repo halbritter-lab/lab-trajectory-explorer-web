@@ -12,15 +12,45 @@ Under Data, **Remember on this device** opts into an unencrypted local snapshot
 of source labs, events, attributes, manual demographics and derivation settings,
 and (since 2026-11-16) the analysis settings of the Trajectories page: the
 shared and per-parameter fit settings, the selected parameters, Trend and
-trend-line choices and the display options. The snapshot expires seven days
-after the last data change. Reopening restores the data preparation and those
-settings. Each stored setting is checked against this version and the
-restored dataset; one that no longer fits (a removed option, a parameter that
-is no longer in the dataset) falls back to its default and is named in the
-restore notice. Settings saved in another settings version are discarded as a
-whole; the dataset is kept. Sorting, grouping, patient selection, cohort
-model settings and fitted models are not saved. Without the option, the
-browser asks before the page is reloaded or closed while a dataset is loaded. The copy is
+trend-line choices and the display options. Reopening restores the data
+preparation and those settings.
+
+Storage layout: the dataset copy and the analysis settings are two records in
+the same database. The dataset record (`lab-explorer:workspace:v1`) holds the
+data, its save time and a write token; the settings record
+(`lab-explorer:workspace-settings:v1`) holds the analysis settings and the
+write token of the dataset copy they belong to.
+
+- **Expiry.** The dataset copy expires seven days after the last *data*
+  change (labs, events, attributes, demographic edits, derivation settings,
+  file name). Changing analysis settings writes only the settings record, and
+  restoring a copy writes nothing to the dataset record, so neither extends
+  the seven days.
+- **Written together, removed together.** A data change writes both records in
+  one transaction. Clearing the saved data, an expired copy and an unreadable
+  copy remove both. Settings whose token is not that of the dataset copy are
+  never applied; the copy then starts from the defaults.
+- **Several tabs.** For data the rule is unchanged: a tab whose copy was
+  replaced or removed by another tab stops saving and says so. For analysis
+  settings, two tabs on the same copy can both write and the last write wins;
+  a tab whose dataset is no longer the saved copy does not write settings and
+  shows no error for it.
+- **Restore.** Each stored setting is checked against this version and the
+  restored dataset; one that no longer fits (a removed option, a parameter
+  that is not in the dataset) falls back to its default and is named in the
+  restore notice. Choices for a computed eGFR parameter that the current
+  derivation does not produce are kept without a notice and apply again when
+  the derivation produces it. Settings saved under a preset whose definition
+  has changed since keep their values and are shown as "Custom
+  configuration"; the notice names them. Settings saved in another settings
+  version are discarded as a whole; the dataset is kept and the notice says
+  that the settings could not be used.
+
+Sorting, grouping, patient selection, cohort model settings and fitted models
+are not saved. Without the option, the browser asks before the page is
+reloaded or closed while a dataset is loaded; it does not ask for the bundled
+demo data as long as no demographics were edited and the derivation settings
+are unchanged, because they load again with one click. The copy is
 kept in the app's own IndexedDB database (`lab-trajectory-explorer`), not in the
 default database other apps on the same origin can share. An expired, invalid or
 unsupported copy is removed at start-up. A still valid copy saved by the previous

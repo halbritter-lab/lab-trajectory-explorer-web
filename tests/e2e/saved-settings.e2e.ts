@@ -69,12 +69,12 @@ test('a stored setting that no longer fits falls back to its default and is name
     open.onsuccess = () => {
       const tx = open.result.transaction('keyval', 'readwrite')
       const store = tx.objectStore('keyval')
-      const read = store.get('lab-explorer:workspace:v1')
+      const read = store.get('lab-explorer:workspace-settings:v1')
       read.onsuccess = () => {
-        const copy = read.result
-        copy.settings.trajectoryFitSettings.columns['["Gone",null]'] = copy.settings.trajectoryFitSettings.shared
-        copy.settings.trajectoryView.axis = 'weeks'
-        store.put(copy, 'lab-explorer:workspace:v1')
+        const settings = read.result
+        settings.trajectoryFitSettings.columns['["Gone",null]'] = settings.trajectoryFitSettings.shared
+        settings.trajectoryView.axis = 'weeks'
+        store.put(settings, 'lab-explorer:workspace-settings:v1')
       }
       tx.oncomplete = () => resolve()
       tx.onerror = () => reject(tx.error)
@@ -116,4 +116,43 @@ test('the browser asks before a reload discards a dataset that is not remembered
   await page.reload()
   expect(dialogs).toEqual(['beforeunload'])
   await expect(page.locator('.workspace-dataset')).toContainText('decline.csv')
+})
+
+test('changing analysis settings does not extend the seven days of the saved copy', async ({ page }) => {
+  const savedAt = () => page.evaluate(() => new Promise<number>((resolve, reject) => {
+    const open = indexedDB.open('lab-trajectory-explorer')
+    open.onerror = () => reject(open.error)
+    open.onsuccess = () => {
+      const read = open.result.transaction('keyval').objectStore('keyval').get('lab-explorer:workspace:v1')
+      read.onsuccess = () => resolve(read.result.savedAt)
+      read.onerror = () => reject(read.error)
+    }
+  }))
+  await uploadDecline(page)
+  await remember(page)
+  const before = await savedAt()
+  await analyseWithCkdPreset(page)
+  await page.reload()
+  // Restoring with the workspace open does not restart the clock either.
+  await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
+  await expect(page.getByRole('checkbox', { name: /^Analyse trend:/ })).toBeChecked()
+  expect(await savedAt()).toBe(before)
+})
+
+test('the browser does not ask for the unchanged demo data, but asks once they were edited', async ({ page }) => {
+  const dialogs: string[] = []
+  page.on('dialog', dialog => { dialogs.push(dialog.type()); void dialog.accept() })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Load demo data' }).click()
+  await expect(page.locator('.workspace-dataset')).toContainText('(Demo)')
+  await page.reload()
+  expect(dialogs).toEqual([])
+
+  await page.getByRole('button', { name: 'Load demo data' }).click()
+  await expect(page.locator('.workspace-dataset')).toContainText('(Demo)')
+  // Deriving eGFR changes the dataset's derivation settings: now there is something to lose.
+  await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
+  await page.getByRole('button', { name: /^Apply/ }).click()
+  await page.reload()
+  expect(dialogs).toEqual(['beforeunload'])
 })

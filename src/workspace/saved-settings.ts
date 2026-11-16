@@ -6,10 +6,14 @@
  * item that no longer fits the dataset or this version falls back to its
  * default and is named to the user. They never invalidate the dataset copy.
  */
-import { fitPresetById, overlayModules, parseColumnModuleSettings } from '../core/analysis/registry'
+import { fitPresetById, isRecord as record, parseColumnModuleSettings } from '../core/analysis/registry'
 import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
 import type { UnknownDialysisPolicy } from '../core/domains/nephrology/fitConfig'
-import { defaultTrajectoryFitSettings, type TrajectoryFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
+import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../core/domains/nephrology/analytes'
+import { defaultFitSettings, defaultTrajectoryFitSettings, type TrajectoryFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
+import { parameterLabel } from './workspace-labels'
+import { DEFAULT_WORKSPACE_DISPLAY, type WorkspaceAxis } from './WorkspacePlot'
+import type { SparkSize } from './WorkspaceSparkline'
 
 /** Every value a union allows, checked at compile time: adding a code to the
  * union without listing it here fails the build instead of making every saved
@@ -25,9 +29,9 @@ export interface TrajectoryView {
   trendKeys: string[]
   fitKeys: string[]
   display: Record<string, boolean>
-  axis: 'baseline' | 'calendar' | 'age'
+  axis: WorkspaceAxis
   scaleMode: 'shared' | 'zoom'
-  chartSize: 'small' | 'medium' | 'large'
+  chartSize: SparkSize
   cellDetails: 'minimal' | 'full' | 'compact'
   warningIcons: boolean
 }
@@ -53,10 +57,12 @@ const SCALE_MODES = allValues<TrajectoryView['scaleMode']>()(['shared', 'zoom'])
 const CHART_SIZES = allValues<TrajectoryView['chartSize']>()(['small', 'medium', 'large'])
 const CELL_DETAILS = allValues<TrajectoryView['cellDetails']>()(['minimal', 'full', 'compact'])
 
-const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 const bool = (v: unknown): v is boolean => typeof v === 'boolean'
 const days = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v) && v >= 0
 const oneOf = <T extends string>(list: readonly T[], v: unknown): v is T => list.includes(v as T)
+/** JSON with sorted object keys, so two settings compare by content. */
+const canonical = (v: unknown): string => JSON.stringify(v, (_key, value: unknown) =>
+  record(value) ? Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : 1)) : value)
 
 function parseFitSettings(v: unknown): WorkspaceFitSettings | null {
   if (!record(v) || typeof v.presetId !== 'string' || (v.presetId !== 'custom' && !fitPresetById(v.presetId))) return null
@@ -83,39 +89,61 @@ function parseFitSettings(v: unknown): WorkspaceFitSettings | null {
 export interface RestoredSettings {
   trajectoryFitSettings: TrajectoryFitSettings
   trajectoryView: TrajectoryView
+  /** 'none': no settings record for this copy; 'discarded': a record of
+   * another settings version, dropped as a whole; 'restored': checked item by item. */
+  stored: 'none' | 'discarded' | 'restored'
   /** Stored items that were replaced by their defaults, as shown to the user. */
   notRestored: string[]
+  /** Settings saved under a preset whose definition has changed since: their
+   * values are kept, under the preset id 'custom'. */
+  keptAsCustom: string[]
 }
 
 /** Parameter keys are `JSON.stringify([name, unit])`. */
-function parameterName(key: string): string {
+function parsedKey(key: string): [string, string | null] | null {
   try {
-    const [name, unit] = JSON.parse(key) as [string, string | null]
-    return `${name} [${unit ?? 'no unit'}]`
-  } catch { return key }
+    const parsed: unknown = JSON.parse(key)
+    return Array.isArray(parsed) && typeof parsed[0] === 'string' && (parsed[1] === null || typeof parsed[1] === 'string') ? [parsed[0], parsed[1]] : null
+  } catch { return null }
 }
+/** Readable name of a parameter key, also for one the dataset does not have. */
+export function parameterKeyLabel(key: string): string {
+  const parsed = parsedKey(key)
+  return parsed ? parameterLabel(parsed[0], parsed[1]) : key
+}
+/** A computed eGFR parameter exists only while the current derivation
+ * produces it. Choices for one that is absent right now are kept, as the page
+ * keeps them within a session, and apply again when the derivation is back. */
+const isComputedParameter = (key: string) => parsedKey(key)?.[0].endsWith(COMPUTED_BEZEICHNUNG_SUFFIX) ?? false
 
 /**
  * Check stored settings against this version and the parameters of the
- * restored dataset. `undefined` (a copy saved before settings were kept)
- * yields the defaults without a complaint.
+ * restored dataset. `undefined` (no settings record for this copy) yields the
+ * defaults without a complaint. A choice for a parameter that is not in the
+ * dataset is dropped and named, unless it is a computed eGFR parameter.
  */
 export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<string>): RestoredSettings {
-  const out: RestoredSettings = { trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), notRestored: [] }
+  const out: RestoredSettings = { trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [] }
   if (value === undefined) return out
-  if (!record(value) || value.version !== SAVED_SETTINGS_VERSION) {
-    out.notRestored.push('all analysis settings (saved by another version)')
-    return out
+  if (!record(value) || value.version !== SAVED_SETTINGS_VERSION) { out.stored = 'discarded'; return out }
+  out.stored = 'restored'
+  const keeps = (key: string) => parameterKeys.has(key) || isComputedParameter(key)
+  /** A saved preset id only names the preset whose current definition the
+   * saved values still match; otherwise the values stay and the name goes. */
+  const underCurrentPreset = (settings: WorkspaceFitSettings, label: string): WorkspaceFitSettings => {
+    if (settings.presetId === 'custom' || canonical(settings) === canonical(defaultFitSettings(settings.presetId))) return settings
+    out.keptAsCustom.push(label)
+    return { ...settings, presetId: 'custom' }
   }
   const fit = value.trajectoryFitSettings
   if (record(fit)) {
     const shared = parseFitSettings(fit.shared)
-    if (shared) out.trajectoryFitSettings.shared = shared
+    if (shared) out.trajectoryFitSettings.shared = underCurrentPreset(shared, 'shared settings')
     else out.notRestored.push('shared analysis settings')
     for (const [key, stored] of Object.entries(record(fit.columns) ? fit.columns : {})) {
-      const own = parameterKeys.has(key) ? parseFitSettings(stored) : null
-      if (own) out.trajectoryFitSettings.columns[key] = own
-      else out.notRestored.push(`own settings of ${parameterName(key)}${parameterKeys.has(key) ? '' : ' (parameter not in this dataset)'}`)
+      const own = keeps(key) ? parseFitSettings(stored) : null
+      if (own) out.trajectoryFitSettings.columns[key] = underCurrentPreset(own, `own settings of ${parameterKeyLabel(key)}`)
+      else out.notRestored.push(`own settings of ${parameterKeyLabel(key)}${keeps(key) ? '' : ' (parameter not in this dataset)'}`)
     }
   } else out.notRestored.push('analysis settings of all parameters')
 
@@ -125,23 +153,22 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
     const stored = view[name]
     if (!Array.isArray(stored) || !stored.every(k => typeof k === 'string')) { out.notRestored.push(`${label} choices`); return }
     for (const key of stored as string[]) {
-      if (parameterKeys.has(key)) out.trajectoryView[name].push(key)
-      else out.notRestored.push(`${label} of ${parameterName(key)} (parameter not in this dataset)`)
+      if (keeps(key)) out.trajectoryView[name].push(key)
+      else out.notRestored.push(`${label} of ${parameterKeyLabel(key)} (parameter not in this dataset)`)
     }
   }
   if (view.parameterKeys !== null) {
     if (Array.isArray(view.parameterKeys) && view.parameterKeys.every(k => typeof k === 'string')) {
-      const shown = (view.parameterKeys as string[]).filter(key => parameterKeys.has(key))
-      for (const key of view.parameterKeys as string[]) if (!parameterKeys.has(key)) out.notRestored.push(`column ${parameterName(key)} (parameter not in this dataset)`)
-      out.trajectoryView.parameterKeys = shown.length ? shown : null
+      const shown = (view.parameterKeys as string[]).filter(keeps)
+      for (const key of view.parameterKeys as string[]) if (!keeps(key)) out.notRestored.push(`column ${parameterKeyLabel(key)} (parameter not in this dataset)`)
+      out.trajectoryView.parameterKeys = shown.some(key => parameterKeys.has(key)) ? shown : null
     } else out.notRestored.push('selected parameters')
   }
   keyList('trendKeys', 'Trend')
   keyList('fitKeys', 'trend line')
   if (record(view.display)) {
-    const known = new Set(['points', 'connect', 'events', ...overlayModules().map(module => module.id)])
     for (const [key, shown] of Object.entries(view.display)) {
-      if (known.has(key) && bool(shown)) out.trajectoryView.display[key] = shown
+      if (key in DEFAULT_WORKSPACE_DISPLAY && bool(shown)) out.trajectoryView.display[key] = shown
       else out.notRestored.push(`display option "${key}"`)
     }
   } else out.notRestored.push('display options')
@@ -158,8 +185,11 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
   return out
 }
 
-/** The page may be left without losing data only when nothing is loaded or
- * the dataset is saved on this device. */
-export function losesDataOnUnload(hasData: boolean, storage: { enabled: boolean; status: 'session' | 'saving' | 'saved' | 'error' }): boolean {
-  return hasData && !(storage.enabled && storage.status === 'saved')
+/**
+ * Whether leaving the page loses data: a dataset is loaded and not saved on
+ * this device. The untouched bundled demo is not worth a question: it loads
+ * again with one click.
+ */
+export function losesDataOnUnload(hasData: boolean, storage: { enabled: boolean; status: 'session' | 'saving' | 'saved' | 'error' }, untouchedDemo = false): boolean {
+  return hasData && !untouchedDemo && !(storage.enabled && storage.status === 'saved')
 }

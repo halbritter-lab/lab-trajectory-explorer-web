@@ -15,8 +15,8 @@ import { exclusionReasonLabel, sexLabel } from './workspace-labels'
 import { measurementFitStatus } from './measurement-fit-status'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { QuietAnalysisSettings } from './trajectory-ui/AnalysisSettings'
-import { ANALYSIS_CATALOG, defaultTrajectoryFitSettings, endpointBadge, type WorkspaceFitSettings } from './workspace-analysis'
-import { defaultTrajectoryView } from './saved-settings'
+import { ANALYSIS_CATALOG, endpointBadge, type WorkspaceFitSettings } from './workspace-analysis'
+import { parameterKeyLabel } from './saved-settings'
 import { useAppStore } from './state/store'
 import { trajectoryTrendConfig } from './trajectory-ui/analysis'
 import { ColumnActions } from './trajectory-ui/ColumnActions'
@@ -201,8 +201,10 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   // storage restores them into the store before this page mounts.
   const [savedView] = useState(() => useAppStore.getState().trajectoryView)
   const [parameterKeys, setParameterKeys] = useState(() => {
-    const saved = (savedView.parameterKeys ?? []).filter(key => data.parameters.some(p => p.key === key))
-    return saved.length ? saved : data.parameters.slice(0, 3).map(p => p.key)
+    // Saved keys of a computed parameter the derivation does not produce right
+    // now stay selected, as they do within a session.
+    const saved = savedView.parameterKeys ?? []
+    return saved.some(key => data.parameters.some(p => p.key === key)) ? saved : data.parameters.slice(0, 3).map(p => p.key)
   })
   const [draftKeys, setDraftKeys] = useState<string[] | null>(null)
   useEffect(() => {
@@ -252,17 +254,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     useAppStore.getState().setTrajectoryFitSettings({ ...current, columns: nextColumns })
   }
   // The settings live in the shared store, where Cohort models read and can
-  // change them too; return to the defaults when this workspace goes away.
-  // Mounting re-applies what the store held (settings restored from this
-  // device), so React's development-mode remount does not drop them.
-  const [initialFitSettings] = useState(() => useAppStore.getState().trajectoryFitSettings)
-  useEffect(() => {
-    useAppStore.getState().setTrajectoryFitSettings(initialFitSettings)
-    return () => {
-      useAppStore.getState().setTrajectoryFitSettings(defaultTrajectoryFitSettings())
-      useAppStore.getState().setTrajectoryView(defaultTrajectoryView())
-    }
-  }, [initialFitSettings])
+  // change them too. This page is keyed by the dataset and unmounts only when
+  // the dataset is replaced or cleared; the store resets them to the defaults
+  // in the same step (replaceDataset, reset), so nothing is reset here.
   const [requestedSettingsScope, setSettingsScope] = useState('')
   const settingsScope = parameterKeys.includes(requestedSettingsScope) && data.parameters.some(p => p.key === requestedSettingsScope) ? requestedSettingsScope : ''
   // A no-fit setting (Acute review) leaves trendKeys and fitKeys alone: the fit
@@ -322,7 +316,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     }
     for (const parameter of data.parameters) knownParameters.current.set(parameter.key, parameter)
   }, [data.parameters, parameterKeys])
-  const unavailable = parameterKeys.filter(key => !data.parameters.some(parameter => parameter.key === key)).map(key => knownParameters.current.get(key)?.label ?? key)
+  const unavailable = parameterKeys.filter(key => !data.parameters.some(parameter => parameter.key === key)).map(key => knownParameters.current.get(key)?.label ?? parameterKeyLabel(key))
   const measurementsBySeries = useMemo(() => {
     const map = new Map<string, LabRow[]>()
     for (const row of data.rows) {
