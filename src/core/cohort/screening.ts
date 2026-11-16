@@ -360,8 +360,8 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
   { note: 'All derived values are algorithmic estimates requiring independent clinical verification.' },
   { note: 'Bounds (<x, >x), including bounds on derived eGFR, remain visible and count as raw numeric rows but are excluded from fits, endpoints, AKI detection and mixed models. Exact rows on the same date remain eligible.' },
   { note: 'Observed G4 <30 and G5 <15 use dated exact numeric eGFR measurements before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (boundary dates inclusive). KRT is reported separately as kidney failure reached, even without lab-confirmed G5. Confirmation interval is recorded per result.' },
-  { note: 'The 40 % and 57 % decline baseline and the individual endpoint prediction also leave out the AKI exclusion windows when the column excludes them from its fit; observed G4/G5, total change and decline events keep those rows.' },
-  { note: 'Individual endpoint prediction fits the same endpoint-eligible rows independently of display-fit censoring options and aggregation. It needs at least three distinct measurement dates (five for Theil-Sen) over at least 365 days. Theil-Sen uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
+  { note: 'The 40 % and 57 % decline baseline and the individual endpoint projection also leave out the AKI exclusion windows when the column excludes them from its fit; observed G4/G5, total change and decline events keep those rows.' },
+  { note: 'Individual endpoint projection fits the same endpoint-eligible rows independently of display-fit censoring options and time balancing. It needs at least three distinct measurement dates (five for Theil-Sen) over at least 365 days. Theil-Sen uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)

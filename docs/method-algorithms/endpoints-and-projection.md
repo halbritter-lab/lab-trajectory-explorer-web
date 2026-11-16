@@ -633,9 +633,9 @@ also states that observed G4 below 30 and G5 below 15 use dated
 exact numeric eGFR before the first kidney transplant or chronic dialysis and
 outside complete acute dialysis intervals, that kidney replacement therapy
 is reported separately, that the decline baseline and the individual
-prediction also leave out the AKI exclusion windows when the column excludes
+projection also leave out the AKI exclusion windows when the column excludes
 them from its fit while observed G4/G5, total change and decline events keep
-those rows, and that the individual prediction fits the same rows, needs at least three distinct measurement dates (five for Theil-Sen) over at
+those rows, and that the individual projection fits the same rows, needs at least three distinct measurement dates (five for Theil-Sen) over at
 least 365 days, and has slope bounds that are not prediction intervals. The
 `events` sheet lists
 the exported patients' events.

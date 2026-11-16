@@ -184,6 +184,7 @@ describe('R reproduction export', () => {
     // The script names the workbook as downloaded; a name it cannot quote safely falls back.
     expect(script).toContain('mm_workbook <- "cohort-models.xlsx"')
     expect(mixedModelRScript([], 'cohort-models-20261116-1612.xlsx')).toContain('mm_workbook <- "cohort-models-20261116-1612.xlsx"')
+    expect(String(mixedModelRScript([], 'x.xlsx'))).toContain('doi:10.18637/jss.v067.i01')
     expect(mixedModelRScript([], 'a"; system("x").xlsx')).toContain('mm_workbook <- "cohort-models.xlsx"')
     // The workbook and its script share an export id, and the script stops on another workbook
     // (a second download in the same minute is saved by the browser under another name).

@@ -5,6 +5,14 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (wording outside the methodology page)
+
+- The preset summary and two notes in the export's `about` sheet say
+  "projection" instead of "prediction" and "time balancing" instead of
+  "aggregation", as the methodology page does.
+- The R reproduction script names the lme4 reference (Bates et al. 2015) in
+  its header.
+
 ### Added (saved analysis settings, leaving the page)
 
 - "Remember on this device" also saves the analysis settings of the
