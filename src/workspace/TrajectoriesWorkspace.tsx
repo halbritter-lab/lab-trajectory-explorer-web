@@ -15,7 +15,8 @@ import { exclusionReasonLabel, sexLabel } from './workspace-labels'
 import { measurementFitStatus } from './measurement-fit-status'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { QuietAnalysisSettings } from './trajectory-ui/AnalysisSettings'
-import { ANALYSIS_CATALOG, defaultTrajectoryFitSettings, endpointBadge, type WorkspaceFitSettings } from './workspace-analysis'
+import { ANALYSIS_CATALOG, endpointBadge, type WorkspaceFitSettings } from './workspace-analysis'
+import { parameterKeyLabel } from './saved-settings'
 import { useAppStore } from './state/store'
 import { trajectoryTrendConfig } from './trajectory-ui/analysis'
 import { ColumnActions } from './trajectory-ui/ColumnActions'
@@ -196,7 +197,15 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const [openTool, setOpenTool] = useState<string | null>(null)
   const closeTool = () => setOpenTool(null)
   const toggleTool = (name: string) => setOpenTool(current => current === name ? null : name)
-  const [parameterKeys, setParameterKeys] = useState(() => data.parameters.slice(0, 3).map(p => p.key))
+  // Choices saved with "Remember on this device" (see saved-settings.ts); the
+  // storage restores them into the store before this page mounts.
+  const [savedView] = useState(() => useAppStore.getState().trajectoryView)
+  const [parameterKeys, setParameterKeys] = useState(() => {
+    // Saved keys of a computed parameter the derivation does not produce right
+    // now stay selected, as they do within a session.
+    const saved = savedView.parameterKeys ?? []
+    return saved.some(key => data.parameters.some(p => p.key === key)) ? saved : data.parameters.slice(0, 3).map(p => p.key)
+  })
   const [draftKeys, setDraftKeys] = useState<string[] | null>(null)
   useEffect(() => {
     if (!active) { setOpenTool(null); setDraftKeys(null) }
@@ -217,17 +226,29 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const [mode, setMode] = useState<'table' | 'overlay' | 'detail'>('table')
   const [patientId, setPatientId] = useState<PatientId | null>(null)
   const [returnMode, setReturnMode] = useState<'table' | 'overlay'>('table')
-  const [axis, setAxis] = useState<WorkspaceAxis>('baseline')
-  const [scaleMode, setScaleMode] = useState<'shared' | 'zoom'>('shared')
-  const [chartSize, setChartSize] = useState<SparkSize>('small')
-  const [cellDetails, setCellDetails] = useState<'minimal' | 'full' | 'compact'>('minimal')
-  const [warningIcons, setWarningIcons] = useState(true)
+  const [axis, setAxis] = useState<WorkspaceAxis>(savedView.axis)
+  const [scaleMode, setScaleMode] = useState<'shared' | 'zoom'>(savedView.scaleMode)
+  const [chartSize, setChartSize] = useState<SparkSize>(savedView.chartSize)
+  const [cellDetails, setCellDetails] = useState<'minimal' | 'full' | 'compact'>(savedView.cellDetails)
+  const [warningIcons, setWarningIcons] = useState(savedView.warningIcons)
   const [tableWidth, setTableWidth] = useState(0)
   const [attributeTableWidth, setAttributeTableWidth] = useState(0)
   const [highlight, setHighlight] = useState<PatientId | null>(null)
-  const [display, setDisplay] = useState<WorkspaceDisplay>(DEFAULT_WORKSPACE_DISPLAY)
-  const [fitKeys, setFitKeys] = useState<string[]>([])
-  const [trendKeys, setTrendKeys] = useState<string[]>([])
+  const [display, setDisplay] = useState<WorkspaceDisplay>({ ...DEFAULT_WORKSPACE_DISPLAY, ...savedView.display })
+  const [fitKeys, setFitKeys] = useState<string[]>(savedView.fitKeys)
+  const [trendKeys, setTrendKeys] = useState<string[]>(savedView.trendKeys)
+  // The view reaches the store, and with it the saved settings, only once it
+  // differs from what the page mounted with: mounting alone writes nothing, so
+  // it cannot replace stored settings with the page's defaults.
+  const view = { parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons }
+  const viewJson = JSON.stringify(view)
+  const [mountedViewJson] = useState(viewJson)
+  const viewChanged = useRef(false)
+  useEffect(() => {
+    if (!viewChanged.current && viewJson === mountedViewJson) return
+    viewChanged.current = true
+    useAppStore.getState().setTrajectoryView(JSON.parse(viewJson) as typeof view)
+  }, [viewJson, mountedViewJson])
   const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
   const fitSettings = trajectoryFitSettings.shared
   const columnSettings = trajectoryFitSettings.columns
@@ -242,8 +263,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     useAppStore.getState().setTrajectoryFitSettings({ ...current, columns: nextColumns })
   }
   // The settings live in the shared store, where Cohort models read and can
-  // change them too; return to the defaults when this workspace goes away.
-  useEffect(() => () => useAppStore.getState().setTrajectoryFitSettings(defaultTrajectoryFitSettings()), [])
+  // change them too. This page is keyed by the dataset and unmounts only when
+  // the dataset is replaced or cleared; the store resets them to the defaults
+  // in the same step (replaceDataset, reset), so nothing is reset here.
   const [requestedSettingsScope, setSettingsScope] = useState('')
   const settingsScope = parameterKeys.includes(requestedSettingsScope) && data.parameters.some(p => p.key === requestedSettingsScope) ? requestedSettingsScope : ''
   // A no-fit setting (Acute review) leaves trendKeys and fitKeys alone: the fit
@@ -303,7 +325,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     }
     for (const parameter of data.parameters) knownParameters.current.set(parameter.key, parameter)
   }, [data.parameters, parameterKeys])
-  const unavailable = parameterKeys.filter(key => !data.parameters.some(parameter => parameter.key === key)).map(key => knownParameters.current.get(key)?.label ?? key)
+  const unavailable = parameterKeys.filter(key => !data.parameters.some(parameter => parameter.key === key)).map(key => knownParameters.current.get(key)?.label ?? parameterKeyLabel(key))
   const measurementsBySeries = useMemo(() => {
     const map = new Map<string, LabRow[]>()
     for (const row of data.rows) {

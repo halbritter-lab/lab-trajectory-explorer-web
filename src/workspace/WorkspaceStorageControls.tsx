@@ -2,7 +2,7 @@ import { setWorkspaceRemember, useWorkspaceStorage } from './workspace-storage'
 import { useAppStore } from './state/store'
 
 export function WorkspaceStorageControls({ hasData }: { hasData: boolean }) {
-  const { enabled, status, message } = useWorkspaceStorage()
+  const { enabled, status, message, settingsError } = useWorkspaceStorage()
   const busy = useAppStore(s => s.busy)
   async function clearCurrent() {
     if (useAppStore.getState().busy) return
@@ -25,12 +25,13 @@ export function WorkspaceStorageControls({ hasData }: { hasData: boolean }) {
     </div>}
     <label><input type="checkbox" checked={enabled} disabled={!hasData && !enabled}
       onChange={event => void setWorkspaceRemember(event.target.checked)} /> Remember on this device</label>
-    <p className="muted">Optional, unencrypted browser storage for seven days after the last data change. Saves lab values, events, attributes, demographic edits and derivation settings. Analysis views and model results reset when reopening.</p>
+    <p className="muted">Optional, unencrypted browser storage for seven days after the last data change; changing analysis settings does not extend it. Saves lab values, events, attributes, demographic edits, derivation settings and the analysis settings of the Trajectories page: presets and own settings per parameter, the selected parameters, Trend and trend-line choices and display options. Sorting, grouping and patient selection, and cohort model settings and results, are not saved. Without this option the browser asks before the page is reloaded or closed, because the data would be lost. It does not ask for the bundled demo data as loaded, which load again with one click; it asks once events or attributes were imported on top of them, a patient was edited or the eGFR derivation was changed.</p>
     <div className="actions">
       {hasData && <button type="button" disabled={busy} onClick={() => void clearCurrent()}>Clear dataset</button>}
       {(enabled || status === 'error') && <button type="button" onClick={() => void setWorkspaceRemember(false)}>Clear saved data</button>}
       {enabled && status === 'error' && <button type="button" onClick={() => void setWorkspaceRemember(true)}>Retry saving</button>}
       <span role={status === 'error' ? 'alert' : 'status'}>{message ?? ({ session: 'This session only', saving: 'Saving on this device …', saved: 'Saved on this device', error: 'Storage error' })[status]}</span>
     </div>
+    {settingsError && <p role="status">{settingsError}</p>}
   </div>
 }

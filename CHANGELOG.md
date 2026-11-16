@@ -5,6 +5,42 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (saved analysis settings, leaving the page)
+
+- "Remember on this device" also saves the analysis settings of the
+  Trajectories page: presets and own settings per parameter, the selected
+  parameters, Trend and trend-line choices and the display options. After a
+  reload the table is calculated as before. A stored setting that no longer
+  fits this version or the dataset falls back to its default and is named in
+  the restore notice. Cohort model settings and results are still not saved.
+  The settings are kept in their own record: changing them does not extend
+  the seven days of the saved dataset copy, does not rewrite the data and
+  does not conflict with another tab on the same copy (for settings the last
+  write wins). Choices for a computed eGFR parameter that the derivation does
+  not produce at the moment are kept and apply again when it is back.
+  Settings saved under a preset that has changed since are restored with
+  their saved values as "Custom configuration"; results do not change, the
+  exported fit configuration then names the preset "custom". Settings are
+  written only when the user changes one (opening the page writes nothing),
+  a copy saved without settings gets them with the first change, and a
+  failed settings write is reported on its own without marking the dataset
+  copy as unsaved.
+- While a dataset is loaded and not saved on this device, the browser asks
+  before the page is reloaded or closed. It does not ask for the bundled demo
+  data as loaded; it asks once something was imported on top of them, a
+  patient was edited or the eGFR derivation was changed.
+
+### Changed (breaking for scripts that read the export)
+
+- The export column `endpoint_percent_decline` is renamed
+  `endpoint_percent_change` and now has the sign the badge shows: negative
+  when eGFR fell, positive when it rose (first 50, latest 30: `-40`, formerly
+  `40`). It keeps its position, so a script that reads by position gets the
+  opposite sign without an error; a script that reads by name fails on the
+  old name. The column is the total change from the first to the latest
+  eligible value, not a rate per year and not the confirmed 40 %/57 % decline
+  event. The `about` sheet says so.
+
 ### Changed (methodology page)
 
 - The AKI page describes staging against the lowest value of the previous
@@ -102,13 +138,10 @@ interfaces are still evolving before 1.0.
 - Endpoint badge: a total fall of 40 % or more without a confirmed 40 % decline
   event says in its tooltip why the event is not confirmed. The "G5 no fit"
   tooltip says that no slope was fitted for the parameter.
-- Restoring a dataset saved on this device shows a notice that analysis
-  presets, trend and display settings and model results are not saved.
+- Restoring a dataset saved on this device shows a notice that says what was
+  restored and what is not saved.
 - Export `about` sheet: only eGFR series whose name ends in ", computed)" are
-  described as calculated by the app, and a new note in the trajectories
-  workbook states that
-  `endpoint_percent_decline` is positive for a fall while the badge shows the
-  change with the opposite sign. No exported value changes.
+  described as calculated by the app.
 
 ### Fixed (endpoint settings hint)
 

@@ -1,4 +1,4 @@
-import { countLabel } from './workspace-labels'
+import { countLabel, DEMO_FILE_NAME, parameterLabel } from './workspace-labels'
 import { useMemo } from 'react'
 import { useAppStore } from './state/store'
 import { clinicalEventsByPatient, cohortSeriesSpec } from '../core/cohort/specs'
@@ -44,7 +44,7 @@ export function useWorkspaceData(): WorkspaceData {
       bucket.push(row); buckets.set(row.patientId, bucket)
       if (row.bezeichnung === null) continue
       const key = JSON.stringify([row.bezeichnung, row.einheit])
-      if (!parameterMap.has(key)) parameterMap.set(key, { key, bezeichnung: row.bezeichnung, einheit: row.einheit, label: `${row.bezeichnung} [${row.einheit ?? 'no unit'}]`, derived: !rawKeys.has(key) })
+      if (!parameterMap.has(key)) parameterMap.set(key, { key, bezeichnung: row.bezeichnung, einheit: row.einheit, label: parameterLabel(row.bezeichnung, row.einheit), derived: !rawKeys.has(key) })
     }
     const patientAttributes = { ...attributes }
     const patients = [...buckets].sort(([a], [b]) => comparePatientIds(a, b)).map(([id, patientRows]) => {
@@ -95,7 +95,7 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
     // together, so observers never see new rows with old overrides.
     useAppStore.getState().replaceDataset({
       rows: dataset.rows, events: dataset.events, rejectedEvents: dataset.rejectedEvents,
-      patientAttributes: dataset.patientAttributes, fileName: file?.name ?? 'test_labs.xlsx (Demo)',
+      patientAttributes: dataset.patientAttributes, fileName: file?.name ?? DEMO_FILE_NAME, pristineDemo: !file,
       notice: { kind: 'info', text: `${countLabel(dataset.rows.length, 'lab value')}, ${countLabel(dataset.events.length, 'event')} and ${countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row')} loaded. ${countLabel(rejected, 'row')} rejected; ${countLabel(dataset.diagnostics.length - rejected, 'warning')}.`, details: dataset.diagnostics },
     })
   } catch (error) {

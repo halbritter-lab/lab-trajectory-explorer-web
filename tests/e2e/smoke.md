@@ -446,3 +446,42 @@ Not verified: step 6 in a browser (a session of the same version cannot hold a
 non-serum source; `tests/workspace/data-ui.test.tsx` covers the notice), a real
 webR fit through the interface, PNG export, the exported workbooks opened in
 Excel or desktop R, a screen reader.
+
+## Saved analysis settings and leaving the page (2026-11-16)
+
+1. Upload an eGFR series falling from 60 to 30 over four years. Under
+   Trajectories give the eGFR column the CKD progression preset, tick
+   *Analyse trend* and show badges as text (`-50%, G5 @ ~66y`).
+2. Under Data tick "Remember on this device", wait for "Saved on this device"
+   and reload. The notice reads "Dataset and analysis settings (presets, trend
+   and display choices) restored from this device. Cohort model settings and
+   results are not saved: fit the models again under Cohort models." Under
+   Trajectories the same column is shown with Trend ticked, the same slope and
+   badge, and the preset is still CKD progression.
+3. A saved copy that holds settings of a parameter the dataset does not have,
+   or an option this version does not know, restores everything else and adds
+   "Not restored, the defaults are used instead: …" to the notice.
+4. Without "Remember on this device", reloading a page with a loaded dataset
+   brings up the browser's leave-page question. It does not appear when
+   nothing is loaded, when the dataset is remembered, when moving between
+   Data, Trajectories, Cohort models and Methods, or for the demo data as
+   loaded; after deriving eGFR on the demo data, editing a patient or
+   importing events or attributes on top of them it appears, and also for a
+   demo copy restored from this device once "Clear saved data" was used.
+5. *Export cohort (XLSX)*: the column is named `endpoint_percent_change` and
+   is negative for a fall, as in the badge (`-50`).
+6. With the dataset remembered, change a preset or a display option and
+   reload: the save time of the dataset copy (IndexedDB database
+   `lab-trajectory-explorer`, key `lab-explorer:workspace:v1`, field
+   `savedAt`) is unchanged; the settings are in
+   `lab-explorer:workspace-settings:v1`.
+
+Verified 2026-11-16 in Chromium: steps 1 to 4 by
+`tests/e2e/saved-settings.e2e.ts` against the development server (all 56
+automated checks passed locally; CI runs them against the production build),
+step 5 by `tests/core/cohort/exportRecords.test.ts` (not in a browser).
+
+Not verified: the leave-page question when closing a tab or window by hand
+(the automated check reloads), other browsers than Chromium, and a copy saved
+by the released version 0.3.7 restored in this version in a real browser
+(`tests/workspace/storage.test.tsx` covers a copy without settings).

@@ -124,7 +124,7 @@ after 2020-05-30 (56, 33, 32; none lies in the AKI window), so 33 is a 41.6 %
 and 32 a 43.4 % decline, and the 40 % decline is confirmed with first date
 2021-01-01 (33) and confirmation 2021-06-01 (32, 151 days later); the 57 %
 decline is not met. The total change keeps the AKI rows and stays a rise of
-60 % from 20 to 32 (`endpoint_percent_decline` -60, badge `+60%`), next to a
+60 % from 20 to 32 (`endpoint_percent_change` 60, badge `+60%`), next to a
 confirmed 40 % decline: the two answer different questions. The projection
 moves as well: before, the seven rows
 gave slope bounds [-35.47, 33.46] and `slope_ci_includes_zero`; the five rows
@@ -278,14 +278,18 @@ The result is unavailable when `first` is zero or negative, and when there is
 no eligible row. It is a total over the whole eligible follow-up, not a rate
 per year, and it is not confirmed.
 
-The two outputs use opposite signs. The workbook column
-`endpoint_percent_decline` holds `decline` unrounded: positive for a fall,
-negative for a rise. The table badge shows the change, `-decline`, rounded to
-a whole percent with an explicit plus sign for a rise, and its detail text
-gives one decimal. First 50 and latest 30 export `40` and display `-40%`;
-first 40 and latest 50 export `-25` and display `+25%`. The badge is not shown
-with fewer than two eligible rows or fewer than two displayed points, where
-first and latest coincide; the export keeps the computed 0.
+The two outputs use the same sign (owner decision 2026-11-16). The workbook
+column `endpoint_percent_change` holds the change, `-decline`, unrounded:
+negative for a fall, positive for a rise. The table badge shows the same
+change rounded to a whole percent with an explicit plus sign for a rise, and
+its detail text gives one decimal. First 50 and latest 30 export `-40` and
+display `-40%`; first 40 and latest 50 export `25` and display `+25%`. The
+column is a total, not a slope and not the confirmed 40 % or 57 % decline
+event. The badge is not shown with fewer than two eligible rows or fewer than
+two displayed points, where first and latest coincide; the export keeps the
+computed 0. Until 2026-11-16 the column was named `endpoint_percent_decline`
+and held `decline` (positive for a fall); it kept its position. The result
+field of the core, `percentDecline.value`, is still the decline.
 
 **Confirmed 40 % and 57 % decline.** These are separate observed events. The
 57 % boundary serves as a serum-creatinine doubling surrogate.
@@ -578,7 +582,7 @@ endpoint toggles on a series that passes the unit gate.
 
 | Column | Filled when | Content |
 | --- | --- | --- |
-| `endpoint_percent_decline` | Percent decline enabled, at least one eligible row, first value above zero. | Total decline in percent, positive for a fall, unrounded. |
+| `endpoint_percent_change` | Percent decline enabled, at least one eligible row, first value above zero. | Total change in percent from the first to the latest eligible value, negative for a fall, unrounded. Not a rate per year and not the confirmed 40 %/57 % decline event. |
 | `endpoint_observed_ckd_g5` | Observed G5 confirmed. | `yes` |
 | `endpoint_projected_age_to_ckd_g5` | A projection is reported. | Age in years, unrounded. |
 | `endpoint_observed_ckd_g4` | Observed G4 confirmed. | `yes` |
@@ -620,9 +624,9 @@ dates alongside the event date. With fit model "No fit" and the projection
 enabled, the anchor reads `fitted curve` and the model `none`.
 
 The `about` sheet of the trajectories workbook states that
-`endpoint_percent_decline` is a decline (positive for a fall, negative for a
-rise) while the badge shows the same number as a change with the opposite
-sign, and that only eGFR series whose name ends in ", computed)", for example
+`endpoint_percent_change` is the total change with the badge's sign (negative
+for a fall, positive for a rise), neither a yearly rate nor the confirmed
+decline event, and that only eGFR series whose name ends in ", computed)", for example
 "eGFR (CKD-EPI 2021, computed)", are calculated by the app (since 2026-11-16; before,
 it said that eGFR is computed from creatinine, also for imported eGFR). It
 also states that observed G4 below 30 and G5 below 15 use dated

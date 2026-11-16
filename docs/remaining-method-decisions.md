@@ -586,6 +586,28 @@ and a pre-analysis. No rule and no numeric result changes with them.
   guideline is confirmed. Only the CKD-EPI 2009 citation (C5) was added to
   the existing list.
 
+## Decisions of 2026-11-16 (export column and saved settings)
+
+Owner decisions after the simulated-user case studies.
+
+- **`endpoint_percent_decline` is renamed `endpoint_percent_change` and takes
+  the badge's sign.** The column is the total change from the first to the
+  latest eligible value in percent: negative for a fall, positive for a rise
+  (first 50, latest 30: `-40`, formerly `40`). It keeps its position. "Change"
+  rather than "decline" because the value can rise, and rather than "slope"
+  because it is not a rate per year; "decline" stays the word for the
+  confirmed 40 %/57 % events. The core result field `percentDecline.value` is
+  unchanged (a decline, positive for a fall); the sign is turned at the export
+  boundary. This breaks scripts that read the old name, and silently flips the
+  sign for scripts that read by position; the changelog says so. Details:
+  [endpoints and projection](method-algorithms/endpoints-and-projection.md).
+- **Saved analysis settings.** "Remember on this device" also keeps the
+  Trajectories settings (fit settings, selected parameters, Trend, trend
+  lines, display). No numeric rule changes: a restored setting gives the same
+  result as choosing it again.
+- **Several creatinine series are not merged for eGFR** for now; an explicit
+  choice by the user is tracked in issue #4.
+
 ## Approved requirements
 
 ### Observed events and recovery

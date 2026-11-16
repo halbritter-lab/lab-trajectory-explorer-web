@@ -2,9 +2,12 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { clear as clearDb, del as delDb, get as getDb, set as setDb, keys } from 'idb-keyval'
 import { WorkspaceApp } from '../../src/workspace/WorkspaceApp'
+import { WorkspaceStorageControls } from '../../src/workspace/WorkspaceStorageControls'
 import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
-import { DATASET_TTL_MS, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
+import { defaultTrajectoryView, losesDataOnUnload } from '../../src/workspace/saved-settings'
+import { defaultFitSettings, defaultTrajectoryFitSettings } from '../../src/workspace/workspace-analysis'
+import { DATASET_TTL_MS, restoredNotice, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_SETTINGS_KEY, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
 
 // The workspace keeps its copy in its own database; the default database is
 // where earlier versions saved and other apps on the origin may still save.
@@ -50,12 +53,228 @@ describe('workspace local storage', () => {
     const restored = useAppStore.getState()
     expect(restored.rows[0].labDatum).toEqual(new Date('2020-01-01'))
     expect(restored.fileName).toBe('input.csv')
-    expect(restored.notice?.text).toBe('Dataset restored from this device. Analysis presets, trend and display settings and model results are not saved: set them again under Trajectories and Cohort models.')
+    expect(restored.notice?.text).toBe('Dataset and analysis settings (presets, trend and display choices) restored from this device. Cohort model settings and results are not saved: fit the models again under Cohort models.')
     expect(restored.events[0].date).toEqual(new Date('2020-02-01'))
     expect(restored.patientAttributes.A.genotype).toBe('G1')
     expect(restored.manualDemographics.A).toEqual({ age: 42, sex: 'w' })
     expect(restored.analysisSettings.egfr.formula).toBe('mdrd-4')
     expect(restored.cohortModelResults).toBeNull()
+    expect(useWorkspaceStorage.getState().enabled).toBe(true)
+  })
+  const settle = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 30)) })
+  const restart = async () => { stop?.(); useAppStore.getState().reset(); stop = await startWorkspaceStorage() }
+  it('saves and restores the Trajectories analysis settings in their own record', async () => {
+    const key = JSON.stringify(['Marker', 'u'])
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const fit = { shared: defaultFitSettings(), columns: { [key]: defaultFitSettings('ckd_progression') } }
+    const view = { ...defaultTrajectoryView(), parameterKeys: [key], trendKeys: [key], fitKeys: [key], axis: 'age' as const, display: { events: true } }
+    act(() => { useAppStore.getState().setTrajectoryFitSettings(fit); useAppStore.getState().setTrajectoryView(view) })
+    await settle()
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    expect(copy.settings).toBeUndefined()
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toEqual({ version: 1, datasetToken: copy.writeToken, trajectoryFitSettings: fit, trajectoryView: view })
+    await restart()
+    expect(useAppStore.getState().trajectoryFitSettings).toEqual(fit)
+    expect(useAppStore.getState().trajectoryView).toEqual(view)
+    // Clearing the saved copy removes the settings with it.
+    await act(async () => { await setWorkspaceRemember(false) })
+    expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toBeUndefined()
+  })
+  it('does not touch the dataset copy when only analysis settings change', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const before = await get(WORKSPACE_STORAGE_KEY)
+    const statuses: string[] = []
+    const watch = useWorkspaceStorage.subscribe(state => statuses.push(state.status))
+    act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), chartSize: 'large' }) })
+    await settle()
+    watch()
+    const after = await get(WORKSPACE_STORAGE_KEY)
+    // The seven days run from the last data change, and other tabs see the same copy.
+    expect(after.savedAt).toBe(before.savedAt)
+    expect(after.writeToken).toBe(before.writeToken)
+    expect((await get(WORKSPACE_SETTINGS_KEY)).trajectoryView.chartSize).toBe('large')
+    // The dataset stays "saved" throughout, so the leave-page question does not appear.
+    expect(statuses).toEqual([])
+  })
+  it('does not refresh the expiry when a copy is restored with the workspace mounted', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    // A copy from before settings were kept: no settings record.
+    await del(WORKSPACE_SETTINGS_KEY)
+    const before = await get(WORKSPACE_STORAGE_KEY)
+    await restart()
+    const view = render(<WorkspaceApp />)
+    await settle()
+    // Mounting writes nothing at all: no settings record appears.
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toBeUndefined()
+    const after = await get(WORKSPACE_STORAGE_KEY)
+    expect(after.savedAt).toBe(before.savedAt)
+    expect(after.writeToken).toBe(before.writeToken)
+    view.unmount()
+  })
+  it('does not overwrite settings of another version merely because the page mounted', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const theirs = { ...await get(WORKSPACE_SETTINGS_KEY), version: 99, trajectoryView: { ...defaultTrajectoryView(), axis: 'age' } }
+    await set(WORKSPACE_SETTINGS_KEY, theirs)
+    await restart()
+    const view = render(<WorkspaceApp />)
+    await settle()
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toEqual(theirs)
+    view.unmount()
+  })
+  it('gives a copy that was saved without settings its settings with the first change', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    // As a 0.3.7 tab or the migration of an earlier copy leaves it: data without a settings record,
+    // or with the record of a copy that no longer exists.
+    for (const leftover of [undefined, { ...await get(WORKSPACE_SETTINGS_KEY), datasetToken: 'a-copy-that-is-gone' }]) {
+      if (leftover) await set(WORKSPACE_SETTINGS_KEY, leftover); else await del(WORKSPACE_SETTINGS_KEY)
+      const chartSize = leftover ? 'medium' : 'large'
+      act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), chartSize }) })
+      await settle()
+      expect(await get(WORKSPACE_SETTINGS_KEY)).toMatchObject({ datasetToken: copy.writeToken, trajectoryView: { chartSize } })
+      await restart()
+      expect(useAppStore.getState().trajectoryView.chartSize).toBe(chartSize)
+    }
+    expect((await get(WORKSPACE_STORAGE_KEY)).savedAt).toBe(copy.savedAt)
+  })
+  it('reports a failed settings write on its own and clears it with the next successful one', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const before = await get(WORKSPACE_STORAGE_KEY)
+    // A function cannot be stored, so this settings write fails.
+    act(() => { useAppStore.setState({ trajectoryView: { ...defaultTrajectoryView(), display: { events: (() => true) as never } } }) })
+    await settle()
+    // The dataset is saved and says so: no "Retry saving" that would rewrite it, no leave-page question.
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', message: null })
+    expect(useWorkspaceStorage.getState().settingsError).toMatch(/^Could not save the analysis settings on this device\. The dataset copy is unchanged/)
+    const controls = render(<WorkspaceStorageControls hasData />)
+    expect(screen.getByText(/^Could not save the analysis settings on this device/)).toBeInTheDocument()
+    expect(screen.getByText('Saved on this device')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Retry saving' })).toBeNull()
+    controls.unmount()
+    act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), chartSize: 'large' }) })
+    await settle()
+    expect(useWorkspaceStorage.getState().settingsError).toBeNull()
+    expect((await get(WORKSPACE_SETTINGS_KEY)).trajectoryView.chartSize).toBe('large')
+    expect((await get(WORKSPACE_STORAGE_KEY)).savedAt).toBe(before.savedAt)
+  })
+  it('commits neither record when the settings cannot be written with the data', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const before = await get(WORKSPACE_STORAGE_KEY)
+    act(() => { useAppStore.setState({ trajectoryView: { ...defaultTrajectoryView(), display: { events: (() => true) as never } } }) })
+    await settle()
+    act(() => { useAppStore.getState().setEvents([]) })
+    await waitFor(() => expect(useWorkspaceStorage.getState().status).toBe('error'))
+    expect((await get(WORKSPACE_STORAGE_KEY)).writeToken).toBe(before.writeToken)
+    // With storable settings the retry saves; it is not mistaken for another tab's copy.
+    act(() => { useAppStore.setState({ trajectoryView: defaultTrajectoryView() }) })
+    await act(async () => { await setWorkspaceRemember(true) })
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', message: null })
+    expect((await get(WORKSPACE_STORAGE_KEY)).writeToken).not.toBe(before.writeToken)
+  })
+  it('never treats a copy restored from this device as the pristine demo', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'test_labs.xlsx (Demo)', pristineDemo: true })
+    expect(losesDataOnUnload(true, useWorkspaceStorage.getState(), useAppStore.getState().pristineDemo)).toBe(false)
+    // Events imported on top, remembered, reloaded, then the saved copy is cleared.
+    act(() => { useAppStore.getState().setEvents([]) })
+    await setWorkspaceRemember(true)
+    await restart()
+    expect(useAppStore.getState().pristineDemo).toBe(false)
+    await act(async () => { await setWorkspaceRemember(false) })
+    expect(losesDataOnUnload(true, useWorkspaceStorage.getState(), useAppStore.getState().pristineDemo)).toBe(true)
+    // Also without an import on top: what was restored is the user's saved copy.
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'test_labs.xlsx (Demo)', pristineDemo: true })
+    await setWorkspaceRemember(true)
+    await restart()
+    expect(useAppStore.getState().pristineDemo).toBe(false)
+  })
+  it('lets two tabs on the same copy change view settings without a conflict; the last write wins', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    // Another tab on the same copy wrote its view.
+    await set(WORKSPACE_SETTINGS_KEY, { ...await get(WORKSPACE_SETTINGS_KEY), trajectoryView: { ...defaultTrajectoryView(), axis: 'calendar' } })
+    act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), chartSize: 'medium' }) })
+    await settle()
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', message: null })
+    expect((await get(WORKSPACE_SETTINGS_KEY)).trajectoryView).toMatchObject({ chartSize: 'medium', axis: 'baseline' })
+    expect((await get(WORKSPACE_STORAGE_KEY)).writeToken).toBe(copy.writeToken)
+  })
+  it('skips the settings of a tab whose dataset is no longer the saved copy', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    // Another tab saved data: new copy, with its own settings record.
+    const newer = { ...await get(WORKSPACE_STORAGE_KEY), writeToken: 'another-tab', fileName: 'newer.csv' }
+    const theirs = { version: 1, datasetToken: 'another-tab', trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: { ...defaultTrajectoryView(), axis: 'age' } }
+    await set(WORKSPACE_STORAGE_KEY, newer); await set(WORKSPACE_SETTINGS_KEY, theirs)
+    act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), chartSize: 'large' }) })
+    await settle()
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toEqual(theirs)
+    // No error for a view toggle; the data conflict rule applies on the next data change, as before.
+    expect(useWorkspaceStorage.getState().status).toBe('saved')
+  })
+  it('never applies settings that belong to another dataset copy', async () => {
+    const key = JSON.stringify(['Marker', 'u'])
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    await set(WORKSPACE_SETTINGS_KEY, { version: 1, datasetToken: 'some-other-copy', trajectoryFitSettings: { shared: defaultFitSettings('ckd_progression'), columns: {} }, trajectoryView: { ...defaultTrajectoryView(), trendKeys: [key] } })
+    await restart()
+    expect(useAppStore.getState().rows).toHaveLength(1)
+    expect(useAppStore.getState().trajectoryFitSettings).toEqual(defaultTrajectoryFitSettings())
+    expect(useAppStore.getState().trajectoryView).toEqual(defaultTrajectoryView())
+    expect(useAppStore.getState().notice?.text).toMatch(/^Dataset restored from this device\. No analysis settings were saved with this copy/)
+  })
+  it('replacing the dataset replaces its settings in the same write', async () => {
+    const key = JSON.stringify(['Marker', 'u'])
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), trendKeys: [key] }) })
+    await settle()
+    act(() => { useAppStore.getState().replaceDataset({ rows: [{ ...row, bezeichnung: 'Other' }], fileName: 'other.csv' }) })
+    await waitFor(async () => expect((await get(WORKSPACE_STORAGE_KEY)).fileName).toBe('other.csv'))
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toEqual({ version: 1, datasetToken: copy.writeToken, trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView() })
+  })
+  it('restores a copy without settings with defaults and says so', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    await del(WORKSPACE_SETTINGS_KEY)
+    await restart()
+    expect(useAppStore.getState().rows).toHaveLength(1)
+    expect(useAppStore.getState().trajectoryFitSettings).toEqual(defaultTrajectoryFitSettings())
+    expect(useAppStore.getState().notice?.text).toMatch(/^Dataset restored from this device\. No analysis settings were saved with this copy/)
+  })
+  it('does not claim settings were restored when all of them were discarded', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    await set(WORKSPACE_SETTINGS_KEY, { ...await get(WORKSPACE_SETTINGS_KEY), version: 99 })
+    await restart()
+    const text = useAppStore.getState().notice?.text ?? ''
+    expect(text).toMatch(/^Dataset restored from this device\. Its saved analysis settings could not be used \(saved by another version\)/)
+    expect(text).not.toMatch(/analysis settings \(presets, trend and display choices\) restored/)
+    expect(restoredNotice({ stored: 'restored', notRestored: [], keptAsCustom: ['shared settings'] })).toContain('Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: shared settings.')
+    expect(restoredNotice({ stored: 'restored', notRestored: [], keptAsCustom: ['shared settings'] })).toContain('The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom" and time axis "calendar_time".')
+  })
+  it('keeps the dataset and names stored settings that no longer fit', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const settings = await get(WORKSPACE_SETTINGS_KEY)
+    settings.trajectoryFitSettings.columns[JSON.stringify(['Gone', 'u'])] = defaultFitSettings('ckd_progression')
+    settings.trajectoryView.chartSize = 'huge'
+    await set(WORKSPACE_SETTINGS_KEY, settings)
+    await restart()
+    const restored = useAppStore.getState()
+    expect(restored.rows).toHaveLength(1)
+    expect(restored.trajectoryFitSettings.columns).toEqual({})
+    expect(restored.trajectoryView.chartSize).toBe('small')
+    expect(restored.notice?.text).toContain('Not restored, the defaults are used instead: own settings of Gone [u] (parameter not in this dataset); chart size.')
     expect(useWorkspaceStorage.getState().enabled).toBe(true)
   })
   it('clears current and saved data only after confirming the dataset reset', async () => {
@@ -93,6 +312,8 @@ describe('workspace local storage', () => {
     stop = await startWorkspaceStorage()
     expect(useAppStore.getState().rows).toHaveLength(0)
     expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+    // The settings go with the expired copy.
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toBeUndefined()
     expect(useWorkspaceStorage.getState().message).toMatch(/expired/)
   })
   it('removes a malformed saved copy without replacing the live data', async () => {

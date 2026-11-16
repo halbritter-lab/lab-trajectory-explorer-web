@@ -97,7 +97,7 @@ describe('workspace workbook', () => {
     expect(records(workbook,'parameters')).toEqual(expect.arrayContaining([expect.objectContaining({formula:'ekfc-2021',source_parameter:'Creatinine',source_unit:'mg/dl'})]))
     expect(records(workbook,'about').some(row => String(row.note).includes('Research use only'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).startsWith('eGFR series whose name ends in ", computed)", for example "eGFR (CKD-EPI 2021, computed)", are calculated by the app'))).toBe(true)
-    expect(records(workbook,'about').some(row => String(row.note).startsWith('endpoint_percent_decline is a decline: positive when eGFR fell'))).toBe(true)
+    expect(records(workbook,'about').some(row => String(row.note).startsWith('endpoint_percent_change is the total eGFR change in percent'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('numeric limits remain'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('For a Theil-Sen fit with n_fitted_dates below 5 they are Theil-Sen bounds, not a 95 % interval. With one measurement on each of three or four dates, the Theil–Sen bounds are the full range of pairwise slopes and cover the true slope only about 67 % or 92 % of the time.'))).toBe(true)
   })

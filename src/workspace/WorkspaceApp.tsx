@@ -6,8 +6,10 @@ import { DataWorkspace } from './DataWorkspace'
 import { TrajectoriesWorkspace } from './TrajectoriesWorkspace'
 import { CohortModelsWorkspace } from './CohortModelsWorkspace'
 import { useWorkspaceData } from './workspace-data'
+import { useAppStore } from './state/store'
 import { countLabel } from './workspace-labels'
 import { useWorkspaceStorage } from './workspace-storage'
+import { losesDataOnUnload } from './saved-settings'
 import { getMethodLocation, type HelpWorkspace } from './methods/method-navigation'
 
 type Page = 'Data' | 'Trajectories' | 'Cohort models' | 'Methods'
@@ -28,6 +30,19 @@ export function WorkspaceApp() {
   const helpOrigin = useRef<HelpWorkspace>('Data')
   const firstRender = useRef(true)
   const hasData = data.rawRows.length > 0
+  const storageEnabled = useWorkspaceStorage(s => s.enabled)
+  // Session-only data are lost on reload or close: let the browser ask first.
+  // In-app navigation changes only the hash or history state and never unloads.
+  // The pristine bundled demo loads again with one click and is not worth a question.
+  const untouchedDemo = useAppStore(s => s.pristineDemo)
+  const unsaved = losesDataOnUnload(hasData, { enabled: storageEnabled, status: storageStatus }, untouchedDemo)
+  useEffect(() => {
+    if (!unsaved) return
+    // returnValue is the legacy path: older Chromium ignores preventDefault alone and an empty string.
+    const warn = (event: BeforeUnloadEvent) => { event.preventDefault(); event.returnValue = true }
+    window.addEventListener('beforeunload', warn)
+    return () => window.removeEventListener('beforeunload', warn)
+  }, [unsaved])
 
   const go = (next: Page, pushHistory = true) => {
     setRequestedPerson(null)

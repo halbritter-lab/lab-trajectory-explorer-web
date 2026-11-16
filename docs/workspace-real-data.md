@@ -9,9 +9,76 @@ remains as a redirect to `index.html` (query and hash are kept) so older links
 work. The synthetic design prototype remains available for comparison.
 Data stays in the browser. By default it lasts only for the current session.
 Under Data, **Remember on this device** opts into an unencrypted local snapshot
-of source labs, events, attributes, manual demographics and derivation settings.
-The snapshot expires seven days after the last data change. Reopening restores
-that data preparation; analysis/view choices and fitted models reset. The copy is
+of source labs, events, attributes, manual demographics and derivation settings,
+and (since 2026-11-16) the analysis settings of the Trajectories page: the
+shared and per-parameter fit settings, the selected parameters, Trend and
+trend-line choices and the display options. Reopening restores the data
+preparation and those settings.
+
+Storage layout: the dataset copy and the analysis settings are two records in
+the same database. The dataset record (`lab-explorer:workspace:v1`) holds the
+data, its save time and a write token; the settings record
+(`lab-explorer:workspace-settings:v1`) holds the analysis settings and the
+write token of the dataset copy they belong to.
+
+- **Expiry.** The dataset copy expires seven days after the last *data*
+  change (labs, events, attributes, demographic edits, derivation settings,
+  file name). Changing analysis settings writes only the settings record, and
+  restoring a copy writes nothing at all, so neither extends the seven days.
+- **When settings are written.** With every data change, and after that only
+  when the user changes a setting. Opening the Trajectories page writes
+  nothing: the view reaches the store only once it differs from what the page
+  opened with. A stored settings record is therefore never replaced by
+  defaults just because the page was opened, also not one saved by another
+  settings version.
+- **A copy without settings.** A dataset copy can be on the device without a
+  settings record of its own (saved by a version before 2026-11-16, or moved
+  over from the earlier shared database). The first settings change then
+  writes the record, if the dataset copy is still this tab's.
+- **A failed settings write** is reported next to the storage status, which
+  keeps describing the dataset copy ("Saved on this device"). It does not
+  turn on the leave-page question and offers no "Retry saving", which would
+  rewrite the dataset; the next successful settings write clears the
+  message.
+- **A failed data write** commits neither record.
+- **Written together, removed together.** A data change writes both records in
+  one transaction. Clearing the saved data, an expired copy and an unreadable
+  copy remove both. Settings whose token is not that of the dataset copy are
+  never applied; the copy then starts from the defaults.
+- **Several tabs.** For data the rule is unchanged: a tab whose copy was
+  replaced or removed by another tab stops saving and says so. For analysis
+  settings, two tabs on the same copy can both write and the last write wins;
+  a tab whose dataset is no longer the saved copy does not write settings and
+  shows no error for it.
+- **Restore.** Each stored setting is checked against this version and the
+  restored dataset; one that no longer fits (a removed option, a parameter
+  that is not in the dataset) falls back to its default and is named in the
+  restore notice. Module settings of a column are read over the current
+  defaults: a module the stored settings lack keeps its defaults, and a
+  stored entry of a module this version does not have, or that fails the
+  module's validation, is left out and named. Repeated parameter keys are
+  dropped. Choices for a computed eGFR parameter that the current
+  derivation does not produce are kept without a notice and apply again when
+  the derivation produces it. Settings saved under a preset whose definition
+  has changed since keep their values and are shown as "Custom
+  configuration"; the notice names them. The fits read those values, so no
+  slope, endpoint or other result changes. What changes is the name: the
+  page no longer shows the preset, the Cohort models page calls the data
+  preparation "Edited settings", and the exported fit configuration gives
+  `preset: custom` and `xAxis: calendar_time` instead of the preset's own
+  (`xAxis` is recorded only; no calculation reads it). Which settings
+  sections the editor shows follows the values, as for any custom
+  configuration. Settings saved in another settings
+  version are discarded as a whole; the dataset is kept and the notice says
+  that the settings could not be used.
+
+Sorting, grouping, patient selection, cohort model settings and fitted models
+are not saved. Without the option, the browser asks before the page is
+reloaded or closed while a dataset is loaded. It does not ask for the bundled
+demo data as loaded, because they load again with one click. It asks once
+events or attributes were imported on top of them, a patient's demographics
+were edited or the eGFR derivation was changed (also when that change is
+undone), and for any copy restored from this device. The copy is
 kept in the app's own IndexedDB database (`lab-trajectory-explorer`), not in the
 default database other apps on the same origin can share. An expired, invalid or
 unsupported copy is removed at start-up. A still valid copy saved by the previous

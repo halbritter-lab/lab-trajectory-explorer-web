@@ -174,7 +174,7 @@ describe('R reproduction export', () => {
     expect(script).toContain('contrasts(mm_data$factor_0_) <- contr.treatment(mm_levels, base = 1)')
     expect(sheet('about').some(row => String(row.note).includes('guess_max'))).toBe(true)
     // The sign note of a trajectories-only column does not belong in this workbook.
-    expect(sheet('about').some(row => String(row.note).includes('endpoint_percent_decline'))).toBe(false)
+    expect(sheet('about').some(row => String(row.note).includes('endpoint_percent_change'))).toBe(false)
     expect(script).toContain('mm_factor_0_ <- as.character(mm_unit[["factor_0_"]])')
     expect(script).toContain('mm_unit <- mm_rows[mm_rows$unit_key == "group:G1", , drop = FALSE]')
     expect(script).toContain('mm_browser <- mm_coefficients[mm_coefficients$unit_key == "group:G1", , drop = FALSE]')

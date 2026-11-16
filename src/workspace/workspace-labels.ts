@@ -14,6 +14,14 @@ export function exclusionReasonLabel(reason: string): string {
   return moduleExclusionReasonLabel(reason)
 }
 
+/** File name the bundled demo dataset is loaded under. */
+export const DEMO_FILE_NAME = 'test_labs.xlsx (Demo)'
+
+/** How a parameter (test name and unit) is shown everywhere. */
+export function parameterLabel(bezeichnung: string, einheit: string | null): string {
+  return `${bezeichnung} [${einheit ?? 'no unit'}]`
+}
+
 /** "1 row", "3 rows": English count with the matching noun form. */
 export function countLabel(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`

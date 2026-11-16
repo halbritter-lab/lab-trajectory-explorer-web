@@ -1,9 +1,10 @@
 import { create } from 'zustand'
-import { createStore, del, get, keys, update, type UseStore } from 'idb-keyval'
+import { createStore, del, delMany, get, getMany, keys, promisifyRequest, update, type UseStore } from 'idb-keyval'
 import { useAppStore } from './state/store'
 import type { AnalysisContext } from '../core/analysis/types'
-import { parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
+import { isRecord as record, parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
 import type { Sex, WertOperator } from '../core/types'
+import { allValues, restoreSavedSettings, SAVED_SETTINGS_VERSION, type RestoredSettings, type SavedSettings } from './saved-settings'
 import {
   CLINICAL_EVENT_TYPES,
   CLINICAL_EVENT_WARNINGS,
@@ -14,6 +15,10 @@ import {
 } from '../core/events/events'
 
 export const WORKSPACE_STORAGE_KEY = 'lab-explorer:workspace:v1'
+/** The analysis settings have their own record, so changing them never
+ * rewrites the dataset copy: its `savedAt` (the expiry clock), its write token
+ * and its rows stay as the last data change left them. */
+export const WORKSPACE_SETTINGS_KEY = 'lab-explorer:workspace-settings:v1'
 /** Keys of earlier versions start with this prefix in idb-keyval's shared
  * default database (`keyval-store`), which other apps on the same origin
  * (for example other GitHub Pages projects) can also use. */
@@ -35,6 +40,9 @@ interface Snapshot extends AnalysisContext {
   fileName: string | null
   analysisSettings: AnalysisSettings
 }
+/** `datasetToken` is the write token of the dataset copy the settings belong
+ * to. A record for another copy is never applied. */
+interface SettingsRecord extends SavedSettings { datasetToken: string }
 interface StorageStatus {
   enabled: boolean
   status: 'session' | 'saving' | 'saved' | 'error'
@@ -42,21 +50,18 @@ interface StorageStatus {
   /** Data saved by the former interface found at start-up: removed, or found
    * but not (completely) removable. Shown once as a notice. */
   legacyData: 'none' | 'removed' | 'removal-failed'
+  /** The last write of the analysis settings alone failed. Shown next to the
+   * status, which keeps describing the dataset copy; cleared by the next
+   * successful write. */
+  settingsError: string | null
 }
-export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyData: 'none' }))
+export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null }))
 
-const record = (v: unknown): v is Record<string, unknown> => typeof v === 'object' && v !== null && !Array.isArray(v)
 const nullableText = (v: unknown) => v === null || typeof v === 'string'
 const nullableNumber = (v: unknown) => v === null || typeof v === 'number' && Number.isFinite(v)
 const validDate = (v: unknown) => v instanceof Date && Number.isFinite(v.getTime())
 const nullableDate = (v: unknown) => v === null || validDate(v)
 const patientId = (v: unknown) => typeof v === 'string' && v.length > 0 || typeof v === 'number' && Number.isFinite(v)
-/** Every value a union allows, checked at compile time: adding a code to the
- * union without listing it here fails the build instead of making every saved
- * copy that uses it invalid (and therefore deleted) on the next start. */
-function allValues<T extends string | null>() {
-  return <const L extends readonly T[]>(list: L & ([T] extends [L[number]] ? unknown : 'missing union members')) => list as readonly T[]
-}
 const SEX_CODES = allValues<Sex>()(['m', 'w', 'd'])
 const OPERATORS = allValues<WertOperator>()(['=', '<', '>', 'range', 'unparseable'])
 const EVENT_TYPES = allValues<ClinicalEventType>()(CLINICAL_EVENT_TYPES)
@@ -103,7 +108,10 @@ function deleteIfUnchanged(read: unknown): Promise<void> {
     const request = store.get(WORKSPACE_STORAGE_KEY)
     request.onsuccess = () => {
       const current: unknown = request.result
-      if (current !== undefined && (!record(current) || current.writeToken === token && current.savedAt === savedAt)) store.delete(WORKSPACE_STORAGE_KEY)
+      if (current !== undefined && (!record(current) || current.writeToken === token && current.savedAt === savedAt)) {
+        store.delete(WORKSPACE_STORAGE_KEY)
+        store.delete(WORKSPACE_SETTINGS_KEY)
+      }
       resolve()
     }
     request.onerror = () => reject(request.error)
@@ -149,6 +157,16 @@ export async function migrateLegacyStorage(
   return outcome
 }
 
+/** What a restored copy brought back and what starts from defaults. */
+export function restoredNotice({ stored, notRestored, keptAsCustom }: Pick<RestoredSettings, 'stored' | 'notRestored' | 'keptAsCustom'>): string {
+  const notSaved = 'Cohort model settings and results are not saved: fit the models again under Cohort models.'
+  if (stored === 'none') return `Dataset restored from this device. No analysis settings were saved with this copy, so presets, trend and display settings start from their defaults. ${notSaved}`
+  if (stored === 'discarded') return `Dataset restored from this device. Its saved analysis settings could not be used (saved by another version), so presets, trend and display settings start from their defaults. ${notSaved}`
+  return `Dataset and analysis settings (presets, trend and display choices) restored from this device. ${notSaved}`
+    + (keptAsCustom.length ? ` Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: ${keptAsCustom.join('; ')}. The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom" and time axis "calendar_time".` : '')
+    + (notRestored.length ? ` Not restored, the defaults are used instead: ${notRestored.join('; ')}.` : '')
+}
+
 const EXPIRED_MESSAGE = 'The saved workspace expired after seven days and was removed. Import your file to continue.'
 const INVALID_MESSAGE = 'The saved workspace could not be read (invalid or from an unsupported version) and was removed. Import your file to continue.'
 
@@ -171,6 +189,33 @@ function snapshot(): Snapshot {
     events: state.events, patientAttributes: state.patientAttributes,
     manualDemographics: state.manualDemographics, analysisSettings: state.analysisSettings }
 }
+function settingsRecord(datasetToken: string): SettingsRecord {
+  const state = useAppStore.getState()
+  return { version: SAVED_SETTINGS_VERSION, datasetToken, trajectoryFitSettings: state.trajectoryFitSettings, trajectoryView: state.trajectoryView }
+}
+/** One read/write transaction: IndexedDB makes the compare-and-swap atomic
+ * across tabs, so a stale tab cannot resurrect a deleted copy or overwrite a
+ * new one, and the dataset copy and its settings always change together. */
+function writeCopy(value: Snapshot): Promise<void> {
+  return workspaceIdbStore()('readwrite', store => new Promise<void>((resolve, reject) => {
+    const request = store.get(WORKSPACE_STORAGE_KEY)
+    request.onerror = () => reject(request.error)
+    request.onsuccess = () => {
+      const previous: unknown = request.result
+      if (!claimPending && (record(previous) ? previous.writeToken : undefined) !== lastWriteToken) { reject(new StorageConflict()); return }
+      try {
+        store.put(value, WORKSPACE_STORAGE_KEY)
+        store.put(settingsRecord(value.writeToken), WORKSPACE_SETTINGS_KEY)
+        resolve(promisifyRequest(store.transaction))
+      } catch (error) {
+        // Neither record may be committed alone: the dataset under a new token
+        // would look like another tab's copy to the next save.
+        store.transaction.abort()
+        reject(error)
+      }
+    }
+  }))
+}
 function save(): Promise<void> {
   if (!useAppStore.getState().rows.length) return setWorkspaceRemember(false)
   const currentRevision = ++revision
@@ -184,20 +229,52 @@ function save(): Promise<void> {
   return enqueue(async () => {
     if (currentRevision !== revision || !useWorkspaceStorage.getState().enabled) return
     try {
-      // IndexedDB's read/write transaction makes compare-and-swap atomic across
-      // tabs. A stale tab cannot resurrect a deleted copy or overwrite a new one.
-      await update<Snapshot>(WORKSPACE_STORAGE_KEY, previous => {
-        if (!claimPending && previous?.writeToken !== lastWriteToken) throw new StorageConflict()
-        return value
-      }, workspaceIdbStore())
+      await writeCopy(value)
       lastWriteToken = value.writeToken
       claimPending = false
-      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null })
+      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null, settingsError: null })
     } catch (error) {
       if (error instanceof StorageConflict) {
         ++revision
         useWorkspaceStorage.setState({ enabled: false, status: 'error', message: 'The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.' })
       } else if (currentRevision === revision) reportError('Could not save on this device. Keep this tab open or export your data, then retry.')
+    }
+  })
+}
+
+let settingsRevision = 0
+/**
+ * Write the analysis settings alone. The dataset copy is never validated or
+ * rewritten, and the storage status keeps describing it: a failure here is
+ * reported on its own. Only a tab whose dataset is the saved copy writes; two
+ * tabs on the same copy: the last write wins. A settings record that already
+ * carries this tab's token is overwritten directly. Otherwise (no record, or
+ * one of another copy) the dataset record decides, so a copy saved without
+ * settings gets them with the first change, and a tab whose dataset was
+ * replaced by another tab writes nothing.
+ */
+function saveSettings(): void {
+  const currentRevision = ++settingsRevision
+  void enqueue(async () => {
+    const token = lastWriteToken
+    if (currentRevision !== settingsRevision || token === undefined || claimPending || !useWorkspaceStorage.getState().enabled) return
+    const value = settingsRecord(token)
+    try {
+      await workspaceIdbStore()('readwrite', store => new Promise<void>((resolve, reject) => {
+        const put = () => { try { store.put(value, WORKSPACE_SETTINGS_KEY); resolve(promisifyRequest(store.transaction)) } catch (error) { reject(error) } }
+        const request = store.get(WORKSPACE_SETTINGS_KEY)
+        request.onerror = () => reject(request.error)
+        request.onsuccess = () => {
+          const previous: unknown = request.result
+          if (record(previous) && previous.datasetToken === token) { put(); return }
+          const dataset = store.get(WORKSPACE_STORAGE_KEY)
+          dataset.onerror = () => reject(dataset.error)
+          dataset.onsuccess = () => { if (record(dataset.result) && dataset.result.writeToken === token) put(); else resolve() }
+        }
+      }))
+      if (useWorkspaceStorage.getState().settingsError !== null) useWorkspaceStorage.setState({ settingsError: null })
+    } catch {
+      useWorkspaceStorage.setState({ settingsError: 'Could not save the analysis settings on this device. The dataset copy is unchanged and its seven days are not extended; the next settings change is saved again.' })
     }
   })
 }
@@ -210,10 +287,10 @@ export async function setWorkspaceRemember(enabled: boolean): Promise<void> {
   const currentRevision = ++revision
   await enqueue(async () => {
     try {
-      await del(WORKSPACE_STORAGE_KEY, workspaceIdbStore())
+      await delMany([WORKSPACE_STORAGE_KEY, WORKSPACE_SETTINGS_KEY], workspaceIdbStore())
       lastWriteToken = undefined
       claimPending = false
-      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null })
+      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null, settingsError: null })
     } catch {
       if (currentRevision === revision) reportError('Could not remove the saved copy. Retry clearing saved data on this device.')
     }
@@ -226,7 +303,7 @@ export async function startWorkspaceStorage(): Promise<() => void> {
   await writes
   lastWriteToken = undefined
   claimPending = false
-  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyData: 'none' })
+  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null })
   const legacy: LegacyStorageOutcome = { formerInterfaceData: false, legacyWorkspaceCopy: null }
   let legacyCleanupFailed = false
   try {
@@ -238,7 +315,8 @@ export async function startWorkspaceStorage(): Promise<() => void> {
   }
   if (legacy.formerInterfaceData) useWorkspaceStorage.setState({ legacyData: legacyCleanupFailed ? 'removal-failed' : 'removed' })
   try {
-    const value: unknown = await get(WORKSPACE_STORAGE_KEY, workspaceIdbStore())
+    // One transaction, so the dataset copy and its settings are read as they were written together.
+    const [value, storedSettings]: unknown[] = await getMany([WORKSPACE_STORAGE_KEY, WORKSPACE_SETTINGS_KEY], workspaceIdbStore())
     const state = value === undefined ? null : classifySnapshot(value)
     if (state === 'expired') {
       await deleteIfUnchanged(value)
@@ -254,17 +332,26 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       useAppStore.getState().replaceDataset({ rows: value.rows,
         events: value.events, patientAttributes: value.patientAttributes,
         manualDemographics: value.manualDemographics, analysisSettings: parseAnalysisSettings(value.analysisSettings)!,
-        fileName: value.fileName,
-        notice: { kind: 'info', text: 'Dataset restored from this device. Analysis presets, trend and display settings and model results are not saved: set them again under Trajectories and Cohort models.' } })
+        fileName: value.fileName })
+      // Parameters include derived ones (computed eGFR), so they come from the analysis.
+      const parameterKeys = new Set(useAppStore.getState().analysisResult().rows.filter(r => r.bezeichnung !== null).map(r => JSON.stringify([r.bezeichnung, r.einheit])))
+      // Settings written for another dataset copy are never applied.
+      const mine = record(storedSettings) && storedSettings.datasetToken === value.writeToken ? storedSettings : undefined
+      const restored = restoreSavedSettings(mine, parameterKeys)
+      useAppStore.setState({ trajectoryFitSettings: restored.trajectoryFitSettings, trajectoryView: restored.trajectoryView, notice: { kind: 'info', text: restoredNotice(restored) } })
       useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null })
     }
   } catch {
     reportError('Local storage is unavailable. You can still import and work in this tab.')
   }
   const stop = useAppStore.subscribe((state, previous) => {
-    if (useWorkspaceStorage.getState().enabled && (state.rows !== previous.rows || state.events !== previous.events
+    if (!useWorkspaceStorage.getState().enabled) return
+    // A data change rewrites the copy (and restarts its seven days); a change of
+    // analysis settings alone writes only the settings record.
+    if (state.rows !== previous.rows || state.events !== previous.events
       || state.patientAttributes !== previous.patientAttributes || state.manualDemographics !== previous.manualDemographics
-      || state.analysisSettings !== previous.analysisSettings || state.fileName !== previous.fileName)) void save()
+      || state.analysisSettings !== previous.analysisSettings || state.fileName !== previous.fileName) void save()
+    else if (state.trajectoryFitSettings !== previous.trajectoryFitSettings || state.trajectoryView !== previous.trajectoryView) saveSettings()
   })
   unsubscribe = stop
   return stop
