@@ -26,6 +26,11 @@ carries one. The blocks below show the adjusted wording.
 changes of the clinical-review pull requests (#37, #39, #41) and a proposal
 on which trend method suits which case. It awaits the owner's approval.
 
+**Part D was drafted on 2026-11-16 and is not applied.** It follows two
+audits of the scientific basis: a full reference list for the Sources page, a
+list of the tool's own rules that are not published standards, and corrected
+statements. It awaits the owner's approval.
+
 ## Part A: passages that no longer match the application
 
 ### A1. Cohort models follow the Trajectories settings (OD-1)
@@ -1109,3 +1114,558 @@ are wording only; none changes a statement.
   are new recommendation text, not a restatement of an approved sentence.
 - **Not drafted:** a note for imported eGFR series whose laboratory changed
   the equation mid-series. It is deferred as a feature in issue #4.
+
+## Part D: sources, own rules and corrected statements after the science audits (2026-11-16, not applied)
+
+Drafted 2026-11-16 after two read-only audits of the nephrology and the
+statistical methods on `main`. **Nothing in Part D is on the methodology page
+yet**, and no source file was changed. Result of the audits in one sentence:
+every coefficient and threshold in the code matched its published source; the
+gaps are missing or incomplete citations, a few statements that claim too
+much, and own rules that a reader could take for published standards.
+
+**What was checked, and how.**
+
+- Recomputation: the OLS formulas, the worked examples of the page and the
+  Theil–Sen coverage for 3 to 30 measurements (audit); the examples in D3 (b),
+  (c) and (d) were run through the application's own functions on 2026-11-16.
+- Crossref: every DOI in D1 was resolved on 2026-11-16; authors, title,
+  journal, volume, issue and pages are copied from the Crossref record.
+- Document text: the KDIGO AKI 2012 staging table, the KDIGO 2012 wording on
+  rapid progression as quoted in the KDOQI commentary, the EMA guideline
+  (audit) and the two NIDDK pages (fetched 2026-11-16).
+- Memory only, therefore not for publication yet: see "Could not be verified"
+  under D1. No DOI in Part D is guessed.
+- Left for the maintainer: all wording, which is published under his
+  authorship; whether to change the AKI staging order instead of disclosing it
+  (D3 d); the label of the Theil–Sen bounds below five dates (D3 a); and the
+  notes for code changes at the end.
+
+Form and terms are those of Part C. Links into the methodology page are
+written as text with their target; every target was checked against the topic
+and section ids of the page.
+
+### D1. Sources page: a full reference list
+
+**(a)** `Sources.tsx`, list *Medical Sources* (lines 52–92). Current: five
+items that are link texts without authors, title, year, volume, pages or DOI:
+"CKD-EPI 2021 creatinine equation: National Kidney Foundation formula page and
+NIDDK adult eGFR equations reference." (lines 54–63), "MDRD-4 175-coefficient
+equation: NIDDK previous adult eGFR equations reference." (64–69), "EKFC 2021
+creatinine equation: Pottel et al., Annals of Internal Medicine 2021." (70–75,
+linked to an institutional research portal), "AKI detection and staging
+thresholds: KDIGO 2012 Clinical Practice Guideline for Acute Kidney Injury and
+the KDIGO AKI / AKD guideline update page." (76–85) and "Rapid CKD progression
+threshold: KDOQI US Commentary on the 2012 KDIGO CKD guideline." (86–91).
+CKD-EPI 2009, the G4 and G5 boundaries, the 40% and 57% decline, every
+statistical method and the software have no entry.
+
+Proposed replacement. The heading becomes *References*; each DOI is rendered
+as a link to `https://doi.org/` followed by the DOI.
+
+> **References**
+>
+> Primary publications for the methods of this tool. The equations and
+> thresholds in the application were compared with these sources.
+>
+> *eGFR equations*
+>
+> - CKD-EPI 2021 creatinine equation: Inker LA et al. New Creatinine- and
+>   Cystatin C–Based Equations to Estimate GFR without Race. New England
+>   Journal of Medicine 2021;385(19):1737–1749. doi:10.1056/NEJMoa2102953
+> - CKD-EPI 2009 creatinine equation, used here without its coefficient for
+>   Black race: Levey AS et al. A New Equation to Estimate Glomerular
+>   Filtration Rate. Annals of Internal Medicine 2009;150(9):604–612.
+>   doi:10.7326/0003-4819-150-9-200905050-00006
+> - MDRD-4 in its 175-coefficient form for standardised creatinine, used here
+>   without its race multiplier: Levey AS et al. Using Standardized Serum
+>   Creatinine Values in the Modification of Diet in Renal Disease Study
+>   Equation for Estimating Glomerular Filtration Rate. Annals of Internal
+>   Medicine 2006;145(4):247–254.
+>   doi:10.7326/0003-4819-145-4-200608150-00004
+> - EKFC creatinine equation: Pottel H et al. Development and Validation of a
+>   Modified Full Age Spectrum Creatinine-Based Equation to Estimate
+>   Glomerular Filtration Rate. Annals of Internal Medicine
+>   2021;174(2):183–191. doi:10.7326/M20-4366
+>
+> *Acute kidney injury*
+>
+> - Detection thresholds and stages: KDIGO Clinical Practice Guideline for
+>   Acute Kidney Injury. Kidney International Supplements 2012;2(1):1–138.
+>   Full text at
+>   https://kdigo.org/wp-content/uploads/2016/10/KDIGO-2012-AKI-Guideline-English.pdf
+>
+> *CKD stages and progression*
+>
+> - GFR categories G4 and G5, the duration of more than three months, and the
+>   definition of rapid progression: KDIGO 2012 Clinical Practice Guideline
+>   for the Evaluation and Management of Chronic Kidney Disease. Kidney
+>   International Supplements 2013;3(1):1–150. Full text at
+>   https://kdigo.org/wp-content/uploads/2017/02/KDIGO_2012_CKD_GL.pdf
+> - Current guideline, with the same GFR categories: Stevens PE et al. KDIGO
+>   2024 Clinical Practice Guideline for the Evaluation and Management of
+>   Chronic Kidney Disease. Kidney International 2024;105(4S):S117–S314.
+>   doi:10.1016/j.kint.2023.10.018
+>
+> *eGFR decline as an endpoint (40% and 57%)*
+>
+> - Levey AS et al. GFR Decline as an End Point for Clinical Trials in CKD: A
+>   Scientific Workshop Sponsored by the National Kidney Foundation and the US
+>   Food and Drug Administration. American Journal of Kidney Diseases
+>   2014;64(6):821–835. doi:10.1053/j.ajkd.2014.07.030
+> - Coresh J et al. Decline in Estimated Glomerular Filtration Rate and
+>   Subsequent Risk of End-Stage Renal Disease and Mortality. JAMA
+>   2014;311(24):2518. doi:10.1001/jama.2014.6634
+>
+> *Statistics*
+>
+> - Least-squares regression and its confidence interval: Draper NR, Smith H.
+>   Applied Regression Analysis. Wiley, 1998. doi:10.1002/9781118625590
+> - Theil–Sen slope: Theil H. A Rank-Invariant Method of Linear and Polynomial
+>   Regression Analysis. First published 1950; reprinted in Raj B, Koerts J
+>   (eds). Henri Theil's Contributions to Economics and Econometrics. Springer,
+>   1992, pages 345–381. doi:10.1007/978-94-011-2546-8_20
+> - Theil–Sen bounds: Sen PK. Estimates of the Regression Coefficient Based on
+>   Kendall's Tau. Journal of the American Statistical Association
+>   1968;63(324):1379–1389. doi:10.1080/01621459.1968.10480934. The intercept
+>   and the handling of tied values follow SciPy `theilslopes`
+>   (https://docs.scipy.org/doc/scipy/reference/generated/scipy.stats.theilslopes.html).
+> - Linear mixed models: Laird NM, Ware JH. Random-Effects Models for
+>   Longitudinal Data. Biometrics 1982;38(4):963. doi:10.2307/2529876
+>
+> *Software for cohort models*
+>
+> - lme4: Bates D, Mächler M, Bolker B, Walker S. Fitting Linear Mixed-Effects
+>   Models Using lme4. Journal of Statistical Software 2015;67(1).
+>   doi:10.18637/jss.v067.i01
+> - R: R Core Team. R: A Language and Environment for Statistical Computing.
+>   R Foundation for Statistical Computing, Vienna, Austria.
+>   https://www.R-project.org/. The R version and the package versions of each
+>   fit are recorded in the model export.
+> - webR, which runs R in the browser: https://docs.r-wasm.org/webr/latest/
+> - lmerTest, which the exported R script names for degrees of freedom and
+>   p-values: Kuznetsova A, Brockhoff PB, Christensen RHB. lmerTest Package:
+>   Tests in Linear Mixed Effects Models. Journal of Statistical Software
+>   2017;82(13). doi:10.18637/jss.v082.i13
+>
+> *Caveats named on these pages*
+>
+> - Slopes, dropout and mixed models: Janmaat CJ et al. Pitfalls of linear
+>   regression for estimating slopes over time and how to avoid them by using
+>   linear mixed-effects models. Nephrology Dialysis Transplantation
+>   2019;34(4):561–566. doi:10.1093/ndt/gfy128
+> - Intervals and tests in small mixed models: Luke SG. Evaluating
+>   significance in linear mixed-effects models in R. Behavior Research
+>   Methods 2017;49(4):1494–1502. doi:10.3758/s13428-016-0809-y
+>
+> *Further reading*
+>
+> - National Kidney Foundation, CKD-EPI creatinine equation (2021); NIDDK,
+>   eGFR equations for adults; NIDDK, previous eGFR equations for adults.
+> - NIDDK, eGFR equations for children, adolescents and young adults. This
+>   page holds the NIDDK note on the EKFC equation.
+> - KDIGO AKI and AKD guideline update page.
+> - Inker LA et al. KDOQI US Commentary on the 2012 KDIGO Clinical Practice
+>   Guideline for the Evaluation and Management of CKD. American Journal of
+>   Kidney Diseases 2014;63(5):713–735. doi:10.1053/j.ajkd.2014.01.416
+
+How the two KDIGO guidelines of 2012 are cited. The DOIs often quoted for
+them, 10.1038/kisup.2012.1 and 10.1038/kisup.2012.73, resolve in Crossref to a
+one-page item titled "Notice", the first page of each supplement issue. The
+guidelines were published as separate sections, each with its own DOI, so no
+single DOI stands for the whole guideline. The draft therefore gives the
+supplement reference (volume, issue and page range, confirmed from the
+Crossref records of the first and last items of each issue) and the full text
+at kdigo.org, and no DOI.
+
+**(b)** `Data.tsx`, **EKFC 2021** bullet, lines 29–31. Current: "The NIDDK
+notes that EKFC creatinine was developed mainly in White European populations,
+uses population-specific Q scaling, and does not meet US race-free equation
+recommendations." The statement is NIDDK's, but it stands on the NIDDK page
+for children, adolescents and young adults, not on the adults page that
+`Sources.tsx` links. Proposed, closer to the source:
+
+> The NIDDK notes that the EKFC creatinine equation was developed in a
+> population of White European children and adults, has not yet been fully
+> validated in diverse populations, rescales creatinine by a Q value for which
+> no factors have been established for the United States, and does not meet
+> recommendations for race-free equations.
+
+The link for this sentence is
+`https://www.niddk.nih.gov/research-funding/research-programs/kidney-clinical-research-epidemiology/laboratory/glomerular-filtration-rate-equations/children-adolescents-young-adults`.
+The EKFC item itself links to the DOI instead of the research portal.
+
+Reflects: [formulas](method-algorithms/egfr.md#formulas),
+[detection](method-algorithms/aki.md#detection),
+[observed G4/G5](method-algorithms/endpoints-and-projection.md#observed-g4g5),
+[Theil–Sen](method-algorithms/trend-estimators.md#theil-sen-2026-09-23) and
+[reproducibility](method-algorithms/cohort-models.md#reproducibility).
+
+Checked 2026-11-16: all 16 DOIs of the list, and the two named under
+"Could not be verified", resolve in Crossref to the stated work. Print
+years are Crossref's "published-print" (Janmaat: online 2018, print 2019;
+Luke: online 2016, print 2017). The KDIGO page ranges 1–138 and 1–150 follow
+from the last Crossref items of the two issues ("References", pages 124–138
+and 136–150). The NIDDK note was read on the page named above; the adults
+page mentions EKFC without this note. kdigo.org, R-project.org and
+docs.r-wasm.org answered. The exported R script names lmerTest
+(`src/core/mixedModel/rCode.ts`), and the export records the R and package
+versions (`webr.worker.ts`, `modelExport.ts`).
+
+**Could not be verified, do not publish yet.**
+
+- **EMA guideline** EMA/CHMP/500825/2016, which prefers a loss in GFR "such as
+  50%" and is the contrasting position to the 40% endpoint. The audit read the
+  document; on 2026-11-16 the EMA site refused automated requests (HTTP 429),
+  so its exact title and link are unconfirmed. Add it under *eGFR decline as
+  an endpoint* once both are confirmed.
+- **Theil 1950, original publication.** Only the 1992 reprint is confirmed.
+  The original journal reference (Proceedings of the Koninklijke Nederlandse
+  Akademie van Wetenschappen, volume 53) is from memory.
+- **End pages** where Crossref records the first page only: Coresh (2518) and
+  Laird and Ware (963). Bates et al. has no page range in Crossref.
+- **Edition of Draper and Smith.** The 1998 book is, from memory, the third
+  edition; the Crossref record does not say so.
+- **EKFC coefficients against the paper's text.** The citation is confirmed;
+  the paper is behind a paywall, so the coefficients were compared from
+  memory. The same holds for the Q value above age 25 (0.90 mg/dl in the
+  code; 80 µmol/l in the paper according to the audit).
+- **Whether KDIGO 2024 keeps the definition of rapid progression.** The audit
+  did not find it there by text search. D3 (h) therefore names KDIGO 2012.
+- **Content of Janmaat 2019 and Luke 2017.** Their bibliographic data are
+  confirmed; the papers were not read in full. Confirm that each supports
+  the sentence it is cited for (the dropout paragraph in `Cohort.tsx` lines
+  27–32, and D3 f).
+- **Two verified references that carry statements from memory** and are
+  therefore not in the list: Levin A et al., Kidney International
+  2020;98(4):849–859, doi:10.1016/j.kint.2020.07.013 (kidney-failure
+  definitions for trials, see D3 i), and the ADQI 16 report, Nature Reviews
+  Nephrology 2017;13(4):241–257, doi:10.1038/nrneph.2017.2 (acute kidney
+  disease, see D2).
+
+Left out on purpose: the names of the webR authors (not confirmed); a
+reference for small-sample degrees of freedom beyond lmerTest; and any
+citation for the rules listed in D2, which have none.
+
+### D2. Rules of this tool that are not published standards
+
+`Sources.tsx`, new section between *Validation scope* (ends at line 51) and
+the reference list. Current text on this point is one sentence, lines 49–50:
+"The observed G4/G5 and endpoint prediction rules are this application's own
+research definitions: unit tests cover them, but neither check above applies."
+It stays; the new section lists every such rule in one place.
+
+Proposed new section:
+
+> **Rules of this tool that are not published standards**
+>
+> The thresholds for eGFR, AKI detection and CKD stages come from the
+> publications listed below. The following rules do not. They are research
+> definitions of this tool, chosen to be simple and reproducible, and they
+> are not validated.
+>
+> - **Uncertain slope.** A slope is marked as uncertain when the fitted
+>   measurements fall on fewer than three different dates, or when fewer than
+>   365 days lie between the first and the last fitted measurement.
+> - **Two measurements.** Two measurements on different dates give the exact
+>   line through both, with R² = 1 and no interval.
+> - **Rolling and segmented OLS.** Windows of 730 days moved in steps of 180
+>   days; a new segment where two consecutive fitted measurements lie more
+>   than 180 days apart; at least three measurements per window or segment.
+> - **Time balancing.** One point per calendar month or quarter. Its value is
+>   the median of the measurements in that period. Its date is the date of the
+>   middle measurement, or of the earlier of the two middle ones.
+> - **AKI window.** From the onset date through 30 days after it (default,
+>   adjustable), both ends included. KDIGO defines how AKI is detected and
+>   staged; it defines no such window.
+> - **AKI episodes.** Consecutive measurements that meet a criterion form one
+>   episode only while they share the same baseline date, and an episode has
+>   no end. A chip such as *AKI 4×I* therefore counts crossings against a
+>   moving baseline, not clinical episodes.
+> - **Confirmation of an observed event.** A later low value at least 90 days
+>   (default, adjustable) and at most 12 calendar months after the first.
+>   This resembles the KDIGO duration of more than three months but is not
+>   the same rule.
+> - **Baseline of the 40% and 57% decline.** The mean of the eligible eGFR
+>   values of the first 90 days. The two percentages come from the
+>   publications below; the baseline and the confirmation are this tool's.
+> - **Kidney failure reached.** The first dated kidney transplant or the first
+>   dialysis recorded as chronic. No duration is checked, and a low eGFR is
+>   reported as CKD G5 instead.
+> - **G5 projection.** Reported only with measurements on at least three
+>   different dates (five with Theil–Sen), at least 365 days of follow-up, a
+>   declining fit whose slope interval lies entirely below zero, and a
+>   crossing no more than 20 years after the latest measurement used.
+> - **Rapid decline flag.** The number, 5 mL/min/1.73 m² per year, is from
+>   KDIGO 2012. Applying it to a fitted slope, without testing that the
+>   decline is sustained, is this tool's rule.
+> - **Cohort models.** At least ten patients with repeated measurements at
+>   different times: three times per patient for a random intercept and
+>   slope, two for a random intercept alone.
+> - **eGFR conventions.** Sex "d" uses the male coefficients. Age is counted
+>   in whole completed years, and no eGFR is computed below 18 years.
+>   "CKD-EPI 2009 (race-free)" is the published 2009 equation without its
+>   coefficient for Black race, not a separately published equation.
+
+Reflects: [reliability rule](method-algorithms/slope-quality.md#reliability-rule),
+[rolling and segmented OLS](method-algorithms/trend-estimators.md#rolling-and-segmented-ols),
+[time balancing](method-algorithms/fit-input-presets-and-time-balancing.md#time-balancing),
+[AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window),
+[episodes](method-algorithms/aki.md#episodes),
+[observed G4/G5](method-algorithms/endpoints-and-projection.md#observed-g4g5),
+[decline baseline](method-algorithms/endpoints-and-projection.md#total-percent-change-and-confirmed-40-57--decline),
+[kidney failure reached](method-algorithms/endpoints-and-projection.md#eligibility-and-kidney-failure-reached),
+[individual G5 projection](method-algorithms/endpoints-and-projection.md#individual-g5-projection),
+[rapid decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag),
+[minimum data](method-algorithms/cohort-models.md#minimum-data-and-validity-gates)
+and [formulas](method-algorithms/egfr.md#formulas).
+
+Checked 2026-11-16 against the code: `isUnstableSlope` (fewer than three
+fitted dates, or a span under 365 days); `fitGlobal` for two points;
+`rollingSlopes` and `fitSegments` (730, 180, gap strictly above 180, three
+per window or segment); `medianPoint` in `timeBalancing.ts` (median value,
+date of the lower-middle measurement by date);
+`DEFAULT_AKI_EXCLUSION_DAYS = 30`; `clusterEpisodes`;
+`DEFAULT_CONFIRMATION_DAYS = 90` with the 12-month limit;
+`MIN_PROJECTION_DATES = 3`, `MIN_THEIL_SEN_PROJECTION_DATES = 5`,
+`MIN_PROJECTION_SPAN_DAYS = 365`, the interval test and the 20-year limit in
+`ckdEndpoints.ts`; `DEFAULT_RAPID_EGFR_DECLINE = 5`;
+`MIN_QUALIFYING_PATIENTS = 10`; sex "d" in `formulas.ts`.
+
+Left out on purpose: the plausibility limits (25 mg/dl and 200), which C3
+already presents as warnings of this tool; the MDRD-4 race multiplier, which
+the page states at the equation; the one-decimal rounding of eGFR, described
+under *eGFR: Conditions, Age and Rounding*; and the fixed tolerance of the
+KDIGO comparisons. The audit's remark that the nearest published concept to
+the AKI window is acute kidney disease, 7 to 90 days after AKI (ADQI 16),
+rests on memory and is not in the text.
+
+### D3. Statements that claim too much
+
+Each block quotes the current sentence and gives a corrected one.
+
+**(a) Theil–Sen "95% bounds".** `Fits.tsx`, lines 69–70. Current: "The
+reported 95% bounds describe uncertainty in the slope, not a prediction
+interval for individual values." Proposed:
+
+> The reported bounds describe uncertainty in the slope, not a prediction
+> interval for individual values. They are 95% bounds from five measurement
+> dates on. With one measurement on each of three or four dates they are the
+> smallest and the largest pairwise slope, and they contain the true slope in
+> only about 67% and 92% of cases.
+
+`Sources.tsx`, lines 38–39. Current: "… for Theil-Sen including the slope,
+separate-median intercept, 95% slope bounds and unavailable-fit cases."
+Proposed: "… for Theil–Sen including the slope, separate-median intercept,
+slope bounds and unavailable-fit cases."
+
+Reflects: [Theil–Sen](method-algorithms/trend-estimators.md#theil-sen-2026-09-23).
+
+Checked: the audit computed the exact coverage without tied values as 66.7%
+for three, 91.7% for four and 98.3% for five measurements, and at least 95.09%
+up to thirty. This agrees with C8. Coverage with several measurements on one
+date was not computed.
+
+Left out on purpose: the table cell itself shows "95% slope CI" for every
+number of dates; see the notes for code changes.
+
+**(b) Theil–Sen and outliers.** `Fits.tsx`, lines 64–65. Current: "the median
+of all pairwise slopes, which makes it insensitive to a minority of outlying
+points." Proposed:
+
+> the median of all pairwise slopes, which makes it less sensitive than OLS to
+> single outlying measurements in a longer series. With three measurements it
+> gives no protection, because one outlier changes two of the three pairwise
+> slopes: 60, 55 and 10 at years 0, 1 and 2 give about −25 per year. With
+> five measurements, 60, 57, 54, 51 and 10 give −3.0 per year.
+
+The rest of the bullet stays.
+
+Reflects: [Theil–Sen](method-algorithms/trend-estimators.md#theil-sen-2026-09-23).
+
+Checked 2026-11-16 by running `fitTheilSen`: −24.98 and −3.00 per year.
+
+**(c) The AKI baseline does not "maximise sensitivity".** `Aki.tsx`, lines
+42–46. Current: "The reference baseline is the **lowest creatinine within the
+lookback window** (48 h for the absolute criterion, 7 days for the relative
+criterion) — a pragmatic baseline for automated detection that maximises
+sensitivity." Proposed:
+
+> The reference baseline is the **lowest creatinine within the lookback
+> window** (48 h for the absolute criterion, 7 days for the relative
+> criterion). No earlier value is used: no outpatient or historical baseline
+> and no estimated one. Detection therefore finds rises against recent
+> values and misses two situations. An AKI that is already present at the
+> first measurement is not detected: 3.0 and 3.1 mg/dl on consecutive days,
+> followed by 1.0 mg/dl three weeks later, give no episode. A rise that is
+> slower than the windows is not detected either: 1.0, 1.6 and 2.4 mg/dl
+> eight days apart give no episode.
+
+Reflects: [detection](method-algorithms/aki.md#detection) and
+[known limitations](method-algorithms/aki.md#known-limitations).
+
+Checked 2026-11-16 by running `findKdigoAkiEpisodes` on both examples: no
+episode in either.
+
+**(d) AKI stage and the order of the criteria.** `Aki.tsx`, line 28, and the
+stage list, lines 29–41. Current: "AKI episodes are staged by the ratio of
+peak creatinine to the reference baseline:". The sentence stays. Proposed
+addition after the list:
+
+> The stage refers to the baseline of the criterion that detected the
+> episode. The absolute criterion is checked first. When it is met, the
+> baseline is the lowest value of the last 48 hours, even if a lower value
+> lies within the last seven days. A stage can therefore be lower than a
+> grading against the lowest value of the last seven days: 1.0 mg/dl on
+> 1 January, 2.9 on 6 January and 3.3 on 7 January give a Stage II episode
+> (2.9 against 1.0) and a Stage I episode (3.3 against 2.9), where 3.3
+> against 1.0 would be Stage III.
+
+Reflects: [staging](method-algorithms/aki.md#staging) and
+[known limitations](method-algorithms/aki.md#known-limitations).
+
+Checked 2026-11-16 by running `findKdigoAkiEpisodes`: two episodes, onset
+6 January (baseline 1.0, peak 2.9, stage II, relative criterion) and onset
+7 January (baseline 2.9, peak 3.3, stage I, absolute criterion).
+
+This block describes the code as it is. The owner decided on 2026-10-06 not
+to change AKI episode merging and staging and is deciding again whether to
+grade against the lower baseline. If the code changes, drop this block.
+
+**(e) What the OLS interval assumes.** `Fits.tsx`, lines 226–231. Current:
+"The 95% interval is the slope ± t × standard error, where the standard error
+comes from the residual sum of squares with n − 2 degrees of freedom and t is
+the two-sided 95% value of Student's t distribution. It describes uncertainty
+in the slope, not a prediction interval." Proposed addition at the end of the
+paragraph:
+
+> The interval assumes independent measurement errors of equal size.
+> Repeated eGFR values of one patient are usually correlated, so the interval
+> tends to be too narrow. With time balancing it describes the monthly or
+> quarterly medians, not the single measurements.
+
+Reflects: [ordinary least squares](method-algorithms/trend-estimators.md#ordinary-least-squares)
+and [time balancing](method-algorithms/fit-input-presets-and-time-balancing.md#time-balancing).
+
+Checked: the audit recomputed the formulas in `ols.ts`. That serial eGFR
+values are correlated is a statistical statement, not something the code
+shows; it is the maintainer's to confirm.
+
+**(f) Intervals of the cohort model.** `Cohort.tsx`, lines 48–49. Current:
+"Fixed effects have 95% Wald intervals; no p-values are computed." Proposed:
+
+> Fixed effects have 95% Wald intervals (estimate ± 1.96 standard errors).
+> They are approximate and tend to be too narrow when the model has few
+> patients. No degrees of freedom and no p-values are computed, and nothing
+> is adjusted for testing several coefficients or groups. For tests, the
+> exported R script names the lmerTest package.
+
+Lines 34–37 ("This is an input safeguard, not evidence of adequate statistical
+power.") stay as they are.
+
+Reflects: [confidence intervals](method-algorithms/cohort-models.md#confidence-intervals)
+and [minimum data](method-algorithms/cohort-models.md#minimum-data-and-validity-gates).
+
+Checked against the code: `confint(method = "Wald")` in `webr.worker.ts`, no
+p-values or degrees of freedom in the result, `MIN_QUALIFYING_PATIENTS = 10`,
+and the lmerTest comment in `rCode.ts`. "Too narrow with few patients" rests
+on Luke 2017, which was not read in full.
+
+**(g) What the individual projection assumes.** `Endpoints.tsx`, prediction
+algorithm, after line 67 ("… whether or not the observed G5 endpoint is
+displayed."). Proposed addition:
+
+> The projection assumes that the fitted linear decline continues unchanged.
+> It has no interval of its own. Because a projected age is reported only
+> when the slope interval lies entirely below zero, the reported ages come
+> from clearly declining series. A missing projected age does not mean a
+> stable course.
+
+Reflects: [individual G5 projection](method-algorithms/endpoints-and-projection.md#individual-g5-projection).
+
+Checked against the code: the crossing of the fitted line and the interval
+test in `ckdEndpoints.ts`; no interval is computed for the projected age.
+
+Left out on purpose: the number of decimals of the projected age; see the
+notes for code changes.
+
+**(h) Rapid decline: KDIGO 2012.** `Trajectories.tsx`, lines 44–45. Current:
+"The default threshold of **5 mL/min/1.73m² per year** is the number KDIGO
+uses for rapid CKD progression, which KDIGO defines as a sustained decline."
+Proposed:
+
+> The default threshold of **5 mL/min/1.73 m² per year** comes from the KDIGO
+> 2012 CKD guideline, which defines rapid progression as a sustained decline
+> in eGFR of more than 5 mL/min/1.73 m² per year.
+
+The following sentences (lines 46–48), which say that the flag does not test
+whether a decline is sustained, stay.
+
+Reflects: [rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag).
+
+Checked: `DEFAULT_RAPID_EGFR_DECLINE = 5` and the strict comparison in
+`rapidEgfrDeclineModule.ts`. The KDIGO wording was read by the audit as
+quoted in the KDOQI commentary, not in the guideline itself.
+
+**(i) "Kidney failure reached" is narrower than the usual term.** `Fits.tsx`,
+lines 139–141. Current: "Kidney replacement therapy is reported separately as
+kidney failure reached with its type and date, independently of lab-confirmed
+G5." Proposed addition after this sentence:
+
+> "Kidney failure reached" here means the first dated kidney transplant or
+> the first dialysis recorded as chronic. This is narrower than the usual
+> term, which also covers a GFR below 15 without kidney replacement therapy;
+> the tool reports that as CKD G5. Whether a dialysis is chronic is taken
+> from the imported event; no minimum duration is checked.
+
+Reflects: [eligibility and kidney failure reached](method-algorithms/endpoints-and-projection.md#eligibility-and-kidney-failure-reached).
+
+Checked against the code: `endpointEventPolicy.ts` (earliest transplant or
+chronic dialysis) and the label in `endpointLabels.ts` ("distinct from
+lab-confirmed CKD G5"). That KDIGO counts a GFR below 15 as kidney failure is
+the audit's reading of the guideline.
+
+Left out on purpose: the trial definition of Levin et al. 2020 (maintenance
+dialysis for at least four weeks), which the audit had from memory only. The
+first clause of the current sentence is replaced by C6 (d); apply both
+together.
+
+### Notes for code changes from Part D (not made)
+
+These are decisions about the interface, not wording of the methodology page.
+None was changed.
+
+- **Settings heading "AKI exclusions (KDIGO)"**
+  (`src/workspace/trajectory-ui/NephrologySettings.tsx` line 67 and
+  `src/workspace/WorkspaceAnalysisSettings.tsx` line 198). The detection is
+  KDIGO, the window is not. Proposed heading: "AKI exclusion windows", with
+  the hint "Episodes are detected with the KDIGO creatinine criteria. The
+  length of the window is a rule of this tool."
+- **Table cell "95% slope CI"** (`src/workspace/TrajectoriesWorkspace.tsx`
+  line 107) is shown for Theil–Sen with any number of dates. Options: name
+  it "slope bounds" below five dates, or add the coverage to the tooltip.
+- **Projected age with one decimal** ("G5 @ 54.3y" when the birth date is
+  known, `src/workspace/labels/endpointLabels.ts`). The projection has no
+  interval, so one decimal suggests more precision than it has. Option: whole
+  years, as already shown without a birth date.
+- **R export.** The exported script and workbook name no reference for lme4
+  or R. Option: add the lme4 citation from D1 to the script header.
+- **AKI staging order** (D3 d): grade against the lower of the two baselines,
+  or keep the code and publish D3 (d). A change alters stages and needs an
+  entry in the method decisions.
+
+### Points to check in Part D
+
+- **Line numbers** refer to the topic files as of 2026-11-16 and move with any
+  edit, including the edits of Part C.
+- **D1.** Publish only the entries of the proposed list; the items under
+  "Could not be verified" wait.
+- **D2.** The list states rules; the sentence "they are not validated" is the
+  maintainer's to confirm.
+- **D3 (c) and (d)** change how the AKI page describes its own limits; D3 (d)
+  depends on the pending decision about the staging order.
+- **D3 (e) and (f)** are statistical statements that do not follow from the
+  code.
+- **Overlap with Part C.** D3 (a) and C8 give the same coverage figures; D3
+  (i) and C6 (d) touch the same sentence in `Fits.tsx`; D3 (h) and the
+  follow-up list of Part C both correct "1.73m²" in `Trajectories.tsx`.
