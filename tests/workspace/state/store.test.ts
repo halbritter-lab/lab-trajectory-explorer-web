@@ -265,3 +265,17 @@ describe('useAppStore - cohort model runs and projections', () => {
     expect(useAppStore.getState().projectionSettings).toEqual({})
   })
 })
+
+describe('supplementalImport', () => {
+  beforeEach(() => useAppStore.getState().reset())
+
+  it('is set by an events or attributes import and cleared when the dataset is replaced', () => {
+    expect(useAppStore.getState().supplementalImport).toBe(false)
+    useAppStore.getState().setPatientAttributes({ P1: { cohort: 'A' } })
+    expect(useAppStore.getState().supplementalImport).toBe(true)
+    useAppStore.getState().replaceDataset({ rows: [] })
+    expect(useAppStore.getState().supplementalImport).toBe(false)
+    useAppStore.getState().setEvents([])
+    expect(useAppStore.getState().supplementalImport).toBe(true)
+  })
+})

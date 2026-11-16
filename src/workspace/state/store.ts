@@ -60,6 +60,8 @@ export interface DatasetReplacement {
 export interface AppState {
   rows: LabRow[]
   fileName: string | null
+  /** An events or attributes file was imported on top of the loaded dataset. */
+  supplementalImport: boolean
   manualDemographics: Record<string, ManualDemographics>
   events: ClinicalEvent[]
   /** Event rows rejected by the latest event import (session only). */
@@ -112,13 +114,14 @@ export interface AppState {
 /** Resettable data fields (no actions). Single source of truth for both the
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
-  | 'rows' | 'fileName' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'patientAttributes'
+  | 'rows' | 'fileName' | 'supplementalImport' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'patientAttributes'
   | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
   | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
 
 const initialState = (): AppData => ({
   rows: [],
   fileName: null,
+  supplementalImport: false,
   manualDemographics: {},
   events: [],
   rejectedEvents: [],
@@ -232,11 +235,11 @@ export const useAppStore = create<AppState>((set, get) => ({
     manualDemographics: { ...s.manualDemographics, [patientId]: demo },
     ...clearedMixedModelResults(),
   })),
-  setEvents: (events) => set({ events, ...clearedMixedModelResults() }),
+  setEvents: (events) => set({ events, supplementalImport: true, ...clearedMixedModelResults() }),
   // Re-importing attributes can re-partition the cohort (group membership and
   // values change), so any cached pooled/per-group fit is stale: invalidate them
   // alongside, exactly like every other data-policy setter.
-  setPatientAttributes: (byPatient) => set({ patientAttributes: byPatient, ...clearedMixedModelResults() }),
+  setPatientAttributes: (byPatient) => set({ patientAttributes: byPatient, supplementalImport: true, ...clearedMixedModelResults() }),
   analysisResult: () => {
     const s = get()
     return computeStoreAnalysisResult(

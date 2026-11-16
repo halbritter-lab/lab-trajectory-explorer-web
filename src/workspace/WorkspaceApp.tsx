@@ -34,10 +34,9 @@ export function WorkspaceApp() {
   const storageEnabled = useWorkspaceStorage(s => s.enabled)
   // Session-only data are lost on reload or close: let the browser ask first.
   // In-app navigation changes only the hash or history state and never unloads.
-  // The bundled demo counts as untouched until the user edits demographics or
-  // changes the derivation settings.
-  // shortcut: files imported on top of the demo keep its file name and are not detected, add a modified flag to the store if that matters
-  const untouchedDemo = useAppStore(s => s.fileName === DEMO_FILE_NAME && Object.keys(s.manualDemographics).length === 0
+  // The bundled demo counts as untouched until the user edits demographics,
+  // changes the derivation settings or imports events or attributes on top of it.
+  const untouchedDemo = useAppStore(s => s.fileName === DEMO_FILE_NAME && !s.supplementalImport && Object.keys(s.manualDemographics).length === 0
     && JSON.stringify(s.analysisSettings) === JSON.stringify(defaultAnalysisSettings()))
   const unsaved = losesDataOnUnload(hasData, { enabled: storageEnabled, status: storageStatus }, untouchedDemo)
   useEffect(() => {
