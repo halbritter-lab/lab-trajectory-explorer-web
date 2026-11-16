@@ -12,6 +12,8 @@ export function endpointBadge(endpoints: CkdEndpoints, measurementCount: number)
     const change = -decline
     labels.push(`${change > 0 ? '+' : ''}${change.toFixed(0)}%`)
     details.push(`total eGFR change ${change.toFixed(1)}% from first to latest eligible measurement (not per year)`)
+    // A total fall of 40 % without the event badge otherwise looks like a missing badge.
+    if (decline >= 40 && !endpoints.observedDecline40.met) details.push(`this is not a confirmed 40% decline event: that event is measured from the baseline (mean of the first 90 days${endpoints.declineBaselineValue !== null ? `, ${endpoints.declineBaselineValue.toFixed(1)}` : ''}) and needs a confirming measurement at least ${endpoints.confirmationDays} days and at most 12 months later`)
   }
   if (endpoints.kidneyFailureReached) {
     const event = endpoints.kidneyFailureReached

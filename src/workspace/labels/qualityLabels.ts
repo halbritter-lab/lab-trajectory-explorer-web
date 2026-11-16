@@ -131,7 +131,7 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
     case 'no_fit':
       return {
         label: 'G5 no fit',
-        title: 'No fitted slope is available, so no age at CKD G5 can be projected.',
+        title: 'No slope was fitted for this parameter (Trend is switched off, the method is No fit, or the fit failed), so no age at CKD G5 can be projected.',
         caveat,
       }
     case 'non_declining_fit':

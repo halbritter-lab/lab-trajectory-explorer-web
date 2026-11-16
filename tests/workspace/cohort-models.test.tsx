@@ -333,6 +333,7 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getAllByRole('button', { name: /Fitting/ })).toHaveLength(1)
     expect(within(preview()).getAllByText('Fitting model …').length).toBeGreaterThan(0)
     expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Fitting 1 of 2')
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('The first fit after opening the page downloads R (webR with lme4) once and can take a few minutes.')
     expect(screen.queryByText(/Click 'Fit model'/)).not.toBeInTheDocument()
   })
 
@@ -430,6 +431,14 @@ describe('CohortModelsWorkspace', () => {
     // Formula reflects demographic adjustment
     expect(screen.getByLabelText('Readable formula')).toHaveTextContent('"Baseline age (centered)"')
     expect(screen.getByLabelText('Readable formula')).toHaveTextContent('"Sex"')
+  })
+
+  it('accounts for every patient behind the complete-case count', () => {
+    const data = qualifyingData()
+    studio({ ...data, patients: [...data.patients, { id: 'P-none', label: 'P-none', attributes: {}, baselineAge: 55 }] })
+    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent('Complete cases: 10 patients / 11')
+    expect(screen.getByText('Patients not in the model (1)')).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Patients not in the model' })).toHaveTextContent('P-none: No usable measurement of this parameter after data preparation')
   })
 
   it('shows which reference category each categorical factor uses', () => {

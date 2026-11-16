@@ -110,6 +110,19 @@ it('loads an actual workbook with attributes, reports conflicts, and scopes clin
   expect(result.current.analysis.messages.some(m => m.id.startsWith('demographics:'))).toBe(true)
   expect(workspaceSpecs(result.current, result.current.parameters.map(p => p.key))[0].clinicalEventsByPatient).toEqual({})
 })
+it('keeps sheet names in the diagnostics of a multi-sheet workbook without an Excel extension', async () => {
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+    { patientId: 'X-1', labDate: '2020-01-01', testName: 'Kreatinin', unit: 'mg/dl', value: 1 },
+    { patientId: 'X-1', labDate: '2021-02-30', testName: 'Kreatinin', unit: 'mg/dl', value: 2 },
+  ]), 'labs')
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ patientId: 'X-1', cohort: 'A' }]), 'attributes')
+  await importWorkspaceFile({ name: 'study.ods', arrayBuffer: async () => XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) } as File)
+  const sheets = useAppStore.getState().notice?.details?.map(d => d.sheet) ?? []
+  expect(sheets.length).toBeGreaterThan(0)
+  expect(sheets).not.toContain('study.ods')
+  expect(sheets).toContain('labs')
+})
 it('runs the rolling and segmented fit paths selected in the workspace', () => {
   useAppStore.getState().replaceDataset({ rows: [row({}), row({ labDatum: new Date('2021-01-01'), wertNum: 2 }), row({ labDatum: new Date('2022-01-01'), wertNum: 3 })] })
   const { result } = renderHook(useWorkspaceData)

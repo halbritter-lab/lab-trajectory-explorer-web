@@ -50,6 +50,7 @@ describe('workspace local storage', () => {
     const restored = useAppStore.getState()
     expect(restored.rows[0].labDatum).toEqual(new Date('2020-01-01'))
     expect(restored.fileName).toBe('input.csv')
+    expect(restored.notice?.text).toBe('Dataset restored from this device. Analysis presets, trend and display settings and model results are not saved: set them again under Trajectories and Cohort models.')
     expect(restored.events[0].date).toEqual(new Date('2020-02-01'))
     expect(restored.patientAttributes.A.genotype).toBe('G1')
     expect(restored.manualDemographics.A).toEqual({ age: 42, sex: 'w' })

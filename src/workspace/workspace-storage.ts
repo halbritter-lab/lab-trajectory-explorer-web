@@ -254,7 +254,8 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       useAppStore.getState().replaceDataset({ rows: value.rows,
         events: value.events, patientAttributes: value.patientAttributes,
         manualDemographics: value.manualDemographics, analysisSettings: parseAnalysisSettings(value.analysisSettings)!,
-        fileName: value.fileName })
+        fileName: value.fileName,
+        notice: { kind: 'info', text: 'Dataset restored from this device. Analysis presets, trend and display settings and model results are not saved: set them again under Trajectories and Cohort models.' } })
       useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null })
     }
   } catch {

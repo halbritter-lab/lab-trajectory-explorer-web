@@ -38,6 +38,10 @@ export function mixedModelExportSheets(
     /** The rows the worker received for this result, and how the series' measurements reached them. */
     rows?: readonly MixedModelSpikeRow[]; inputFlags?: readonly MixedModelInputFlag[]
   }[],
+  /** Name of the downloaded workbook, so the R script reads the file as saved. */
+  workbookName?: string,
+  /** Written to `about` and checked by the R script, so the script cannot refit another export unnoticed. */
+  exportId: string = crypto.randomUUID(),
 ): { name: string; rows: object[] }[] {
   const settings: object[] = []
   const coefficients: object[] = []
@@ -153,13 +157,14 @@ export function mixedModelExportSheets(
       { note: 'Adjusted intercept and slope refer to the selected reference categories and centered numeric predictors. Time is years since the first retained measurement. Associations are conditional on the selected model and population.' },
       { note: 'model_rows holds the rows each model received in R, with factor values as passed to R and before centring. model_input_flags lists every measurement of the series per unit with whether it entered, was aggregated into a time-balancing median, or why it was excluded. vcov is the fixed-effect variance-covariance matrix; std_error is the square root of its diagonal. r_script refits the models in R from model_rows.' },
       { note: 'readxl guesses column types from the first 1000 rows. In model_rows the group column is blank for the whole-cohort rows, which come first, so a plain read_excel can read group as logical and turn later group values into NA. Set col_types or guess_max (for example guess_max = Inf) when reading model_rows yourself; r_script selects units by unit_key and is not affected.' },
+      { note: `export_id: ${exportId}` },
       { note: 'unit_key identifies the fitted unit on every sheet: "cohort" for the pooled model, "group:<value>" for a group. entity is a display label and can repeat. Join sheets on unit_key.' },
     ] },
     // Sheets added after 0.3.7 follow the earlier ones, so sheet positions stay.
     { name: 'vcov', rows: covariances },
     { name: 'model_rows', rows: modelRows },
     { name: 'model_input_flags', rows: inputFlags },
-    { name: 'r_script', rows: mixedModelRScript(models).map((line) => ({ line })) },
+    { name: 'r_script', rows: mixedModelRScript(models, workbookName, exportId).map((line) => ({ line })) },
   ]
 }
 

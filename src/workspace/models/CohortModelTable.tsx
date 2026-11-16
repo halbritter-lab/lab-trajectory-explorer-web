@@ -198,9 +198,9 @@ export function CohortModelTable({
     if (!stored) return 'Not fitted'
     const result = stored.result
     if (result.status === 'success') {
-      const slope = formatSlope(result.fixedEffects.timeSinceBaseline, seriesUnit)
+      // The slope has its own column; the status says whether the fit can be used.
       const flags = [!result.converged && 'did not converge', result.singular && 'singular fit; projection withheld'].filter(Boolean)
-      return flags.length ? `${slope} (${flags.join('; ')})` : slope
+      return flags.length ? `Fitted (${flags.join('; ')})` : 'Fitted'
     }
     return failureStatusText(result)
   }
@@ -235,7 +235,8 @@ export function CohortModelTable({
     const current = useAppStore.getState().cohortModelResults
     if (exportable.some((model) => current?.[model.key]?.result !== model.result || !mixedModelIdentityEquals(current?.[model.key]?.identity ?? null, model.identity))) return
     try {
-      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable)), `cohort-models-${fileStamp()}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      const fileName = `cohort-models-${fileStamp()}.xlsx`
+      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable, fileName)), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       setExportError(null)
     } catch (error) {
       setExportError(`Model export failed: ${error instanceof Error ? error.message : String(error)}`)
@@ -317,7 +318,7 @@ export function CohortModelTable({
                       <td>{success ? formatValue(success.fixedEffects.intercept, seriesUnit) : '—'}</td>
                       <td className="cohort-model-status" data-testid="cohort-model-status">{statusText(row)}
                         <div>Preset windows {row.preparation?.presetExclusionPolicy === 'skip' ? 'skipped' : 'applied'}: {row.preparation?.excludedByPreset ?? 0} eligible measurements excluded</div>
-                        {(row.preparation?.excludedPatients.length ?? 0) > 0 && <details><summary>Excluded patients ({row.preparation!.excludedPatients.length})</summary><ul>{row.preparation!.excludedPatients.map((patient) => <li key={patient.patientId}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul></details>}
+                        {(row.preparation?.excludedPatients.length ?? 0) > 0 && <details><summary>Excluded for factor values ({row.preparation!.excludedPatients.length})</summary><ul>{row.preparation!.excludedPatients.map((patient) => <li key={patient.patientId}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul></details>}
                       </td>
                       <td>
                         {success && (

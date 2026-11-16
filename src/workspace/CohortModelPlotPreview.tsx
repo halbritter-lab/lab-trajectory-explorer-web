@@ -24,6 +24,11 @@ interface Props {
 const FALLBACK_LINE_COLOR = '#243740'
 const FALLBACK_POINT_COLOR = '#687c7f'
 const GRID_COLOR = '#dce5e9'
+
+/** With a factor-by-time term the time coefficient is the slope of the reference
+ * profile only, so the chip must not read as the unit's overall slope. */
+const slopeChipLabel = (label: string, terms: readonly { term: string }[] | undefined) =>
+  terms?.some(({ term }) => term.includes(':') && term.split(':').includes('time_since_baseline')) ? `${label}, reference profile` : label
 const FRAME_COLOR = '#cbd8d6'
 
 export function CohortModelPlotPreview({
@@ -79,7 +84,7 @@ export function CohortModelPlotPreview({
             points: [p1, p2],
             slope,
           })
-          badges.push({ label: 'Whole cohort', slope, color: FALLBACK_LINE_COLOR })
+          badges.push({ label: slopeChipLabel('Whole cohort', cohortResult.result.fixedEffectTerms), slope, color: FALLBACK_LINE_COLOR })
           minY = Math.min(minY, p1.y, p2.y)
           maxY = Math.max(maxY, p1.y, p2.y)
           maxX = Math.max(maxX, p2.x)
@@ -105,7 +110,7 @@ export function CohortModelPlotPreview({
               points: [p1, p2],
               slope,
             })
-            badges.push({ label: group.value, slope, color })
+            badges.push({ label: slopeChipLabel(group.value, groupResult.result.fixedEffectTerms), slope, color })
             minY = Math.min(minY, p1.y, p2.y)
             maxY = Math.max(maxY, p1.y, p2.y)
             maxX = Math.max(maxX, p2.x)

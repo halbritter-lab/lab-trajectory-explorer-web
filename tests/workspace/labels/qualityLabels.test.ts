@@ -145,6 +145,7 @@ describe('projectedG5Label', () => {
     ], Number.NaN)
     expect(endpoints.projectedAgeToCkdG5.reason).toBe('no_fit')
     expect(projectedG5Label(endpoints)?.label).toBe('G5 no fit')
+    expect(projectedG5Label(endpoints)?.title).toBe('No slope was fitted for this parameter (Trend is switched off, the method is No fit, or the fit failed), so no age at CKD G5 can be projected.')
   })
 
   it('distinguishes too-few-points from too-short-a-span', () => {

@@ -22,6 +22,15 @@ it('presents readable sex labels while retaining the recorded codes', () => {
   expect(useAppStore.getState().rows.map(r => r.patientSex)).toEqual([null, 'w', 'm', 'd'])
   expect(screen.getByText('Parameter–unit combinations')).toBeInTheDocument()
 })
+it('names the serum creatinine series the selected eGFR source leaves out, and counts bounds', () => {
+  const base = { ...row, patientSex: 'm' as const, patientAgeAtLab: 50 }
+  useAppStore.getState().replaceDataset({ rows: [base, { ...base, wert: '<0,3', wertNum: 0.3, wertOperator: '<' as const }, { ...base, wert: 'ca. 1', wertNum: 1, wertOperator: 'unparseable' as const }, { ...base, wert: '1-2', wertNum: 1, wertOperator: 'range' as const }, { ...base, bezeichnung: 'Kreatinin i.S.' }, { ...base, einheit: 'µmol/l', wert: '88', wertNum: 88 }] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  expect(screen.getByText(/1 value recorded as a bound \(< or >\)/)).toBeInTheDocument()
+  expect(screen.queryByText(/Not used for this eGFR/)).not.toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  expect(screen.getByText('Not used for this eGFR: Kreatinin i.S. (mg/dl), 1 value; Kreatinin (µmol/l), 1 value. Only the selected source is read; serum creatinine under another name or unit is not merged with it.')).toBeInTheDocument()
+})
 it('keeps Apply before the complete keyboard-scrollable computed preview', () => {
   useAppStore.getState().replaceDataset({ rows: Array.from({ length: 118 }, (_, i) => ({ ...row, patientId: `P-${i}`, patientSex: 'm' as const, patientAgeAtLab: 50 })) })
   render(<DataWorkspace onBrowse={vi.fn()} />)
@@ -133,9 +142,9 @@ it('lists lab import diagnostics from a German CSV, with summaries not attribute
   expect(screen.getByText(/1 row rejected; 2 warnings\./)).toBeInTheDocument()
   const items = screen.getAllByRole('listitem').map(item => item.textContent)
   expect(items).toEqual(expect.arrayContaining([
-    'Sheet1, patient 0012, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
-    'Sheet1, warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
-    'Sheet1, warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.',
+    'labs.csv, patient 0012, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
+    'labs.csv, warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
+    'labs.csv, warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.',
   ]))
 })
 it('reports readable reasons and birth-date problems for supplementary files', async () => {

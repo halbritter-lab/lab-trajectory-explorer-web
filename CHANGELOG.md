@@ -40,6 +40,50 @@ interfaces are still evolving before 1.0.
   (distinct fitted dates), so rows affected by that note can be identified.
   Earlier column positions are unchanged.
 
+### Fixed (defects found in the simulated-user case studies)
+
+- Cohort models: with a factor that changes the slope, the chip above the model
+  plot reads "Whole cohort, reference profile" (or the group name with that
+  suffix). It showed the reference profile's slope under the plain unit name.
+- Cohort models: "Patients not in the model" under the formula lists every
+  patient behind the complete-case count, including patients without a usable
+  measurement of the outcome. Before, only patients removed for a factor value
+  were listed, so "25 patients / 28" could stand next to one listed patient.
+  When no model rows exist because the data preparation is No fit, the reason
+  is stated once instead.
+- Cohort models: the status column says "Fitted" instead of repeating the
+  slope, and the progress text says that the first fit downloads R once.
+- R reproduction script: `mm_workbook` carries the name of the downloaded file
+  (`cohort-models-<timestamp>.xlsx`) instead of `cohort-models.xlsx`. The
+  workbook's `about` sheet and the script share an export id, and the script
+  stops when the workbook it opens is another export (the browser renames a
+  second download in the same minute).
+- Trajectories: a column that loses its trend through a no-fit setting (for
+  example Acute review) gets Trend and its shown trend lines back when it has a
+  fit method again, whichever control or page sets it. Before, Trend stayed off
+  and every row showed "G5 no fit".
+- Import diagnostics of a CSV file name the file instead of "Sheet1"; a
+  workbook with several sheets keeps its sheet names.
+
+### Changed (texts after the simulated-user case studies)
+
+- Overlay: "Inspect events" shows how many events of the shown patients are
+  plotted ("7 of 8") and says why the others are not listed. The patient view
+  counts only that patient's events.
+- Data page: the eGFR preview names the other serum creatinine series that the
+  selected source leaves out, with their value counts, and the import summary
+  counts values recorded as a bound (exactly those with "<" or ">").
+- Endpoint badge: a total fall of 40 % or more without a confirmed 40 % decline
+  event says in its tooltip why the event is not confirmed. The "G5 no fit"
+  tooltip says that no slope was fitted for the parameter.
+- Restoring a dataset saved on this device shows a notice that analysis
+  presets, trend and display settings and model results are not saved.
+- Export `about` sheet: only eGFR series whose name ends in ", computed)" are
+  described as calculated by the app, and a new note in the trajectories
+  workbook states that
+  `endpoint_percent_decline` is positive for a fall while the badge shows the
+  change with the opposite sign. No exported value changes.
+
 ### Fixed (endpoint settings hint)
 
 - The endpoint hint in the analysis settings no longer says that AKI exclusions

@@ -1719,3 +1719,38 @@ None was changed.
 - **Overlap with Part C.** D3 (a) and C8 give the same coverage figures; D3
   (i) and C6 (d) touch the same sentence in `Fits.tsx`; D3 (h) and the
   follow-up list of Part C both correct "1.73m²" in `Trajectories.tsx`.
+
+## Part E: draft after the simulated-user case studies (2026-11-16, not applied)
+
+One sentence of the methodology page was read wrongly in the simulated-user
+case studies of 2026-11-16 (case A, own data). As in Parts C and D,
+the wording is the maintainer's and nothing here is applied.
+
+### E1. What "converted automatically" covers
+
+Target: `src/workspace/methods/topics/Data.tsx`, **Units** bullet, lines
+44–46.
+
+Current text:
+
+> … Values recorded in *µmol/l* are converted automatically (÷ 88.42); other
+> units are not used as an eGFR source.
+
+Proposed addition after that sentence:
+
+> The calculation reads one creatinine source: one test name with one unit.
+> If that source is recorded in *µmol/l*, its values are converted. Creatinine
+> values of the same patient under another test name or in another unit form a
+> separate parameter and are not added to the source. The Data page lists
+> such series under "Not used for this eGFR".
+
+Rests on: the eGFR derivation in `src/core/domains/nephrology/egfr/series.ts`
+(rows are selected by the source's name and unit; µmol/l values are divided by
+88.42) and the notice in `src/workspace/DataWorkspace.tsx`.
+
+Checked 2026-11-16 by reading the code: only rows whose name and unit equal
+the source are computed, so a `Kreatinin [µmol/l]` row beside the source
+`Kreatinin [mg/dl]` stays its own parameter and gets no computed eGFR.
+
+Left out on purpose: how the default source is chosen (already described in
+the eGFR section).

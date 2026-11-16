@@ -173,12 +173,25 @@ describe('R reproduction export', () => {
     expect(script).toContain('mm_levels <- c("A", sort(setdiff(unique(mm_factor_0_), "A"), method = "radix"))')
     expect(script).toContain('contrasts(mm_data$factor_0_) <- contr.treatment(mm_levels, base = 1)')
     expect(sheet('about').some(row => String(row.note).includes('guess_max'))).toBe(true)
+    // The sign note of a trajectories-only column does not belong in this workbook.
+    expect(sheet('about').some(row => String(row.note).includes('endpoint_percent_decline'))).toBe(false)
     expect(script).toContain('mm_factor_0_ <- as.character(mm_unit[["factor_0_"]])')
     expect(script).toContain('mm_unit <- mm_rows[mm_rows$unit_key == "group:G1", , drop = FALSE]')
     expect(script).toContain('mm_browser <- mm_coefficients[mm_coefficients$unit_key == "group:G1", , drop = FALSE]')
     expect(sheet('coefficients')[0]).toMatchObject({entity:'G1',unit_key:'group:G1',unit:'ml/min'})
     expect(script).toContain('R 4.5.1 (webR); lme4 1.1-37; Matrix 1.7-3; jsonlite 2.0.0')
     expect(mixedModelRScript([{entity:'G2',result:{...result,metadata:{...result.metadata,runtimeVersion:null,packageVersions:{}}}}]).join('\n')).toContain('R version unknown (webR); package versions unknown')
+    // The script names the workbook as downloaded; a name it cannot quote safely falls back.
+    expect(script).toContain('mm_workbook <- "cohort-models.xlsx"')
+    expect(mixedModelRScript([], 'cohort-models-20261116-1612.xlsx')).toContain('mm_workbook <- "cohort-models-20261116-1612.xlsx"')
+    expect(mixedModelRScript([], 'a"; system("x").xlsx')).toContain('mm_workbook <- "cohort-models.xlsx"')
+    // The workbook and its script share an export id, and the script stops on another workbook
+    // (a second download in the same minute is saved by the browser under another name).
+    const exportId = String(sheet('about').find(row => String(row.note).startsWith('export_id: '))?.note).slice('export_id: '.length)
+    expect(exportId).toMatch(/^[\w-]{8,}$/)
+    expect(script).toContain(`mm_export_id <- "${exportId}"`)
+    expect(script).toContain('stop("This script belongs to export ", mm_export_id, ", but ", mm_workbook, " is another export. Set mm_workbook to the workbook this r_script sheet came from.")')
+    expect(mixedModelRScript([], 'x.xlsx', 'a"; system("x")').some(line => line.includes('mm_export_id'))).toBe(false)
   })
 
   it('fits every unit in its own local environment, keyed unambiguously', () => {
