@@ -305,9 +305,13 @@ describe('cohortExportRecords', () => {
     const yearly = [60, 56, 50, 46].map((wertNum, i) => row({ labDatum: d(`202${i}-01-01`), wertNum }))
     const spec = (mode: CohortSeriesSpec['mode']): CohortSeriesSpec => ({ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode })
 
-    it('appends the six columns after the rolling columns', () => {
+    it('appends the seven columns after the rolling columns', () => {
       const [rec] = cohortExportRecords(buildCohortRows(yearly, [1], [spec('global')]))
-      expect(Object.keys(rec).slice(-7)).toEqual(['rolling_slope_max', 'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se'])
+      expect(Object.keys(rec).slice(-8)).toEqual(['rolling_slope_max', 'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates'])
+      expect(rec.n_fitted_dates).toBe(4)
+      // Dates, not rows: a second value on the last date leaves the count at four.
+      const [repeat] = cohortExportRecords(buildCohortRows([...yearly, row({ labDatum: d('2023-01-01'), wertNum: 45 })], [1], [spec('global')]))
+      expect(repeat).toMatchObject({ n: 5, n_fitted_dates: 4 })
     })
 
     it('carries the OLS intercept at the first fitted date and SE = sqrt(SSres / (n - 2) / Sxx)', () => {

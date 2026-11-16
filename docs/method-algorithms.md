@@ -84,7 +84,9 @@ until then. OD-30, added on 2026-11-05 with the R reproduction export, was
 decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
 `u` that abbreviates "und" in creatinine names and was decided the same day.
 OD-31 is not used on `main`; the number is reserved by the deferred MCP
-server work.
+server work. OD-33 was added on 2026-11-16 because the in-app methodology page lagged
+behind two decisions of that day; the maintainer approved its wording the
+same day.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -129,4 +131,5 @@ methodology page. The numbers are not reused.
 | OD-28 | Implausible stated ages are reported as `age_implausible`. | [Demographics resolution](method-algorithms/demographics.md#demographics-resolution) |
 | OD-30 | Every number returned from R is serialized at full precision (`digits = NA`); decided 2026-11-13. | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) |
 | OD-32 | A lone `u` in a creatinine name is "und" only between two blood-material words or in "vor u. nach"; next to any other word it stays urine; decided 2026-11-15. | [eGFR derivation](method-algorithms/egfr.md#eligible-source-series) |
+| OD-33 | The methodology page describes AKI staging against the lowest value of the previous 7 days and the "Slope range" label for Theil-Sen bounds on fewer than five dates; wording approved 2026-11-16. | [AKI staging](method-algorithms/aki.md#staging) |
 

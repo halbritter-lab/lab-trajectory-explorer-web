@@ -33,6 +33,23 @@ describe('akiModule', () => {
     expect(marker).toMatchObject({ kind: 'marker', label: 'AKI I' })
     expect(marker?.title).toContain('creatinine peak 1.5 mg/dl')
   })
+  it('names the value and the seven-day reference that give the stage in the marker title', () => {
+    const titles = (values: [string, number][]) => {
+      const rows = values.map(([date, value]) => row(`${date}T00:00:00Z`, value))
+      return akiModule.series({
+        patientId: 1, seriesKey: { bezeichnung: 'Kreatinin', einheit: 'mg/dl' }, patientRows: rows,
+        points: rows.map((r) => ({ date: r.labDatum!, value: r.wertNum! })), mode: 'global', events: [], fitInputs: [], cache: new Map(),
+      }).overlays?.filter((overlay) => overlay.kind === 'marker').map((overlay) => overlay.title)
+    }
+    // Detected against 1.2 (48 hours), staged against 1.0: 3.2-fold is stage III. No "baseline 1.2" beside it.
+    expect(titles([['2024-01-01', 1.0], ['2024-01-04', 1.2], ['2024-01-05', 3.2]])).toEqual([
+      'AKI stage III, onset 05/01/2024, creatinine peak 3.2 mg/dl on 05/01/2024; staged against 1 mg/dl, the lowest value of the 7 days before',
+    ])
+    // The stage comes from 3.1 on day 7, not from the peak 3.3 on day 8.
+    expect(titles([['2024-01-01', 1.0], ['2024-01-07', 1.4], ['2024-01-08', 3.1], ['2024-01-09', 3.3]])).toEqual([
+      'AKI stage III, onset 08/01/2024, creatinine peak 3.3 mg/dl on 09/01/2024; staged from 3.1 mg/dl on 08/01/2024 against 1 mg/dl, the lowest value of the 7 days before',
+    ])
+  })
   const spiky = [
     row('2020-01-01T00:00:00Z', 1.0),
     row('2020-01-02T00:00:00Z', 1.6),
