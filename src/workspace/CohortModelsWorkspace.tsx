@@ -626,7 +626,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         {levelCounts.length > 0 && <p className="muted cm-level-counts" aria-label="Patients per level">
           Whole cohort, patients per level (with enough measurement times): {levelCounts.map(([key, levels]) => `${key === 'sex' ? 'Sex' : key}: ${levels.map(item => `${item.level} ${item.patients} (${item.qualifying})`).join(', ')}`).join('; ')}
         </p>}
-        {patientsNotInModel.length > 0 && <details className="cm-excluded-patients">
+        {(noFit || !spec) ? <p className="muted" aria-label="Patients not in the model">{noFit ? 'No patient is in the model: the data preparation of this parameter is No fit.' : 'No patient is in the model: no parameter is selected.'}</p> : patientsNotInModel.length > 0 && <details className="cm-excluded-patients">
           <summary>Patients not in the model ({patientsNotInModel.length})</summary>
           <ul aria-label="Patients not in the model">{patientsNotInModel.map(patient => <li key={patient.patientId}>{patient.patientId}: {patient.reason}</li>)}</ul>
         </details>}

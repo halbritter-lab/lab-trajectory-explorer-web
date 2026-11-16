@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ReactElement } from 'react'
 import { TrajectoriesWorkspace } from '../../src/workspace/TrajectoriesWorkspace'
@@ -420,27 +420,84 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getAllByText('Inspect events (1)')).toHaveLength(3)
     expect(screen.getAllByText(/Patient ID-A, 15\/06\/2021: Recorded visit/)).toHaveLength(3)
   })
-  it('says how many loaded events belong to patients that are not plotted', () => {
+  it('says how many events of the shown patients are not plotted', () => {
     const data = fixture()
     const event = { type: 'other' as const, date: new Date('2021-06-15T00:00:00Z'), title: 'Recorded visit', description: null, endDate: null, intent: null, warning: '' as const }
-    data.events = [{ ...event, patientId: 'ID-A' }, { ...event, patientId: 'ID-NOT-PLOTTED' }]
+    data.events = [{ ...event, patientId: 'ID-A' }, { ...event, patientId: 'ID-B' }]
+    data.rows = data.rawRows = data.rows.filter(row => row.patientId !== 'ID-B')
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
     openDisplay()
     fireEvent.click(screen.getByRole('checkbox', { name: 'Events' }))
     expect(screen.getAllByText('Inspect events (1 of 2)')).toHaveLength(3)
-    expect(screen.getAllByText('1 event belongs to a patient not plotted here (no plotted value of this parameter, or hidden).')).toHaveLength(3)
+    expect(screen.getAllByText('1 event belongs to a patient not plotted here (no plotted value of this parameter, or group hidden).')).toHaveLength(3)
   })
-  it('switches Trend back on when a column leaves a no-fit setting', () => {
-    renderWorkspace(<TrajectoriesWorkspace data={fixture()} />)
-    enableTrend('Marker · unit-0')
-    const trend = () => screen.getByRole('checkbox', { name: 'Analyse trend: Marker · unit-0' }) as HTMLInputElement
-    openSettings('Marker · unit-0')
-    calculationSettings()
-    fireEvent.change(screen.getByLabelText('Fit model'), { target: { value: 'none' } })
-    expect(trend().checked).toBe(false)
-    fireEvent.change(screen.getByLabelText('Fit model'), { target: { value: 'ols' } })
-    expect(trend().checked).toBe(true)
+  it('counts only the events of the open patient in the detail view', () => {
+    const data = fixture()
+    const event = { type: 'other' as const, date: new Date('2021-06-15T00:00:00Z'), title: 'Recorded visit', description: null, endDate: null, intent: null, warning: '' as const }
+    data.events = [{ ...event, patientId: 'ID-A' }, { ...event, patientId: 'ID-B' }]
+    renderWorkspace(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
+    openDisplay()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Events' }))
+    expect(screen.getAllByText('Inspect events (1)').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/not plotted here/)).toBeNull()
+  })
+  describe('Trend and line choices across a no-fit setting', () => {
+    const label = 'Marker · unit-0'
+    const trend = () => screen.getByRole('checkbox', { name: `Analyse trend: ${label}` }) as HTMLInputElement
+    const line = () => screen.getByRole('button', { name: `Show trend line: ${label}` })
+    const method = (value: string) => fireEvent.change(screen.getByLabelText(`Trend method: ${label}`), { target: { value } })
+
+    it('returns Trend and the shown lines after a no-fit preset and back', () => {
+      renderWorkspace(<TrajectoriesWorkspace data={fixture()} />)
+      enableTrend(label, true)
+      openSettings(label)
+      calculationSettings()
+      fireEvent.change(screen.getByLabelText('Fit model'), { target: { value: 'none' } })
+      expect(trend().checked).toBe(false)
+      expect(trend()).toBeDisabled()
+      expect(line()).toHaveAttribute('aria-pressed', 'false')
+      expect(screen.queryByText('Fit model disabled.')).toBeNull()
+      fireEvent.change(screen.getByLabelText('Fit model'), { target: { value: 'ols' } })
+      expect(trend().checked).toBe(true)
+      expect(line()).toHaveAttribute('aria-pressed', 'true')
+    })
+    it('returns Trend when a no-fit column goes back to the shared settings', () => {
+      renderWorkspace(<TrajectoriesWorkspace data={fixture()} />)
+      enableTrend(label)
+      method('none')
+      expect(trend().checked).toBe(false)
+      openSettings(label)
+      fireEvent.click(screen.getByRole('button', { name: 'Use shared settings' }))
+      expect(trend().checked).toBe(true)
+    })
+    it('returns Trend when another page changes the shared data preparation', () => {
+      renderWorkspace(<TrajectoriesWorkspace data={fixture()} />)
+      enableTrend(label)
+      const shared = useAppStore.getState().trajectoryFitSettings.shared
+      openSettings()
+      calculationSettings()
+      fireEvent.change(screen.getByLabelText('Fit model'), { target: { value: 'none' } })
+      expect(trend().checked).toBe(false)
+      // Cohort models write the shared store directly (changeDataPreparation).
+      act(() => useAppStore.getState().setTrajectoryFitSettings({ shared, columns: {} }))
+      expect(trend().checked).toBe(true)
+    })
+    it('keeps an explicit untick after a later shared-settings change', () => {
+      renderWorkspace(<TrajectoriesWorkspace data={fixture()} />)
+      enableTrend(label)
+      method('none')
+      openSettings(label)
+      fireEvent.click(screen.getByRole('button', { name: 'Use shared settings' }))
+      closeSettings()
+      fireEvent.click(trend())
+      expect(trend().checked).toBe(false)
+      openSettings()
+      calculationSettings()
+      fireEvent.change(screen.getByLabelText('Time balancing'), { target: { value: 'monthly-median' } })
+      expect(trend().checked).toBe(false)
+    })
   })
   it('offers all parameters with distinct units, and cancel preserves applied columns', () => {
     renderWorkspace(<TrajectoriesWorkspace data={fixture()} />)

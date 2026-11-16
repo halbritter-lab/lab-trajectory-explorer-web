@@ -40,7 +40,7 @@ export function lme4ModelCall(config: MixedModelConfig): string {
 
 /** Lines of an R script that refits every successful lme4 model of a model
  * workbook from its `model_rows` sheet with the worker's own R code. */
-export function mixedModelRScript(models: readonly { entity: string; result: MixedModelResult; identity?: { groupValue?: string } }[], workbookName = 'cohort-models.xlsx'): string[] {
+export function mixedModelRScript(models: readonly { entity: string; result: MixedModelResult; identity?: { groupValue?: string } }[], workbookName = 'cohort-models.xlsx', exportId = ''): string[] {
   // File names come from the app (letters, digits, dot, hyphen); anything else falls back to the default.
   const workbook = /^[\w.-]+$/.test(workbookName) ? workbookName : 'cohort-models.xlsx'
   const comment = (text: string) => text.replace(/[\r\n\0\p{Cs}]+/gu, ' ')
@@ -52,7 +52,9 @@ export function mixedModelRScript(models: readonly { entity: string; result: Mix
     `#   x <- readxl::read_excel("${workbook}", sheet = "r_script")$line`,
     '#   x[is.na(x)] <- ""; writeLines(x, "refit.R")',
     '# then run source("refit.R") in the folder that holds the workbook. mm_workbook below',
-    '# is the file name as downloaded; change it if you renamed or moved the file.',
+    '# is the file name as downloaded; change it if you renamed or moved the file, or if',
+    '# the browser saved it under another name (a second download can become "... (1).xlsx").',
+    '# The script stops when the workbook it opens is not the export this sheet came from.',
     '# Needs lme4 and readxl.',
     '#',
     '# The rows come from the model_rows sheet exactly as they were passed to R in the',
@@ -69,6 +71,11 @@ export function mixedModelRScript(models: readonly { entity: string; result: Mix
     '# and replace lme4::lmer with lmerTest::lmer; the call is otherwise unchanged.',
     '',
     `mm_workbook <- "${workbook}"`,
+    ...(/^[\w-]+$/.test(exportId) ? [
+      `mm_export_id <- "${exportId}"`,
+      'mm_about <- as.character(readxl::read_excel(mm_workbook, sheet = "about")$note)',
+      'if (!any(mm_about == paste0("export_id: ", mm_export_id))) stop("This script belongs to export ", mm_export_id, ", but ", mm_workbook, " is another export. Set mm_workbook to the workbook this r_script sheet came from.")',
+    ] : []),
     'mm_rows <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "model_rows", trim_ws = FALSE))',
     'mm_coefficients <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "coefficients", trim_ws = FALSE))',
     'mm_fits <- list()',

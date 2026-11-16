@@ -96,7 +96,7 @@ describe('workspace workbook', () => {
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('hidden')
     expect(records(workbook,'parameters')).toEqual(expect.arrayContaining([expect.objectContaining({formula:'ekfc-2021',source_parameter:'Creatinine',source_unit:'mg/dl'})]))
     expect(records(workbook,'about').some(row => String(row.note).includes('Research use only'))).toBe(true)
-    expect(records(workbook,'about').some(row => String(row.note).startsWith('eGFR series whose name ends in "computed" are calculated by the app'))).toBe(true)
+    expect(records(workbook,'about').some(row => String(row.note).startsWith('eGFR series whose name ends in ", computed)", for example "eGFR (CKD-EPI 2021, computed)", are calculated by the app'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).startsWith('endpoint_percent_decline is a decline: positive when eGFR fell'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('numeric limits remain'))).toBe(true)
   })

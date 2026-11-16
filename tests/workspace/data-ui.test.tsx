@@ -24,7 +24,7 @@ it('presents readable sex labels while retaining the recorded codes', () => {
 })
 it('names the serum creatinine series the selected eGFR source leaves out, and counts bounds', () => {
   const base = { ...row, patientSex: 'm' as const, patientAgeAtLab: 50 }
-  useAppStore.getState().replaceDataset({ rows: [base, { ...base, wert: '<0,3', wertNum: 0.3, wertOperator: '<' as const }, { ...base, bezeichnung: 'Kreatinin i.S.' }, { ...base, einheit: 'µmol/l', wert: '88', wertNum: 88 }] })
+  useAppStore.getState().replaceDataset({ rows: [base, { ...base, wert: '<0,3', wertNum: 0.3, wertOperator: '<' as const }, { ...base, wert: 'ca. 1', wertNum: 1, wertOperator: 'unparseable' as const }, { ...base, wert: '1-2', wertNum: 1, wertOperator: 'range' as const }, { ...base, bezeichnung: 'Kreatinin i.S.' }, { ...base, einheit: 'µmol/l', wert: '88', wertNum: 88 }] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   expect(screen.getByText(/1 value recorded as a bound \(< or >\)/)).toBeInTheDocument()
   expect(screen.queryByText(/Not used for this eGFR/)).not.toBeInTheDocument()

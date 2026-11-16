@@ -337,7 +337,9 @@ for every patient behind "Complete cases: n patients / all": besides the
 patients removed for a factor value it names each patient who has no usable
 measurement of the outcome after data preparation, with that reason (since
 2026-11-16; before, only the factor removals were listed, so 25 of 28 complete
-cases could stand next to one listed patient). The `excluded_patients`
+cases could stand next to one listed patient). When no model rows exist
+because the data preparation is No fit, or no parameter is selected, the list
+is replaced by one line with that reason. The `excluded_patients`
 worksheet is unchanged and holds the factor removals only.
 
 **Centring.** Each numeric factor is centred at the arithmetic mean of its raw
@@ -620,7 +622,10 @@ extended in R. They add no estimate and change none.
 - **`r_script`.** An R script, one line per row in the column `line`, that
   sets `mm_workbook` to the file name of the download
   (`cohort-models-<timestamp>.xlsx`; the fixed name `cohort-models.xlsx` until
-  2026-11-16, which did not match the downloaded file),
+  2026-11-16, which did not match the downloaded file), stops unless the
+  `about` sheet of that workbook carries the script's own `export_id` (a random
+  id written to both at export, so a browser-renamed second download cannot be
+  refitted in place of the first),
   reads `model_rows` and `coefficients` with `readxl` (`trim_ws = FALSE`),
   selects each unit's rows by `unit_key`, rebuilds `mm_data`,
   factors, reference levels and treatment contrasts with the worker's own R

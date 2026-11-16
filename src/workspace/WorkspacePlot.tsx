@@ -183,6 +183,10 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const scaleLabel = scaleMode === 'shared' ? 'Shared parameter scale' : 'Zoom to visible values'
   const visibleIds = new Set(visible.map(series => series.row.patientId))
   const visibleEvents = data.events.filter(event => visibleIds.has(event.patientId))
+  // Compared with the events of the patients this plot is given (one patient in the
+  // detail view, the filtered rows in the overlay), not with every loaded event.
+  const rowIds = new Set(cohortRows.map(row => row.patientId))
+  const rowEventCount = data.events.filter(event => rowIds.has(event.patientId)).length
   const x = (n: number) => 65 + (n - xMin) / (xMax - xMin) * 565
   const y = (n: number) => 240 - (n - yMin) / (yMax - yMin) * 210
   const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)' : 'Years since first measurement of this parameter'
@@ -259,7 +263,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         </g>
       )}
     </svg>}
-    {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length}{visibleEvents.length < data.events.length ? ` of ${data.events.length}` : ''})</summary>{visibleEvents.length < data.events.length && <p className="wt-muted">{data.events.length - visibleEvents.length} {data.events.length - visibleEvents.length === 1 ? 'event belongs to a patient' : 'events belong to patients'} not plotted here (no plotted value of this parameter, or hidden).</p>}{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId}, {formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
+    {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length}{visibleEvents.length < rowEventCount ? ` of ${rowEventCount}` : ''})</summary>{visibleEvents.length < rowEventCount && <p className="wt-muted">{rowEventCount - visibleEvents.length} {rowEventCount - visibleEvents.length === 1 ? 'event belongs to a patient' : 'events belong to patients'} not plotted here (no plotted value of this parameter, or group hidden).</p>}{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId}, {formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
     {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}
     {pooledModelLine && <p className="wt-muted">Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.{axis === 'age' ? ' Age axis: mean baseline age of fitted patients plus elapsed model time.' : ''}</p>}
     {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groupModelLines.map(line => groupLabel(line.group!)).join(', ')}).{axis === 'age' ? ' Age axis: mean baseline age of each group plus elapsed model time.' : ''}</p>}
