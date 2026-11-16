@@ -9,9 +9,18 @@ remains as a redirect to `index.html` (query and hash are kept) so older links
 work. The synthetic design prototype remains available for comparison.
 Data stays in the browser. By default it lasts only for the current session.
 Under Data, **Remember on this device** opts into an unencrypted local snapshot
-of source labs, events, attributes, manual demographics and derivation settings.
-The snapshot expires seven days after the last data change. Reopening restores
-that data preparation; analysis/view choices and fitted models reset. The copy is
+of source labs, events, attributes, manual demographics and derivation settings,
+and (since 2026-11-16) the analysis settings of the Trajectories page: the
+shared and per-parameter fit settings, the selected parameters, Trend and
+trend-line choices and the display options. The snapshot expires seven days
+after the last data change. Reopening restores the data preparation and those
+settings. Each stored setting is checked against this version and the
+restored dataset; one that no longer fits (a removed option, a parameter that
+is no longer in the dataset) falls back to its default and is named in the
+restore notice. Settings saved in another settings version are discarded as a
+whole; the dataset is kept. Sorting, grouping, patient selection, cohort
+model settings and fitted models are not saved. Without the option, the
+browser asks before the page is reloaded or closed while a dataset is loaded. The copy is
 kept in the app's own IndexedDB database (`lab-trajectory-explorer`), not in the
 default database other apps on the same origin can share. An expired, invalid or
 unsupported copy is removed at start-up. A still valid copy saved by the previous

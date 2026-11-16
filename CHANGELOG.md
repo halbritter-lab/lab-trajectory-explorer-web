@@ -5,6 +5,28 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (saved analysis settings, leaving the page)
+
+- "Remember on this device" also saves the analysis settings of the
+  Trajectories page: presets and own settings per parameter, the selected
+  parameters, Trend and trend-line choices and the display options. After a
+  reload the table is calculated as before. A stored setting that no longer
+  fits this version or the dataset falls back to its default and is named in
+  the restore notice. Cohort model settings and results are still not saved.
+- While a dataset is loaded and not saved on this device, the browser asks
+  before the page is reloaded or closed.
+
+### Changed (breaking for scripts that read the export)
+
+- The export column `endpoint_percent_decline` is renamed
+  `endpoint_percent_change` and now has the sign the badge shows: negative
+  when eGFR fell, positive when it rose (first 50, latest 30: `-40`, formerly
+  `40`). It keeps its position, so a script that reads by position gets the
+  opposite sign without an error; a script that reads by name fails on the
+  old name. The column is the total change from the first to the latest
+  eligible value, not a rate per year and not the confirmed 40 %/57 % decline
+  event. The `about` sheet says so.
+
 ### Changed (methodology page)
 
 - The AKI page describes staging against the lowest value of the previous
@@ -76,13 +98,10 @@ interfaces are still evolving before 1.0.
 - Endpoint badge: a total fall of 40 % or more without a confirmed 40 % decline
   event says in its tooltip why the event is not confirmed. The "G5 no fit"
   tooltip says that no slope was fitted for the parameter.
-- Restoring a dataset saved on this device shows a notice that analysis
-  presets, trend and display settings and model results are not saved.
+- Restoring a dataset saved on this device shows a notice that says what was
+  restored and what is not saved.
 - Export `about` sheet: only eGFR series whose name ends in ", computed)" are
-  described as calculated by the app, and a new note in the trajectories
-  workbook states that
-  `endpoint_percent_decline` is positive for a fall while the badge shows the
-  change with the opposite sign. No exported value changes.
+  described as calculated by the app.
 
 ### Fixed (endpoint settings hint)
 

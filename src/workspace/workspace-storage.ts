@@ -4,6 +4,7 @@ import { useAppStore } from './state/store'
 import type { AnalysisContext } from '../core/analysis/types'
 import { parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
 import type { Sex, WertOperator } from '../core/types'
+import { allValues, restoreSavedSettings, SAVED_SETTINGS_VERSION, type SavedSettings } from './saved-settings'
 import {
   CLINICAL_EVENT_TYPES,
   CLINICAL_EVENT_WARNINGS,
@@ -34,6 +35,9 @@ interface Snapshot extends AnalysisContext {
   savedAt: number
   fileName: string | null
   analysisSettings: AnalysisSettings
+  /** Analysis settings of the Trajectories page. Absent in copies saved before
+   * 2026-11-16. Checked on restore, never as part of the dataset's validity. */
+  settings?: SavedSettings
 }
 interface StorageStatus {
   enabled: boolean
@@ -51,12 +55,6 @@ const nullableNumber = (v: unknown) => v === null || typeof v === 'number' && Nu
 const validDate = (v: unknown) => v instanceof Date && Number.isFinite(v.getTime())
 const nullableDate = (v: unknown) => v === null || validDate(v)
 const patientId = (v: unknown) => typeof v === 'string' && v.length > 0 || typeof v === 'number' && Number.isFinite(v)
-/** Every value a union allows, checked at compile time: adding a code to the
- * union without listing it here fails the build instead of making every saved
- * copy that uses it invalid (and therefore deleted) on the next start. */
-function allValues<T extends string | null>() {
-  return <const L extends readonly T[]>(list: L & ([T] extends [L[number]] ? unknown : 'missing union members')) => list as readonly T[]
-}
 const SEX_CODES = allValues<Sex>()(['m', 'w', 'd'])
 const OPERATORS = allValues<WertOperator>()(['=', '<', '>', 'range', 'unparseable'])
 const EVENT_TYPES = allValues<ClinicalEventType>()(CLINICAL_EVENT_TYPES)
@@ -149,6 +147,14 @@ export async function migrateLegacyStorage(
   return outcome
 }
 
+/** What a restored copy brought back and what starts from defaults. */
+export function restoredNotice(hasSettings: boolean, notRestored: readonly string[]): string {
+  const notSaved = 'Cohort model settings and results are not saved: fit the models again under Cohort models.'
+  if (!hasSettings) return `Dataset restored from this device. This copy was saved before analysis settings were remembered, so presets, trend and display settings start from their defaults. ${notSaved}`
+  return `Dataset and analysis settings (presets, trend and display choices) restored from this device. ${notSaved}`
+    + (notRestored.length ? ` Not restored, the defaults are used instead: ${notRestored.join('; ')}.` : '')
+}
+
 const EXPIRED_MESSAGE = 'The saved workspace expired after seven days and was removed. Import your file to continue.'
 const INVALID_MESSAGE = 'The saved workspace could not be read (invalid or from an unsupported version) and was removed. Import your file to continue.'
 
@@ -169,7 +175,8 @@ function snapshot(): Snapshot {
   const state = useAppStore.getState()
   return { version: 1, writeToken: crypto.randomUUID(), savedAt: Date.now(), rows: state.rows, fileName: state.fileName,
     events: state.events, patientAttributes: state.patientAttributes,
-    manualDemographics: state.manualDemographics, analysisSettings: state.analysisSettings }
+    manualDemographics: state.manualDemographics, analysisSettings: state.analysisSettings,
+    settings: { version: SAVED_SETTINGS_VERSION, trajectoryFitSettings: state.trajectoryFitSettings, trajectoryView: state.trajectoryView } }
 }
 function save(): Promise<void> {
   if (!useAppStore.getState().rows.length) return setWorkspaceRemember(false)
@@ -254,8 +261,11 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       useAppStore.getState().replaceDataset({ rows: value.rows,
         events: value.events, patientAttributes: value.patientAttributes,
         manualDemographics: value.manualDemographics, analysisSettings: parseAnalysisSettings(value.analysisSettings)!,
-        fileName: value.fileName,
-        notice: { kind: 'info', text: 'Dataset restored from this device. Analysis presets, trend and display settings and model results are not saved: set them again under Trajectories and Cohort models.' } })
+        fileName: value.fileName })
+      // Parameters include derived ones (computed eGFR), so they come from the analysis.
+      const parameterKeys = new Set(useAppStore.getState().analysisResult().rows.filter(r => r.bezeichnung !== null).map(r => JSON.stringify([r.bezeichnung, r.einheit])))
+      const { trajectoryFitSettings, trajectoryView, notRestored } = restoreSavedSettings(value.settings, parameterKeys)
+      useAppStore.setState({ trajectoryFitSettings, trajectoryView, notice: { kind: 'info', text: restoredNotice(value.settings !== undefined, notRestored) } })
       useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null })
     }
   } catch {
@@ -264,7 +274,8 @@ export async function startWorkspaceStorage(): Promise<() => void> {
   const stop = useAppStore.subscribe((state, previous) => {
     if (useWorkspaceStorage.getState().enabled && (state.rows !== previous.rows || state.events !== previous.events
       || state.patientAttributes !== previous.patientAttributes || state.manualDemographics !== previous.manualDemographics
-      || state.analysisSettings !== previous.analysisSettings || state.fileName !== previous.fileName)) void save()
+      || state.analysisSettings !== previous.analysisSettings || state.fileName !== previous.fileName
+      || state.trajectoryFitSettings !== previous.trajectoryFitSettings || state.trajectoryView !== previous.trajectoryView)) void save()
   })
   unsubscribe = stop
   return stop

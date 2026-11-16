@@ -116,6 +116,21 @@ export function defaultColumnModuleSettings(): ColumnModuleSettings {
   return settings as ColumnModuleSettings
 }
 
+/** Validate a column's stored module settings: every entry must belong to a
+ * column-configurable module and pass that module's own validation. */
+export function parseColumnModuleSettings(value: unknown): ColumnModuleSettings | null {
+  if (!isRecord(value)) return null
+  const parsed: Record<string, unknown> = {}
+  for (const [id, stored] of Object.entries(value)) {
+    const module = (analysisModules as readonly RegisteredAnalysisModule[]).find((m) => m.id === id)
+    if (!module?.columnSettingFields?.length || !isSettingsModule(module)) return null
+    const settings = module.parseSettings(stored)
+    if (settings === null) return null
+    parsed[id] = settings
+  }
+  return parsed as ColumnModuleSettings
+}
+
 /** Modules a column can configure, in registry order. */
 export function columnSettingModules(modules: readonly RegisteredAnalysisModule[] = analysisModules): RegisteredAnalysisModule[] {
   return modules.filter((module) => (module.columnSettingFields?.length ?? 0) > 0)

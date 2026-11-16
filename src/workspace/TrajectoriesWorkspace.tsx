@@ -16,6 +16,7 @@ import { measurementFitStatus } from './measurement-fit-status'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { QuietAnalysisSettings } from './trajectory-ui/AnalysisSettings'
 import { ANALYSIS_CATALOG, defaultTrajectoryFitSettings, endpointBadge, type WorkspaceFitSettings } from './workspace-analysis'
+import { defaultTrajectoryView } from './saved-settings'
 import { useAppStore } from './state/store'
 import { trajectoryTrendConfig } from './trajectory-ui/analysis'
 import { ColumnActions } from './trajectory-ui/ColumnActions'
@@ -196,7 +197,13 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const [openTool, setOpenTool] = useState<string | null>(null)
   const closeTool = () => setOpenTool(null)
   const toggleTool = (name: string) => setOpenTool(current => current === name ? null : name)
-  const [parameterKeys, setParameterKeys] = useState(() => data.parameters.slice(0, 3).map(p => p.key))
+  // Choices saved with "Remember on this device" (see saved-settings.ts); the
+  // storage restores them into the store before this page mounts.
+  const [savedView] = useState(() => useAppStore.getState().trajectoryView)
+  const [parameterKeys, setParameterKeys] = useState(() => {
+    const saved = (savedView.parameterKeys ?? []).filter(key => data.parameters.some(p => p.key === key))
+    return saved.length ? saved : data.parameters.slice(0, 3).map(p => p.key)
+  })
   const [draftKeys, setDraftKeys] = useState<string[] | null>(null)
   useEffect(() => {
     if (!active) { setOpenTool(null); setDraftKeys(null) }
@@ -217,17 +224,20 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const [mode, setMode] = useState<'table' | 'overlay' | 'detail'>('table')
   const [patientId, setPatientId] = useState<PatientId | null>(null)
   const [returnMode, setReturnMode] = useState<'table' | 'overlay'>('table')
-  const [axis, setAxis] = useState<WorkspaceAxis>('baseline')
-  const [scaleMode, setScaleMode] = useState<'shared' | 'zoom'>('shared')
-  const [chartSize, setChartSize] = useState<SparkSize>('small')
-  const [cellDetails, setCellDetails] = useState<'minimal' | 'full' | 'compact'>('minimal')
-  const [warningIcons, setWarningIcons] = useState(true)
+  const [axis, setAxis] = useState<WorkspaceAxis>(savedView.axis)
+  const [scaleMode, setScaleMode] = useState<'shared' | 'zoom'>(savedView.scaleMode)
+  const [chartSize, setChartSize] = useState<SparkSize>(savedView.chartSize)
+  const [cellDetails, setCellDetails] = useState<'minimal' | 'full' | 'compact'>(savedView.cellDetails)
+  const [warningIcons, setWarningIcons] = useState(savedView.warningIcons)
   const [tableWidth, setTableWidth] = useState(0)
   const [attributeTableWidth, setAttributeTableWidth] = useState(0)
   const [highlight, setHighlight] = useState<PatientId | null>(null)
-  const [display, setDisplay] = useState<WorkspaceDisplay>(DEFAULT_WORKSPACE_DISPLAY)
-  const [fitKeys, setFitKeys] = useState<string[]>([])
-  const [trendKeys, setTrendKeys] = useState<string[]>([])
+  const [display, setDisplay] = useState<WorkspaceDisplay>({ ...DEFAULT_WORKSPACE_DISPLAY, ...savedView.display })
+  const [fitKeys, setFitKeys] = useState<string[]>(savedView.fitKeys)
+  const [trendKeys, setTrendKeys] = useState<string[]>(savedView.trendKeys)
+  useEffect(() => {
+    useAppStore.getState().setTrajectoryView({ parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons })
+  }, [parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons])
   const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
   const fitSettings = trajectoryFitSettings.shared
   const columnSettings = trajectoryFitSettings.columns
@@ -243,7 +253,16 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   }
   // The settings live in the shared store, where Cohort models read and can
   // change them too; return to the defaults when this workspace goes away.
-  useEffect(() => () => useAppStore.getState().setTrajectoryFitSettings(defaultTrajectoryFitSettings()), [])
+  // Mounting re-applies what the store held (settings restored from this
+  // device), so React's development-mode remount does not drop them.
+  const [initialFitSettings] = useState(() => useAppStore.getState().trajectoryFitSettings)
+  useEffect(() => {
+    useAppStore.getState().setTrajectoryFitSettings(initialFitSettings)
+    return () => {
+      useAppStore.getState().setTrajectoryFitSettings(defaultTrajectoryFitSettings())
+      useAppStore.getState().setTrajectoryView(defaultTrajectoryView())
+    }
+  }, [initialFitSettings])
   const [requestedSettingsScope, setSettingsScope] = useState('')
   const settingsScope = parameterKeys.includes(requestedSettingsScope) && data.parameters.some(p => p.key === requestedSettingsScope) ? requestedSettingsScope : ''
   // A no-fit setting (Acute review) leaves trendKeys and fitKeys alone: the fit

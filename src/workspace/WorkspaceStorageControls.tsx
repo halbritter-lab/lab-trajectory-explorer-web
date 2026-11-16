@@ -25,7 +25,7 @@ export function WorkspaceStorageControls({ hasData }: { hasData: boolean }) {
     </div>}
     <label><input type="checkbox" checked={enabled} disabled={!hasData && !enabled}
       onChange={event => void setWorkspaceRemember(event.target.checked)} /> Remember on this device</label>
-    <p className="muted">Optional, unencrypted browser storage for seven days after the last data change. Saves lab values, events, attributes, demographic edits and derivation settings. Analysis views and model results reset when reopening.</p>
+    <p className="muted">Optional, unencrypted browser storage for seven days after the last data change. Saves lab values, events, attributes, demographic edits, derivation settings and the analysis settings of the Trajectories page: presets and own settings per parameter, the selected parameters, Trend and trend-line choices and display options. Sorting, grouping and patient selection, and cohort model settings and results, are not saved. Without this option the browser asks before the page is reloaded or closed, because the data would be lost.</p>
     <div className="actions">
       {hasData && <button type="button" disabled={busy} onClick={() => void clearCurrent()}>Clear dataset</button>}
       {(enabled || status === 'error') && <button type="button" onClick={() => void setWorkspaceRemember(false)}>Clear saved data</button>}

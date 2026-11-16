@@ -4,6 +4,8 @@ import { clear as clearDb, del as delDb, get as getDb, set as setDb, keys } from
 import { WorkspaceApp } from '../../src/workspace/WorkspaceApp'
 import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
+import { defaultTrajectoryView } from '../../src/workspace/saved-settings'
+import { defaultFitSettings, defaultTrajectoryFitSettings } from '../../src/workspace/workspace-analysis'
 import { DATASET_TTL_MS, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
 
 // The workspace keeps its copy in its own database; the default database is
@@ -50,12 +52,60 @@ describe('workspace local storage', () => {
     const restored = useAppStore.getState()
     expect(restored.rows[0].labDatum).toEqual(new Date('2020-01-01'))
     expect(restored.fileName).toBe('input.csv')
-    expect(restored.notice?.text).toBe('Dataset restored from this device. Analysis presets, trend and display settings and model results are not saved: set them again under Trajectories and Cohort models.')
+    expect(restored.notice?.text).toBe('Dataset and analysis settings (presets, trend and display choices) restored from this device. Cohort model settings and results are not saved: fit the models again under Cohort models.')
     expect(restored.events[0].date).toEqual(new Date('2020-02-01'))
     expect(restored.patientAttributes.A.genotype).toBe('G1')
     expect(restored.manualDemographics.A).toEqual({ age: 42, sex: 'w' })
     expect(restored.analysisSettings.egfr.formula).toBe('mdrd-4')
     expect(restored.cohortModelResults).toBeNull()
+    expect(useWorkspaceStorage.getState().enabled).toBe(true)
+  })
+  it('saves and restores the Trajectories analysis settings with the dataset', async () => {
+    const key = JSON.stringify(['Marker', 'u'])
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const fit = { shared: defaultFitSettings(), columns: { [key]: defaultFitSettings('ckd_progression') } }
+    const view = { ...defaultTrajectoryView(), parameterKeys: [key], trendKeys: [key], fitKeys: [key], axis: 'age' as const, display: { events: true } }
+    // A settings change alone triggers a save.
+    await act(async () => { useAppStore.getState().setTrajectoryFitSettings(fit); useAppStore.getState().setTrajectoryView(view); await new Promise(resolve => setTimeout(resolve, 20)) })
+    await waitFor(() => expect(useWorkspaceStorage.getState().status).toBe('saved'))
+    expect((await get(WORKSPACE_STORAGE_KEY)).settings).toEqual({ version: 1, trajectoryFitSettings: fit, trajectoryView: view })
+    stop?.()
+    useAppStore.getState().reset()
+    stop = await startWorkspaceStorage()
+    expect(useAppStore.getState().trajectoryFitSettings).toEqual(fit)
+    expect(useAppStore.getState().trajectoryView).toEqual(view)
+    // Clearing the saved copy removes the settings with it.
+    await act(async () => { await setWorkspaceRemember(false) })
+    expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+  })
+  it('restores a copy without settings with defaults and says so', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const { settings: _settings, ...old } = await get(WORKSPACE_STORAGE_KEY)
+    await set(WORKSPACE_STORAGE_KEY, old)
+    stop?.()
+    useAppStore.getState().reset()
+    stop = await startWorkspaceStorage()
+    expect(useAppStore.getState().rows).toHaveLength(1)
+    expect(useAppStore.getState().trajectoryFitSettings).toEqual(defaultTrajectoryFitSettings())
+    expect(useAppStore.getState().notice?.text).toMatch(/^Dataset restored from this device\. This copy was saved before analysis settings were remembered/)
+  })
+  it('keeps the dataset and names stored settings that no longer fit', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    copy.settings.trajectoryFitSettings.columns[JSON.stringify(['Gone', 'u'])] = defaultFitSettings('ckd_progression')
+    copy.settings.trajectoryView.chartSize = 'huge'
+    await set(WORKSPACE_STORAGE_KEY, copy)
+    stop?.()
+    useAppStore.getState().reset()
+    stop = await startWorkspaceStorage()
+    const restored = useAppStore.getState()
+    expect(restored.rows).toHaveLength(1)
+    expect(restored.trajectoryFitSettings.columns).toEqual({})
+    expect(restored.trajectoryView.chartSize).toBe('small')
+    expect(restored.notice?.text).toContain('Not restored, the defaults are used instead: own settings of Gone [u] (parameter not in this dataset); chart size.')
     expect(useWorkspaceStorage.getState().enabled).toBe(true)
   })
   it('clears current and saved data only after confirming the dataset reset', async () => {
