@@ -97,7 +97,7 @@ export function NephrologySettings({ parameter, settings: fitSettings, onUpdate:
             <label>Minimum confirmation interval (days)
               <ConfirmationDaysInput value={fitSettings.endpoints.confirmationDays ?? DEFAULT_CONFIRMATION_DAYS} onChange={days => updateSettings({ endpoints: { ...fitSettings.endpoints, confirmationDays: days } })} />
             </label>
-            <p className="wt-muted">G4: below {CKD_G4_EGFR_THRESHOLD}; G5: below {CKD_G5_EGFR_THRESHOLD} mL/min/1.73m². Confirm within 12 calendar months of the first crossing. Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event.</p>
+            <p className="wt-muted">G4: below {CKD_G4_EGFR_THRESHOLD}; G5: below {CKD_G5_EGFR_THRESHOLD} mL/min/1.73m². Confirm within 12 calendar months of the first crossing. Recovery before confirmation restarts the candidate. Recovery afterwards is shown separately and preserves the confirmed event. A confirmed eGFR below {CKD_G4_EGFR_THRESHOLD} (CKD G4) is what some groups call advanced CKD (aCKD).</p>
             <label>
               <input
                 type="checkbox"

@@ -5,6 +5,21 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (interface text, 2026-11-16)
+
+- The Data page explains next to the example files that the demo workbook
+  mirrors a German laboratory export (German test names, sex codes "w" and
+  "m", decimal commas) and that English test names, "male" and "female", and
+  decimal points are read the same way. The demo data are unchanged.
+- The endpoint settings name "advanced CKD (aCKD)" as a common term for a
+  confirmed eGFR below 30 (CKD G4). Labels, badges and export columns keep
+  "CKD G4".
+
+### Fixed (interface text, 2026-11-16)
+
+- The `G5 < 5 dates` tooltip now says that the 67 % and 92 % coverage of the
+  Theil–Sen interval holds for one measurement on each of three or four dates.
+
 ### Fixed (release review, 2026-11-15)
 
 - Creatinine names with the abbreviation "u." for "und" between two blood

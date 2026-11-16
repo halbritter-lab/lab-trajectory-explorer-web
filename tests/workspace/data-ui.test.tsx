@@ -181,6 +181,8 @@ it('offers the demo files next to the empty templates', () => {
   const section = demo.closest('details')
   expect(section).not.toHaveAttribute('open')
   expect(within(section!).getByText('Templates and example files')).toBeInTheDocument()
+  // The hint's claims are pinned in the sex, value and analyte tests; here only that it is shown.
+  expect(within(section!).getByText(/mirrors a German laboratory export.*“male” and “female”, and decimal points are read the same way/)).toBeInTheDocument()
   expect(screen.getByRole('button', { name: 'Load demo data' })).not.toHaveClass('primary')
 })
 it('quotes unreadable sex spellings in the eGFR preview until the sex is resolved', () => {

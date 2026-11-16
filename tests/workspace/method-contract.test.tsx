@@ -70,6 +70,7 @@ describe('approved method settings and provenance', () => {
     render(<SettingsHarness />)
     fireEvent.click(screen.getByText('Advanced pipeline settings'))
     expect(screen.getByLabelText('Observed CKD G4')).toBeChecked()
+    expect(screen.getByText(/A confirmed eGFR below 30 \(CKD G4\) is what some groups call advanced CKD \(aCKD\)\./)).toBeInTheDocument()
     expect(screen.getByLabelText('Minimum confirmation interval (days)')).toHaveValue(90)
     expect(screen.getByText('Unconfirmed')).toBeInTheDocument()
     fireEvent.change(screen.getByLabelText('Minimum confirmation interval (days)'), { target: { value: '30' } })

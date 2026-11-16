@@ -144,6 +144,7 @@ describe('Theil-Sen projection needs five distinct dates', () => {
     expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-9.006, 3)
     expect(record.endpoint_prediction_reason).toBe('theil_sen_insufficient_points')
     expect(endpointBadge(cell.endpoints, cell.points.length)?.label).toBe('G5 < 5 dates')
+    expect(endpointBadge(cell.endpoints, cell.points.length)?.title).toContain('With one measurement on each of three or four dates')
   })
 
   it('counts dates, not rows, and projects from five distinct dates', () => {
