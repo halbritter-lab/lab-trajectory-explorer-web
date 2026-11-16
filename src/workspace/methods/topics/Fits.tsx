@@ -68,6 +68,8 @@ export function Fits() { return <>
           are in fact clean. At least three observations and two distinct dates are required.
           The intercept is median(value) minus slope times median(time). The reported 95% bounds
           describe uncertainty in the slope, not a prediction interval for individual values.
+          With fewer than five dates the reported bounds are not a 95% interval; the table then
+          labels them ‘Slope range’.
         </li>
         <li>
           <strong>Rolling OLS</strong> — a separate OLS fit inside each two-year window (730

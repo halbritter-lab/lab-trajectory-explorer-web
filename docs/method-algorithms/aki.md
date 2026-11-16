@@ -160,15 +160,8 @@ applies to every detected crossing whatever the size of the rise: 4.2 to
 4.5 mg/dl on consecutive days is stage III. Exactly 2.0-fold is stage II and
 exactly 3.0-fold is stage III.
 
-> **Open decision OD-33.** The methodology page of the app still describes the
-> staging used until 2026-11-16: `Aki.tsx` says episodes are staged "by the
-> ratio of peak creatinine to the reference baseline" with a 48-hour baseline
-> for the absolute criterion (about lines 28 and 43), and that daily values of
-> 1.0 to 3.0 mg/dl "give four Stage I episodes" (about line 91; the app now
-> shows `AKI I, 2×II, III`). The corrected wording is drafted in
-> [methodology wording drafts](../methodology-wording-drafts.md) (D3 (d2)) and
-> waits for the maintainer's approval; the page was not edited with the code
-> change.
+The methodology page of the app states the same rule and the same example
+(wording approved 2026-11-16, formerly OD-33).
 
 **The staging reference can be lower than the recorded baseline** (decided
 2026-11-16). The absolute criterion is tested first and records the 48-hour

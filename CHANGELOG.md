@@ -5,6 +5,13 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (methodology page)
+
+- The AKI page describes staging against the lowest value of the previous
+  7 days, says that no earlier baseline is used, and gives the sustained-rise
+  example as stages I, II, II and III. The Fits page says that Theil–Sen
+  bounds on fewer than five dates are not a 95% interval.
+
 ### Changed (AKI staging, 2026-11-16)
 
 - AKI stages are graded against the lowest creatinine of the seven days

@@ -537,10 +537,15 @@ sign-off. Details, boundaries and recomputed examples are in
   `ci_low` and `ci_high` are unchanged. The export gains the column
   `n_fitted_dates`, appended last, so that the affected rows can be
   identified, and the workbook's `about` sheet refers to it.
-- **The methodology page lags behind both decisions (OD-33).** `Aki.tsx` and
-  `Fits.tsx` still state the earlier staging and "95% bounds". The page was
-  not edited with the code; its wording is the maintainer's and is drafted as
-  D3 (a) and D3 (d2) in the [wording drafts](methodology-wording-drafts.md).
+- **The methodology page follows both decisions (OD-33, resolved).** The
+  maintainer approved four sentences on 2026-11-16: `Aki.tsx` now says that
+  episodes are staged against the lowest value of the previous 7 days, that
+  no earlier baseline is used (so an AKI present at the first measurement or
+  a rise slower than 7 days is not detected), and that daily values of 1.0 to
+  3.0 mg/dl give four episodes of stages I, II, II and III; `Fits.tsx` says
+  that Theil-Sen bounds on fewer than five dates are not a 95% interval. The
+  fuller texts of the [wording drafts](methodology-wording-drafts.md) (C8,
+  D3) are still to be approved.
 
 ## Approved requirements
 

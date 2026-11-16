@@ -25,7 +25,7 @@ export function Aki() { return <>
         (mg/dl for absolute values, unitless for ratios), so a rise exactly on a decimal boundary
         is not missed through floating-point rounding.
       </p>
-      <p>AKI episodes are staged by the ratio of peak creatinine to the reference baseline:</p>
+      <p>AKI episodes are staged by the ratio of creatinine to the lowest value of the previous 7 days:</p>
       <ul>
         <li>
           <strong>Stage I</strong> — rise ≥ 0.3 mg/dl or peak/baseline ≥ 1.5×, unless a higher stage
@@ -40,9 +40,10 @@ export function Aki() { return <>
         </li>
       </ul>
       <p>
-        The reference baseline is the <strong>lowest creatinine within the lookback window</strong>
-        {' '}(48 h for the absolute criterion, 7 days for the relative criterion) — a pragmatic
-        baseline for automated detection that maximises sensitivity.
+        Detection compares each value with the <strong>lowest creatinine within the lookback window</strong>
+        {' '}(48 h for the absolute criterion, 7 days for the relative criterion). The stage always
+        uses the lowest value of the previous 7 days. No earlier baseline is used, so an AKI that is
+        already present at the first measurement, or a rise slower than 7 days, is not detected.
       </p>
       <p>
         AKI chips in the patient table summarise detected stages as Roman numerals (e.g.{' '}
@@ -89,8 +90,8 @@ export function Aki() { return <>
         Each measurement that meets a criterion is a crossing. Consecutive crossings form one
         episode only while they share the same baseline date; the onset is the date of the first
         crossing. An episode has no end date, so a sustained rise is reported as a chain of
-        episodes: daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give four Stage I
-        episodes.
+        episodes: daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give four episodes,
+        of stages I, II, II and III.
       </p>
       <p>
         With AKI exclusion on, each episode removes from the fit all measurements from the onset

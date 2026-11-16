@@ -181,11 +181,8 @@ one measurement on each of three or four dates, the Theil–Sen bounds are the
 full range of pairwise slopes and cover the true slope only about 67 % or
 92 % of the time." OLS fits always read `95% slope CI`.
 
-> **Open decision OD-33.** The methodology page of the app (`Fits.tsx`, about
-> line 69) still calls the Theil-Sen bounds "reported 95% bounds" without this
-> qualification. The corrected wording is drafted in
-> [methodology wording drafts](../methodology-wording-drafts.md) (D3 (a)) and
-> waits for the maintainer's approval.
+The methodology page of the app (`Fits.tsx`) carries the same qualification
+(wording approved 2026-11-16, formerly OD-33).
 
 The kernel expects valid numeric points from preparation. The minimum applies
 to the actual prepared observations when used for a display fit. All pairs are
