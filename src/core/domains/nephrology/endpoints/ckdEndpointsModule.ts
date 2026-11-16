@@ -1,5 +1,5 @@
 import type { AnalysisModule, EndpointContext, ModuleExportCell, SeriesKey } from '../../../analysis/types'
-import type { CkdEndpointConfig } from '../fitConfig'
+import { excludesAkiWindows, type CkdEndpointConfig } from '../fitConfig'
 import { isEgfrUnit } from '../analytes'
 import { computeCkdEndpoints, type CkdEndpoints, type CkdEndpointSettings } from './ckdEndpoints'
 import { projectionTargetPresets as renalProjectionTargets } from '../projectionPresets'
@@ -57,8 +57,7 @@ export const ckdEndpointsModule = {
     const fit = projecting && !kidneyFailureReached ? ctx.fit() : { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
     return computeCkdEndpoints({ points: ctx.points(projecting), fitPoints: ctx.fitPoints(projecting), slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
       kidneyFailureReached, ageBasis: ctx.ageBasis, fitModel: ctx.scalarFitModel,
-      // The condition under which the AKI module supplies the column's exclusion windows.
-      inputExcludesAkiWindows: ctx.mode === 'aki-aware' || (ctx.fitConfig?.exclusions.excludeAkiWindows ?? false) })
+      inputExcludesAkiWindows: excludesAkiWindows(ctx) })
   },
   // Column order is part of the export format: the first three predate the
   // others, which were appended so positional readers keep working.

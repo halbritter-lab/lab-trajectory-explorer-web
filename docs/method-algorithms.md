@@ -77,7 +77,10 @@ owner decided all of them on the same day (see
 listed under *Resolved decisions* below. Four remain, **OD-11, OD-21, OD-22
 and OD-29: to be changed after release 0.3.0.** Their behaviour is unchanged
 until then. OD-30, added on 2026-11-05 with the R reproduction export, was
-decided on 2026-11-13.
+decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
+`u` that abbreviates "und" in creatinine names and was decided the same day.
+OD-31 is not used on `main`; the number is reserved by the deferred MCP
+server work.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -121,6 +124,7 @@ methodology page. The numbers are not reused.
 | OD-27 | An empty pre-parsed operator beside a number means an exact value. | [Import and value interpretation](#import-and-value-interpretation) |
 | OD-28 | Implausible stated ages are reported as `age_implausible`. | [Demographics resolution](#demographics-resolution) |
 | OD-30 | Every number returned from R is serialized at full precision (`digits = NA`); decided 2026-11-13. | [Cohort mixed models](#cohort-mixed-models) |
+| OD-32 | A lone `u` in a creatinine name is "und" only between two blood-material words or in "vor u. nach"; next to any other word it stays urine; decided 2026-11-15. | [eGFR derivation](#eligible-source-series) |
 
 ## Import and value interpretation
 
@@ -1598,7 +1602,10 @@ value was excluded, with a raw span of 731 days, give: no slope, no reason,
 1. Fit model `none`: not unstable. There is no slope to qualify.
 2. `reason` is `no_numeric_values` or `n_below_threshold`: unstable.
 3. `nFittedDates < 3`: unstable, that is fewer than three distinct calendar
-   days among the fitted points.
+   days among the fitted points. `nFitted < 3` is tested as well (since
+   2026-11-15). Distinct dates never exceed fitted points, so this changes no
+   result of the application; it keeps a caller of the library package that
+   passes no `nFittedDates` from getting "stable" for a two-point fit.
 4. `fittedSpanDays < 365`: unstable.
 5. Otherwise unstable only if `reason` is `span_too_short`. For the reachable
    slope modes the fitted span never exceeds the raw span, so this step adds
@@ -1774,10 +1781,12 @@ conditions hold (`isSerumCreatinineSeries`):
     "Harn", "Sammelurin"), `dialysat` ("Dialysat", "dialysate"), `punktat`,
     `fluid`, `aszites`, `ascites`, `pleura`, `liquor`, `drainage`, `sekret`
     ("Sekret", "Wundsekret") or `lymphe`;
-  - after `i.` followed by whitespace and `U` is read as `i.U`, and split at
-    whitespace, commas, semicolons, slashes, underscores, hyphens and
-    parentheses, one token is, in any case and ignoring trailing dots, `i.U`
-    (im Urin), a lone `U` (`U-Kreatinin`, `Kreatinin (U)`, `Kreatinin U.`,
+  - after `i.` followed by whitespace and `U` is read as `i.U`, a `u` that
+    abbreviates "und" is removed (next paragraph), and the name is split at
+    whitespace, commas, semicolons, colons, slashes, underscores, hyphens,
+    parentheses and square brackets, one token is, in any case and ignoring
+    trailing dots, `i.U` (im Urin), a lone `U` (`U-Kreatinin`,
+    `Kreatinin (U)`, `Kreatinin [U]`, `Kreatinin:U`, `Kreatinin U.`,
     `Kreatinin/U`, `Kreatinin_U`), `SU` (Sammelurin; also the `SU` of
     `24h-SU`), `SU24h`, `SPU` (Spontanurin), `PU` (Punktat or Portionsurin;
     both are non-serum), `CSF`, `Drain`, `PD` (peritoneal dialysate) or
@@ -1790,7 +1799,8 @@ conditions hold (`isSerumCreatinineSeries`):
   `Kreatinin 24h-SU`, `Kreatinin SU24h`, `Kreatinin SpU`, `Kreatinin PU`,
   `Kreatinin CSF`, `Kreatinin Drain`, `Kreatinin PD`, `Kreatinin Serom`,
   `Kreatinin Lymphe`, `Kreatinin (Wund)sekret`, `Kreatinin Dialysat`,
-  `Kreatinin Punktat`. Still eligible: `Kreatinin`, `Kreatinin i.S.`,
+  `Kreatinin Punktat`, `Kreatinin [U]`, `Kreatinin:U`. Still eligible:
+  `Kreatinin`, `Kreatinin i.S.`,
   `Kreatinin i.P.`, `Kreatinin (enzym.)`, `Kreatinin (S)`, `Kreatinin Serum`,
   `Kreatinin Plasma`, `S-Kreatinin`, `Kreatinin HP`, `Kreatinin BGA`,
   `Kreatinin Vollblut`, `Creatinine serum`, `Kreatinin mg/dl`. Tokens are
@@ -1799,6 +1809,45 @@ conditions hold (`isSerumCreatinineSeries`):
   `Kreatinin U/l` is excluded (token `U`). Creatinine is not reported in the
   enzyme unit U/l, so no serum spelling is lost. Prefixes such as `S-` or `P-`
   mark nothing.
+
+  **A `u` that abbreviates "und"** (decided 2026-11-15, formerly OD-32;
+  `UND_ABBREVIATION`). A lone `u`, in any case and with or without one dot,
+  is not urine in exactly two positions, and is then removed before the name
+  is split:
+  - between two blood-material words. The words are `Serum`, `Plasma`,
+    `Vollblut`, `HP`, `S` and `P`, in any case and as whole words (no letter
+    or digit directly before or after), so `i.S.` and `i.P.` count through
+    their `S` and `P`. Only whitespace separates the `u` from both words;
+    the word before may be followed by one dot and one closing bracket, the
+    word after may be preceded by one opening bracket;
+  - between `vor` and `nach`, separated by whitespace only.
+
+  `Kreatinin im Serum u. Plasma`, `Kreatinin (Serum u. Plasma)`,
+  `Kreatinin i.S. u. P.`, `Kreatinin Serum u Plasma`,
+  `Kreatinin HP u. Vollblut`, `Kreatinin (S) u. (P)` and
+  `Kreatinin vor u. nach Dialyse` are therefore eligible, as they were up to
+  version 0.3.7; between 2026-11-05 and 2026-11-15 the development version
+  excluded them. A lone `U` stays urine everywhere else, so an unknown
+  spelling is excluded visibly instead of being read as serum:
+  - at the end or the start of the name: `Kreatinin U.`, `Kreatinin u`,
+    `Kreatinin (U)`, `U Kreatinin`, `U-Kreatinin`;
+  - next to any word that is not a blood-material word:
+    `24h U Kreatinin`, `Spontan U Kreatinin`, `Kreatinin im U quant.`,
+    `Kreatinin U enzymatisch`, `Kreatinin U. enzym.`, `Kreatinin U mg/dl`,
+    `Kreatinin U spontan`, `Kreatinin U, enzymatisch`,
+    `Kreatinin U. (enzym.)`, `Kreatinin Serum u. Urin`,
+    `Kreatinin vor u. Dialyse`;
+  - when only one side is a blood-material word, which includes a `U` beside
+    the abbreviation itself: `Kreatinin U u. S` and `Kreatinin S u. U` name
+    urine and serum and are excluded;
+  - before a number, or next to any separator other than whitespace:
+    `Kreatinin U 24h`, `Kreatinin/U`, `Kreatinin U/l`, `Kreatinin_U`,
+    `Kreatinin:U`, `Kreatinin [U]`.
+
+  A first version of this rule (same day, never merged) read a `u` between
+  any two words as "und"; it turned `Kreatinin U enzymatisch` and
+  `24h U Kreatinin` into serum creatinine and was replaced by the owner's
+  decision above.
 - **Unit is mg/dl or µmol/l** after unit-key normalisation (below).
 
 No other material or method is distinguished. Any name that passes these tests
@@ -3107,6 +3156,31 @@ a date". The reason code is unchanged, and the export still carries
 `insufficient_points` for that patient and parameter. Other badges of the
 cell, such as `Kidney failure reached`, are still shown.
 
+Reasons 3 to 5 count the rows of the projection fit, which leave out the
+column's AKI exclusion windows when it excludes them. The badge detail says so
+(since 2026-11-15) when a window actually removed a row of this cell, that is
+when the projection used fewer points than the endpoint input holds
+(`projectionPointCount < endpointPointCount`). It then starts with
+"Measurements inside AKI exclusion windows are left out of the projection."
+and continues "The measurements used fall on fewer than three distinct dates,
+…" or "The measurements used span less than one year, …"; the Theil-Sen text
+follows the same first sentence. The same lead precedes two further details,
+which then name "the latest measurement used": "The fitted crossing is more
+than 20 years after the latest measurement used, …" (`G5 not projected`) and
+"The fitted curve reaches 15 at or before the latest measurement used, …"
+(`G5 now`), because both are measured from the last row outside the AKI
+windows. When no row was removed, also in a column that excludes AKI windows
+by its preset, the details read as before: "Usable measurements on fewer than
+three distinct dates, …", "Less than one year between first and last
+measurement, …", "… after the latest eligible eGFR measurement, …" and "… at
+or before the latest measurement, …". Example: a CKD-progression column with
+two eGFR values and no AKI episode shows `G5 < 3 dates` with the plain
+detail. Labels, reason codes and export values are the same in all cases. Example: 104 eGFR values of 40 and
+38 over two years with creatinine 4.5 and 4.85 mg/dl on consecutive days every
+two weeks leave one row outside the AKI windows; the badge is `G5 < 3 dates`
+with the AKI sentence. The first sentence states the column's rule and appears
+whether or not a window removed a row of that patient.
+
 The `G5 not projected` cases (`non_declining_fit`, `slope_ci_unavailable`,
 `slope_ci_includes_zero`, `beyond_projection_horizon`, and `observed_ckd_g5`
 with the observed-G5 endpoint off) are told apart by the badge's detail text.
@@ -3797,11 +3871,33 @@ The `models` worksheet has one row per fitted unit:
 | `message` | Failed fits |
 
 A fit that fails before the worker answers (for example a timeout) has only
-part of this provenance. The other worksheets are `coefficients` (every fixed
-effect with unit, estimate, standard error and interval bounds), `vcov`,
-`factors`, `centering`, `excluded_patients`, `model_rows`,
-`model_input_flags`, `projections` when a projection is applied, `r_script`
-and `about`.
+part of this provenance. The other worksheets are, in workbook order,
+`coefficients` (every fixed effect with unit, estimate, interval bounds and
+standard error), `factors`, `centering`, `excluded_patients`, `projections`
+when a projection is applied, `about`, and then the sheets added after
+version 0.3.7: `vcov`, `model_rows`, `model_input_flags` and `r_script`.
+
+**Positions and `unit_key` (since 2026-11-15).** Sheets and columns that
+existed in version 0.3.7 keep their positions; new sheets follow `about` and
+new columns are the last of their sheet. `coefficients` therefore reads
+`entity`, `outcome`, `unit`, `term`, `label`, `estimate`, `ci_lower`,
+`ci_upper`, `std_error`, `unit_key`. Every sheet that names a fitted unit
+carries `unit_key`: `cohort` for the whole cohort and `group:<value>` for a
+group. `entity` is the display label and can repeat: a group whose value is
+"Whole cohort" has the same `entity` as the pooled model and the `unit_key`
+`group:Whole cohort`. On the sheets that predate it (`models`, `coefficients`,
+`factors`, `centering`, `excluded_patients`, `projections`) the columns added
+since 0.3.7, `std_error` and `unit_key`, are the last columns of the sheet,
+after every 0.3.7 column (`newColumnsLast`). This also holds when the rows of
+a sheet have different shapes. The 0.3.7 columns keep the order in which
+they first appear across the rows, which is how the workbook was written
+then; that order depends on the rows exported, as it did in 0.3.7. Example:
+with the factors baseline age (numeric, no reference) and sex (categorical),
+`factors` reads `entity`, `key`, `kind`, `effect`, `column`, `reference`,
+`unit_key`, and the baseline-age row has an empty `reference` cell; with a
+successful whole-cohort fit and a failed group fit, `models` ends in
+`singular`, `message`, `unit_key`. On `vcov`, `model_rows` and
+`model_input_flags` `unit_key` follows `entity`.
 
 **R reproduction (since 2026-11-05).** These outputs let a fit be rebuilt and
 extended in R. They add no estimate and change none.
@@ -3809,8 +3905,8 @@ extended in R. They add no estimate and change none.
 - **`model_rows`.** One row per row the worker received for the stored result,
   in the order sent, taken from the same prepared rows (`workspaceModelEntities`)
   and not derived again: `entity`, `unit_key` (`cohort` for the whole cohort,
-  `group:<value>` for a group, so a group named "Whole cohort" stays distinct;
-  `coefficients` carries the same column), `group` (the group value, empty for
+  `group:<value>` for a group, so a group named "Whole cohort" stays distinct),
+  `group` (the group value, empty for
   the whole cohort), `patient_id`, `date` (UTC date of the model point; for a
   time-balancing median the date of the median point), `value`,
   `time_since_baseline`, and per factor the column passed to R
@@ -3821,8 +3917,8 @@ extended in R. They add no estimate and change none.
 - **`model_input_flags`.** One row per measurement of the modelled series
   (same name and unit) of every patient in the unit, patients in model order
   and each patient's measurements in import order, with
-  `entity`, `group`, `patient_id`, `date`, `value`, `status`, `reason` and
-  `model_date`. `status` is `entered` (the value entered unchanged as the model
+  `entity`, `unit_key`, `group`, `patient_id`, `date`, `value`, `status`,
+  `reason` and `model_date`. `status` is `entered` (the value entered unchanged as the model
   row dated `model_date`), `aggregated_into_median` (one of at least two
   values of a calendar month or quarter whose median is the model row dated
   `model_date`) or `excluded`. `reason` is set for `excluded` only, from the
@@ -3842,8 +3938,8 @@ extended in R. They add no estimate and change none.
 - **Standard errors and `vcov`.** The worker returns `vcov(fit)` as a matrix
   and `sqrt(diag(vcov(fit)))` (lme4 and nlme alike). `std_error` in
   `coefficients` is that square root. The `vcov` sheet has, per unit, one row
-  per term in the order of `coefficients` with `entity`, `term` and one column
-  per term; with several units the columns are the union of their terms and
+  per term in the order of `coefficients` with `entity`, `unit_key`, `term`
+  and one column per term; with several units the columns are the union of their terms and
   cells of absent terms are empty. Both are serialized at R's full JSON
   precision (`digits = NA`, 15 significant digits). Results fitted before this
   change have neither; their cells are empty. A covariance that does not match

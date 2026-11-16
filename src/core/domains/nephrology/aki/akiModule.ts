@@ -2,6 +2,7 @@ import { akiExclusionBands, akiExclusionWindows, episodesForSeries, isAkiCreatin
 import type { AkiEpisode } from './kdigo'
 import { formatAkiChip, formatAkiEpisodeSummary } from './summary'
 import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
+import { excludesAkiWindows } from '../fitConfig'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../analytes'
 import { patientIdKey, type LabRow, type PatientId } from '../../../types'
 import { windowsWithLength } from '../../../exclusions/windows'
@@ -100,7 +101,7 @@ function akiWindowDays(ctx: SeriesContext): number {
  * are used when present; otherwise episodes are detected from the patient's
  * rows. */
 function akiExclusions(ctx: SeriesContext): SeriesContribution['exclusions'] {
-  if (ctx.mode !== 'aki-aware' && !ctx.fitConfig?.exclusions.excludeAkiWindows) return undefined
+  if (!excludesAkiWindows(ctx)) return undefined
   const prepared = preparedInput(ctx)
   const days = akiWindowDays(ctx)
   if (prepared) {
@@ -196,11 +197,18 @@ export const akiModule = {
       const key = patientIdKey(event.patientId)
       eventsByPatient.set(key, [...(eventsByPatient.get(key) ?? []), event])
     }
+    // Bucket once: detection per series must not rescan every patient's rows.
+    const rowsByPatient = new Map<PatientId, LabRow[]>()
+    for (const row of ctx.rows) {
+      const bucket = rowsByPatient.get(row.patientId)
+      if (bucket) bucket.push(row)
+      else rowsByPatient.set(row.patientId, [row])
+    }
     for (const { patientId, seriesKey } of distinctNumericSeries(ctx.rows)) {
       const key = episodeSourceKey(patientId, seriesKey)
       let episodes = episodeCache.get(key)
       if (!episodes) {
-        episodes = episodesForSeries(ctx.rows, patientId, seriesKey.bezeichnung, seriesKey.einheit, eventsByPatient.get(patientIdKey(patientId)) ?? [])
+        episodes = episodesForSeries(rowsByPatient.get(patientId) ?? [], patientId, seriesKey.bezeichnung, seriesKey.einheit, eventsByPatient.get(patientIdKey(patientId)) ?? [])
         episodeCache.set(key, episodes)
       }
       fitInputs.push(akiFitInput(patientId, seriesKey, episodes, settings.exclusionDays))

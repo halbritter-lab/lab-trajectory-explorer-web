@@ -1,9 +1,10 @@
 import { comparePatientIds } from '../core/types'
+import { utcDateOrBlank } from '../core/format'
 import { describeEventRejection, describeEventWarning } from '../core/events/events'
 import { effectForEvent } from '../core/domains/nephrology/censoring'
 import { useAppStore } from './state/store'
 
-const isoDate = (date: Date | null | undefined) => date && Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : '–'
+const isoDate = (date: Date | null | undefined) => utcDateOrBlank(date) || '–'
 
 /** Loaded and rejected clinical events, so an import can be checked row by row
  * rather than only by its counts. */

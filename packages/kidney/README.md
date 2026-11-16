@@ -123,11 +123,11 @@ the public API.
 These are documented at their call sites and in the method reference:
 
 - `fitGlobal` returns the exact slope with `r2 = 1` and `reason: null` for
-  exactly two points. Use `isUnstableSlope` before acting on a slope. It needs
-  `nFittedDates`, the number of distinct fitted calendar dates
-  (`summarizeByBezeichnung` supplies it; `distinctDateCount(points)` computes
-  it for your own points). Without that field, plain JavaScript callers get
-  `false` (stable) for a two-point series.
+  exactly two points. Use `isUnstableSlope` before acting on a slope. It reads
+  `nFitted` and `nFittedDates`, the number of distinct fitted calendar dates
+  (`summarizeByBezeichnung` supplies both; `distinctDateCount(points)`
+  computes the dates for your own points). A call without `nFittedDates`
+  still flags fewer than three points, but cannot see three rows on two dates.
 - `summarizeByBezeichnung` reports `reason: 'n_below_threshold'` whenever the
   fit model is `'none'`, regardless of the point count.
 - `nNumeric` counts raw measurements before censoring, AKI exclusion and time

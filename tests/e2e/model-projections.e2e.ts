@@ -60,9 +60,13 @@ test('projects a custom nonrenal target and downloads the applied settings', asy
   expect(JSON.stringify(rows)).toContain('Study boundary')
   expect(JSON.stringify(rows)).toContain('U/L')
   expect(JSON.stringify(rows)).toContain('not estimated')
+  // Sheets of 0.3.7 keep their positions; the R reproduction sheets follow `about`.
+  expect(exported.SheetNames).toEqual(['models','coefficients','factors','centering','excluded_patients','projections','about','vcov','model_rows','model_input_flags','r_script'])
+  expect(rows.every(row => row.unit_key === 'cohort')).toBe(true)
   // The R reproduction sheets carry the rows the worker received and their trace.
   const modelRows = XLSX.utils.sheet_to_json<Record<string,unknown>>(exported.Sheets.model_rows)
   expect(modelRows).toHaveLength(30)
+  expect(modelRows.every(row => row.unit_key === 'cohort')).toBe(true)
   expect(modelRows[0]).toMatchObject({entity:'Whole cohort',patient_id:'1',date:'2020-01-01',value:80,time_since_baseline:0})
   const flags = XLSX.utils.sheet_to_json<Record<string,unknown>>(exported.Sheets.model_input_flags)
   expect(flags).toHaveLength(30)

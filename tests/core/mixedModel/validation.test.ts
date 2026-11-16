@@ -281,5 +281,7 @@ describe('factor level checks', () => {
       { level: 'PKD2', patients: 1, qualifying: 0 },
       { level: 'none', patients: 5, qualifying: 5 },
     ])
+    // Release review 2026-11-15: no rows, no entry, so the page shows no empty "gene: " list.
+    expect([...mixedModelFactorLevelCounts([], geneConfig('level_slope'))]).toEqual([])
   })
 })
