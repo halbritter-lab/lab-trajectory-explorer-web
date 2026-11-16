@@ -15,14 +15,23 @@ interfaces are still evolving before 1.0.
   before, never lower. Detection, episode grouping, onset dates, exclusion
   windows, slopes and endpoints are unchanged; AKI chips, marker labels and
   the `aki` export column can change. No stage in the demo workbook changes.
+- The AKI marker tooltip names the value and the seven-day reference that
+  give the stage ("staged against 1 mg/dl, the lowest value of the 7 days
+  before") instead of the detection baseline, which no longer explained it.
+  Episodes carry these as `stageValue`, `stageDate`, `stageReferenceValue`
+  and `stageReferenceDate`.
 
 ### Changed (Theil–Sen interval label, 2026-11-16)
 
 - For a Theil–Sen fit on fewer than five distinct dates the table and the
-  patient view label the bounds `Slope range` instead of `95% slope CI` and
-  give the actual coverage (about 67 % with three dates, 92 % with four). The
-  numbers and the export columns are unchanged; the workbook's `about` sheet
+  patient view label the bounds `Slope range` instead of `95% slope CI`. A
+  hint printed under the bounds says why and gives the coverage for one
+  measurement on each of three or four dates (about 67 % or 92 %). The values
+  of `ci_low` and `ci_high` are unchanged; the workbook's `about` sheet
   carries a note.
+- The `cohort` and `slopes` sheets end with a new column `n_fitted_dates`
+  (distinct fitted dates), so rows affected by that note can be identified.
+  Earlier column positions are unchanged.
 
 ### Fixed (endpoint settings hint)
 

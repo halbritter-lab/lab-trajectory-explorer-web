@@ -134,7 +134,9 @@ These are documented at their call sites and in the method reference:
   days before a crossing. That value can be lower than the episode's
   `baselineValue`, the 48-hour detection baseline, so
   `kdigoStage(episode.baselineValue, episode.peakValue)` can give a lower
-  stage than `episode.stage`.
+  stage than `episode.stage`. The episode carries the pair that reproduces
+  it: `kdigoStage(episode.stageReferenceValue, episode.stageValue)`; the
+  staging value need not be the peak.
 - `nNumeric` counts raw measurements before censoring, AKI exclusion and time
   balancing. Use `nFitted` for anything about the fit.
 - Imported dates are midnight UTC. Pass UTC dates to the fit functions as well.

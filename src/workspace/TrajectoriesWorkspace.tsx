@@ -3,7 +3,8 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperti
 import { buildCohortRows, cohortCellFlags, type CohortCell } from '../core/cohort/screening'
 import type { ColumnModuleSettings } from '../core/analysis/registry'
 import { comparePatientIds, type LabRow, type PatientId } from '../core/types'
-import { slopeQualityLabel } from './labels/qualityLabels'
+import { slopeQualityLabel, THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
+import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
 import { workspaceSpecs, type WorkspaceData, type WorkspaceParameter } from './workspace-data'
 import { WorkspaceExportActions } from './WorkspaceExports'
 import { DEFAULT_WORKSPACE_DISPLAY, OVERLAY_MODULES, WorkspacePlot, boundedPrefix, measurementText, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from './WorkspacePlot'
@@ -103,13 +104,15 @@ function CellSummary({
     ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'}, local slopes ${formatWorkspaceNumber(cell.rolling.slopeMin)} to ${formatWorkspaceNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
     : `No ${cell.rolling.windowDays}-day window with three fitted measurements; no local slopes`)
   const hasCi = Number.isFinite(cell.ciLow) && Number.isFinite(cell.ciHigh)
-  // Below five distinct fitted dates the Theil–Sen bounds are not a 95% interval
-  // (decided 2026-11-16). Several values on one date raise the point count, not
-  // the date count; the coverage is then not established, so the label stays.
-  const slopeRange = cell.fitModel === 'theil-sen' && cell.nFittedDates < 5
-  const ciTitle = slopeRange
-    ? 'Not a 95% interval: with one measurement on each of three dates these Theil–Sen bounds contain the true slope about 67% of the time, with four dates about 92%'
-    : 'Uncertainty in the estimated slope; not a prediction interval for future measurements'
+  // Below the date minimum of a Theil–Sen projection the bounds are not a 95%
+  // interval (decided 2026-11-16). Several values on one date raise the point
+  // count, not the date count; the bounds are then rank-based rather than the
+  // full range and their coverage is not established, so the label stays and
+  // the hint gives the coverage for the one-measurement-per-date case only.
+  const slopeRange = cell.fitModel === 'theil-sen' && cell.nFittedDates < MIN_THEIL_SEN_PROJECTION_DATES
+  const ciGeneral = 'Uncertainty in the estimated slope; not a prediction interval for future measurements'
+  const rangeHint = `Not a 95% interval: the fit has fewer than ${MIN_THEIL_SEN_PROJECTION_DATES} distinct dates. ${THEIL_SEN_FEW_DATES_COVERAGE}.`
+  const ciTitle = slopeRange ? `${rangeHint} ${ciGeneral}` : ciGeneral
   const ciText = `${slopeRange ? 'Slope range' : '95% slope CI'} [${formatWorkspaceNumber(cell.ciLow)}, ${formatWorkspaceNumber(cell.ciHigh)}] ${cell.einheit ?? ''}/year`
   const qualityLabel = quality && `${qualityText}${quality.caveat ? ', uncertain slope' : ''}`
   const excludedText = `${markedCount} excluded from the fit (${markedLabels.join(', ')})`
@@ -153,6 +156,7 @@ function CellSummary({
         <summary>Details</summary>
         {fit && last && rollingText && <p title={rollingTitle || undefined}>{rollingText}</p>}
         {fit && last && hasCi && <p title={ciTitle}>{ciText}</p>}
+        {fit && last && hasCi && slopeRange && <p className="wt-muted">{rangeHint}</p>}
         {fit && last && quality && <p>{quality.title}</p>}
         {endpoint && <><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></>}
         {markedCount > 0 && <p className="wt-muted">{excludedText}</p>}
@@ -167,6 +171,7 @@ function CellSummary({
       <span>{slopeText}</span>
       {rollingText && <span title={rollingTitle || undefined}>{rollingText}</span>}
       {hasCi && <span title={ciTitle}>{ciText}</span>}
+      {hasCi && slopeRange && <span className="wt-muted">{rangeHint}</span>}
       <span>
         {cell.nFitted !== cell.nNumeric
           ? `${cell.nFitted} fitted of ${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'} over ${cell.fittedSpanDays} days`

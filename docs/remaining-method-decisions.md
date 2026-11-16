@@ -522,12 +522,25 @@ sign-off. Details, boundaries and recomputed examples are in
   than before. Slopes, endpoints and exclusion windows do not depend on the
   stage; chips, marker labels, tooltips and the `aki` export column can
   change. No golden fixture value and no stage in the bundled demo workbook
-  moved (8 episodes checked).
+  moved (8 episodes checked). The episode marker's tooltip names the value and
+  the seven-day reference that give the stage ("staged against 1 mg/dl, the
+  lowest value of the 7 days before") in place of the detection baseline it
+  printed before, which no longer explained the stage (3.2 against a
+  "baseline 1.2" is 2.67-fold, not stage III).
 - **Theil-Sen bounds on fewer than five dates are labelled a range.** The
   interface reads `Slope range` instead of `95% slope CI` for a Theil-Sen fit
-  on fewer than five distinct fitted dates, with the actual coverage in the
-  hint (about 67 % with three dates, 92 % with four). Numbers and export
-  values are unchanged; the workbook's `about` sheet says the same.
+  on fewer than five distinct fitted dates. The hint under the bounds says
+  that this is not a 95 % interval because the fit has fewer than five
+  distinct dates, and gives the coverage for one measurement on each of three
+  or four dates (about 67 % or 92 %); with two dates or several measurements
+  on one date no coverage figure is claimed. Numbers and the values of
+  `ci_low` and `ci_high` are unchanged. The export gains the column
+  `n_fitted_dates`, appended last, so that the affected rows can be
+  identified, and the workbook's `about` sheet refers to it.
+- **The methodology page lags behind both decisions (OD-33).** `Aki.tsx` and
+  `Fits.tsx` still state the earlier staging and "95% bounds". The page was
+  not edited with the code; its wording is the maintainer's and is drafted as
+  D3 (a) and D3 (d2) in the [wording drafts](methodology-wording-drafts.md).
 
 ## Approved requirements
 

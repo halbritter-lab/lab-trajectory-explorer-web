@@ -1568,8 +1568,13 @@ chain gives onsets 2, 4, 5 and 6 January with stages I, II, II, III (chip
 Stage III episode.
 
 Left out on purpose: that the recorded detection baseline can be higher than
-the staging reference (the interface does not show the baseline), and that
-the stage of an episode need not come from its peak measurement.
+the staging reference, and that the stage of an episode need not come from its
+peak measurement. The marker tooltip names both numbers the stage follows
+from ("staged [from … mg/dl on …] against … mg/dl, the lowest value of the 7
+days before"); it does not show the recorded detection baseline. An earlier
+note here said the interface does not show the baseline at all; until the
+review of 2026-11-16 the tooltip did print it, next to a stage it no longer
+explained.
 
 **(e) What the OLS interval assumes.** `Fits.tsx`, lines 226–231. Current:
 "The 95% interval is the slope ± t × standard error, where the standard error
@@ -1682,9 +1687,11 @@ None was changed.
   length of the window is a rule of this tool."
 - **Table cell "95% slope CI"** (`src/workspace/TrajectoriesWorkspace.tsx`).
   Decided and changed on 2026-11-16: for Theil–Sen on fewer than five
-  distinct fitted dates the cell reads "Slope range" and its hint gives the
-  coverage (about 67% with three dates, 92% with four). D3 (a) should use the
-  same term when it is applied.
+  distinct fitted dates the cell reads "Slope range", and a hint printed under
+  it says "Not a 95% interval: the fit has fewer than 5 distinct dates. With
+  one measurement on each of three or four dates, the Theil–Sen bounds are
+  the full range of pairwise slopes and cover the true slope only about 67 %
+  or 92 % of the time." D3 (a) should use the same term when it is applied.
 - **Projected age with one decimal** ("G5 @ 54.3y" when the birth date is
   known, `src/workspace/labels/endpointLabels.ts`). The projection has no
   interval, so one decimal suggests more precision than it has. Option: whole

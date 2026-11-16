@@ -84,7 +84,8 @@ until then. OD-30, added on 2026-11-05 with the R reproduction export, was
 decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
 `u` that abbreviates "und" in creatinine names and was decided the same day.
 OD-31 is not used on `main`; the number is reserved by the deferred MCP
-server work.
+server work. OD-33 was added on 2026-11-16: the in-app methodology page lags
+behind two decisions of that day until its wording is approved.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -92,6 +93,7 @@ server work.
 | OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+| OD-33 | [AKI staging](method-algorithms/aki.md#staging) and [Theil-Sen](method-algorithms/trend-estimators.md#theil-sen-2026-09-23) | The in-app methodology page still describes the AKI staging used until 2026-11-16 (`Aki.tsx`, about lines 28, 43 and 91: staging against the 48-hour baseline, "four Stage I episodes") and calls Theil-Sen bounds "95% bounds" without the small-sample qualification (`Fits.tsx`, about line 69). The code and this reference are current; the page waits for the maintainer's wording (drafts D3 (a) and D3 (d2)). |
 
 ### Resolved decisions
 

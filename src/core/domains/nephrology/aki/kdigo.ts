@@ -23,22 +23,32 @@ export interface AkiEpisode {
   peakDate: Date
   criterion: 'absolute_0_3_mg_dl_48h' | 'relative_1_5x_7d'
   /** Highest stage reached by a crossing of the episode, each graded against
-   * the lowest value of the seven days before it (decided 2026-11-16). That
-   * value can be lower than `baselineValue`, the detection baseline. */
+   * its reference, the lowest value of the seven days before it (decided
+   * 2026-11-16). The reference can be lower than `baselineValue`, the
+   * detection baseline. */
   stage: number
+  /** The crossing that set `stage` (the first one to reach it) and its
+   * reference, so that `stage === kdigoStage(stageReferenceValue, stageValue)`.
+   * `stageValue` need not be the episode's peak. */
+  stageValue: number
+  stageDate: Date
+  stageReferenceValue: number
+  stageReferenceDate: Date
 }
 
-/** KDIGO severity stage from baseline & peak creatinine (mg/dl). Stage by
- * peak/baseline ratio; absolute peak >= 4.0 overrides to stage 3. Returns 0
- * when the pair is below the KDIGO AKI floor (ratio < 1.5x AND absolute rise
- * < 0.3 mg/dl), so the function is self-guarding rather than relying on callers
- * to pre-filter crossings. The same numeric tolerance applies to detector
- * crossings and this floor; episode merging and stage priority are unchanged. */
-export function kdigoStage(baselineValue: number, peakValue: number): number {
-  const ratio = baselineValue > 0 ? peakValue / baselineValue : Infinity
-  if (atLeast(peakValue, KDIGO_STAGE_3_ABSOLUTE_MGDL) || atLeast(ratio, KDIGO_STAGE_3_RATIO)) return 3
+/** KDIGO severity stage of one creatinine value against a reference value
+ * (both mg/dl). The detector passes the lowest value of the seven days before
+ * the value as the reference, not the detection baseline. Stage by
+ * value/reference ratio; a value >= 4.0 overrides to stage 3. Returns 0 when
+ * the pair is below the KDIGO AKI floor (ratio < 1.5x AND rise over the
+ * reference < 0.3 mg/dl), so the function is self-guarding rather than relying
+ * on callers to pre-filter crossings. The same numeric tolerance applies to
+ * detector crossings and this floor. */
+export function kdigoStage(referenceValue: number, value: number): number {
+  const ratio = referenceValue > 0 ? value / referenceValue : Infinity
+  if (atLeast(value, KDIGO_STAGE_3_ABSOLUTE_MGDL) || atLeast(ratio, KDIGO_STAGE_3_RATIO)) return 3
   if (atLeast(ratio, KDIGO_STAGE_2_RATIO)) return 2
-  if (atLeast(ratio, KDIGO_RELATIVE_RISE_RATIO) || atLeast(peakValue - baselineValue, KDIGO_ABSOLUTE_RISE_MGDL)) return 1
+  if (atLeast(ratio, KDIGO_RELATIVE_RISE_RATIO) || atLeast(value - referenceValue, KDIGO_ABSOLUTE_RISE_MGDL)) return 1
   return 0
 }
 
@@ -50,6 +60,10 @@ interface RawCrossing {
   peakDate: Date
   criterion: AkiEpisode['criterion']
   stage: number
+  stageValue: number
+  stageDate: Date
+  stageReferenceValue: number
+  stageReferenceDate: Date
 }
 
 /** Merge consecutive crossings sharing a baseline into one episode keeping the
@@ -61,15 +75,15 @@ function clusterEpisodes(raw: RawCrossing[]): AkiEpisode[] {
     const last = clusters[clusters.length - 1]
     if (last && last.baselineDate.getTime() === c.baselineDate.getTime()) {
       if (c.peakValue > last.peakValue) { last.peakValue = c.peakValue; last.peakDate = c.date }
-      if (c.stage > last.stage) last.stage = c.stage
+      if (c.stage > last.stage) {
+        last.stage = c.stage; last.stageValue = c.stageValue; last.stageDate = c.stageDate
+        last.stageReferenceValue = c.stageReferenceValue; last.stageReferenceDate = c.stageReferenceDate
+      }
     } else {
       clusters.push({ ...c, peakDate: c.date })
     }
   }
-  return clusters.map((g) => ({
-    date: g.date, baselineDate: g.baselineDate, baselineValue: g.baselineValue,
-    peakValue: g.peakValue, peakDate: g.peakDate, criterion: g.criterion, stage: g.stage,
-  }))
+  return clusters
 }
 
 /** Monotonic sliding-window minimum over chronologically-sorted points.
@@ -125,10 +139,11 @@ export function findKdigoAkiEpisodes(points: SeriesPoint[]): AkiEpisode[] {
     // criterion detects the crossing: an extra value the day before must not
     // lower the stage. The 48-hour window lies inside the seven-day one, so
     // i7 exists whenever i48 does and its value is never higher.
-    if (i48 >= 0 && atLeast(vj - values[i48], KDIGO_ABSOLUTE_RISE_MGDL)) {
-      raw.push({ date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h', stage: kdigoStage(values[i7], vj) })
-    } else if (i7 >= 0 && values[i7] > 0 && atLeast(vj / values[i7], KDIGO_RELATIVE_RISE_RATIO)) {
-      raw.push({ date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d', stage: kdigoStage(values[i7], vj) })
+    const staging = i7 >= 0 ? { stage: kdigoStage(values[i7], vj), stageValue: vj, stageDate: sorted[j].date, stageReferenceValue: values[i7], stageReferenceDate: sorted[i7].date } : null
+    if (staging && i48 >= 0 && atLeast(vj - values[i48], KDIGO_ABSOLUTE_RISE_MGDL)) {
+      raw.push({ date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h', ...staging })
+    } else if (staging && atLeast(vj / values[i7], KDIGO_RELATIVE_RISE_RATIO)) {
+      raw.push({ date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d', ...staging })
     }
 
     win48.push(j)

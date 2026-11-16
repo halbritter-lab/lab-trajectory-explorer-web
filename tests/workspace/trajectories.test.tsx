@@ -254,19 +254,31 @@ describe('real-data trajectories workspace', () => {
     expect(within(table).getByText('Excluded: censored value (limit, not exact)')).toBeInTheDocument()
   })
   // Decided 2026-11-16: below five distinct fitted dates the Theil–Sen bounds are a range, not a 95% interval.
-  it.each([[3, 'Slope range'], [4, 'Slope range'], [5, '95% slope CI']])('labels Theil-Sen bounds on %i dates as "%s"', (dates, label) => {
+  // Each case lists [year offset, value]; two entries with one offset are two values on one date.
+  it.each<[string, [number, number][], string]>([
+    ['three dates', [[0, 10], [1, 11], [2, 12]], 'Slope range'],
+    ['four dates', [[0, 10], [1, 11], [2, 12], [3, 13]], 'Slope range'],
+    ['five dates', [[0, 10], [1, 11], [2, 12], [3, 13], [4, 14]], '95% slope CI'],
+    // The rule counts dates, not values: five values are not five dates.
+    ['five values on four dates', [[0, 10], [1, 11], [2, 12], [3, 13], [3, 14]], 'Slope range'],
+    ['three values on two dates', [[0, 10], [0, 12], [1, 15]], 'Slope range'],
+  ])('labels Theil-Sen bounds on %s as "%s"', (_name, points, label) => {
     const data = fixture()
     data.parameters = data.parameters.slice(0, 1)
     data.rows = data.rows.filter(row => row.einheit === 'unit-0' && row.labDatum!.getUTCFullYear() === 2020)
-      .flatMap(row => Array.from({ length: dates }, (_, year) => ({ ...row, labDatum: new Date(Date.UTC(2020 + year, 0, 1)), wert: String(10 + year), wertNum: 10 + year })))
+      .flatMap(row => points.map(([year, value]) => ({ ...row, labDatum: new Date(Date.UTC(2020 + year, 0, 1)), wert: String(value), wertNum: value })))
     data.rawRows = data.rows
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     preset('theil_sen')
     closeSettings()
     enableTrend()
+    const range = label === 'Slope range'
     expect(screen.getAllByText(text => text.startsWith(`${label} [`))).toHaveLength(2)
-    expect(screen.queryAllByText(label === 'Slope range' ? /95% slope CI/ : /Slope range/)).toHaveLength(0)
-    expect(screen.queryAllByTitle(/Not a 95% interval: with one measurement on each of three dates these Theil–Sen bounds contain the true slope about 67% of the time, with four dates about 92%/)).toHaveLength(label === 'Slope range' ? 2 : 0)
+    expect(screen.queryAllByText(range ? /95% slope CI/ : /Slope range/)).toHaveLength(0)
+    // Readable without hover, true for every input of the branch, and the general caveat stays.
+    expect(screen.queryAllByText('Not a 95% interval: the fit has fewer than 5 distinct dates. With one measurement on each of three or four dates, the Theil–Sen bounds are the full range of pairwise slopes and cover the true slope only about 67 % or 92 % of the time.')).toHaveLength(range ? 2 : 0)
+    expect(screen.queryAllByTitle(/^Not a 95% interval: .* Uncertainty in the estimated slope; not a prediction interval for future measurements$/)).toHaveLength(range ? 2 : 0)
+    expect(screen.queryAllByTitle('Uncertainty in the estimated slope; not a prediction interval for future measurements')).toHaveLength(range ? 0 : 2)
   })
   it('keeps the 95% label for an OLS slope on three dates', () => {
     renderWorkspace(<TrajectoriesWorkspace data={fixture()} />)
