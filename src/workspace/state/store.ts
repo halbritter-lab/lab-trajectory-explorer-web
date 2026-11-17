@@ -91,11 +91,11 @@ export interface AppState {
   /** True while a `runCohortModels` run is in flight (drives the fit button). */
   cohortModelRunning: boolean
   cohortModelProgress: CohortModelProgress | null
-  /** A run finished in this session, so R is loaded in the fit worker. False
-   * again after a cancelled run, which stops the worker.
-   * shortcut: a worker stopped by a timeout or an error is not tracked; the
-   * next fit then loads R again without the notice. Track the worker itself
-   * if that matters. */
+  /** R is loaded in the fit worker: true after a run with a fitted model,
+   * false again whenever a running fit is stopped (Cancel, or a change that
+   * discards the models) or a run ends with a timeout or a worker failure,
+   * all of which stop the worker. The page shows its "loads R" notice while
+   * this is false. */
   cohortModelRuntimeLoaded: boolean
   showCohortMixedModelLine: boolean
   projectionSettings: Record<string, AppliedProjectionSettings>
@@ -205,13 +205,29 @@ export function projectionSettingsKey(seriesIndex: number, seriesKey: string, en
   return JSON.stringify([seriesIndex, seriesKey, entityKey])
 }
 
+/** Whether replacing the Trajectories fit settings by `settings` discards the
+ * stored cohort models or stops a running fit: when the preparation of a
+ * parameter with a stored model changes, or any preparation changes while a
+ * fit runs. The one rule for the store and for the question the Cohort
+ * models page asks beforehand. */
+export function trajectorySettingsDiscardModels(state: Pick<AppData, 'trajectoryFitSettings' | 'cohortModelResults' | 'cohortModelRunning'>, settings: TrajectoryFitSettings): boolean {
+  const previous = state.trajectoryFitSettings
+  const fittedKeys = [...new Set(Object.values(state.cohortModelResults ?? {}).map((stored) => stored.identity.seriesKey))]
+  return fittedKeys.some((key) => modelPreparationKey(settings, key) !== modelPreparationKey(previous, key))
+    // A running fit has no stored identity yet; any preparation change stops it.
+    || (state.cohortModelRunning && modelPreparationKey(settings) !== modelPreparationKey(previous))
+}
+
 /** Single source of truth for invalidating every cached mixed-model fit (pooled
  * and per-group) plus the overlay line toggle. Every setter that changes the
  * mixed-model data policy spreads this so the pooled and grouped result stores
  * cannot drift out of sync. */
-const clearedMixedModelResults = (): Pick<AppData, 'cohortModelResults' | 'cohortModelRunning' | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'projectionSettings'> => {
+const clearedMixedModelResults = (): Pick<AppData, 'cohortModelResults' | 'cohortModelRunning' | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'projectionSettings'> & Partial<Pick<AppData, 'cohortModelRuntimeLoaded'>> => {
+  // Stopping a running fit stops its worker, so R loads again with the next fit.
+  const wasRunning = activeCohortModelRun !== null
   abortActiveCohortModelRun()
   return {
+    ...(wasRunning ? { cohortModelRuntimeLoaded: false } : {}),
     cohortModelResults: null,
     cohortModelRunning: false,
     cohortModelProgress: null,
@@ -284,11 +300,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   setTrajectoryFitSettings: (settings) => set((state) => {
     const previous = state.trajectoryFitSettings
     if (JSON.stringify(settings) === JSON.stringify(previous)) return state
-    const fittedKeys = [...new Set(Object.values(state.cohortModelResults ?? {}).map((stored) => stored.identity.seriesKey))]
-    const stale = fittedKeys.some((key) => modelPreparationKey(settings, key) !== modelPreparationKey(previous, key))
-      // A running fit has no stored identity yet; any preparation change stops it.
-      || (state.cohortModelRunning && modelPreparationKey(settings) !== modelPreparationKey(previous))
-    return stale ? { trajectoryFitSettings: settings, ...clearedMixedModelResults() } : { trajectoryFitSettings: settings }
+    return trajectorySettingsDiscardModels(state, settings) ? { trajectoryFitSettings: settings, ...clearedMixedModelResults() } : { trajectoryFitSettings: settings }
   }),
   // Unchanged content keeps the stored object, so nothing is saved again.
   setTrajectoryView: (view) => set((state) => JSON.stringify(view) === JSON.stringify(state.trajectoryView) ? state : { trajectoryView: view }),
@@ -324,7 +336,11 @@ export const useAppStore = create<AppState>((set, get) => ({
           const stored = cohortModelResults[entityKey]
           return stored?.result.status === 'success' && stored.result.converged && !stored.result.singular && mixedModelIdentityEquals(applied.sourceIdentity, stored.identity)
         }))
-        return { cohortModelResults, projectionSettings, cohortModelRuntimeLoaded: true }
+        // A fitted model proves R is loaded; a timeout or a worker failure stopped the worker.
+        const results = Object.values(map).map((stored) => stored.result)
+        const runtime = results.some((result) => result.status === 'success') ? { cohortModelRuntimeLoaded: true }
+          : results.some((result) => result.status !== 'success' && (result.status === 'timeout' || result.code.startsWith('WORKER_'))) ? { cohortModelRuntimeLoaded: false } : {}
+        return { cohortModelResults, projectionSettings, ...runtime }
       })
     } finally {
       if (activeCohortModelRun === controller) {

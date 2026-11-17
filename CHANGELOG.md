@@ -13,7 +13,9 @@ interfaces are still evolving before 1.0.
 - The notice that the first fit loads R is shown only until a fit has
   finished in the session.
 - Changing "Data preparation" on the Cohort models page asks before it
-  discards fitted models or stops a running fit.
+  discards fitted models or stops a running fit. The other controls that
+  discard models (model type, factors, the exclusions checkbox, settings
+  under Trajectories) do not ask.
 
 ### Changed (Cohort models page, wording approved 2026-11-17)
 

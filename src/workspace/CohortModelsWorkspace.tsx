@@ -1,5 +1,5 @@
-import { lazy, Suspense, useId, useMemo, useState } from 'react'
-import { useAppStore } from './state/store'
+import { lazy, Suspense, useId, useMemo, useRef, useState } from 'react'
+import { trajectorySettingsDiscardModels, useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceModelSpec } from './workspace-data'
 import { ANALYSIS_CATALOG, describeModelPreparation, defaultFitSettings, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
@@ -41,6 +41,13 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const preparationScopeId = useId()
   const [preparationNotice, setPreparationNotice] = useState<{ key: string | undefined; text: string } | null>(null)
   const [invocationFeedback, setInvocationFeedback] = useState<string | null>(null)
+  const fitButton = useRef<HTMLButtonElement>(null)
+  // Cancel removes itself: say what happened and hand the focus to the fit button.
+  const cancelFit = () => {
+    useAppStore.getState().cancelCohortModels()
+    setInvocationFeedback('Fit cancelled. Nothing of this run was stored; models fitted before are kept.')
+    requestAnimationFrame(() => fitButton.current?.focus())
+  }
   const mixedModelConfig = useAppStore(s => s.mixedModelConfig)
   const setMixedModelConfig = useAppStore(s => s.setMixedModelConfig)
   const presetExclusionPolicy = useAppStore(s => s.presetExclusionPolicy)
@@ -147,25 +154,22 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   // pinned first, because the preselection depends on these settings and
   // would otherwise move to another parameter.
   function changeDataPreparation(presetId: string) {
-    // The change discards every fitted model and stops a running fit: ask first.
     const state = useAppStore.getState()
-    if ((state.cohortModelRunning || Object.keys(state.cohortModelResults ?? {}).length > 0)
-      && !window.confirm('Changing the data preparation discards the fitted models and stops a running fit. Continue?')) return
-    if (activeParamKey) setSelectedParamKey(activeParamKey)
-    const current = useAppStore.getState().trajectoryFitSettings
+    const current = state.trajectoryFitSettings
     const nextSettings = defaultFitSettings(presetId)
     const ownTarget = Boolean(activeParamKey && (current.columns[activeParamKey] || !STANDARD_PRESETS.some(preset => preset.id === presetId)))
-    if (activeParamKey && ownTarget) {
-      useAppStore.getState().setTrajectoryFitSettings({
-        ...current,
-        columns: { ...current.columns, [activeParamKey]: nextSettings },
-      })
-    } else {
-      useAppStore.getState().setTrajectoryFitSettings({
-        ...current,
-        shared: nextSettings,
-      })
+    const next = activeParamKey && ownTarget
+      ? { ...current, columns: { ...current.columns, [activeParamKey]: nextSettings } }
+      : { ...current, shared: nextSettings }
+    // Ask only when the store would discard models or stop a fit (the same rule it applies).
+    if (trajectorySettingsDiscardModels(state, next)) {
+      const fitted = Object.keys(state.cohortModelResults ?? {}).length > 0
+      const consequence = fitted && state.cohortModelRunning ? 'discards the fitted models and stops the running fit'
+        : fitted ? 'discards the fitted models' : 'stops the running fit'
+      if (!window.confirm(`Changing the data preparation ${consequence}. Continue?`)) return
     }
+    if (activeParamKey) setSelectedParamKey(activeParamKey)
+    useAppStore.getState().setTrajectoryFitSettings(next)
     const presetName = ANALYSIS_CATALOG.find(item => item.id === nextSettings.presetId)?.name ?? nextSettings.presetId
     setPreparationNotice({ key: activeParamKey, text: `${ownTarget ? 'Parameter preparation' : 'Shared preparation'} updated for ${ownTarget ? '1 parameter' : affectedParameterCount}: ${presetName}. Refit affected models before interpreting results.` })
   }
@@ -649,6 +653,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           <button
             type="button"
             className={allEligibleFitted ? 'cm-fit-button' : 'primary cm-fit-button'}
+            ref={fitButton}
             disabled={!canFit}
             aria-describedby={fitFeedback ? fitFeedbackId : undefined}
             onClick={handleFitAll}
@@ -659,7 +664,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                 ? `${allEligibleFitted ? 'Refit' : 'Fit'} whole cohort only`
                 : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length})` : ''}`}
           </button>
-          {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={() => useAppStore.getState().cancelCohortModels()}>Cancel</button>}
+          {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={cancelFit}>Cancel</button>}
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
         </section>
@@ -672,7 +677,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         </details>
       </section>
 
-      {/* Model trajectory preview plot; the studio button above is the only fit action. */}
+      {/* Model trajectory preview plot; fitting is started above or from the results table. */}
       {spec && (
         <CohortModelPlotPreview
           parameterLabel={spec.bezeichnung}
