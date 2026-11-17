@@ -136,12 +136,13 @@ function CellSummary({
   const included = fit && last ? fitInclusionCaveat(cell, events) : null
   // The count beside a slope is the fitted one whenever it differs from the raw count.
   const fittedCount = fit && Number.isFinite(cell.slope) && cell.nFitted !== cell.nNumeric
-  const fittedText = timeBalancing === 'raw'
-    ? `${cell.nFitted} of ${cell.nNumeric} fitted`
-    : `n=${cell.nNumeric}, ${cell.nFitted} ${timeBalancing === 'monthly-median' ? 'monthly' : 'quarterly'} ${cell.nFitted === 1 ? 'median' : 'medians'} fitted`
+  // Under time balancing the fitted points are medians: say so in every layout,
+  // or "2 fitted of 8" reads as six excluded measurements.
+  const mediansText = timeBalancing === 'raw' ? null : `${cell.nFitted} ${timeBalancing === 'monthly-median' ? 'monthly' : 'quarterly'} ${cell.nFitted === 1 ? 'median' : 'medians'} fitted`
+  const fittedText = mediansText ? `n=${cell.nNumeric}, ${mediansText}` : `${cell.nFitted} of ${cell.nNumeric} fitted`
   const slopeUnitText = `${cell.einheit ? `${cell.einheit}/` : '/'}yr`
   const noAkiText = fit && last && excludesAki && !flags.some(flag => flag.moduleId === AKI_MODULE_ID)
-    ? 'No AKI window applies to this patient (no episode detected), so nothing is excluded from this fit for AKI.'
+    ? 'No AKI episode on the creatinine series this parameter uses, so nothing is excluded from this fit for AKI.'
     : null
 
   if (minimal && !detailed) {
@@ -149,7 +150,7 @@ function CellSummary({
     return <div className="pv-cell-minimal">
       <div className="pv-cell-values">
         <strong aria-label={last ? `Latest value: ${formatWorkspaceNumber(last.value)}` : 'No numeric measurements with a date'}>{last ? formatWorkspaceNumber(last.value) : '—'}</strong>
-        {last && <span aria-label={fittedCount ? timeBalancing === 'raw' ? `${cell.nFitted} fitted of ${measurementCount}` : `${measurementCount}, ${fittedText.split(', ')[1]}` : measurementCount}>{fittedCount ? fittedText : `n=${cell.nNumeric}`}</span>}
+        {last && <span aria-label={fittedCount ? mediansText ? `${measurementCount}, ${mediansText}` : `${cell.nFitted} fitted of ${measurementCount}` : measurementCount}>{fittedCount ? fittedText : `n=${cell.nNumeric}`}</span>}
         {fit && last && Number.isFinite(cell.slope) && <span aria-label={slopeText} className="pv-cell-slope">{cell.slope > 0 ? '+' : ''}{formatWorkspaceNumber(cell.slope)} {slopeUnitText}</span>}
         <div className="pv-cell-indicators">
           <Hint label={last ? 'Measurement details' : 'No numeric measurements'}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p><p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.</p>}{rollingText && <p>{rollingText}</p>}</>}</Hint>
@@ -170,7 +171,7 @@ function CellSummary({
         {!last
           ? 'No numeric measurements with a date'
           : fit
-            ? `${measurementCount} (${cell.nFitted} fitted over ${cell.fittedSpanDays} days), latest ${formatWorkspaceDate(last.date)}`
+            ? `${measurementCount} (${mediansText ?? `${cell.nFitted} fitted`} over ${cell.fittedSpanDays} days), latest ${formatWorkspaceDate(last.date)}`
             : `${measurementCount}, latest ${formatWorkspaceDate(last.date)}`}
       </span>
       {fit && last && <>
@@ -203,7 +204,9 @@ function CellSummary({
       {hasCi && <span title={ciTitle}>{ciText}</span>}
       {hasCi && slopeRange && <span className="wt-muted">{rangeHint}</span>}
       <span>
-        {cell.nFitted !== cell.nNumeric
+        {mediansText
+          ? `${mediansText} (${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'}) over ${cell.fittedSpanDays} days`
+          : cell.nFitted !== cell.nNumeric
           ? `${cell.nFitted} fitted of ${cell.nNumeric} ${cell.nNumeric === 1 ? 'measurement' : 'measurements'} over ${cell.fittedSpanDays} days`
           : `${cell.nFitted} fitted ${cell.nFitted === 1 ? 'measurement' : 'measurements'} over ${cell.fittedSpanDays} days`}
       </span>
@@ -719,7 +722,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     }}>Next patient</button><span>{currentIndex + 1} / {visible.length}</span></div><div className="wt-plot-grid">{parameters.map((parameter, index) => {
       const measurements = measurementsFor(current.patientId, parameter)
       const fitStatus = measurementFitStatus(measurements, current.cells[index])
-      return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(current.patientId))} excludesAki={(columnSettings[parameter.key] ?? fitSettings).exclusions.excludeAkiWindows} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
+      return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(current.patientId))} excludesAki={(columnSettings[parameter.key] ?? fitSettings).exclusions.excludeAkiWindows} timeBalancing={(columnSettings[parameter.key] ?? fitSettings).timeBalancing} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section><section className="card"><h3>AKI episodes for this patient</h3>{akiEpisodes.some(episode => episode.patientId === current.patientId)
       ? <ul>{akiEpisodes.filter(episode => episode.patientId === current.patientId).map((episode, i) => <li key={i}>Stage {akiStageLabel(episode.stage)}, onset {formatWorkspaceDate(episode.onset)}, creatinine peak {formatWorkspaceNumber(episode.peakValue)} mg/dl on {formatWorkspaceDate(episode.peakDate)}; baseline {formatWorkspaceNumber(episode.baselineValue)} mg/dl on {formatWorkspaceDate(episode.baselineDate)} ({akiCriterionLabel(episode.criterion)}; {episode.parameter} [{episode.unit ?? 'no unit'}])</li>)}</ul>
       : <p>No AKI episode detected. Detection needs serum creatinine values close enough in time: a rise within 48 hours or 7 days.</p>}<p className="wt-muted">Automated KDIGO creatinine screening, not a diagnosis. Display → “AKI windows and episodes” marks them in the charts.</p></section></section>}

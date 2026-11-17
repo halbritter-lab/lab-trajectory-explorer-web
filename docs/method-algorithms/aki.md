@@ -351,7 +351,7 @@ dated rows, see above).
 Each row gives patient, stage, onset date (`AkiEpisode.date`), peak date and
 value, baseline date and value, the criterion that detected the episode
 (`absolute_0_3_mg_dl_48h` or `relative_1_5x_7d`) and the creatinine series.
-All values are in mg/dl. The sheet columns are `PatientID`,
+All values are in mg/dl. Rows are ordered by patient, then by onset date. The sheet columns are `PatientID`,
 `creatinine_parameter`, `creatinine_unit`, `stage`, `onset_date`, `peak_date`,
 `peak_value_mg_dl`, `baseline_date`, `baseline_value_mg_dl`, `criterion`; the
 sheet is restricted to the exported patients and is present with no rows when

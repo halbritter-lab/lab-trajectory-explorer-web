@@ -209,7 +209,8 @@ Example: eGFR on 2020-01-01, 2021-01-01 and 2022-01-01, transplant on
 2021-06-01, General exploration with Trend on: "Fit includes 1 value after
 kidney transplant". With "Censor after kidney transplant" ticked the note is
 gone and the cell reads "2 of 3 fitted". Under monthly or quarterly medians
-the cell reads "n=8, 2 quarterly medians fitted" instead, because the fitted
+the cell reads "n=8, 2 quarterly medians fitted" instead (patient view: "2
+quarterly medians fitted (8 measurements) over … days"), because the fitted
 points are then medians and not measurements.
 
 Display-fit censoring and endpoint filtering are separate policies:

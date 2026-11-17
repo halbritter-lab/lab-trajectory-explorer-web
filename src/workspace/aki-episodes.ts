@@ -34,9 +34,10 @@ export const akiCriterionLabel = (criterion: string) => CRITERIA[criterion] ?? c
  * which episodes a column shows or excludes is decided per column. */
 export function akiEpisodeRows(rows: readonly LabRow[], events: readonly ClinicalEvent[]): AkiEpisodeRow[] {
   const byPatient = new Map<PatientId, LabRow[]>()
-  for (const row of rows) byPatient.set(row.patientId, [...(byPatient.get(row.patientId) ?? []), row])
+  // Push into buckets: copying a bucket per row is quadratic in a patient's rows.
+  for (const row of rows) { const bucket = byPatient.get(row.patientId); if (bucket) bucket.push(row); else byPatient.set(row.patientId, [row]) }
   const eventsByPatient = new Map<string, ClinicalEvent[]>()
-  for (const event of events) eventsByPatient.set(patientIdKey(event.patientId), [...(eventsByPatient.get(patientIdKey(event.patientId)) ?? []), event])
+  for (const event of events) { const key = patientIdKey(event.patientId); const bucket = eventsByPatient.get(key); if (bucket) bucket.push(event); else eventsByPatient.set(key, [event]) }
   const out: AkiEpisodeRow[] = []
   for (const patientId of [...byPatient.keys()].sort(comparePatientIds)) {
     const patientRows = byPatient.get(patientId)!
@@ -44,11 +45,14 @@ export function akiEpisodeRows(rows: readonly LabRow[], events: readonly Clinica
     for (const row of patientRows) {
       if (row.bezeichnung !== null && isAkiCreatinineSource(row.bezeichnung, row.einheit)) series.set(JSON.stringify([row.bezeichnung, row.einheit]), [row.bezeichnung, row.einheit])
     }
+    const own: AkiEpisodeRow[] = []
     for (const [parameter, unit] of series.values()) {
       for (const episode of episodesForSeries(patientRows, patientId, parameter, unit, eventsByPatient.get(patientIdKey(patientId)) ?? [])) {
-        out.push({ patientId, parameter, unit, stage: episode.stage, onset: episode.date, peakDate: episode.peakDate, peakValue: episode.peakValue, baselineDate: episode.baselineDate, baselineValue: episode.baselineValue, criterion: episode.criterion })
+        own.push({ patientId, parameter, unit, stage: episode.stage, onset: episode.date, peakDate: episode.peakDate, peakValue: episode.peakValue, baselineDate: episode.baselineDate, baselineValue: episode.baselineValue, criterion: episode.criterion })
       }
     }
+    // Stable sort: episodes of two series with one onset keep the series order.
+    out.push(...own.sort((a, b) => a.onset.getTime() - b.onset.getTime()))
   }
   return out
 }

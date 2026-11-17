@@ -52,6 +52,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const clip = useId().replace(/:/g, '')
   const [hiddenGroups, setHiddenGroups] = useState<string[]>([])
   const [hovered, setHovered] = useState<PatientId | null>(null)
+  const [focused, setFocused] = useState<PatientId | null>(null)
   const prepared = useMemo(() => {
     const patients = new Map(data.patients.map(p => [p.id, p]))
     const firstDates = new Map<PatientId, number>()
@@ -193,7 +194,8 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)' : 'Years since first measurement of this parameter'
   // In the overlay the trajectory under the pointer or the keyboard focus is
   // emphasised and named, so a line can be identified without the selector.
-  const emphasised = highlight ?? (cohortRows.length > 1 ? hovered : null)
+  // The explicit highlight wins when it is plotted here, then focus, then the pointer.
+  const emphasised = visible.some(p => p.row.patientId === highlight) ? highlight : cohortRows.length > 1 ? focused ?? hovered : null
   const hasHighlight = visible.some(p => p.row.patientId === emphasised)
   const exportTitle = cohortRows.length === 1 ? `Patient ${cohortRows[0].patientId}: ${parameter.label}` : parameter.label
   const markVisible = display.points || display.connect
@@ -226,7 +228,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         const uncertainFit = Boolean(showFit && slopeQualityLabel(series.cell)?.caveat && Number.isFinite(series.cell.slope))
         return <g key={String(series.row.patientId)} clipPath={`url(#${clip})`} opacity={hasHighlight && !active ? .25 : 1}>
           <g role="button" tabIndex={0} aria-label={`Open patient ${series.row.patientId}, ${parameter.label}`} aria-description={uncertainFit ? "Uncertain slope: limited fitted measurements or follow-up. Dotted fit line." : undefined} onClick={() => onOpen(series.row.patientId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(series.row.patientId) } }} className="wt-chart-person"
-            onMouseEnter={() => setHovered(series.row.patientId)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(series.row.patientId)} onBlur={() => setHovered(null)}>
+            onMouseEnter={() => setHovered(series.row.patientId)} onMouseLeave={() => setHovered(null)} onFocus={() => setFocused(series.row.patientId)} onBlur={() => setFocused(null)}>
             <title>Patient {series.row.patientId}, {groupLabel(series.group)}</title>
             {display.connect && <polyline points={series.points.map(p => `${x(p.x)},${y(p.value)}`).join(' ')} fill="none" stroke={color} strokeWidth={active ? 3 : 1.5} />}
             {series.points.filter(p => display.points || display.connect && (series.points.length === 1 || boundedPrefix(p.operator) || p.exclusions.length > 0)).map((p, i) => {
