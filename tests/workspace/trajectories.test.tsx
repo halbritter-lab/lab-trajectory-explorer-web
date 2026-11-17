@@ -684,8 +684,12 @@ describe('real-data trajectories workspace', () => {
     renderWorkspace(<TrajectoriesWorkspace data={data} requestedPatientId="ID-A" />)
     openDisplay()
     fireEvent.change(screen.getByLabelText('Time axis'), { target: { value: 'age' } })
-    const exactAge = ((Date.UTC(2020, 0, 1) - data.patients[0].birthAnchor.getTime()) / (365.25 * 86400000)).toLocaleString('en-GB', { maximumFractionDigits: 2 })
-    expect(screen.getAllByText(exactAge).length).toBeGreaterThan(0)
+    // The axis starts at the exact age of the first measurement (40.55), not at the whole year;
+    // its labels are round values, so the range is read from the chart itself.
+    const exactAge = (Date.UTC(2020, 0, 1) - data.patients[0].birthAnchor.getTime()) / (365.25 * 86400000)
+    const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' }).querySelector('svg.wt-plot')!
+    expect(Number(chart.getAttribute('data-x-min'))).toBeCloseTo(exactAge, 6)
+    expect(within(chart as HTMLElement).getByText('41')).toBeInTheDocument()
     expect(screen.getAllByText(/Age: recorded birth date/)).toHaveLength(3)
   })
 
