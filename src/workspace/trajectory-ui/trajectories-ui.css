@@ -142,6 +142,9 @@
 .pv-hint-rapid { color: #b91c1c; }
 .pv-hint-endpoint { color: #326b8e; }
 .pv-hint-label { padding: 4px 6px; background: #f3f6f3; }
+.pv-hint-label > span { text-align: left; overflow-wrap: anywhere; }
+/* Text badges wrap inside the column instead of widening the table. */
+.wt-table .pv-cell-minimal { max-width: var(--wt-chart-width, 176px); }
 .pv-hint-aki.pv-hint-label { background: transparent; padding: 2px; }
 .pv-hint-aki.pv-hint-label svg { display: none; }
 .pv-hint-aki.pv-hint-label > span { background: #fff1dd; color: #95510b; border-radius: 999px; padding: 2px 8px; font-size: 11px; font-weight: 650; }
@@ -254,3 +257,6 @@
   .pv-column-sort { min-height: 44px; }
   .pv-column-menu-group button { min-height: 44px; }
 }
+
+/* A phone shows the first chart without scrolling: the unchanged default preset is not named there. */
+@media (max-width: 600px) { .pv-default-profile { display: none; } }

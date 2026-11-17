@@ -332,6 +332,36 @@ chain, and a computed eGFR column whose AKI source differs from its eGFR
 source. Non-positive values and creatinine under dialysis are covered by the
 [dialysis and positivity tests](../../tests/core/aki/dialysisAndPositivity.test.ts).
 
+### Episode list
+
+Since 2026-11-17 the detected episodes are listed by name
+(`akiEpisodeRows` in `src/workspace/aki-episodes.ts`): on the Data page
+("Detected AKI episodes"), in the patient view ("AKI episodes for this
+patient") and in the workbook sheet `aki_episodes`. The list runs
+`episodesForSeries` once per patient and eligible serum creatinine series, so
+each series detects on itself with the same detector, dialysis rule and
+µmol/l conversion as above. Series are not pooled: a patient with two
+creatinine series that both show a rise is listed once per series. The list
+covers all analysis rows of the dataset; it does not depend on the selected
+parameters, a preset or a column's exclusion setting, and it does not show
+which episode a given column uses (for a column that is not creatinine and not
+a computed eGFR, that is the patient's creatinine series with the most exact
+dated rows, see above).
+
+Each row gives patient, stage, onset date (`AkiEpisode.date`), peak date and
+value, baseline date and value, the criterion that detected the episode
+(`absolute_0_3_mg_dl_48h` or `relative_1_5x_7d`) and the creatinine series.
+All values are in mg/dl. Rows are ordered by patient, then by onset date. The sheet columns are `PatientID`,
+`creatinine_parameter`, `creatinine_unit`, `stage`, `onset_date`, `peak_date`,
+`peak_value_mg_dl`, `baseline_date`, `baseline_value_mg_dl`, `criterion`; the
+sheet is restricted to the exported patients and is present with no rows when
+no episode was detected.
+
+Example: creatinine 1.0 mg/dl on 2022-03-01 and 1.6 mg/dl on 2022-03-02 gives
+one row with stage 1, onset and peak 2022-03-02, peak value 1.6, baseline 1.0
+on 2022-03-01 and criterion `absolute_0_3_mg_dl_48h`. Regression evidence:
+[episode list tests](../../tests/workspace/aki-episodes.test.ts).
+
 ## AKI fit-exclusion window
 
 Each detected AKI episode (see

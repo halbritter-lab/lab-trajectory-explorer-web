@@ -45,6 +45,8 @@ export interface CohortModelTableProps {
   fitConfigHash: string
   config: MixedModelConfig
   formula: string
+  /** False when the parameter's settings define no event or AKI windows. */
+  definesWindows?: boolean
   /** Injectable worker seam (tests); forwarded to the store run action. */
   runJob?: (options: RunMixedModelWorkerJobOptions) => Promise<MixedModelResult>
 }
@@ -78,6 +80,7 @@ export function CohortModelTable({
   fitConfigHash,
   config,
   formula,
+  definesWindows = true,
   runJob,
 }: CohortModelTableProps) {
   const cohortModelResults = useAppStore((s) => s.cohortModelResults)
@@ -317,7 +320,7 @@ export function CohortModelTable({
                       <td>{success ? formatSlope(success.fixedEffects.timeSinceBaseline, seriesUnit) : '—'}</td>
                       <td>{success ? formatValue(success.fixedEffects.intercept, seriesUnit) : '—'}</td>
                       <td className="cohort-model-status" data-testid="cohort-model-status">{statusText(row)}
-                        <div>Preset windows {row.preparation?.presetExclusionPolicy === 'skip' ? 'skipped' : 'applied'}: {row.preparation?.excludedByPreset ?? 0} eligible measurements excluded</div>
+                        <div>{row.preparation?.presetExclusionPolicy !== 'skip' && !definesWindows ? 'No event or AKI windows defined: nothing excluded' : `Preset windows ${row.preparation?.presetExclusionPolicy === 'skip' ? 'skipped' : 'applied'}: ${row.preparation?.excludedByPreset ?? 0} eligible measurements excluded`}</div>
                         {(row.preparation?.excludedPatients.length ?? 0) > 0 && <details><summary>Excluded for factor values ({row.preparation!.excludedPatients.length})</summary><ul>{row.preparation!.excludedPatients.map((patient) => <li key={patient.patientId}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul></details>}
                       </td>
                       <td>

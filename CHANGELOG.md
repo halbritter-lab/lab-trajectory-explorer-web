@@ -5,6 +5,41 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (finding things, after the simulated-user case studies)
+
+- Detected AKI episodes are listed with stage, onset, peak and baseline: on
+  the Data page, in the patient view and in the new workbook sheet
+  `aki_episodes`.
+- The Data page lists the imported parameters with their value and patient
+  counts and the patient attributes with their levels, and describes the
+  formats the lab template expects.
+- In the overlay the trajectory under the pointer or the keyboard focus is
+  emphasised and named.
+
+### Changed (Trajectories table, after the simulated-user case studies)
+
+- A kidney-function slope that runs across values after a kidney transplant
+  or chronic dialysis start, in a dated dialysis interval or in a detected
+  AKI window now says so beside the slope ("Fit includes 3 values in an AKI
+  window"). The slope itself is unchanged.
+- The censoring and AKI exclusion options are offered in the settings of
+  every eGFR and serum creatinine parameter, without first choosing the CKD
+  progression preset.
+- Ticking "Trend" draws the trend line in the same step. The slope in the
+  table carries its unit, and the count beside it is the fitted one when
+  that differs ("7 of 11 fitted").
+- Warnings are shown as text badges by default; icons with tooltips remain
+  under Display. Saved display settings keep their choice. Rapid decline has
+  its own icon instead of the warning triangle.
+- With AKI exclusion on, the patient view says when no AKI window applies to
+  the patient. Under monthly or quarterly medians the count reads "n=8, 2
+  quarterly medians fitted".
+- Every parameter column names its preset and a monthly or quarterly
+  aggregation. Without any Trend the status line says how to get slopes.
+- Cohort models: when the settings of the parameter define no event or AKI
+  windows, the page says that nothing is excluded and points to the CKD
+  progression preset, instead of "applied; 0 eligible measurements excluded".
+
 ### Changed (wording outside the methodology page)
 
 - The preset summary and two notes in the export's `about` sheet say

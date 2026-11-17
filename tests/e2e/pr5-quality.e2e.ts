@@ -35,7 +35,6 @@ async function showOnlyParameter(page: Page, label: RegExp, fit = true): Promise
   await page.keyboard.press('Escape')
   if (fit) {
     await page.getByRole('checkbox', { name: /^Analyse trend:/ }).check()
-    await page.getByRole('button', { name: /^Show trend line:/ }).click()
   }
 }
 

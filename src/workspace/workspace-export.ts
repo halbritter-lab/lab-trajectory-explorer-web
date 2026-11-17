@@ -8,6 +8,7 @@ import { utcDateOrBlank } from '../core/format'
 import { demographicWarningsByPatient } from '../core/demographics/describe'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString } from '../io/export'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
+import { akiEpisodeExportRows, akiEpisodeRows } from './aki-episodes'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
 
@@ -74,6 +75,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     {name:'raw_measurements',rows:measurementRows(data.rawRows,true)},
     {name:patientId === undefined ? 'cohort' : 'slopes',rows:summaries},
     {name:'events',rows:data.events.filter(event => idSet.has(event.patientId)).map(event => ({...event,date:utcDateOrBlank(event.date),endDate:utcDateOrBlank(event.endDate)}))},
+    {name:'aki_episodes',rows:akiEpisodeExportRows(akiEpisodeRows(data.rows.filter(row => idSet.has(row.patientId)),data.events))},
     {name:'patient_attributes',rows:patientAttributesExportRows(attrs)},
     {name:'demographics',rows:ids.map(id => {
       const patient = data.patients.find(patient => patient.id === id)
@@ -87,6 +89,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Research use only. Not for clinical decision-making.'},
       {note:'Measurements, summaries, events and attributes are restricted to the selected patients and parameters. Events and attributes apply at patient level.'},
       {note:'measurements contains analysis values with resolved demographics and explicitly marked derived values; raw_measurements contains only imported values for the selected parameters. Unselected source measurements are not added.'},
+      {note:'aki_episodes lists every AKI episode detected for the selected patients, one row per episode and serum creatinine parameter, whichever parameters are selected and whether or not a column excludes AKI windows from its fit. Automated KDIGO creatinine screening, not a diagnosis; creatinine values in mg/dl.'},
       {note:'Slopes and quality information come directly from the displayed summary; export does not refit the data. n counts raw measurements; n_fitted counts the points actually fitted.'},
       {note:`ci_low and ci_high are the 95 % interval of the slope. For a Theil-Sen fit with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval. ${THEIL_SEN_FEW_DATES_COVERAGE}.`},
       {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},

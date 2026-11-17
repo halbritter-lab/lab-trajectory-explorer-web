@@ -181,6 +181,38 @@ precedence `post_kidney_transplant` > `post_chronic_dialysis` >
 single reason; no current view or export calls it. With fit model "No fit" the
 measurement table shows only the `censored-value` reason.
 
+Note on measurements a fit runs across (since 2026-11-17,
+`fitInclusionCaveat` in `src/workspace/labels/fitInclusion.ts`): a display
+note, not a rule of the fit. No slope, count, badge of another kind or export
+column changes. It is shown beside a slope in the table and the patient view
+when all of these hold:
+
+- the parameter has an eGFR unit or is a serum creatinine series that AKI
+  detection accepts (`isAkiCreatinineSource`);
+- Trend is on, the fit model is not "No fit" and the slope is finite;
+- at least one measurement that the column does not exclude lies in a window
+  of the list below.
+
+Windows, in the order in which a measurement is assigned to exactly one of
+them: after kidney transplant, after chronic dialysis start, acute dialysis
+interval, dated dialysis of unknown intent (the event windows of the table
+above with every option on and the policy `exclude-dated-interval`), then the
+AKI windows drawn for the column (its own window length). Boundaries are
+inclusive as above. Counted are the column's dated numeric measurements before
+time balancing; a bound is already excluded and is not counted. The text
+reads "Fit includes 2 values after kidney transplant, 3 values in an AKI
+window". Dialysis of unknown intent without an end date gives no window and
+no note. The note disappears once the matching option is on, because those
+measurements are then excluded.
+
+Example: eGFR on 2020-01-01, 2021-01-01 and 2022-01-01, transplant on
+2021-06-01, General exploration with Trend on: "Fit includes 1 value after
+kidney transplant". With "Censor after kidney transplant" ticked the note is
+gone and the cell reads "2 of 3 fitted". Under monthly or quarterly medians
+the cell reads "n=8, 2 quarterly medians fitted" instead (patient view: "2
+quarterly medians fitted (8 measurements) over … days"), because the fitted
+points are then medians and not measurements.
+
 Display-fit censoring and endpoint filtering are separate policies:
 
 | | Display fit | Endpoint filter |

@@ -78,7 +78,7 @@ describe('workspace model validity', () => {
   })
   it('invalidates a fitted result when preset exclusions are switched off', () => {
     const view = render(<Harness studio />)
-    expect(screen.getByText(/Preset windows: applied; 0 eligible measurements excluded/)).toBeInTheDocument()
+    expect(screen.getByText(/define no event or AKI windows, so nothing is excluded/)).toBeInTheDocument()
     act(() => seedResult())
     view.rerender(<Harness studio />)
     expect(screen.getByText(/Whole cohort fitted trajectory/)).toBeInTheDocument()
@@ -95,7 +95,7 @@ describe('workspace model validity', () => {
     const transplant: ClinicalEvent = { patientId: 'A', type: 'kidney_transplant', date: new Date('2021-01-01T00:00:00Z'), title: 'Transplant', description: null, endDate: null, intent: null, warning: '' }
     act(() => useAppStore.getState().setEvents([transplant]))
     const view = render(<Harness studio />)
-    expect(screen.getByText(/Preset windows: applied; 0 eligible measurements excluded/)).toBeInTheDocument()
+    expect(screen.getByText(/define no event or AKI windows, so nothing is excluded/)).toBeInTheDocument()
     expect(screen.getByTestId('model-preparation')).toHaveTextContent('General exploration (shared settings): individual measurements; event windows none; AKI windows none.')
 
     act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: defaultFitSettings('ckd_progression'), columns: {} }))

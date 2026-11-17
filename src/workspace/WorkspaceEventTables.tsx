@@ -16,7 +16,7 @@ export function WorkspaceEventTables() {
   return <div className="data-event-tables">
     {events.length > 0 && <details>
       <summary>Loaded events ({events.length})</summary>
-      <p className="muted">Whether an event changes a fit depends on the censoring options under Trajectories → Display and analysis. The effect column describes what happens when the matching option is on.</p>
+      <p className="muted">Whether an event changes a fit depends on the censoring options in the analysis settings of the parameter under Trajectories. The effect column describes what happens when the matching option is on.</p>
       <div className="table-scroll" role="region" aria-label="Loaded events, horizontal scrolling" tabIndex={0}>
         <table aria-label="Loaded events">
           <thead><tr><th>Patient</th><th>Date</th><th>Type</th><th>Title</th><th>Intent</th><th>End</th><th>Effect when enabled</th><th>Warning</th></tr></thead>

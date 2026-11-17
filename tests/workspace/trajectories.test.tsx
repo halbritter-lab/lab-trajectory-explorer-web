@@ -41,6 +41,12 @@ function renderWorkspace(ui: ReactElement) {
   }
   return view
 }
+// Text badges are the default; the icon form stays covered where a test asks for it.
+function iconWarnings() {
+  openDisplay()
+  fireEvent.change(screen.getByLabelText('Warning display'), { target: { value: 'icons' } })
+  closeDisplay()
+}
 function openSettings(label?: string) {
   fireEvent.click(label ? screen.getByRole('button', { name: `Analysis settings: ${label}` }) : screen.getByRole('button', { name: 'General defaults' }))
   return screen.getByRole('dialog', { name: label ?? 'General defaults' })
@@ -110,10 +116,10 @@ describe('real-data trajectories workspace', () => {
     expect(line).toBeEnabled()
     const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
     expect(within(row).getByLabelText('OLS: 1 unit-0/year, R² 1')).toBeInTheDocument()
-    expect(mini().querySelector('[stroke-dasharray]')).toBeNull()
-    fireEvent.click(line)
+    // Ticking Trend draws the line in the same step; the eye button hides it again.
     expect(mini().querySelector('[stroke-dasharray]')).toBeInTheDocument()
     fireEvent.click(line)
+    expect(mini().querySelector('[stroke-dasharray]')).toBeNull()
     expect(trend).toBeChecked()
     expect(within(row).getByLabelText('OLS: 1 unit-0/year, R² 1')).toBeInTheDocument()
     expect(mini().querySelector('[stroke-dasharray]')).toBeNull()
@@ -766,6 +772,7 @@ describe('real-data trajectories workspace', () => {
       return row
     })
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
+    iconWarnings()
     enableTrend('eGFR [ml/min/1.73m²]')
     const warning = screen.getByRole('button', { name: 'rapid ↓' })
     fireEvent.focus(warning)
@@ -810,6 +817,7 @@ describe('real-data trajectories workspace', () => {
     const data = fixture()
     data.rows = data.rows.filter(row => !(row.patientId === 'ID-A' && row.labDatum?.getUTCFullYear() === 2021))
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
+    iconWarnings()
     enableTrend('Marker · unit-0')
     const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
     const note = within(row).getByRole('button', { name: 'n < 3, uncertain slope' })
@@ -825,6 +833,7 @@ describe('real-data trajectories workspace', () => {
     const data = fixture()
     data.rows = data.rows.filter(row => !(row.patientId === 'ID-A' && row.labDatum?.getUTCFullYear() !== 2020))
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
+    iconWarnings()
     enableTrend('Marker · unit-0')
     expect(screen.getByRole('button', { name: /n < 3/ })).toBeInTheDocument()
     openSettings('Marker · unit-0')
@@ -844,6 +853,47 @@ describe('real-data trajectories workspace', () => {
     expect(within(row).getByText(/^2 fitted of 3 measurements over \d+ days$/)).toBeInTheDocument()
     const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
     expect(within(other).getAllByText(/^3 fitted measurements over \d+ days$/).length).toBeGreaterThan(0)
+  })
+
+  describe('kidney-function fits under the default preset', () => {
+    const label = 'eGFR [ml/min/1.73m²]'
+    function egfrFixture() {
+      const data = fixture()
+      data.parameters = [{ ...data.parameters[0], bezeichnung: 'eGFR', einheit: 'ml/min/1.73m²', label }]
+      data.rows = data.rows.filter(row => row.einheit === 'unit-0').map(row => ({ ...row, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m²' }))
+      data.events = [{ patientId: 'ID-A', type: 'kidney_transplant', date: new Date('2021-06-01'), endDate: null, title: 'Transplant', description: null, intent: null, warning: '' }]
+      return data
+    }
+    it('names the values after a transplant that the slope runs across, with the unit and without a second step', () => {
+      render(<TrajectoriesWorkspace data={egfrFixture()} />)
+      expect(screen.getByText(/Tick “Trend” at a parameter to calculate slopes/)).toBeInTheDocument()
+      enableTrend(label)
+      expect(screen.getByRole('button', { name: `Show trend line: ${label}` })).toHaveAttribute('aria-pressed', 'true')
+      const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
+      expect(within(row).getByRole('button', { name: 'Fit includes 1 value after kidney transplant' })).toHaveTextContent('Fit includes 1 value after kidney transplant')
+      expect(within(row).getByText('+1 ml/min/1.73m²/yr')).toBeInTheDocument()
+      const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
+      expect(within(other).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
+    })
+    it('offers the exclusions without the CKD preset; excluding removes the note and states the fitted count', () => {
+      render(<TrajectoriesWorkspace data={egfrFixture()} />)
+      enableTrend(label)
+      openSettings(label)
+      calculationSettings()
+      fireEvent.click(screen.getByRole('checkbox', { name: 'Censor after kidney transplant' }))
+      closeSettings()
+      const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
+      expect(within(row).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
+      expect(within(row).getByText('2 of 3 fitted')).toBeInTheDocument()
+      expect(screen.getByText('Custom · Own settings')).toBeInTheDocument()
+    })
+    it('does not offer the kidney options for another parameter under the default preset', () => {
+      render(<TrajectoriesWorkspace data={fixture()} />)
+      expect(screen.getAllByText('General exploration').length).toBeGreaterThan(0)
+      openSettings('Marker · unit-0')
+      calculationSettings()
+      expect(screen.queryByRole('checkbox', { name: 'Censor after kidney transplant' })).not.toBeInTheDocument()
+    })
   })
 
   it('does not mark excluded measurements when no fit model is set', () => {

@@ -170,6 +170,10 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, activeParamKey, preparationKey])
   const noFit = spec?.fitConfig?.fitModel === 'none'
+  // Whether the parameter's settings can exclude anything by an event or an AKI window.
+  const definesWindows = Boolean(spec?.fitConfig && (spec.fitConfig.exclusions.excludeAkiWindows
+    || Object.values(spec.fitConfig.censoring).some(value => value === true)
+    || spec.fitConfig.censoring.unknownDialysisPolicy !== 'flag-only'))
 
   const paramIndex = useMemo(() => {
     return (data.parameters ?? []).findIndex(p => p.key === activeParamKey)
@@ -619,7 +623,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           <input type="checkbox" checked={presetExclusionPolicy === 'apply'} onChange={event => setPresetExclusionPolicy(event.target.checked ? 'apply' : 'skip')} />
           Apply preset event and AKI exclusions
         </label>
-        {!noFit && <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>}
+        {spec && !noFit && (presetExclusionPolicy === 'apply' && !definesWindows
+          ? <p className="muted">The settings of this parameter define no event or AKI windows, so nothing is excluded. To leave out values after transplant or dialysis and in AKI windows, choose “CKD progression” under Data preparation.</p>
+          : <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>)}
         {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label="Reference categories">
           Reference categories: {categoricalReferences.map(item => `${item.label} = ${item.reference}${item.isDefault ? ' (first level by default; change it next to the factor)' : ''}`).join('; ')}
         </p>}
@@ -683,6 +689,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             seriesIndex={paramIndex >= 0 ? paramIndex : 0}
             seriesKey={activeParamKey}
             seriesUnit={spec.einheit}
+            definesWindows={definesWindows}
             sourceResponse={{ outcome: spec.bezeichnung, unit: spec.einheit ?? '' }}
             fitConfigHash={fitConfigHash}
             config={mixedModelConfig}

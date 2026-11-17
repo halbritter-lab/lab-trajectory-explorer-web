@@ -6,6 +6,7 @@ export function Export() { return <>
 <ReferenceTable label="Workbook contents"><table><thead><tr><th>Sheet</th><th>Contents</th></tr></thead><tbody>
 <tr><td>measurements / raw_measurements</td><td>Analysis values and imported source rows in the selected scope. Computed values are marked as derived.</td></tr>
 <tr><td>cohort / slopes</td><td>The displayed summaries, fit estimators, quality flags and endpoint results.</td></tr>
+<tr><td>aki_episodes</td><td>Detected AKI episodes of the selected patients: stage, onset, peak and baseline per serum creatinine parameter.</td></tr>
 <tr><td>events / patient_attributes / demographics</td><td>Event context, attributes, resolved demographics, overrides and warnings.</td></tr>
 <tr><td>parameters / settings</td><td>Parameter identity, derivation formula and source, fit configuration, source file and exported scope.</td></tr>
 <tr><td>about</td><td>Research-use disclaimer and interpretation notes.</td></tr></tbody></table></ReferenceTable>
