@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
-import { useAppStore } from '../../../src/workspace/state/store'
+import { trajectorySettingsDiscardModels, useAppStore } from '../../../src/workspace/state/store'
+import { defaultFitSettings } from '../../../src/workspace/workspace-analysis'
 import { importWorkspaceFile } from '../../../src/workspace/workspace-data'
 import type { LabRow } from '../../../src/core/types'
 import { DEFAULT_MIXED_MODEL_CONFIG } from '../../../src/core/mixedModel/config'
@@ -218,6 +219,56 @@ describe('useAppStore - cohort model runs and projections', () => {
     await pending
     expect(useAppStore.getState().cohortModelResults).toBeNull()
     expect(useAppStore.getState().cohortModelRunning).toBe(false)
+  })
+
+  it('cancels a running fit: nothing of it is stored, earlier results stay, R counts as unloaded', async () => {
+    await useAppStore.getState().runCohortModels({ ...params, runJob: vi.fn(async () => mixedModelResult), entities: [{ entity: { kind: 'cohort' }, rows: entityRows }] })
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(true)
+    let release!: (result: MixedModelResult) => void
+    let aborted = false
+    const pending = useAppStore.getState().runCohortModels({ ...params, entities: [{ entity: { kind: 'group', value: 'A' }, rows: entityRows }],
+      runJob: (options) => new Promise((resolve) => { options.signal?.addEventListener('abort', () => { aborted = true }); release = resolve }) })
+    expect(useAppStore.getState().cohortModelRunning).toBe(true)
+    useAppStore.getState().cancelCohortModels()
+    expect(aborted).toBe(true)
+    expect(useAppStore.getState().cohortModelRunning).toBe(false)
+    expect(useAppStore.getState().cohortModelProgress).toBeNull()
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(false)
+    release(mixedModelResult)
+    await pending
+    expect(Object.keys(useAppStore.getState().cohortModelResults ?? {})).toEqual(['cohort'])
+    // A change that discards the models while a fit runs also stops the worker.
+    await useAppStore.getState().runCohortModels({ ...params, runJob: vi.fn(async () => mixedModelResult), entities: [{ entity: { kind: 'cohort' }, rows: entityRows }] })
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(true)
+    const stopped = useAppStore.getState().runCohortModels({ ...params, entities: [{ entity: { kind: 'cohort' }, rows: entityRows }], runJob: () => new Promise((resolve) => { release = resolve }) })
+    useAppStore.getState().setPresetExclusionPolicy('skip')
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(false)
+    release(mixedModelResult)
+    await stopped
+    // A run that ends in a timeout leaves R unloaded; a fit failure says nothing about it.
+    const failure = (status: 'timeout' | 'fit-error', code: string) => ({ status, engine: 'webr-lme4', stage: 'fit', code, message: '', warnings: [], metadata: {} }) as unknown as MixedModelResult
+    useAppStore.setState({ cohortModelRuntimeLoaded: true })
+    await useAppStore.getState().runCohortModels({ ...params, runJob: vi.fn(async () => failure('fit-error', 'FIT_FAILED')), entities: [{ entity: { kind: 'cohort' }, rows: entityRows }] })
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(true)
+    await useAppStore.getState().runCohortModels({ ...params, runJob: vi.fn(async () => failure('timeout', 'WORKER_TIMEOUT')), entities: [{ entity: { kind: 'cohort' }, rows: entityRows }] })
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(false)
+    // Without a running fit the action does nothing.
+    useAppStore.setState({ cohortModelRuntimeLoaded: true })
+    useAppStore.getState().cancelCohortModels()
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(true)
+  })
+
+  it('tells whether new Trajectories settings discard the stored models', () => {
+    seedResults()
+    const state = useAppStore.getState()
+    const fittedKey = mixedModelIdentity.seriesKey
+    const own = (key: string) => ({ ...state.trajectoryFitSettings, columns: { [key]: defaultFitSettings('ckd_progression') } })
+    expect(trajectorySettingsDiscardModels(state, own(fittedKey))).toBe(true)
+    // Another parameter's own settings leave the fitted parameter's preparation alone.
+    expect(trajectorySettingsDiscardModels(state, own('["Other","unit"]'))).toBe(false)
+    // While a fit runs, any preparation change counts.
+    expect(trajectorySettingsDiscardModels({ ...state, cohortModelResults: null, cohortModelRunning: true }, own('["Other","unit"]'))).toBe(true)
+    expect(trajectorySettingsDiscardModels({ ...state, cohortModelResults: null, cohortModelRunning: false }, own(fittedKey))).toBe(false)
   })
 
   it('stores independent copied projection settings and clears them with their fit', () => {

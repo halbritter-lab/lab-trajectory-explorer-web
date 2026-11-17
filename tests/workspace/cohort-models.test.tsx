@@ -337,6 +337,49 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.queryByText(/Click 'Fit model'/)).not.toBeInTheDocument()
   })
 
+  it('offers Cancel while fitting and names the loading of R only before the first finished fit', async () => {
+    useAppStore.setState({ cohortModelRunning: true, cohortModelRuntimeLoaded: true, cohortModelProgress: { completed: 0, total: 2, key: 'cohort' } })
+    const view = studio(qualifyingData())
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Fitting 1 of 2')
+    expect(screen.getByRole('status', { name: '' })).not.toHaveTextContent(/loads R into the browser/)
+    view.unmount()
+    // A real run in flight: Cancel ends it, says so and returns the focus to the fit button.
+    act(() => useAppStore.setState({ cohortModelRunning: false, cohortModelProgress: null }))
+    studio(qualifyingData())
+    let pending!: Promise<void>
+    act(() => { pending = useAppStore.getState().runCohortModels({ entities: [{ entity: { kind: 'cohort' }, rows: [] }], seriesIndex: 0, seriesKey: 'k', fitConfigHash: 'h', config: useAppStore.getState().mixedModelConfig, formula: 'f', runJob: () => new Promise(() => {}) }) })
+    void pending
+    expect(screen.getByRole('button', { name: /Fitting 1 of 1/ })).toBeDisabled()
+    fireEvent.click(screen.getAllByRole('button', { name: 'Cancel' })[0])
+    expect(useAppStore.getState().cohortModelRunning).toBe(false)
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Fit cancelled. Nothing of this run was stored; models fitted before are kept.')
+    await waitFor(() => expect(fitButtons()[0]).toHaveFocus())
+  })
+
+  it('asks before a data preparation change discards fitted models', () => {
+    studio(qualifyingData())
+    const prepSelect = screen.getByLabelText('Data preparation') as HTMLSelectElement
+    const confirm = vi.spyOn(window, 'confirm')
+    // Nothing fitted: no question.
+    fireEvent.change(prepSelect, { target: { value: 'theil_sen' } })
+    expect(confirm).not.toHaveBeenCalled()
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('theil_sen')
+    // A fit in flight (the same question covers stored models): declining keeps everything.
+    act(() => useAppStore.setState({ cohortModelRunning: true, cohortModelProgress: { completed: 0, total: 1, key: 'cohort' } }))
+    confirm.mockReturnValueOnce(false)
+    fireEvent.change(prepSelect, { target: { value: 'general_exploration' } })
+    expect(confirm).toHaveBeenCalledWith('Changing the data preparation stops the running fit. Continue?')
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('theil_sen')
+    expect(useAppStore.getState().cohortModelRunning).toBe(true)
+    expect(prepSelect.value).toBe('theil_sen')
+    // Accepting applies the change.
+    confirm.mockReturnValueOnce(true)
+    fireEvent.change(prepSelect, { target: { value: 'general_exploration' } })
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('general_exploration')
+    confirm.mockRestore()
+  })
+
   it('renders load prompt when no data is loaded', () => {
     const onBrowseData = vi.fn()
     render(<CohortModelsWorkspace data={emptyData} onBrowseTrajectories={vi.fn()} onBrowseData={onBrowseData} />)

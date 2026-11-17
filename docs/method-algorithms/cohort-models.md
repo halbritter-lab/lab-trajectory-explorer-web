@@ -212,6 +212,12 @@ apply and the count was always 0.
   censoring options or the AKI exclusion of a parameter discards the fitted
   models and projections when a model of that parameter is stored, like every
   other change to the model data; a running fit is stopped by any such change.
+  On the Cohort models page *Data preparation* asks before such a change
+  (since 2026-11-17); the other controls and the Trajectories page do not.
+  *Cancel* (since 2026-11-17) stops a running fit: none of that run's models
+  is stored, including groups already fitted in it, and models stored before
+  stay. A stopped fit ends the fit worker, so R is loaded again with the next
+  fit.
   Changes to endpoint settings, to the rapid-decline threshold or to the
   settings of another parameter do not. The identity of a fitted result
   depends on the same four settings and on nothing else of the fit

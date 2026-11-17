@@ -263,6 +263,7 @@ export function CohortModelTable({
         >
           {progressStatus?.buttonText ?? (running ? 'Fitting...' : 'Fit selected')}
         </button>
+        {running && <button type="button" onClick={() => useAppStore.getState().cancelCohortModels()}>Cancel</button>}
       </div>
       {progressStatus && <p className="mixed-model-message" role="status">{progressStatus.message}</p>}
       {entityRows.length === 0 ? (

@@ -5,6 +5,18 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (Cohort models: control over a running fit)
+
+- A running fit can be cancelled. Models fitted before stay; nothing of the
+  cancelled run is stored. Cancelling stops R, which loads again with the
+  next fit.
+- The notice that the first fit loads R is shown only until a fit has
+  finished in the session.
+- Changing "Data preparation" on the Cohort models page asks before it
+  discards fitted models or stops a running fit. The other controls that
+  discard models (model type, factors, the exclusions checkbox, settings
+  under Trajectories) do not ask.
+
 ### Changed (charts, after the UI critique of 2026-11-17)
 
 - Axis values in the overlay and the patient charts are round numbers (0, 20,
