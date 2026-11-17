@@ -5,6 +5,17 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (analysis controls, after the UI critique of 2026-11-17)
+
+- "Group by" is a select in the Trajectories toolbar, in the table and in the
+  overlay, where it colours the trajectories by group. Grouping no longer
+  needs the attribute to be shown as a column first.
+- The column menu is labelled "Sort" and the settings button "Settings";
+  the chart size buttons carry the label "Chart size".
+- The settings name the control "Time balancing", as the methodology page
+  does (was "Aggregation"). A column with its own settings reads "this
+  parameter only" (was "Own settings").
+
 ### Changed (rapid-decline flag, decided 2026-11-17)
 
 - **"rapid ↓" and `rapid_progression` are no longer set on a slope that

@@ -78,7 +78,7 @@ function transplantAnalysis(label = 'Marker · unit-0') {
   enableTrend(label)
 }
 function sortColumn(label: string, metric: string, ascending = true) {
-  fireEvent.click(screen.getByRole('button', { name: `Column actions: ${label}` }))
+  fireEvent.click(screen.getByRole('button', { name: `Sort: ${label}` }))
   fireEvent.click(screen.getByRole('menuitemradio', { name: `${metric}: ${ascending ? 'ascending' : 'descending'}` }))
 }
 function groupByAttribute(attribute = 'Zentrum') {
@@ -86,7 +86,7 @@ function groupByAttribute(attribute = 'Zentrum') {
   const checkbox = screen.getByRole('checkbox', { name: `Show attribute: ${attribute}` })
   if (!(checkbox as HTMLInputElement).checked) fireEvent.click(checkbox)
   fireEvent.click(screen.getByRole('button', { name: /^Attributes/ }))
-  fireEvent.click(screen.getByRole('button', { name: `Column actions: ${attribute}` }))
+  fireEvent.click(screen.getByRole('button', { name: `Sort: ${attribute}` }))
   fireEvent.click(screen.getByRole('menuitemcheckbox', { name: `Group by ${attribute}` }))
 }
 
@@ -886,7 +886,7 @@ describe('real-data trajectories workspace', () => {
       const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
       expect(within(row).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
       expect(within(row).getByText('2 of 3 fitted')).toBeInTheDocument()
-      expect(screen.getByText('Custom · Own settings')).toBeInTheDocument()
+      expect(screen.getByText('Custom · this parameter only')).toBeInTheDocument()
     })
     it('does not offer the kidney options for another parameter under the default preset', () => {
       render(<TrajectoriesWorkspace data={fixture()} />)
@@ -924,6 +924,23 @@ describe('real-data trajectories workspace', () => {
     fireEvent.change(screen.getByLabelText('Trend method: Marker · unit-0'), { target: { value: 'theil-sen' } })
     expect(screen.getByText(/^Slope range \[/)).toBeInTheDocument()
     expect(screen.queryByText(/^Interval includes 0$/)).not.toBeInTheDocument()
+  })
+
+  it('groups from the toolbar without first showing the attribute, and names the controls', () => {
+    render(<TrajectoriesWorkspace data={fixture()} />)
+    const groupBy = screen.getByLabelText('Group by attribute')
+    expect(within(groupBy).getAllByRole('option').map(option => option.textContent)).toEqual(['No grouping', 'Zentrum'])
+    fireEvent.change(groupBy, { target: { value: 'Zentrum' } })
+    expect(screen.getByRole('button', { name: 'Collapse group Nord' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Filter group')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove grouping: Zentrum' }))
+    expect(groupBy).toHaveValue('')
+    // The controls carry their words: Sort on the column menu, Settings on the slider.
+    expect(screen.getByRole('button', { name: 'Sort: Marker · unit-0' })).toHaveTextContent('Sort')
+    expect(screen.getByRole('button', { name: 'Analysis settings: Marker · unit-0' })).toHaveTextContent('Settings')
+    openSettings('Marker · unit-0')
+    calculationSettings()
+    expect(screen.getByLabelText('Time balancing').closest('label')).toHaveTextContent(/^Time balancing/)
   })
 
   it('does not mark excluded measurements when no fit model is set', () => {

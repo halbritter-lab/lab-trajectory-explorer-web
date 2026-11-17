@@ -78,7 +78,7 @@ export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, s
               </select>
             </label>
 
-            <label>Aggregation
+            <label>Time balancing
               <select
                 aria-label="Time balancing"
                 value={fitSettings.timeBalancing}

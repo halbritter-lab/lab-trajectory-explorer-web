@@ -619,11 +619,11 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     const analysed = parameterKeySet.has(p.key)
     return <div className="pv-param-controls" role="group" aria-label={`Analysis: ${p.label}`}>
       <label><input type="checkbox" aria-label={`Analyse trend: ${p.label}`} checked={analysed} disabled={settings.fitModel === 'none'} onChange={() => toggleTrend(p.key)} />Trend</label>
-      <select aria-label={`Trend method: ${p.label}`} title={`${columnSettings[p.key] ? 'Own settings' : 'Shared defaults'}: trend method`} value={settings.fitModel} onChange={event => changeParameterMethod(p.key, event.target.value as WorkspaceFitSettings['fitModel'])}>
+      <select aria-label={`Trend method: ${p.label}`} title={`${columnSettings[p.key] ? 'This parameter only' : 'Shared defaults'}: trend method`} value={settings.fitModel} onChange={event => changeParameterMethod(p.key, event.target.value as WorkspaceFitSettings['fitModel'])}>
         <option value="ols">OLS</option><option value="theil-sen">Theil–Sen</option><option value="rolling-ols">Rolling OLS</option><option value="segmented-ols">Segmented OLS</option><option value="none">No fit</option>
       </select>
       <button type="button" className="pv-line-toggle" aria-label={`Show trend line: ${p.label}`} aria-pressed={analysed && fitKeys.includes(p.key)} disabled={!analysed} title={analysed ? 'Show or hide the fitted line; results stay calculated' : 'Enable trend analysis first'} onClick={() => setFitKeys(previous => previous.includes(p.key) ? previous.filter(key => key !== p.key) : [...previous, p.key])}><Icon name="eye" /></button>
-      <button type="button" aria-label={`Analysis settings: ${p.label}`} title={`Configure ${p.label}`} onClick={() => { setSettingsScope(p.key); setOpenTool('analysis') }}><Icon name="view" /></button>
+      <button type="button" aria-label={`Analysis settings: ${p.label}`} title={`Configure ${p.label}`} className="pv-settings-button" onClick={() => { setSettingsScope(p.key); setOpenTool('analysis') }}><Icon name="view" /><span>Settings</span></button>
     </div>
   }
   if (!data.patients.length) return <section className="card"><h1>Patients and trajectories</h1><p>No data loaded yet. Import a CSV or Excel file, or load demo data under Data.</p></section>
@@ -658,8 +658,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
             <p className="pv-attribute-help">Show columns without changing patient order.</p>
             <div className="pv-attribute-options">{attributes.map(attribute => <label key={attribute}><input type="checkbox" aria-label={`Show attribute: ${attribute}`} checked={shownAttributes.includes(attribute)} onChange={event => setAttributeKeys(previous => event.target.checked ? [...previous, attribute] : previous.filter(key => key !== attribute))} />{attribute}</label>)}</div>
           </ToolPopover>}
+          {mode !== 'detail' && attributes.length > 0 && <label className="pv-inline-field pv-group-by"><span>Group by</span><select aria-label="Group by attribute" value={attributes.includes(groupBy) ? groupBy : ''} onChange={event => changeGrouping(event.target.value)}><option value="">No grouping</option>{attributes.map(attribute => <option key={attribute} value={attribute}>{attribute}</option>)}</select></label>}
           {groupBy && <label className="pv-inline-field"><span>Show</span><select aria-label="Filter group" value={group} onChange={event => { setGroup(event.target.value); setTablePage(0) }}><option value="">All groups</option>{groups.map(section => <option key={section.key} value={section.key}>{section.label}</option>)}</select></label>}
-          {mode === 'table' && <div className="pv-zoom" role="group" aria-label="Chart zoom">{(['small', 'medium', 'large'] as const).map(size => <button type="button" key={size} aria-pressed={chartSize === size} aria-label={`${size[0].toUpperCase() + size.slice(1)} charts`} onClick={() => setChartSize(size)}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div>}
+          {mode === 'table' && <div className="pv-zoom" role="group" aria-label="Chart zoom"><span className="pv-zoom-label" aria-hidden="true">Chart size</span>{(['small', 'medium', 'large'] as const).map(size => <button type="button" key={size} aria-pressed={chartSize === size} aria-label={`${size[0].toUpperCase() + size.slice(1)} charts`} onClick={() => setChartSize(size)}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div>}
           <ToolPopover name="Display" icon="view" open={active && openTool === 'view'} onToggle={() => toggleTool('view')} onClose={closeTool}>
                   <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
 
@@ -701,7 +702,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
           { id: 'duration', label: 'Follow-up' },
         ]} onSort={(nextMetric, ascending) => { setSort(`${p.key}:${nextMetric}`); setSortReversed(metricAscendingByDefault(nextMetric) !== ascending) }}>
           {parameterControls(p)}
-          <span className={`pv-own-profile ${!columnSettings[p.key] && settings.presetId === 'general_exploration' ? 'pv-default-profile' : ''}`}>{ANALYSIS_CATALOG.find(preset => preset.id === settings.presetId)?.name ?? 'Custom'}{settings.timeBalancing === 'raw' ? '' : ` · ${settings.timeBalancing === 'monthly-median' ? 'monthly' : 'quarterly'} medians`}{columnSettings[p.key] ? ' · Own settings' : ''}</span>
+          <span className={`pv-own-profile ${!columnSettings[p.key] && settings.presetId === 'general_exploration' ? 'pv-default-profile' : ''}`}>{ANALYSIS_CATALOG.find(preset => preset.id === settings.presetId)?.name ?? 'Custom'}{settings.timeBalancing === 'raw' ? '' : ` · ${settings.timeBalancing === 'monthly-median' ? 'monthly' : 'quarterly'} medians`}{columnSettings[p.key] ? ' · this parameter only' : ''}</span>
         </ColumnActions>
       </th>
     })}</tr></thead>{tableGroups.map(section => {
