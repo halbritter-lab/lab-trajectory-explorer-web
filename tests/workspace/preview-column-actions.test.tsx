@@ -6,7 +6,7 @@ describe('preview column grouping actions', () => {
   it('groups from the column menu without invoking sorting', () => {
     const onSort = vi.fn(), onToggle = vi.fn()
     render(<ColumnActions label="site" metrics={[{ id: 'value', label: 'Value' }]} activeMetric={null} ascending defaultAscending onSort={onSort} grouping={{ active: false, onToggle }} />)
-    fireEvent.click(screen.getByRole('button', { name: 'Column actions: site' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Sort: site' }))
     fireEvent.click(screen.getByRole('menuitemcheckbox', { name: 'Group by site', checked: false }))
     expect(onToggle).toHaveBeenCalledOnce()
     expect(onSort).not.toHaveBeenCalled()
