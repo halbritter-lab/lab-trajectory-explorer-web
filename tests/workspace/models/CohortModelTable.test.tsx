@@ -40,6 +40,7 @@ function success(slope: number, converged = true): MixedModelSuccess {
     nMeasurements: 30,
     fixedEffects: { intercept: 60, timeSinceBaseline: slope },
     fixedEffectConfidenceIntervals: { timeSinceBaseline: [slope - 0.5, slope + 0.5] },
+    fixedEffectTerms: [{ term: '(Intercept)', estimate: 60, confidenceInterval: [55, 65] }, { term: 'time_since_baseline', estimate: slope, confidenceInterval: [slope - 0.5, slope + 0.5] }],
     randomEffects: { interceptSd: 4.2, slopeSd: null, interceptSlopeCorrelation: null },
     residualSd: 2.1,
   }
@@ -174,6 +175,12 @@ describe('CohortModelTable', () => {
     expect(cells[4]).toHaveTextContent(`${formatWorkspaceNumber(-9.985)} ml/min/1.73m2/yr`)
     expect(cells[4]).toHaveTextContent('-9.99 ml/min/1.73m2/yr')
     expect(cells[5]).toHaveTextContent(`${formatWorkspaceNumber(1234.5)} ml/min/1.73m2`)
+    // The 95% interval stands beside the estimate; the reading note and the technical record follow.
+    expect(cells[4]).toHaveTextContent('[-10.49, -9.49]')
+    expect(cells[5]).toHaveTextContent('95% interval [55, 65]')
+    expect(screen.getByRole('columnheader', { name: 'Change per year' })).toBeInTheDocument()
+    expect(screen.getByRole('columnheader', { name: 'Group' })).toBeInTheDocument()
+    expect(screen.getByTestId('interval-reading')).toHaveTextContent(/do not report it as a p-value/)
   })
 
   it('keeps the subset fit action secondary under a section heading', () => {

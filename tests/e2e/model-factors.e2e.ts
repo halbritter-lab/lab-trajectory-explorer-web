@@ -37,14 +37,14 @@ test('real workbook previews complete-case factor selection before fitting', asy
   await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
   await expect(page.getByLabel('Model parameter')).toHaveValue(JSON.stringify(['eGFR', 'ml/min/1.73m2']))
   const studio = page.getByRole('region', { name: 'Model Studio' })
-  await expect(studio.locator('.cm-sample-meta')).toHaveText('Complete cases: 11 patients / 11 (33 measurements)')
+  await expect(studio.locator('.cm-sample-meta')).toContainText('across 11 of 11 patients (33 measurements)')
 
   // Adding genotype as a covariate previews the complete-case population first.
   await studio.getByRole('button', { name: /Custom model/ }).click()
   await studio.getByLabel('Add covariate').selectOption('genotype')
   await studio.getByLabel('genotype effect').selectOption('level_slope')
   await studio.getByLabel('genotype reference').selectOption('A')
-  await expect(studio.locator('.cm-sample-meta')).toHaveText('Complete cases: 10 patients / 11 (30 measurements)')
+  await expect(studio.locator('.cm-sample-meta')).toContainText('across 10 of 11 patients (30 measurements)')
   await expect(studio.getByLabel('Readable formula')).toContainText('Time (years):"genotype"')
   await expect(studio.getByLabel('Patients per level')).toHaveText('Whole cohort, patients per level (with enough measurement times): genotype: A 7 (7), B 3 (3)')
   await studio.getByText('Patients not in the model (1)', { exact: true }).click()
@@ -57,5 +57,5 @@ test('real workbook previews complete-case factor selection before fitting', asy
   await expect(row.getByRole('cell').nth(2)).toHaveText('10')
   await expect(row.getByRole('cell').nth(3)).toHaveText('30')
   await expect(page.locator('.cm-slope-badge')).toContainText('Whole cohort, reference profile:')
-  await expect(page.getByRole('columnheader', { name: 'Reference slope', exact: true })).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'Change per year (reference)', exact: true })).toBeVisible()
 })

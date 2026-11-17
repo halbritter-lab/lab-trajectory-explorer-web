@@ -221,10 +221,10 @@ describe('CohortModelsWorkspace', () => {
     const run = vi.fn().mockResolvedValue(undefined)
     useAppStore.setState({ runCohortModels: run })
     studio(qualifyingData(15))
-    fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
-    const button = screen.getByRole('button', { name: /Fit models \(2 units\)/ })
+    fireEvent.click(screen.getByRole('button', { name: /Separate model per group/ }))
+    const button = screen.getByRole('button', { name: /Fit models \(2\)/ })
     expect(button).toBeEnabled()
-    expect(screen.getByRole('status', { name: '' })).toHaveTextContent(/1 unit skipped.*B:.*at least 10 patients/)
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent(/1 group skipped.*B:.*at least 10 patients/)
     fireEvent.click(button)
     await waitFor(() => expect(run).toHaveBeenCalledTimes(1))
     expect(run.mock.calls[0][0].entities.map((e: any) => e.entity.kind === 'cohort' ? 'cohort' : e.entity.value)).toEqual(['cohort', 'A'])
@@ -253,7 +253,7 @@ describe('CohortModelsWorkspace', () => {
     const data = qualifyingData(12)
     data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i < 7 ? 'A' : 'B' }]))
     studio(data)
-    fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Separate model per group/ }))
     expect(screen.getByText('Patients with enough measurement times per group: A: 7, B: 5. Each group needs at least 10.')).toBeInTheDocument()
     expect(screen.getByRole('status', { name: '' })).toHaveTextContent('No arm group can be fitted on its own: each needs at least 10 patients with enough measurement times, and the largest, A, has 7. Only the whole cohort will be fitted.')
     const button = screen.getByRole('button', { name: 'Fit whole cohort only' })
@@ -269,9 +269,9 @@ describe('CohortModelsWorkspace', () => {
     data.rawRows = data.rows
     data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i < 12 ? 'A' : 'B' }]))
     studio(data)
-    fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Separate model per group/ }))
     expect(screen.getByText('Patients with enough measurement times per group: A: 10, B: 2. Each group needs at least 10.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Fit models (2 units)' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Fit models (2)' })).toBeEnabled()
   })
 
   it('keeps the validation reasons when groups fail for something other than size', () => {
@@ -292,7 +292,7 @@ describe('CohortModelsWorkspace', () => {
     const data = qualifyingData(8)
     data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i < 4 ? 'A' : 'B' }]))
     studio(data)
-    fireEvent.click(screen.getByRole('button', { name: /Subgroup comparison/ }))
+    fireEvent.click(screen.getByRole('button', { name: /Separate model per group/ }))
     fitButtons().forEach(button => { expect(button).toBeDisabled(); fireEvent.click(button) })
     expect(run).not.toHaveBeenCalled()
     expect(screen.getByRole('status', { name: '' })).toHaveTextContent(/Whole cohort:.*A:.*B:/)
@@ -333,7 +333,7 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getAllByRole('button', { name: /Fitting/ })).toHaveLength(1)
     expect(within(preview()).getAllByText('Fitting model …').length).toBeGreaterThan(0)
     expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Fitting 1 of 2')
-    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('The first fit after opening the page downloads R (webR with lme4) once and can take a few minutes.')
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('The first fit of a session loads R into the browser; this can take a few minutes. Later fits take seconds.')
     expect(screen.queryByText(/Click 'Fit model'/)).not.toBeInTheDocument()
   })
 
@@ -366,10 +366,10 @@ describe('CohortModelsWorkspace', () => {
     expect(paramSelect.value).toBe('eGFR||mL/min/1.73m²')
 
     // Preset buttons
-    expect(screen.getByRole('button', { name: /Standard \(Overall\)/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Subgroup comparison/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Demographic adjustment/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /Group interaction/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Whole cohort' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Separate model per group/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Adjusted for age and sex/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Difference between groups/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /Custom model/i })).toBeInTheDocument()
 
     // Navigation button
@@ -400,7 +400,7 @@ describe('CohortModelsWorkspace', () => {
       />
     )
 
-    const subgroupBtn = screen.getByRole('button', { name: /Subgroup comparison/i })
+    const subgroupBtn = screen.getByRole('button', { name: /Separate model per group/i })
     fireEvent.click(subgroupBtn)
 
     // Grouping dropdown appears when in subgroup comparison preset
@@ -425,25 +425,31 @@ describe('CohortModelsWorkspace', () => {
       />
     )
 
-    const demoBtn = screen.getByRole('button', { name: /Demographic adjustment/i })
+    const demoBtn = screen.getByRole('button', { name: /Adjusted for age and sex/i })
     fireEvent.click(demoBtn)
 
     // Formula reflects demographic adjustment
     expect(screen.getByLabelText('Readable formula')).toHaveTextContent('"Baseline age (centered)"')
     expect(screen.getByLabelText('Readable formula')).toHaveTextContent('"Sex"')
+    // The fit summary says the same in words; the formula sits in the collapsed details.
+    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent(/with baseline age \(shifts the level\) and sex \(shifts the level\)\. Each patient has an own starting level and rate\./)
+    expect(screen.getByLabelText('Readable formula').closest('details')).not.toHaveAttribute('open')
+    expect(screen.getByText(/^A cohort model estimates the average change per year/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'Intercept only' }))
+    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent(/Each patient has an own starting level; the rate is common to all\.$/)
   })
 
   it('accounts for every patient behind the complete-case count', () => {
     const data = qualifyingData()
     studio({ ...data, patients: [...data.patients, { id: 'P-none', label: 'P-none', attributes: {}, baselineAge: 55 }] })
-    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent('Complete cases: 10 patients / 11')
+    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent('across 10 of 11 patients')
     expect(screen.getByText('Patients not in the model (1)')).toBeInTheDocument()
     expect(screen.getByRole('list', { name: 'Patients not in the model' })).toHaveTextContent('P-none: No usable measurement of this parameter after data preparation')
   })
 
   it('shows which reference category each categorical factor uses', () => {
     render(<CohortModelsWorkspace data={dataset} onBrowseTrajectories={vi.fn()} onBrowseData={vi.fn()} />)
-    fireEvent.click(screen.getByRole('button', { name: /Demographic adjustment/i }))
+    fireEvent.click(screen.getByRole('button', { name: /Adjusted for age and sex/i }))
     const references = screen.getByLabelText('Reference categories')
     const select = screen.getByLabelText('Sex reference') as HTMLSelectElement
     const [first, second] = [...select.options].map(option => option.value)

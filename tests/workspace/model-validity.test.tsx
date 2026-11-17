@@ -116,6 +116,8 @@ describe('workspace model validity', () => {
     // Nothing can be fitted, so the button must not look usable and no window count is shown.
     screen.getAllByRole('button', { name: /Fit model/ }).forEach(button => expect(button).toBeDisabled())
     expect(screen.queryByText(/Preset windows:/)).not.toBeInTheDocument()
+    // No model, so no sentence describing one.
+    expect(document.querySelector('.cm-sample-meta')).toBeNull()
     // The reason is stated once, not as a per-patient list of missing measurements.
     expect(screen.getByText('No patient is in the model: the data preparation of this parameter is No fit.')).toBeInTheDocument()
     expect(screen.queryByText(/Patients not in the model \(/)).not.toBeInTheDocument()

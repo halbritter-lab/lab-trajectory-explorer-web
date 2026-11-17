@@ -5,6 +5,21 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (Cohort models page, wording approved 2026-11-17)
+
+- The page says what a cohort model is for, and the fit summary states the
+  model in a sentence ("Average change of eGFR per year across 25 of 28
+  patients …"). The R formula moved into "Preparation and fitting details".
+- Model types are named "Whole cohort", "Separate model per group", "Adjusted
+  for age and sex", "Difference between groups" and "Custom model"; factor
+  effects read "Shifts the level" and "Shifts level and slope".
+- The results table shows "Group", "Change per year" and "Starting level",
+  each estimate with its 95% interval, and a note on how to read the
+  intervals without a p-value. Engine, dataset and fit configuration are
+  under "Technical record (for a methods section)"; the separate "Slope 95%
+  CI" item in a model's details is gone, as the interval is in the table.
+- No model, estimate or export changes.
+
 ### Changed (analysis controls, after the UI critique of 2026-11-17)
 
 - "Group by" is a select in the Trajectories toolbar, in the table and in the
