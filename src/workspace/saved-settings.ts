@@ -37,7 +37,7 @@ export interface TrajectoryView {
 }
 
 export function defaultTrajectoryView(): TrajectoryView {
-  return { parameterKeys: null, trendKeys: [], fitKeys: [], display: {}, axis: 'baseline', scaleMode: 'shared', chartSize: 'small', cellDetails: 'minimal', warningIcons: true }
+  return { parameterKeys: null, trendKeys: [], fitKeys: [], display: {}, axis: 'baseline', scaleMode: 'shared', chartSize: 'small', cellDetails: 'minimal', warningIcons: false }
 }
 
 /** Raise when the stored shape changes incompatibly; older copies are then

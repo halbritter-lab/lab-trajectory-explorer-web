@@ -66,8 +66,8 @@ test('trend calculation and line visibility stay independent while column sortin
   await expect(rows.nth(1).getByRole('button', { name: 'Open patient A', exact: true })).toBeVisible()
   const slopes = await page.locator('.pv-cell-slope').allTextContents()
   expect(slopes).toHaveLength(3)
-  await expect(line).toHaveAttribute('aria-pressed', 'false')
-  await line.click()
+  // Ticking Trend draws the line in the same step; hiding it keeps the slopes.
+  await expect(line).toHaveAttribute('aria-pressed', 'true')
   await expect(page.locator('.wt-sparkline polyline[stroke-dasharray]')).toHaveCount(3)
   await line.click()
   await expect(page.locator('.wt-sparkline polyline[stroke-dasharray]')).toHaveCount(0)

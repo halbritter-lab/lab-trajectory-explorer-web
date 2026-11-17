@@ -5,6 +5,8 @@ import type { WorkspaceFitSettings } from '../workspace-analysis'
 import { NEPHROLOGY_PRESETS } from '../../core/domains/nephrology/fitConfig'
 import { RAPID_EGFR_DECLINE_MODULE_ID } from '../../core/domains/nephrology/rapidEgfrDeclineModule'
 import { NephrologySettings } from './NephrologySettings'
+import { isEgfrUnit } from '../../core/domains/nephrology/analytes'
+import { isAkiCreatinineSource } from '../../core/domains/nephrology/aki/akiAware'
 import { ModuleSettingInputs } from './ModuleSettingInputs'
 
 export interface AnalysisAdapterProps {
@@ -18,6 +20,9 @@ export interface AnalysisSettingsAdapter {
   id: string
   ownsColumnFields?: readonly string[]
   isConfigured: (settings: WorkspaceFitSettings) => boolean
+  /** Parameters whose settings always show this module's options, so an
+   * exclusion can be chosen without first choosing the module's preset. */
+  appliesTo?: (parameter: WorkspaceParameter) => boolean
   render: (props: AnalysisAdapterProps) => ReactNode
 }
 
@@ -29,6 +34,7 @@ export const analysisSettingsAdapters: readonly AnalysisSettingsAdapter[] = [{
     || Object.values(settings.censoring).some(value => value === true)
     || settings.censoring.unknownDialysisPolicy !== 'flag-only'
     || Object.values(settings.endpoints).some(value => value === true),
+  appliesTo: parameter => isEgfrUnit(parameter.einheit) || isAkiCreatinineSource(parameter.bezeichnung, parameter.einheit),
   render: props => <NephrologySettings {...props} />,
 }]
 
@@ -40,7 +46,7 @@ export function applicableColumnModules(parameter: WorkspaceParameter, modules: 
 export function AnalysisModuleSettings(props: AnalysisAdapterProps & { adapters?: readonly AnalysisSettingsAdapter[] }) {
   const adapters = props.adapters ?? analysisSettingsAdapters
   return <>
-    {adapters.filter(adapter => adapter.isConfigured(props.settings)).map(adapter => <div key={adapter.id} className="pv-module-settings" data-module={adapter.id}>{adapter.render(props)}</div>)}
+    {adapters.filter(adapter => adapter.isConfigured(props.settings) || adapter.appliesTo?.(props.parameter)).map(adapter => <div key={adapter.id} className="pv-module-settings" data-module={adapter.id}>{adapter.render(props)}</div>)}
     {applicableColumnModules(props.parameter, columnSettingModules(), adapters).map(module => <section className="wt-pipeline-group" key={module.id} data-module={module.id}>
       <h2>{module.label}</h2><ModuleSettingInputs modules={[module]} settings={props.settings.moduleSettings} onChange={moduleSettings => props.onUpdate({ moduleSettings })} />
     </section>)}
