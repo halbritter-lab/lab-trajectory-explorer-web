@@ -132,7 +132,8 @@
 .pv-cell-values { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 10px; min-height: 30px; font-size: 12px; font-variant-numeric: tabular-nums; }
 .pv-cell-values > strong { color: #2b4338; font-weight: 600; font-size: 13px; }
 .pv-cell-values > span { color: #64766b; font-size: 11px; }
-.pv-cell-values > .pv-cell-slope { color: #425c4d; }
+.pv-cell-values > .pv-cell-slope { color: #2b4338; font-weight: 600; font-size: 13px; }
+.pv-cell-values > .pv-cell-ci { white-space: nowrap; }
 .pv-cell-indicators { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 2px; margin-left: auto; }
 .pv-hint { display: inline-flex; align-items: center; justify-content: center; gap: 5px; min-width: 28px; min-height: 28px; padding: 5px; border: 0; border-radius: 4px; background: transparent; color: #65796e; font-size: 11px; }
 .pv-hint svg { width: 15px; height: 15px; flex: 0 0 auto; }

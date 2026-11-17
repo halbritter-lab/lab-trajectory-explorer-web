@@ -5,6 +5,12 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (Trajectories table, after the UI critique of 2026-11-17)
+
+- With Trend on, the slope is the leading figure of a table cell: bold, with
+  two decimals and its interval in brackets ("-6.20 ml/min/1,73m²/yr [-25.08,
+  12.68]"). The latest value follows as "latest 49.5". Display only.
+
 ### Added (finding things, after the simulated-user case studies)
 
 - Detected AKI episodes are listed with stage, onset, peak and baseline: on

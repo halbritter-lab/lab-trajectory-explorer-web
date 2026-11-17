@@ -41,6 +41,8 @@ function parseSortKey(sort: string): { paramKey: string; metric: string } {
 const metricAscendingByDefault = (metric: string) => metric === 'slope'
 const TABLE_PAGE_SIZE = 50
 const NO_EVENTS: readonly ClinicalEvent[] = []
+/** Slopes in a column line up: always two decimals, rounded as elsewhere. */
+const fixedSlope = (value: number) => value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/^-0\.00$/, '0.00')
 /** The rapid-decline mark is a finding, not a warning about the value: its own icon. */
 const flagIcon = (tone: string) => tone === 'aki' ? 'event' : tone === 'rapid' ? 'decline' : 'endpoint'
 
@@ -147,11 +149,16 @@ function CellSummary({
 
   if (minimal && !detailed) {
     const visibleFlags = flags.filter(flag => fit || !flag.requiresFit)
+    const showSlope = fit && last !== undefined && Number.isFinite(cell.slope)
     return <div className="pv-cell-minimal">
       <div className="pv-cell-values">
-        <strong aria-label={last ? `Latest value: ${formatWorkspaceNumber(last.value)}` : 'No numeric measurements with a date'}>{last ? formatWorkspaceNumber(last.value) : '—'}</strong>
+        {/* With a trend the slope is the cell's figure; the latest value steps back. */}
+        {showSlope && <strong aria-label={slopeText} className="pv-cell-slope">{cell.slope > 0 ? '+' : ''}{fixedSlope(cell.slope)} {slopeUnitText}</strong>}
+        {showSlope && hasCi && <span className="pv-cell-ci" aria-label={ciText} title={ciTitle}>[{fixedSlope(cell.ciLow)}, {fixedSlope(cell.ciHigh)}]</span>}
+        {showSlope
+          ? <span aria-label={`Latest value: ${formatWorkspaceNumber(last.value)}`}>latest {formatWorkspaceNumber(last.value)}</span>
+          : <strong aria-label={last ? `Latest value: ${formatWorkspaceNumber(last.value)}` : 'No numeric measurements with a date'}>{last ? formatWorkspaceNumber(last.value) : '—'}</strong>}
         {last && <span aria-label={fittedCount ? mediansText ? `${measurementCount}, ${mediansText}` : `${cell.nFitted} fitted of ${measurementCount}` : measurementCount}>{fittedCount ? fittedText : `n=${cell.nNumeric}`}</span>}
-        {fit && last && Number.isFinite(cell.slope) && <span aria-label={slopeText} className="pv-cell-slope">{cell.slope > 0 ? '+' : ''}{formatWorkspaceNumber(cell.slope)} {slopeUnitText}</span>}
         <div className="pv-cell-indicators">
           <Hint label={last ? 'Measurement details' : 'No numeric measurements'}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p><p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.</p>}{rollingText && <p>{rollingText}</p>}</>}</Hint>
           {fit && last && quality && <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'} text={warningIcons ? undefined : qualityText}>{quality.title}</Hint>}
