@@ -44,9 +44,10 @@ export function Trajectories() { return <>
         the export. The default threshold of <strong>5 mL/min/1.73 m² per year</strong> comes
         from the KDIGO 2012 CKD guideline, which defines rapid progression as a sustained decline
         in eGFR of more than 5 mL/min/1.73 m² per year.
-        The flag itself does not test whether a decline is sustained: it is set for any computed
-        slope beyond the threshold, including one from two measurements or from a few weeks of
-        follow-up. Read it together with the reliability note of the same cell. The
+        The flag itself does not test whether a decline is sustained. Since 2026-11-17 it is not
+        set on a slope that carries the reliability note (fewer than three fitted measurement
+        dates or less than one year of fitted follow-up); a slope with a wide interval can still
+        be flagged, so read the interval beside it. The
         threshold is adjustable under Trajectories → Display and analysis (set it to 0 to disable
         the flag). No other clinical
         cut-offs are applied; all other interpretation of the ranking is left to the user, and the

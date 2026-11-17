@@ -15,7 +15,8 @@ describe('workspace workbook', () => {
     const first = input.data.parameters.find(p => p.key === input.parameterKeys[0])!
     const second = input.data.parameters.find(p => p.key === input.parameterKeys[1])!
     const cell = input.cohortRows[0].cells.find(c => c.bezeichnung === second.bezeichnung)!
-    cell.slope = -8
+    // A supported slope: the flag is not set on one the reliability rule calls uncertain.
+    Object.assign(cell, { slope: -8, reason: null, nFitted: 4, nFittedDates: 4, fittedSpanDays: 400 })
     const configs = {
       [first.key]: toFitConfig(defaultFitSettings(), first),
       [second.key]: toFitConfig(defaultFitSettings('theil_sen'), second),

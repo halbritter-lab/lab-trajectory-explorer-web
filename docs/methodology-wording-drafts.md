@@ -317,6 +317,17 @@ Proposed:
 The remaining sentences of that paragraph (adjusting the threshold, screening
 signal) stay as they are.
 
+Changed on 2026-11-17 with the owner's decision to gate the flag on the
+reliability rule (see the [method decisions](remaining-method-decisions.md)).
+The last two sentences of the proposal above no longer describe the code. The
+page now reads, pending the owner's reading of the wording itself:
+
+> The flag itself does not test whether a decline is sustained. Since
+> 2026-11-17 it is not set on a slope that carries the reliability note (fewer
+> than three fitted measurement dates or less than one year of fitted
+> follow-up); a slope with a wide interval can still be flagged, so read the
+> interval beside it.
+
 ## Part B: topics the page did not cover (applied 2026-10-08)
 
 Seven new blocks, each drafted from the matching sections of

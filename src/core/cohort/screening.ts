@@ -372,7 +372,8 @@ const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
 export function cohortCellFlags(cell: CohortCell, patientId: PatientId, columnSettings?: ColumnModuleSettings): CohortFlag[] {
   return [
     ...cell.flags,
-    ...moduleCellFlags({ patientId, seriesKey: { bezeichnung: cell.bezeichnung, einheit: cell.einheit ?? null }, slope: cell.slope, fitModel: cell.fitModel }, columnSettings),
+    ...moduleCellFlags({ patientId, seriesKey: { bezeichnung: cell.bezeichnung, einheit: cell.einheit ?? null }, slope: cell.slope, fitModel: cell.fitModel,
+      unstableSlope: isUnstableSlope({ reason: cell.reason, nFitted: cell.nFitted, nFittedDates: cell.nFittedDates, fittedSpanDays: cell.fittedSpanDays, fitModel: cell.fitModel }) }, columnSettings),
   ]
 }
 

@@ -42,7 +42,8 @@ export function rapidEgfrDeclineFlagForCell(input: RapidEgfrDeclineFlagInput): C
 }
 
 /** Flags eGFR series whose fitted slope falls faster than the column's
- * threshold. The threshold is a column setting (default 5). */
+ * threshold, unless the slope meets the reliability rule. The threshold is a
+ * column setting (default 5). */
 export const rapidEgfrDeclineModule = {
   id: 'rapidEgfrDecline' as const,
   label: 'Rapid eGFR decline',
@@ -65,6 +66,9 @@ export const rapidEgfrDeclineModule = {
   }],
   exportColumns: [{ key: 'rapid_progression', value: ({ flags }: { flags: readonly CohortFlag[] }) => flags.some((flag) => flag.moduleId === RAPID_EGFR_DECLINE_MODULE_ID) ? 'yes' : '' }],
   cellFlags: (ctx: CellFlagContext, settings: RapidEgfrDeclineModuleSettings): CohortFlag[] => {
+    // Decided 2026-11-17: no flag on a slope the reliability rule calls
+    // uncertain; the cell then carries the reliability note alone.
+    if (ctx.unstableSlope) return []
     const flag = rapidEgfrDeclineFlagForCell({
       patientId: ctx.patientId,
       bezeichnung: ctx.seriesKey.bezeichnung,

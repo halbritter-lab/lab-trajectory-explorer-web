@@ -5,6 +5,17 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (rapid-decline flag, decided 2026-11-17)
+
+- **"rapid ↓" and `rapid_progression` are no longer set on a slope that
+  carries the reliability note** (fewer than three fitted measurement dates or
+  less than one year of fitted follow-up). Export values change:
+  `rapid_progression` is blank where it was `yes` for such slopes. Slopes,
+  intervals and `unstable_slope` are unchanged.
+- A slope whose 95% interval includes zero shows the note "Interval includes
+  0" in the table and the patient view. Display only.
+- The methodology page describes the flag accordingly.
+
 ### Changed (Trajectories table, after the UI critique of 2026-11-17)
 
 - With Trend on, the slope is the leading figure of a table cell: bold, with

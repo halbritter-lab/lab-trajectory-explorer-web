@@ -897,6 +897,35 @@ describe('real-data trajectories workspace', () => {
     })
   })
 
+  it('names a 95% interval that includes zero, and not the Theil–Sen range below five dates', () => {
+    const data = fixture()
+    data.parameters = data.parameters.slice(0, 1)
+    // ID-A: 10, 14, 9, 13 on four yearly dates; a slope near zero with a wide interval.
+    const values = [10, 14, 9, 13]
+    const template = data.rows.find(row => row.patientId === 'ID-A' && row.einheit === 'unit-0')!
+    data.rows = [...data.rows.filter(row => row.einheit === 'unit-0' && row.patientId !== 'ID-A'),
+      ...values.map((value, year) => ({ ...template, labDatum: new Date(Date.UTC(2020 + year, 0, 1)), wert: String(value), wertNum: value }))]
+    render(<TrajectoriesWorkspace data={data} />)
+    enableTrend()
+    const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
+    expect(within(row).getByRole('button', { name: 'Interval includes 0' })).toHaveTextContent('Interval includes 0')
+    // ID-B rises by exactly one per year: no interval around zero, no note.
+    expect(within(screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!).queryByRole('button', { name: 'Interval includes 0' })).not.toBeInTheDocument()
+    // With icons the note is not a second "i": the sentence is in the measurement details.
+    iconWarnings()
+    expect(within(row).queryByRole('button', { name: 'Interval includes 0' })).not.toBeInTheDocument()
+    fireEvent.focus(within(row).getByRole('button', { name: 'Measurement details' }))
+    expect(screen.getByRole('tooltip')).toHaveTextContent(/includes zero/)
+    fireEvent.blur(within(row).getByRole('button', { name: 'Measurement details' }))
+    // The patient view states it under the interval.
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
+    expect(screen.getByText(/^Interval includes 0$/).closest('p')).toHaveTextContent(/do not establish whether the value rises or falls/)
+    // Theil–Sen on four dates: the bounds are a slope range, not a 95% interval.
+    fireEvent.change(screen.getByLabelText('Trend method: Marker · unit-0'), { target: { value: 'theil-sen' } })
+    expect(screen.getByText(/^Slope range \[/)).toBeInTheDocument()
+    expect(screen.queryByText(/^Interval includes 0$/)).not.toBeInTheDocument()
+  })
+
   it('does not mark excluded measurements when no fit model is set', () => {
     const data = fixture()
     data.events = [{ patientId: 'ID-A', type: 'kidney_transplant', date: new Date('2021-01-01'), endDate: null, title: 'Transplant', description: null, intent: null, warning: '' }]

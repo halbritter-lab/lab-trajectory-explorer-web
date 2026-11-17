@@ -36,4 +36,11 @@ describe('rapidEgfrDeclineModule', () => {
       threshold: 0,
     })).toBeNull()
   })
+
+  it('sets no flag on a slope that meets the reliability rule', () => {
+    const ctx = { patientId: 7, seriesKey: { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }, slope: -6, fitModel: 'ols' as const }
+    expect(rapidEgfrDeclineModule.cellFlags(ctx, { threshold: 5 })).toHaveLength(1)
+    expect(rapidEgfrDeclineModule.cellFlags({ ...ctx, unstableSlope: false }, { threshold: 5 })).toHaveLength(1)
+    expect(rapidEgfrDeclineModule.cellFlags({ ...ctx, unstableSlope: true }, { threshold: 5 })).toEqual([])
+  })
 })
