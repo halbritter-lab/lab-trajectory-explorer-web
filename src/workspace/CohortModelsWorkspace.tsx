@@ -393,7 +393,6 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const modelSentence = `Average change of ${spec?.bezeichnung ?? 'the parameter'} per year across ${completePatients.size} of ${data.patients.length} patients (${sampleSummary.rows.length} measurements)`
     + `${factorPhrases.length ? `, with ${factorPhrases.join(' and ')}` : ''}.`
     + ` ${mixedModelConfig.randomEffects === 'intercept' ? 'Each patient has an own starting level; the rate is common to all.' : 'Each patient has an own starting level and rate.'}`
-    + `${groupByAttribute ? ` One model per ${groupByAttribute} group and one for the whole cohort.` : ''}`
 
   return (
     <div className="cohort-models-workspace stack">
@@ -523,8 +522,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
           <p className="cm-preset-desc">
             {preset === 'unadjusted' && 'Average change per year across all patients, without further factors.'}
-            {preset === 'stratified' && 'One model for each group of the chosen attribute. The groups’ slopes are shown side by side. Their difference and its interval are not estimated; for that, use “Difference between groups”.'}
-            {preset === 'demographic' && 'Adds baseline age and sex. Both shift the level only; they do not change the slope unless set to “Shifts level and slope”.'}
+            {preset === 'stratified' && 'One model for each group of the chosen attribute. The groups\' slopes are shown side by side. Their difference and its interval are not estimated; for that, use "Difference between groups".'}
+            {preset === 'demographic' && 'Adds baseline age and sex. Both shift the level only; they do not change the slope unless set to "Shifts level and slope".'}
             {preset === 'interaction' && 'One model with the group as a factor. Reports how much faster or slower each group changes than the reference group, with a 95% interval. No p-values are computed.'}
             {preset === 'custom' && 'Choose the factors, their effect, the reference levels and the random effects yourself.'}
           </p>
@@ -621,7 +620,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
         <section className="cm-fit-summary" aria-label="Fit summary">
         <h2>Fit summary</h2>
-        <p className="cm-sample-meta cm-model-sentence">{modelSentence}</p>
+        {spec && !noFit && <p className="cm-sample-meta cm-model-sentence">{modelSentence}</p>}
         <label className="mixed-model-config-check">
           <input type="checkbox" checked={presetExclusionPolicy === 'apply'} onChange={event => setPresetExclusionPolicy(event.target.checked ? 'apply' : 'skip')} />
           Apply preset event and AKI exclusions

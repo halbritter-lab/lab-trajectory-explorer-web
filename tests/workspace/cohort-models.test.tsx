@@ -435,6 +435,8 @@ describe('CohortModelsWorkspace', () => {
     expect(document.querySelector('.cm-sample-meta')).toHaveTextContent(/with baseline age \(shifts the level\) and sex \(shifts the level\)\. Each patient has an own starting level and rate\./)
     expect(screen.getByLabelText('Readable formula').closest('details')).not.toHaveAttribute('open')
     expect(screen.getByText(/^A cohort model estimates the average change per year/)).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('radio', { name: 'Intercept only' }))
+    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent(/Each patient has an own starting level; the rate is common to all\.$/)
   })
 
   it('accounts for every patient behind the complete-case count', () => {

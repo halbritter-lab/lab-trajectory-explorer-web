@@ -360,9 +360,9 @@ export function CohortModelTable({
               })}
             </tbody>
           </table>
+        <p className="mixed-model-message cohort-model-reading" data-testid="interval-reading"><strong>How to read the intervals:</strong> an estimate with a 95% interval that excludes 0 is unlikely to be explained by chance alone under this model. The intervals are approximate and tend to be too narrow with few patients, and nothing is adjusted for comparing several groups or factors. Report the estimate with its interval; do not report it as a p-value. For tests, the exported R script names the lmerTest package.</p>
         </div>
       )}
-      <p className="mixed-model-message cohort-model-reading" data-testid="interval-reading"><strong>How to read the intervals:</strong> an estimate with a 95% interval that excludes 0 is unlikely to be explained by chance alone under this model. The intervals are approximate and tend to be too narrow with few patients, and nothing is adjusted for comparing several groups or factors. Report the estimate with its interval; do not report it as a p-value. For tests, the exported R script names the lmerTest package.</p>
     </section>
   )
 }
@@ -382,14 +382,10 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
   const factors = result.metadata.modelConfig ? mixedModelFactors(result.metadata.modelConfig) : []
   return (
     <>
-    {factors.length > 0 && <p>Reference intercept and slope: {factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : `${factor.key} at its included-patient mean`).join('; ')}. Associations are conditional on this model and population.</p>}
+    {factors.length > 0 && <p>Reference starting level and change per year: {factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : `${factor.key} at its included-patient mean`).join('; ')}. Associations are conditional on this model and population.</p>}
     {result.warnings.map((warning, index) => <p role="status" key={index}>{warning}</p>)}
     <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{coefficient.estimate.toFixed(3)}</td><td>{formatFixedInterval(coefficient.confidenceInterval)}</td></tr>)}</tbody></table>
     <dl className="cohort-model-details">
-      <div className="cohort-model-detail-item">
-        <dt>Slope 95% CI</dt>
-        <dd data-testid="cohort-model-detail-value">{formatOptionalInterval(result.fixedEffectConfidenceIntervals.timeSinceBaseline)}</dd>
-      </div>
       <div className="cohort-model-detail-item">
         <dt>Patient intercept SD</dt>
         <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.randomEffects.interceptSd)}</dd>
@@ -406,14 +402,14 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
         <dt>Residual SD</dt>
         <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.residualSd)}</dd>
       </div>
-    </dl>
-    <details className="cohort-model-technical">
-    <summary>Technical record (for a methods section)</summary>
-    <dl className="cohort-model-details">
       <div className="cohort-model-detail-item cohort-model-detail-item-wide" data-testid="cohort-model-detail-formula">
         <dt>Formula</dt>
         <dd data-testid="cohort-model-detail-value">{mixedModelFormulaForOutcome(result.metadata.formula, outcome)}</dd>
       </div>
+    </dl>
+    <details className="cohort-model-technical">
+    <summary>Technical record (for a methods section)</summary>
+    <dl className="cohort-model-details">
       <div className="cohort-model-detail-item">
         <dt>Engine</dt>
         <dd data-testid="cohort-model-detail-value">{result.metadata.engine}</dd>
@@ -437,7 +433,7 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
 // exports keep the unrounded values.
 /** The 95% interval beside an estimate in the results table; nothing when the fit recorded none. */
 function IntervalText({ value }: { value: [number, number] | null }) {
-  return value === null ? null : <span className="cohort-model-interval" title="95% interval"> {formatOptionalInterval(value)}</span>
+  return value === null ? null : <span className="cohort-model-interval" title="95% interval"> <span className="visually-hidden">95% interval </span>{formatOptionalInterval(value)}</span>
 }
 
 function formatSlope(value: number, unit: string | null): string {

@@ -94,8 +94,8 @@ in a non-default preset, the no-fit path, or quarterly aggregation.
   attribute shows one reference line per fitted group.
 - [ ] With an ineligible cohort or configuration, the Fit model action is
   disabled with an understandable adjacent explanation, and the preview says
-  that fitting is unavailable. Eligible units in a
-  partially eligible grouped request can still be fitted; skipped units are explained.
+  that fitting is unavailable. Eligible groups in a
+  partially eligible grouped request can still be fitted; skipped groups are explained.
 
 ### Exports
 

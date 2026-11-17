@@ -1838,8 +1838,16 @@ owner's approval like the methodology wording. **The owner approved F1 to F8
 as drafted on 2026-11-17 and they are applied**, with two notes: the plot chip
 of F6 already read "Whole cohort, reference profile" for a model with a
 factor-by-time term and is left as it is; the sentence of F4 also carries the
-counts, so there is no separate "In the model" line. No model, estimate or
-export changes with any of it.
+counts, so there is no separate "In the model" line. The executed formula of
+a fitted model stays in its details and is not part of the technical record;
+the item "Slope 95% CI" there is removed, because the interval now stands
+beside the estimate. No model, estimate or export changes with any of it.
+
+Two points a review raised are left for the owner, because they concern
+approved wording: the sentence of F4 says "Average change" also for a model
+with a factor on level and slope, where the time coefficient is the slope of
+the reference profile; and the introduction of F1 says "an own rate" also
+when a custom model uses a random intercept only.
 
 ### F1. What the page is for (new, under the page heading)
 

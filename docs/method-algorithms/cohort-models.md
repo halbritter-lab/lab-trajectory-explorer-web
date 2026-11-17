@@ -44,9 +44,19 @@ value ~ time_since_baseline + factor_0_ + time_since_baseline:factor_0_ +
   (1 + time_since_baseline | patient_id)
 ```
 
-The formula strip above the Fit button shows a readable form: the series name
-without unit as outcome, `Time (years)`, `Patient`, and the quoted factor names
-instead of the column names. The unit's Details panel and the export show the
+The fit summary states the model in a sentence (since 2026-11-17): "Average
+change of <series> per year across n of all patients (m measurements)", the
+factors with "shifts the level" or "shifts level and slope", and "Each patient
+has an own starting level and rate." or, with a random intercept only, "Each
+patient has an own starting level; the rate is common to all." The counts are
+those of the whole-cohort model. The sentence is not shown without a parameter
+or with the data preparation "No fit". With a factor on level and slope the
+time coefficient is the slope of the reference profile, not an average over
+the groups; the sentence still says "Average change" (wording approved by the
+owner). "Preparation and fitting details", below the Fit button and collapsed
+by default, shows a readable form of the formula ("Model formula (R syntax)"):
+the series name without unit as outcome, `Time (years)`, `Patient`, and the
+quoted factor names instead of the column names. The unit's Details panel and the export show the
 executable formula with `value` replaced by the series name and unit, for
 example `eGFR (ml/min/1.73m2) ~ time_since_baseline + …`.
 
@@ -84,14 +94,14 @@ nlme::lme(<fixed part>, random = ~ time_since_baseline | patient_id,
 cohort* (formerly "Standard (Overall)"), *Separate model per group* (formerly
 "Subgroup comparison"), *Adjusted for age and sex* (formerly "Demographic
 adjustment"), *Difference between groups* (formerly "Group interaction") and
-*Custom model*; the configurations are unchanged, and this section keeps the
-former names. The factor effects read "Shifts the level" (`level`) and "Shifts
-level and slope" (`level_slope`). *Standard* has no factors. *Subgroup comparison* has no
+*Custom model*; the configurations are unchanged. The factor effects read
+"Shifts the level" (`level`) and "Shifts level and slope" (`level_slope`).
+*Whole cohort* has no factors. *Separate model per group* has no
 factors and fits per group (see *Stratified (grouped) fits*); it keeps the
 current grouping attribute or else selects the first groupable attribute in
 numeric-aware, case-insensitive order, which can be `birthDate` or `sex`.
-*Demographic adjustment* adds baseline age (level) and sex (level). *Group
-interaction* adds, with level and slope, the first groupable attribute other
+*Adjusted for age and sex* adds baseline age (level) and sex (level).
+*Difference between groups* adds, with level and slope, the first groupable attribute other
 than `sex` in that order; when `sex` is the only one it uses `sex`. A
 categorical attribute becomes a categorical factor with its first sorted level
 as reference. A numeric attribute becomes a numeric factor without a reference
@@ -100,11 +110,11 @@ the preset stored a reference level with the numeric factor, which
 `validateMixedModelConfig` rejects, so nothing could be fitted). When the
 dataset has no attribute and no resolved sex the preset stores a factor
 `genotype` without a reference level, which is an invalid configuration: the
-formula strip is empty, every unit with model rows shows "Invalid or duplicate
+readable formula in the details is empty, every unit with model rows shows "Invalid or duplicate
 mixed-model factor; categorical factors require a reference level." and
-nothing is fitted. *Custom* leaves the choice to the user.
+nothing is fitted. *Custom model* leaves the choice to the user.
 
-The *Group interaction* description reads "Reports how much faster or slower
+The *Difference between groups* description reads "Reports how much faster or slower
 each group changes than the reference group, with a 95% interval. No p-values
 are computed." (wording of 2026-11-17; decided 2026-10-07, formerly OD-6;
 before, it promised p-values). Under the results table the page states how to
@@ -339,9 +349,9 @@ factor is added and offers no control to change it.
 rows, when any configured factor has no usable value: a missing or blank value
 (`Missing <factor>`) or, for a numeric factor, text that fails the grammar
 (`Invalid numeric <factor>`). Nothing is imputed. The removal affects this model
-only. Removed patients are listed with their reasons under the formula, in the
+only. Removed patients are listed with their reasons in the fit summary, in the
 unit's status cell ("Excluded for factor values") and in the `excluded_patients`
-worksheet. The list under the formula, "Patients not in the model", accounts
+worksheet. The list in the fit summary, "Patients not in the model", accounts
 for every patient behind the count in the fit summary ("across n of all
 patients"; until 2026-11-17 "Complete cases: n patients / all"): besides the
 patients removed for a factor value it names each patient who has no usable
@@ -462,7 +472,8 @@ Intervals are reported for fixed effects only, at the packages' default level of
 - **nlme:** `intervals(fit, which = "fixed")`, nlme's approximate intervals.
 
 When the interval call fails or returns a non-finite bound, the interval is
-unavailable and shown as "n/a". No interval is computed for the random-effect
+unavailable: the coefficient table in a model's details shows "n/a", and the
+results table shows the estimate without an interval. No interval is computed for the random-effect
 standard deviations, their correlation or the residual standard deviation. No
 p-value or other test statistic is computed, displayed or exported.
 

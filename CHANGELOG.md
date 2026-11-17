@@ -16,7 +16,8 @@ interfaces are still evolving before 1.0.
 - The results table shows "Group", "Change per year" and "Starting level",
   each estimate with its 95% interval, and a note on how to read the
   intervals without a p-value. Engine, dataset and fit configuration are
-  under "Technical record (for a methods section)".
+  under "Technical record (for a methods section)"; the separate "Slope 95%
+  CI" item in a model's details is gone, as the interval is in the table.
 - No model, estimate or export changes.
 
 ### Changed (analysis controls, after the UI critique of 2026-11-17)
