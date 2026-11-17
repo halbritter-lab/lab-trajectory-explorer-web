@@ -205,6 +205,10 @@ describe('cohortExportRecords', () => {
     const underAYear = buildCohortRows([rows[0], { ...rows[1], labDatum: d('2019-05-01') }, { ...rows[2], labDatum: d('2019-12-30') }], [1], [spec]) // 363 days
     expect(cohortExportRecords(underAYear, threshold(5))[0]).toMatchObject({ unstable_slope: 'yes', rapid_progression: '' })
     expect(Number(cohortExportRecords(underAYear, threshold(5))[0].slope)).toBeLessThan(-5)
+    // The boundary: three dates over 364 days give no flag, over 365 days they do.
+    const spanning = (last: string) => buildCohortRows([rows[0], { ...rows[1], labDatum: d('2019-07-01') }, { ...rows[2], labDatum: d(last) }], [1], [spec])
+    expect(cohortExportRecords(spanning('2019-12-31'), threshold(5))[0]).toMatchObject({ unstable_slope: 'yes', rapid_progression: '' })
+    expect(cohortExportRecords(spanning('2020-01-01'), threshold(5))[0]).toMatchObject({ unstable_slope: '', rapid_progression: 'yes' })
   })
 
   it('adds a leading group column only when rows carry a groupValue', () => {

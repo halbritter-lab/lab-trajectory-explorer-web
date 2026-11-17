@@ -100,7 +100,10 @@ Interval note (decided 2026-11-17): when the slope has a 95% interval and
 zero lies strictly inside it (`ciLow < 0 < ciHigh`), the cell shows the grey
 note "Interval includes 0" with the explanation that the measurements do not
 establish whether the value rises or falls. It is a display note in the table
-and the patient view for every parameter. It is not part of the reliability
+and the patient view for every parameter: as a text badge in the table's
+minimal and compact layouts (with icons instead of text badges, the sentence
+is in the cell's details), and as a line under the interval in the full
+layout and the patient view. It is not part of the reliability
 rule: `unstable_slope`, the rapid-decline flag and the overlay are unchanged
 by it. It is not shown for Theil–Sen bounds below five fitted dates, which
 are not a 95% interval, nor when a bound is exactly zero. Example: interval
@@ -181,10 +184,11 @@ flag. The flag still does not consult the confidence bounds or R²: a slope
 with a wide interval over more than a year is flagged (see the interval note
 under "Labels").
 
-Example: eGFR 90 on 2019-01-01 and 80 on 2020-01-01 gives −10 per year from
-two dates: `unstable_slope = yes`, `rapid_progression` blank (before:
-`yes`). The same two values plus 70 on 2021-01-01 give −10 per year from three
-dates over 731 days: `rapid_progression = yes`. Demo data, General
+Example: eGFR 90 on 2019-01-01 and 80 on 2020-01-01 gives −10.01 per year
+from two dates (365 days): `unstable_slope = yes`, `rapid_progression` blank
+(before: `yes`). The same two values plus 70 on 2021-01-01 give −9.99 per
+year from three dates over 731 days: `rapid_progression = yes`. Three dates
+over 364 days give no flag, three dates over 365 days can. Demo data, General
 exploration: patient 12 (−7.35 per year, follow-up under one year) loses the
 flag; patient 6 (−6.20 per year, interval −25.08 to 12.68, eleven values over
 more than a year) keeps it.

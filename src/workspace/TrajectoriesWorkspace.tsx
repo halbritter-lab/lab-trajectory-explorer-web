@@ -165,10 +165,11 @@ function CellSummary({
           : <strong aria-label={last ? `Latest value: ${formatWorkspaceNumber(last.value)}` : 'No numeric measurements with a date'}>{last ? formatWorkspaceNumber(last.value) : '—'}</strong>}
         {last && <span aria-label={fittedCount ? mediansText ? `${measurementCount}, ${mediansText}` : `${cell.nFitted} fitted of ${measurementCount}` : measurementCount}>{fittedCount ? fittedText : `n=${cell.nNumeric}`}</span>}
         <div className="pv-cell-indicators">
-          <Hint label={last ? 'Measurement details' : 'No numeric measurements'}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p><p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.</p>}{rollingText && <p>{rollingText}</p>}</>}</Hint>
+          <Hint label={last ? 'Measurement details' : 'No numeric measurements'}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p><p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.{zeroInside ? ` ${zeroInside.title}` : ''}</p>}{rollingText && <p>{rollingText}</p>}</>}</Hint>
           {fit && last && quality && <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'} text={warningIcons ? undefined : qualityText}>{quality.title}</Hint>}
           {included && <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>}
-          {zeroInside && <Hint label={zeroInside.label} text={warningIcons ? undefined : zeroInside.label}>{zeroInside.title}</Hint>}
+          {/* Icon mode: a second "i" beside Measurement details would look the same; the sentence is in that hint. */}
+          {zeroInside && !warningIcons && <Hint label={zeroInside.label} text={zeroInside.label}>{zeroInside.title}</Hint>}
           {visibleFlags.map(flag => <Hint key={flag.id} label={flag.label} icon={flagIcon(flag.tone)} tone={flag.tone} text={flag.tone === 'aki' ? 'AKI' : warningIcons ? undefined : flag.label}>{flag.title}</Hint>)}
           {endpoint && <Hint label={endpoint.label} icon="endpoint" tone="endpoint" text={warningIcons ? undefined : endpoint.label}>{endpoint.title}</Hint>}
           {markedCount > 0 && <Hint label="Excluded measurements" icon="excluded" text={warningIcons ? undefined : `${markedCount} excluded`}>{excludedText}</Hint>}
@@ -191,7 +192,7 @@ function CellSummary({
         <span>{slopeText}</span>
         {quality && (warningIcons ? <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'}>{quality.title}</Hint> : <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityLabel}</span>)}
         {included && <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>}
-        {zeroInside && <Hint label={zeroInside.label} text={warningIcons ? undefined : zeroInside.label}>{zeroInside.title}</Hint>}
+        {zeroInside && !warningIcons && <Hint label={zeroInside.label} text={zeroInside.label}>{zeroInside.title}</Hint>}
         {flags.filter(flag => flag.requiresFit).map(badge)}
       </>}
       {endpoint && (warningIcons ? <Hint label={endpoint.label} icon="endpoint" tone="endpoint">{endpoint.title}</Hint> : <span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span>)}
@@ -200,6 +201,7 @@ function CellSummary({
         <summary>Details</summary>
         {fit && last && rollingText && <p title={rollingTitle || undefined}>{rollingText}</p>}
         {fit && last && hasCi && <p title={ciTitle}>{ciText}</p>}
+        {zeroInside && <p>{zeroInside.label}: {zeroInside.title}</p>}
         {fit && last && hasCi && slopeRange && <p className="wt-muted">{rangeHint}</p>}
         {fit && last && quality && <p>{quality.title}</p>}
         {included && <p>{included.label}. {included.title}</p>}
@@ -234,9 +236,7 @@ function CellSummary({
       {included && (detailed
         ? <p role="note" className="wt-quality-note wt-warning"><strong>{included.label}</strong>: {included.title}</p>
         : <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>)}
-      {zeroInside && (detailed
-        ? <span className="wt-muted">{zeroInside.label}: {zeroInside.title}</span>
-        : <Hint label={zeroInside.label} text={warningIcons ? undefined : zeroInside.label}>{zeroInside.title}</Hint>)}
+      {zeroInside && <p role="note" className="wt-quality-note wt-muted"><strong>{zeroInside.label}</strong>: {zeroInside.title}</p>}
       {detailed && noAkiText && <span className="wt-muted">{noAkiText}</span>}
       {flags.filter(flag => flag.requiresFit).map(badge)}
     </>}
