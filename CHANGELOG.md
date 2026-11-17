@@ -9,11 +9,15 @@ interfaces are still evolving before 1.0.
 
 - "Group by" is a select in the Trajectories toolbar, in the table and in the
   overlay, where it colours the trajectories by group. Grouping no longer
-  needs the attribute to be shown as a column first.
+  needs the attribute to be shown as a column first. On a phone the select is
+  hidden; grouping is set there from an attribute column's Sort menu.
+- Grouping ends when an attributes import removes the grouping attribute;
+  before, the table stayed grouped under one "Not recorded" section.
 - The column menu is labelled "Sort" and the settings button "Settings";
   the chart size buttons carry the label "Chart size".
 - The settings name the control "Time balancing", as the methodology page
-  does (was "Aggregation"). A column with its own settings reads "this
+  does (was "Aggregation"); the measurement list says "Available before time
+  balancing". A column with its own settings reads "this
   parameter only" (was "Own settings").
 
 ### Changed (rapid-decline flag, decided 2026-11-17)

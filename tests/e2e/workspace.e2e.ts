@@ -259,7 +259,7 @@ test('patient measurements identify the clinical event responsible for an exclus
   await page.getByText('Show measurements (4)', { exact: true }).first().click()
   const table = page.getByRole('table', { name: 'Measurements Creatinine [mg/dl]', exact: true })
   await expect(table.getByRole('cell', { name: 'Excluded: after kidney transplant', exact: true })).toHaveCount(3)
-  await expect(table.getByRole('cell', { name: 'Available before time aggregation', exact: true })).toHaveCount(1)
+  await expect(table.getByRole('cell', { name: 'Available before time balancing', exact: true })).toHaveCount(1)
 })
 
 test('large synthetic cohort remains searchable and exports the filtered scope', async ({ page }, testInfo) => {

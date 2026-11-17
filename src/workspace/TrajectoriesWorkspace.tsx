@@ -268,9 +268,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const [tablePage, setTablePage] = useState(0)
   const [selected, setSelected] = useState<PatientId[]>([])
   const [selectedOnly, setSelectedOnly] = useState(false)
-  const [groupBy, setGroupBy] = useState('')
+  const [groupByState, setGroupBy] = useState('')
   const [attributeKeys, setAttributeKeys] = useState<string[]>([])
-  const [group, setGroup] = useState('')
+  const [groupState, setGroup] = useState('')
   const [collapsedGroups, setCollapsedGroups] = useState<string[]>([])
   const changeGrouping = (attribute: string) => { setGroupBy(attribute); setGroup(''); setCollapsedGroups([]); setTablePage(0) }
   const [sort, setSortKey] = useState('id')
@@ -426,6 +426,10 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     return { min, max, days }
   }), [cohort, specs])
   const attributes = useMemo(() => [...new Set(data.patients.flatMap(p => Object.keys(p.attributes)))].sort(), [data.patients])
+  // An attributes import can remove the grouping attribute without remounting
+  // this page: grouping and its filter then end, everywhere at once.
+  const groupBy = attributes.includes(groupByState) ? groupByState : ''
+  const group = groupBy ? groupState : ''
   const shownAttributes = attributeKeys.filter(attribute => attributes.includes(attribute))
   const attributeLabel = (attribute: string, value: string | undefined) => value?.trim() ? attribute === 'sex' ? sexLabel(value) : value : undefined
   const attributeSort = parseAttributeSort(sort)
@@ -658,9 +662,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
             <p className="pv-attribute-help">Show columns without changing patient order.</p>
             <div className="pv-attribute-options">{attributes.map(attribute => <label key={attribute}><input type="checkbox" aria-label={`Show attribute: ${attribute}`} checked={shownAttributes.includes(attribute)} onChange={event => setAttributeKeys(previous => event.target.checked ? [...previous, attribute] : previous.filter(key => key !== attribute))} />{attribute}</label>)}</div>
           </ToolPopover>}
-          {mode !== 'detail' && attributes.length > 0 && <label className="pv-inline-field pv-group-by"><span>Group by</span><select aria-label="Group by attribute" value={attributes.includes(groupBy) ? groupBy : ''} onChange={event => changeGrouping(event.target.value)}><option value="">No grouping</option>{attributes.map(attribute => <option key={attribute} value={attribute}>{attribute}</option>)}</select></label>}
+          {mode !== 'detail' && attributes.length > 0 && <label className="pv-inline-field pv-group-by"><span>Group by</span><select aria-label="Group by attribute" value={groupBy} onChange={event => changeGrouping(event.target.value)}><option value="">No grouping</option>{attributes.map(attribute => <option key={attribute} value={attribute}>{attribute}</option>)}</select></label>}
           {groupBy && <label className="pv-inline-field"><span>Show</span><select aria-label="Filter group" value={group} onChange={event => { setGroup(event.target.value); setTablePage(0) }}><option value="">All groups</option>{groups.map(section => <option key={section.key} value={section.key}>{section.label}</option>)}</select></label>}
-          {mode === 'table' && <div className="pv-zoom" role="group" aria-label="Chart zoom"><span className="pv-zoom-label" aria-hidden="true">Chart size</span>{(['small', 'medium', 'large'] as const).map(size => <button type="button" key={size} aria-pressed={chartSize === size} aria-label={`${size[0].toUpperCase() + size.slice(1)} charts`} onClick={() => setChartSize(size)}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div>}
+          {mode === 'table' && <div className="pv-zoom" role="group" aria-label="Chart size"><span className="pv-zoom-label" aria-hidden="true">Chart size</span>{(['small', 'medium', 'large'] as const).map(size => <button type="button" key={size} aria-pressed={chartSize === size} aria-label={`${size[0].toUpperCase() + size.slice(1)} charts`} onClick={() => setChartSize(size)}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div>}
           <ToolPopover name="Display" icon="view" open={active && openTool === 'view'} onToggle={() => toggleTool('view')} onClose={closeTool}>
                   <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
 
