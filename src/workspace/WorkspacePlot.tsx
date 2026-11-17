@@ -1,5 +1,5 @@
 import { useId, useMemo, useRef, useState } from 'react'
-import { niceTicks } from './plot-ticks'
+import { niceTicks, tickLabels } from './plot-ticks'
 import { formatDisplayDate, formatDisplayNumber } from '../core/format'
 import type { CohortRow } from '../core/cohort/screening'
 import type { LabRow, PatientId, WertOperator } from '../core/types'
@@ -19,12 +19,12 @@ import { overlayModules } from '../core/analysis/registry'
 
 export type WorkspaceAxis = 'baseline' | 'calendar' | 'age'
 /** Modules whose overlays the charts can draw, with their presentation. */
-/** From this many trajectories on, unemphasised lines are drawn lighter. */
-const DENSE_OVERLAY = 8
 export const OVERLAY_MODULES = overlayModules().map(module => ({ id: module.id, presentation: module.overlayPresentation! }))
 /** Display toggles: measurement marks, events, and one per overlay module,
  * keyed by module id (e.g. `aki`). */
 export interface WorkspaceDisplay { points: boolean; connect: boolean; events: boolean; [overlayModuleId: string]: boolean }
+/** With more trajectories than this, unemphasised ones are drawn lighter. */
+const DENSE_OVERLAY = 8
 export const DEFAULT_WORKSPACE_DISPLAY: WorkspaceDisplay = { points: true, connect: true, events: false, ...Object.fromEntries(OVERLAY_MODULES.map(module => [module.id, false])) }
 const EXCLUDED_COLOR = '#64748b'
 const MS_PER_DAY = 86_400_000
@@ -194,6 +194,10 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const rowEventCount = data.events.filter(event => rowIds.has(event.patientId)).length
   const x = (n: number) => 65 + (n - xMin) / (xMax - xMin) * 565
   const y = (n: number) => 240 - (n - yMin) / (yMax - yMin) * 210
+  const yTicks = niceTicks(yMin, yMax, 4)
+  const yTickLabels = tickLabels(yTicks)
+  const xTicks = axis === 'calendar' ? [0, .25, .5, .75, 1].map(f => xMin + (xMax - xMin) * f) : niceTicks(xMin, xMax, 5)
+  const xTickLabels = tickLabels(xTicks)
   const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)' : 'Years since first measurement of this parameter'
   // In the overlay the trajectory under the pointer or the keyboard focus is
   // emphasised and named, so a line can be identified without the selector.
@@ -222,8 +226,9 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       <desc>Measurements for the selected patients. Press Enter or Space to open a trajectory. Research use only.</desc>
       <defs><clipPath id={clip}><rect x="65" y="20" width="565" height="230" /></clipPath></defs>
       {/* Round tick values; the axis range is unchanged. Calendar dates keep five even positions. */}
-      {niceTicks(yMin, yMax, 4).map(v => <g key={v}><line x1="65" x2="630" y1={y(v)} y2={y(v)} stroke="#dce5e9" /><text x="57" y={y(v) + 4} textAnchor="end">{formatWorkspaceNumber(v)}</text></g>)}
-      {(axis === 'calendar' ? [0, .25, .5, .75, 1].map(f => xMin + (xMax - xMin) * f) : niceTicks(xMin, xMax, 5)).map(v => <text key={v} x={x(v)} y="265" textAnchor="middle">{axis === 'calendar' ? formatWorkspaceDate(new Date(v)) : formatWorkspaceNumber(v)}</text>)}
+      {yTicks.map((v, i) => <g key={v}><line x1="65" x2="630" y1={y(v)} y2={y(v)} stroke="#dce5e9" /><text x="57" y={y(v) + 4} textAnchor="end">{yTickLabels[i]}</text></g>)}
+      {/* The outer dates are anchored inwards, so a long label stays inside the chart. */}
+      {xTicks.map((v, i) => <text key={v} x={x(v)} y="265" textAnchor={axis !== 'calendar' ? 'middle' : i === 0 ? 'start' : i === xTicks.length - 1 ? 'end' : 'middle'}>{axis === 'calendar' ? formatWorkspaceDate(new Date(v)) : xTickLabels[i]}</text>)}
       <text x="345" y="294" textAnchor="middle">{axisLabel}</text>
       {shownOverlays.map(module => <g key={module.id} clipPath={`url(#${clip})`} className={`wt-${module.id}-bands`}>{visible.filter(series => overlayDetail(series.row.patientId)).flatMap(series => series.bands.filter(band => band.moduleId === module.id).map((band, i) => <rect key={`${String(series.row.patientId)}-${i}`} data-testid={`${module.id}-band`} x={x(band.start)} width={Math.max(1, x(band.end) - x(band.start))} y="20" height="230" fill={module.presentation.color} fillOpacity={.1}><title>{band.title}</title></rect>))}</g>)}
       {visible.map(series => {
@@ -276,13 +281,13 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       )}
     </svg>}
     {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length}{visibleEvents.length < rowEventCount ? ` of ${rowEventCount}` : ''})</summary>{visibleEvents.length < rowEventCount && <p className="wt-muted">{rowEventCount - visibleEvents.length} {rowEventCount - visibleEvents.length === 1 ? 'event belongs to a patient' : 'events belong to patients'} not plotted here (no plotted value of this parameter, or group hidden).</p>}{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId}, {formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
-    {display.events && visibleEvents.length > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><line x1="6" x2="6" y1="0" y2="12" stroke="#936221" strokeDasharray="2 3" strokeWidth="1.5" /></svg> Dashed vertical lines: clinical events of the plotted patients; “Inspect events” lists them.</p>}
+    {display.events && visibleEvents.length > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><line x1="6" x2="6" y1="0" y2="12" stroke="#936221" strokeDasharray="2 3" strokeWidth="1.5" /></svg> Dashed vertical lines: clinical events of {cohortRows.length === 1 ? 'this patient' : 'the plotted patients'}; “Inspect events” lists them.</p>}
     {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}
     {pooledModelLine && <p className="wt-muted">Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.{axis === 'age' ? ' Age axis: mean baseline age of fitted patients plus elapsed model time.' : ''}</p>}
     {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groupModelLines.map(line => groupLabel(line.group!)).join(', ')}).{axis === 'age' ? ' Age axis: mean baseline age of each group plus elapsed model time.' : ''}</p>}
     {excludedCount > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> Grey open circles: {countLabel(excludedCount, 'measurement')} excluded from the fit ({excludedReasons.map(exclusionReasonLabel).join('; ')}). They stay visible but do not enter the slope.</p>}
     {shownOverlays.map(module => <p key={module.id} className="wt-muted wt-plot-key">{markerCount(module.id) > 0
-      ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={module.presentation.color} /></svg>{module.presentation.markerLegend}{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${module.presentation.color}26`, borderColor: `${module.presentation.color}40` }} />{module.presentation.bandLegend}{cohortRows.length > 1 ? visible.some(p => p.row.patientId === highlight) ? ', shown for the highlighted patient' : '; windows and stage labels appear once a patient is chosen under Display → “Highlight patient”' : ''}.</>
+      ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={module.presentation.color} /></svg>{module.presentation.markerLegend}{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${module.presentation.color}26`, borderColor: `${module.presentation.color}40` }} />{module.presentation.bandLegend}{cohortRows.length > 1 ? visible.some(p => p.row.patientId === highlight) ? ', shown for the highlighted patient' : highlight !== null ? '; the highlighted patient is not plotted in this chart' : '; windows and stage labels appear once a patient is chosen under Display → “Highlight patient”' : ''}.</>
       : module.presentation.emptyLegend}</p>)}
     {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurement dates or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}

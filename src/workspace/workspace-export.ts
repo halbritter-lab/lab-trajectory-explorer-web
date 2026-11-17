@@ -145,7 +145,9 @@ export function exportChartSvg(svg: SVGSVGElement, title: string): {svg:string;w
   clone.querySelectorAll('text').forEach((text,index) => {
     const style = getComputedStyle(originals[index])
     for (const [property,fallback] of [['font-family','Arial, sans-serif'],['font-size','12px'],['fill','#445963']] as const) {
-      const value = style.getPropertyValue(property) || text.getAttribute(property) || fallback
+      // The size is fixed: the page enlarges chart text on a narrow screen, and an
+      // export must not depend on the width of the window it was made in.
+      const value = property === 'font-size' ? fallback : style.getPropertyValue(property) || text.getAttribute(property) || fallback
       text.setAttribute(property,value)
       text.style.setProperty(property,value)
     }
