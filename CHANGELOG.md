@@ -18,6 +18,9 @@ interfaces are still evolving before 1.0.
   intervals without a p-value. Engine, dataset and fit configuration are
   under "Technical record (for a methods section)"; the separate "Slope 95%
   CI" item in a model's details is gone, as the interval is in the table.
+- With a factor on level and slope the sentence reads "Change of eGFR per
+  year for the reference group …", since the value is then that group's
+  slope.
 - No model, estimate or export changes.
 
 ### Changed (analysis controls, after the UI critique of 2026-11-17)

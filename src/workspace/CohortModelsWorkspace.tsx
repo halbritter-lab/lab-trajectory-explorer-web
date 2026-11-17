@@ -390,7 +390,12 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     const name = factor.key === 'baseline_age' ? 'baseline age' : factor.key === 'sex' ? 'sex' : availableFactors.find(f => f.key === factor.key)?.label ?? factor.key
     return `${name} (${factor.effect === 'level_slope' ? 'shifts level and slope' : 'shifts the level'})`
   })
-  const modelSentence = `Average change of ${spec?.bezeichnung ?? 'the parameter'} per year across ${completePatients.size} of ${data.patients.length} patients (${sampleSummary.rows.length} measurements)`
+  // With a factor on level and slope the time coefficient is the slope at the
+  // reference level, not an average over the groups (approved 2026-11-17).
+  const slopeFactors = activeFactors.filter(factor => factor.effect === 'level_slope')
+  const sentenceSubject = slopeFactors.length === 0 ? `Average change of ${spec?.bezeichnung ?? 'the parameter'} per year`
+    : `Change of ${spec?.bezeichnung ?? 'the parameter'} per year for the reference ${slopeFactors.every(factor => factor.kind === 'categorical') ? 'group' : 'profile'}`
+  const modelSentence = `${sentenceSubject} across ${completePatients.size} of ${data.patients.length} patients (${sampleSummary.rows.length} measurements)`
     + `${factorPhrases.length ? `, with ${factorPhrases.join(' and ')}` : ''}.`
     + ` ${mixedModelConfig.randomEffects === 'intercept' ? 'Each patient has an own starting level; the rate is common to all.' : 'Each patient has an own starting level and rate.'}`
 
@@ -399,7 +404,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
       <header className="page-heading">
         <div>
           <h1>Cohort models</h1>
-          <p className="muted cm-page-intro">A cohort model estimates the average change per year of one parameter across patients. Each patient keeps an own starting level and an own rate; the model reports the average and how much patients differ. Use it to describe a cohort or to compare groups. For one patient's course, use Trajectories.</p>
+          <p className="muted cm-page-intro">A cohort model estimates the average change per year of one parameter across patients. Each patient keeps an own starting level and, by default, an own rate; the model reports the average and how much patients differ. Use it to describe a cohort or to compare groups. For one patient's course, use Trajectories.</p>
           <a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
         </div>
         <div className="actions">
