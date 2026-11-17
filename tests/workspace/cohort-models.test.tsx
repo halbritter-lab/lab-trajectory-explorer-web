@@ -337,6 +337,42 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.queryByText(/Click 'Fit model'/)).not.toBeInTheDocument()
   })
 
+  it('offers Cancel while fitting and names the loading of R only before the first finished fit', () => {
+    useAppStore.setState({ cohortModelRunning: true, cohortModelRuntimeLoaded: true, cohortModelProgress: { completed: 0, total: 2, key: 'cohort' } })
+    studio(qualifyingData())
+    expect(screen.getByRole('status', { name: '' })).toHaveTextContent('Fitting 1 of 2')
+    expect(screen.getByRole('status', { name: '' })).not.toHaveTextContent(/loads R into the browser/)
+    const cancel = vi.spyOn(useAppStore.getState(), 'cancelCohortModels')
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }))
+    expect(cancel).toHaveBeenCalledTimes(1)
+    cancel.mockRestore()
+    act(() => useAppStore.setState({ cohortModelRunning: false, cohortModelProgress: null }))
+    expect(screen.queryByRole('button', { name: 'Cancel' })).not.toBeInTheDocument()
+  })
+
+  it('asks before a data preparation change discards fitted models', () => {
+    studio(qualifyingData())
+    const prepSelect = screen.getByLabelText('Data preparation') as HTMLSelectElement
+    const confirm = vi.spyOn(window, 'confirm')
+    // Nothing fitted: no question.
+    fireEvent.change(prepSelect, { target: { value: 'theil_sen' } })
+    expect(confirm).not.toHaveBeenCalled()
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('theil_sen')
+    // A fit in flight (the same question covers stored models): declining keeps everything.
+    act(() => useAppStore.setState({ cohortModelRunning: true, cohortModelProgress: { completed: 0, total: 1, key: 'cohort' } }))
+    confirm.mockReturnValueOnce(false)
+    fireEvent.change(prepSelect, { target: { value: 'general_exploration' } })
+    expect(confirm).toHaveBeenCalledWith('Changing the data preparation discards the fitted models and stops a running fit. Continue?')
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('theil_sen')
+    expect(useAppStore.getState().cohortModelRunning).toBe(true)
+    expect(prepSelect.value).toBe('theil_sen')
+    // Accepting applies the change.
+    confirm.mockReturnValueOnce(true)
+    fireEvent.change(prepSelect, { target: { value: 'general_exploration' } })
+    expect(useAppStore.getState().trajectoryFitSettings.shared.presetId).toBe('general_exploration')
+    confirm.mockRestore()
+  })
+
   it('renders load prompt when no data is loaded', () => {
     const onBrowseData = vi.fn()
     render(<CohortModelsWorkspace data={emptyData} onBrowseTrajectories={vi.fn()} onBrowseData={onBrowseData} />)

@@ -5,6 +5,16 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (Cohort models: control over a running fit)
+
+- A running fit can be cancelled. Models fitted before stay; nothing of the
+  cancelled run is stored. Cancelling stops R, which loads again with the
+  next fit.
+- The notice that the first fit loads R is shown only until a fit has
+  finished in the session.
+- Changing "Data preparation" on the Cohort models page asks before it
+  discards fitted models or stops a running fit.
+
 ### Changed (Cohort models page, wording approved 2026-11-17)
 
 - The page says what a cohort model is for, and the fit summary states the

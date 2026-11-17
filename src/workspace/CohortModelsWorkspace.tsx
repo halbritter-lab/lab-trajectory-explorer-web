@@ -50,6 +50,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const cohortModelResults = useAppStore(s => s.cohortModelResults)
   const cohortModelRunning = useAppStore(s => s.cohortModelRunning)
   const cohortModelProgress = useAppStore(s => s.cohortModelProgress)
+  const runtimeLoaded = useAppStore(s => s.cohortModelRuntimeLoaded)
   const runCohortModels = useAppStore(s => s.runCohortModels)
 
 
@@ -146,6 +147,10 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   // pinned first, because the preselection depends on these settings and
   // would otherwise move to another parameter.
   function changeDataPreparation(presetId: string) {
+    // The change discards every fitted model and stops a running fit: ask first.
+    const state = useAppStore.getState()
+    if ((state.cohortModelRunning || Object.keys(state.cohortModelResults ?? {}).length > 0)
+      && !window.confirm('Changing the data preparation discards the fitted models and stops a running fit. Continue?')) return
     if (activeParamKey) setSelectedParamKey(activeParamKey)
     const current = useAppStore.getState().trajectoryFitSettings
     const nextSettings = defaultFitSettings(presetId)
@@ -207,7 +212,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   ).join(' ')
   const canFit = eligibleEntities.length > 0 && !cohortModelRunning && !noFit
   const fitUnavailableReason = cohortModelRunning
-    ? `${cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Fitting model …'} The first fit of a session loads R into the browser; this can take a few minutes. Later fits take seconds.`
+    ? `${cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Fitting model …'}${runtimeLoaded ? '' : ' The first fit of a session loads R into the browser; this can take a few minutes. Later fits take seconds.'}`
     : noFit ? 'Model fitting is disabled because the data preparation uses No fit. Choose another data preparation above or a fit model under Trajectories.'
     : eligibleEntities.length === 0 ? `No model can be fitted with the current data and settings. ${validationReasons || 'Mixed model fitting requires at least one measurement row.'}`
     : null
@@ -654,6 +659,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                 ? `${allEligibleFitted ? 'Refit' : 'Fit'} whole cohort only`
                 : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length})` : ''}`}
           </button>
+          {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={() => useAppStore.getState().cancelCohortModels()}>Cancel</button>}
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
         </section>

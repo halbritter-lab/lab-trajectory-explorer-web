@@ -220,6 +220,28 @@ describe('useAppStore - cohort model runs and projections', () => {
     expect(useAppStore.getState().cohortModelRunning).toBe(false)
   })
 
+  it('cancels a running fit: nothing of it is stored, earlier results stay, R counts as unloaded', async () => {
+    await useAppStore.getState().runCohortModels({ ...params, runJob: vi.fn(async () => mixedModelResult), entities: [{ entity: { kind: 'cohort' }, rows: entityRows }] })
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(true)
+    let release!: (result: MixedModelResult) => void
+    let aborted = false
+    const pending = useAppStore.getState().runCohortModels({ ...params, entities: [{ entity: { kind: 'group', value: 'A' }, rows: entityRows }],
+      runJob: (options) => new Promise((resolve) => { options.signal?.addEventListener('abort', () => { aborted = true }); release = resolve }) })
+    expect(useAppStore.getState().cohortModelRunning).toBe(true)
+    useAppStore.getState().cancelCohortModels()
+    expect(aborted).toBe(true)
+    expect(useAppStore.getState().cohortModelRunning).toBe(false)
+    expect(useAppStore.getState().cohortModelProgress).toBeNull()
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(false)
+    release(mixedModelResult)
+    await pending
+    expect(Object.keys(useAppStore.getState().cohortModelResults ?? {})).toEqual(['cohort'])
+    // Without a running fit the action does nothing.
+    useAppStore.setState({ cohortModelRuntimeLoaded: true })
+    useAppStore.getState().cancelCohortModels()
+    expect(useAppStore.getState().cohortModelRuntimeLoaded).toBe(true)
+  })
+
   it('stores independent copied projection settings and clears them with their fit', () => {
     seedResults()
     const applied = { sourceIdentity: mixedModelIdentity, settings: { targets: [], profile: {}, referenceTimeYears: 0, horizonYears: 20 } }

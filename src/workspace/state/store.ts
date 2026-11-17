@@ -91,6 +91,12 @@ export interface AppState {
   /** True while a `runCohortModels` run is in flight (drives the fit button). */
   cohortModelRunning: boolean
   cohortModelProgress: CohortModelProgress | null
+  /** A run finished in this session, so R is loaded in the fit worker. False
+   * again after a cancelled run, which stops the worker.
+   * shortcut: a worker stopped by a timeout or an error is not tracked; the
+   * next fit then loads R again without the notice. Track the worker itself
+   * if that matters. */
+  cohortModelRuntimeLoaded: boolean
   showCohortMixedModelLine: boolean
   projectionSettings: Record<string, AppliedProjectionSettings>
   busy: boolean
@@ -111,6 +117,9 @@ export interface AppState {
   setTrajectoryFitSettings: (settings: TrajectoryFitSettings) => void
   setTrajectoryView: (view: TrajectoryView) => void
   runCohortModels: (params: RunCohortModelsParams) => Promise<void>
+  /** Stops the running fits. Results already stored are kept; nothing of the
+   * stopped run is stored. */
+  cancelCohortModels: () => void
   setShowCohortMixedModelLine: (value: boolean) => void
   setProjectionSettings: (seriesIndex: number, seriesKey: string, entityKey: string, applied: AppliedProjectionSettings) => void
   reset: () => void
@@ -121,7 +130,7 @@ export interface AppState {
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'pristineDemo' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'patientAttributes'
   | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
-  | 'cohortModelProgress' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
+  | 'cohortModelProgress' | 'cohortModelRuntimeLoaded' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
 
 const initialState = (): AppData => ({
   rows: [],
@@ -139,6 +148,7 @@ const initialState = (): AppData => ({
   cohortModelResults: null,
   cohortModelRunning: false,
   cohortModelProgress: null,
+  cohortModelRuntimeLoaded: false,
   showCohortMixedModelLine: false,
   projectionSettings: {},
   busy: false,
@@ -314,7 +324,7 @@ export const useAppStore = create<AppState>((set, get) => ({
           const stored = cohortModelResults[entityKey]
           return stored?.result.status === 'success' && stored.result.converged && !stored.result.singular && mixedModelIdentityEquals(applied.sourceIdentity, stored.identity)
         }))
-        return { cohortModelResults, projectionSettings }
+        return { cohortModelResults, projectionSettings, cohortModelRuntimeLoaded: true }
       })
     } finally {
       if (activeCohortModelRun === controller) {
@@ -322,6 +332,12 @@ export const useAppStore = create<AppState>((set, get) => ({
         set({ cohortModelRunning: false, cohortModelProgress: null })
       }
     }
+  },
+  cancelCohortModels: () => {
+    if (!activeCohortModelRun) return
+    // Aborting stops the worker (see browserClient), so R loads again with the next fit.
+    abortActiveCohortModelRun()
+    set({ cohortModelRunning: false, cohortModelProgress: null, cohortModelRuntimeLoaded: false })
   },
   setShowCohortMixedModelLine: (value) => set({ showCohortMixedModelLine: value }),
   setProjectionSettings: (seriesIndex, seriesKey, entityKey, applied) => set((s) => {
