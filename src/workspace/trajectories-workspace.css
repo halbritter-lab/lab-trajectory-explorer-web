@@ -59,6 +59,8 @@
 .wt-plot-card { padding: 20px; border: 1px solid #dce5e9; border-radius: 12px; background: #fff; min-width: 0; }
 .wt-plot { display: block; width: 100%; height: auto; overflow: visible; }
 .wt-plot text { font: 12px system-ui, sans-serif; fill: #445963; }
+/* The chart scales with its card: on a phone 12 units render at about 6px. Larger units keep the text legible. */
+@media (max-width: 600px) { .wt-plot text { font-size: 20px; } }
 .wt-chart-person { cursor: pointer; }
 .wt-chart-person:focus { outline: 3px solid #176c68; }
 .wt-chart-person:focus polyline { stroke-width: 4; }

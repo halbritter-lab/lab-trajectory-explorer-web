@@ -28,6 +28,17 @@ test('names the trajectory under the pointer in the overlay', async ({ page }) =
   await page.getByLabel('Group by attribute').selectOption('cohort')
   await expect(chart.getByRole('group', { name: 'Groups for eGFR [ml/min/1,73m²]' }).getByRole('button')).toHaveCount(4)
   await expect(chart.getByTestId('emphasised-patient')).toHaveCount(0)
+  // Round axis values instead of fractions of the range (was 96.9 / 48.45 / 0).
+  const labels = await chart.locator('svg.wt-plot text').allTextContents()
+  expect(labels).toEqual(expect.arrayContaining(['0', '20', '40', '60', '80']))
+  expect(labels).not.toContain('48.45')
+  // Events are named in the legend once they are drawn, and the AKI legend says how to see windows.
+  await page.getByRole('button', { name: 'Display', exact: true }).click()
+  await page.getByRole('checkbox', { name: 'Events' }).check()
+  await page.getByRole('checkbox', { name: 'AKI windows and episodes' }).check()
+  await page.keyboard.press('Escape')
+  await expect(chart.getByText(/Dashed vertical lines: clinical events of the plotted patients/)).toBeVisible()
+  await expect(chart.getByText(/windows and stage labels appear once a patient is chosen/)).toBeVisible()
   await chart.getByRole('button', { name: /^Open patient 7,/ }).locator('circle').nth(3).hover()
   await expect(chart.getByTestId('emphasised-patient')).toHaveText('Patient 7')
 })
