@@ -16,7 +16,7 @@ it('presents readable sex labels while retaining the recorded codes', () => {
   useAppStore.getState().replaceDataset({ rows: raw })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.click(screen.getByText('Review and edit patients (4)'))
-  const table = screen.getByRole('table')
+  const table = within(screen.getByText('Review and edit patients (4)').closest('details')!).getByRole('table')
   expect(within(table).getByRole('columnheader', { name: 'Patient' })).toBeInTheDocument()
   for (const label of ['Not recorded', 'Female', 'Male', 'Diverse']) expect(within(table).getByRole('cell', { name: label })).toBeInTheDocument()
   expect(useAppStore.getState().rows.map(r => r.patientSex)).toEqual([null, 'w', 'm', 'd'])

@@ -31,6 +31,12 @@ describe('workspace workbook', () => {
       expect(records(workbook, 'cohort').find(row => row.Parameter === second.bezeichnung)?.rapid_progression).toBe(threshold === 5 ? 'yes' : '')
     }
   })
+  it('carries an aki_episodes sheet and its note, also when no episode was detected', () => {
+    const workbook = XLSX.read(workspaceWorkbookBytes(exportFixture()), { type: 'array' })
+    expect(workbook.SheetNames).toContain('aki_episodes')
+    expect(records(workbook, 'aki_episodes')).toEqual([])
+    expect(records(workbook, 'about').some(row => String(row.note).startsWith('aki_episodes lists every AKI episode'))).toBe(true)
+  })
   it('keeps the rolling columns last in the cohort sheet, after the columns that existed before', () => {
     const workbook = XLSX.read(workspaceWorkbookBytes(exportFixture()), { type: 'array' })
     const [header] = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets.cohort, { header: 1 })

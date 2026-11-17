@@ -52,8 +52,7 @@ test('shows the same slope-quality caveat in the cohort table and the patient vi
   await showOnlyParameter(page, /^Kreatinin \[mg\/dl\]$/)
 
   for (const [patient, label] of [['3', 'n < 3'], ['5', 'Follow-up < 1 year'], ['12', 'Follow-up < 1 year']] as const) {
-    // Patient 12 also carries the note on AKI values in the fit, in the same style.
-    const caveat = patientRow(page, patient).locator('.wt-cell-summary span.wt-warning').filter({ hasText: 'uncertain slope' })
+    const caveat = patientRow(page, patient).locator('.wt-cell-summary span.wt-warning')
     await expect(caveat).toHaveText(`${label}, uncertain slope`)
     expect(await caveat.getAttribute('title')).toMatch(/caution|unstable|Two points/i)
     // The same explanation is reachable without a pointer.

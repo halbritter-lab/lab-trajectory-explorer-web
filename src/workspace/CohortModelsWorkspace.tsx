@@ -623,7 +623,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           <input type="checkbox" checked={presetExclusionPolicy === 'apply'} onChange={event => setPresetExclusionPolicy(event.target.checked ? 'apply' : 'skip')} />
           Apply preset event and AKI exclusions
         </label>
-        {!noFit && (presetExclusionPolicy === 'apply' && !definesWindows
+        {spec && !noFit && (presetExclusionPolicy === 'apply' && !definesWindows
           ? <p className="muted">The settings of this parameter define no event or AKI windows, so nothing is excluded. To leave out values after transplant or dialysis and in AKI windows, choose “CKD progression” under Data preparation.</p>
           : <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>)}
         {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label="Reference categories">
@@ -689,6 +689,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             seriesIndex={paramIndex >= 0 ? paramIndex : 0}
             seriesKey={activeParamKey}
             seriesUnit={spec.einheit}
+            definesWindows={definesWindows}
             sourceResponse={{ outcome: spec.bezeichnung, unit: spec.einheit ?? '' }}
             fitConfigHash={fitConfigHash}
             config={mixedModelConfig}

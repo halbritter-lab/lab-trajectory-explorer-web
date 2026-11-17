@@ -51,6 +51,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const svg = useRef<SVGSVGElement>(null)
   const clip = useId().replace(/:/g, '')
   const [hiddenGroups, setHiddenGroups] = useState<string[]>([])
+  const [hovered, setHovered] = useState<PatientId | null>(null)
   const prepared = useMemo(() => {
     const patients = new Map(data.patients.map(p => [p.id, p]))
     const firstDates = new Map<PatientId, number>()
@@ -190,7 +191,10 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const x = (n: number) => 65 + (n - xMin) / (xMax - xMin) * 565
   const y = (n: number) => 240 - (n - yMin) / (yMax - yMin) * 210
   const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)' : 'Years since first measurement of this parameter'
-  const hasHighlight = visible.some(p => p.row.patientId === highlight)
+  // In the overlay the trajectory under the pointer or the keyboard focus is
+  // emphasised and named, so a line can be identified without the selector.
+  const emphasised = highlight ?? (cohortRows.length > 1 ? hovered : null)
+  const hasHighlight = visible.some(p => p.row.patientId === emphasised)
   const exportTitle = cohortRows.length === 1 ? `Patient ${cohortRows[0].patientId}: ${parameter.label}` : parameter.label
   const markVisible = display.points || display.connect
   const excludedCount = markVisible ? visible.reduce((sum, series) => sum + series.points.filter(p => p.exclusions.length > 0).length, 0) : 0
@@ -218,10 +222,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       {shownOverlays.map(module => <g key={module.id} clipPath={`url(#${clip})`} className={`wt-${module.id}-bands`}>{visible.filter(series => overlayDetail(series.row.patientId)).flatMap(series => series.bands.filter(band => band.moduleId === module.id).map((band, i) => <rect key={`${String(series.row.patientId)}-${i}`} data-testid={`${module.id}-band`} x={x(band.start)} width={Math.max(1, x(band.end) - x(band.start))} y="20" height="230" fill={module.presentation.color} fillOpacity={.1}><title>{band.title}</title></rect>))}</g>)}
       {visible.map(series => {
         const color = groupColor(series.group)
-        const active = series.row.patientId === highlight
+        const active = series.row.patientId === emphasised
         const uncertainFit = Boolean(showFit && slopeQualityLabel(series.cell)?.caveat && Number.isFinite(series.cell.slope))
         return <g key={String(series.row.patientId)} clipPath={`url(#${clip})`} opacity={hasHighlight && !active ? .25 : 1}>
-          <g role="button" tabIndex={0} aria-label={`Open patient ${series.row.patientId}, ${parameter.label}`} aria-description={uncertainFit ? "Uncertain slope: limited fitted measurements or follow-up. Dotted fit line." : undefined} onClick={() => onOpen(series.row.patientId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(series.row.patientId) } }} className="wt-chart-person">
+          <g role="button" tabIndex={0} aria-label={`Open patient ${series.row.patientId}, ${parameter.label}`} aria-description={uncertainFit ? "Uncertain slope: limited fitted measurements or follow-up. Dotted fit line." : undefined} onClick={() => onOpen(series.row.patientId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(series.row.patientId) } }} className="wt-chart-person"
+            onMouseEnter={() => setHovered(series.row.patientId)} onMouseLeave={() => setHovered(null)} onFocus={() => setHovered(series.row.patientId)} onBlur={() => setHovered(null)}>
             <title>Patient {series.row.patientId}, {groupLabel(series.group)}</title>
             {display.connect && <polyline points={series.points.map(p => `${x(p.x)},${y(p.value)}`).join(' ')} fill="none" stroke={color} strokeWidth={active ? 3 : 1.5} />}
             {series.points.filter(p => display.points || display.connect && (series.points.length === 1 || boundedPrefix(p.operator) || p.exclusions.length > 0)).map((p, i) => {
@@ -243,6 +248,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
           {display.events && data.events.filter(event => event.patientId === series.row.patientId).map((event, i) => { const position = series.xValue(event.date); return position === null ? null : <line key={i} x1={x(position)} x2={x(position)} y1="30" y2="240" stroke="#936221" strokeDasharray="2 5"><title>Patient {event.patientId}: {event.title}, {formatWorkspaceDate(event.date)}</title></line> })}
         </g>
       })}
+      {cohortRows.length > 1 && hasHighlight && <text x="630" y="14" textAnchor="end" data-testid="emphasised-patient">Patient {emphasised}</text>}
       {groupModelLines.map(line => <g key={line.key} clipPath={`url(#${clip})`} className="wt-group-model-line" data-group={line.group!}>
         <polyline points={line.points.map(p => `${x(axis === 'age' && p.age !== undefined ? p.age : p.time_since_baseline)},${y(p.value)}`).join(' ')}
           fill="none" stroke={groupColor(line.group!)} strokeWidth={3.5} strokeDasharray="10 3 2 3" strokeLinecap="round">
