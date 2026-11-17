@@ -1825,3 +1825,129 @@ the source are computed, so a `Kreatinin [µmol/l]` row beside the source
 
 Left out on purpose: how the default source is chosen (already described in
 the eGFR section).
+
+## Part F: Cohort models page, interface wording (draft of 2026-11-17, not applied)
+
+After the UI critique of 2026-11-17 (priority issue "Cohort models speaks R,
+not nephrology") and findings UX-50 to UX-57 of the
+[simulated-user case studies](ux-case-studies-2026-11-16.md). The texts are on
+the Cohort models page (`src/workspace/CohortModelsWorkspace.tsx`,
+`src/workspace/models/CohortModelTable.tsx`), not on the methodology page.
+They state what a model estimates and how to read it, so they need the
+owner's approval like the methodology wording. Nothing below is applied. No
+model, estimate or export changes with any of it.
+
+### F1. What the page is for (new, under the page heading)
+
+Current: no introduction. The first statement is the description of the
+selected model type.
+
+Proposed:
+
+> A cohort model estimates the average change per year of one parameter
+> across patients. Each patient keeps an own starting level and an own rate;
+> the model reports the average and how much patients differ. Use it to
+> describe a cohort or to compare groups. For one patient's course, use
+> Trajectories.
+
+Rests on: the default model, value on time in years with a random intercept
+and slope per patient (`selectPreset('unadjusted')`).
+
+### F2. Model types: names and one-line descriptions
+
+| Current name | Proposed name | Current description | Proposed description |
+| --- | --- | --- | --- |
+| Standard (Overall) | Whole cohort | Overall progression rate without covariates. | Average change per year across all patients, without further factors. |
+| Subgroup comparison | Separate model per group | Stratified analysis: Fits independent mixed models for each subgroup of the selected attribute. | One model for each group of the chosen attribute. The groups' slopes are shown side by side. Their difference and its interval are not estimated; for that, use "Difference between groups". |
+| Demographic adjustment | Adjusted for age and sex | Standard epidemiological model: Y ~ Time + Baseline age + Sex + (1 + Time \| Patient). | Adds baseline age and sex. Both shift the level only; they do not change the slope unless set to "Shifts level and slope". |
+| Group interaction | Difference between groups | Slope interaction test: Y ~ Time * Group + (1 + Time \| Patient). Estimates slope differences with 95% confidence intervals; no p-values are computed. | One model with the group as a factor. Reports how much faster or slower each group changes than the reference group, with a 95% interval. No p-values are computed. |
+| Custom model | Custom model | Full custom model: Select specific covariates, effects, reference categories, and random effects. | Choose the factors, their effect, the reference levels and the random effects yourself. |
+
+Rests on: `selectPreset` (the factor sets of each type) and the separate fits
+per group of the stratified type. "Subgroup comparison" fits independent
+models and reports no difference (UX-51); the proposed name says so.
+
+Open point for the owner: "Difference between groups" drops the word
+"interaction". The R formula stays available in the details (F5).
+
+### F3. Effect of a factor
+
+| Current | Proposed |
+| --- | --- |
+| Level (Shift) | Shifts the level |
+| Level & Slope (Interaction) | Shifts level and slope |
+
+Rests on: a "level" factor adds a main effect; "level and slope" also adds its
+interaction with time (methodology page, *Cohort Model Specification*).
+
+### F4. Fit summary: a sentence before the formula
+
+Current: "Model: eGFR ~ Time (years) + (1 + Time (years) | Patient)" and
+"Complete cases: 25 patients / 28 (211 measurements)".
+
+Proposed, built from the configuration:
+
+> Average change of eGFR per year across 25 of 28 patients (211
+> measurements). Each patient has an own starting level and rate.
+
+With factors: "… , with cohort (shifts level and slope) and baseline age
+(shifts the level)." With random intercept only: "Each patient has an own
+starting level; the rate is common to all."
+
+"Complete cases: 25 patients / 28" becomes "In the model: 25 of 28 patients".
+
+### F5. Formula and technical record
+
+The formula moves from the lead line of the fit summary into "Preparation and
+fitting details", labelled "Model formula (R syntax)". In a model's details,
+"Engine", "Dataset" and "Fit config" move under one collapsed heading:
+
+> Technical record (for a methods section)
+
+No text changes there otherwise.
+
+### F6. Results table
+
+| Current | Proposed |
+| --- | --- |
+| Column "Unit" | "Group" |
+| Columns "Slope", "Intercept" | "Change per year", "Starting level", each followed by its 95% interval in the same cell |
+| "Reference slope", "Reference intercept" (adjusted models) | "Change per year (reference)", "Starting level (reference)" |
+| Button "Fit models (3 units)" | "Fit models (3)" |
+| Plot chip "Whole cohort: -4.77 …" in a model with a group factor | "Reference (cohort A): -4.77 …" |
+
+Rests on: the intervals exist in the result (`fixedEffectTerms`) and are shown
+today only in the details; the chip shows the reference group's slope
+(UX-56).
+
+### F7. Reading an interval without a p-value (new, under the results)
+
+Current: "no p-values are computed", and nothing more (UX-57).
+
+Proposed:
+
+> How to read the intervals: an estimate with a 95% interval that excludes 0
+> is unlikely to be explained by chance alone under this model. The intervals
+> are approximate and tend to be too narrow with few patients, and nothing is
+> adjusted for comparing several groups or factors. Report the estimate with
+> its interval; do not report it as a p-value. For tests, the exported R
+> script names the lmerTest package.
+
+Rests on: 95% Wald intervals without degrees of freedom (methodology page,
+*Cohort Model Specification*); the lmerTest note in the exported script.
+
+This is statistical guidance and the passage most in need of the owner's own
+wording.
+
+### F8. First fit
+
+Current: the button reads "Fitting 1 of 3 …" for the whole time, including the
+download of R.
+
+Proposed status text under the button while the first fit of a session runs:
+
+> The first fit of a session loads R into the browser; this can take a few
+> minutes. Later fits take seconds.
+
+A Cancel button and a separate download status are implementation questions
+and not part of this wording draft.
