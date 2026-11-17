@@ -1843,11 +1843,13 @@ a fitted model stays in its details and is not part of the technical record;
 the item "Slope 95% CI" there is removed, because the interval now stands
 beside the estimate. No model, estimate or export changes with any of it.
 
-Two points a review raised are left for the owner, because they concern
-approved wording: the sentence of F4 says "Average change" also for a model
-with a factor on level and slope, where the time coefficient is the slope of
-the reference profile; and the introduction of F1 says "an own rate" also
-when a custom model uses a random intercept only.
+Two points a review raised were decided by the owner on 2026-11-17 and are
+applied. With a factor on level and slope the sentence of F4 reads "Change of
+eGFR per year for the reference group across …" ("reference profile" when
+such a factor is numeric), because the time coefficient is then the slope at
+the reference level and not an average. The introduction of F1 reads "Each
+patient keeps an own starting level and, by default, an own rate", because a
+custom model can use a random intercept only.
 
 ### F1. What the page is for (new, under the page heading)
 

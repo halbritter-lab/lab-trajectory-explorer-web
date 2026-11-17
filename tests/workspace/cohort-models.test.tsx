@@ -475,9 +475,13 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getByLabelText('Readable formula')).toHaveTextContent('"Baseline age (centered)"')
     expect(screen.getByLabelText('Readable formula')).toHaveTextContent('"Sex"')
     // The fit summary says the same in words; the formula sits in the collapsed details.
-    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent(/with baseline age \(shifts the level\) and sex \(shifts the level\)\. Each patient has an own starting level and rate\./)
+    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent(/^Average change of .* per year across .*with baseline age \(shifts the level\) and sex \(shifts the level\)\. Each patient has an own starting level and rate\./)
+    // A factor on level and slope: the value is the reference group's slope, not an average.
+    fireEvent.change(screen.getByLabelText('Sex effect'), { target: { value: 'level_slope' } })
+    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent(/^Change of .* per year for the reference group across /)
+    fireEvent.change(screen.getByLabelText('Sex effect'), { target: { value: 'level' } })
     expect(screen.getByLabelText('Readable formula').closest('details')).not.toHaveAttribute('open')
-    expect(screen.getByText(/^A cohort model estimates the average change per year/)).toBeInTheDocument()
+    expect(screen.getByText(/^A cohort model estimates the average change per year.*and, by default, an own rate/)).toBeInTheDocument()
     fireEvent.click(screen.getByRole('radio', { name: 'Intercept only' }))
     expect(document.querySelector('.cm-sample-meta')).toHaveTextContent(/Each patient has an own starting level; the rate is common to all\.$/)
   })

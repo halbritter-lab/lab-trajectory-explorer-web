@@ -17,6 +17,17 @@ interfaces are still evolving before 1.0.
   discard models (model type, factors, the exclusions checkbox, settings
   under Trajectories) do not ask.
 
+### Changed (charts, after the UI critique of 2026-11-17)
+
+- Axis values in the overlay and the patient charts are round numbers (0, 20,
+  40 …) instead of fractions of the range (96.9, 48.45, 0). The axis range is
+  unchanged.
+- In an overlay of more than eight trajectories the lines are drawn lighter,
+  so crossings stay readable; the highlighted or hovered one stays solid.
+- Clinical events are named in the chart's legend when they are drawn, and
+  the AKI legend says that windows appear once a patient is highlighted.
+- On a phone the text inside the charts is larger.
+
 ### Changed (Cohort models page, wording approved 2026-11-17)
 
 - The page says what a cohort model is for, and the fit summary states the
@@ -30,6 +41,9 @@ interfaces are still evolving before 1.0.
   intervals without a p-value. Engine, dataset and fit configuration are
   under "Technical record (for a methods section)"; the separate "Slope 95%
   CI" item in a model's details is gone, as the interval is in the table.
+- With a factor on level and slope the sentence reads "Change of eGFR per
+  year for the reference group …", since the value is then that group's
+  slope.
 - No model, estimate or export changes.
 
 ### Changed (analysis controls, after the UI critique of 2026-11-17)

@@ -51,9 +51,9 @@ has an own starting level and rate." or, with a random intercept only, "Each
 patient has an own starting level; the rate is common to all." The counts are
 those of the whole-cohort model. The sentence is not shown without a parameter
 or with the data preparation "No fit". With a factor on level and slope the
-time coefficient is the slope of the reference profile, not an average over
-the groups; the sentence still says "Average change" (wording approved by the
-owner). "Preparation and fitting details", below the Fit button and collapsed
+time coefficient is the slope at the reference level, not an average over the
+groups; the sentence then begins "Change of <series> per year for the
+reference group" ("reference profile" when such a factor is numeric). "Preparation and fitting details", below the Fit button and collapsed
 by default, shows a readable form of the formula ("Model formula (R syntax)"):
 the series name without unit as outcome, `Time (years)`, `Patient`, and the
 quoted factor names instead of the column names. The unit's Details panel and the export show the
