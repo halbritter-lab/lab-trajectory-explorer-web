@@ -871,7 +871,8 @@ describe('real-data trajectories workspace', () => {
       expect(screen.getByRole('button', { name: `Show trend line: ${label}` })).toHaveAttribute('aria-pressed', 'true')
       const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
       expect(within(row).getByRole('button', { name: 'Fit includes 1 value after kidney transplant' })).toHaveTextContent('Fit includes 1 value after kidney transplant')
-      expect(within(row).getByText('+1 ml/min/1.73m²/yr')).toBeInTheDocument()
+      expect(within(row).getByText('+1.00 ml/min/1.73m²/yr')).toBeInTheDocument()
+      expect(within(row).getByLabelText('Latest value: 12')).toHaveTextContent('latest 12')
       const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
       expect(within(other).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
     })

@@ -37,6 +37,10 @@ test('counts medians, not measurements, beside a slope under quarterly medians',
   // Raw fit across an AKI window: the note names it.
   const row = page.getByRole('button', { name: 'Open patient 6', exact: true }).locator('xpath=ancestor::tr')
   await expect(row.getByRole('button', { name: 'Fit includes 3 values in an AKI window' }).first()).toBeVisible()
+  // The slope leads the cell with two decimals and its interval; the latest value follows.
+  await expect(row.locator('.pv-cell-slope')).toHaveText('-6.20 ml/min/1,73m²/yr')
+  await expect(row.locator('.pv-cell-ci')).toHaveText('[-25.08, 12.68]')
+  await expect(row.getByText('latest 49.5', { exact: true })).toBeVisible()
   await page.getByRole('button', { name: `Analysis settings: ${label}`, exact: true }).click()
   await page.getByRole('dialog').getByLabel('Analysis preset').selectOption('ckd_progression')
   await page.getByRole('button', { name: 'Close analysis settings' }).click()
