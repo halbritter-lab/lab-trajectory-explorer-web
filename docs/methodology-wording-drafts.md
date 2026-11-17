@@ -1826,7 +1826,7 @@ the source are computed, so a `Kreatinin [µmol/l]` row beside the source
 Left out on purpose: how the default source is chosen (already described in
 the eGFR section).
 
-## Part F: Cohort models page, interface wording (draft of 2026-11-17, not applied)
+## Part F: Cohort models page, interface wording (applied 2026-11-17)
 
 After the UI critique of 2026-11-17 (priority issue "Cohort models speaks R,
 not nephrology") and findings UX-50 to UX-57 of the
@@ -1834,8 +1834,12 @@ not nephrology") and findings UX-50 to UX-57 of the
 the Cohort models page (`src/workspace/CohortModelsWorkspace.tsx`,
 `src/workspace/models/CohortModelTable.tsx`), not on the methodology page.
 They state what a model estimates and how to read it, so they need the
-owner's approval like the methodology wording. Nothing below is applied. No
-model, estimate or export changes with any of it.
+owner's approval like the methodology wording. **The owner approved F1 to F8
+as drafted on 2026-11-17 and they are applied**, with two notes: the plot chip
+of F6 already read "Whole cohort, reference profile" for a model with a
+factor-by-time term and is left as it is; the sentence of F4 also carries the
+counts, so there is no separate "In the model" line. No model, estimate or
+export changes with any of it.
 
 ### F1. What the page is for (new, under the page heading)
 

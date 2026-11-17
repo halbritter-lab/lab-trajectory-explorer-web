@@ -27,12 +27,14 @@ for (const viewport of [{ width: 1440, height: 1000 }, { width: 390, height: 844
     await expect(page.getByLabel('Search patients', { exact: true })).toHaveValue('1')
     await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
     const summary = page.getByRole('region', { name: 'Fit summary', exact: true })
-    await expect(summary.getByLabel('Readable formula')).toBeVisible()
-    await expect(summary.locator('.cm-sample-meta')).toBeVisible()
+    // The fit summary leads with the model in words; the R formula is in the details below.
+    await expect(summary.locator('.cm-sample-meta')).toContainText('Average change of eGFR per year across')
+    await expect(page.getByLabel('Readable formula')).not.toBeVisible()
     await expect(summary.getByRole('checkbox', { name: 'Apply preset event and AKI exclusions' })).toBeVisible()
     await expect(summary.getByRole('button', { name: /^Fit/ })).toBeVisible()
     await expect(page.getByTestId('model-preparation')).not.toBeVisible()
     await page.getByText('Preparation and fitting details', { exact: true }).click()
     await expect(page.getByTestId('model-preparation')).toBeVisible()
+    await expect(page.getByLabel('Readable formula')).toBeVisible()
   })
 }

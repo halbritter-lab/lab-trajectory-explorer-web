@@ -80,7 +80,13 @@ nlme::lme(<fixed part>, random = ~ time_since_baseline | patient_id,
 # random intercept only: random = ~ 1 | patient_id
 ```
 
-**Interface presets.** *Standard* has no factors. *Subgroup comparison* has no
+**Interface presets.** Since 2026-11-17 the interface names them *Whole
+cohort* (formerly "Standard (Overall)"), *Separate model per group* (formerly
+"Subgroup comparison"), *Adjusted for age and sex* (formerly "Demographic
+adjustment"), *Difference between groups* (formerly "Group interaction") and
+*Custom model*; the configurations are unchanged, and this section keeps the
+former names. The factor effects read "Shifts the level" (`level`) and "Shifts
+level and slope" (`level_slope`). *Standard* has no factors. *Subgroup comparison* has no
 factors and fits per group (see *Stratified (grouped) fits*); it keeps the
 current grouping attribute or else selects the first groupable attribute in
 numeric-aware, case-insensitive order, which can be `birthDate` or `sex`.
@@ -98,9 +104,12 @@ formula strip is empty, every unit with model rows shows "Invalid or duplicate
 mixed-model factor; categorical factors require a reference level." and
 nothing is fitted. *Custom* leaves the choice to the user.
 
-The *Group interaction* description reads "Estimates slope differences with
-95% confidence intervals; no p-values are computed." (decided 2026-10-07,
-formerly OD-6; before, it promised p-values). No p-value is computed,
+The *Group interaction* description reads "Reports how much faster or slower
+each group changes than the reference group, with a 95% interval. No p-values
+are computed." (wording of 2026-11-17; decided 2026-10-07, formerly OD-6;
+before, it promised p-values). Under the results table the page states how to
+read the intervals: not as a p-value, approximate, too narrow with few
+patients, not adjusted for several comparisons. No p-value is computed,
 displayed or exported for any model, only Wald confidence intervals.
 
 ### Which measurements enter
@@ -333,7 +342,8 @@ rows, when any configured factor has no usable value: a missing or blank value
 only. Removed patients are listed with their reasons under the formula, in the
 unit's status cell ("Excluded for factor values") and in the `excluded_patients`
 worksheet. The list under the formula, "Patients not in the model", accounts
-for every patient behind "Complete cases: n patients / all": besides the
+for every patient behind the count in the fit summary ("across n of all
+patients"; until 2026-11-17 "Complete cases: n patients / all"): besides the
 patients removed for a factor value it names each patient who has no usable
 measurement of the outcome after data preparation, with that reason (since
 2026-11-16; before, only the factor removals were listed, so 25 of 28 complete
@@ -354,8 +364,12 @@ aged 70 without a value for another configured factor does not enter the mean.
 model time 0 for a patient whose numeric factors equal their centres and whose
 categorical factors are at their reference levels. The `time_since_baseline`
 coefficient is the slope per year for that same profile. The results table
-therefore heads these columns *Reference intercept* and *Reference slope* when
-factors are configured.
+therefore heads these columns *Starting level (reference)* and *Change per
+year (reference)* when factors are configured (until 2026-11-17 *Reference
+intercept* and *Reference slope*; without factors *Starting level* and *Change
+per year*). Each cell shows the estimate followed by its 95% Wald interval
+when the fit recorded one: the interval of `time_since_baseline`, and the
+interval of the `(Intercept)` term.
 
 **Categorical coding.** Treatment contrasts with the configured reference level
 first and the remaining observed levels in code-point order,

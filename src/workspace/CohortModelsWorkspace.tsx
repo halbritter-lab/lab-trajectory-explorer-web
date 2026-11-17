@@ -207,7 +207,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   ).join(' ')
   const canFit = eligibleEntities.length > 0 && !cohortModelRunning && !noFit
   const fitUnavailableReason = cohortModelRunning
-    ? `${cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Fitting model …'} The first fit after opening the page downloads R (webR with lme4) once and can take a few minutes.`
+    ? `${cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Fitting model …'} The first fit of a session loads R into the browser; this can take a few minutes. Later fits take seconds.`
     : noFit ? 'Model fitting is disabled because the data preparation uses No fit. Choose another data preparation above or a fit model under Trajectories.'
     : eligibleEntities.length === 0 ? `No model can be fitted with the current data and settings. ${validationReasons || 'Mixed model fitting requires at least one measurement row.'}`
     : null
@@ -227,7 +227,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const fitFeedback = fitUnavailableReason ?? (noGroupFits && largestGroup
     ? `No ${groupByAttribute} group can be fitted on its own: each needs at least ${MIN_QUALIFYING_PATIENTS} patients with enough measurement times, and the largest, ${largestGroup.label}, has ${largestGroup.patients}. Only the whole cohort will be fitted.`
     : invalidEntities.length > 0
-      ? `${invalidEntities.length} unit${invalidEntities.length === 1 ? '' : 's'} skipped. ${validationReasons}` : invocationFeedback)
+      ? `${invalidEntities.length} group${invalidEntities.length === 1 ? '' : 's'} skipped. ${validationReasons}` : invocationFeedback)
 
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
     paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])
@@ -378,19 +378,30 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   })
   const inactiveFactors = availableFactors.filter(f => !activeFactors.some(af => af.key === f.key))
   const sampleSummary = prepareMixedModelFactors(mixedModelRows, mixedModelConfig, data.patientAttributes ?? {}, data.rows ?? [])
-  // Every patient behind "Complete cases: n / all": left out for a factor value, or
+  // Every patient behind the count in the fit summary: left out for a factor value, or
   // without a usable measurement of the outcome after data preparation.
   const completePatients = new Set(sampleSummary.rows.map(r => String(r.patient_id)))
   const factorReasons = new Map(sampleSummary.preparation.excludedPatients.map(patient => [String(patient.patientId), patient.reasons.join('; ')]))
   const patientsNotInModel = data.patients.map(patient => String(patient.id)).filter(id => !completePatients.has(id))
     .map(patientId => ({ patientId, reason: factorReasons.get(patientId) ?? 'No usable measurement of this parameter after data preparation' }))
   const levelCounts = [...mixedModelFactorLevelCounts(sampleSummary.rows, mixedModelConfig)]
+  // The model in words, built from the configuration; the R formula is in the details.
+  const factorPhrases = activeFactors.map(factor => {
+    const name = factor.key === 'baseline_age' ? 'baseline age' : factor.key === 'sex' ? 'sex' : availableFactors.find(f => f.key === factor.key)?.label ?? factor.key
+    return `${name} (${factor.effect === 'level_slope' ? 'shifts level and slope' : 'shifts the level'})`
+  })
+  const modelSentence = `Average change of ${spec?.bezeichnung ?? 'the parameter'} per year across ${completePatients.size} of ${data.patients.length} patients (${sampleSummary.rows.length} measurements)`
+    + `${factorPhrases.length ? `, with ${factorPhrases.join(' and ')}` : ''}.`
+    + ` ${mixedModelConfig.randomEffects === 'intercept' ? 'Each patient has an own starting level; the rate is common to all.' : 'Each patient has an own starting level and rate.'}`
+    + `${groupByAttribute ? ` One model per ${groupByAttribute} group and one for the whole cohort.` : ''}`
 
   return (
     <div className="cohort-models-workspace stack">
       <header className="page-heading">
         <div>
-          <h1>Cohort models</h1><a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
+          <h1>Cohort models</h1>
+          <p className="muted cm-page-intro">A cohort model estimates the average change per year of one parameter across patients. Each patient keeps an own starting level and an own rate; the model reports the average and how much patients differ. Use it to describe a cohort or to compare groups. For one patient's course, use Trajectories.</p>
+          <a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
         </div>
         <div className="actions">
           {hasSuccessfulModel && (
@@ -474,7 +485,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'unadjusted'}
               onClick={() => selectPreset('unadjusted')}
             >
-              <span>Standard (Overall)</span>
+              <span>Whole cohort</span>
             </button>
             <button
               type="button"
@@ -482,7 +493,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'stratified'}
               onClick={() => selectPreset('stratified')}
             >
-              <span>Subgroup comparison</span>
+              <span>Separate model per group</span>
             </button>
             <button
               type="button"
@@ -490,7 +501,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'demographic'}
               onClick={() => selectPreset('demographic')}
             >
-              <span>Demographic adjustment</span>
+              <span>Adjusted for age and sex</span>
             </button>
             <button
               type="button"
@@ -498,7 +509,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'interaction'}
               onClick={() => selectPreset('interaction')}
             >
-              <span>Group interaction</span>
+              <span>Difference between groups</span>
             </button>
             <button
               type="button"
@@ -511,11 +522,11 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </div>
 
           <p className="cm-preset-desc">
-            {preset === 'unadjusted' && 'Overall progression rate without covariates.'}
-            {preset === 'stratified' && 'Stratified analysis: Fits independent mixed models for each subgroup of the selected attribute.'}
-            {preset === 'demographic' && 'Standard epidemiological model: Y ~ Time + Baseline age + Sex + (1 + Time | Patient).'}
-            {preset === 'interaction' && 'Slope interaction test: Y ~ Time * Group + (1 + Time | Patient). Estimates slope differences with 95% confidence intervals; no p-values are computed.'}
-            {preset === 'custom' && 'Full custom model: Select specific covariates, effects, reference categories, and random effects.'}
+            {preset === 'unadjusted' && 'Average change per year across all patients, without further factors.'}
+            {preset === 'stratified' && 'One model for each group of the chosen attribute. The groups’ slopes are shown side by side. Their difference and its interval are not estimated; for that, use “Difference between groups”.'}
+            {preset === 'demographic' && 'Adds baseline age and sex. Both shift the level only; they do not change the slope unless set to “Shifts level and slope”.'}
+            {preset === 'interaction' && 'One model with the group as a factor. Reports how much faster or slower each group changes than the reference group, with a 95% interval. No p-values are computed.'}
+            {preset === 'custom' && 'Choose the factors, their effect, the reference levels and the random effects yourself.'}
           </p>
         </div>
 
@@ -559,8 +570,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                       value={factor.effect}
                       onChange={e => updateFactor(factor.key, { effect: e.target.value as MixedModelFactor['effect'] })}
                     >
-                      <option value="level">Level (Shift)</option>
-                      <option value="level_slope">Level &amp; Slope (Interaction)</option>
+                      <option value="level">Shifts the level</option>
+                      <option value="level_slope">Shifts level and slope</option>
                     </select>
 
                     {factor.kind === 'categorical' && factorDef?.levels && factorDef.levels.length > 0 && (
@@ -610,15 +621,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
         <section className="cm-fit-summary" aria-label="Fit summary">
         <h2>Fit summary</h2>
-        <div className="cm-formula-strip">
-          <div>
-            <span>Model: </span>
-            <span className="cm-formula-code" aria-label="Readable formula">{readableMixedModelFormula(mixedModelConfig, spec?.bezeichnung ?? 'Outcome')}</span>
-          </div>
-          <div className="cm-sample-meta">
-            Complete cases: {sampleSummary.rows.length > 0 ? new Set(sampleSummary.rows.map(r => r.patient_id)).size : 0} patients / {data.patients.length} ({sampleSummary.rows.length} measurements)
-          </div>
-        </div>
+        <p className="cm-sample-meta cm-model-sentence">{modelSentence}</p>
         <label className="mixed-model-config-check">
           <input type="checkbox" checked={presetExclusionPolicy === 'apply'} onChange={event => setPresetExclusionPolicy(event.target.checked ? 'apply' : 'skip')} />
           Apply preset event and AKI exclusions
@@ -650,7 +653,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               ? (cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Running model …')
               : noGroupFits
                 ? `${allEligibleFitted ? 'Refit' : 'Fit'} whole cohort only`
-                : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length} units)` : ''}`}
+                : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length})` : ''}`}
           </button>
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
@@ -659,7 +662,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           <summary>Preparation and fitting details</summary>
           {spec?.fitConfig && <p data-testid="model-preparation">Measurements follow the analysis settings of this parameter, shared with Trajectories. {describeModelPreparation(spec.fitConfig, preparationSource)}{noFit ? ' Choose another data preparation above or a fit model under Trajectories to fit a cohort model.' : `${presetExclusionPolicy === 'skip' ? ' The event and AKI windows are skipped by the choice above; time aggregation still applies.' : ''} Changing these settings here or under Trajectories discards the models fitted for this parameter.`}</p>}
           <p>Time: years since each patient's first retained measurement. Missing selected factors exclude the patient from this model only; no imputation.</p>
-          <p>One linear mixed-effects model per selected unit. Fit runs in-browser via WebR (lme4).</p>
+          <p>Model formula (R syntax): <span className="cm-formula-code" aria-label="Readable formula">{readableMixedModelFormula(mixedModelConfig, spec?.bezeichnung ?? 'Outcome')}</span></p>
+          <p>One linear mixed-effects model per selected group. Fit runs in-browser via WebR (lme4).</p>
         </details>
       </section>
 

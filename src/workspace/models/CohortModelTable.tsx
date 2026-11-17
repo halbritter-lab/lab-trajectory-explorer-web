@@ -251,7 +251,7 @@ export function CohortModelTable({
     <section className="mixed-model-panel cohort-model-panel" aria-label="Cohort mixed model">
       <h2 className="cohort-model-panel-title">Model results</h2>
       <div className="mixed-model-panel-header">
-        <p className="mixed-model-message">One mixed model per selected unit, fit sequentially. Failures are isolated per unit.</p>
+        <p className="mixed-model-message">One mixed model per selected group, fit sequentially. Failures are isolated per group.</p>
         <button type="button" disabled={exportable.length === 0 || running || hasDirtyEditor || initializing} onClick={exportModels}>Export models (xlsx)</button>
         {hasDirtyEditor && <p role="status">Apply or cancel projection changes before exporting models.</p>}
         {exportable.filter((model) => model.projectionError).map((model) => <p role="alert" key={model.key}>{model.entity}: {model.projectionError} Refit the model before exporting.</p>)}
@@ -275,17 +275,17 @@ export function CohortModelTable({
                 <th scope="col">
                   <input
                     type="checkbox"
-                    aria-label="Select all units"
+                    aria-label="Select all groups"
                     checked={allEligibleSelected}
                     disabled={eligibleKeys.length === 0}
                     onChange={toggleAll}
                   />
                 </th>
-                <th scope="col">Unit</th>
+                <th scope="col">Group</th>
                 <th scope="col">Patients</th>
                 <th scope="col">Measurements</th>
-                <th scope="col">{adjusted ? 'Reference slope' : 'Slope'}</th>
-                <th scope="col">{adjusted ? 'Reference intercept' : 'Intercept'}</th>
+                <th scope="col">{adjusted ? 'Change per year (reference)' : 'Change per year'}</th>
+                <th scope="col">{adjusted ? 'Starting level (reference)' : 'Starting level'}</th>
                 <th scope="col">Status</th>
                 <th scope="col"><span className="visually-hidden">Details</span></th>
               </tr>
@@ -317,8 +317,8 @@ export function CohortModelTable({
                       </td>
                       <td>{row.nPatients}</td>
                       <td>{row.nMeasurements}</td>
-                      <td>{success ? formatSlope(success.fixedEffects.timeSinceBaseline, seriesUnit) : '—'}</td>
-                      <td>{success ? formatValue(success.fixedEffects.intercept, seriesUnit) : '—'}</td>
+                      <td>{success ? <>{formatSlope(success.fixedEffects.timeSinceBaseline, seriesUnit)}<IntervalText value={success.fixedEffectConfidenceIntervals.timeSinceBaseline} /></> : '—'}</td>
+                      <td>{success ? <>{formatValue(success.fixedEffects.intercept, seriesUnit)}<IntervalText value={success.fixedEffectTerms?.find(term => term.term === '(Intercept)')?.confidenceInterval ?? null} /></> : '—'}</td>
                       <td className="cohort-model-status" data-testid="cohort-model-status">{statusText(row)}
                         <div>{row.preparation?.presetExclusionPolicy !== 'skip' && !definesWindows ? 'No event or AKI windows defined: nothing excluded' : `Preset windows ${row.preparation?.presetExclusionPolicy === 'skip' ? 'skipped' : 'applied'}: ${row.preparation?.excludedByPreset ?? 0} eligible measurements excluded`}</div>
                         {(row.preparation?.excludedPatients.length ?? 0) > 0 && <details><summary>Excluded for factor values ({row.preparation!.excludedPatients.length})</summary><ul>{row.preparation!.excludedPatients.map((patient) => <li key={patient.patientId}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul></details>}
@@ -362,6 +362,7 @@ export function CohortModelTable({
           </table>
         </div>
       )}
+      <p className="mixed-model-message cohort-model-reading" data-testid="interval-reading"><strong>How to read the intervals:</strong> an estimate with a 95% interval that excludes 0 is unlikely to be explained by chance alone under this model. The intervals are approximate and tend to be too narrow with few patients, and nothing is adjusted for comparing several groups or factors. Report the estimate with its interval; do not report it as a p-value. For tests, the exported R script names the lmerTest package.</p>
     </section>
   )
 }
@@ -405,6 +406,10 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
         <dt>Residual SD</dt>
         <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.residualSd)}</dd>
       </div>
+    </dl>
+    <details className="cohort-model-technical">
+    <summary>Technical record (for a methods section)</summary>
+    <dl className="cohort-model-details">
       <div className="cohort-model-detail-item cohort-model-detail-item-wide" data-testid="cohort-model-detail-formula">
         <dt>Formula</dt>
         <dd data-testid="cohort-model-detail-value">{mixedModelFormulaForOutcome(result.metadata.formula, outcome)}</dd>
@@ -422,6 +427,7 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
         <dd data-testid="cohort-model-detail-value">{result.metadata.fitConfigHash}</dd>
       </div>
     </dl>
+    </details>
     </>
   )
 }
@@ -429,6 +435,11 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
 // Slope and intercept use the workspace display rounding, so the table and the
 // preview legend show the same digits for the same estimate. Display only:
 // exports keep the unrounded values.
+/** The 95% interval beside an estimate in the results table; nothing when the fit recorded none. */
+function IntervalText({ value }: { value: [number, number] | null }) {
+  return value === null ? null : <span className="cohort-model-interval" title="95% interval"> {formatOptionalInterval(value)}</span>
+}
+
 function formatSlope(value: number, unit: string | null): string {
   const unitText = unit ? ` ${unit}` : ''
   return `${formatWorkspaceNumber(value)}${unitText}/yr`

@@ -620,7 +620,7 @@ test('model fitting: the demo fits by default, a small sample explains the limit
   const preview = page.locator('.cm-plot-card')
   // The demo preselects its imported eGFR, which reaches the ten-patient minimum.
   await expect(page.getByLabel('Model parameter')).toHaveValue(JSON.stringify(['eGFR', 'ml/min/1,73m²']))
-  await expect(studio).toContainText('Complete cases: 25 patients')
+  await expect(studio).toContainText('across 25 of 28 patients')
   await expect(studio.getByRole('button', { name: /Fit model/ })).toBeEnabled()
 
   const csv = (patients: number) => ['patientId,labDate,testName,unit,value', ...Array.from({ length: patients }, (_, i) =>
@@ -629,7 +629,7 @@ test('model fitting: the demo fits by default, a small sample explains the limit
   await page.getByLabel('Import lab values').setInputFiles({ name: 'small.csv', mimeType: 'text/csv', buffer: Buffer.from(csv(5)) })
   await expect(page.locator('.workspace-dataset')).toContainText('5 patients')
   await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
-  await expect(studio).toContainText('Complete cases: 5 patients')
+  await expect(studio).toContainText('across 5 of 5 patients')
   await expect(studio.getByRole('button', { name: /Fit model/ })).toBeDisabled()
   // One fit action: the preview has none and points to the reason in the studio.
   await expect(preview.getByRole('button', { name: /Fit/ })).toHaveCount(0)

@@ -588,3 +588,11 @@
 .cm-primary-controls { grid-template-columns: repeat(auto-fit, minmax(min(100%, 240px), 420px)); }
 /* Unit names wrap between words, never inside them. */
 .cohort-model-table td:nth-child(2) { overflow-wrap: normal; min-width: 7rem; }
+
+/* The model in words leads the fit summary; the page intro stays a readable measure. */
+.cm-page-intro { max-width: 70ch; margin: 6px 0; }
+.cm-model-sentence { margin: 0 0 10px; }
+.cohort-model-interval { color: #5b6f66; white-space: nowrap; }
+.cohort-model-technical { margin-top: 10px; }
+.cohort-model-technical > summary { cursor: pointer; font-size: 12px; color: #50665a; }
+.cohort-model-reading { max-width: 80ch; margin-top: 12px; }
