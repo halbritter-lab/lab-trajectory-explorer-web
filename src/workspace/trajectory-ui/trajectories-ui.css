@@ -193,8 +193,8 @@
 .pv-column-sort { display: inline-flex; align-items: center; flex-wrap: wrap; gap: 6px; min-width: 44px; min-height: 44px; border: 0; background: transparent; border-radius: 4px; padding: 5px 0; color: #3b5747; font-size: 12px; font-weight: 600; line-height: 1.5; text-align: left; }
 .pv-column-sort:hover { background: transparent; color: #176c68; }
 .pv-column-sort-state { color: #176c68; font-size: 10px; font-weight: 500; }
-.pv-column-more { display: grid; place-items: center; flex: 0 0 auto; width: 32px; min-height: 32px; border: 0; padding: 5px; background: transparent; }
-.pv-column-more svg { width: 17px; height: 17px; stroke-width: 3; }
+.pv-column-more { display: inline-flex; align-items: center; justify-content: center; gap: 4px; flex: 0 0 auto; min-width: 32px; min-height: 32px; border: 0; padding: 5px 6px; background: transparent; color: #587365; font-size: 11px; font-weight: 500; }
+.pv-column-more svg { width: 15px; height: 15px; }
 .pv-param-controls { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; padding-top: 5px; }
 .pv-param-controls > label { display: inline-flex; align-items: center; gap: 5px; font-size: 11px; font-weight: 500; cursor: pointer; min-height: 32px; }
 .pv-param-controls > label input { margin: 0; }
@@ -202,6 +202,8 @@
 .pv-param-controls > button { display: grid; place-items: center; min-width: 32px; min-height: 32px; padding: 5px; border: 0; background: transparent; color: #587365; }
 .pv-param-controls > button[aria-pressed=true] { color: #176c68; background: #e2eee7; }
 .pv-param-controls > button:disabled { opacity: .4; }
+.pv-param-controls > .pv-settings-button { display: inline-flex; align-items: center; justify-content: center; gap: 4px; padding: 5px 6px; font-size: 11px; font-weight: 500; }
+.pv-zoom-label { align-self: center; padding: 0 6px 0 8px; color: #597163; font-size: 11px; }
 .pv-param-controls svg { width: 15px; height: 15px; }
 .pv-own-profile { display: block; color: #557362; font-size: 10px; font-weight: 400; line-height: 1.5; padding-top: 5px; }
 .pv-graph-small svg text, .pv-graph-small svg line { display: none; }
@@ -261,3 +263,9 @@
 
 /* A phone shows the first chart without scrolling: the unchanged default preset is not named there. */
 @media (max-width: 600px) { .pv-default-profile { display: none; } }
+
+/* Below the desktop layout the parameter controls stay on one line, so "Settings" is an icon there. */
+@media (max-width: 900px) { .pv-settings-button > span { display: none; } }
+/* A phone drops the toolbar words that would add a row above the first chart.
+   Grouping stays reachable there from an attribute column's Sort menu. */
+@media (max-width: 600px) { .pv-zoom-label, .pv-group-by { display: none; } }

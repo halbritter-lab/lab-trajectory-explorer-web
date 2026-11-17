@@ -50,7 +50,7 @@ test('trend calculation and line visibility stay independent while column sortin
   await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
   const trend = page.getByRole('checkbox', { name: 'Analyse trend: Marker [U/L]', exact: true })
   const line = page.getByRole('button', { name: 'Show trend line: Marker [U/L]', exact: true })
-  const actions = page.getByRole('button', { name: 'Column actions: Marker [U/L]', exact: true })
+  const actions = page.getByRole('button', { name: 'Sort: Marker [U/L]', exact: true })
   const rows = page.locator('.wt-table tbody tr')
   await expect(trend).not.toBeChecked()
   await expect(line).toBeDisabled()
@@ -259,7 +259,7 @@ test('patient measurements identify the clinical event responsible for an exclus
   await page.getByText('Show measurements (4)', { exact: true }).first().click()
   const table = page.getByRole('table', { name: 'Measurements Creatinine [mg/dl]', exact: true })
   await expect(table.getByRole('cell', { name: 'Excluded: after kidney transplant', exact: true })).toHaveCount(3)
-  await expect(table.getByRole('cell', { name: 'Available before time aggregation', exact: true })).toHaveCount(1)
+  await expect(table.getByRole('cell', { name: 'Available before time balancing', exact: true })).toHaveCount(1)
 })
 
 test('large synthetic cohort remains searchable and exports the filtered scope', async ({ page }, testInfo) => {
@@ -368,7 +368,7 @@ test('real workbook: quality, derivation, many parameters, shared scope and actu
   await page.getByRole('button', { name: 'Attributes', exact: true }).click()
   await page.getByRole('checkbox', { name: 'Show attribute: studyArm' }).check()
   await page.keyboard.press('Escape')
-  await page.getByRole('button', { name: 'Column actions: studyArm' }).click()
+  await page.getByRole('button', { name: 'Sort: studyArm' }).click()
   await page.getByRole('menuitemcheckbox', { name: 'Group by studyArm' }).click()
   await page.getByRole('button', { name: 'Overlay', exact: true }).click()
   await expect(page.locator('.wt-plot-grid svg.wt-plot')).toHaveCount(13)
@@ -534,8 +534,8 @@ test('leaving trajectories dismisses settings and column menus before a mobile r
     await expect(page.locator('dialog:modal')).toHaveCount(0)
   }
   await page.setViewportSize({ width: 1440, height: 1000 })
-  await page.getByRole('button', { name: 'Column actions: Creatinine [mg/dl]', exact: true }).click()
-  const menu = page.getByRole('menu', { name: 'Column actions for Creatinine [mg/dl]', exact: true })
+  await page.getByRole('button', { name: 'Sort: Creatinine [mg/dl]', exact: true }).click()
+  const menu = page.getByRole('menu', { name: 'Sort options for Creatinine [mg/dl]', exact: true })
   await expect(menu).toBeVisible()
   await page.getByRole('button', { name: 'Data', exact: true }).click()
   await page.setViewportSize({ width: 390, height: 844 })

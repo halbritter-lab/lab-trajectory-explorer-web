@@ -78,7 +78,7 @@ function transplantAnalysis(label = 'Marker · unit-0') {
   enableTrend(label)
 }
 function sortColumn(label: string, metric: string, ascending = true) {
-  fireEvent.click(screen.getByRole('button', { name: `Column actions: ${label}` }))
+  fireEvent.click(screen.getByRole('button', { name: `Sort: ${label}` }))
   fireEvent.click(screen.getByRole('menuitemradio', { name: `${metric}: ${ascending ? 'ascending' : 'descending'}` }))
 }
 function groupByAttribute(attribute = 'Zentrum') {
@@ -86,7 +86,7 @@ function groupByAttribute(attribute = 'Zentrum') {
   const checkbox = screen.getByRole('checkbox', { name: `Show attribute: ${attribute}` })
   if (!(checkbox as HTMLInputElement).checked) fireEvent.click(checkbox)
   fireEvent.click(screen.getByRole('button', { name: /^Attributes/ }))
-  fireEvent.click(screen.getByRole('button', { name: `Column actions: ${attribute}` }))
+  fireEvent.click(screen.getByRole('button', { name: `Sort: ${attribute}` }))
   fireEvent.click(screen.getByRole('menuitemcheckbox', { name: `Group by ${attribute}` }))
 }
 
@@ -302,7 +302,7 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
     const table = screen.getByRole('table', { name: 'Measurements Marker · unit-0', hidden: true })
     expect(within(table).getAllByText('Excluded: after kidney transplant')).toHaveLength(2)
-    expect(within(table).getByText('Available before time aggregation')).toBeInTheDocument()
+    expect(within(table).getByText('Available before time balancing')).toBeInTheDocument()
   })
   it('sorts parameter names containing colons without splitting their identity', () => {
     const data = fixture()
@@ -886,7 +886,7 @@ describe('real-data trajectories workspace', () => {
       const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
       expect(within(row).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
       expect(within(row).getByText('2 of 3 fitted')).toBeInTheDocument()
-      expect(screen.getByText('Custom · Own settings')).toBeInTheDocument()
+      expect(screen.getByText('Custom · this parameter only')).toBeInTheDocument()
     })
     it('does not offer the kidney options for another parameter under the default preset', () => {
       render(<TrajectoriesWorkspace data={fixture()} />)
@@ -924,6 +924,42 @@ describe('real-data trajectories workspace', () => {
     fireEvent.change(screen.getByLabelText('Trend method: Marker · unit-0'), { target: { value: 'theil-sen' } })
     expect(screen.getByText(/^Slope range \[/)).toBeInTheDocument()
     expect(screen.queryByText(/^Interval includes 0$/)).not.toBeInTheDocument()
+  })
+
+  it('groups from the toolbar without first showing the attribute, and names the controls', () => {
+    render(<TrajectoriesWorkspace data={fixture()} />)
+    const groupBy = screen.getByLabelText('Group by attribute')
+    expect(within(groupBy).getAllByRole('option').map(option => option.textContent)).toEqual(['No grouping', 'Zentrum'])
+    fireEvent.change(groupBy, { target: { value: 'Zentrum' } })
+    expect(screen.getByRole('button', { name: 'Collapse group Nord' })).toBeInTheDocument()
+    expect(screen.getByLabelText('Filter group')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Remove grouping: Zentrum' }))
+    expect(groupBy).toHaveValue('')
+    fireEvent.change(groupBy, { target: { value: 'Zentrum' } })
+    fireEvent.change(groupBy, { target: { value: '' } })
+    expect(screen.queryByRole('button', { name: 'Collapse group Nord' })).not.toBeInTheDocument()
+    // The controls carry their words: Sort on the column menu, Settings on the slider.
+    expect(screen.getByRole('button', { name: 'Sort: Marker · unit-0' })).toHaveTextContent('Sort')
+    expect(screen.getByRole('button', { name: 'Analysis settings: Marker · unit-0' })).toHaveTextContent('Settings')
+    openSettings('Marker · unit-0')
+    calculationSettings()
+    expect(screen.getByLabelText('Time balancing').closest('label')).toHaveTextContent(/^Time balancing/)
+  })
+
+  it('ends grouping when an attributes import removes the grouping attribute', () => {
+    const data = fixture()
+    const shown = () => screen.getAllByRole('button', { name: /^Open patient/ }).map(button => button.textContent)
+    const view = render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.change(screen.getByLabelText('Group by attribute'), { target: { value: 'Zentrum' } })
+    fireEvent.change(screen.getByLabelText('Filter group'), { target: { value: JSON.stringify('Süd') } })
+    expect(shown()).toEqual(['ID-B'])
+    // Same lab rows, so the page stays mounted; the attributes now hold another column.
+    const patients = data.patients.map(patient => ({ ...patient, attributes: { Studie: 'X' } }))
+    view.rerender(<TrajectoriesWorkspace data={{ ...data, patients, patientAttributes: Object.fromEntries(patients.map(p => [p.id, p.attributes])) }} />)
+    expect(screen.getByLabelText('Group by attribute')).toHaveValue('')
+    expect(screen.queryByRole('button', { name: /^Remove grouping/ })).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Filter group')).not.toBeInTheDocument()
+    expect(shown()).toEqual(['ID-A', 'ID-B'])
   })
 
   it('does not mark excluded measurements when no fit model is set', () => {

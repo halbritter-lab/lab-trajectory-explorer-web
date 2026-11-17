@@ -384,7 +384,10 @@ mobile method navigation. The 929 unit/component tests also passed.
    fitted line retains the calculated slope and exported preparation settings.
 2. Add sex/genotype with Attributes. The order remains unchanged, columns fit
    their content, and header/context-menu sorting works independently of grouping.
-   Group by this column creates sections; the grouping chip removes them.
+   "Group by" in the toolbar (desktop widths; table and overlay) or "Group by
+   this column" in an attribute column's Sort menu creates sections; the
+   select or the grouping chip removes them. In the overlay the trajectories
+   take the group colours.
 3. Choose a specialist profile in one parameter's settings or in Cohort models.
    It creates own settings without changing unrelated shared preparation.
 4. Click selection names or row whitespace to toggle them. Parameters supports
