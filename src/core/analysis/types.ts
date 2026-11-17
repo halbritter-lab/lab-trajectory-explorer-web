@@ -157,6 +157,9 @@ export interface CellFlagContext {
   seriesKey: SeriesKey
   slope: number
   fitModel: FitModel
+  /** The slope meets the app's reliability rule (`isUnstableSlope`): fewer
+   * than three fitted dates or under a year of fitted span. */
+  unstableSlope?: boolean
 }
 
 /** One (patient, series column) as a module's `endpoints` hook sees it. */

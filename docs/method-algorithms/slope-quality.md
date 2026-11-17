@@ -96,6 +96,16 @@ remains. With fit model `none` the cell shows "Fit model disabled" and no note.
 In the overlay, a fit line whose note is amber and whose slope exists is dotted
 instead of dashed, and the plot states how many fits are affected.
 
+Interval note (decided 2026-11-17): when the slope has a 95% interval and
+zero lies strictly inside it (`ciLow < 0 < ciHigh`), the cell shows the grey
+note "Interval includes 0" with the explanation that the measurements do not
+establish whether the value rises or falls. It is a display note in the table
+and the patient view for every parameter. It is not part of the reliability
+rule: `unstable_slope`, the rapid-decline flag and the overlay are unchanged
+by it. It is not shown for Theil–Sen bounds below five fitted dates, which
+are not a 95% interval, nor when a bound is exactly zero. Example: interval
+−25.08 to 12.68 gives the note; −26.01 to −0.72 does not.
+
 `unstable_slope` in the cohort and patient slope export is `yes` exactly when
 the rule is met and blank otherwise. It is blank for fit model `none`. It does
 not distinguish grey from amber cases; `slope` is blank in the grey ones.
@@ -132,6 +142,8 @@ A cell is flagged when all of the following hold:
 - the threshold is greater than 0;
 - the series unit is recognised as an eGFR unit;
 - the cell has a slope (a finite number);
+- the slope does not meet the [reliability rule](#reliability-rule)
+  (`isUnstableSlope`; since 2026-11-17);
 - `slope < −threshold`. The comparison is strict: a slope of exactly −5 with a
   threshold of 5 is not flagged.
 
@@ -158,13 +170,24 @@ The parameter name is not checked. A clearance in `ml/min` is not eGFR and is
 never flagged (one rule for all eGFR features since 2026-10-07, formerly
 OD-20; see "Observed endpoints and individual prediction").
 
-The flag does not consult the reliability rule, the confidence bounds, the
-number of fitted points or the fitted span. Two values a few weeks apart that
-differ enough produce the same flag as a multi-year decline. The amber
-reliability note, when present, is shown next to the flag but does not
-suppress it.
+Reliability gate (decided 2026-11-17, replacing the decision of 2026-10-06
+and 2026-10-07, formerly OD-10): a slope from fewer than three fitted
+measurement dates or from less than 365 days of fitted span carries the amber
+reliability note and no flag, and `rapid_progression` is blank for it.
+`cohortCellFlags` evaluates the rule on the cell and passes the result to the
+module as `unstableSlope`. Counted are fitted points and dates, so under
+quarterly medians eight measurements in two quarters are two dates and give no
+flag. The flag still does not consult the confidence bounds or R²: a slope
+with a wide interval over more than a year is flagged (see the interval note
+under "Labels").
 
-Decided 2026-10-07 (formerly OD-10): the flag stays without a reliability gate, as decided on 2026-10-06. The methodology page was corrected: it no longer presents the flag as a test for a sustained decline and tells the reader to read it with the reliability note.
+Example: eGFR 90 on 2019-01-01 and 80 on 2020-01-01 gives −10 per year from
+two dates: `unstable_slope = yes`, `rapid_progression` blank (before:
+`yes`). The same two values plus 70 on 2021-01-01 give −10 per year from three
+dates over 731 days: `rapid_progression = yes`. Demo data, General
+exploration: patient 12 (−7.35 per year, follow-up under one year) loses the
+flag; patient 6 (−6.20 per year, interval −25.08 to 12.68, eleven values over
+more than a year) keeps it.
 
 In the table the badge appears only while the fit is shown for that column; its
 tooltip states the comparison, for example "Rapid decline: slope < -5 /year".
@@ -179,7 +202,8 @@ Regression evidence:
 [workspace export tests](../../tests/workspace/export.test.ts) for
 `rapid_egfr_threshold`, and the
 [decision tests](../../tests/core/endpoints/decisions20261007.test.ts) for a
-clearance in ml/min. No dedicated regression test covers a slope exactly equal
-to the negative threshold or the absence of a reliability gate.
+clearance in ml/min. The module and export record tests cover the reliability
+gate. No dedicated regression test covers a slope exactly equal to the
+negative threshold.
 
 

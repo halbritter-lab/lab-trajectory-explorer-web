@@ -199,6 +199,12 @@ describe('cohortExportRecords', () => {
     expect(cohortExportRecords(cohort, threshold(5))[0].rapid_progression).toBe('yes')
     expect(cohortExportRecords(cohort, threshold(0))[0].rapid_progression).toBe('') // disabled
     expect(cohortExportRecords(cohort, threshold(50))[0].rapid_progression).toBe('') // not steep enough
+    // Decided 2026-11-17: no flag on a slope the reliability rule calls uncertain.
+    const twoDates = buildCohortRows(rows.slice(0, 2), [1], [spec]) // 90 -> 80 in one year, two dates
+    expect(cohortExportRecords(twoDates, threshold(5))[0]).toMatchObject({ unstable_slope: 'yes', rapid_progression: '' })
+    const underAYear = buildCohortRows([rows[0], { ...rows[1], labDatum: d('2019-05-01') }, { ...rows[2], labDatum: d('2019-12-30') }], [1], [spec]) // 363 days
+    expect(cohortExportRecords(underAYear, threshold(5))[0]).toMatchObject({ unstable_slope: 'yes', rapid_progression: '' })
+    expect(Number(cohortExportRecords(underAYear, threshold(5))[0].slope)).toBeLessThan(-5)
   })
 
   it('adds a leading group column only when rows carry a groupValue', () => {

@@ -608,6 +608,29 @@ Owner decisions after the simulated-user case studies.
 - **Several creatinine series are not merged for eGFR** for now; an explicit
   choice by the user is tracked in issue #4.
 
+## Decisions of 2026-11-17 (rapid-decline flag and interval note)
+
+Owner decisions after the simulated-user case studies (UX-17, UX-18), taken
+on examples from the demo data.
+
+- **The rapid-decline flag is not set on an unreliable slope.** A slope that
+  meets the reliability rule (fewer than three fitted measurement dates or
+  less than 365 days of fitted span) carries the reliability note alone;
+  "rapid ↓" and `rapid_progression` are not set. This replaces the decision
+  of 2026-10-06/07 (formerly OD-10), which kept the flag without a gate. It
+  changes export values: `rapid_progression` turns from `yes` to blank for
+  such cells. No slope, interval or `unstable_slope` value changes. Demo data,
+  General exploration: patient 12 (−7.35 per year, follow-up under a year)
+  loses the flag.
+- **A 95% interval with zero inside is named, and nothing else follows from
+  it.** The cell shows "Interval includes 0". The reliability rule is not
+  extended: `unstable_slope` and the flag ignore the interval, so patient 6
+  (−6.20 per year, interval −25.08 to 12.68) keeps "rapid ↓" and gets the
+  note. Extending the rule was considered and not chosen.
+
+Details: [rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
+and [labels](method-algorithms/slope-quality.md#labels).
+
 ## Approved requirements
 
 ### Observed events and recovery
