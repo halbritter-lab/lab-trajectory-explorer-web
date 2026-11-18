@@ -1384,10 +1384,17 @@ versions (`webr.worker.ts`, `modelExport.ts`).
 **Could not be verified, do not publish yet.**
 
 - **EMA guideline** EMA/CHMP/500825/2016, which prefers a loss in GFR "such as
-  50%" and is the contrasting position to the 40% endpoint. The audit read the
-  document; on 2026-11-16 the EMA site refused automated requests (HTTP 429),
-  so its exact title and link are unconfirmed. Add it under *eGFR decline as
-  an endpoint* once both are confirmed.
+  50%" and is the contrasting position to the 40% endpoint. **Confirmed on
+  2026-11-18** from the document itself: the title is "Guideline on the
+  clinical investigation of medicinal products to prevent development/slow
+  progression of chronic renal insufficiency", the link is
+  <https://www.ema.europa.eu/en/documents/scientific-guideline/guideline-clinical-investigation-medicinal-products-prevent-developmentslow-progression-chronic-renal-insufficiency_en.pdf>,
+  and section 6.2.2 (secondary prevention) recommends the "time to a
+  predefined and justified loss in GFR, such as 50%", with lower magnitudes
+  allowed when qualified. The guideline does not name 40% or 57%, a
+  confirmation interval or a rate that defines rapid progression; it names
+  MDRD and CKD-EPI as examples of validated equations. It can be added under
+  *eGFR decline as an endpoint*; whether to publish is the owner's call.
 - **Theil 1950, original publication.** Only the 1992 reprint is confirmed.
   The original journal reference (Proceedings of the Koninklijke Nederlandse
   Akademie van Wetenschappen, volume 53) is from memory.
@@ -1399,6 +1406,14 @@ versions (`webr.worker.ts`, `modelExport.ts`).
   the paper is behind a paywall, so the coefficients were compared from
   memory. The same holds for the Q value above age 25 (0.90 mg/dl in the
   code; 80 µmol/l in the paper according to the audit).
+  **Compared with secondary sources on 2026-11-18, not with the paper:** every
+  coefficient in `formulas.ts` matches. 107.3, the exponents −0.322 and −1.132
+  and 0.990^(age − 40): Delanaye et al., Clin Kidney J 2023 (PMID 37664574).
+  Male Q polynomial: Ahmed et al., EJIFCC 2024 (PMID 39810889). Female Q
+  polynomial: a validation study in Chinese patients (PMC9848359) and Risch,
+  Pipette 6/2020. Q above age 25, 80 µmol/l (0.90 mg/dl) for men and 62 µmol/l
+  (0.70 mg/dl) for women: two online calculators only. The owner's comparison
+  with the paper's own text is still open.
 - **Whether KDIGO 2024 keeps the definition of rapid progression.** The audit
   did not find it there by text search. D3 (h) therefore names KDIGO 2012.
 - **Content of Janmaat 2019 and Luke 2017.** Their bibliographic data are
