@@ -42,7 +42,7 @@ test('a reload shows the same slopes, badges and settings when the dataset is re
   await analyseWithCkdPreset(page)
   await expect(patientRow(page).locator('.wt-badge-endpoint')).toContainText('-50%')
   const before = await patientRow(page).innerText()
-  expect(before).toContain('OLS: -7.5 ml/min/1.73m2/year')
+  expect(before).toContain('OLS: -7.50 ml/min/1.73m2/year')
 
   await remember(page)
   await page.reload()

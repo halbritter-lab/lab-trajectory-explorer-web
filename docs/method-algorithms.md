@@ -63,6 +63,7 @@ Contents:
 9. [Rolling and segmented OLS](method-algorithms/trend-estimators.md#rolling-and-segmented-ols)
 10. [Reason codes and the slope reliability rule](method-algorithms/slope-quality.md#reason-codes-and-the-slope-reliability-rule)
 11. [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
+    - [Table order, mark filters and displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals)
 12. [eGFR derivation](method-algorithms/egfr.md#egfr-derivation)
 13. [KDIGO creatinine AKI detection](method-algorithms/aki.md#kdigo-creatinine-aki-detection)
 14. [AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window)

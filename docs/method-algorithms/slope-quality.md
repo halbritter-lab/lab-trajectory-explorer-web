@@ -210,4 +210,124 @@ clearance in ml/min. The module and export record tests cover the reliability
 gate. No dedicated regression test covers a slope exactly equal to the
 negative threshold.
 
+## Table order, mark filters and displayed decimals
+
+Three rules of the Trajectories table decide which patients are shown, in
+which order, and how a slope is written. None changes a computed value. The
+order and the filters also decide the rows of the export, which holds the
+patients shown in the order shown.
+
+### Order of a sort by slope
+
+Decided 2026-11-21. Under a sort by *Slope* or *Absolute slope* the rows of
+the sorted parameter form three blocks, in this order whatever the direction:
+
+1. cells with a slope that does not meet the [reliability rule](#reliability-rule);
+2. cells with an **uncertain slope**: a slope exists (a finite number) and the
+   reliability rule is met (`unstable_slope = yes`), which are the amber
+   cases of the [labels](#labels);
+3. cells without a slope.
+
+Blocks 1 and 2 are each sorted by the chosen metric and direction; ties, and
+all of block 3, are in patient-ID order. With grouping the blocks form inside
+every group. The status line states the number of shown patients in block 2
+("1 uncertain slope placed after the reliable ones"). The switch *Uncertain
+slopes last* beside it is on by default; switched off, blocks 1 and 2 are one
+block sorted by value, as until 2026-11-21, and the status line reads "ranked
+among the reliable ones". Note and switch appear only while the table is
+sorted by slope or absolute slope and at least one shown patient is in block
+2. The switch is not stored with the saved settings. Other metrics (latest
+value, measurements, follow-up) are unchanged: values in the chosen
+direction, patients without a value last.
+
+Example, demo data, imported eGFR, OLS, General exploration, *Slope:
+ascending*. Patient 12 has −7.35 per year over 151 days and is uncertain.
+By value alone the order begins 4 (−16.53), 7 (−13.37), 26, 24, 20, 21, 25,
+9 (−7.73), 12 (−7.35), 6 (−6.20), with patient 12 at rank 9. With the rule
+the order is 4, 7, 26, 24, 20, 21, 25, 9, 6, 27, 22, 17, 19, 23, 2, 28, 18,
+16, 15, 11, 8, 1, 13, 14 (+25.29), then 12 at rank 25, then 3, 5 and 10
+without a slope. The `cohort` sheet of the export lists the patients in the
+same order.
+
+### Filters by mark and event type
+
+The row "Show only" under the status line offers one button per mark that at
+least one patient of the current scope carries, with the number of those
+patients. The scope is what search, the group filter and "Selected only"
+leave. A patient carries a mark when any shown parameter column does:
+
+| Button | A patient carries it when |
+| --- | --- |
+| Rapid decline | a cell shows the [rapid-decline flag](#rapid-egfr-decline-flag); needs Trend on for that column |
+| Uncertain slope | a cell with Trend on has measurements and an uncertain slope as defined above |
+| Endpoint reached | a cell reports kidney failure reached by an event, a confirmed observed CKD G4 or G5, or a confirmed 40% or 57% decline; projections and the total percent change do not count |
+| AKI | a cell carries the AKI mark of its creatinine series |
+| Kidney transplant, Dialysis, Other event | the patient has a clinical event of that type, whatever the shown columns |
+
+Marks of parameters that are not shown as columns are not counted. Several
+chosen buttons combine with "and": a patient must carry all of them. The
+numbers on the buttons keep referring to the scope before any mark is chosen,
+so two chosen marks can show fewer patients than either number. A chosen
+button stays visible with 0 when its mark no longer occurs (for example
+after Trend was switched off). The filter applies to the table, the overlay,
+the patient navigation and the export; the export button then reads "Export
+14 of 28 patients (XLSX)". Opening a patient from the Data page clears the
+chosen marks together with search and group filter. On a screen up to 600 px
+wide the buttons are in the toolbar menu "Show only" instead of a row, with
+the number of chosen marks on the menu button.
+
+Example, demo data with eGFR (CKD-EPI 2021) applied and Trend on for all
+four default columns: Rapid decline 14, Uncertain slope 3 (patients 3, 5 and
+12), Endpoint reached 4, AKI 4, Kidney transplant 3, Dialysis 3, Other event
+1.
+
+### Decimals of slopes
+
+Decided 2026-11-21. Every parameter has one number of decimals for its
+slopes. `slopeDisplayDecimals` (`src/core/format.ts`) takes the absolute
+values of all finite slopes of the parameter over every patient of the
+loaded dataset, under the parameter's current analysis settings, and their
+median (the mean of the two middle values for an even count). The number of
+decimals is the one that gives this median two significant digits:
+`1 − e`, where `e` is the decimal exponent of the median (0.0948 = 9.48 ×
+10⁻², so e = −2), limited to at least 2 and at most 4. A median of 0.1 or
+more gives 2; from 0.01 up to but not including 0.1 gives 3; below 0.01
+gives 4. Without any slope, or with a median of exactly 0, it is 2. Search,
+filters and grouping do not change the number; another fit method or another
+exclusion setting can, because the slopes change.
+
+The number applies to the slope, both bounds of its interval and the
+smallest and largest rolling-window slope in the table cell and the patient
+view, and on the Cohort models page to the change per year with its
+interval, to every row of the coefficient table (estimate and bounds), to
+the patient slope SD and to the slope in the preview legend. There it is
+computed from the patients' own slopes under the same settings, as if Trend
+were on. Values are rounded by the browser's number formatting (`toLocaleString`,
+en-GB) to exactly that many decimals, padded with zeros, and never written as
+"-0.00"; the slope carries a plus
+sign when it is above zero. R², the latest value, the starting level of a
+model and all other numbers keep the general display rounding (at most two
+decimals, no padding). The rapid-decline tooltip and the charts are
+unchanged. Display only: no computed value and no export changes; exports
+keep full precision.
+
+Example, demo data, OLS, General exploration. Creatinine [mg/dl]: 27
+slopes, median of the absolute values 0.0948, so three decimals. Patient 8:
+slope 0.010349 with bounds 0.006869 and 0.013829 is written "+0.010 mg/dl/yr
+95% CI [0.007, 0.014]" (until 2026-11-21 "+0.01 [0.01, 0.01]"). Patient 12:
+"+0.274 [-1.697, 2.246]". Imported eGFR: median 5.33, two decimals, no cell
+changes. In the table's minimal layout the bounds carry the visible label
+"95% CI", or "range" where they are a Theil–Sen slope range on fewer than
+five fitted dates.
+
+Regression evidence: [formatter tests](../../tests/core/format.test.ts) for
+the decimals rule and its boundaries at powers of ten,
+[row screening tests](../../tests/workspace/preview-row-screening.test.ts)
+for the three blocks and the 364/365-day boundary of "uncertain", and
+[table tests](../../tests/workspace/trajectories-screening.test.tsx) for the
+order, the status line, the mark buttons with their counts and the decimals
+in table and patient view; [model table tests](../../tests/workspace/models/CohortModelTable.test.tsx)
+for the decimals on the Cohort models page. The AKI and dialysis buttons and
+the "Endpoint reached" conditions other than a transplant event are pinned by
+no component test.
 

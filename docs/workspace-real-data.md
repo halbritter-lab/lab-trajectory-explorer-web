@@ -122,10 +122,12 @@ imported parameter names and patient attributes retain their original values.
 4. Under **Trajectories**, select parameters by name and unit. Search or select
    patients and compare the graph table, individual view and spaghetti overlay.
    Different units remain separate. Horizontal column navigation accommodates many
-   parameters; the patient table is paged (50 patients per page) while sorting
-   and export keep the full scope.
+   parameters; the patient table is paged (25, 50 or 100 patients per page,
+   50 by default) while sorting and export keep the full scope.
    Metric sorts (latest value, slope, absolute slope, count, duration) can be
-   reversed; patients without a value stay last.
+   reversed; patients without a value stay last. A sort by slope places
+   uncertain slopes after the reliable ones unless "Uncertain slopes last" is
+   switched off. "Show only" filters by mark or event type.
 5. Export the selected patient scope as XLSX, or download individual charts as
    SVG/PNG. Displayed metrics and exports reuse the same prepared analysis.
 

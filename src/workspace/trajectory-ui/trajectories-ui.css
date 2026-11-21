@@ -269,3 +269,24 @@
 /* A phone drops the toolbar words that would add a row above the first chart.
    Grouping stays reachable there from an attribute column's Sort menu. */
 @media (max-width: 600px) { .pv-zoom-label, .pv-group-by { display: none; } }
+/* Table screening: mark filters, the order of uncertain slopes, paging above and below the table. */
+.pv-statusbar { flex-wrap: wrap; }
+.pv-uncertain-toggle { display: inline-flex; align-items: center; gap: 5px; margin-right: auto; white-space: nowrap; }
+.pv-mark-filters { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; padding: 0 16px 10px; font-size: 12px; color: var(--muted); }
+.pv-mark-menu { padding: 0; }
+.pv-mark-filter, .pv-mark-clear { display: inline-flex; align-items: center; gap: 6px; min-height: 30px; padding: 4px 9px; font-size: 12px; }
+.pv-mark-filter[aria-pressed=true] { color: #fff; background: #145d58; border-color: #145d58; font-weight: 650; }
+.pv-mark-filter[aria-pressed=true] .pv-count { background: #ffffff33; color: #fff; }
+.wt-page-option { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.wt-page-option select { min-height: 30px; padding: 3px 6px; font-size: 12px; }
+.wt-table-pages-below { justify-content: flex-end; padding: 8px 16px; font-size: 12px; color: var(--muted); }
+.wt-table-pages-below button { padding: 5px 9px; min-height: 30px; font-size: 12px; }
+.pv-cell-values > .pv-cell-ci { font-variant-numeric: tabular-nums; }
+.pv-explorer > .wt-table-scroll { scroll-margin-top: 12px; }
+@media (max-width: 900px) {
+  .pv-mark-filters { padding: 0 12px 8px; }
+  .pv-mark-filters.pv-mark-menu { padding: 0; }
+  .pv-mark-filter, .pv-mark-clear { min-height: 44px; }
+  .wt-page-option { display: none; }
+  .wt-table-pages-below button { min-height: 44px; min-width: 44px; }
+}

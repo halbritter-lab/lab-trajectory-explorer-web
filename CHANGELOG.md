@@ -5,8 +5,45 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (Trajectories table, after the persona review of 2026-11-21)
+
+- **A sort by slope or absolute slope places uncertain slopes after the
+  reliable ones** (decided 2026-11-21): reliable slopes, then slopes with
+  fewer than three fitted dates or under one year of follow-up, then patients
+  without a slope. The status line gives the number of rows moved back;
+  "Uncertain slopes last" restores the order by value. The export follows the
+  table, so its row order changes with it. No value changes.
+- **Slopes and their interval bounds have one number of decimals per
+  parameter** (decided 2026-11-21): as many as give the median absolute slope
+  of the loaded dataset two significant digits, between two and four.
+  Creatinine in mg/dl reads "+0.010 mg/dl/yr [0.007, 0.014]" where it read
+  "+0.01 [0.01, 0.01]". The patient view writes the slope the same way
+  ("OLS: +0.010 mg/dl/year"), and on the Cohort models page the change per
+  year, the coefficient table (estimate and bounds alike), the patient slope
+  SD and the preview legend use the same number. Display only; exports keep
+  full precision.
+- The interval beside a slope is labelled in the cell: "95% CI", or "range"
+  for Theil–Sen bounds on fewer than five fitted dates.
+- A collapsed group no longer fills pages: pages hold the expanded rows only,
+  a collapsed group is one header row with its total on every page, and
+  "Showing 1–50 of 527 patients (273 more in collapsed groups)" counts the
+  expanded rows. Selection and export keep the full scope.
+- The page controls are repeated below the table, and a page change from
+  there returns to the top of the table. A page can be chosen directly, and
+  the page holds 25, 50 or 100 patients. The two selects are hidden on
+  screens up to 900 px wide. The table header does not stay in view while
+  scrolling; that part of the proposal is not built.
+- "Select all 100 matching" names the number of hits and is offered as soon
+  as a search, group filter or mark filter is active, without selecting a
+  patient first.
+
 ### Added (Trajectories table, after the persona review of 2026-11-21)
 
+- "Show only" under the status line filters the patients by the marks present
+  (rapid decline, uncertain slope, endpoint reached, AKI) and by the type of
+  their clinical events, each with its number of patients. Several chosen
+  marks must all apply. Overlay, patient navigation and export follow the
+  filter. On a phone the marks are in a toolbar menu.
 - The cohort export button names a restricted scope ("Export 12 of 28
   patients (XLSX)"), and the workbook exports show "Exporting …" while the
   file is written.

@@ -18,6 +18,7 @@ import { akiCriterionLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes
 import type { ClinicalEvent } from '../core/events/events'
 import { AKI_MODULE_ID } from '../core/domains/nephrology/aki/akiModule'
 import type { FitConfig } from '../core/analysis/fitConfig'
+import { formatFixedDecimals, MIN_SLOPE_DECIMALS, slopeDisplayDecimals } from '../core/format'
 import { QuietAnalysisSettings } from './trajectory-ui/AnalysisSettings'
 import { ANALYSIS_CATALOG, endpointBadge, type WorkspaceFitSettings } from './workspace-analysis'
 import { parameterKeyLabel } from './saved-settings'
@@ -25,6 +26,7 @@ import { useAppStore } from './state/store'
 import { trajectoryTrendConfig } from './trajectory-ui/analysis'
 import { ColumnActions } from './trajectory-ui/ColumnActions'
 import { groupKey, groupRows } from './trajectory-ui/grouping'
+import { compareSlopeCells, hasUncertainSlope, ROW_MARKS, rowMarkLabel, rowMarks, type RowMark } from './trajectory-ui/rowScreening'
 import { attributeSortKey, parseAttributeSort, compareAttributeValues } from './trajectory-ui/attributes'
 
 /** Sort keys are `${parameterKey}:${metric}`; parameter keys are JSON and may
@@ -39,10 +41,25 @@ function parseSortKey(sort: string): { paramKey: string; metric: string } {
 /** Default direction per metric: slopes ascending (steepest decline first),
  * everything else descending (largest first). The direction toggle reverses it. */
 const metricAscendingByDefault = (metric: string) => metric === 'slope'
-const TABLE_PAGE_SIZE = 50
+/** Patients per table page; the first is the smallest, the second the default. */
+const TABLE_PAGE_SIZES = [25, 50, 100] as const
 const NO_EVENTS: readonly ClinicalEvent[] = []
-/** Slopes in a column line up: always two decimals, rounded as elsewhere. */
-const fixedSlope = (value: number) => value.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).replace(/^-0\.00$/, '0.00')
+/** A phone-sized screen: the mark filters move into a toolbar menu there, so
+ * the first charts stay on the first screen. */
+const PHONE_QUERY = '(max-width: 600px)'
+function usePhoneLayout(): boolean {
+  const query = () => typeof window !== 'undefined' && typeof window.matchMedia === 'function' ? window.matchMedia(PHONE_QUERY) : undefined
+  const [phone, setPhone] = useState(() => query()?.matches ?? false)
+  useEffect(() => {
+    const media = query()
+    if (!media) return
+    const update = () => setPhone(media.matches)
+    update()
+    media.addEventListener?.('change', update)
+    return () => media.removeEventListener?.('change', update)
+  }, [])
+  return phone
+}
 /** The rapid-decline mark is a finding, not a warning about the value: its own icon. */
 const flagIcon = (tone: string) => tone === 'aki' ? 'event' : tone === 'rapid' ? 'decline' : 'endpoint'
 
@@ -58,6 +75,7 @@ function CellSummary({
   compact = false,
   minimal = false,
   warningIcons = true,
+  slopeDecimals = MIN_SLOPE_DECIMALS,
 }: {
   cell: CohortCell
   patientId: PatientId
@@ -76,7 +94,11 @@ function CellSummary({
   compact?: boolean
   minimal?: boolean
   warningIcons?: boolean
+  /** Decimals of every slope and interval bound of this parameter, so a column
+   * lines up and reads the same in the table and the patient view. */
+  slopeDecimals?: number
 }) {
+  const slopeNumber = (value: number, signed = false) => formatFixedDecimals(value, slopeDecimals, signed)
   const last = cell.points[cell.points.length - 1]
   const quality = slopeQualityLabel(cell)
   const qualityText = quality?.label === 'no values'
@@ -116,11 +138,11 @@ function CellSummary({
   const slopeText = cell.fitModel === 'none'
     ? 'Fit model disabled'
     : Number.isFinite(cell.slope)
-      ? `${modelLabel}: ${formatWorkspaceNumber(cell.slope)} ${cell.einheit ?? ''}/year, R² ${formatWorkspaceNumber(cell.r2)}`
+      ? `${modelLabel}: ${slopeNumber(cell.slope, true)} ${cell.einheit ?? ''}/year, R² ${formatWorkspaceNumber(cell.r2)}`
       : 'No fit available'
   const rollingTitle = cell.rolling && `Rolling OLS: an OLS fit in each ${cell.rolling.windowDays}-day window, moved in steps of ${cell.rolling.stepDays} days, with at least three fitted measurements. The slope above is the global OLS slope; the short lines in the chart are the window fits.`
   const rollingText = cell.rolling && (cell.rolling.nWindows > 0
-    ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'}, local slopes ${formatWorkspaceNumber(cell.rolling.slopeMin)} to ${formatWorkspaceNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
+    ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'}, local slopes ${slopeNumber(cell.rolling.slopeMin)} to ${slopeNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
     : `No ${cell.rolling.windowDays}-day window with three fitted measurements; no local slopes`)
   const hasCi = Number.isFinite(cell.ciLow) && Number.isFinite(cell.ciHigh)
   // Below the date minimum of a Theil–Sen projection the bounds are not a 95%
@@ -132,7 +154,7 @@ function CellSummary({
   const ciGeneral = 'Uncertainty in the estimated slope; not a prediction interval for future measurements'
   const rangeHint = `Not a 95% interval: the fit has fewer than ${MIN_THEIL_SEN_PROJECTION_DATES} distinct dates. ${THEIL_SEN_FEW_DATES_COVERAGE}.`
   const ciTitle = slopeRange ? `${rangeHint} ${ciGeneral}` : ciGeneral
-  const ciText = `${slopeRange ? 'Slope range' : '95% slope CI'} [${formatWorkspaceNumber(cell.ciLow)}, ${formatWorkspaceNumber(cell.ciHigh)}] ${cell.einheit ?? ''}/year`
+  const ciText = `${slopeRange ? 'Slope range' : '95% slope CI'} [${slopeNumber(cell.ciLow)}, ${slopeNumber(cell.ciHigh)}] ${cell.einheit ?? ''}/year`
   const qualityLabel = quality && `${qualityText}${quality.caveat ? ', uncertain slope' : ''}`
   const excludedText = `${markedCount} excluded from the fit (${markedLabels.join(', ')})`
   const included = fit && last ? fitInclusionCaveat(cell, events) : null
@@ -158,8 +180,8 @@ function CellSummary({
     return <div className="pv-cell-minimal">
       <div className="pv-cell-values">
         {/* With a trend the slope is the cell's figure; the latest value steps back. */}
-        {showSlope && <strong aria-label={slopeText} className="pv-cell-slope">{cell.slope > 0 ? '+' : ''}{fixedSlope(cell.slope)} {slopeUnitText}</strong>}
-        {showSlope && hasCi && <span className="pv-cell-ci" aria-label={ciText} title={ciTitle}>[{fixedSlope(cell.ciLow)}, {fixedSlope(cell.ciHigh)}]</span>}
+        {showSlope && <strong aria-label={slopeText} className="pv-cell-slope">{slopeNumber(cell.slope, true)} {slopeUnitText}</strong>}
+        {showSlope && hasCi && <span className="pv-cell-ci" aria-label={ciText} title={ciTitle}>{slopeRange ? 'range' : '95% CI'} [{slopeNumber(cell.ciLow)}, {slopeNumber(cell.ciHigh)}]</span>}
         {showSlope
           ? <span aria-label={`Latest value: ${formatWorkspaceNumber(last.value)}`}>latest {formatWorkspaceNumber(last.value)}</span>
           : <strong aria-label={last ? `Latest value: ${formatWorkspaceNumber(last.value)}` : 'No numeric measurements with a date'}>{last ? formatWorkspaceNumber(last.value) : '—'}</strong>}
@@ -266,6 +288,13 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const [parameterQuery, setParameterQuery] = useState('')
   const [query, setQuery] = useState('')
   const [tablePage, setTablePage] = useState(0)
+  const [pageSize, setPageSize] = useState<(typeof TABLE_PAGE_SIZES)[number]>(TABLE_PAGE_SIZES[1])
+  // Set by a page change so the next layout shows the top of the new page; 'focus'
+  // also moves the focus there, for the controls below the table.
+  const pageJump = useRef<false | 'scroll' | 'focus'>(false)
+  const [markFilters, setMarkFilters] = useState<RowMark[]>([])
+  // Sorting by slope: uncertain slopes after the reliable ones (decided 2026-11-21).
+  const [uncertainLast, setUncertainLast] = useState(true)
   const [selected, setSelected] = useState<PatientId[]>([])
   const [selectedOnly, setSelectedOnly] = useState(false)
   const [groupByState, setGroupBy] = useState('')
@@ -411,7 +440,12 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     if ((metric === 'slope' || metric === 'absSlope') && fitConfigs[paramKey]?.fitModel === 'none') setSort('id')
   }, [sort, fitConfigs])
   const specs = useMemo(() => workspaceSpecs(data, keys, fitConfigs), [data, keys, fitConfigs])
+  /** The parameters whose trend is calculated and shown. */
+  const parameterKeySet = new Set(parameters.filter(parameter => trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none').map(parameter => parameter.key))
   const cohort = useMemo(() => buildCohortRows(data.rows, data.patients.map(p => p.id), specs), [data.rows, data.patients, specs])
+  // One number of decimals per parameter column, from every slope of the loaded
+  // dataset: a search or filter does not change how a slope is written.
+  const slopeDecimals = useMemo(() => specs.map((_, index) => slopeDisplayDecimals(cohort.map(row => row.cells[index].slope))), [cohort, specs])
   const sparkDomains = useMemo(() => specs.map((_, index): SparkDomain => {
     let min = Infinity, max = -Infinity, days = 0
     for (const row of cohort) {
@@ -439,10 +473,22 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const groupLabel = (value: string) => groupBy === 'sex' ? sexLabel(value) : value
   const groups = groupRows(data.patients, patient => groupValue(patient.id), groupLabel)
   const normalizedQuery = query.trim().toLocaleLowerCase()
-  const filtered = cohort.filter(row => {
+  // What each patient can be filtered by: the marks of the shown cells and the event types.
+  const marksByPatient = useMemo(() => {
+    const columns = parameters.map(p => ({ fit: trendKeys.includes(p.key) && fitConfigs[p.key].fitModel !== 'none', settings: (columnSettings[p.key] ?? fitSettings).moduleSettings }))
+    return new Map(cohort.map(row => [row.patientId, rowMarks(row, columns, eventsByPatient.get(patientIdKey(row.patientId)))]))
+  }, [cohort, parameters, trendKeys, fitConfigs, columnSettings, fitSettings, eventsByPatient])
+  // Search, group and selection give the scope the mark counts refer to; the
+  // chosen marks then narrow it, and a patient must carry all of them.
+  const scoped = cohort.filter(row => {
     const patient = patientById.get(row.patientId)
     return (!selectedOnly || selectedSet.has(row.patientId)) && (!group || groupKey(groupValue(row.patientId)) === group) && `${row.patientId} ${patient?.label ?? ''}`.toLocaleLowerCase().includes(normalizedQuery)
-  }).sort((a, b) => {
+  })
+  const markOptions = ROW_MARKS.map(mark => ({ mark, count: scoped.reduce((count, row) => count + Number(marksByPatient.get(row.patientId)?.has(mark) ?? false), 0) }))
+    .filter(option => option.count > 0 || markFilters.includes(option.mark))
+  const phoneLayout = usePhoneLayout()
+  const toggleMark = (mark: RowMark) => { setMarkFilters(previous => previous.includes(mark) ? previous.filter(item => item !== mark) : [...previous, mark]); setTablePage(0) }
+  const filtered = scoped.filter(row => markFilters.every(mark => marksByPatient.get(row.patientId)?.has(mark))).sort((a, b) => {
     if (sort === 'id') return comparePatientIds(a.patientId, b.patientId)
     if (sort === 'id:desc') return comparePatientIds(b.patientId, a.patientId)
     if (attributeSort) {
@@ -454,16 +500,14 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     if (index < 0) return comparePatientIds(a.patientId, b.patientId)
     const cellA = a.cells[index]
     const cellB = b.cells[index]
+    const ascending = metricAscendingByDefault(metric) !== sortReversed
+    if (metric === 'slope' || metric === 'absSlope') {
+      return compareSlopeCells(cellA, cellB, { absolute: metric === 'absSlope', ascending, uncertainLast }) || comparePatientIds(a.patientId, b.patientId)
+    }
     let valA: number | undefined
     let valB: number | undefined
 
-    if (metric === 'slope') {
-      valA = Number.isFinite(cellA?.slope) ? cellA.slope : undefined
-      valB = Number.isFinite(cellB?.slope) ? cellB.slope : undefined
-    } else if (metric === 'absSlope') {
-      valA = Number.isFinite(cellA?.slope) ? Math.abs(cellA.slope) : undefined
-      valB = Number.isFinite(cellB?.slope) ? Math.abs(cellB.slope) : undefined
-    } else if (metric === 'n') {
+    if (metric === 'n') {
       valA = cellA?.nNumeric ?? 0
       valB = cellB?.nNumeric ?? 0
     } else if (metric === 'duration') {
@@ -473,8 +517,6 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       valA = cellA?.points.at(-1)?.value
       valB = cellB?.points.at(-1)?.value
     }
-    const ascending = metricAscendingByDefault(metric) !== sortReversed
-
     if (valA === undefined && valB === undefined) return comparePatientIds(a.patientId, b.patientId)
     if (valA === undefined) return 1
     if (valB === undefined) return -1
@@ -503,11 +545,28 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     return () => observer.disconnect()
   }, [tableShown, attributeLayoutKey])
   const chartWidth = sparkWidth(Math.max(0, tableWidth - attributeTableWidth), parameters.length, chartSize)
-  const pageCount = Math.ceil(visible.length / TABLE_PAGE_SIZE)
+  // Rows of a collapsed group take no place on a page: the pages hold the
+  // expanded rows only, and a collapsed group is one header row on every page.
+  const collapsedKeys = groupBy ? collapsedGroups : []
+  const pagedRows = collapsedKeys.length ? visible.filter(row => !collapsedKeys.includes(groupKey(groupValue(row.patientId)))) : visible
+  const pageCount = Math.ceil(pagedRows.length / pageSize)
   const activeTablePage = Math.min(tablePage, Math.max(0, pageCount - 1))
-  const tableRows = visible.slice(activeTablePage * TABLE_PAGE_SIZE, (activeTablePage + 1) * TABLE_PAGE_SIZE)
-  const tableGroups = groupBy ? groupRows(tableRows, row => groupValue(row.patientId), groupLabel) : [{ key: 'all', label: '', value: null, rows: tableRows }]
-  const selectableRows = tableGroups.filter(section => !groupBy || !collapsedGroups.includes(section.key)).flatMap(section => section.rows)
+  const tableRows = pagedRows.slice(activeTablePage * pageSize, (activeTablePage + 1) * pageSize)
+  const pageGroups = groupBy ? groupRows(tableRows, row => groupValue(row.patientId), groupLabel) : []
+  const tableGroups = groupBy
+    ? groupedRows.flatMap(section => collapsedKeys.includes(section.key) ? [{ ...section, rows: [] }] : pageGroups.filter(pageSection => pageSection.key === section.key))
+    : [{ key: 'all', label: '', value: null, rows: tableRows }]
+  const selectableRows = tableRows
+  const changePage = (page: number, from: 'top' | 'bottom' = 'top') => { pageJump.current = from === 'bottom' ? 'focus' : 'scroll'; setTablePage(page) }
+  useLayoutEffect(() => {
+    const scroller = tableScroller.current, jump = pageJump.current
+    pageJump.current = false
+    if (!jump || !scroller) return
+    // Only when the top of the table is out of sight: a change from the bar above it moves nothing.
+    const top = scroller.getBoundingClientRect().top
+    if ((top < 0 || top > window.innerHeight) && typeof scroller.scrollIntoView === 'function') scroller.scrollIntoView({ block: 'start' })
+    if (jump === 'focus') scroller.focus({ preventScroll: true })
+  }, [activeTablePage, pageSize])
   const pageSelectedCount = selectableRows.reduce((count, row) => count + Number(selectedSet.has(row.patientId)), 0)
   const pagePatientIds = selectableRows.map(row => row.patientId)
   const zoomDomains = specs.map((_, index): SparkDomain => {
@@ -525,6 +584,11 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const patientIds = visible.map(row => row.patientId)
   const activeSort = sort === 'id' || sort === 'id:desc' ? null : parseSortKey(sort)
   const activeMetric = activeSort && keys.includes(activeSort.paramKey) ? activeSort.metric : null
+  const slopeSortIndex = activeSort && (activeMetric === 'slope' || activeMetric === 'absSlope') ? keys.indexOf(activeSort.paramKey) : -1
+  const uncertainSorted = slopeSortIndex < 0 ? 0 : visible.reduce((count, row) => count + Number(hasUncertainSlope(row.cells[slopeSortIndex])), 0)
+  const firstShown = activeTablePage * pageSize + 1
+  const lastShown = Math.min((activeTablePage + 1) * pageSize, pagedRows.length)
+  const collapsedRowCount = visible.length - pagedRows.length
   const sortAscending = activeMetric ? metricAscendingByDefault(activeMetric) !== sortReversed : true
   const current = visible.find(row => row.patientId === patientId) ?? visible[0]
   const currentIndex = visible.findIndex(row => row.patientId === current?.patientId)
@@ -590,7 +654,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   }, [])
   useEffect(() => {
     if (requestedPatientId === undefined || requestedPatientId === null) return
-    setQuery(''); setGroup(''); setSelectedOnly(false); setPatientId(requestedPatientId); setReturnMode('table'); setMode('detail')
+    setQuery(''); setGroup(''); setSelectedOnly(false); setMarkFilters([]); setPatientId(requestedPatientId); setReturnMode('table'); setMode('detail')
   }, [requestedPatientId])
   const closePicker = () => { dialog.current?.close?.(); setDraftKeys(null); pickerButton.current?.focus() }
   const pickerOpen = active && draftKeys !== null
@@ -617,7 +681,6 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       setFitKeys(previous => previous.includes(key) ? previous : [...previous, key])
     }
   }
-  const parameterKeySet = new Set(parameters.filter(parameter => trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none').map(parameter => parameter.key))
   const parameterControls = (p: WorkspaceParameter) => {
     const settings = columnSettings[p.key] ?? fitSettings
     const analysed = parameterKeySet.has(p.key)
@@ -630,6 +693,10 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       <button type="button" aria-label={`Analysis settings: ${p.label}`} title={`Configure ${p.label}`} className="pv-settings-button" onClick={() => { setSettingsScope(p.key); setOpenTool('analysis') }}><Icon name="view" /><span>Settings</span></button>
     </div>
   }
+  const markButtons = <>
+    {markOptions.map(({ mark, count }) => <button type="button" key={mark} className="pv-mark-filter" aria-pressed={markFilters.includes(mark)} aria-label={`${rowMarkLabel(mark)}: ${count} ${count === 1 ? 'patient' : 'patients'}`} onClick={() => toggleMark(mark)}>{rowMarkLabel(mark)}<span className="pv-count">{count}</span></button>)}
+    {markFilters.length > 0 && <button type="button" className="pv-mark-clear" onClick={() => { setMarkFilters([]); setTablePage(0) }}>Show all</button>}
+  </>
   if (!data.patients.length) return <section className="card"><h1>Patients and trajectories</h1><p>No data loaded yet. Import a CSV or Excel file, or load demo data under Data.</p></section>
     return <div className={`wt-workspace pv-explorer ${openTool === 'analysis' ? 'pv-panel-open' : ''}`} ref={workspaceElement}>
     <header className="pv-heading"><div><h1>Explore trajectories</h1><p>Follow the measurements. Explore the change.</p></div><span className="pv-dataset-name">{data.fileName}</span></header>
@@ -665,6 +732,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
           {mode !== 'detail' && attributes.length > 0 && <label className="pv-inline-field pv-group-by"><span>Group by</span><select aria-label="Group by attribute" value={groupBy} onChange={event => changeGrouping(event.target.value)}><option value="">No grouping</option>{attributes.map(attribute => <option key={attribute} value={attribute}>{attribute}</option>)}</select></label>}
           {groupBy && <label className="pv-inline-field"><span>Show</span><select aria-label="Filter group" value={group} onChange={event => { setGroup(event.target.value); setTablePage(0) }}><option value="">All groups</option>{groups.map(section => <option key={section.key} value={section.key}>{section.label}</option>)}</select></label>}
           {mode === 'table' && <div className="pv-zoom" role="group" aria-label="Chart size"><span className="pv-zoom-label" aria-hidden="true">Chart size</span>{(['small', 'medium', 'large'] as const).map(size => <button type="button" key={size} aria-pressed={chartSize === size} aria-label={`${size[0].toUpperCase() + size.slice(1)} charts`} onClick={() => setChartSize(size)}>{size === 'small' ? 'S' : size === 'medium' ? 'M' : 'L'}</button>)}</div>}
+          {markOptions.length > 0 && phoneLayout && <ToolPopover name="Show only" icon="filter" badge={markFilters.length} open={active && openTool === 'marks'} onToggle={() => toggleTool('marks')} onClose={closeTool}>
+            <div className="pv-mark-filters pv-mark-menu" role="group" aria-label="Show only patients with">{markButtons}</div>
+          </ToolPopover>}
           <ToolPopover name="Display" icon="view" open={active && openTool === 'view'} onToggle={() => toggleTool('view')} onClose={closeTool}>
                   <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
 
@@ -674,17 +744,27 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
           </ToolPopover>
         </div>
       </div>
-      <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{groupBy && mode === 'table' && <span className="pv-group-summary"> · {groupedRows.length} {groupedRows.length === 1 ? 'group' : 'groups'} · sorted within groups</span>}{parameterKeySet.size > 0 ? <span> · Trend analysis: {parameterKeySet.size}</span> : parameters.some(p => (columnSettings[p.key] ?? fitSettings).fitModel !== 'none') && <span> · Tick “Trend” at a parameter to calculate slopes</span>}</div>    {mode === 'table' && pageCount > 1 && <nav className="wt-table-pages" aria-label="Patient table pages"><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => setTablePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {activeTablePage * TABLE_PAGE_SIZE + 1}–{Math.min((activeTablePage + 1) * TABLE_PAGE_SIZE, visible.length)} of {visible.length} {visible.length === 1 ? 'patient' : 'patients'}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => setTablePage(activeTablePage + 1)}>Next</button></nav>}</div>
-      {(query || groupBy || group || selectedOnly || selected.length > 0 || attributeSort && !shownAttributes.includes(attributeSort.attribute)) && <div className="pv-active-state">
+      <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{groupBy && mode === 'table' && <span className="pv-group-summary"> · {groupedRows.length} {groupedRows.length === 1 ? 'group' : 'groups'} · sorted within groups</span>}{parameterKeySet.size > 0 ? <span> · Trend analysis: {parameterKeySet.size}</span> : parameters.some(p => (columnSettings[p.key] ?? fitSettings).fitModel !== 'none') && <span> · Tick “Trend” at a parameter to calculate slopes</span>}{uncertainSorted > 0 && <span className="pv-uncertain-note"> · {uncertainSorted} uncertain {uncertainSorted === 1 ? 'slope' : 'slopes'} {uncertainLast ? 'placed after the reliable ones' : 'ranked among the reliable ones'}</span>}</div>
+        {uncertainSorted > 0 && <label className="pv-uncertain-toggle" title="Uncertain: fewer than three fitted measurement dates or less than one year of follow-up. Patients without a slope stay last."><input type="checkbox" checked={uncertainLast} onChange={event => { setUncertainLast(event.target.checked); setTablePage(0) }} />Uncertain slopes last</label>}
+        {mode === 'table' && pagedRows.length > TABLE_PAGE_SIZES[0] && <nav className="wt-table-pages" aria-label="Patient table pages">
+          {pageCount > 1 && <><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {firstShown}–{lastShown} of {pagedRows.length} {pagedRows.length === 1 ? 'patient' : 'patients'}{collapsedRowCount > 0 ? ` (${collapsedRowCount} more in collapsed groups)` : ''}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1)}>Next</button>
+            <label className="wt-page-option">Page<select aria-label="Go to page" value={activeTablePage} onChange={event => changePage(Number(event.target.value))}>{Array.from({ length: pageCount }, (_, page) => <option key={page} value={page}>{page + 1}</option>)}</select>of {pageCount}</label></>}
+          <label className="wt-page-option">Per page<select aria-label="Patients per page" value={pageSize} onChange={event => { pageJump.current = 'scroll'; setPageSize(Number(event.target.value) as (typeof TABLE_PAGE_SIZES)[number]); setTablePage(0) }}>{TABLE_PAGE_SIZES.map(size => <option key={size} value={size}>{size}</option>)}</select></label>
+        </nav>}</div>
+      {markOptions.length > 0 && !phoneLayout && <div className="pv-mark-filters" role="group" aria-label="Show only patients with"><span aria-hidden="true">Show only</span>{markButtons}</div>}
+      {(query || groupBy || group || selectedOnly || selected.length > 0 || markFilters.length > 0 || attributeSort && !shownAttributes.includes(attributeSort.attribute)) && <div className="pv-active-state">
         {groupBy && <button type="button" className="pv-chip" aria-label={`Remove grouping: ${groupBy}`} onClick={() => changeGrouping('')}>Grouped by: {groupBy}<Icon name="close" /></button>}
         {attributeSort && !shownAttributes.includes(attributeSort.attribute) && <button type="button" className="pv-chip" aria-label={`Clear attribute sort: ${attributeSort.attribute}`} onClick={() => setSort('id')}>Sort: {attributeSort.attribute} {attributeSort.ascending ? '↑' : '↓'}<Icon name="close" /></button>}
         {query && <button type="button" className="pv-chip" onClick={() => setQuery('')}>Search: {query}<Icon name="close" /></button>}
         {group && <button type="button" className="pv-chip" onClick={() => setGroup('')}>{groupBy}: {groups.find(section => section.key === group)?.label}<Icon name="close" /></button>}
         {selectedOnly && <button type="button" className="pv-chip" onClick={() => setSelectedOnly(false)}>Selected only<Icon name="close" /></button>}
-        {selected.length > 0 && <><span>{selected.length} selected</span><label><input type="checkbox" checked={selectedOnly} onChange={event => { setSelectedOnly(event.target.checked); setTablePage(0) }} /> Selected only</label><button type="button" onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])}>Select all matching</button><button type="button" onClick={() => setSelected([])}>Clear selection</button></>}
+        {selected.length > 0 && <><span>{selected.length} selected</span><label><input type="checkbox" checked={selectedOnly} onChange={event => { setSelectedOnly(event.target.checked); setTablePage(0) }} /> Selected only</label></>}
+        {/* Offered before anything is selected once a search or filter narrows the table: the header checkbox reaches one page only. */}
+        {(selected.length > 0 || query.trim() !== '' || group !== '' || markFilters.length > 0) && visible.length > 0 && <button type="button" onClick={() => setSelected(previous => [...new Set([...previous, ...patientIds])])}>Select all {visible.length} matching</button>}
+        {selected.length > 0 && <button type="button" onClick={() => setSelected([])}>Clear selection</button>}
       </div>}
     </section>
-    {!visible.length && <p className="card">No matching patients. Change the search, group filter, or selection.</p>}
+    {!visible.length && <p className="card">No matching patients. Change the search, group filter, “Show only” marks, or selection.</p>}
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
 
     {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table" style={{ '--wt-chart-width': `${chartWidth}px` } as CSSProperties}><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select visible patients on this page" title="Select visible patients on this page" disabled={!selectableRows.length} ref={element => { if (element) { element.indeterminate = pageSelectedCount > 0 && pageSelectedCount < selectableRows.length } }} checked={selectableRows.length > 0 && pageSelectedCount === selectableRows.length} onChange={event => { const scopeIds = new Set(pagePatientIds); setSelected(event.target.checked ? [...new Set([...selected, ...pagePatientIds])] : selected.filter(id => !scopeIds.has(id))) }} /></th><th aria-label="Patient" aria-sort={sort === 'id' ? 'ascending' : sort === 'id:desc' ? 'descending' : undefined}><ColumnActions active={active} label="Patient" shortLabel="ID" metrics={[{id:'id',label:'Patient ID'}]} activeMetric={sort === 'id' || sort === 'id:desc' ? 'id' : null} ascending={sort === 'id'} onSort={(_metric, ascending) => setSort(ascending ? 'id' : 'id:desc')} /></th>{shownAttributes.map(attribute => {
@@ -715,15 +795,16 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       return <tbody key={section.key} aria-label={groupBy ? `${groupBy}: ${section.label}` : undefined}>
         {groupBy && <tr className="pv-group-row"><th scope="rowgroup" colSpan={parameters.length + shownAttributes.length + 2}>
           <button type="button" aria-expanded={!collapsed} aria-label={`${collapsed ? 'Expand' : 'Collapse'} group ${section.label}`} onClick={() => setCollapsedGroups(previous => collapsed ? previous.filter(key => key !== section.key) : [...previous, section.key])}>
-            <Icon name="chevron" /><span className="pv-group-name">{section.label}</span><span className="pv-group-count">{section.rows.length === total ? `${total} ${total === 1 ? 'patient' : 'patients'}` : `${section.rows.length} of ${total} patients on this page`}</span>
+            <Icon name="chevron" /><span className="pv-group-name">{section.label}</span><span className="pv-group-count">{collapsed || section.rows.length === total ? `${total} ${total === 1 ? 'patient' : 'patients'}` : `${section.rows.length} of ${total} patients on this page`}</span>
           </button>
         </th></tr>}
         {!collapsed && section.rows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button></th>{shownAttributes.map(attribute => {
           const value = attributeLabel(attribute, data.patientAttributes[String(row.patientId)]?.[attribute])
           return <td key={`attribute:${attribute}`} className="pv-attribute-column"><span title={value} aria-label={value === undefined ? 'Not recorded' : undefined}>{value ?? '—'}</span></td>
-        })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i]) && parameterKeySet.has(keys[i])} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(row.patientId))} timeBalancing={(columnSettings[keys[i]] ?? fitSettings).timeBalancing} /></td>)}</tr>)}
+        })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i]) && parameterKeySet.has(keys[i])} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} slopeDecimals={slopeDecimals[i]} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(row.patientId))} timeBalancing={(columnSettings[keys[i]] ?? fitSettings).timeBalancing} /></td>)}</tr>)}
       </tbody>
     })}</table></div>}
+    {mode === 'table' && visible.length > 0 && pageCount > 1 && <nav className="wt-table-pages wt-table-pages-below" aria-label="Patient table pages, below the table"><button type="button" aria-label="Below the table: previous page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1, 'bottom')}>Previous</button><span>Page {activeTablePage + 1} of {pageCount} · patients {firstShown}–{lastShown} of {pagedRows.length}</span><button type="button" aria-label="Below the table: next page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1, 'bottom')}>Next</button></nav>}
     {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <div key={`${parameter.key}-${groupBy}`}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /></div>)}</div>}
     {mode === 'detail' && current && <section><div className="wt-toolbar"><button type="button" className="wt-back-button" aria-label={`Back to ${returnMode}`} onClick={() => {
       if (returnMode === 'table') tablePosition.current.restore = true
@@ -744,7 +825,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     }}>Next patient</button><span>{currentIndex + 1} / {visible.length}</span></div><div className="wt-plot-grid">{parameters.map((parameter, index) => {
       const measurements = measurementsFor(current.patientId, parameter)
       const fitStatus = measurementFitStatus(measurements, current.cells[index])
-      return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(current.patientId))} excludesAki={(columnSettings[parameter.key] ?? fitSettings).exclusions.excludeAkiWindows} timeBalancing={(columnSettings[parameter.key] ?? fitSettings).timeBalancing} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
+      return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed slopeDecimals={slopeDecimals[index]} cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(current.patientId))} excludesAki={(columnSettings[parameter.key] ?? fitSettings).exclusions.excludeAkiWindows} timeBalancing={(columnSettings[parameter.key] ?? fitSettings).timeBalancing} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{data.events.filter(e => e.patientId === current.patientId).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events recorded.</p>}</section><section className="card"><h3>AKI episodes for this patient</h3>{akiEpisodes.some(episode => episode.patientId === current.patientId)
       ? <ul>{akiEpisodes.filter(episode => episode.patientId === current.patientId).map((episode, i) => <li key={i}>Stage {akiStageLabel(episode.stage)}, onset {formatWorkspaceDate(episode.onset)}, creatinine peak {formatWorkspaceNumber(episode.peakValue)} mg/dl on {formatWorkspaceDate(episode.peakDate)}; baseline {formatWorkspaceNumber(episode.baselineValue)} mg/dl on {formatWorkspaceDate(episode.baselineDate)} ({akiCriterionLabel(episode.criterion)}; {episode.parameter} [{episode.unit ?? 'no unit'}])</li>)}</ul>
       : <p>No AKI episode detected. Detection needs serum creatinine values close enough in time: a rise within 48 hours or 7 days.</p>}<p className="wt-muted">Automated KDIGO creatinine screening, not a diagnosis. Display → “AKI windows and episodes” marks them in the charts.</p></section></section>}

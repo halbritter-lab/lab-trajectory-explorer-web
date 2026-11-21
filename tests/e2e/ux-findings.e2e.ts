@@ -54,7 +54,7 @@ test('counts medians, not measurements, beside a slope under quarterly medians',
   await expect(row.getByRole('button', { name: 'Fit includes 3 values in an AKI window' }).first()).toBeVisible()
   // The slope leads the cell with two decimals and its interval; the latest value follows.
   await expect(row.locator('.pv-cell-slope')).toHaveText('-6.20 ml/min/1,73m²/yr')
-  await expect(row.locator('.pv-cell-ci')).toHaveText('[-25.08, 12.68]')
+  await expect(row.locator('.pv-cell-ci')).toHaveText('95% CI [-25.08, 12.68]')
   await expect(row.getByText('latest 49.5', { exact: true })).toBeVisible()
   // Decided 2026-11-17. Patient 6: an interval with zero inside is named; the flag stays (the
   // reliability rule is not met). Patient 7: interval below zero, no note. Patient 12: under a
@@ -62,7 +62,7 @@ test('counts medians, not measurements, beside a slope under quarterly medians',
   await expect(row.getByRole('button', { name: 'Interval includes 0' })).toHaveCount(1)
   await expect(row.getByRole('button', { name: 'rapid ↓' })).toBeVisible()
   const seven = page.getByRole('button', { name: 'Open patient 7', exact: true }).locator('xpath=ancestor::tr')
-  await expect(seven.locator('.pv-cell-ci')).toHaveText('[-26.01, -0.72]')
+  await expect(seven.locator('.pv-cell-ci')).toHaveText('95% CI [-26.01, -0.72]')
   await expect(seven.getByRole('button', { name: 'Interval includes 0' })).toHaveCount(0)
   const twelve = page.getByRole('button', { name: 'Open patient 12', exact: true }).locator('xpath=ancestor::tr')
   await expect(twelve.getByRole('button', { name: 'Follow-up < 1 year, uncertain slope' })).toBeVisible()

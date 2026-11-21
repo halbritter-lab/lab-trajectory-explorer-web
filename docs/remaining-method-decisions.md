@@ -631,6 +631,36 @@ on examples from the demo data.
 Details: [rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
 and [labels](method-algorithms/slope-quality.md#labels).
 
+## Decisions of 2026-11-21 (Trajectories table: slope order and decimals)
+
+Owner decisions after the persona review of 2026-11-21, taken on examples
+from the demo data. Neither changes a computed value.
+
+- **A sort by slope places uncertain slopes after the reliable ones.** Under
+  *Slope* and *Absolute slope*: first the slopes that do not meet the
+  reliability rule, then the uncertain ones, then patients without a slope.
+  The status line gives the number of rows moved back, and a switch restores
+  the order by value. Demo data, imported eGFR ascending: patient 12 (−7.35
+  per year over 151 days) moves from rank 9 to rank 25.
+  Assumptions until the owner confirms them: the export keeps following the
+  order of the table, so its row order changes with the new default; the
+  switch is built.
+- **One number of decimals per parameter for slopes.** As many decimals as
+  give the median of the absolute slopes in the loaded dataset two
+  significant digits, at least two; the same for the slope and its interval
+  bounds, in the table, the patient view and on the Cohort models page.
+  Display only; exports keep full precision. Demo data: creatinine in mg/dl
+  takes three decimals (median 0.0948), eGFR stays at two.
+  Assumptions until the owner confirms them: the number is derived from the
+  slopes of the loaded dataset, not fixed per unit; it is limited to four
+  decimals. Implemented without a separate decision: the slope is signed and
+  padded in the patient view as in the table; every row of a model's
+  coefficient table uses the number (before: three decimals for the estimate
+  and two for the bounds), so an eGFR coefficient shows two decimals instead
+  of three.
+
+Details: [table order, mark filters and displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals).
+
 ## Approved requirements
 
 ### Observed events and recovery
