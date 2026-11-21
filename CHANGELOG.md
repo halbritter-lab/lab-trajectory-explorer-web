@@ -5,6 +5,12 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (Trajectories table, after the persona review of 2026-11-21)
+
+- The cohort export button names a restricted scope ("Export 12 of 28
+  patients (XLSX)"), and the workbook exports show "Exporting …" while the
+  file is written.
+
 ### Added (Cohort models: control over a running fit)
 
 - A running fit can be cancelled. Models fitted before stay; nothing of the
