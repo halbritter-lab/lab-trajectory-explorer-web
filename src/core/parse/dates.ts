@@ -1,13 +1,13 @@
 /**
  * Date cells as they arrive from `readWorkbook`: a `Date` for real xlsx date
- * cells (already normalised to midnight UTC), a number for unformatted numeric
+ * cells (the cell's calendar day and clock time, written as UTC), a number for unformatted numeric
  * xlsx cells, or the verbatim text of a CSV/text cell. Every accepted value is
- * returned as a calendar day at midnight UTC; any time of day is dropped, the
- * same as for xlsx date cells.
+ * returned as a calendar day at midnight UTC. A time of day is returned
+ * beside it as `timeOfDay`; it never moves the day.
  */
 export type ImportDateResult =
   | { kind: 'empty' }
-  | { kind: 'date'; date: Date; via: ImportDateSource }
+  | { kind: 'date'; date: Date; via: ImportDateSource; timeOfDay?: number }
   | { kind: 'invalid'; problem: ImportDateProblem }
 
 export type ImportDateSource = 'date-cell' | 'iso' | 'dotted' | 'slash-day-first' | 'excel-serial'
@@ -35,9 +35,10 @@ const SERIAL_RANGE: Record<DatePurpose, { min: number; max: number; years: strin
 }
 
 const DAY_MS = 86_400_000
-// Optional time of day, with optional seconds, fraction and zone. The time is
-// ignored; only the written calendar day counts.
-const TIME = String.raw`(?:(?:T|\s+)\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?\s*(?:Z|[+-]\d{2}:?\d{2})?)?`
+// Optional time of day, with optional seconds, fraction and zone. Only the
+// written calendar day counts as the date; the written clock time (hours,
+// minutes, seconds, fraction) is kept beside it and the zone is ignored.
+const TIME = String.raw`(?:(?:T|\s+)(\d{1,2}):(\d{2})(?::(\d{2})(?:[.,](\d+))?)?\s*(?:Z|[+-]\d{2}:?\d{2})?)?`
 const ISO_RE = new RegExp(String.raw`^(\d{4})[-/](\d{1,2})[-/](\d{1,2})${TIME}$`, 'i')
 const DOTTED_RE = new RegExp(String.raw`^(\d{1,2})\.(\d{1,2})\.(\d{4})${TIME}$`, 'i')
 const SLASH_RE = new RegExp(String.raw`^(\d{1,2})/(\d{1,2})/(\d{4})${TIME}$`, 'i')
@@ -64,17 +65,42 @@ export function excelSerialToDate(serial: number): Date | null {
   return new Date(epoch + day * DAY_MS)
 }
 
+/**
+ * Time of day in milliseconds after midnight, or `{}` when the source gives
+ * none. Midnight (00:00:00) counts as no time of day: a date-only workbook
+ * cell cannot be told apart from one at midnight, and exports write midnight
+ * for "no time". A time that does not exist (25:00, 12:60) counts as none too.
+ */
+function timeOfDay(ms: number): { timeOfDay?: number } {
+  return Number.isFinite(ms) && ms > 0 && ms < DAY_MS ? { timeOfDay: ms } : {}
+}
+
+/** Whole seconds, so that a workbook date cell, a serial number and text give
+ * the same time for the same clock reading; 23:59:59.5 and later stay on
+ * 23:59:59 instead of reaching the next day. */
+const wholeSeconds = (ms: number): number => Math.min(Math.round(ms / 1000) * 1000, DAY_MS - 1000)
+
+function writtenTime(h: string | undefined, m: string | undefined, s: string | undefined, fraction: string | undefined): { timeOfDay?: number } {
+  if (h === undefined || m === undefined) return {}
+  const [hours, minutes, seconds] = [Number(h), Number(m), Number(s ?? 0)]
+  if (hours > 23 || minutes > 59 || seconds > 59) return {}
+  const ms = fraction === undefined ? 0 : Number(`0.${fraction}`) * 1000
+  return timeOfDay(wholeSeconds(((hours * 60 + minutes) * 60 + seconds) * 1000 + ms))
+}
+
 function fromSerial(serial: number, purpose: DatePurpose): ImportDateResult {
   if (Number.isInteger(serial) && serial >= 1900 && serial <= 2100) return { kind: 'invalid', problem: 'bare_year' }
   const { min, max } = SERIAL_RANGE[purpose]
   if (!Number.isFinite(serial) || serial < min || serial >= max + 1) return { kind: 'invalid', problem: 'implausible_serial' }
   const date = excelSerialToDate(serial)
-  return date ? { kind: 'date', date, via: 'excel-serial' } : { kind: 'invalid', problem: 'excel_leap_day' }
+  if (!date) return { kind: 'invalid', problem: 'excel_leap_day' }
+  // The fraction of a serial is the time of day (0.25 = 06:00).
+  return { kind: 'date', date, via: 'excel-serial', ...timeOfDay(wholeSeconds((serial - Math.floor(serial)) * DAY_MS)) }
 }
 
-function fromParts(y: string, m: string, d: string, via: ImportDateSource): ImportDateResult {
+function fromParts(y: string, m: string, d: string, via: ImportDateSource, time: { timeOfDay?: number }): ImportDateResult {
   const date = calendarDate(Number(y), Number(m), Number(d))
-  if (date) return { kind: 'date', date, via }
+  if (date) return { kind: 'date', date, via, ...time }
   const monthFirst = via === 'slash-day-first' && Number(m) > 12 && Number(d) <= 12
   return { kind: 'invalid', problem: monthFirst ? 'month_first' : 'impossible_date' }
 }
@@ -82,17 +108,21 @@ function fromParts(y: string, m: string, d: string, via: ImportDateSource): Impo
 export function parseImportDate(value: unknown, purpose: DatePurpose = 'measurement'): ImportDateResult {
   if (value === null || value === undefined) return { kind: 'empty' }
   if (value instanceof Date) {
-    return Number.isNaN(value.getTime()) ? { kind: 'invalid', problem: 'unrecognised' } : { kind: 'date', date: value, via: 'date-cell' }
+    if (Number.isNaN(value.getTime())) return { kind: 'invalid', problem: 'unrecognised' }
+    // `readWorkbook` passes the clock time of a workbook cell as the UTC time
+    // of its calendar day; split the two again.
+    const ms = ((value.getTime() % DAY_MS) + DAY_MS) % DAY_MS
+    return { kind: 'date', date: ms === 0 ? value : new Date(value.getTime() - ms), via: 'date-cell', ...timeOfDay(wholeSeconds(ms)) }
   }
   if (typeof value === 'number') return fromSerial(value, purpose)
   if (typeof value !== 'string') return { kind: 'invalid', problem: 'unrecognised' }
   const text = value.replace(/[  ]/g, ' ').trim()
   if (text === '') return { kind: 'empty' }
   let m: RegExpExecArray | null
-  if ((m = ISO_RE.exec(text))) return fromParts(m[1], m[2], m[3], 'iso')
-  if ((m = DOTTED_RE.exec(text))) return fromParts(m[3], m[2], m[1], 'dotted')
+  if ((m = ISO_RE.exec(text))) return fromParts(m[1], m[2], m[3], 'iso', writtenTime(m[4], m[5], m[6], m[7]))
+  if ((m = DOTTED_RE.exec(text))) return fromParts(m[3], m[2], m[1], 'dotted', writtenTime(m[4], m[5], m[6], m[7]))
   // German exports write dd/mm/yyyy; US month-first dates are not supported.
-  if ((m = SLASH_RE.exec(text))) return fromParts(m[3], m[2], m[1], 'slash-day-first')
+  if ((m = SLASH_RE.exec(text))) return fromParts(m[3], m[2], m[1], 'slash-day-first', writtenTime(m[4], m[5], m[6], m[7]))
   if (SERIAL_TEXT_RE.test(text)) return fromSerial(Number(text.replace(',', '.')), purpose)
   return { kind: 'invalid', problem: 'unrecognised' }
 }

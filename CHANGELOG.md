@@ -5,6 +5,25 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
+
+- **AKI detection no longer depends on the row order of the file.** A time
+  of day in the lab date (text, workbook date cell or serial number) is kept
+  and orders the creatinine values within a day. Where a day has values
+  without a time of day, its values are compared with values of earlier days
+  only, not with each other. The 48-hour, 7-day and exclusion windows still
+  count calendar days. Before, a file with the newest row first reported a
+  fall within a day as an episode and missed a rise.
+- **Results change** for files with several serum creatinine values per
+  patient and day: episodes, exclusion windows and with them slopes, chips
+  and the `aki_episodes` sheet. Files with one value per day are unaffected;
+  no fixture value moved.
+- The Data page names the patient-days whose creatinine values cannot be
+  ordered within the day.
+- The time of day is a sort key only; it is not shown and not exported. A
+  dataset stored in the browser before this change has no times until the
+  file is imported again. The methodology page is not yet updated (OD-34).
+
 ### Added (Cohort models: control over a running fit)
 
 - A running fit can be cancelled. Models fitted before stay; nothing of the

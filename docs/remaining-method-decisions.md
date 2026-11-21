@@ -631,6 +631,55 @@ on examples from the demo data.
 Details: [rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
 and [labels](method-algorithms/slope-quality.md#labels).
 
+## Decisions of 2026-11-21 (persona review, issue #34)
+
+Owner decision after the persona review of 2026-11-21 (item K26), taken on
+synthetic files with several creatinine values per day; the demo data have no
+such day.
+
+- **The time of day orders the creatinine values of one day in AKI
+  detection.** Where the file gives a time of day, it is kept at import and
+  orders the values within the day; an earlier value of the day can be the
+  baseline of a later one. Both KDIGO windows and the fit-exclusion window
+  keep counting in calendar days. This replaces the earlier behaviour, in
+  which the time was dropped and values of one day stayed in the row order of
+  the file, so that a file with the newest row first reported a fall within a
+  day as an episode and missed a rise.
+- **Without a time of day there is no comparison within the day.** Values of
+  the same day are compared only with values of earlier days, whatever the
+  row order of the file. All values are kept and each is a possible baseline
+  for later days. The alternative, reducing the day to its highest value, was
+  considered and not chosen (the owner confirmed "no comparison within the
+  day" on 2026-11-21). A rise within such a day is therefore not detected on
+  that day.
+- **The Data page names the affected patient-days.**
+- **This changes numbers**: AKI episodes, their exclusion windows and
+  therefore slopes, chips and the `aki_episodes` sheet, for files with
+  several serum creatinine values per patient and day, with or without a time
+  of day. Files with one value per day are unaffected. No golden fixture and
+  no demo value moved, because none contains such a day.
+
+Details chosen during implementation, **not yet confirmed by the owner**:
+
+- The time of day stays internal: a sort key that is not shown in the
+  measurement table or the tooltips and is in no export (the review left
+  this open).
+- The rule for days without a time applies per day of a series, not per
+  file: one value without a time makes that day a day without time; the
+  other days keep their time order.
+- Midnight (00:00:00) counts as no time of day, so that a date-only workbook
+  cell, a workbook cell at midnight and text with "00:00" behave alike.
+- Values with the same time of day are not compared with each other.
+- The patient-day count covers serum creatinine only, the one series the
+  rule affects.
+
+Details and examples:
+[measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date)
+and [dates at import](method-algorithms/import-and-values.md#dates). The
+methodology page is not changed; its wording is drafted as G1 in the
+[methodology wording drafts](methodology-wording-drafts.md) and tracked as
+OD-34.
+
 ## Approved requirements
 
 ### Observed events and recovery

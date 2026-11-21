@@ -5,6 +5,9 @@ import { datesToYears } from './time'
 export interface SeriesPoint {
   date: Date
   value: number
+  /** Milliseconds after midnight (`LabRow.labTime`). Read by AKI detection
+   * only, to order the values of one day; fits ignore it. */
+  timeOfDay?: number | null
 }
 
 /** OLS fit over an entire (date,value) series. Mirrors the Python

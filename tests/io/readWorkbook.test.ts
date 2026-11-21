@@ -22,6 +22,19 @@ describe('readWorkbook', () => {
     expect(rows[1].Wert).toBe('1.4')
   })
 
+  it('keeps the calendar day and the clock time of a workbook date cell, written as UTC', () => {
+    // SheetJS writes and reads Date cells in local time.
+    const ws = XLSX.utils.json_to_sheet([
+      { labDate: new Date(2026, 8, 1) }, { labDate: new Date(2026, 8, 1, 6, 0) }, { labDate: new Date(2026, 8, 1, 20, 0) }, { labDate: new Date(2026, 8, 1, 23, 59, 59) },
+    ], { cellDates: true })
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, 'Sheet1')
+    const rows = readWorkbook(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
+    expect(rows.map((row) => (row.labDate as Date).toISOString())).toEqual([
+      '2026-09-01T00:00:00.000Z', '2026-09-01T06:00:00.000Z', '2026-09-01T20:00:00.000Z', '2026-09-01T23:59:59.000Z',
+    ])
+  })
+
   it('returns an empty array for an empty sheet', () => {
     const buf = makeXlsxBuffer([])
     expect(readWorkbook(buf)).toEqual([])

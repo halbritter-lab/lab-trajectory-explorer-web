@@ -108,7 +108,8 @@ imported parameter names and patient attributes retain their original values.
    separator. Dates may be `YYYY-MM-DD`, `YYYY/MM/DD`, `DD.MM.YYYY` or
    `DD/MM/YYYY`; a slash date with the year last is always read day-first
    (month-first dates are not supported), and
-   a time of day is ignored; Excel cells holding a date number (1927–2119 for lab
+   a time of day does not change the date (on lab dates it only orders the
+   creatinine values of one day for AKI detection); Excel cells holding a date number (1927–2119 for lab
    and event dates) are converted. Rows with impossible or unreadable dates are
    rejected and listed. Diagnostics also count duplicate rows, censored values
    (`<`, `>`) and decimal commas that may be thousands separators, and list unit

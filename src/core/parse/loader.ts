@@ -199,6 +199,7 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
     out.push({
       patientId,
       labDatum,
+      ...(parsedDate.kind === 'date' && parsedDate.timeOfDay !== undefined ? { labTime: parsedDate.timeOfDay } : {}),
       bezeichnung: toStr(cell(r, columns, 'testName')),
       einheit: toStr(cell(r, columns, 'unit')),
       wert: rawWert,

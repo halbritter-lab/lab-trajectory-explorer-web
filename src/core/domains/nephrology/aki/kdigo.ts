@@ -110,44 +110,68 @@ class MinWindow {
   }
 }
 
+/** Positive values in detection order, with a `slot` per value: values of one
+ * date and one slot form a group whose members are never compared with each
+ * other (decided 2026-11-21). On a date where every value carries a time of
+ * day the slot is that time, so the time orders the values and only values of
+ * the same time share a group. On a date where at least one value has no time
+ * of day all values share one slot. Within a group the values ascend, so the
+ * result does not depend on the row order of the source. */
+function detectionOrder(points: SeriesPoint[]): { sorted: SeriesPoint[]; slots: number[] } {
+  const positive = points.filter((p) => p.value > 0)
+  const datesWithoutTime = new Set<number>()
+  for (const p of positive) if (p.timeOfDay === null || p.timeOfDay === undefined) datesWithoutTime.add(p.date.getTime())
+  const slot = (p: SeriesPoint) => (datesWithoutTime.has(p.date.getTime()) ? -1 : p.timeOfDay!)
+  const sorted = positive.sort((a, b) => a.date.getTime() - b.date.getTime() || slot(a) - slot(b) || a.value - b.value)
+  return { sorted, slots: sorted.map(slot) }
+}
+
 /** Detect KDIGO AKI episodes on creatinine values already in mg/dl. O(n) via
  * two sliding-window minima (48h absolute, 7d relative). Each crossing is
  * staged against the seven-day minimum. The window and
  * clustering algorithm follows the original Python implementation; threshold
  * comparisons use the owner's numeric tolerance. Values of zero or less are
  * not creatinine concentrations and take no part: they are neither a baseline
- * nor a rise (decided 2026-10-07; eGFR derivation rejects them as well). */
+ * nor a rise (decided 2026-10-07; eGFR derivation rejects them as well).
+ * Dates are calendar days and both windows count in days. Within a day the
+ * time of day (`SeriesPoint.timeOfDay`) orders the values; values whose order
+ * is unknown are compared with earlier values only, never with each other
+ * (see `detectionOrder`). */
 export function findKdigoAkiEpisodes(points: SeriesPoint[]): AkiEpisode[] {
-  const sorted = points.filter((p) => p.value > 0).sort((a, b) => a.date.getTime() - b.date.getTime())
+  const { sorted, slots } = detectionOrder(points)
   if (sorted.length === 0) return []
   const times = sorted.map((p) => p.date.getTime())
   const values = sorted.map((p) => p.value)
   const win48 = new MinWindow(values)
   const win7 = new MinWindow(values)
   const raw: RawCrossing[] = []
-  for (let j = 0; j < sorted.length; j++) {
-    const tj = times[j]
-    const vj = values[j]
-    // Windows hold only indices < j (j is pushed after querying), and j advances
-    // in time, so expiring from the head leaves the in-window prior points.
-    win48.expire(times, tj, KDIGO_ABSOLUTE_WINDOW_MS)
-    win7.expire(times, tj, KDIGO_RELATIVE_WINDOW_MS)
-
+  for (let start = 0, end = 0; start < sorted.length; start = end) {
+    end = start + 1
+    while (end < sorted.length && times[end] === times[start] && slots[end] === slots[start]) end++
+    // Windows hold only indices before the group (its members are pushed after
+    // all of them were queried), and groups advance in time, so expiring from
+    // the head leaves the in-window prior points.
+    win48.expire(times, times[start], KDIGO_ABSOLUTE_WINDOW_MS)
+    win7.expire(times, times[start], KDIGO_RELATIVE_WINDOW_MS)
     const i48 = win48.argmin()
     const i7 = win7.argmin()
-    // The stage is graded against the seven-day minimum even when the 48-hour
-    // criterion detects the crossing: an extra value the day before must not
-    // lower the stage. The 48-hour window lies inside the seven-day one, so
-    // i7 exists whenever i48 does and its value is never higher.
-    const staging = i7 >= 0 ? { stage: kdigoStage(values[i7], vj), stageValue: vj, stageDate: sorted[j].date, stageReferenceValue: values[i7], stageReferenceDate: sorted[i7].date } : null
-    if (staging && i48 >= 0 && atLeast(vj - values[i48], KDIGO_ABSOLUTE_RISE_MGDL)) {
-      raw.push({ date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h', ...staging })
-    } else if (staging && atLeast(vj / values[i7], KDIGO_RELATIVE_RISE_RATIO)) {
-      raw.push({ date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d', ...staging })
+    for (let j = start; j < end; j++) {
+      const vj = values[j]
+      // The stage is graded against the seven-day minimum even when the 48-hour
+      // criterion detects the crossing: an extra value the day before must not
+      // lower the stage. The 48-hour window lies inside the seven-day one, so
+      // i7 exists whenever i48 does and its value is never higher.
+      const staging = i7 >= 0 ? { stage: kdigoStage(values[i7], vj), stageValue: vj, stageDate: sorted[j].date, stageReferenceValue: values[i7], stageReferenceDate: sorted[i7].date } : null
+      if (staging && i48 >= 0 && atLeast(vj - values[i48], KDIGO_ABSOLUTE_RISE_MGDL)) {
+        raw.push({ date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h', ...staging })
+      } else if (staging && atLeast(vj / values[i7], KDIGO_RELATIVE_RISE_RATIO)) {
+        raw.push({ date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d', ...staging })
+      }
     }
-
-    win48.push(j)
-    win7.push(j)
+    for (let j = start; j < end; j++) {
+      win48.push(j)
+      win7.push(j)
+    }
   }
   return clusterEpisodes(raw)
 }

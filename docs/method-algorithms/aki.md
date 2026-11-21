@@ -85,14 +85,17 @@ is detected again.
 
 ### Time resolution and windows
 
-Every imported lab date is a calendar day at midnight UTC; a time of day in
-the source is dropped. Differences between measurements are therefore whole
-multiples of 24 hours, and the two KDIGO windows mean:
+Every imported lab date is a calendar day at midnight UTC. A time of day in
+the source is not part of the date; it is kept beside it and only orders the
+values of one date (see
+[Measurements on the same date](#measurements-on-the-same-date)). Differences
+between measurements are therefore whole multiples of 24 hours, and the two
+KDIGO windows mean:
 
 | Window | Constant | Earlier measurements inside the window |
 | --- | --- | --- |
-| 48 hours | `KDIGO_ABSOLUTE_WINDOW_MS` | same date, 1 or 2 calendar days earlier |
-| 7 days | `KDIGO_RELATIVE_WINDOW_MS` | same date up to 7 calendar days earlier |
+| 48 hours | `KDIGO_ABSOLUTE_WINDOW_MS` | 1 or 2 calendar days earlier; of the same date, those ordered before the measurement |
+| 7 days | `KDIGO_RELATIVE_WINDOW_MS` | 1 to 7 calendar days earlier; of the same date, those ordered before the measurement |
 
 Both bounds are inclusive: an earlier measurement is inside the window when
 the elapsed time is less than or equal to the window length. A rise from 1.0
@@ -100,11 +103,20 @@ to 1.3 mg/dl two days apart is detected, three days apart it is not. A rise
 from 1.0 to 1.5 mg/dl seven days apart is detected, eight days apart it is
 not.
 
+The windows count calendar days whatever the times of day (decided
+2026-11-21): 1.0 mg/dl on 1 September at 05:00 and 1.3 mg/dl on 3 September at
+07:00 are 50 hours but two calendar days apart, and the rise is detected.
+1.0 mg/dl on 1 September at 23:00 and 1.3 mg/dl on 4 September at 01:00 are
+also 50 hours but three calendar days apart, and it is not.
+
 ### Detection
 
-Points are sorted by date. For each point in turn, the **baseline** of a
-window is the lowest value among the points that precede it in this order and
-lie inside the window. The point itself is never part of its own baseline.
+Points are sorted by date and, within a date, as described under
+[Measurements on the same date](#measurements-on-the-same-date). For each
+point in turn, the **baseline** of a window is the lowest value among the
+points that precede it in this order and lie inside the window. The point
+itself is never part of its own baseline, and neither is a point of the same
+date whose order relative to it is unknown.
 When several earlier points share the lowest value, the oldest is the
 baseline. The first point of a series has no baseline and cannot cross.
 
@@ -129,12 +141,72 @@ the 0.3 threshold. The same comparison is used for staging.
 
 ### Measurements on the same date
 
-Rows of the selected series on the same date are all kept. The sort is stable,
-so they stay in source row order, and an earlier row is a valid baseline for
-a later row of the same date. The result therefore depends on row order:
-1.0 followed by 1.4 mg/dl on one date is a stage-I episode whose baseline
-date equals its onset date, while 1.4 followed by 1.0 mg/dl on that date is no
-episode.
+Rows of the selected series on the same date are all kept. Their order
+follows from the time of day and never from the row order of the file
+(decided 2026-11-21, issue #34). Which rows carry a time of day is set at
+import (see [Dates](import-and-values.md#dates)); midnight counts as no time.
+
+| Values of the date | Order and comparison |
+| --- | --- |
+| every value has a time of day | Ordered by time. An earlier value of the date is a valid baseline and staging reference for a later one. Values with the same time are not compared with each other. |
+| at least one value has no time of day | No value of the date is a baseline or staging reference for another value of that date. Each is compared only with values of earlier dates inside the window; all of them are possible baselines for later dates. Times that some of the values carry are not used. |
+
+The rule is applied per date of the detection series: one date without a time
+does not affect the time order on the other dates. A date is not reduced to
+its maximum or to any other single value. Values that are not compared with
+each other are processed in ascending order of value, which fixes the fields
+that would otherwise follow the row order: the staging value of an episode is
+the lowest value of the date that reaches the episode's stage, and when the
+values of one date cross by different criteria the lower one comes first.
+
+The time of day is a sort key only. Onset, peak, baseline and staging dates
+are calendar days, both KDIGO windows and the fit-exclusion window count
+calendar days, and the time is neither shown in the measurement table and the
+tooltips nor exported.
+
+Before 2026-11-21 the time was dropped at import and rows of one date stayed
+in source row order, an earlier row being a valid baseline for a later row of
+the same date. A file sorted with the newest row first therefore reported a
+fall within a day as an episode and missed a rise. Examples (mg/dl,
+September 2026; "newest first" and "oldest first" are the row orders of the
+file):
+
+| Values | Result | Before 2026-11-21 |
+| --- | --- | --- |
+| 1 Sep 06:00 1.4, 1 Sep 20:00 1.0, 2 Sep 06:00 0.9 | no episode | newest first: stage I, onset 1 Sep, baseline 1.0, peak 1.4; oldest first: no episode |
+| 1 Sep 06:00 1.0, 1 Sep 20:00 1.6, 4 Sep 06:00 1.2 | stage I, onset 1 Sep, baseline 1.0 on 1 Sep, peak 1.6, absolute criterion | newest first: no episode; oldest first: this episode |
+| 1 Sep 1.4 and 1.0 without time, 2 Sep 0.9 | no episode | 1.0 before 1.4 in the file: stage I, onset 1 Sep; 1.4 before 1.0: no episode |
+| 1 Sep 1.0 and 1.6 without time, 4 Sep 1.2 | no episode: the direction within the day is unknown | 1.0 before 1.6 in the file: stage I, onset 1 Sep; 1.6 before 1.0: no episode |
+| 1 Sep 1.0, 2 Sep 1.1 and 1.5 without time | stage I, onset 2 Sep, baseline 1.0 on 1 Sep, peak 1.5 | the same in both row orders |
+| 1 Sep 1.4 and 1.0 without time, 2 Sep 1.3 | stage I, onset 2 Sep, baseline 1.0 on 1 Sep, peak 1.3 | 1.0 before 1.4: stage I, onset 1 Sep, peak 1.4; 1.4 before 1.0: as now |
+| 1 Sep 06:00 1.0, 1 Sep 1.6 without time | no episode: one value of the date has no time | 1.0 before 1.6: stage I; 1.6 before 1.0: no episode |
+| 1 Sep 06:00 1.0, 1 Sep 20:00 1.2 and 1.6 | stage I, onset 1 Sep, baseline 1.0, peak 1.6; staging value 1.6 (1.2 does not cross) | depended on the row order |
+
+A rise within a date without a time of day is therefore not detected on that
+date (fourth row); it is detected against an earlier date when one lies in
+the window (fifth row). With the daily maximum as the only value of 1 Sep the
+sixth row would give no episode.
+
+**Data page note.** The Data page states how many patient-days this concerns:
+"2 patient-days in 2 patients with several serum creatinine values whose
+order within the day is unknown (no time of day, or the same time): AKI
+detection compares these values with values of earlier days only, not with
+each other." (`sameDayUnorderedCreatinine` in `aki/akiAware.ts`). A
+patient-day is counted when one eligible serum creatinine series of the
+patient has two or more exact dated values above zero on that date and at
+least one of them has no time of day or two of them share a time. A date
+counts once per patient, whatever the number of series. Values measured under
+dialysis are counted although detection leaves them out. Without such a date
+there is no note; dates whose values are all ordered by time are not counted.
+In the examples above the third to seventh rows are one counted patient-day
+each, the eighth is one (two values at 20:00), the first two are none.
+
+**Open decision OD-34.** The methodology page of the app still reads "Lab
+dates are calendar days without a time of day. The 48-hour window therefore
+covers earlier measurements on the same date or one or two calendar days
+earlier" and does not state the rule of this section. A draft is in the
+[methodology wording drafts](../methodology-wording-drafts.md#part-g-draft-after-the-persona-review-of-2026-11-21-not-applied)
+(G1); the wording is the maintainer's decision.
 
 ### Staging
 
@@ -314,7 +386,11 @@ Regression evidence: [KDIGO boundary tests](../../tests/core/aki/kdigo.test.ts)
 (tolerance, exact 0.3 mg/dl and 1.5-fold boundaries, stage values, the
 4.0 mg/dl rule, staging against the 7-day minimum with the examples above,
 the inclusive bound at exactly seven days, the staging value and reference of
-each episode, and the sustained daily rise graded I, II, II, III), [AKI source tests](../../tests/core/aki/akiAware.test.ts)
+each episode, and the sustained daily rise graded I, II, II, III), [same-day order tests](../../tests/core/aki/sameDayOrder.test.ts)
+(the examples of "Measurements on the same date" in both row orders, with and
+without a time of day, from text, workbook date cells and serial numbers, the
+windows in calendar days and the patient-day count),
+[AKI source tests](../../tests/core/aki/akiAware.test.ts)
 (eligible names and units, µmol/l conversion, source selection without
 pooling, bounded rows), [creatinine source tests](../../tests/core/aki/creatinineSource.test.ts)
 (non-serum names, the computed eGFR source example above, its fit input and
@@ -327,7 +403,7 @@ stages and criteria on fixture series),
 tooltip text) and
 [censored measurement tests](../../tests/core/censoredMeasurements.test.ts).
 No dedicated regression test: the inclusive window bound at exactly two days,
-the oldest-value tie rule for the baseline, same-date row order, the plateau
+the oldest-value tie rule for the baseline, the plateau
 chain, and a computed eGFR column whose AKI source differs from its eGFR
 source. Non-positive values and creatinine under dialysis are covered by the
 [dialysis and positivity tests](../../tests/core/aki/dialysisAndPositivity.test.ts).
@@ -378,7 +454,9 @@ The anchor is the episode onset, the date of the first crossing. It is not
 the baseline date and not the peak date. A measurement is excluded when its
 date lies in at least one window. Nothing dated before the onset is excluded,
 so the baseline measurement stays in the fit unless it carries the onset date
-itself (two rows on one date, see above), and so does any measurement after
+itself (a baseline earlier on the onset date by its time of day, see above:
+the window covers the whole onset date, including values timed before the
+rise), and so does any measurement after
 the window even when creatinine is still raised. N is the column's
 `akiExclusionDays`; the default is **30** (`DEFAULT_AKI_EXCLUSION_DAYS`).
 

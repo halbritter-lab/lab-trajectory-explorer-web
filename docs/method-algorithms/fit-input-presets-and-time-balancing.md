@@ -21,7 +21,7 @@ and a numeric value. Rows without a date or without a numeric value are never
 fitted.
 
 Imported dates are calendar days at midnight UTC; a time of day in the source
-is dropped at import. Two measurements taken on the same day therefore carry an
+is not part of the date and no fit reads it. Two measurements taken on the same day therefore carry an
 identical timestamp. Points are sorted by date before every calculation; rows
 on the same date keep their source order.
 

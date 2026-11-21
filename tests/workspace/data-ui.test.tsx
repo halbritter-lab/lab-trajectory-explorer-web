@@ -216,6 +216,16 @@ it('drops the previous rejected-event list when an events re-import fails', asyn
   expect(screen.queryByRole('table', { name: 'Rejected events' })).not.toBeInTheDocument()
   expect(useAppStore.getState().events).toHaveLength(1)
 })
+it('names the patient-days whose serum creatinine values cannot be ordered within the day', () => {
+  const at = (date: string, value: number, labTime?: number): LabRow => ({ ...row, labDatum: new Date(date), wert: String(value), wertNum: value, ...(labTime === undefined ? {} : { labTime }) })
+  useAppStore.getState().replaceDataset({ rows: [at('2020-01-01', 1, 6 * 3_600_000), at('2020-01-01', 1.4, 20 * 3_600_000), at('2020-01-02', 1)] })
+  const { unmount } = render(<DataWorkspace onBrowse={vi.fn()} />)
+  expect(screen.queryByText(/order within the day is unknown/)).not.toBeInTheDocument()
+  unmount()
+  useAppStore.getState().replaceDataset({ rows: [at('2020-01-01', 1), at('2020-01-01', 1.4), at('2020-01-02', 1), at('2020-01-02', 1.1), { ...at('2020-01-03', 1), patientId: 'P-02' }] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  expect(screen.getByText(/^2 patient-days in 1 patient with several serum creatinine values whose order within the day is unknown \(no time of day, or the same time\): AKI detection compares these values with values of earlier days only, not with each other\.$/)).toHaveClass('notice', 'amber')
+})
 it('warns about creatinine above 25 mg/dl and computed eGFR above 200 without changing values', () => {
   useAppStore.getState().replaceDataset({ rows: [
     { ...row, patientSex: 'm', patientAgeAtLab: 50, wert: '30', wertNum: 30 },
