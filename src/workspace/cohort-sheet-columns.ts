@@ -7,6 +7,8 @@
  * grouped and an ungrouped export have the same layout.
  */
 
+import { GROUP_NOT_RECORDED } from './trajectory-ui/grouping'
+
 export interface CohortSheetColumn {
   name: string
   /** `number` columns are written as empty cells when there is no value;
@@ -103,7 +105,7 @@ export const COHORT_SHEET_COLUMNS: readonly CohortSheetColumn[] = [
   number('last_eligible_value', 'Measured value at last_eligible_date. It can differ from "latest" in the Trajectories table, which is the last dated numeric value of the series without these restrictions.', VALUE_UNIT, 'the series has no eligible measurement'),
   text('sex', 'Resolved sex of the patient as used in the analysis: m, w or d. The same value in every row of the patient.', 'no sex could be resolved'),
   number('baseline_age', 'Resolved age of the patient at the earliest dated measurement of any parameter (demographics sheet, baseline_age). The same value in every row of the patient; it is not the age at index_date.', 'completed years', 'no age is available'),
-  text('group', 'Value of the attribute the table was grouped by when the file was exported.', 'the table was not grouped, or the patient has no value for the attribute'),
+  text('group', `Value of the attribute the table was grouped by when the file was exported. A patient without a value for the attribute has the text "${GROUP_NOT_RECORDED}", which cannot be told apart from an attribute value of the same text.`, 'the table was not grouped'),
 ]
 
 export const COHORT_SHEET_HEADER: readonly string[] = COHORT_SHEET_COLUMNS.map((column) => column.name)

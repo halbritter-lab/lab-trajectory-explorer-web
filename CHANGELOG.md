@@ -15,7 +15,8 @@ interfaces are still evolving before 1.0.
   the ID without a conversion. A dataset with numeric and other IDs still
   has both cell types in the column.
 - `group` is always the last column of the `cohort` and `slopes` sheets and
-  empty when the table is not grouped. A grouped export used to have it as
+  empty when the table is not grouped. In a grouped export a patient without
+  a value for the attribute has the text `Not recorded`, as before. A grouped export used to have it as
   column A, with every other column one position further right; it now has
   the positions of the ungrouped export. A script that reads a grouped
   export by position must be adjusted. The ungrouped export keeps its 75

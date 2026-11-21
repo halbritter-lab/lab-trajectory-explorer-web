@@ -24,7 +24,7 @@ import { parameterKeyLabel } from './saved-settings'
 import { useAppStore } from './state/store'
 import { trajectoryTrendConfig } from './trajectory-ui/analysis'
 import { ColumnActions } from './trajectory-ui/ColumnActions'
-import { groupKey, groupRows } from './trajectory-ui/grouping'
+import { groupKey, groupRows, rowsWithGroupValue } from './trajectory-ui/grouping'
 import { attributeSortKey, parseAttributeSort, compareAttributeValues } from './trajectory-ui/attributes'
 
 /** Sort keys are `${parameterKey}:${metric}`; parameter keys are JSON and may
@@ -482,7 +482,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     return diff || comparePatientIds(a.patientId, b.patientId)
   })
   const groupedRows = groupBy ? groupRows(filtered, row => groupValue(row.patientId), groupLabel) : []
-  const visible = groupBy ? groupedRows.flatMap(section => section.rows.map(row => ({ ...row, groupValue: section.value ?? 'Not recorded' }))) : filtered
+  const visible = groupBy ? rowsWithGroupValue(groupedRows) : filtered
   // The table charts share the width of the table region, so few parameter
   // columns give wide charts; the region is measured while the table is shown.
   const tableShown = mode === 'table' && visible.length > 0

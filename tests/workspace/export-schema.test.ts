@@ -3,6 +3,7 @@ import * as XLSX from 'xlsx'
 import { exportFixture } from './export-fixture'
 import { workspaceWorkbookBytes } from '../../src/workspace/workspace-export'
 import { COHORT_SHEET_COLUMNS, COHORT_SHEET_HEADER, cohortSheetRow } from '../../src/workspace/cohort-sheet-columns'
+import { groupRows, rowsWithGroupValue } from '../../src/workspace/trajectory-ui/grouping'
 import { buildCohortRows } from '../../src/core/cohort/screening'
 import { analysisModules } from '../../src/core/analysis/registry'
 
@@ -140,6 +141,21 @@ describe('column directory', () => {
     for (const column of COHORT_SHEET_COLUMNS) if (column.kind !== 'text') expect(column.unit, column.name).not.toBe('')
     expect(new Set(COHORT_SHEET_HEADER).size).toBe(COHORT_SHEET_HEADER.length)
     expect(records(workbook, 'about').some(row => String(row.note).startsWith('The columns sheet describes every column of the cohort sheet'))).toBe(true)
+  })
+
+  it('describes the group cell of a patient without an attribute value as the export writes it', () => {
+    const input = exportFixture()
+    // The Trajectories table grouped by `group`; 001-A has no value for it.
+    input.data.patientAttributes = { '001-A': { group: '  ' }, hidden: { group: 'SECRET' } }
+    const sections = groupRows(input.cohortRows, row => input.data.patientAttributes[String(row.patientId)]?.group)
+    const workbook = read(workspaceWorkbookBytes({ ...input, cohortRows: rowsWithGroupValue(sections) }))
+    const cells = records(workbook, 'cohort').map(row => row.group)
+    expect(cells).toEqual(['Not recorded', 'Not recorded'])
+    const entry = records(workbook, 'columns').find(row => row.column === 'group')!
+    // Not empty for such a patient, so the directory must not say so and must name the text.
+    expect(String(entry.empty_when)).toBe('the table was not grouped')
+    expect(String(entry.meaning)).toContain(`"${cells[0]}"`)
+    expect(records(read(workspaceWorkbookBytes(exportFixture())), 'cohort').map(row => row.group ?? '')).toEqual(['', ''])
   })
 
   it('lists every export column of the analysis modules and rejects a column it does not know', () => {
