@@ -436,6 +436,20 @@ it does not claim research, clinical or representative-user validation.
    `excluded_patients`, `projections`, `about`, `vcov`, `model_rows`,
    `model_input_flags`, `r_script`; every sheet that names a unit has a
    `unit_key` column (`cohort` or `group:<value>`).
+   `models` ends with `unit_key`, `intercept_sd`, `slope_sd`,
+   `intercept_slope_correlation`, `residual_sd`, and `about` ends with
+   `app_version` and `exported_at`. With the demo data and the parameter
+   Kreatinin the fit summary reads "Whole cohort, patients with enough
+   measurement times: 26 of 27.", and the model's details and
+   `models.warnings` carry "1 patient has fewer than 3 distinct
+   time_since_baseline values …" (checked in Chromium with a real R fit on
+   2026-11-21; not automated).
+5a. Demo data, Trajectories, *Export cohort (XLSX)* with and without "Group
+   by": both files have the same 80 columns in `cohort` with `group` last,
+   `PatientID` in every sheet, a last sheet `columns`, and `app_version`,
+   `exported_at`, `export_id` and `input_data_id` in `about`. Import the
+   exported file under Data: it loads without a column error (automated in
+   `tests/e2e/cohort-export.e2e.ts`).
 6. Open a saved session whose creatinine source is no longer a serum name. The
    Data page shows the amber notice that no eGFR is computed from it.
 
