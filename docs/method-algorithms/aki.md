@@ -70,6 +70,18 @@ day of each creatinine row against the patient's clinical events:
 The rows are removed from the detection input, not the episodes from the
 result: a value under dialysis is neither a baseline nor a peak, and the first
 values after an acute interval are compared only with values outside it.
+The patient view names these values (since 2026-11-21): for a serum
+creatinine series, the tooltip of a measurement point and the column "AKI
+detection" of the measurement table read "not used for AKI detection
+(dialysis)" for every value whose day `isUnderDialysis` leaves out, and a
+line under the chart gives their number. The mark is shown with every preset
+and with or without a fit, and it is separate from the fit exclusion "acute
+dialysis interval" of the column's censoring options. It is shown for serum
+creatinine series only, not for the other parameters that take their episodes
+from them. Example: acute dialysis from 2026-03-05 with end date 2026-03-07
+and one creatinine value per day from 1 to 12 March: the values of 5, 6 and
+7 March carry the mark, those of 4 and 8 March do not. A peak inside the
+interval is therefore visible in the chart but is not the peak of an episode.
 Detection continues after transplantation, so a creatinine rise of the
 transplant is detected. A transplant before the start of a chronic dialysis
 does not end it. This filter is independent of the column's censoring options
@@ -408,7 +420,16 @@ cover the same dates. The four episodes of the sustained-rise example above
 give four windows (2 January to 1 February, 4 January to 3 February,
 5 January to 4 February, 6 January to 5 February) and one band from 2 January
 to 5 February. The band is drawn with the column's window length whether or
-not the column excludes the window from its fit.
+not the column excludes the window from its fit. Since 2026-11-21 the legend
+and the tooltip of the band state which case applies (owner decision
+2026-11-21; the band itself is unchanged): "the configured N days after each
+onset (not the duration of the episode)", followed by "values inside are
+excluded from this fit" when the column excludes AKI windows, "values inside
+are not excluded from this fit" when it has a fit that keeps them, and "this
+column has no fit, so nothing is excluded" with fit model "No fit" or while
+"Trend" is not ticked. The tooltip gives the dates and the length of the
+drawn band, which exceeds N when windows were merged (39 days for four
+episodes within nine days and N = 30).
 
 **Scope and order.** The windows apply to any analyte column whose
 configuration has the switch on, not only to creatinine and eGFR; the

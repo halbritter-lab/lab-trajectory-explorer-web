@@ -52,7 +52,7 @@ export interface SavedSettings {
 const FIT_MODELS = allValues<FitModel>()(['none', 'ols', 'theil-sen', 'rolling-ols', 'segmented-ols'])
 const TIME_BALANCING = allValues<TimeBalancing>()(['raw', 'monthly-median', 'quarterly-median'])
 const DIALYSIS_POLICIES = allValues<UnknownDialysisPolicy>()(['flag-only', 'exclude-dated-interval', 'censor-from-start'])
-const AXES = allValues<TrajectoryView['axis']>()(['baseline', 'calendar', 'age'])
+const AXES = allValues<TrajectoryView['axis']>()(['baseline', 'baselineDays', 'calendar', 'age'])
 const SCALE_MODES = allValues<TrajectoryView['scaleMode']>()(['shared', 'zoom'])
 const CHART_SIZES = allValues<TrajectoryView['chartSize']>()(['small', 'medium', 'large'])
 const CELL_DETAILS = allValues<TrajectoryView['cellDetails']>()(['minimal', 'full', 'compact'])

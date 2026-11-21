@@ -128,3 +128,6 @@
 .wt-view-row { display: flex; flex-wrap: wrap; align-items: center; gap: 12px 20px; }
 .wt-trend-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; cursor: pointer; }
 .wt-trend-toggle input { width: 18px; height: 18px; }
+.wt-event-row td { background: #fbf5ea; color: #5c3d12; }
+.wt-rolling-windows { font-size: .8rem; }
+.wt-rolling-windows table { font-size: .8rem; }

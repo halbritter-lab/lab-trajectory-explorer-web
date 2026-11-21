@@ -107,6 +107,9 @@ export interface OverlayBand {
   start: Date
   end: Date
   title: string
+  /** What the band means in this column, for the chart's legend; the
+   * module's general band legend is used when absent. */
+  legend?: string
 }
 
 /** A dated marker drawn on a trajectory. It sits on this series' measurement

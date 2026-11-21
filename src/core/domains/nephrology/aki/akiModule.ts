@@ -130,12 +130,22 @@ function akiOverlays(ctx: SeriesContext, episodes: readonly AkiEpisode[]): Serie
       offMeasurementNote: '; no measurement of this parameter on that date',
     }
   })
+  // The band has the configured length in every column. Say whether this
+  // column leaves its values out of the fit, so the shading is not read as an
+  // exclusion where nothing is excluded, nor as the duration of the episode.
+  const length = `${formatDisplayNumber(bandDays)} ${bandDays === 1 ? 'day' : 'days'}`
+  const fitState = ctx.fitConfig?.fitModel === 'none'
+    ? 'this column has no fit, so nothing is excluded'
+    : excludesAkiWindows(ctx)
+      ? 'values inside are excluded from this fit'
+      : 'values inside are not excluded from this fit'
   const bands: SeriesOverlay[] = akiExclusionBands([...episodes], bandDays).map((band) => ({
     kind: 'band',
     moduleId: AKI_MODULE_ID,
     start: band.start,
     end: band.end,
-    title: `AKI window ${formatDisplayDate(band.start)} to ${formatDisplayDate(band.end)} (${Math.round((band.end.getTime() - band.start.getTime()) / MS_PER_DAY)} days)`,
+    title: `AKI window ${formatDisplayDate(band.start)} to ${formatDisplayDate(band.end)} (${Math.round((band.end.getTime() - band.start.getTime()) / MS_PER_DAY)} days): the configured ${length} after each onset, overlapping windows drawn as one; not the duration of the episode. ${fitState.charAt(0).toUpperCase()}${fitState.slice(1)}.`,
+    legend: ` Shaded: AKI window, the configured ${length} after each onset (not the duration of the episode); ${fitState}`,
   }))
   return [...bands, ...markers]
 }

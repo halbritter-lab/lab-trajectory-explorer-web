@@ -4,7 +4,7 @@ import type { SeriesPoint } from '../stats/series'
 import { fitGlobal, fitTheilSen } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
-import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
+import { buildSlopeLines, rollingWindowLine, type LinePoint } from '../stats/slopeLines'
 import type { AnalysisFitInputContribution, CohortFlag, EndpointContext, SeriesOverlay } from '../analysis/types'
 import { moduleCellFlags, moduleEndpoints, moduleExportValues, type CellEndpoints, type ColumnModuleSettings } from '../analysis/registry'
 import { collectSeriesContributions, seriesContextFor, seriesRowsFor } from './seriesContributions'
@@ -98,6 +98,37 @@ export interface RollingSummary {
   nWindows: number
   slopeMin: number
   slopeMax: number
+  /** The fitted windows in time order, as counted by `nWindows`. */
+  windows: RollingWindow[]
+}
+
+/** One fitted rolling window: its bounds (centre ± half the window length,
+ * both included), the dates of the first and last fitted point inside, their
+ * number and the window's own OLS slope per year. */
+export interface RollingWindow {
+  start: Date
+  end: Date
+  firstDate: Date
+  lastDate: Date
+  n: number
+  slope: number
+  /** Index of this window's line in the cell's `fitLines`; null when the
+   * window has no drawn line (see rollingWindowLine). */
+  lineIndex: number | null
+}
+
+/** The windows of a rolling summary with the index of each one's drawn line.
+ * Lines are built in window order and skip windows without one; when the
+ * counts do not agree, no window claims a line. */
+function rollingWindowsFor(summary: SeriesSummary, stepDays: number, lineCount: number): RollingWindow[] {
+  const rolls = summary.rollingWindows ?? []
+  const drawn = rolls.map((window) => rollingWindowLine(window, stepDays) !== null)
+  const consistent = drawn.filter(Boolean).length === lineCount
+  let next = 0
+  return rolls.map((window, i) => ({
+    start: window.windowStart, end: window.windowEnd, firstDate: window.firstDate, lastDate: window.lastDate,
+    n: window.nInWindow, slope: window.slope, lineIndex: drawn[i] ? (consistent ? next++ : null) : null,
+  }))
 }
 
 export interface CohortRow {
@@ -187,7 +218,7 @@ export function buildCohortRows(
       const eligibleRows = eligible.map(point => point.row)
       const slope = match?.slope ?? Number.NaN
       const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match && match.nFitted > 0
-        ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN }
+        ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN, windows: rollingWindowsFor(match, spec.stepDays ?? 180, fitLines.length) }
         : undefined
       return {
         bezeichnung: spec.bezeichnung,
