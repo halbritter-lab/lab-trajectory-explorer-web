@@ -768,6 +768,68 @@ from the demo data. Neither changes a computed value.
 
 Details: [table order, mark filters and displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals).
 
+## Decisions of 2026-11-21 (plots and events, issues #70 and #2)
+
+Owner decisions after the persona review of 2026-11-21 (items K27, K24 part 1
+and K30). They concern display, image exports and one added export sheet.
+**No number changes**: no estimate, flag, endpoint, AKI episode or existing
+export column, and no golden fixture moved.
+
+- **The user chooses the unit of the elapsed-time axis** (K27, option c).
+  "Time axis" offers "Days since first measurement" beside "Years since first
+  measurement". Nothing switches by itself, and the unit holds for the
+  patient charts and the overlay until it is changed. Slopes stay per year.
+  The calendar axis no longer repeats a date: a range under four days gets
+  one label per day. The saved view accepts the new axis value
+  `baselineDays`; a version of the app from before 2026-11-21 does not know
+  it and falls back to years, naming "time axis" as not restored.
+- **A dense overlay is drawn lighter in two steps, with a note** (K24 part 1,
+  option a). From 51 trajectories the measurement points are off and the
+  lines paler, from 201 paler still and thinner. The "Measurement points"
+  switch stays and takes precedence. A median with a percentile band
+  (part 2) was declined: the cohort-model line serves that purpose.
+- **The shaded AKI window stays and is explained** (K30, option a). Legend
+  and tooltip say that its length is the configured number of days after each
+  onset, not the duration of the episode, and whether the column excludes the
+  values from its fit.
+
+Also added without a decision of its own, because the review items asked for
+it: the export sheet `rolling_windows` (K18), one row per fitted Rolling OLS
+window, placed after the sheets that existed before 2026-11-21 so that their
+positions are unchanged. Another sheet added on the same day (`columns`,
+cohort workbook) makes the same claim; **the order of the two is to be fixed
+when both are merged**, and the wording here, in the changelog and in the
+[trend estimators](method-algorithms/trend-estimators.md) then follows it.
+The methodology page (Export) describes the sheet in one new row whose
+wording awaits the maintainer's approval.
+
+Details chosen during implementation, **not yet confirmed by the owner**:
+
+- Years stay the default of the elapsed-time axis, also when every loaded
+  trajectory is short.
+- The cohort-model preview stays in years. In the overlay the mixed-model
+  line is also drawn on the days axis (model time × 365.25).
+- The density note appears from 51 trajectories, not only from 201.
+- The trajectories are counted per chart: those plotted in it, after the
+  group legend and without series that have no numeric value. This is the
+  count that decides the line density. A parameter that 5 of 60 patients have
+  keeps its points while the chart of all 60 hides them; the switch is then
+  shown as off.
+- Points are hidden by the rule only while "Connecting lines" is on.
+  Unticking the lines alone shows the points, so a chart is never left empty
+  by the rule.
+- The switch takes precedence from its first use and for good: that it was
+  used is saved with the view (`pointsChosen`), so the choice holds after a
+  reload. There is no control that returns to the automatic rule; clearing
+  the saved data does.
+- Image exports (SVG, PNG) of a dense overlay show what is on the screen,
+  that is without points, and say so in their context line.
+- "Acute review" gets no extra sentence under the chart; legend and tooltip
+  carry the statement. The wording "this column has no fit, so nothing is
+  excluded" also applies while Trend is not ticked for the column.
+- Showing the actual episode duration as the band, once a recovery rule
+  exists, is not decided.
+
 ## Approved requirements
 
 ### Observed events and recovery

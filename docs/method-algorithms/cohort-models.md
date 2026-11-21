@@ -710,8 +710,9 @@ cohort's categories, and random effects do not enter.
   model rows before complete-case removal; lines are the pooled fit and each
   fitted group.
 - **Trajectory overlay.** Off by default ("Show model line in overlay"). The
-  line is drawn on the axes "Years since first measurement" and "Age", not on
-  the calendar axis. Group lines appear when the overlay is grouped by the
+  line is drawn on the axes "Years since first measurement", "Days since
+  first measurement" (model time × 365.25) and "Age", not on the calendar
+  axis. Group lines appear when the overlay is grouped by the
   attribute the groups were fitted under, for groups that are visible.
 - **Years axis.** The line is placed at its model time. Patient curves on this
   axis start at each patient's first plotted value of the series, which

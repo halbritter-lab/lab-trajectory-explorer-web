@@ -102,7 +102,14 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},
       {note:'loinc is the LOINC code as imported (measurements, raw_measurements) and the distinct codes of a parameter (parameters). Codes do not separate or join parameters, with one exception: creatinine with a urine code (2161-8, 14683-7) is a parameter of its own, named with the code, and is not used for AKI detection or eGFR.'},
       {note:'import_diagnostics lists what the import reported for lab values, events and attributes (rejected rows and warnings) and the rows behind the data checks of the Data page (values without a date or a number, implausible serum creatinine). Lines about patients outside this export are left out; all parameters are covered, not only the selected ones. row is the row in the source file (header row = 1); a collective warning has one line per affected row. The sheet is empty when there is nothing to report.'},
+      {note:'rolling_windows lists the fitted windows of every Rolling OLS column, one row per window: window_start and window_end are the bounds of the window (both days included), first_date and last_date the dates of the first and last fitted point inside, n their number, slope the OLS slope of the window per year, unrounded. A fitted point is a measurement; with monthly or quarterly medians as time balancing (see the settings sheet) it is the median of one calendar month or quarter, dated to one of its measurement days, so n counts medians and a measurement outside the window bounds can enter through the median of its period. The sheet is empty when no selected parameter uses Rolling OLS. The reported slope stays the global OLS slope.'},
     ]},
+    // Added on 2026-11-21, after the sheets above existed: their positions stay as they were.
+    {name:'rolling_windows',rows:prepared.flatMap(row => row.cells.flatMap(cell => (cell.rolling?.windows ?? []).map((window,index) => ({
+      PatientID:row.patientId,Parameter:cell.bezeichnung,Unit:cell.einheit ?? '',window:index+1,
+      window_start:utcDateOrBlank(window.start),window_end:utcDateOrBlank(window.end),first_date:utcDateOrBlank(window.firstDate),last_date:utcDateOrBlank(window.lastDate),
+      n:window.n,slope:window.slope,
+    }))))},
     // Appended after the sheets that existed before 2026-11-21, so their positions stay.
     // Lines about a loaded patient outside the exported scope are left out, like that patient's
     // measurements. Lines without a patient stay; so do, in a cohort export, lines about IDs

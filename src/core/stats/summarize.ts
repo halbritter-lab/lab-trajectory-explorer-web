@@ -2,7 +2,7 @@ import type { LabRow, OlsFit, PatientId } from '../types'
 import type { SeriesPoint } from './series'
 import { fitGlobal, fitTheilSen } from './series'
 import { fitSegments } from './segments'
-import { rollingSlopes } from './rolling'
+import { rollingSlopes, type RollingSlope } from './rolling'
 import type { FitModel, TimeBalancing } from '../fitPipeline/types'
 import { applyExclusionWindows, type ExclusionWindow } from '../exclusions/windows'
 import { balanceSeriesPoints } from './timeBalancing'
@@ -57,6 +57,8 @@ export interface SeriesSummary {
   slopeSe: number
   nSegments?: number
   nWindows?: number
+  /** Rolling mode: the fitted windows behind `nWindows`, in time order. */
+  rollingWindows?: RollingSlope[]
   slopeMin?: number
   slopeMax?: number
   slopeRange?: number
@@ -242,6 +244,7 @@ export function summarizeByBezeichnung(
     } else if (mode === 'rolling') {
       const rolls = rollingSlopes(fitPoints, windowDays, stepDays, minNPerWindow)
       summary.nWindows = rolls.length
+      summary.rollingWindows = rolls
       if (rolls.length > 0) {
         const s = rolls.map((r) => r.slope)
         const mean = s.reduce((a, b) => a + b, 0) / s.length

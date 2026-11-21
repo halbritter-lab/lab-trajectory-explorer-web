@@ -187,6 +187,63 @@ interfaces are still evolving before 1.0.
   rule for the decimals of slopes. They describe the changes above; the
   wording is a proposal and not yet approved by the maintainer.
 
+### Added (plots and events, after the persona review of 2026-11-21)
+
+- The time axis can be shown in days: Display → "Time axis" offers "Days
+  since first measurement" beside the years. Years stay the default; nothing
+  switches by itself. The choice applies to the patient charts and the
+  overlay and is saved with the other display choices. Slopes stay per year.
+- A clinical event with an end date is drawn as a shaded band from its start
+  to its end when "Events" is on (patient chart; in the overlay for the
+  highlighted patient).
+- Serum creatinine values measured under dialysis are named as "not used for
+  AKI detection (dialysis)" in the point tooltip and in a new column of the
+  patient's measurement table, with every preset. The detection rule is
+  unchanged.
+- The measurement table of the patient view lists the patient's events as
+  set-off rows at their dates; "Events for this patient" is sorted by date.
+- Rolling OLS: the patient view lists the windows ("Show windows") with
+  bounds, first and last fitted measurement, their number and slope; each
+  window line has a tooltip, and the legend says "Rolling OLS window lines".
+  With monthly or quarterly medians as time balancing (the CKD progression
+  default) the list, the tooltip and the cell say "monthly medians" or
+  "quarterly medians" instead of "fitted measurements", and the list and the
+  export note state that the count is one of medians and that a measurement
+  outside the window bounds can enter through the median of its period.
+  The exported workbook has a new sheet `rolling_windows` with the same rows
+  (empty without a Rolling OLS parameter), placed after the sheets that
+  existed before 2026-11-21, whose positions are unchanged. The reported
+  slope stays the global OLS slope. The methodology page (Export) gains one
+  row describing the sheet; its wording is a proposal that awaits the
+  maintainer's approval.
+
+### Changed (plots and events, after the persona review of 2026-11-21)
+
+- The calendar axis no longer repeats a date: a range shorter than four days
+  gets one label per day.
+- The shaded AKI window says in its legend and tooltip that its length is the
+  configured number of days after each onset, not the duration of the
+  episode, and whether the column excludes the values from its fit ("excluded
+  from this fit", "not excluded from this fit", or "this column has no fit").
+  The band itself is unchanged.
+- AKI stage labels are no longer cut off at the left or right border of a
+  chart, nor are points and diamonds on the first or last date. Equal labels
+  next to each other are merged ("AKI III ×3"); others move apart and off the
+  measurement points.
+- Overlay of many trajectories: from 51 trajectories in a chart its
+  measurement points are hidden and its lines paler, from 201 paler still and
+  thinner; a note above the chart says so. Each chart counts the trajectories
+  plotted in it, so a parameter that few patients have keeps its points in a
+  large cohort. Points are hidden only while the connecting lines are drawn.
+  The "Measurement points" switch takes precedence once it is used; that it
+  was used is saved with the other display choices and holds after a reload.
+  Image exports show what is on the screen; numbers and table exports are
+  unchanged.
+- Moving the pointer across the overlay no longer rebuilds every trajectory;
+  the trajectory under the pointer is drawn on top of the others.
+- The cohort mixed-model line is also drawn on the days axis.
+- No estimate, flag, endpoint or existing export column changes.
+
 ### Added (Cohort models: control over a running fit)
 
 - A running fit can be cancelled. Models fitted before stay; nothing of the

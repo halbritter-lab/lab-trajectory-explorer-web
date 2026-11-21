@@ -10,6 +10,7 @@ export function Export() { return <>
 <tr><td>events / patient_attributes / demographics</td><td>Event context, attributes, resolved demographics, overrides and warnings.</td></tr>
 <tr><td>parameters / settings</td><td>Parameter identity, derivation formula and source, fit configuration, source file and exported scope.</td></tr>
 <tr><td>about</td><td>Research-use disclaimer and interpretation notes.</td></tr>
+<tr><td>rolling_windows</td><td>The fitted windows of every Rolling OLS parameter: bounds of the window, first and last fitted point (a measurement, or a monthly or quarterly median under time balancing), their number and the window slope per year. Empty without a Rolling OLS parameter.</td></tr>
 <tr><td>import_diagnostics</td><td>Rows the import rejected and its warnings for lab values, events and attributes, with the row of the source file, and the rows behind the data checks of the Data page. Lines about patients outside the export are left out; the download on the Data page holds all of them.</td></tr></tbody></table></ReferenceTable>
 <p>Select the source creatinine parameter as well as the computed eGFR parameter to include its imported measurements in the export.</p>
 <h3 id="methods-provenance" tabIndex={-1}>Trace a result</h3>

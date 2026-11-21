@@ -34,6 +34,9 @@ export interface TrajectoryView {
   chartSize: SparkSize
   cellDetails: 'minimal' | 'full' | 'compact'
   warningIcons: boolean
+  /** "Measurement points" was switched by the user: the switch then decides,
+   * also in a dense overlay. Absent while the switch is untouched. */
+  pointsChosen?: true
 }
 
 export function defaultTrajectoryView(): TrajectoryView {
@@ -52,7 +55,7 @@ export interface SavedSettings {
 const FIT_MODELS = allValues<FitModel>()(['none', 'ols', 'theil-sen', 'rolling-ols', 'segmented-ols'])
 const TIME_BALANCING = allValues<TimeBalancing>()(['raw', 'monthly-median', 'quarterly-median'])
 const DIALYSIS_POLICIES = allValues<UnknownDialysisPolicy>()(['flag-only', 'exclude-dated-interval', 'censor-from-start'])
-const AXES = allValues<TrajectoryView['axis']>()(['baseline', 'calendar', 'age'])
+const AXES = allValues<TrajectoryView['axis']>()(['baseline', 'baselineDays', 'calendar', 'age'])
 const SCALE_MODES = allValues<TrajectoryView['scaleMode']>()(['shared', 'zoom'])
 const CHART_SIZES = allValues<TrajectoryView['chartSize']>()(['small', 'medium', 'large'])
 const CELL_DETAILS = allValues<TrajectoryView['cellDetails']>()(['minimal', 'full', 'compact'])
@@ -191,6 +194,8 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
   else out.notRestored.push('cell details')
   if (bool(view.warningIcons)) out.trajectoryView.warningIcons = view.warningIcons
   else out.notRestored.push('warning display')
+  if (view.pointsChosen === true) out.trajectoryView.pointsChosen = true
+  else if (view.pointsChosen !== undefined) out.notRestored.push('measurement points choice')
   return out
 }
 
