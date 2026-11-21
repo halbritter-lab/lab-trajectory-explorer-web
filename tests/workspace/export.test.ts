@@ -28,6 +28,29 @@ describe('workspace workbook', () => {
     expect(dataset.patientAttributes).toEqual({ '001-A': { group: 'A' } })
     expect(dataset.diagnostics.filter(d => d.severity === 'rejected')).toEqual([])
   })
+  // Review finding 2026-11-21: a file without a sex column and without attributes exports
+  // patient_attributes with the ID column only, and that export could not be loaded.
+  it('loads again when the dataset has no attributes: patient_attributes with the ID column only is skipped', () => {
+    const csv = ['patientId,labDate,testName,unit,value', 'P1,2026-01-05,Kreatinin,mg/dl,1.0', 'P1,2026-03-05,Kreatinin,mg/dl,1.1', 'P2,2026-01-07,Kreatinin,mg/dl,0.8', 'P2,2026-04-07,Kreatinin,mg/dl,0.9'].join('\n')
+    const first = loadDatasetFromWorkbook(new TextEncoder().encode(csv))
+    expect(first.patientAttributes).toEqual({})
+    const rows = first.rows
+    const parameter = { key: JSON.stringify(['Kreatinin', 'mg/dl']), label: 'Kreatinin [mg/dl]', bezeichnung: 'Kreatinin', einheit: 'mg/dl', derived: false }
+    const data = { rawRows: rows, rows, fileName: 'plain.csv', parameters: [parameter], patients: ['P1', 'P2'].map(id => ({ id, label: id, attributes: {}, baselineAge: null })), events: [], patientAttributes: first.patientAttributes,
+      analysis: { rows, messages: [], fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
+    const bytes = workspaceWorkbookBytes({ data, parameterKeys: [parameter.key], patientIds: ['P1', 'P2'], cohortRows: buildCohortRows(rows, ['P1', 'P2'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }]) })
+    expect(records(XLSX.read(bytes, { type: 'array' }), 'patient_attributes')).toEqual([{ PatientID: 'P1' }, { PatientID: 'P2' }])
+    const again = loadDatasetFromWorkbook(bytes)
+    expect(again.rows.map(row => [row.patientId, row.labDatum?.toISOString().slice(0, 10), row.wertNum])).toEqual(rows.map(row => [row.patientId, row.labDatum?.toISOString().slice(0, 10), row.wertNum]))
+    expect(again.patientAttributes).toEqual({})
+    expect(again.diagnostics).toEqual([])
+  })
+  it('still rejects an attributes sheet without an ID column in a workbook', () => {
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([['patientId', 'labDate', 'testName', 'unit', 'value'], ['P1', '2026-01-05', 'Kreatinin', 'mg/dl', 1]]), 'labs')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([['genotype'], ['UMOD']]), 'attributes')
+    expect(() => loadDatasetFromWorkbook(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)).toThrow('Could not read this file. Patient attributes file missing required column: patientId.')
+  })
   // Review finding 2026-11-21: the time of day orders creatinine values of one day in AKI
   // detection but is in no export, and nothing said that a re-import can give other episodes.
   it('does not carry the time of day: a re-import of a file with times can lose an AKI episode, and about says so', () => {

@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  hasPatientAttributeColumns,
   normalizePatientAttributes,
   patientAttributesExportRows,
   validatePatientAttributes,
@@ -50,6 +51,14 @@ describe('patient attributes - normalize', () => {
     expect(() => normalizePatientAttributes(rows)).toThrow(
       'Patient attributes file has no attribute columns.',
     )
+  })
+
+  it('tells a table with the ID column only from one with attribute columns or without an ID column', () => {
+    expect(hasPatientAttributeColumns([{ PatientID: 1 }, { PatientID: 2 }])).toBe(false)
+    expect(hasPatientAttributeColumns([{ patientId: 1 }])).toBe(false)
+    expect(hasPatientAttributeColumns([{ PatientID: 1 }, { PatientID: 2, genotype: 'UMOD' }])).toBe(true)
+    // No ID column: the strict reader reports the missing column.
+    expect(hasPatientAttributeColumns([{ id: 1 }])).toBe(true)
   })
 
   it('accepts PatientID alias for patientId', () => {

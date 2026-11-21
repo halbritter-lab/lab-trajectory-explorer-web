@@ -117,6 +117,21 @@ Sheet names are compared after header normalisation (see Columns).
   workbook exported before this column existed carries the whole-year ages
   only; its re-import infers the anchor from them (`age_estimated` true).
 
+  An attributes sheet that holds the patient ID column and no other column is
+  skipped when a workbook is read (since 2026-11-21): no attributes are
+  read, and there is no error and no import finding. The export writes
+  `patient_attributes` in this form when no exported patient has an attribute,
+  which is the case for a file without a sex column and without an attributes
+  table. Example: a CSV with the columns `patientId`, `labDate`, `testName`,
+  `unit`, `value` and the patients P1 and P2 exports `patient_attributes` with
+  the header `PatientID` and the rows P1 and P2; the re-import reads the lab
+  rows of `raw_measurements` and no attributes. Before, this workbook was
+  rejected with "Patient attributes file has no attribute columns." The rule
+  holds for every workbook with an attributes sheet, not only for the app's
+  export. An attributes sheet without a patient ID column is still an error,
+  and so is a separately uploaded attributes file without an attribute column
+  (see [Columns](#columns)).
+
   The time of day of a lab date does not come back: `Date` holds the calendar
   day, and no sheet carries the time (see [Dates](#dates)). Where the original
   file gave times, the re-imported rows have none, so several serum
@@ -207,7 +222,10 @@ with both `labDate` and `LabDatum` is read from `labDate`. The attributes table
 remains stricter and rejects two sex or two birth-date headers (below).
 
 The attributes table requires `patientId` (= `PatientID`) and at least one
-other column. Two demographic concepts are recognised by
+other column. A separately uploaded attributes file without another column is
+rejected with "Patient attributes file has no attribute columns."; an
+attributes sheet of a workbook without another column is skipped instead (see
+the re-import of the app's export above). Two demographic concepts are recognised by
 `normalizePatientAttributes`:
 
 | Concept | Accepted headers | Stored as |

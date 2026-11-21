@@ -36,10 +36,12 @@ branch differs, they say so.
 - 390 px (automated in `tests/e2e/plot-axes-events.e2e.ts`): dates and counts
   of the window list and dates and the "AKI detection" cell of the
   measurement table stay whole; the tables scroll inside their frame.
-- Not fixed, found during these checks: the cohort export of a file without a
-  sex column and without attributes does not load again ("Patient attributes
-  file has no attribute columns."), because its `patient_attributes` sheet
-  has the ID column only.
+- A CSV with `patientId,labDate,testName,unit,value` only (two patients, no
+  sex column, no attributes): "Export cohort (XLSX)" writes
+  `patient_attributes` with the `PatientID` column only, and importing that
+  workbook loads the same patients and values without an error. (Found
+  during these checks as "Patient attributes file has no attribute columns.";
+  fixed and checked again on 2026-11-21.)
 - Not checked in a browser: Firefox and WebKit.
 
 ## Import diagnostics, LOINC material rule and Data page notes (2026-11-21)

@@ -136,6 +136,14 @@ interfaces are still evolving before 1.0.
   (`patientId;Diagnose, genetisch`) and a column name with more commas than
   the header has semicolons (`patientId;Diagnose, genetisch, bestätigt`).
 
+- The workbook export of a dataset without attributes loads again. Such an
+  export (for example of a file without a sex column) has a
+  `patient_attributes` sheet with the `PatientID` column only and was rejected
+  with "Patient attributes file has no attribute columns." An attributes sheet
+  of a workbook that has no column besides the patient ID is now skipped: no
+  attributes are read and nothing is reported. A separately uploaded
+  attributes file without an attribute column is rejected as before.
+
 ### Changed (import error message)
 
 - The "missing required column(s)" error names the likely cause when the file

@@ -42,6 +42,18 @@ import {
   resolveColumns,
 } from '../parse/headers'
 
+/** False when the rows have a patient ID column and no other column. A workbook
+ * import skips such an attributes sheet: the app's own export writes
+ * `patient_attributes` with the ID column only when the dataset has no
+ * attributes. A separately uploaded attributes file is not asked and fails in
+ * `normalizePatientAttributes`. */
+export function hasPatientAttributeColumns(rows: RawRow[]): boolean {
+  const headers = collectHeaders(rows)
+  const resolved = resolveColumns(headers, { patientId: ['patientId', 'PatientID'] })
+  if (resolved.patientId === undefined) return true
+  return headers.size > 1
+}
+
 /** Parse raw workbook rows into per-row patient id + attribute map. Attribute
  * columns are every column other than `patientId`; empty cells are omitted. */
 export function normalizePatientAttributes(rows: RawRow[]): RawPatientAttributes[] {

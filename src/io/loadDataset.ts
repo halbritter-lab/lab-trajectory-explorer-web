@@ -15,6 +15,7 @@ import {
   attributeBirthDateFindings,
   describeAttributeRejection,
   describeAttributeWarning,
+  hasPatientAttributeColumns,
   normalizePatientAttributes,
   validatePatientAttributes,
   type PatientAttributesResult,
@@ -147,7 +148,9 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, importOp
     let patientAttributes: Record<string, Record<string, string>> = {}
     if (attributesSheetName && attributesSheetName !== labsSheetName) {
       const rawAttributes = wb.getSheet(attributesSheetName)
-      if (rawAttributes.length > 0) {
+      // An attributes sheet with the ID column only (the app's own export of a
+      // dataset without attributes) is skipped; any other sheet is read strictly.
+      if (rawAttributes.length > 0 && hasPatientAttributeColumns(rawAttributes)) {
         const validation = validatePatientAttributes(normalizePatientAttributes(rawAttributes), rows)
         patientAttributes = validation.byPatient
         diagnostics.push(...attributeDiagnostics(attributesSheetName, validation))
