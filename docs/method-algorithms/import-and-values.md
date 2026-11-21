@@ -234,11 +234,43 @@ rejected as impossible. Only serial numbers are range-checked (below).
 `h:mm` or `hh:mm`, optional seconds and fraction, and an optional `Z`,
 `±hh:mm` or `±hhmm` offset. A time in another form (`+02`, `2:30 PM`) makes the
 whole date unrecognised.
-The time and the offset are ignored. The calendar day is taken as written and
-is not converted between time zones: `2024-01-15T23:30:00+02:00` is 15 January
-2024, and `2024-01-14T23:00:00.000Z` is 14 January 2024. A workbook date cell
-is read by its calendar day as shown in the workbook; a cell holding 15 January
-2024 14:30 is 15 January 2024.
+The time and the offset never change the date. The calendar day is taken as
+written and is not converted between time zones: `2024-01-15T23:30:00+02:00`
+is 15 January 2024, and `2024-01-14T23:00:00.000Z` is 14 January 2024. A
+workbook date cell is read by its calendar day as shown in the workbook; a
+cell holding 15 January 2024 14:30 is 15 January 2024. The day and the clock
+time of a date cell do not depend on the time zone of the browser: a cell
+holding 29 March 2026 02:30 is 29 March 2026 02:30 also where that hour is
+skipped by daylight saving time (Europe/Berlin), as the text `2026-03-29
+02:30` and the serial 46110.104167 are.
+
+Since 2026-11-21 (issue #34) the time of day of a **lab date** is kept beside
+the date (`LabRow.labTime`, milliseconds after midnight); before, it was
+dropped. Text, workbook date cells and serial numbers follow the same rules:
+
+| Source | Time of day |
+| --- | --- |
+| text with a time | the clock time as written; the offset is ignored, as for the day: `2024-01-15T23:30:00+02:00` is 23:30 |
+| workbook date cell | the clock time as shown in the workbook: 15 January 2024 14:30 is 14:30 |
+| serial number (numeric cell or five-digit text) | the fraction of the serial: 45000.75 and `45000,75` are 15 March 2023 18:00 |
+| no time, or exactly 00:00:00 (also a date-only cell and a whole serial) | none |
+| a time that does not exist (`25:00`, `12:60`) | none; the date is accepted, as before |
+
+The time is rounded to whole seconds (`08:30:00,6` is 08:30:01); from
+23:59:59.5 on it stays 23:59:59. Midnight counts as no time of day because a
+date-only workbook cell cannot be told apart from a cell at midnight and
+exports write 00:00 where no time was recorded.
+
+The time of day has one use: it orders the serum creatinine values of one
+date in AKI detection (see
+[Measurements on the same date](aki.md#measurements-on-the-same-date), which
+also states the rule for dates without a time and the note on the Data page).
+It is not shown in the measurement table or the tooltips, is in no export and
+is not part of the duplicate comparison above: two rows of one date with the
+same value at different times still count as duplicates. The times of event
+dates and birth dates are read and ignored. The time is stored with a dataset
+kept in the browser; a dataset stored before 2026-11-21 has none until the
+file is imported again.
 
 Two consequences follow. All measurements of one patient on one day share one
 timestamp. The time between any two measurements is a whole multiple of 24
@@ -248,7 +280,8 @@ distinguish measurements zero, one, two or more calendar days apart.
 
 **Numbers (Excel serial dates).** A numeric cell in a date column is an Excel
 serial date in the 1900 date system; the 1904 system is not supported for
-numeric cells. The fraction of a serial is discarded.
+numeric cells. The fraction of a serial does not change the date; on a lab
+date it is the time of day (see above).
 
 | Check, in this order | Lab and event dates | Birth dates |
 | --- | --- | --- |
@@ -442,7 +475,10 @@ name remain two series with their values as written; conversions belong to
 individual analyses and are specified there. A row without a unit keeps no unit
 and is not merged with any other.
 
-Regression evidence: [date tests](../../tests/core/parse/dates.test.ts),
+Regression evidence: [date tests](../../tests/core/parse/dates.test.ts)
+(including the time of day from text, date cells and serials),
+[same-day order tests](../../tests/core/aki/sameDayOrder.test.ts) (the time of
+day through the reader and the loader),
 [value tests](../../tests/core/parse/wert.test.ts),
 [unit tests](../../tests/core/parse/units.test.ts),
 [loader tests](../../tests/core/parse/loader.test.ts),

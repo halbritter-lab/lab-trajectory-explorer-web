@@ -70,7 +70,8 @@ import {
 // or non-positive creatinine.
 ckdEpi2021({ scrMgdl: 1.2, ageYears: 60, sex: 'm' }) // 69.231128…
 
-// KDIGO creatinine AKI episodes from one series (mg/dl, sorted or not).
+// KDIGO creatinine AKI episodes from one series (mg/dl, sorted or not). Points
+// of one date need `timeOfDay` to be compared with each other (see pitfalls).
 const episodes = findKdigoAkiEpisodes([
   { date: new Date('2024-01-01T00:00:00Z'), value: 1.0 },
   { date: new Date('2024-01-02T00:00:00Z'), value: 1.6 },
@@ -137,6 +138,13 @@ These are documented at their call sites and in the method reference:
   stage than `episode.stage`. The episode carries the pair that reproduces
   it: `kdigoStage(episode.stageReferenceValue, episode.stageValue)`; the
   staging value need not be the peak.
+- `findKdigoAkiEpisodes`, `episodesForSeries` and `fitAkiAware` no longer
+  compare points of one date in input order. `SeriesPoint` has an optional
+  `timeOfDay` (milliseconds after midnight; `LabRow.labTime` for imported
+  rows) that orders the points of a date. Where a point of a date has none,
+  or two share one, those points are compared with earlier points only, not
+  with each other: a rise within such a date is not detected on that date.
+  Windows still count calendar days.
 - `nNumeric` counts raw measurements before censoring, AKI exclusion and time
   balancing. Use `nFitted` for anything about the fit.
 - Imported dates are midnight UTC. Pass UTC dates to the fit functions as well.

@@ -110,6 +110,13 @@ it('loads an actual workbook with attributes, reports conflicts, and scopes clin
   expect(result.current.analysis.messages.some(m => m.id.startsWith('demographics:'))).toBe(true)
   expect(workspaceSpecs(result.current, result.current.parameters.map(p => p.key))[0].clinicalEventsByPatient).toEqual({})
 })
+it('names the patient-days with creatinine values of unknown order in the import message', async () => {
+  const file = (lines: string[]) => ({ name: 'labs.csv', arrayBuffer: async () => new TextEncoder().encode(['patientId,labDate,testName,unit,value', ...lines].join('\n')).buffer }) as File
+  await importWorkspaceFile(file(['A,2026-09-01,Kreatinin,mg/dl,1.0', 'A,2026-09-01,Kreatinin,mg/dl,1.4', 'A,2026-09-02 06:00,Kreatinin,mg/dl,1.0', 'A,2026-09-02 20:00,Kreatinin,mg/dl,1.1']))
+  expect(useAppStore.getState().notice?.text).toBe('4 lab values, 0 events and 0 attribute rows loaded. 0 rows rejected; 0 warnings. 1 patient-day with several serum creatinine values whose order within the day is unknown: see “Demographics and data quality”.')
+  await importWorkspaceFile(file(['A,2026-09-02 06:00,Kreatinin,mg/dl,1.0', 'A,2026-09-02 20:00,Kreatinin,mg/dl,1.1']))
+  expect(useAppStore.getState().notice?.text).toBe('2 lab values, 0 events and 0 attribute rows loaded. 0 rows rejected; 0 warnings.')
+})
 it('keeps sheet names in the diagnostics of a multi-sheet workbook without an Excel extension', async () => {
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([

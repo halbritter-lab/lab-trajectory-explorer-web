@@ -1,4 +1,4 @@
-import type { LabRow, OlsFit, PatientId } from '../../../types'
+import { patientIdKey, type LabRow, type OlsFit, type PatientId } from '../../../types'
 import { isExactMeasurement } from '../../../measurements/censored'
 import type { SeriesPoint } from '../../../stats/series'
 import { fitOls } from '../../../stats/ols'
@@ -105,6 +105,37 @@ export function nonPositiveCreatinineCount(rows: readonly LabRow[]): number {
     && isExactMeasurement(r) && isAkiCreatinineSource(r.bezeichnung, r.einheit)).length
 }
 
+/** Patient-days on which AKI detection cannot order the serum creatinine
+ * values of one series: two or more exact positive values on one day of which
+ * at least one has no time of day, or of which two share one time of day.
+ * Detection compares such values with earlier values only (see
+ * `findKdigoAkiEpisodes`); the Data page reports the number. A day counts
+ * once per patient, whatever the number of series; values under dialysis are
+ * not known here and count. */
+export function sameDayUnorderedCreatinine(rows: readonly LabRow[]): { patientDays: number; patients: number } {
+  const slots = new Map<string, { untimed: number; times: Map<number, number> }>()
+  for (const r of rows) {
+    if (r.bezeichnung === null || r.labDatum === null || r.wertNum === null || r.wertNum <= 0
+      || !isExactMeasurement(r) || !isAkiCreatinineSource(r.bezeichnung, r.einheit)) continue
+    const key = JSON.stringify([patientIdKey(r.patientId), r.labDatum.getTime(), r.bezeichnung, r.einheit ?? null])
+    let slot = slots.get(key)
+    if (!slot) slots.set(key, (slot = { untimed: 0, times: new Map() }))
+    if (r.labTime === undefined) slot.untimed++
+    else slot.times.set(r.labTime, (slot.times.get(r.labTime) ?? 0) + 1)
+  }
+  const days = new Set<string>()
+  const patients = new Set<string>()
+  for (const [key, { untimed, times }] of slots) {
+    const counts = [...times.values()]
+    const total = untimed + counts.reduce((sum, n) => sum + n, 0)
+    if (total < 2 || (untimed === 0 && counts.every((n) => n === 1))) continue
+    const [patient, day] = JSON.parse(key) as [string, number]
+    days.add(JSON.stringify([patient, day]))
+    patients.add(patient)
+  }
+  return { patientDays: days.size, patients: patients.size }
+}
+
 /** Exact dated serum creatinine values above IMPLAUSIBLE_CREATININE_ABOVE_MGDL
  * (µmol/l converted to mg/dl first), often a µmol/l column labelled mg/dl. The
  * Data page warns about their number; the values are used unchanged. */
@@ -145,6 +176,6 @@ export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichn
   const points: SeriesPoint[] = source
     .filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r) && !isUnderDialysis(r.labDatum, events))
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
-    .map((r) => ({ date: r.labDatum!, value: normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum! / MGDL_PER_UMOLL : r.wertNum! }))
+    .map((r) => ({ date: r.labDatum!, timeOfDay: r.labTime ?? null, value: normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum! / MGDL_PER_UMOLL : r.wertNum! }))
   return points.length > 0 ? findKdigoAkiEpisodes(points) : []
 }

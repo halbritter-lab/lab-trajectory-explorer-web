@@ -8,6 +8,7 @@ import type { ClinicalEvent } from '../core/events/events'
 import type { CohortSeriesSpec } from '../core/cohort/screening'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../io/loadDataset'
+import { sameDayUnorderedCreatinine } from '../core/domains/nephrology/aki/akiAware'
 import { exactBirthDateByPatient, patientBirthAnchor } from '../core/demographics/exactBirthDate'
 import { trajectoryFitConfig, type TrajectoryFitSettings } from './workspace-analysis'
 
@@ -91,12 +92,16 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
     // A workbook with several sheets keeps its sheet names, whatever its extension.
     if (file && 'sheetNames' in dataset && dataset.sheetNames.length === 1 && !/\.xls[xmb]?$/i.test(file.name)) dataset.diagnostics = dataset.diagnostics.map(d => ({ ...d, sheet: file.name }))
     const rejected = dataset.diagnostics.filter(d => d.severity === 'rejected').length
+    // Decided 2026-11-21: the import names the patient-days whose creatinine
+    // values AKI detection cannot order. The rule is in the Data page note.
+    const unordered = sameDayUnorderedCreatinine(dataset.rows).patientDays
+    const unorderedNote = unordered > 0 ? ` ${countLabel(unordered, 'patient-day')} with several serum creatinine values whose order within the day is unknown: see “Demographics and data quality”.` : ''
     // replaceDataset aborts running model jobs and commits data and defaults
     // together, so observers never see new rows with old overrides.
     useAppStore.getState().replaceDataset({
       rows: dataset.rows, events: dataset.events, rejectedEvents: dataset.rejectedEvents,
       patientAttributes: dataset.patientAttributes, fileName: file?.name ?? DEMO_FILE_NAME, pristineDemo: !file,
-      notice: { kind: 'info', text: `${countLabel(dataset.rows.length, 'lab value')}, ${countLabel(dataset.events.length, 'event')} and ${countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row')} loaded. ${countLabel(rejected, 'row')} rejected; ${countLabel(dataset.diagnostics.length - rejected, 'warning')}.`, details: dataset.diagnostics },
+      notice: { kind: 'info', text: `${countLabel(dataset.rows.length, 'lab value')}, ${countLabel(dataset.events.length, 'event')} and ${countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row')} loaded. ${countLabel(rejected, 'row')} rejected; ${countLabel(dataset.diagnostics.length - rejected, 'warning')}.${unorderedNote}`, details: dataset.diagnostics },
     })
   } catch (error) {
     useAppStore.setState({ busy: false, notice: { kind: 'error', text: error instanceof Error ? error.message : String(error) } })

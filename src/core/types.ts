@@ -25,6 +25,12 @@ export function comparePatientIds(a: PatientId, b: PatientId): number {
 export interface LabRow {
   patientId: PatientId
   labDatum: Date | null
+  /** Time of day of the measurement in milliseconds after midnight, when the
+   * source gave one (see `parseImportDate`). A sort key only: it orders the
+   * values of one day in AKI detection and is neither shown nor exported;
+   * `labDatum` stays the calendar day. Absent when the source gave no time,
+   * on datasets persisted before this field existed and on derived rows. */
+  labTime?: number
   bezeichnung: string | null
   einheit: string | null
   wert: string | null

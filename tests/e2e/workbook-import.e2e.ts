@@ -48,6 +48,38 @@ test('reads a German semicolon CSV as text and lists its import diagnostics', as
   await expect(page.getByText(/Kreatinin \[µmol\/l\]: 1 censored value/)).toBeVisible()
 })
 
+test('orders several creatinine values of one day by time of day, whatever the row order of the file', async ({ page }) => {
+  // Decided 2026-11-21: with the newest row first a fall within a day was an episode and a rise was missed.
+  const timed = [
+    ['FALL', '2026-09-02 06:00', 0.9], ['FALL', '2026-09-01 20:00', 1.0], ['FALL', '2026-09-01 06:00', 1.4],
+    ['RISE', '2026-09-04 06:00', 1.2], ['RISE', '2026-09-01 20:00', 1.6], ['RISE', '2026-09-01 06:00', 1.0],
+  ] as const
+  const untimed = timed.map(([id, date, value]) => [`${id}-NOTIME`, date.slice(0, 10), value] as const)
+  const csv = (rows: readonly (readonly [string, string, number])[]) => `patientId,labDate,testName,unit,value\n${rows.map(r => `${r[0]},${r[1]},Kreatinin,mg/dl,${r[2]}`).join('\n')}\n`
+  const cells = (text: string) => { const [y, m, d, h = 0, min = 0] = text.split(/[- :]/).map(Number); return new Date(y, m - 1, d, h, min) }
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([...timed, ...untimed].map(([patientId, date, value]) => ({ patientId, labDate: cells(date), testName: 'Kreatinin', unit: 'mg/dl', value })), { cellDates: true }), 'labs')
+  const files = [
+    { name: 'newest-first.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([...timed, ...untimed])) },
+    { name: 'oldest-first.csv', mimeType: 'text/csv', buffer: Buffer.from(csv([...timed, ...untimed].reverse())) },
+    { name: 'date-cells.xlsx', mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', buffer: XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' }) as Buffer },
+  ]
+  await page.goto('/')
+  for (const file of files) {
+    await page.getByLabel('Import lab values').setInputFiles(file)
+    await expect(page.locator('.workspace-dataset')).toContainText(file.name)
+    await page.getByRole('button', { name: 'Data', exact: true }).click()
+    await expect(page.getByText(/^2 patient-days in 2 patients with several serum creatinine values whose order within the day is unknown/)).toBeVisible()
+    // The list stays open across imports; open it without toggling.
+    const list = page.locator('details').filter({ has: page.getByText('Detected AKI episodes (1)', { exact: true }) })
+    await list.evaluate((details: HTMLDetailsElement) => { details.open = true })
+    const episode = list.getByRole('row').nth(1)
+    await expect(episode).toContainText('RISE')
+    await expect(episode).toContainText('1 on 01/09/2026')
+    await expect(episode).not.toContainText('NOTIME')
+  }
+})
+
 test('redirects links to the former workspace.html to the application', async ({ page }) => {
   await page.goto('/workspace.html?source=bookmark#methods')
   await expect(page).toHaveURL(/\/index\.html\?source=bookmark#methods$/)

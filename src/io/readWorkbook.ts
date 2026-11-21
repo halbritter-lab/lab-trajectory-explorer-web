@@ -3,13 +3,22 @@ import type { RawRow } from '../core/types'
 
 export type { RawRow } from '../core/types'
 
-/** Normalise an Excel Date (which SheetJS creates as local-midnight) to a
- * midnight-UTC Date by reinterpreting the local Y/M/D components as UTC.
- * This matches pandas' naive-timestamp arithmetic for date-only cells and
- * eliminates DST-induced off-by-one day errors in span calculations. */
+/** Round the Date of a workbook date cell to whole seconds without leaving its
+ * day. The cell is read with `UTC: true`, so its UTC fields are the calendar
+ * day and the clock time as written in the workbook, whatever the time zone
+ * of the browser: a date-only cell is midnight UTC, which matches pandas'
+ * naive-timestamp arithmetic and keeps span calculations free of DST shifts.
+ * Reading the time through the local zone instead moved a time that does not
+ * exist there (02:30 on a spring-forward day) by one hour. `parseImportDate`
+ * splits the result into the calendar day and the time of day. */
 function normaliseXlsxDate(d: Date): Date {
-  return new Date(Date.UTC(d.getFullYear(), d.getMonth(), d.getDate()))
+  const t = d.getTime()
+  if (Number.isNaN(t)) return d
+  const ms = ((t % DAY_MS) + DAY_MS) % DAY_MS
+  return new Date(t - ms + Math.min(Math.round(ms / 1000), 86_399) * 1000)
 }
+
+const DAY_MS = 86_400_000
 
 export interface WorkbookSheets {
   sheetNames: string[]
@@ -72,7 +81,7 @@ export function readWorkbookSheets(data: ArrayBuffer | Uint8Array): WorkbookShee
         typeof sheet === 'number' ? wb.SheetNames[sheet] : sheet
       const ws = wb.Sheets[sheetName]
       if (!ws) return []
-      const rows = XLSX.utils.sheet_to_json<RawRow>(ws, { defval: null })
+      const rows = XLSX.utils.sheet_to_json<RawRow>(ws, { defval: null, UTC: true })
       return rows.map((row) => {
         const out: RawRow = {}
         for (const [k, v] of Object.entries(row)) {
@@ -88,9 +97,9 @@ export function readWorkbookSheets(data: ArrayBuffer | Uint8Array): WorkbookShee
  * Parse an xlsx or csv file (as an ArrayBuffer) into header-keyed row objects
  * from the first sheet. Blank cells are filled with null (keys are always
  * present in each row object, which the downstream loader relies on).
- * Date cells are normalised to midnight UTC (stripping the local-timezone
- * component that SheetJS adds) so that downstream span-day and OLS calculations
- * match Python's naive-timestamp arithmetic.
+ * Date cells are read as UTC, independent of the local time zone: the
+ * calendar day at midnight UTC plus the cell's clock time. Every date reader takes the calendar day only, so that downstream
+ * span-day and OLS calculations match Python's naive-timestamp arithmetic.
  */
 export function readWorkbook(data: ArrayBuffer | Uint8Array, sheet: string | number = 0): RawRow[] {
   return readWorkbookSheets(data).getSheet(sheet)

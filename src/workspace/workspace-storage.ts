@@ -72,7 +72,7 @@ const sex = (v: unknown) => v === null || SEX_CODES.includes(v as Sex)
 function validSnapshot(value: unknown): value is Snapshot {
   if (!record(value) || value.version !== 1 || typeof value.writeToken !== 'string' || !Number.isFinite(value.savedAt) || !nullableText(value.fileName)) return false
   if (!Array.isArray(value.rows) || !value.rows.length || !value.rows.every(row => record(row) && patientId(row.patientId)
-    && nullableDate(row.labDatum) && nullableText(row.bezeichnung) && nullableText(row.einheit)
+    && nullableDate(row.labDatum) && (row.labTime === undefined || typeof row.labTime === 'number' && Number.isFinite(row.labTime)) && nullableText(row.bezeichnung) && nullableText(row.einheit)
     && nullableText(row.wert) && nullableNumber(row.wertNum) && nullableText(row.loinc)
     && OPERATORS.includes(row.wertOperator as WertOperator)
     && sex(row.patientSex) && nullableNumber(row.patientAgeAtLab)
