@@ -96,6 +96,29 @@ describe('workspace local storage', () => {
     expect(useAppStore.getState().rows).toHaveLength(1)
     expect(useAppStore.getState().importDiagnostics).toEqual([valid])
   })
+  // Review finding 2026-11-21: a copy saved by the version before the LOINC rule kept urine
+  // creatinine inside the serum series (AKI detection, eGFR) and the notice said nothing.
+  it('applies the urine LOINC rule to a copy saved by an earlier version and says what that copy lacks', async () => {
+    const crea = (date: string, value: number, loinc: string): LabRow => ({ ...row, labDatum: new Date(date), bezeichnung: 'Kreatinin', einheit: 'mg/dl', wert: String(value), wertNum: value, loinc })
+    useAppStore.getState().replaceDataset({ rows: [crea('2020-01-01', 1, '2160-0'), crea('2020-01-01', 4.4, '2161-8'), crea('2020-06-01', 1.1, '2160-0'), crea('2020-06-01', 5, ' 14683-7 ')], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    // The shape the version before 2026-11-21 wrote: no import findings.
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    delete copy.importDiagnostics
+    await set(WORKSPACE_STORAGE_KEY, copy)
+    await restart()
+    const state = useAppStore.getState()
+    expect(state.rows.map(r => r.bezeichnung)).toEqual(['Kreatinin', 'Kreatinin (urine, LOINC 2161-8)', 'Kreatinin', 'Kreatinin (urine, LOINC 14683-7)'])
+    expect(state.rows.map(r => r.loinc)).toEqual(['2160-0', '2161-8', '2160-0', ' 14683-7 '])
+    expect(state.notice?.text).toContain('This copy was saved by an earlier version: it has no import findings, no source rows and no times of day')
+    expect(state.notice?.text).toContain('2 creatinine values with a urine LOINC code (2161-8, 14683-7) were moved to a parameter of their own, as an import does: not used for AKI detection or eGFR.')
+    // The next data change saves the copy in the current shape: nothing left to report.
+    act(() => useAppStore.getState().setEvents([]))
+    await waitFor(async () => expect((await get(WORKSPACE_STORAGE_KEY)).rows[1].bezeichnung).toBe('Kreatinin (urine, LOINC 2161-8)'))
+    await restart()
+    expect(useAppStore.getState().rows.map(r => r.bezeichnung)).toEqual(['Kreatinin', 'Kreatinin (urine, LOINC 2161-8)', 'Kreatinin', 'Kreatinin (urine, LOINC 14683-7)'])
+    expect(useAppStore.getState().notice?.text).not.toMatch(/earlier version|urine LOINC/)
+  })
   it('saves and restores the Trajectories analysis settings in their own record', async () => {
     const key = JSON.stringify(['Marker', 'u'])
     useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })

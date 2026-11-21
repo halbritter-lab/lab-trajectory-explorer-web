@@ -56,7 +56,8 @@ interfaces are still evolving before 1.0.
 - Diagnostics are kept per table: replacing events or attributes no longer
   removes the diagnostics of the lab import. They are saved with "Remember on
   this device" and restored with the dataset. Copies saved before restore
-  without them.
+  without them, and the restore notice then says that the copy was saved by
+  an earlier version and has no import findings, source rows or times of day.
 - "Download import diagnostics (XLSX)" on the Data page, and a new last sheet
   `import_diagnostics` in the cohort and patient workbooks, hold the
   diagnostics and data-check rows. The workbook sheet leaves out lines about
@@ -83,6 +84,11 @@ interfaces are still evolving before 1.0.
   change. Files without these codes on creatinine rows, among them the demo
   data and the golden fixtures, are unaffected. Whole-blood creatinine codes
   stay eligible like serum. The import reports the rows it moved.
+- The rule also applies to a dataset restored from "Remember on this
+  device": a copy saved by an earlier version, which holds such rows under
+  the serum name, gets the separate parameter when it is restored, and the
+  restore notice names the number of values moved. Before, such a copy kept
+  urine values in AKI detection and eGFR for up to seven days.
 - The import warns when one parameter carries more than one LOINC code. The
   values stay one series.
 - "Imported parameters" shows the LOINC codes of each parameter. The sheets

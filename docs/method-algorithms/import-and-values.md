@@ -287,9 +287,15 @@ not join series and, with the one exception below, does not separate them.
   including the whole-blood codes 38483-4 and 59826-8, which stay eligible
   like serum. The list holds these two codes only; other non-serum materials
   are still recognised by name alone. The rule is applied when a file is
-  imported: a copy saved before 2026-11-21 keeps its series until the file is
-  imported again, and `loadLabRows` called directly applies it only when
-  given the rule (`LabImportOptions.separateSeries`).
+  imported and when a dataset saved with "Remember on this device" is
+  restored: a copy saved before 2026-11-21 holds such rows under the serum
+  name, and the restore stores them under the separate name, as the import
+  does. The restore notice names the number of values moved ("2 creatinine
+  values with a urine LOINC code (2161-8, 14683-7) were moved to a parameter
+  of their own, as an import does: not used for AKI detection or eGFR."); no
+  import finding is added, because the copy has no source rows. Rows already
+  saved under the separate name are unchanged. `loadLabRows` called directly
+  applies the rule only when given it (`LabImportOptions.separateSeries`).
 
   Example (synthetic): one patient has, under `Kreatinin` in mg/dl, serum
   values with code 2160-0 (0.98, 1.10, 1.17, 1.21, 1.35) and urine values
@@ -394,7 +400,12 @@ No finding changes an imported value.
   lab findings stay. An upload that fails leaves the findings as they were.
 - **Saved copy.** With "Remember on this device" the findings are saved with
   the dataset and restored with it. A copy saved before 2026-11-21 restores
-  without findings and without source rows.
+  without findings and without source rows; the restore notice then adds:
+  "This copy was saved by an earlier version: it has no import findings, no
+  source rows and no times of day, so several creatinine values of one day
+  are compared with earlier days only. Import the file again to get them."
+  The sentence is shown until the copy is saved again by the current version
+  (with the next change of the data).
 - **Data checks.** Four counts of the Data page are computed from the imported
   lab rows, not stored: values without a date, values without a numeric
   measurement, and exact dated serum creatinine values of zero or less or

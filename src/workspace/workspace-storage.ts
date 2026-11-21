@@ -3,7 +3,8 @@ import { createStore, del, delMany, get, getMany, keys, promisifyRequest, update
 import { useAppStore } from './state/store'
 import type { AnalysisContext } from '../core/analysis/types'
 import { isRecord as record, parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
-import type { Sex, WertOperator } from '../core/types'
+import type { LabRow, Sex, WertOperator } from '../core/types'
+import { nonSerumCreatinineLoincName } from '../core/domains/nephrology/analytes'
 import { IMPORT_SOURCES, type ImportDiagnostic, type ImportSource } from '../io/loadDataset'
 import { allValues, restoreSavedSettings, SAVED_SETTINGS_VERSION, type RestoredSettings, type SavedSettings } from './saved-settings'
 import {
@@ -194,6 +195,32 @@ export async function migrateLegacyStorage(
   }
   for (const key of legacyKeys) await del(key)
   return outcome
+}
+
+/**
+ * The series rule of the lab import applied to the rows of a saved copy:
+ * creatinine with a urine LOINC code (2161-8, 14683-7) is a parameter of its
+ * own. A copy saved by a version before 2026-11-21 holds such rows under the
+ * serum name; without this they would stay in AKI detection and eGFR for the
+ * seven days of the copy. Rows saved under the separate name are unchanged
+ * (`nonSerumCreatinineLoincName` returns null for them), so `moved` is 0 for
+ * every copy the current version wrote.
+ */
+export function separateStoredNonSerumCreatinine(rows: LabRow[]): { rows: LabRow[]; moved: number } {
+  let moved = 0
+  const out = rows.map(row => {
+    const name = nonSerumCreatinineLoincName(row.bezeichnung, row.loinc)
+    if (name === null) return row
+    moved++
+    return { ...row, bezeichnung: name }
+  })
+  return moved ? { rows: out, moved } : { rows, moved }
+}
+
+/** What a restored copy lacks or had changed because an earlier version saved it. */
+export function earlierVersionNotice({ withoutImportFindings, movedCreatinine }: { withoutImportFindings: boolean; movedCreatinine: number }): string {
+  return (withoutImportFindings ? ' This copy was saved by an earlier version: it has no import findings, no source rows and no times of day, so several creatinine values of one day are compared with earlier days only. Import the file again to get them.' : '')
+    + (movedCreatinine ? ` ${movedCreatinine} creatinine ${movedCreatinine === 1 ? 'value' : 'values'} with a urine LOINC code (2161-8, 14683-7) ${movedCreatinine === 1 ? 'was' : 'were'} moved to a parameter of ${movedCreatinine === 1 ? 'its' : 'their'} own, as an import does: not used for AKI detection or eGFR.` : '')
 }
 
 /** What a restored copy brought back and what starts from defaults. */
@@ -398,7 +425,9 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       useWorkspaceStorage.setState({ message: legacy.legacyWorkspaceCopy === 'expired' ? EXPIRED_MESSAGE : INVALID_MESSAGE })
     } else if (state === 'usable' && validSnapshot(value)) {
       lastWriteToken = value.writeToken
-      useAppStore.getState().replaceDataset({ rows: value.rows,
+      // The import's series rule for creatinine with a urine LOINC code, for copies saved before it existed.
+      const separated = separateStoredNonSerumCreatinine(value.rows)
+      useAppStore.getState().replaceDataset({ rows: separated.rows,
         events: value.events, patientAttributes: value.patientAttributes,
         manualDemographics: value.manualDemographics, analysisSettings: parseAnalysisSettings(value.analysisSettings)!,
         fileName: value.fileName, importDiagnostics: storedImportDiagnostics(value.importDiagnostics) })
@@ -407,7 +436,7 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       // Settings written for another dataset copy are never applied.
       const mine = record(storedSettings) && storedSettings.datasetToken === value.writeToken ? storedSettings : undefined
       const restored = restoreSavedSettings(mine, parameterKeys)
-      useAppStore.setState({ trajectoryFitSettings: restored.trajectoryFitSettings, trajectoryView: restored.trajectoryView, notice: { kind: 'info', text: restoredNotice(restored) } })
+      useAppStore.setState({ trajectoryFitSettings: restored.trajectoryFitSettings, trajectoryView: restored.trajectoryView, notice: { kind: 'info', text: restoredNotice(restored) + earlierVersionNotice({ withoutImportFindings: value.importDiagnostics === undefined, movedCreatinine: separated.moved }) } })
       useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null, savedAt: value.savedAt })
     }
   } catch {
