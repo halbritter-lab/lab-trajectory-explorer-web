@@ -29,11 +29,16 @@ Every other non-empty value is unrecognised, for example `1`, `2`, `x`,
 `other`, `unknown`, `F.` and `männl.`. Values such as `other` or `unknown` are
 deliberately not mapped to `d`, because `d` selects a coefficient set in the
 eGFR formulas (see the eGFR section). An unrecognised value in a lab row counts
-as no sex for that row. The original text is kept and, when an eGFR formula is
-selected, the Data page quotes the unreadable spellings of creatinine source
-rows whose patient still has no resolved sex. An unrecognised value in the
-`sex` column of the attributes table is treated as absent and produces no
-warning.
+as no sex for that row. The original text is kept. The lab import reports the
+unreadable spellings in one warning, each with its number of rows and patients
+(see [Row acceptance](import-and-values.md#row-acceptance)), whether or not an
+eGFR formula is selected and whatever the patient's resolved sex: a file with
+`x` on two rows of one patient gives 'Unreadable sex value: "x" (2 rows, 1
+patient); read as no sex.', followed by the accepted spellings. In addition,
+when an eGFR formula is selected, the Data page quotes the unreadable
+spellings of creatinine source rows whose patient still has no resolved sex.
+An unrecognised value in the `sex` column of the attributes table is treated
+as absent and produces no warning.
 
 `resolveSex` applies the first rule that yields a sex:
 

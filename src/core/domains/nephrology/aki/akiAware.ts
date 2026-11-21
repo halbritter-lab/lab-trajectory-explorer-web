@@ -101,17 +101,27 @@ export function isUnderDialysis(date: Date, events: readonly ClinicalEvent[]): b
 /** Exact dated serum creatinine values of zero or less. They are ignored by
  * AKI detection and by eGFR derivation; the Data page reports their number. */
 export function nonPositiveCreatinineCount(rows: readonly LabRow[]): number {
+  return nonPositiveCreatinineRows(rows).length
+}
+
+/** The rows `nonPositiveCreatinineCount` counts, in input order. */
+export function nonPositiveCreatinineRows(rows: readonly LabRow[]): LabRow[] {
   return rows.filter((r) => r.bezeichnung !== null && r.labDatum !== null && r.wertNum !== null && r.wertNum <= 0
-    && isExactMeasurement(r) && isAkiCreatinineSource(r.bezeichnung, r.einheit)).length
+    && isExactMeasurement(r) && isAkiCreatinineSource(r.bezeichnung, r.einheit))
 }
 
 /** Exact dated serum creatinine values above IMPLAUSIBLE_CREATININE_ABOVE_MGDL
  * (µmol/l converted to mg/dl first), often a µmol/l column labelled mg/dl. The
  * Data page warns about their number; the values are used unchanged. */
 export function implausiblyHighCreatinineCount(rows: readonly LabRow[]): number {
+  return implausiblyHighCreatinineRows(rows).length
+}
+
+/** The rows `implausiblyHighCreatinineCount` counts, in input order. */
+export function implausiblyHighCreatinineRows(rows: readonly LabRow[]): LabRow[] {
   return rows.filter((r) => r.bezeichnung !== null && r.labDatum !== null && r.wertNum !== null
     && isExactMeasurement(r) && isAkiCreatinineSource(r.bezeichnung, r.einheit)
-    && (normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum / MGDL_PER_UMOLL : r.wertNum) > IMPLAUSIBLE_CREATININE_ABOVE_MGDL).length
+    && (normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum / MGDL_PER_UMOLL : r.wertNum) > IMPLAUSIBLE_CREATININE_ABOVE_MGDL)
 }
 
 /** Episodes for aki-aware fits: an eligible serum creatinine series detects on itself;

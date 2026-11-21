@@ -35,6 +35,11 @@ const SERIAL_RANGE: Record<DatePurpose, { min: number; max: number; years: strin
 }
 
 const DAY_MS = 86_400_000
+
+/** First day of the accepted measurement serial range, 1927-05-18. The lab
+ * import warns about lab dates before it, whatever their form (decided
+ * 2026-11-21); only serial numbers below it are rejected. */
+export const EARLIEST_PLAUSIBLE_MEASUREMENT_DATE = new Date(Date.UTC(1899, 11, 30) + SERIAL_RANGE.measurement.min * DAY_MS)
 // Optional time of day, with optional seconds, fraction and zone. The time is
 // ignored; only the written calendar day counts.
 const TIME = String.raw`(?:(?:T|\s+)\d{1,2}:\d{2}(?::\d{2}(?:[.,]\d+)?)?\s*(?:Z|[+-]\d{2}:?\d{2})?)?`

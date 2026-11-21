@@ -7,7 +7,7 @@ import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../co
 import type { ClinicalEvent } from '../core/events/events'
 import type { CohortSeriesSpec } from '../core/cohort/screening'
 import type { FitConfig } from '../core/analysis/fitConfig'
-import { loadBundledFixtureData, loadDatasetFromWorkbook } from '../io/loadDataset'
+import { loadBundledFixtureData, loadDatasetFromWorkbook, type ImportDiagnostic } from '../io/loadDataset'
 import { exactBirthDateByPatient, patientBirthAnchor } from '../core/demographics/exactBirthDate'
 import { trajectoryFitConfig, type TrajectoryFitSettings } from './workspace-analysis'
 
@@ -19,6 +19,8 @@ export interface WorkspaceData {
   events: ClinicalEvent[]; patientAttributes: Record<string, Record<string, string>>;
   analysis: AnalysisResult; analysisSettings: AnalysisSettings;
   manualDemographics: Record<string, ManualDemographics>;
+  /** Import findings of the dataset, for the `import_diagnostics` export sheet. */
+  importDiagnostics?: ImportDiagnostic[];
 }
 
 export function useWorkspaceData(): WorkspaceData {
@@ -28,6 +30,7 @@ export function useWorkspaceData(): WorkspaceData {
   const attributes = useAppStore(s => s.patientAttributes)
   const analysisSettings = useAppStore(s => s.analysisSettings)
   const manualDemographics = useAppStore(s => s.manualDemographics)
+  const importDiagnostics = useAppStore(s => s.importDiagnostics)
   return useMemo(() => {
     const analysis = useAppStore.getState().analysisResult()
     const rows = analysis.rows
@@ -60,8 +63,8 @@ export function useWorkspaceData(): WorkspaceData {
         attributeBirthDate: attributes[patientIdKey(id)]?.birthDate, manualAge: manualDemographics[patientIdKey(id)]?.age })
       return { id, label: String(id), attributes: resolvedAttributes, baselineAge: earliest?.patientAgeAtLab ?? null, birthAnchor, ageEstimated }
     })
-    return { rawRows, rows, fileName, parameters: [...parameterMap.values()], patients, events, patientAttributes, analysis, analysisSettings, manualDemographics }
-  }, [rawRows, fileName, events, attributes, analysisSettings, manualDemographics])
+    return { rawRows, rows, fileName, parameters: [...parameterMap.values()], patients, events, patientAttributes, analysis, analysisSettings, manualDemographics, importDiagnostics }
+  }, [rawRows, fileName, events, attributes, analysisSettings, manualDemographics, importDiagnostics])
 }
 
 /** The spec of one parameter as cohort models and their overlay lines prepare
@@ -96,7 +99,8 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
     useAppStore.getState().replaceDataset({
       rows: dataset.rows, events: dataset.events, rejectedEvents: dataset.rejectedEvents,
       patientAttributes: dataset.patientAttributes, fileName: file?.name ?? DEMO_FILE_NAME, pristineDemo: !file,
-      notice: { kind: 'info', text: `${countLabel(dataset.rows.length, 'lab value')}, ${countLabel(dataset.events.length, 'event')} and ${countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row')} loaded. ${countLabel(rejected, 'row')} rejected; ${countLabel(dataset.diagnostics.length - rejected, 'warning')}.`, details: dataset.diagnostics },
+      importDiagnostics: dataset.diagnostics,
+      notice: { kind: 'info', text: `${countLabel(dataset.rows.length, 'lab value')}, ${countLabel(dataset.events.length, 'event')} and ${countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row')} loaded. ${countLabel(rejected, 'row')} rejected; ${countLabel(dataset.diagnostics.length - rejected, 'warning')}.` },
     })
   } catch (error) {
     useAppStore.setState({ busy: false, notice: { kind: 'error', text: error instanceof Error ? error.message : String(error) } })

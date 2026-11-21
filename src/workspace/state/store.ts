@@ -12,14 +12,13 @@ import { runCohortMixedModels } from '../../core/mixedModel/cohortModelFit'
 import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEntity'
 import type { PresetExclusionPolicy } from '../../core/mixedModel/cohortDataset'
 import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
-import type { ImportDiagnostic } from '../../io/loadDataset'
+import type { ImportDiagnostic, ImportSource } from '../../io/loadDataset'
 import { defaultTrajectoryFitSettings, modelPreparationKey, type TrajectoryFitSettings } from '../workspace-analysis'
 import { defaultTrajectoryView, type TrajectoryView } from '../saved-settings'
 
 export interface Notice {
   kind: 'error' | 'info'
   text: string
-  details?: ImportDiagnostic[]
 }
 
 export interface StoredMixedModelResult {
@@ -55,6 +54,8 @@ export interface DatasetReplacement {
   manualDemographics?: Record<string, ManualDemographics>
   analysisSettings?: AnalysisSettings
   notice?: Notice | null
+  /** Import findings of the lab values, events and attributes of this dataset. */
+  importDiagnostics?: ImportDiagnostic[]
   /** The bundled demo exactly as shipped (see AppState.pristineDemo). */
   pristineDemo?: boolean
 }
@@ -71,6 +72,10 @@ export interface AppState {
   events: ClinicalEvent[]
   /** Event rows rejected by the latest event import (session only). */
   rejectedEvents: RejectedClinicalEvent[]
+  /** Import findings of the loaded dataset, each marked with its source table
+   * (lab values, events, attributes). A source keeps its findings until that
+   * table is imported again; they are saved with the dataset. */
+  importDiagnostics: ImportDiagnostic[]
   /** Generic per-patient attribute maps keyed by patientIdKey. Domain-neutral:
    * attribute names (e.g. "genotype") carry no special meaning to the app. */
   patientAttributes: Record<string, Record<string, string>>
@@ -102,6 +107,8 @@ export interface AppState {
   busy: boolean
   notice: Notice | null
   setNotice: (n: Notice | null) => void
+  /** Replace the findings of one source table; the other sources keep theirs. */
+  setImportDiagnostics: (source: ImportSource, diagnostics: ImportDiagnostic[]) => void
   /** Replace the whole session with a new dataset. Aborts running model jobs
    * and commits rows and their dependent state together, so observers never
    * see new rows with old overrides. */
@@ -128,7 +135,7 @@ export interface AppState {
 /** Resettable data fields (no actions). Single source of truth for both the
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
-  | 'rows' | 'fileName' | 'pristineDemo' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'patientAttributes'
+  | 'rows' | 'fileName' | 'pristineDemo' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'importDiagnostics' | 'patientAttributes'
   | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
   | 'cohortModelProgress' | 'cohortModelRuntimeLoaded' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
 
@@ -139,6 +146,7 @@ const initialState = (): AppData => ({
   manualDemographics: {},
   events: [],
   rejectedEvents: [],
+  importDiagnostics: [],
   patientAttributes: {},
   analysisSettings: defaultAnalysisSettings(),
   mixedModelConfig: DEFAULT_MIXED_MODEL_CONFIG,
@@ -239,6 +247,9 @@ const clearedMixedModelResults = (): Pick<AppData, 'cohortModelResults' | 'cohor
 export const useAppStore = create<AppState>((set, get) => ({
   ...initialState(),
   setNotice: (n) => set({ notice: n }),
+  setImportDiagnostics: (source, diagnostics) => set((s) => ({
+    importDiagnostics: [...s.importDiagnostics.filter((d) => d.source !== source), ...diagnostics.filter((d) => d.source === source)],
+  })),
   replaceDataset: (dataset) => {
     abortActiveCohortModelRun()
     const initial = initialState()
@@ -248,6 +259,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       fileName: dataset.fileName ?? null,
       events: dataset.events ?? [],
       rejectedEvents: dataset.rejectedEvents ?? [],
+      importDiagnostics: dataset.importDiagnostics ?? [],
       patientAttributes: dataset.patientAttributes ?? {},
       manualDemographics: dataset.manualDemographics ?? {},
       analysisSettings: dataset.analysisSettings ?? initial.analysisSettings,

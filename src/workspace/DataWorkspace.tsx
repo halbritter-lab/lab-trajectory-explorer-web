@@ -12,35 +12,24 @@ import { implausiblyHighCreatinineCount, nonPositiveCreatinineCount } from '../c
 import { describeEventRejection, normalizeClinicalEventsWithNotes, validateClinicalEvents } from '../core/events/events'
 import { describeAttributeRejection, normalizePatientAttributes, validatePatientAttributes } from '../core/attributes/attributes'
 import { readWorkbook } from '../io/readWorkbook'
-import { attributeDiagnostics, eventDiagnostics, type ImportDiagnostic } from '../io/loadDataset'
+import { attributeDiagnostics, eventDiagnostics } from '../io/loadDataset'
 import { importWorkspaceFile, useWorkspaceData } from './workspace-data'
 import { countLabel, sexLabel } from './workspace-labels'
 import './data-workspace.css'
 import { WorkspaceStorageControls } from './WorkspaceStorageControls'
 import { WorkspaceEventTables } from './WorkspaceEventTables'
 import { WorkspaceDataOverview } from './WorkspaceDataOverview'
-
-const DIAGNOSTIC_PREVIEW_LIMIT = 20
+import { AffectedRows, WorkspaceImportDiagnostics } from './WorkspaceImportDiagnostics'
+import { dataChecks } from './import-diagnostics'
 
 /** "Kreatinin (mg/dl)": parameter name with its unit. */
 const sourceLabel = ([name, unit]: Source) => `${name} (${unit})`
-
-function ImportDiagnostics({ details }: { details: ImportDiagnostic[] }) {
-  const [showAll, setShowAll] = useState(false)
-  useEffect(() => setShowAll(false), [details])
-  const visible = showAll ? details : details.slice(0, DIAGNOSTIC_PREVIEW_LIMIT)
-  const remaining = details.length - visible.length
-  return <details><summary>{details.length} import diagnostics — show details</summary>
-    <div className="data-diagnostics"><ul>{visible.map((d, i) => <li key={i}>{d.sheet}{d.scope === 'sheet' ? '' : `, patient ${d.patientId ?? 'without ID'}`}, {d.severity === 'rejected' ? 'rejected' : 'warning'}: {d.reason}</li>)}</ul>
-      {remaining > 0 && <button type="button" onClick={() => setShowAll(true)}>Show {remaining} remaining diagnostics</button>}
-    </div>
-  </details>
-}
 
 export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) => void }) {
   const data = useWorkspaceData()
   const busy = useAppStore(s => s.busy)
   const notice = useAppStore(s => s.notice)
+  const importDiagnostics = useAppStore(s => s.importDiagnostics)
   const [formula, setFormula] = useState<FormulaName | 'off'>(data.analysisSettings.egfr.formula)
   const [sourceKey, setSourceKey] = useState(JSON.stringify(data.analysisSettings.egfr.source))
   const [editing, setEditing] = useState<PatientId | null>(null)
@@ -88,13 +77,15 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         if (!valid.length) throw new Error(`No usable events. ${[...new Set(rejected.map(describeEventRejection))].join(' ')}`)
         store.setEvents(valid)
         useAppStore.setState({ rejectedEvents: rejected })
-        store.setNotice({ kind: 'info', text: `${countLabel(valid.length, 'event')} imported; ${countLabel(rejected.length, 'row')} rejected.`, details: eventDiagnostics(file.name, normalized.dateReads, validation, normalized.notes) })
+        store.setImportDiagnostics('events', eventDiagnostics(file.name, normalized.dateReads, validation, normalized.notes))
+        store.setNotice({ kind: 'info', text: `${countLabel(valid.length, 'event')} imported; ${countLabel(rejected.length, 'row')} rejected.` })
       } else {
         const validation = validatePatientAttributes(normalizePatientAttributes(raw), originalRows)
         const { byPatient, valid, rejected } = validation
         if (!valid.length) throw new Error(`No usable attributes. ${[...new Set(rejected.map(describeAttributeRejection))].join(' ')}`)
         store.setPatientAttributes(byPatient)
-        store.setNotice({ kind: 'info', text: `${countLabel(valid.length, 'attribute row')} imported; ${countLabel(rejected.length, 'row')} rejected.`, details: attributeDiagnostics(file.name, validation) })
+        store.setImportDiagnostics('attributes', attributeDiagnostics(file.name, validation))
+        store.setNotice({ kind: 'info', text: `${countLabel(valid.length, 'attribute row')} imported; ${countLabel(rejected.length, 'row')} rejected.` })
       }
     } catch (error) {
       // The listed rejections belonged to the previous file; the kept events have none.
@@ -111,6 +102,11 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
   const missingSex = data.patients.filter(p => !p.attributes.sex).length
   const implausibleCreatinine = useMemo(() => nonPositiveCreatinineCount(data.rawRows), [data.rawRows])
   const highCreatinine = useMemo(() => implausiblyHighCreatinineCount(data.rawRows), [data.rawRows])
+  const checks = useMemo(() => dataChecks(data.rawRows), [data.rawRows])
+  const checkRows = (id: (typeof checks)[number]['id'], summary: string) => {
+    const check = checks.find(c => c.id === id)
+    return check ? <AffectedRows rows={check.rows} summary={summary} /> : null
+  }
   const highEgfr = implausiblyHighEgfrCount(computed)
   const missingAge = data.patients.filter(p => p.baselineAge === null).length
   return <div className="data-workspace stack">
@@ -124,15 +120,19 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         <p className="muted">The demo workbook mirrors a German laboratory export: German test names such as “Kreatinin”, sex codes “w” and “m”, and decimal commas. English test names such as “Creatinine”, “male” and “female”, and decimal points are read the same way.</p>
       </details>
       {busy && <p role="status">Checking file …</p>}
-      {notice && <div className={`notice ${notice.kind === 'error' || notice.details?.some(d => d.severity === 'rejected') ? 'amber' : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'}><p>{notice.text}</p>{!!notice.details?.length && <ImportDiagnostics details={notice.details} />}</div>}
+      {notice && <div className={`notice ${notice.kind === 'error' ? 'amber' : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'}><p>{notice.text}</p></div>}
+      <WorkspaceImportDiagnostics diagnostics={importDiagnostics} rows={data.rawRows} />
       {data.rawRows.length > 0 && <><p><strong>{data.fileName ?? 'Dataset'}</strong></p><div className="data-metrics"><span><strong>{data.patients.length}</strong> patients</span><span><strong>{data.rawRows.length}</strong> imported values</span><span><strong>{data.parameters.filter(p => !p.derived).length}</strong> Parameter–unit combinations</span><span><strong>{data.events.length}</strong> events</span></div>
         <p className="muted">{countLabel(data.rawRows.filter(r => !r.labDatum).length, 'value')} without a date, {countLabel(data.rawRows.filter(r => r.wertNum === null).length, 'value')} without a numeric measurement, {countLabel(data.rawRows.filter(r => r.wertOperator === '<' || r.wertOperator === '>').length, 'value')} recorded as a bound (&lt; or &gt;), {countLabel(data.rawRows.filter(r => !r.bezeichnung).length, 'value')} without a parameter name</p>
+        {checkRows('no_date', 'Show the values without a date')}{checkRows('no_number', 'Show the values without a numeric measurement')}
         <div className="data-import-grid">{(['events', 'attributes'] as const).map(kind => <label className="field" key={kind}>{kind === 'events' ? 'Replace events' : 'Replace attributes'}<input type="file" accept=".csv,.xlsx,.xls" disabled={busy} onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) void supplementary(f, kind) }} /></label>)}</div><p className="muted">Supplementary files replace the corresponding table. Attributes: one row per patientId; additional columns can be freely named.</p><WorkspaceEventTables /><WorkspaceDataOverview data={data} onBrowse={onBrowse} /></>}
       <WorkspaceStorageControls hasData={data.rawRows.length > 0} />
     </section>
     {data.rawRows.length > 0 && <><section className="card"><h2>2. Demographics and data quality</h2><p>{countLabel(missingSex, 'patient')} without resolved sex, {missingAge} without age at the first lab date, {countLabel(resolution.conflicts.length, 'conflict')}</p>
       {implausibleCreatinine > 0 && <p className="notice amber" role="status">{implausibleCreatinine} serum creatinine {implausibleCreatinine === 1 ? 'value' : 'values'} of zero or less: not plausible, so not used for AKI detection or eGFR.</p>}
+      {checkRows('creatinine_non_positive', 'Show the creatinine values of zero or less')}
       {highCreatinine > 0 && <p className="notice amber" role="status">{highCreatinine} serum creatinine {highCreatinine === 1 ? 'value' : 'values'} above {IMPLAUSIBLE_CREATININE_ABOVE_MGDL} mg/dl (µmol/l converted): not plausible, check the unit. The values are used unchanged.</p>}
+      {checkRows('creatinine_high', `Show the creatinine values above ${IMPLAUSIBLE_CREATININE_ABOVE_MGDL} mg/dl`)}
       {!!resolution.conflicts.length && <details><summary>Conflicts and their resolution</summary><ul>{resolution.conflicts.map((c, i) => <li key={i}>{describeConflict(c)}</li>)}</ul></details>}
       <details><summary>Review and edit patients ({data.patients.length})</summary><div className="table-scroll"><table><thead><tr><th>Patient</th><th>Sex</th><th>Age at first measurement</th><th>Quality</th><th>Action</th></tr></thead><tbody>{data.patients.map(p => <tr key={JSON.stringify(p.id)}><th><button onClick={() => onBrowse(p.id)}>{p.label}</button></th><td>{sexLabel(p.attributes.sex)}</td><td>{p.baselineAge ?? 'Missing'}</td><td>{resolution.conflicts.filter(c => c.patientId === p.id).length ? 'Conflict' : !p.attributes.sex || p.baselineAge === null ? 'Incomplete' : 'Complete'}{data.manualDemographics[patientIdKey(p.id)] && Object.keys(data.manualDemographics[patientIdKey(p.id)]).length > 0 ? ' (manual)' : ''}</td><td><button aria-label={`Edit demographics: ${p.label}`} onClick={() => edit(p.id)}>Edit</button></td></tr>)}</tbody></table></div></details>
     </section><section className="card"><h2>3. Derive eGFR</h2><a href="#methods/data/egfr">eGFR prerequisites and calculation details</a><p>Preview before applying. Imported measurements are preserved; computed values appear as separate parameters.</p><div className="data-import-grid"><label className="field">eGFR formula<select value={formula} onChange={e => setFormula(e.target.value as FormulaName | 'off')}><option value="off">Off</option><option value="ckd-epi-2021">CKD-EPI 2021</option><option value="ckd-epi-2009">CKD-EPI 2009 (race-free)</option><option value="mdrd-4">MDRD-4</option><option value="ekfc-2021">EKFC 2021</option></select></label><label className="field">Creatinine source<select value={sourceKey} onChange={e => setSourceKey(e.target.value)}><option value="null">Automatic{defaultCreatinineSource(options) ? `: ${sourceLabel(defaultCreatinineSource(options)!)}` : ': no eligible source'}</option>{options.map(s => <option key={JSON.stringify(s)} value={JSON.stringify(s)}>{sourceLabel(s)}</option>)}</select></label></div>

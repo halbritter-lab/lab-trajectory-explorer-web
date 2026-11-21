@@ -5,7 +5,38 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (import diagnostics, after the persona review of 2026-11-21)
+
+- Import diagnostics name the row of the source file ("labs.csv, row 12,
+  patient 7, rejected: …"). Collective warnings (duplicates, thousands
+  notation, bounded values and the new ones below) open a list of the affected
+  rows with patient, date, parameter and the value as written.
+- The counts of values without a date or without a numeric measurement and
+  the serum creatinine plausibility notices on the Data page open the rows
+  behind them.
+- Diagnostics are kept per table: replacing events or attributes no longer
+  removes the diagnostics of the lab import. They are saved with "Remember on
+  this device" and restored with the dataset. Copies saved before restore
+  without them.
+- "Download import diagnostics (XLSX)" on the Data page, and a new last sheet
+  `import_diagnostics` in the cohort and patient workbooks, hold all
+  diagnostics and data-check rows of the imported dataset. Existing sheets
+  keep their names, columns and positions.
+- New import warnings; none changes an imported value, a series or a result:
+  - a lab date after the import day or before 1927-05-18, once per patient
+    with the date (owner decision of 2026-11-21);
+  - differing values of one parameter on the same day, per parameter with the
+    number of patient-days and patients;
+  - unreadable sex spellings with their number of rows and patients, also
+    when no eGFR formula is selected;
+  - patient IDs that differ only in leading zeros, spaces or letter case
+    ("0012" and "12"); they remain separate patients.
+
 ### Fixed (import, after the persona review of 2026-11-21)
+
+- After "Replace events" or "Replace attributes", and after reloading a saved
+  copy, the rows rejected by the lab import could no longer be inspected
+  anywhere. They now stay listed (see above).
 
 - A semicolon CSV whose data rows hold more commas than semicolons (test names
   or free text with commas, decimal commas) is read with the semicolon. The

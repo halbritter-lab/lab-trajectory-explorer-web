@@ -34,3 +34,8 @@
 @media (max-width: 700px) { .data-import-grid { grid-template-columns: 1fr; } .data-workspace .card { padding: 16px; } }
 .data-event-tables table { min-width: 640px; }
 .data-event-tables .table-scroll { max-height: min(24rem, 50vh); overflow: auto; }
+.data-diagnostics-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 0 24px; align-items: start; }
+.data-workspace details.data-diagnostics-source { margin: 4px 0; min-width: 0; }
+.data-workspace details.data-affected-rows { margin: 6px 0; font-size: 13px; }
+.data-affected-rows td, .data-affected-rows th { padding: 4px 10px; }
+.data-diagnostics-panel > button { margin-top: 8px; }

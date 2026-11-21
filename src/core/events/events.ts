@@ -1,4 +1,4 @@
-import type { RawRow } from '../types'
+import { sourceRowNumber, type RawRow } from '../types'
 import type { LabRow, PatientId } from '../types'
 
 export type ClinicalEventType = 'kidney_transplant' | 'dialysis' | 'other'
@@ -30,6 +30,8 @@ export interface RawClinicalEvent {
   /** Readable explanation when the date or end date cell could not be read,
    * naming the offending value. */
   dateIssue?: string
+  /** Row of the source file (header row = 1), when read from a file. */
+  sourceRow?: number
 }
 
 export interface ClinicalEvent {
@@ -132,6 +134,8 @@ export function normalizeClinicalEventsWithNotes(rows: RawRow[]): {
       intent: parseText(cell(row, columns, 'intent')) ?? '',
     }
     if (dateIssue !== undefined) event.dateIssue = dateIssue
+    const sourceRow = sourceRowNumber(row)
+    if (sourceRow !== undefined) event.sourceRow = sourceRow
     return event
   })
   return { events, dateReads, notes: shadowedColumnNotes(headers, EVENTS_COLUMN_ALIASES) }

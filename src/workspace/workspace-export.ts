@@ -11,6 +11,7 @@ import { workspaceSpecs, type WorkspaceData } from './workspace-data'
 import { akiEpisodeExportRows, akiEpisodeRows } from './aki-episodes'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
+import { dataChecks, importDiagnosticRecords } from './import-diagnostics'
 
 export interface WorkspaceExportInput {
   data: WorkspaceData
@@ -93,7 +94,10 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Slopes and quality information come directly from the displayed summary; export does not refit the data. n counts raw measurements; n_fitted counts the points actually fitted.'},
       {note:`ci_low and ci_high are the 95 % interval of the slope. For a Theil-Sen fit with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval. ${THEIL_SEN_FEW_DATES_COVERAGE}.`},
       {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},
+      {note:'import_diagnostics lists what the import reported for lab values, events and attributes (rejected rows and warnings) and the rows behind the data checks of the Data page (values without a date or a number, implausible serum creatinine). It covers the whole imported dataset, not only the selected patients and parameters. row is the row in the source file (header row = 1); a collective warning has one line per affected row. The sheet is empty when there is nothing to report.'},
     ]},
+    // Appended after the sheets that existed before 2026-11-21, so their positions stay.
+    {name:'import_diagnostics',rows:importDiagnosticRecords(data.importDiagnostics ?? [],dataChecks(data.rawRows))},
   ]
 }
 

@@ -631,6 +631,21 @@ on examples from the demo data.
 Details: [rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
 and [labels](method-algorithms/slope-quality.md#labels).
 
+## Decisions of 2026-11-21 (persona review, issues #74, #2, #34)
+
+Owner decisions after the simulated-user review of 2026-11-21, taken on
+synthetic examples and the demo data.
+
+- **Implausible lab dates give a warning, not a rejection.** A lab date after
+  the import day or before 1927-05-18 is reported once per affected patient
+  with the date; the row stays in the analysis unchanged. The lower bound is
+  the one that already applies to Excel serial numbers. No value, slope or
+  export column changes. Example with import day 2026-11-21: 3024-05-08,
+  1923-07-18, 0203-06-05 and 2026-12-15 are reported; a mistyped 2003-08-08
+  in a series of 2023 is not. Event dates, event end dates and birth dates
+  are not checked; whether they should be is open.
+  Details: [Dates](method-algorithms/import-and-values.md#dates).
+
 ## Approved requirements
 
 ### Observed events and recovery

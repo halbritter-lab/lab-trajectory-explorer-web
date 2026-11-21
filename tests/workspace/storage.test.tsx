@@ -63,6 +63,39 @@ describe('workspace local storage', () => {
   })
   const settle = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 30)) })
   const restart = async () => { stop?.(); useAppStore.getState().reset(); stop = await startWorkspaceStorage() }
+  it('saves the import diagnostics of every source with the dataset and restores them', async () => {
+    const labs = [
+      { source: 'labs' as const, sheet: 'input.csv', patientId: null, severity: 'rejected' as const, row: 7, reason: 'Patient ID missing; row not imported.' },
+      { source: 'labs' as const, sheet: 'input.csv', patientId: null, severity: 'warning' as const, scope: 'sheet' as const, reason: '1 duplicate lab row.', rows: [{ row: 3, patientId: 'A', date: '2020-01-01', parameter: 'Marker [u]', value: '60' }] },
+    ]
+    useAppStore.getState().replaceDataset({ rows: [{ ...row, sourceRow: 2 }], fileName: 'input.csv', importDiagnostics: labs })
+    await setWorkspaceRemember(true)
+    // A later attributes import adds its findings and is saved without touching the lab findings.
+    const attributes = [{ source: 'attributes' as const, sheet: 'attr.csv', patientId: 'B', severity: 'rejected' as const, row: 4, reason: 'Patient B already has an attribute row; this later row is not imported.' }]
+    act(() => { useAppStore.getState().setImportDiagnostics('attributes', attributes) })
+    await settle()
+    await waitFor(() => expect(useWorkspaceStorage.getState().status).toBe('saved'))
+    expect((await get(WORKSPACE_STORAGE_KEY)).importDiagnostics).toEqual([...labs, ...attributes])
+    await restart()
+    expect(useAppStore.getState().importDiagnostics).toEqual([...labs, ...attributes])
+    expect(useAppStore.getState().rows[0].sourceRow).toBe(2)
+    expect(useAppStore.getState().notice?.text).toMatch(/^Dataset and analysis settings/)
+  })
+  it('restores a copy saved without import diagnostics, and drops entries it cannot read', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    delete copy.importDiagnostics
+    await set(WORKSPACE_STORAGE_KEY, copy)
+    await restart()
+    expect(useAppStore.getState().rows).toHaveLength(1)
+    expect(useAppStore.getState().importDiagnostics).toEqual([])
+    const valid = { source: 'events', sheet: 'events.csv', patientId: 'A', severity: 'rejected', row: 2, reason: 'Event date is not a valid date; row not imported.' }
+    await set(WORKSPACE_STORAGE_KEY, { ...(await get(WORKSPACE_STORAGE_KEY)), importDiagnostics: [valid, { source: 'elsewhere', reason: 'x' }, 'text', { ...valid, rows: [{ row: 'two' }] }] })
+    await restart()
+    expect(useAppStore.getState().rows).toHaveLength(1)
+    expect(useAppStore.getState().importDiagnostics).toEqual([valid])
+  })
   it('saves and restores the Trajectories analysis settings in their own record', async () => {
     const key = JSON.stringify(['Marker', 'u'])
     useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })

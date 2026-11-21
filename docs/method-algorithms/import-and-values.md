@@ -206,28 +206,96 @@ For all other rows:
   patient. `0012`, `12.0` and `1e3` remain text and are patients distinct from
   12 and 1000. Lab rows, attribute rows and manual entries are matched by the
   text form of the ID.
+- **Similar patient IDs.** IDs are never merged. One sheet-level warning names
+  the IDs of the lab sheet that become equal after lowercasing, removing all
+  whitespace and removing leading zeros (a lone `0` stays): `0012` and `12`,
+  `ab 1` and `AB1`. `12.0` and `12` are not reported, because the rule does
+  not read numbers. The warning names up to five such groups, counts the rest
+  and lists the first row of every ID involved. IDs of the events and
+  attributes tables are not compared.
 - **Invalid lab date.** A row whose lab date cell is present but not a valid
   date (see Dates) is rejected. The diagnostic quotes the cell and states the
   reason; the row is not imported.
+- **Implausible lab date.** A row whose lab date lies after the import day or
+  before 1927-05-18 is imported unchanged, with a warning (see Dates).
 - **Empty lab date.** A row with an empty lab date is imported with no date and
-  no diagnostic. It takes part in no dated calculation and is included in the
-  Data page count "values without a date". It still contributes its sex to the
-  sex vote and keeps its stated age (see Demographics resolution).
+  no import warning. It takes part in no dated calculation and is included in
+  the Data page count "values without a date", which lists the rows on demand.
+  It still contributes its sex to the sex vote and keeps its stated age (see
+  Demographics resolution).
 - **No numeric value.** A row whose value is empty, unparseable or a range is
-  imported without a number. It is included in the Data page count "values
-  without a numeric measurement" and enters no calculation. Its date, sex and
-  stated age still feed demographics resolution.
+  imported without a number and without an import warning. It is included in
+  the Data page count "values without a numeric measurement", which lists the
+  rows on demand, and enters no calculation. Its date, sex and stated age
+  still feed demographics resolution.
 - **Exact duplicates.** Two rows are duplicates when patient, lab date, test
   name, canonical unit and the raw value text are all equal. Duplicates are
   kept and each counts as a separate measurement. One sheet-level warning
-  reports their number and the number of affected patients. Because the raw
-  text is compared, `1,5` and `1.5` on the same day are not duplicates. Rows on
-  the same date with different values are not flagged.
+  reports their number and the number of affected patients and lists the
+  repeated rows (not the first occurrence). Because the raw text is compared,
+  `1,5` and `1.5` on the same day are not duplicates.
+- **Differing values on one day.** Per parameter (test name and unit), a
+  patient-day is reported when its dated rows with a number carry at least two
+  different values. Values are compared by number and operator: `1,5` and
+  `1.50` are equal, `5` and `<5` differ. Rows without a date, without a number
+  or without a test name are not compared. One sheet-level warning per
+  parameter gives the number of such patient-days and patients and lists all
+  rows of those days. Nothing is changed: every value stays a separate
+  measurement in fits, endpoints and AKI detection (see
+  [the detection rule](aki.md#kdigo-creatinine-aki-detection) for what
+  same-day creatinine values do there). Example: a patient with `1,1` and
+  `1,9` mg/dl creatinine on 2023-10-01 gives "Kreatinin [mg/dl]: 1 patient-day
+  with differing values on the same day for 1 patient; all values are kept and
+  each counts as a separate measurement."
+- **Unreadable sex.** A sex cell in a spelling that is not accepted (see
+  [Sex](demographics.md#sex)) leaves the row without a sex. One sheet-level
+  warning quotes up to six such spellings, each with its number of rows and
+  patients, counts further spellings and lists the rows.
 
 Sheet-level warnings also report two columns for one field, day-first and
 Excel-serial dates, merged unit spellings, values with three digits after a
 comma or a point that may be thousands notation, and the number of `<` and `>`
 values per parameter.
+
+### Import findings
+
+The import reports rejected rows and warnings as findings (`ImportDiagnostic`).
+No finding changes an imported value.
+
+- **Source row.** Every row read from a file keeps its row number as a
+  spreadsheet shows it: the header row is 1 and the first data row is 2; blank
+  rows count, and so does a leading `sep=` line. A finding about one row
+  (rejected lab, event or attribute row, unreadable birth date, attribute row
+  of an unknown patient) names that row. Warnings on accepted event rows carry
+  no row number.
+- **Affected rows.** A collective warning lists the rows it counts with source
+  row, patient, lab date, parameter and the cell as written: thousands
+  notation, duplicates, differing values on one day, bounded values,
+  unreadable sex, similar patient IDs and implausible lab dates. At most 1000
+  rows are listed per warning; the warning keeps the total.
+- **Per source table.** Findings belong to the table they came from: lab
+  values, events or attributes. A workbook import sets all three. A later
+  events or attributes upload replaces the findings of that table only; the
+  lab findings stay. An upload that fails leaves the findings as they were.
+- **Saved copy.** With "Remember on this device" the findings are saved with
+  the dataset and restored with it. A copy saved before 2026-11-21 restores
+  without findings and without source rows.
+- **Data checks.** Four counts of the Data page are computed from the imported
+  lab rows, not stored: values without a date, values without a numeric
+  measurement, and exact dated serum creatinine values of zero or less or
+  above 25 mg/dl. Each lists its rows on demand.
+- **Export.** "Download import diagnostics (XLSX)" on the Data page and the
+  sheet `import_diagnostics` of the cohort and patient workbooks hold the same
+  table: the findings of all three tables, then the data checks. Columns:
+  `source` (`labs`, `events`, `attributes`), `sheet` (sheet or file name),
+  `kind` (`rejected`, `warning`, `data check`), `row`, `patient_id`, `date`,
+  `parameter`, `value`, `message`. A finding about one row or without rows is
+  one line; a collective warning is one line per listed row, each repeating
+  the message, plus one line without a row when more rows were affected than
+  listed. The sheet covers the whole imported dataset, whatever patients and
+  parameters are selected for the export, and is the last sheet of the
+  workbook. It is empty when there is nothing to report; the download button
+  is shown only when the import produced a finding.
 
 ### Dates
 
@@ -254,9 +322,26 @@ Rejected as unrecognised: two-digit years (`15.01.24`), dashed day-first dates
 four-digit numbers (`2020`). Rejected as impossible: any day that does not
 exist, such as `2024-02-30`, `2023-02-29`, `31/04/2024` or month 13.
 
-Text dates and workbook date cells have no plausibility range: any year from
-0100 to 9999 is accepted (`0203-01-05`, `3000-01-01`). Years 0000 to 0099 are
-rejected as impossible. Only serial numbers are range-checked (below).
+Text dates and workbook date cells are not rejected for their year: any year
+from 0100 to 9999 is accepted (`0203-01-05`, `3000-01-01`). Years 0000 to 0099
+are rejected as impossible. Only serial numbers are rejected by range (below).
+
+**Plausibility warning for lab dates (decided 2026-11-21).** A lab date after
+the import day or before 1927-05-18 gives a warning; the row is imported and
+used unchanged. The lower bound is the first day of the serial range for lab
+dates (below). The import day is the calendar day of the device at the time of
+the import; dates are compared as calendar days. A lab date equal to the
+import day, or equal to 1927-05-18, gives no warning; the day after the import
+day and 1927-05-17 do. There is one warning per affected patient. It gives the
+number of rows, names up to three different dates in ascending order, each
+with its reason, counts further dates and lists the rows. With import day
+2026-11-21, a patient with rows on 1923-07-18, 0203-06-05 and 2026-12-15 gets
+"3 lab rows with an implausible lab date: 0203-06-05 (before 1927-05-18),
+1923-07-18 (before 1927-05-18), 2026-12-15 (after the import day 2026-11-21);
+the rows are used unchanged." A date such as 2003-08-08 in a series of 2023 is
+inside the range and is not reported. The warning is issued at import only: a
+restored dataset is not checked again. Event dates, event end dates and birth
+dates are not checked.
 
 **Time of day and time zone.** A date may be followed by a time: `T` or spaces,
 `h:mm` or `hh:mm`, optional seconds and fraction, and an optional `Z`,

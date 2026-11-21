@@ -179,7 +179,7 @@ describe('dates', () => {
     }))
     expect(data.events.map((e) => e.date)).toEqual([utc(2024, 1, 3)])
     expect(data.diagnostics).toEqual(expect.arrayContaining([
-      { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'Event date "2021-02-30" is not a valid calendar date; row not imported.' },
+      { source: 'events', sheet: 'events', patientId: 1, severity: 'rejected', row: 2, reason: 'Event date "2021-02-30" is not a valid calendar date; row not imported.' },
       expect.objectContaining({ sheet: 'events', severity: 'warning', reason: expect.stringMatching(/1 event date.*day-first/) }),
     ]))
   })
@@ -259,8 +259,8 @@ describe('import diagnostics', () => {
     }))
     expect(data.patientAttributes['1']).toEqual({ birthDate: '31.02.1980' })
     expect(data.diagnostics).toEqual([
-      { sheet: 'attributes', patientId: 1, severity: 'warning', reason: 'Birth date "31.02.1980" is not a valid calendar date; it is ignored.' },
-      { sheet: 'attributes', patientId: null, severity: 'warning', scope: 'sheet', reason: '1 birth date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).' },
+      { source: 'attributes', sheet: 'attributes', patientId: 1, severity: 'warning', row: 2, reason: 'Birth date "31.02.1980" is not a valid calendar date; it is ignored.' },
+      { source: 'attributes', sheet: 'attributes', patientId: null, severity: 'warning', scope: 'sheet', reason: '1 birth date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).' },
     ])
   })
 
