@@ -58,13 +58,13 @@ export function labDiagnostics(sheet: string, issues: readonly LabImportIssue[])
 export function eventDiagnostics(
   sheet: string,
   dateReads: DateReadCounts,
-  { valid, rejected }: ClinicalEventValidationResult,
+  { valid, rejected, sourceRows }: ClinicalEventValidationResult,
   notes: readonly string[] = [],
 ): ImportDiagnostic[] {
   const source = 'events'
   return [
     ...rejected.map((r): ImportDiagnostic => ({ source, sheet, patientId: r.event.patientId, severity: 'rejected', reason: describeEventRejection(r), ...at(r.event.sourceRow) })),
-    ...valid.filter((e) => e.warning).map((e): ImportDiagnostic => ({ source, sheet, patientId: e.patientId, severity: 'warning', reason: describeEventWarning(e) })),
+    ...valid.filter((e) => e.warning).map((e): ImportDiagnostic => ({ source, sheet, patientId: e.patientId, severity: 'warning', reason: describeEventWarning(e), ...at(sourceRows.get(e)) })),
     ...notes.map((reason) => sheetNote(source, sheet, reason)),
     ...dateReadNotes('event date', dateReads).map((reason) => sheetNote(source, sheet, reason)),
   ]

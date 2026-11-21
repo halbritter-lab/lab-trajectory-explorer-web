@@ -36,17 +36,28 @@ cells are read as empty.
 **Field delimiter.** `detectDelimiter` takes the delimiter from the header line
 alone, that is the text before the first line break outside double quotes. The
 candidates are comma, tab, semicolon and pipe; the one that occurs most often
-outside double quotes is used, and a tie goes to the earlier candidate in that
-order. The data rows are not counted, so decimal commas and free text cannot
-outvote the delimiter: the header `patientId;labDate;testName;unit;value`
+outside double quotes is used. The data rows are not counted, so decimal commas
+and free text cannot outvote the delimiter: the header `patientId;labDate;testName;unit;value`
 followed by rows such as `101;10.01.2021;Kreatinin, Serum, enzymatisch,
 IFCC;mg/dl;1,0` is read with the semicolon (four semicolons and no comma in the
 header line). Until 2026-11-21 the workbook reader counted the candidates in
 the first 1024 characters of the file, where the eight commas of two such rows
-outvoted the semicolons and the file failed with missing columns. Two cases are
-left to the workbook reader: a file that starts with a `sep=` line (the
-character after `sep=` is the delimiter and the line is not a data row), and a
-header line without any candidate (a single column).
+outvoted the semicolons and the file failed with missing columns. Three cases
+are left to the workbook reader and its count over the first 1024 characters
+(a tie there goes to the comma, then tab, then semicolon): a file that starts
+with a `sep=` line (the character after `sep=` is the delimiter and the line is
+not a data row), a header line without any candidate (a single column), and a
+header line in which two candidates share the highest count. Example of the
+tie: the header `patientId;Diagnose, genetisch` holds one semicolon and one
+comma, so the reader counts the file; with four rows such as `Q1;ADPKD` it
+finds five semicolons and one comma and reads the file with the semicolon.
+
+A column name that holds more of another candidate than the header line holds
+delimiters is split at that candidate: `patientId;Diagnose, genetisch,
+bestätigt` (one semicolon, two commas) is read with the comma, whatever the
+data rows hold, and fails with a missing column. Until 2026-11-21 such a file
+loaded when the data rows held enough semicolons. Quoting the column name
+(`patientId;"Diagnose, genetisch, bestätigt"`) or a `sep=;` line avoids it.
 
 Sheet selection in `loadDatasetFromWorkbook` depends on the number of sheets.
 Sheet names are compared after header normalisation (see Columns).
@@ -309,9 +320,10 @@ No finding changes an imported value.
 - **Source row.** Every row read from a file keeps its row number as a
   spreadsheet shows it: the header row is 1 and the first data row is 2; blank
   rows count, and so does a leading `sep=` line. A finding about one row
-  (rejected lab, event or attribute row, unreadable birth date, attribute row
-  of an unknown patient) names that row. Warnings on accepted event rows carry
-  no row number.
+  (rejected lab, event or attribute row, warning on an accepted event row,
+  unreadable birth date, attribute row of an unknown patient) names that row.
+  The row of an accepted event is used for its import warning only; it is not
+  kept with the event.
 - **Affected rows.** A collective warning lists the rows it counts with source
   row, patient, lab date, parameter and the cell as written: thousands
   notation, duplicates, differing values on one day, bounded values,

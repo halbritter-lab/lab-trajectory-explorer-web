@@ -45,8 +45,7 @@ export function decodeText(bytes: Uint8Array): string | null {
   }
 }
 
-/** Candidate field delimiters, in the order that breaks a tie (the order the
- * workbook reader uses itself). */
+/** Candidate field delimiters. */
 const DELIMITERS = [',', '\t', ';', '|'] as const
 
 /**
@@ -55,8 +54,10 @@ const DELIMITERS = [',', '\t', ';', '|'] as const
  * double quotes before the first line break. The header line holds only column
  * names, so decimal commas and free text in the data rows cannot outvote the
  * real delimiter, as they can in the workbook reader's own guess over the
- * first 1024 characters. Returns undefined when the text starts with a `sep=`
- * line (the reader honours it) or the header line holds no candidate.
+ * first 1024 characters. Returns undefined, which leaves the choice to the
+ * reader's own guess, when the text starts with a `sep=` line (the reader
+ * honours it), the header line holds no candidate, or two candidates share the
+ * highest count (`patientId;Diagnose, genetisch`: the header line cannot tell).
  */
 export function detectDelimiter(text: string): string | undefined {
   if (text.startsWith('sep=')) return undefined
@@ -67,11 +68,9 @@ export function detectDelimiter(text: string): string | undefined {
     else if (!quoted && (ch === '\n' || ch === '\r')) break
     else if (!quoted && (DELIMITERS as readonly string[]).includes(ch)) counts.set(ch, (counts.get(ch) ?? 0) + 1)
   }
-  let best: string | undefined
-  for (const candidate of DELIMITERS) {
-    if ((counts.get(candidate) ?? 0) > (best === undefined ? 0 : counts.get(best)!)) best = candidate
-  }
-  return best
+  const highest = Math.max(0, ...counts.values())
+  const best = DELIMITERS.filter((candidate) => counts.get(candidate) === highest)
+  return best.length === 1 ? best[0] : undefined
 }
 
 /**

@@ -8,7 +8,7 @@ interfaces are still evolving before 1.0.
 ### Added (import diagnostics, after the persona review of 2026-11-21)
 
 - Import diagnostics name the row of the source file ("labs.csv, row 12,
-  patient 7, rejected: …"). Collective warnings (duplicates, thousands
+  patient 7, rejected: …"), also for warnings on accepted event rows. Collective warnings (duplicates, thousands
   notation, bounded values and the new ones below) open a list of the affected
   rows with patient, date, parameter and the value as written.
 - The counts of values without a date or without a numeric measurement and
@@ -83,8 +83,12 @@ interfaces are still evolving before 1.0.
 - A semicolon CSV whose data rows hold more commas than semicolons (test names
   or free text with commas, decimal commas) is read with the semicolon. The
   field delimiter is now taken from the header line; before, such a file was
-  rejected with "missing required column(s)". Files that loaded before are
-  read as before; a `sep=` line keeps working.
+  rejected with "missing required column(s)". A `sep=` line keeps working,
+  and a header line that does not decide (as many commas as semicolons, for
+  example `patientId;Diagnose, genetisch`) is read as before. One layout that
+  loaded before no longer does: a header whose column names hold more commas
+  than the line holds semicolons; quote such a column name or add a `sep=;`
+  line.
 
 ### Changed (import error message)
 

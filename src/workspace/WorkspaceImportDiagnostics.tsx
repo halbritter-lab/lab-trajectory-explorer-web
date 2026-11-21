@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import type { ImportDiagnosticRow } from '../core/parse/loader'
 import type { LabRow } from '../core/types'
 import type { ImportDiagnostic } from '../io/loadDataset'
@@ -49,7 +49,8 @@ function SourceDiagnostics({ label, details }: { label: string; details: ImportD
  * values, events, attributes), with a download of all findings and data
  * checks. Rendered only when there is a finding. */
 export function WorkspaceImportDiagnostics({ diagnostics, rows }: { diagnostics: ImportDiagnostic[]; rows: readonly LabRow[] }) {
-  const groups = diagnosticsBySource(diagnostics)
+  // Stable per import: each list resets its "show all" state when its findings change, not on every render.
+  const groups = useMemo(() => diagnosticsBySource(diagnostics), [diagnostics])
   if (groups.length === 0) return null
   const rejected = diagnostics.some(d => d.severity === 'rejected')
   return <div className={`notice data-diagnostics-panel ${rejected ? 'amber' : ''}`} role="group" aria-label="Import diagnostics">

@@ -140,7 +140,7 @@ test('urine creatinine marked only by its LOINC code becomes its own parameter w
   await expect(page.getByText(/Kreatinin: 5 values with LOINC code 2161-8 were imported as the separate parameter "Kreatinin \(urine, LOINC 2161-8\)"/)).toBeVisible()
   await page.getByText('Imported parameters (2)', { exact: true }).click()
   await expect(page.getByRole('table', { name: 'Imported parameters' }).getByRole('row')).toHaveText([
-    'ParameterUnitLOINCValuesPatients', 'Kreatininmg/dl2160-051', 'Kreatinin (urine, LOINC 2161-8)mg/dl2161-851'])
+    'ParameterUnitLOINCValuesPatientsPatients with fewer than 3 dated numeric values', 'Kreatininmg/dl2160-0510', 'Kreatinin (urine, LOINC 2161-8)mg/dl2161-8510'])
   // Mixed in one series, every same-day pair was a stage 3 episode.
   await expect(page.getByText('Detected AKI episodes (0)', { exact: true })).toBeVisible()
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')

@@ -195,7 +195,7 @@ describe('loadDatasetFromWorkbook', () => {
     expect(dataset.rejectedEvents.map((item) => [item.event.title, item.reason])).toEqual([['Start', 'invalid_date']])
     expect(dataset.diagnostics).toEqual(expect.arrayContaining([
       { source: 'events', sheet: 'events', patientId: 1, severity: 'rejected', row: 2, reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
-      { source: 'events', sheet: 'events', patientId: 999, severity: 'warning', reason: 'Patient 999 has no lab values in this dataset; the event is kept.' },
+      { source: 'events', sheet: 'events', patientId: 999, severity: 'warning', row: 3, reason: 'Patient 999 has no lab values in this dataset; the event is kept.' },
       { source: 'attributes', sheet: 'attributes', patientId: 1, severity: 'rejected', row: 3, reason: 'Patient 1 already has an attribute row; this later row is not imported.' },
       { source: 'attributes', sheet: 'attributes', patientId: 999, severity: 'warning', row: 4, reason: 'Patient 999 has no lab values in this dataset; the attributes are kept.' },
     ]))

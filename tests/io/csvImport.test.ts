@@ -287,9 +287,18 @@ describe('field separator detection', () => {
     expect(detectDelimiter('a,b,c\r\n1;2;3;4,5,6\r\n')).toBe(',')
     expect(detectDelimiter('a\tb\tc\n')).toBe('\t')
     expect(detectDelimiter('"a,b,c,d";e;f\n')).toBe(';')
-    // A tie goes to the comma, then tab, then semicolon, as in the workbook reader.
-    expect(detectDelimiter('a,b;c\n')).toBe(',')
     expect(detectDelimiter('single\n1\n')).toBeUndefined()
+  })
+
+  it('leaves a tie in the header line to the workbook reader, which counts the data rows', () => {
+    expect(detectDelimiter('a,b;c\n')).toBeUndefined()
+    expect(detectDelimiter('patientId;Diagnose, genetisch\nQ1;ADPKD\n')).toBeUndefined()
+    const semicolon = 'patientId;Diagnose, genetisch\nQ1;ADPKD\nP1;Alport\nP2;ADPKD\nP3;Alport\n'
+    expect(readWorkbook(bytes(semicolon))).toEqual([
+      { patientId: 'Q1', 'Diagnose, genetisch': 'ADPKD' }, { patientId: 'P1', 'Diagnose, genetisch': 'Alport' },
+      { patientId: 'P2', 'Diagnose, genetisch': 'ADPKD' }, { patientId: 'P3', 'Diagnose, genetisch': 'Alport' }])
+    // With as many commas as semicolons in the whole file the reader prefers the comma, as before.
+    expect(readWorkbook(bytes('a,b;c\n1,2;3\n'))).toEqual([{ a: '1', 'b;c': '2;3' }])
   })
 
   it('leaves a "sep=" line to the workbook reader and still counts it as a file row', () => {

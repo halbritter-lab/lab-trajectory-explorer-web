@@ -64,6 +64,9 @@ export interface ClinicalEventEffectInfo {
 export interface ClinicalEventValidationResult {
   valid: ClinicalEvent[]
   rejected: RejectedClinicalEvent[]
+  /** Source row (header row = 1) of each accepted event read from a file.
+   * Kept beside the events, so stored and exported events stay as they are. */
+  sourceRows: Map<ClinicalEvent, number>
 }
 
 import {
@@ -148,6 +151,7 @@ export function validateClinicalEvents(
   const knownPatientIds = new Set(labRows.map((row) => row.patientId))
   const valid: ClinicalEvent[] = []
   const rejected: RejectedClinicalEvent[] = []
+  const sourceRows = new Map<ClinicalEvent, number>()
 
   for (const event of events) {
     const { patientId, date, endDate } = event
@@ -191,7 +195,7 @@ export function validateClinicalEvents(
       continue
     }
 
-    valid.push({
+    const accepted: ClinicalEvent = {
       patientId,
       type,
       date,
@@ -206,10 +210,12 @@ export function validateClinicalEvents(
         intent,
         endDate,
       ),
-    })
+    }
+    valid.push(accepted)
+    if (event.sourceRow !== undefined) sourceRows.set(accepted, event.sourceRow)
   }
 
-  return { valid, rejected }
+  return { valid, rejected, sourceRows }
 }
 
 function parsePatientId(value: unknown): PatientId | null {
