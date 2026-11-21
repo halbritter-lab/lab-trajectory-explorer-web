@@ -1,5 +1,47 @@
 # Manual browser smoke checklist
 
+## Combined branch of the persona review: fixes after its review (2026-11-21)
+
+Branch `integration/persona-review-2026-11-21` (all six branches of the
+review merged). Checked with ad-hoc Playwright scripts against the production
+build in Chromium, with the demo data and the synthetic review files. The
+sections below were written on the single branches; where the combined
+branch differs, they say so.
+
+- Demo, *Export cohort (XLSX)*: 247 kB without and 252 kB with a trend
+  (main: 661 and 665 kB). The sheets end `about`, `columns`,
+  `rolling_windows`, `import_diagnostics`; `rolling_windows` has its header
+  row `PatientID` … `slope` without a Rolling OLS column, and
+  `import_diagnostics` has `source` … `message` also when nothing was
+  reported.
+- Demo, Kreatinin with Rolling OLS, patient 2: "2 windows, local slopes 0.249
+  to 0.251 mg/dl/year"; the window list shows 0.251 and 0.249, and the two
+  window lines say "slope 0.251 mg/dl/year" and "slope 0.249 mg/dl/year".
+- Review file with times of day (rise from 1.0 at 06:00 to 1.6 at 20:00, in
+  both row orders): the AKI marker sits on 1.6, not on the first value of the
+  day. Its cohort export lists 4 episodes and carries the `about` note "Date
+  holds the calendar day; a time of day … is not written to any sheet". That
+  export loaded again: 2 episodes, "7 patient-days … order within the day is
+  unknown", the same `input_data_id`.
+- A copy saved with "Remember on this device" by the build of `main` (review
+  file with urine creatinine marked only by LOINC 2161-8 and with times of
+  day), opened with this build: the notice ends "This copy was saved by an
+  earlier version: it has no import findings, no source rows and no times of
+  day … 6 creatinine values with a urine LOINC code (2161-8, 14683-7) were
+  moved to a parameter of their own …"; `Kreatinin` has LOINC 2160-0 only and
+  40 eGFR values are computed, as after a fresh import.
+- Register file with deliberate errors, Data page: "Show the creatinine
+  values above 25 mg/dl" stands directly below its notice, the same-day note
+  after it.
+- 390 px (automated in `tests/e2e/plot-axes-events.e2e.ts`): dates and counts
+  of the window list and dates and the "AKI detection" cell of the
+  measurement table stay whole; the tables scroll inside their frame.
+- Not fixed, found during these checks: the cohort export of a file without a
+  sex column and without attributes does not load again ("Patient attributes
+  file has no attribute columns."), because its `patient_attributes` sheet
+  has the ID column only.
+- Not checked in a browser: Firefox and WebKit.
+
 ## Import diagnostics, LOINC material rule and Data page notes (2026-11-21)
 
 Branch `feat/import-diagnostics` (issues #74, #2, #34; persona review of
@@ -24,7 +66,9 @@ build in Chromium, with the synthetic review files.
   sheet `import_diagnostics` holding the same lines.
 - Review file with urine creatinine marked only by LOINC 2161-8: parameters
   `Kreatinin` (15 values), `Creatinin (Jaffe)` (3) and `Kreatinin (urine,
-  LOINC 2161-8)` (6); 0 AKI episodes (5 before); the urine parameter is not
+  LOINC 2161-8)` (6); 0 AKI episodes (5 before on `main`; on the combined
+  branch the same-day rule alone already gives 0 for this file, whose serum
+  and urine values share a day without a time); the urine parameter is not
   offered as eGFR source; 15 computed values (21 before). Demo data: numbers
   unchanged, the LOINC column shows 62238-1 and 98979-8 for `eGFR`.
 - Demo, CKD-EPI 2021 selected without applying: "Preview not applied" at the
@@ -515,8 +559,8 @@ it does not claim research, clinical or representative-user validation.
    `index_date`, `last_fitted_date`, `first_eligible_date`,
    `last_eligible_date`, `intercept`, `slope_se`, `n_fitted_dates`,
    `first_eligible_value`, `last_eligible_value`, `sex`, `baseline_age`,
-   `group` (empty without grouping), and the file ends with the sheet
-   `columns`; the row has
+   `group` (empty without grouping), and the sheet `about` is followed by
+   `columns`, `rolling_windows` and `import_diagnostics`; the row has
    `first_eligible_date` 2020-01-01, `last_eligible_date` 2021-12-16 and
    `last_fitted_date` 2020-01-01, and `endpoint_input_policy` ends in "AKI
    exclusion windows excluded from decline baseline and projection".
@@ -535,7 +579,8 @@ it does not claim research, clinical or representative-user validation.
    2026-11-21; not automated).
 5a. Demo data, Trajectories, *Export cohort (XLSX)* with and without "Group
    by": both files have the same 80 columns in `cohort` with `group` last,
-   `PatientID` in every sheet, a last sheet `columns`, and `app_version`,
+   `PatientID` in every sheet, a sheet `columns` after `about` (followed by
+   `rolling_windows` and `import_diagnostics`), and `app_version`,
    `exported_at`, `export_id` and `input_data_id` in `about`. Import the
    exported file under Data: it loads without a column error (automated in
    `tests/e2e/cohort-export.e2e.ts`). With a file that has a `birthDate`
@@ -619,7 +664,7 @@ by the released version 0.3.7 restored in this version in a real browser
    "excluded from this fit" (CKD progression).
 5. Choose "Rolling OLS" and tick Trend: "Show windows (n)" lists the windows,
    each dashed line names its window on hover, and the patient workbook has
-   the sheet `rolling_windows` after `about`.
+   the sheet `rolling_windows` after `about` and `columns`.
 6. Load a cohort of more than 50 and of more than 200 patients and open
    Overlay: no measurement points, paler (and from 201 thinner) lines and a
    note above the chart; "Measurement points" under Display is unticked and

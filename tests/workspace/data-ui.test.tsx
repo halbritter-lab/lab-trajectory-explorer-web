@@ -274,6 +274,17 @@ it('names the patient-days whose serum creatinine values cannot be ordered withi
   render(<DataWorkspace onBrowse={vi.fn()} />)
   expect(screen.getByText(/^2 patient-days in 1 patient with several serum creatinine values whose order within the day is unknown \(no time of day, or the same time\): AKI detection compares these values with earlier values only, not with each other\.$/)).toHaveClass('notice', 'amber')
 })
+// Review finding 2026-11-21: the same-day note stood between the >25 notice and its row list.
+it('keeps the row list of the creatinine values above 25 mg/dl directly below its notice', () => {
+  const at = (date: string, value: number): LabRow => ({ ...row, labDatum: new Date(date), wert: String(value), wertNum: value })
+  useAppStore.getState().replaceDataset({ rows: [at('2020-01-01', 1), at('2020-01-01', 88), at('2020-01-02', 1)] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const high = screen.getByText(/^1 serum creatinine value above 25 mg\/dl/)
+  const list = screen.getByText('Show the creatinine values above 25 mg/dl').closest('details')!
+  const sameDay = screen.getByText(/order within the day is unknown/)
+  expect(high.nextElementSibling).toBe(list)
+  expect(list.compareDocumentPosition(sameDay) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
 it('warns about creatinine above 25 mg/dl and computed eGFR above 200 without changing values', () => {
   useAppStore.getState().replaceDataset({ rows: [
     { ...row, patientSex: 'm', patientAgeAtLab: 50, wert: '30', wertNum: 30 },
