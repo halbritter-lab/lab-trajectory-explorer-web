@@ -3,13 +3,14 @@ import { zipSync } from 'fflate'
 
 /** Rows (array of plain objects) → xlsx bytes, single sheet. Accepts any object
  * array (typed export records included). Mirrors
- * analyses/export.py:dataframe_to_xlsx_bytes. */
+ * analyses/export.py:dataframe_to_xlsx_bytes. The ZIP entries are deflated:
+ * the same sheets at about a third of the stored size. */
 export function rowsToXlsxBytes(rows: readonly object[], sheetName = 'Sheet1'): Uint8Array {
   const ws = XLSX.utils.json_to_sheet(rows as object[])
   applyColumnWidths(ws, rows)
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, ws, sheetName)
-  const result = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  const result = XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true })
   // SheetJS returns an ArrayBuffer in some environments (e.g. Node/jsdom) even
   // when type:'array' is requested; wrap to guarantee a Uint8Array with a
   // valid .buffer/.byteOffset so callers can safely slice it.
@@ -42,7 +43,7 @@ export function sheetsToXlsxBytes(sheets: { name: string; rows: readonly object[
     applyColumnWidths(ws, s.rows)
     XLSX.utils.book_append_sheet(wb, ws, uniqueSheetName(s.name, used))
   }
-  const result = XLSX.write(wb, { type: 'array', bookType: 'xlsx' })
+  const result = XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true })
   return result instanceof Uint8Array ? result : new Uint8Array(result as ArrayBuffer)
 }
 

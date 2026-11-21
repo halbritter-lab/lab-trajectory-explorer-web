@@ -6,10 +6,24 @@ import process from 'node:process'
 
 import { workspaceWorkbookBytes, exportChartSvg, safeExportFilename } from '../../src/workspace/workspace-export'
 import { defaultFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
+import { loadDatasetFromWorkbook } from '../../src/io/loadDataset'
 
 function records(workbook: XLSX.WorkBook, name: string) {return XLSX.utils.sheet_to_json<Record<string,unknown>>(workbook.Sheets[name])}
 
 describe('workspace workbook', () => {
+  it('loads again in the app: imported values from raw_measurements, events and attributes', () => {
+    const input = exportFixture()
+    const bound = input.data.rawRows.find(row => row.einheit === 'mg/L' && row.patientId === '001-A')!
+    Object.assign(bound, { wert: '<10', wertOperator: '<' })
+    const dataset = loadDatasetFromWorkbook(workspaceWorkbookBytes(input))
+    // One imported row of the selected parameters; the derived eGFR row of `measurements` is not read back.
+    expect(dataset.rows).toHaveLength(1)
+    expect(dataset.rows[0]).toMatchObject({ patientId: '001-A', bezeichnung: 'Marker|one', einheit: 'mg/L', wert: '<10', wertNum: 10, wertOperator: '<', patientSex: 'w', patientAgeAtLab: 55 })
+    expect(dataset.rows[0].labDatum?.toISOString().slice(0, 10)).toBe(bound.labDatum!.toISOString().slice(0, 10))
+    expect(dataset.events).toEqual([expect.objectContaining({ patientId: '001-A', type: 'other', title: 'Visit' })])
+    expect(dataset.patientAttributes).toEqual({ '001-A': { group: 'A' } })
+    expect(dataset.diagnostics.filter(d => d.severity === 'rejected')).toEqual([])
+  })
   it('exports each column model and rapid-decline threshold with matching flags', () => {
     const input = exportFixture()
     const first = input.data.parameters.find(p => p.key === input.parameterKeys[0])!

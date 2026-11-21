@@ -5,6 +5,16 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (exports, after the persona review of 2026-11-21)
+
+- Workbooks are written compressed. The demo cohort export shrinks from
+  661 kB to about 214 kB; sheets and cells are unchanged.
+- A cohort workbook exported by the app can be loaded again as a dataset:
+  the import reads `raw_measurements` as the lab sheet and accepts its
+  `Date` and `Parameter` headers. It restores the exported patients and
+  parameters as imported, with events and attributes; derived values are
+  computed anew, and settings are not restored.
+
 ### Added (Cohort models: control over a running fit)
 
 - A running fit can be cancelled. Models fitted before stay; nothing of the

@@ -127,10 +127,13 @@ export function checkRequiredColumns<K extends string>(
   }
 }
 
+// `Date` and `Parameter` are the headers the app's own workbook export writes
+// (`raw_measurements`), so an exported file can be loaded again. They are
+// listed last: the loader's error text names the first two spellings.
 export const LAB_COLUMN_ALIASES = {
   patientId: ['patientId', 'PatientID'],
-  labDate: ['labDate', 'LabDatum'],
-  testName: ['testName', 'Bezeichnung'],
+  labDate: ['labDate', 'LabDatum', 'Date'],
+  testName: ['testName', 'Bezeichnung', 'Parameter'],
   unit: ['unit', 'Einheit'],
   value: ['value', 'Wert'],
   loinc: ['loinc', 'LOINC'],

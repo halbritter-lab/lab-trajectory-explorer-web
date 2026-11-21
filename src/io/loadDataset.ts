@@ -71,7 +71,10 @@ export interface LoadedDataset {
   rejectedEvents: RejectedClinicalEvent[]
 }
 
-const LABS_SHEET_NAMES = new Set(['labs', 'labor', 'labrows', 'labdata'])
+// `raw_measurements` is the sheet of imported values in the app's own workbook
+// export. Its `measurements` sheet comes first there but holds analysis values
+// (derived eGFR, resolved demographics), so it must not be taken as lab data.
+const LABS_SHEET_NAMES = new Set(['labs', 'labor', 'labrows', 'labdata', 'rawmeasurements'])
 const EVENTS_SHEET_NAMES = new Set(['events', 'ereignisse', 'clinicalevents', 'annotations'])
 const ATTRIBUTES_SHEET_NAMES = new Set(['attributes', 'attribute', 'patientattributes'])
 
