@@ -118,6 +118,14 @@ conditions hold (`isSerumCreatinineSeries`):
   decision above.
 - **Unit is mg/dl or µmol/l** after unit-key normalisation (below).
 
+The LOINC code is not part of this test. Creatinine rows with the urine codes
+2161-8 or 14683-7 are stored at import under a name that ends in
+` (urine, LOINC <code>)` and therefore fail the non-serum condition above
+(decided 2026-11-21; see
+[Series identity](import-and-values.md#columns)). Rows with any other code,
+including whole-blood creatinine (38483-4, 59826-8), are judged by name and
+unit alone.
+
 No other material or method is distinguished. Any name that passes these tests
 is treated as serum creatinine; for example `Kreatinin-Clearance` reported in
 mg/dl would be eligible, while `Kreatinkinase` and `Cystatin C` are not

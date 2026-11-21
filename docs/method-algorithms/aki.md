@@ -22,7 +22,13 @@ CSF and other body fluids; since 2026-11-05 also tokens such as `i.U.`,
 `U`, `SU`, `SPU`, `PU`, `PD` and `U-`), with mg/dl or µmol/l
 (including common case, space and micro-sign spellings; see
 [eGFR derivation](egfr.md#eligible-source-series) for the exact tokens). A non-serum
-series detects no episodes and supplies none to other columns.
+series detects no episodes and supplies none to other columns. Creatinine
+imported with the urine LOINC code 2161-8 or 14683-7 is such a series: the
+import stores it under a name ending in ` (urine, LOINC <code>)` (decided
+2026-11-21; see [Series identity](import-and-values.md#columns)), so serum and
+urine values delivered under one test name no longer form one detection
+input. In the example given there, five stage 3 episodes with baseline and
+peak on the same day disappear.
 Only dated exact numeric rows enter detection; bounded rows (`<x`, `>x`) and
 rows without a number are ignored and cannot establish an episode.
 

@@ -186,8 +186,52 @@ trimmed; the unit is the canonical spelling chosen under Units. Test names are
 not harmonised: `Kreatinin` and `kreatinin` are two series, as are names that
 differ in inner spacing. A missing unit is its own series, separate from every
 named unit. Rows without a test name are imported and counted but belong to no
-selectable parameter. The LOINC column is read and stored; no analysis uses it,
-and it does not join or separate series.
+selectable parameter.
+
+**LOINC.** The LOINC column is read, trimmed and stored with each row. It is
+shown per parameter under "Imported parameters" and exported (column `loinc`
+of the sheets `measurements`, `raw_measurements` and `parameters`). It does
+not join series and, with the one exception below, does not separate them.
+
+- **Several codes in one parameter.** When the rows of one parameter (test
+  name and unit) carry more than one code, one sheet-level warning names the
+  codes with their number of values: "eGFR [ml/min/1.73m2]: 2 LOINC codes in
+  one parameter: 62238-1 (1 value), 98979-8 (2 values). The values stay one
+  series; check that they are the same test and material." Rows without a
+  code are not counted and stay in the series. A code that does not fit the
+  unit (the mass code 2160-0 on µmol/l rows) is not reported.
+- **Creatinine with a non-serum code (decided 2026-11-21).** A row whose test
+  name contains `kreatinin` or `creatinin` and whose code is 2161-8
+  (creatinine, mass concentration in urine) or 14683-7 (creatinine, substance
+  concentration in urine) is stored under the test name followed by
+  ` (urine, LOINC <code>)`: `Kreatinin` with code 2161-8 becomes the parameter
+  `Kreatinin (urine, LOINC 2161-8)`. The code is compared exactly after
+  trimming. The new name contains `urin`, so the parameter is a non-serum name
+  under the rule in [eGFR derivation](egfr.md#eligible-source-series): it is
+  not offered as an eGFR source, detects no AKI and supplies no AKI episodes
+  to other columns. It is otherwise an ordinary parameter with its own
+  trends. The stored name is the one shown and exported everywhere, including
+  `raw_measurements`; the code stays in `loinc`. One sheet-level warning per
+  imported name and code reports the number of rows moved and lists them.
+  Not moved: rows whose name already marks a non-serum material
+  (`Kreatinin Urin` with 2161-8 keeps its name), rows of other tests with
+  these codes, rows without a code, and creatinine with any other code,
+  including the whole-blood codes 38483-4 and 59826-8, which stay eligible
+  like serum. The list holds these two codes only; other non-serum materials
+  are still recognised by name alone. The rule is applied when a file is
+  imported: a copy saved before 2026-11-21 keeps its series until the file is
+  imported again, and `loadLabRows` called directly applies it only when
+  given the rule (`LabImportOptions.separateSeries`).
+
+  Example (synthetic): one patient has, under `Kreatinin` in mg/dl, serum
+  values with code 2160-0 (0.98, 1.10, 1.17, 1.21, 1.35) and urine values
+  with code 2161-8 (3.92, 4.40, 4.68, 4.84, 5.40) on the same five days, and
+  a sixth urine value 5.72 half a year later. Before the rule this was one
+  series of eleven values with five stage 3 AKI episodes, each with baseline
+  and peak on the same day, and eleven computed eGFR values (CKD-EPI 2021).
+  With the rule `Kreatinin` has five values, `Kreatinin (urine, LOINC
+  2161-8)` six, no AKI episode is detected, and five eGFR values are computed
+  (95.7, 83.3, 76.9, 73.9, 64.8).
 
 ### Row acceptance
 

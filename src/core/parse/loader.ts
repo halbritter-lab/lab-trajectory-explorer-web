@@ -59,6 +59,14 @@ export interface LabImportOptions {
   /** The import day for the lab-date plausibility warning; defaults to now.
    * Only its local calendar day is used. */
   today?: Date
+  /**
+   * A rule that moves rows into a separate, labelled series by test name and
+   * LOINC code. It returns the series name to store instead of the test name
+   * and a clause saying what follows from it, or null to keep the row where
+   * it is. The loader has no such rule of its own; `loadDatasetFromWorkbook`
+   * supplies the one for non-serum creatinine codes.
+   */
+  separateSeries?: (testName: string | null, loinc: string | null) => { name: string; consequence: string } | null
 }
 
 const WERT_OPERATORS: readonly WertOperator[] = ['=', '<', '>', 'range', 'unparseable']
@@ -165,6 +173,7 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[], options: LabImport
   const birthDatesSeen = new Set<string>()
   const commaThousands: LabRow[] = []
   const dotThousands: LabRow[] = []
+  const separated = new Map<string, { imported: string | null; code: string | null; name: string; consequence: string; rows: LabRow[] }>()
 
   const out: LabRow[] = []
   for (const r of rawRows) {
@@ -235,15 +244,18 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[], options: LabImport
       patientAgeAtLab = labDatum ? completedYears(birthDate, labDatum) : null
     }
 
+    const testName = toStr(cell(r, columns, 'testName'))
+    const loinc = toStr(cell(r, columns, 'loinc'))
+    const separate = options.separateSeries?.(testName, loinc) ?? null
     const row: LabRow = {
       patientId,
       labDatum,
-      bezeichnung: toStr(cell(r, columns, 'testName')),
+      bezeichnung: separate?.name ?? testName,
       einheit: toStr(cell(r, columns, 'unit')),
       wert: rawWert,
       wertNum,
       wertOperator,
-      loinc: toStr(cell(r, columns, 'loinc')),
+      loinc,
       patientSex,
       patientSexRaw,
       patientAgeAtLab,
@@ -251,6 +263,12 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[], options: LabImport
     }
     if (sourceRow !== undefined) row.sourceRow = sourceRow
     out.push(row)
+    if (separate !== null) {
+      const key = JSON.stringify([testName, separate.name])
+      let entry = separated.get(key)
+      if (!entry) separated.set(key, (entry = { imported: testName, code: loinc, ...separate, rows: [] }))
+      entry.rows.push(row)
+    }
     if (commaThousand) commaThousands.push(row)
     if (dotThousand) dotThousands.push(row)
   }
@@ -270,6 +288,9 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[], options: LabImport
 
   const sheetNotes = notes.map((reason): LabImportIssue => ({ patientId: null, severity: 'warning', reason, scope: 'sheet' }))
   const collective = [
+    ...[...separated.values()].map(({ imported, name, code, consequence, rows: affected }) => collectiveWarning(
+      `${imported ?? 'No test name'}: ${plural(affected.length, 'value')} with LOINC code ${code ?? 'none'} ${affected.length === 1 ? 'was' : 'were'} imported as the separate parameter "${name}"; ${consequence}.`, affected)),
+    ...loincCodeNotes(out),
     ...commaThousandsNote(commaThousands),
     ...dotThousandsNote(dotThousands),
     ...duplicateNote(out),
@@ -429,6 +450,29 @@ function sameDayDifferenceNotes(rows: readonly LabRow[]): LabImportIssue[] {
   }
   return [...bySeries.values()].map(({ label, days: n, patients, rows: affected }) =>
     collectiveWarning(`${label}: ${plural(n, 'patient-day')} with differing values on the same day for ${plural(patients.size, 'patient')}; all values are kept and each counts as a separate measurement.`, affected))
+}
+
+/**
+ * Parameters (test name and unit) whose rows carry more than one LOINC code,
+ * with the number of values per code. Rows without a code are not counted.
+ * Report only: apart from rows moved by `LabImportOptions.separateSeries`,
+ * LOINC neither separates nor joins series.
+ */
+function loincCodeNotes(rows: readonly LabRow[]): LabImportIssue[] {
+  const series = new Map<string, { label: string; codes: Map<string, number> }>()
+  for (const row of rows) {
+    if (row.bezeichnung === null || row.loinc === null) continue
+    const key = JSON.stringify([row.bezeichnung, row.einheit])
+    let entry = series.get(key)
+    if (!entry) series.set(key, (entry = { label: seriesLabel(row), codes: new Map() }))
+    entry.codes.set(row.loinc, (entry.codes.get(row.loinc) ?? 0) + 1)
+  }
+  return [...series.values()].filter(({ codes }) => codes.size > 1).map(({ label, codes }): LabImportIssue => ({
+    patientId: null,
+    severity: 'warning',
+    scope: 'sheet',
+    reason: `${label}: ${codes.size} LOINC codes in one parameter: ${[...codes].map(([code, n]) => `${code} (${plural(n, 'value')})`).join(', ')}. The values stay one series; check that they are the same test and material.`,
+  }))
 }
 
 /** Censored ("<", ">") values per parameter remain in the raw data but are

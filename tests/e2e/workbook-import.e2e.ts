@@ -128,3 +128,22 @@ test('reads a semicolon CSV whose rows hold more commas than semicolons, and nam
   // The rejected file leaves the loaded dataset in place.
   await expect(page.locator('.workspace-dataset')).toContainText('commas.csv')
 })
+
+test('urine creatinine marked only by its LOINC code becomes its own parameter without AKI episodes or eGFR', async ({ page }) => {
+  const days = [['2021-01-10', 0.98, 3.92], ['2021-07-09', 1.1, 4.4], ['2022-01-05', 1.17, 4.68], ['2022-07-04', 1.21, 4.84], ['2022-12-31', 1.35, 5.4]]
+  const csv = ['patientId,labDate,testName,unit,value,loinc,sex,ageAtLab',
+    ...days.flatMap(([date, serum, urine]) => [`103,${date},Kreatinin,mg/dl,${serum},2160-0,m,47`, `103,${date},Kreatinin,mg/dl,${urine},2161-8,m,47`])].join('\n')
+  await page.goto('/')
+  await page.getByLabel('Import lab values').setInputFiles({ name: 'loinc.csv', mimeType: 'text/csv', buffer: Buffer.from(csv) })
+  await expect(page.getByText('10 lab values, 0 events and 0 attribute rows loaded. 0 rows rejected; 1 warning.')).toBeVisible()
+  await page.getByText(/import diagnostics — show details/).click()
+  await expect(page.getByText(/Kreatinin: 5 values with LOINC code 2161-8 were imported as the separate parameter "Kreatinin \(urine, LOINC 2161-8\)"/)).toBeVisible()
+  await page.getByText('Imported parameters (2)', { exact: true }).click()
+  await expect(page.getByRole('table', { name: 'Imported parameters' }).getByRole('row')).toHaveText([
+    'ParameterUnitLOINCValuesPatients', 'Kreatininmg/dl2160-051', 'Kreatinin (urine, LOINC 2161-8)mg/dl2161-851'])
+  // Mixed in one series, every same-day pair was a stage 3 episode.
+  await expect(page.getByText('Detected AKI episodes (0)', { exact: true })).toBeVisible()
+  await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
+  await expect(page.getByLabel('Creatinine source').locator('option')).toHaveText(['Automatic: Kreatinin (mg/dl)', 'Kreatinin (mg/dl)'])
+  await expect(page.getByText('5 computed values in preview', { exact: true })).toBeVisible()
+})

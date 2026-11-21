@@ -38,6 +38,20 @@ describe('workspace workbook', () => {
     expect(records(workbook, 'aki_episodes')).toEqual([])
     expect(records(workbook, 'about').some(row => String(row.note).startsWith('aki_episodes lists every AKI episode'))).toBe(true)
   })
+  it('appends the LOINC code to measurements, raw_measurements and parameters, after the columns that existed before', () => {
+    const input = exportFixture()
+    input.data.rawRows[0].loinc = '1988-5'
+    input.data.rawRows[2].loinc = '30522-7'
+    const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
+    const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name], { header: 1 })[0]
+    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc'])
+    expect(header('raw_measurements')).toEqual(header('measurements'))
+    expect(header('parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
+    expect(records(workbook, 'raw_measurements').map(row => row.loinc)).toEqual(['1988-5'])
+    expect(records(workbook, 'measurements').map(row => [row.origin, row.loinc ?? ''])).toEqual([['imported', '1988-5'], ['derived', '']])
+    // The parameter lists every code of its imported rows, also those of patients outside the export.
+    expect(XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.parameters, { defval: '' }).map(row => [row.parameter_key, row.loinc])).toEqual([['marker', '1988-5; 30522-7'], ['derived', '']])
+  })
   it('keeps the rolling columns last in the cohort sheet, after the columns that existed before', () => {
     const workbook = XLSX.read(workspaceWorkbookBytes(exportFixture()), { type: 'array' })
     const [header] = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets.cohort, { header: 1 })

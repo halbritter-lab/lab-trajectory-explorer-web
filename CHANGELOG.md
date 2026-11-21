@@ -32,6 +32,24 @@ interfaces are still evolving before 1.0.
   - patient IDs that differ only in leading zeros, spaces or letter case
     ("0012" and "12"); they remain separate patients.
 
+### Changed (creatinine material by LOINC code, decided 2026-11-21; changes results for affected files)
+
+- Creatinine rows with the urine LOINC code 2161-8 or 14683-7 are imported as
+  their own parameter, named after the test with " (urine, LOINC <code>)",
+  and are not used for AKI detection or as an eGFR source. Before, serum and
+  urine creatinine delivered under one test name formed one series, with
+  false AKI episodes and a wrong computed eGFR. In such files the creatinine
+  slope, the AKI episodes, AKI exclusion windows and the computed eGFR
+  change. Files without these codes on creatinine rows, among them the demo
+  data and the golden fixtures, are unaffected. Whole-blood creatinine codes
+  stay eligible like serum. The import reports the rows it moved.
+- The import warns when one parameter carries more than one LOINC code. The
+  values stay one series.
+- "Imported parameters" shows the LOINC codes of each parameter. The sheets
+  `measurements`, `raw_measurements` and `parameters` of the cohort and
+  patient workbooks get a last column `loinc`; existing columns keep their
+  names and positions.
+
 ### Fixed (import, after the persona review of 2026-11-21)
 
 - After "Replace events" or "Replace attributes", and after reloading a saved

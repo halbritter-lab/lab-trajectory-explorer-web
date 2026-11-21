@@ -55,6 +55,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       formula:!raw && parameter.derived ? data.analysisSettings.egfr.formula : '',
       patient_sex:row.patientSex ?? '',patient_age_at_lab:row.patientAgeAtLab,
       demographics:raw ? 'as imported' : 'resolved analysis values',
+      // Appended 2026-11-21; empty for derived values and rows without a code.
+      loinc:row.loinc ?? '',
     }))
   })
   const attrs = Object.fromEntries(ids.map(id => [patientIdKey(id),data.patientAttributes[patientIdKey(id)] ?? {}]))
@@ -82,7 +84,9 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       const patient = data.patients.find(patient => patient.id === id)
       return {patientId:id,baseline_age:patient?.baselineAge ?? null,birth_anchor:utcDateOrBlank(patient?.birthAnchor ?? null),age_estimated:patient?.ageEstimated ?? null,manual_override:JSON.stringify(data.manualDemographics[patientIdKey(id)] ?? {}),warnings:warningsFor(id).join('; ')}
     })},
-    {name:'parameters',rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : ''}))},
+    {name:'parameters',rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : '',
+      // Appended 2026-11-21: the distinct codes of the parameter's imported rows, whatever patients are selected.
+      loinc:parameter.derived ? '' : [...new Set(data.rawRows.filter(row => row.loinc !== null && seriesIdentity(row.bezeichnung,row.einheit) === seriesIdentity(parameter.bezeichnung,parameter.einheit)).map(row => row.loinc))].join('; ')}))},
     {name:'settings',rows:specs.map((spec,index) => ({parameter_key:requestedKeys[index],parameter:spec.bezeichnung,unit:spec.einheit ?? '',mode:spec.mode,fit_config:JSON.stringify(spec.fitConfig ?? {}),...moduleSettingColumns(requestedKeys[index]),analysis_settings:JSON.stringify(data.analysisSettings),patient_ids:JSON.stringify(ids),source_file:data.fileName ?? '',scope:patientId === undefined ? 'visible cohort' : 'selected patient'}))},
     {name:'about',rows:[...EXPORT_DISCLAIMER_ROWS,
       // Only this workbook has the column, so the note is not in the shared rows.
@@ -94,6 +98,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Slopes and quality information come directly from the displayed summary; export does not refit the data. n counts raw measurements; n_fitted counts the points actually fitted.'},
       {note:`ci_low and ci_high are the 95 % interval of the slope. For a Theil-Sen fit with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval. ${THEIL_SEN_FEW_DATES_COVERAGE}.`},
       {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},
+      {note:'loinc is the LOINC code as imported (measurements, raw_measurements) and the distinct codes of a parameter (parameters). Codes do not separate or join parameters, with one exception: creatinine with a urine code (2161-8, 14683-7) is a parameter of its own, named with the code, and is not used for AKI detection or eGFR.'},
       {note:'import_diagnostics lists what the import reported for lab values, events and attributes (rejected rows and warnings) and the rows behind the data checks of the Data page (values without a date or a number, implausible serum creatinine). It covers the whole imported dataset, not only the selected patients and parameters. row is the row in the source file (header row = 1); a collective warning has one line per affected row. The sheet is empty when there is nothing to report.'},
     ]},
     // Appended after the sheets that existed before 2026-11-21, so their positions stay.

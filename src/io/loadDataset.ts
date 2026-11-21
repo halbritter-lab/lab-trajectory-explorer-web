@@ -21,6 +21,7 @@ import {
 } from '../core/attributes/attributes'
 import { dateReadNotes, type DateReadCounts } from '../core/parse/dates'
 import { normaliseHeader } from '../core/parse/headers'
+import { nonSerumCreatinineSeries } from '../core/domains/nephrology/analytes'
 
 /** The table an import finding belongs to. Each table keeps its own findings
  * until that table is imported again. */
@@ -101,7 +102,9 @@ const ATTRIBUTES_SHEET_NAMES = new Set(['attributes', 'attribute', 'patientattri
  * sheets (e.g. labs, events, attributes), all three are parsed and validated in
  * one pass.
  */
-export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, options: LabImportOptions = {}): LoadedDataset {
+export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, importOptions: LabImportOptions = {}): LoadedDataset {
+  // Creatinine with a non-serum LOINC code is its own, labelled series (decided 2026-11-21).
+  const options: LabImportOptions = { separateSeries: nonSerumCreatinineSeries, ...importOptions }
   try {
     const wb = readWorkbookSheets(data)
     if (wb.sheetNames.length === 0) {

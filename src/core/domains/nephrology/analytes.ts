@@ -91,6 +91,40 @@ export function isNonSerumName(bez: string | null): boolean {
   return s.endsWith('UR')
 }
 
+/**
+ * LOINC codes that mark creatinine measured in a material other than serum,
+ * plasma or blood, with the material named in the series label (decided
+ * 2026-11-21): 2161-8 (mass concentration in urine) and 14683-7 (substance
+ * concentration in urine). Whole-blood codes such as 38483-4 and 59826-8 are
+ * not listed: they stay eligible like serum.
+ */
+export const NON_SERUM_CREATININE_LOINC: Readonly<Record<string, string>> = { '2161-8': 'urine', '14683-7': 'urine' }
+
+/**
+ * The series name for a creatinine row whose LOINC code marks a non-serum
+ * material: the imported name followed by " (urine, LOINC 2161-8)". Returns
+ * null when the name is not creatinine, the code is not in
+ * `NON_SERUM_CREATININE_LOINC`, or the name already marks a non-serum material
+ * (the row is then separate and excluded by its name). The label contains the
+ * material word, so `isNonSerumName` holds for it and the series is excluded
+ * from the eGFR source selection and from KDIGO AKI detection like every other
+ * non-serum name. The LOINC column marks the material for creatinine only; for
+ * all other tests it neither separates nor joins series.
+ */
+export function nonSerumCreatinineLoincName(bez: string | null, loinc: string | null): string | null {
+  if (bez === null || loinc === null || !isCreatinineName(bez) || isNonSerumName(bez)) return null
+  const code = loinc.trim()
+  const material = Object.hasOwn(NON_SERUM_CREATININE_LOINC, code) ? NON_SERUM_CREATININE_LOINC[code] : undefined
+  return material === undefined ? null : `${bez} (${material}, LOINC ${code})`
+}
+
+/** `nonSerumCreatinineLoincName` as the lab import's series rule (see
+ * `LabImportOptions.separateSeries`), with the consequence the import reports. */
+export function nonSerumCreatinineSeries(bez: string | null, loinc: string | null): { name: string; consequence: string } | null {
+  const name = nonSerumCreatinineLoincName(bez, loinc)
+  return name === null ? null : { name, consequence: 'the code marks creatinine that is not from serum, so it is not used for AKI detection or eGFR' }
+}
+
 /** A serum creatinine series usable as eGFR source: creatinine name, not a
  * non-serum material, unit mg/dl or µmol/l in any common spelling. */
 export function isSerumCreatinineSeries(bez: string, einheit: string | null): boolean {

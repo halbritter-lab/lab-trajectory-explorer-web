@@ -278,3 +278,9 @@ it('explains that a saved non-serum creatinine source computes no eGFR', () => {
   expect(screen.queryByText(/is not serum creatinine/)).not.toBeInTheDocument()
   expect(screen.getByText('1 computed value in preview')).toBeInTheDocument()
 })
+it('shows the LOINC codes of each imported parameter', () => {
+  useAppStore.getState().replaceDataset({ rows: [{ ...row, loinc: '2160-0' }, { ...row, loinc: '2160-0' }, { ...row, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', loinc: '62238-1' }, { ...row, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', loinc: '98979-8' }, { ...row, bezeichnung: 'CRP', einheit: 'mg/l' }] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const table = screen.getByRole('table', { name: 'Imported parameters' })
+  expect(within(table).getAllByRole('row').map(r => r.textContent)).toEqual(['ParameterUnitLOINCValuesPatients', 'Kreatininmg/dl2160-021', 'eGFRml/min/1.73m262238-1, 98979-821', 'CRPmg/l–11'])
+})
