@@ -85,7 +85,7 @@ test('lists the Rolling OLS windows, names the window lines and exports the same
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export patient (XLSX)' }).click()
   const exported = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
-  expect(exported.SheetNames.slice(-2)).toEqual(['about', 'rolling_windows'])
+  expect(exported.SheetNames.slice(-4)).toEqual(['about', 'columns', 'rolling_windows', 'import_diagnostics'])
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(exported.Sheets.rolling_windows)
   expect(rows).toHaveLength(5)
   expect(rows[1]).toMatchObject({ PatientID: 'R', Parameter: 'Marker', Unit: 'u', window: 2, window_start: '2018-06-30', window_end: '2020-06-29', first_date: '2018-07-01', last_date: '2020-04-01', n: 8 })

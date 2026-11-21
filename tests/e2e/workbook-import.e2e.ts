@@ -122,7 +122,7 @@ test('import diagnostics name source rows, survive an attributes upload and a re
 
   // Saved with the dataset and restored after a reload.
   await page.getByRole('checkbox', { name: 'Remember on this device' }).check()
-  await expect(page.getByLabel('Data workspace').getByText('Saved on this device', { exact: true })).toBeVisible()
+  await expect(page.getByLabel('Data workspace').getByText(/^Saved on \d{4}-\d{2}-\d{2} /)).toBeVisible()
   await page.reload()
   await expect(page.getByText(/^Dataset and analysis settings .* restored from this device/)).toBeVisible()
   await expect(diagnostics.locator('summary').filter({ hasText: 'import diagnostics' })).toHaveCount(2)
@@ -145,7 +145,7 @@ test('import diagnostics name source rows, survive an attributes upload and a re
   await page.getByRole('button', { name: 'Open trajectories →' }).click()
   const cohort = await read(() => page.getByRole('button', { name: /^Export cohort/ }).first().click())
   expect(cohort.workbook.SheetNames.at(-1)).toBe('import_diagnostics')
-  expect(cohort.workbook.SheetNames.slice(0, -1)).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about'])
+  expect(cohort.workbook.SheetNames.slice(0, -1)).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows'])
   expect(XLSX.utils.sheet_to_json(cohort.workbook.Sheets.import_diagnostics, { defval: '' })).toEqual(fileRows)
 })
 
