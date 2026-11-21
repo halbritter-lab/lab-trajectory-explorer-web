@@ -1,11 +1,12 @@
 import type { RollingSummary } from '../core/cohort/screening'
-import { formatDisplayDate, formatDisplayNumber } from '../core/format'
+import { formatDisplayDate, formatFixedDecimals, MIN_SLOPE_DECIMALS } from '../core/format'
 import { fittedPointNoun } from './workspace-labels'
 
 /** The fitted windows of a Rolling OLS column, one row per window: what the
  * count and the range of local slopes above it are made of. The export sheet
- * `rolling_windows` holds the same rows. */
-export function RollingWindowList({ rolling, unit }: { rolling: RollingSummary; unit: string | null }) {
+ * `rolling_windows` holds the same rows. Slopes are written with the decimals
+ * of the column (`slopeDisplayDecimals`), like the summary line above. */
+export function RollingWindowList({ rolling, unit, slopeDecimals = MIN_SLOPE_DECIMALS }: { rolling: RollingSummary; unit: string | null; slopeDecimals?: number }) {
   if (!rolling.windows.length) return null
   // Under time balancing a window is fitted on medians: n counts them, and the
   // two dates are the representative dates of the first and last median.
@@ -19,7 +20,7 @@ export function RollingWindowList({ rolling, unit }: { rolling: RollingSummary; 
       <tbody>{rolling.windows.map((window, i) => <tr key={i}>
         <td>{formatDisplayDate(window.start)} to {formatDisplayDate(window.end)}</td>
         <td>{formatDisplayDate(window.firstDate)}</td><td>{formatDisplayDate(window.lastDate)}</td>
-        <td>{window.n}</td><td>{formatDisplayNumber(window.slope)}</td>
+        <td>{window.n}</td><td>{formatFixedDecimals(window.slope, slopeDecimals)}</td>
       </tr>)}</tbody>
     </table></div>
     <p className="wt-muted">Each window covers {rolling.windowDays} days and moves on by {rolling.stepDays} days; both boundary days count.{rolling.timeBalancing !== 'raw' && ` Each fitted point is the median of one calendar ${period}, dated to one of its measurement days: n counts medians, and a measurement outside the window bounds can enter through the median of its ${period}.`} The reported slope stays the global OLS slope.</p>

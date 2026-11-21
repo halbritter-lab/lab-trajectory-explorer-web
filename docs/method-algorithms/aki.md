@@ -322,7 +322,14 @@ episodes that apply to it, on creatinine and non-creatinine columns alike:
   crossing than the peak, that value is named too: "…creatinine peak
   3.3 mg/dl on 09/01/2024; staged from 3.1 mg/dl on 08/01/2024 against
   1 mg/dl, the lowest value of the 7 days before". The recorded baseline is
-  not shown (until 2026-11-16 the tooltip ended in "(baseline … mg/dl)");
+  not shown (until 2026-11-16 the tooltip ended in "(baseline … mg/dl)").
+  The marker sits on the column's measurement nearest to the peak date when
+  one lies within two days, otherwise on the time axis. Where the column has
+  several measurements on that date, the marker takes the first of them,
+  except in the creatinine column the episodes were detected in: there it
+  takes the value nearest to the peak (1.0 at 06:00 and 1.6 at 20:00 with
+  peak 1.6: the marker is on 1.6; until 2026-11-21 it was on the first value
+  of the day in every column). Display only;
 - optionally, exclusion of the windows from the column's fit (see
   [AKI fit-exclusion window](#aki-fit-exclusion-window)).
 

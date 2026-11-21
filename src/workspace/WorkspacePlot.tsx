@@ -3,7 +3,7 @@ import { calendarTicks, niceTicks, tickLabels } from './plot-ticks'
 import { layoutMarkerLabels } from './marker-labels'
 import { NOT_USED_FOR_AKI_DETECTION, skippedByAkiDetection } from './aki-detection'
 import type { ClinicalEvent } from '../core/events/events'
-import { formatDisplayDate, formatDisplayNumber } from '../core/format'
+import { formatDisplayDate, formatDisplayNumber, formatFixedDecimals, MIN_SLOPE_DECIMALS } from '../core/format'
 import type { CohortRow } from '../core/cohort/screening'
 import { patientIdKey, type LabRow, type PatientId, type WertOperator } from '../core/types'
 import { slopeQualityLabel } from './labels/qualityLabels'
@@ -79,13 +79,15 @@ interface PlotSeriesData {
 /** One trajectory: line, points, fit lines, markers and the patient's events.
  * Memoised, so that emphasising another trajectory does not rebuild this one;
  * every prop is a primitive or keeps its identity between such renders. */
-const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, color, groupText, active, detail, opacity, lineWidth, parameter, display, showFit, onOpen, onHover, onFocus }: {
+const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, color, groupText, active, detail, opacity, lineWidth, parameter, display, showFit, slopeDecimals, onOpen, onHover, onFocus }: {
   series: PlotSeriesData; domId: string; clipId: string; scale: PlotScale; color: string; groupText: string
   /** Emphasised by highlight, focus or pointer. */
   active: boolean
   /** Event intervals are drawn for this trajectory (single patient, or the highlighted one). */
   detail: boolean
   opacity: number; lineWidth: number; parameter: WorkspaceParameter; display: WorkspaceDisplay; showFit: boolean
+  /** Decimals of the column's slopes (`slopeDisplayDecimals`), for the window tooltips. */
+  slopeDecimals: number
   onOpen: (id: PatientId) => void; onHover: (id: PatientId | null) => void; onFocus: (id: PatientId | null) => void
 }) {
   const x = (n: number) => scaleX(scale, n)
@@ -95,7 +97,7 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
   const unit = series.cell.einheit ?? ''
   const windowTitle = (lineIndex: number) => {
     const window = series.cell.rolling?.windows.find(candidate => candidate.lineIndex === lineIndex)
-    return window ? `Rolling OLS window ${formatWorkspaceDate(window.start)} to ${formatWorkspaceDate(window.end)}: ${countLabel(window.n, fittedPointNoun(series.cell.rolling!.timeBalancing))} (${formatWorkspaceDate(window.firstDate)} to ${formatWorkspaceDate(window.lastDate)}), slope ${formatWorkspaceNumber(window.slope)} ${unit}/year` : null
+    return window ? `Rolling OLS window ${formatWorkspaceDate(window.start)} to ${formatWorkspaceDate(window.end)}: ${countLabel(window.n, fittedPointNoun(series.cell.rolling!.timeBalancing))} (${formatWorkspaceDate(window.firstDate)} to ${formatWorkspaceDate(window.lastDate)}), slope ${formatFixedDecimals(window.slope, slopeDecimals)} ${unit}/year` : null
   }
   const eventPositions = display.events ? series.events.flatMap(event => { const position = series.xValue(event.date); return position === null ? [] : [{ event, position, end: event.endDate ? series.xValue(event.endDate) : null }] }) : []
   return <g id={domId} clipPath={`url(#${clipId})`} opacity={active || opacity === 1 ? undefined : opacity} data-active={active || undefined}>
@@ -124,7 +126,7 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
   </g>
 })
 
-export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axis, groupBy, highlight, display: displayChoice, showFit, onOpen, sharedDomain, scaleMode, pointsAuto = false, onPointsAutoHidden }: {
+export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axis, groupBy, highlight, display: displayChoice, showFit, onOpen, sharedDomain, scaleMode, pointsAuto = false, onPointsAutoHidden, slopeDecimals = MIN_SLOPE_DECIMALS }: {
   data: WorkspaceData; parameter: WorkspaceParameter; parameterIndex: number; cohortRows: CohortRow[];
   axis: WorkspaceAxis; groupBy: string; highlight: PatientId | null; display: WorkspaceDisplay; showFit: boolean;
   onOpen: (id: PatientId) => void;
@@ -134,6 +136,9 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   pointsAuto?: boolean
   /** Told whether this chart hides its points by the density rule. */
   onPointsAutoHidden?: (parameterKey: string, hidden: boolean) => void
+  /** Decimals the Trajectories table writes this column's slopes with; the
+   * Rolling OLS window tooltips use the same. */
+  slopeDecimals?: number
 }) {
   const svg = useRef<SVGSVGElement>(null)
   const clip = useId().replace(/:/g, '')
@@ -182,7 +187,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const markers = (cell?.overlays ?? []).flatMap(marker => {
         if (marker.kind !== 'marker') return []
         const target = marker.date.getTime()
-        const nearest = points.length ? points.reduce((best, p) => Math.abs(p.date.getTime() - target) < Math.abs(best.date.getTime() - target) ? p : best, points[0]) : null
+        const nearestByDate = points.length ? points.reduce((best, p) => Math.abs(p.date.getTime() - target) < Math.abs(best.date.getTime() - target) ? p : best, points[0]) : null
+        // Several measurements on that date: the one the marker stands for, when it names a value.
+        const markerValue = marker.value
+        const nearest = nearestByDate === null || markerValue === undefined ? nearestByDate
+          : points.filter(p => p.date.getTime() === nearestByDate.date.getTime()).reduce((best, p) => Math.abs(p.value - markerValue) < Math.abs(best.value - markerValue) ? p : best, nearestByDate)
         const onPoint = nearest !== null && Math.abs(nearest.date.getTime() - target) <= marker.snapWithinDays * MS_PER_DAY
         const x = onPoint ? nearest.x : xValue(marker.date)
         if (x === null || !Number.isFinite(x)) return []
@@ -366,7 +375,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       <g className="wt-series-layer" opacity={hasHighlight ? density === 0 ? .25 : .4 : undefined}>
         {visible.map((series, index) => <PlotSeries key={String(series.row.patientId)} series={series} domId={`${clip}-t${index}`} clipId={`${clip}-marks`} scale={scale} color={groupColor(series.group)}
           groupText={groupLabel(series.group)} active={index === emphasisedIndex} detail={overlayDetail(series.row.patientId)} opacity={restOpacity} lineWidth={lineWidth}
-          parameter={parameter} display={display} showFit={showFit} onOpen={onOpen} onHover={setHovered} onFocus={setFocused} />)}
+          parameter={parameter} display={display} showFit={showFit} slopeDecimals={slopeDecimals} onOpen={onOpen} onHover={setHovered} onFocus={setFocused} />)}
       </g>
       {/* The emphasised trajectory again, on top of the others and undimmed. It
           takes no pointer events, so the pointer stays on the trajectory below. */}

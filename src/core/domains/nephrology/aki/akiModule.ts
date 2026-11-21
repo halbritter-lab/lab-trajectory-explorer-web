@@ -1,9 +1,9 @@
 import { akiExclusionBands, akiExclusionWindows, episodesForSeries, isAkiCreatinineSource } from './akiAware'
 import type { AkiEpisode } from './kdigo'
 import { formatAkiChip, formatAkiEpisodeSummary } from './summary'
-import { DEFAULT_AKI_EXCLUSION_DAYS } from '../constants'
+import { DEFAULT_AKI_EXCLUSION_DAYS, MGDL_PER_UMOLL } from '../constants'
 import { excludesAkiWindows } from '../fitConfig'
-import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../analytes'
+import { COMPUTED_BEZEICHNUNG_SUFFIX, normaliseUnit } from '../analytes'
 import { patientIdKey, type LabRow, type PatientId } from '../../../types'
 import { windowsWithLength } from '../../../exclusions/windows'
 import type { ClinicalEvent } from '../../../events/events'
@@ -116,6 +116,11 @@ function akiExclusions(ctx: SeriesContext): SeriesContribution['exclusions'] {
  * column excludes them from its fit. */
 function akiOverlays(ctx: SeriesContext, episodes: readonly AkiEpisode[]): SeriesOverlay[] {
   const bandDays = akiWindowDays(ctx)
+  // On the creatinine series the episodes were detected in, the marker belongs
+  // to the peak value itself: with several values on the peak day (K26) the
+  // first of the day need not be the peak. Episodes are in mg/dl.
+  const ownSeries = isAkiCreatinineSource(ctx.seriesKey.bezeichnung, ctx.seriesKey.einheit)
+  const inSeriesUnit = (mgDl: number) => normaliseUnit(ctx.seriesKey.einheit) === 'µmol/l' ? mgDl * MGDL_PER_UMOLL : mgDl
   const markers: SeriesOverlay[] = episodes.map((episode) => {
     const stage = ROMAN[episode.stage] ?? episode.stage
     return {
@@ -128,6 +133,7 @@ function akiOverlays(ctx: SeriesContext, episodes: readonly AkiEpisode[]): Serie
       title: `AKI stage ${stage}, onset ${formatDisplayDate(episode.date)}, creatinine peak ${formatDisplayNumber(episode.peakValue)} mg/dl on ${formatDisplayDate(episode.peakDate)}; staged ${episode.stageDate.getTime() === episode.peakDate.getTime() ? '' : `from ${formatDisplayNumber(episode.stageValue)} mg/dl on ${formatDisplayDate(episode.stageDate)} `}against ${formatDisplayNumber(episode.stageReferenceValue)} mg/dl, the lowest value of the 7 days before`,
       snapWithinDays: AKI_MARKER_TOLERANCE_DAYS,
       offMeasurementNote: '; no measurement of this parameter on that date',
+      ...(ownSeries ? { value: inSeriesUnit(episode.peakValue) } : {}),
     }
   })
   // The band has the configured length in every column. Say whether this

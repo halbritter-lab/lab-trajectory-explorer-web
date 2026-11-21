@@ -129,5 +129,12 @@
 .wt-trend-toggle { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; font-weight: 600; cursor: pointer; }
 .wt-trend-toggle input { width: 18px; height: 18px; }
 .wt-event-row td { background: #fbf5ea; color: #5c3d12; }
-.wt-rolling-windows { font-size: .8rem; }
+/* A grid item: without a minimum of 0 the unwrapped table would widen the card instead of scrolling. */
+.wt-rolling-windows { font-size: .8rem; min-width: 0; }
 .wt-rolling-windows table { font-size: .8rem; }
+/* Dates and numbers stay whole on a narrow screen; the table scrolls in its frame instead. */
+.wt-rolling-windows td { white-space: nowrap; overflow-wrap: normal; }
+.wt-rolling-windows th { overflow-wrap: normal; }
+.wt-measurements td, .wt-measurements th { overflow-wrap: normal; }
+.wt-measurements td:first-child { white-space: nowrap; }
+.wt-measurements .wt-aki-detection-cell { min-width: 9.5rem; }

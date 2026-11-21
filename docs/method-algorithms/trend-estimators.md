@@ -268,7 +268,9 @@ window slopes were computed and discarded and no line was drawn):
 - **Window list (since 2026-11-21).** The patient view lists the windows
   under "Show windows (n)": the bounds of each window (centre − 365 days to
   centre + 365 days, both days included), the dates of the first and last
-  fitted point inside, their number and the window slope per year. The
+  fitted point inside, their number and the window slope per year, written
+  with the [decimals of the column](slope-quality.md#decimals-of-slopes), like
+  the smallest and largest window slope in the line above the list. The
   rows are the windows counted by the window statistics, in time order, also
   those without a drawn line. In the patient chart and the overlay each window
   line carries the same information as a tooltip, and the legend reads

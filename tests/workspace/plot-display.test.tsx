@@ -223,6 +223,24 @@ describe('events in the measurement table (K17)', () => {
   })
 })
 
+// Review finding 2026-11-21: with two values on the peak day (K26) the marker sat on the
+// first value of the day, here the baseline 1.0, while the legend says "at the creatinine peak".
+describe('AKI marker on a day with several creatinine values', () => {
+  const timed = (date: string, hour: number, value: number): LabRow => ({ ...lab('K', CREA, date, value), labTime: hour * 3_600_000 })
+  it.each([['rising in the file', [timed('2026-09-01', 6, 1.0), timed('2026-09-01', 20, 1.6)]], ['newest row first', [timed('2026-09-01', 20, 1.6), timed('2026-09-01', 6, 1.0)]]])('sits on the peak value of the episode: %s', (_name, sameDay) => {
+    render(<TrajectoriesWorkspace data={dataset([lab('K', CREA, '2026-08-25', 1.0), ...sameDay, lab('K', CREA, '2026-09-04', 1.2)])} requestedPatientId="K" />)
+    display()
+    fireEvent.click(screen.getByLabelText('AKI windows and episodes'))
+    const marker = within(chart()).getByTestId('aki-marker')
+    expect(marker).toHaveAttribute('data-on-measurement', 'true')
+    expect(marker.querySelector('title')!.textContent).toContain('creatinine peak 1.6 mg/dl on 01/09/2026')
+    const peak = [...chart().querySelectorAll('circle')].find(circle => circle.querySelector('title')?.textContent?.startsWith('01/09/2026: 1.6'))!
+    const [, x, top] = marker.querySelector('path')!.getAttribute('d')!.match(/^M (\S+) (\S+) /)!
+    expect(Number(x)).toBeCloseTo(Number(peak.getAttribute('cx')), 6)
+    expect(Number(top) + 6).toBeCloseTo(Number(peak.getAttribute('cy')), 6)
+  })
+})
+
 describe('Rolling OLS windows (K18)', () => {
   // One value at the start of every quarter, 2018-01-01 to 2022-01-01: flat at 60, then falling by 8 per year.
   const quarters = Array.from({ length: 17 }, (_, i) => `${2018 + Math.floor(i / 4)}-${String(1 + 3 * (i % 4)).padStart(2, '0')}-01`)
@@ -247,11 +265,30 @@ describe('Rolling OLS windows (K18)', () => {
     const table = screen.getByRole('table', { name: 'Rolling OLS windows', hidden: true })
     const cells = [...table.querySelectorAll('tbody tr')].map(row => [...row.querySelectorAll('td')].map(cell => cell.textContent))
     expect(cells).toHaveLength(5)
-    expect(cells[0]).toEqual(['01/01/2018 to 01/01/2020', '01/01/2018', '01/01/2020', '9', '0'])
+    expect(cells[0]).toEqual(['01/01/2018 to 01/01/2020', '01/01/2018', '01/01/2020', '9', '0.00'])
     expect(within(chart()).getByText('Dashed: Rolling OLS window lines from the prepared analyses; each line names its window.')).toBeInTheDocument()
     const titles = [...chart().querySelectorAll('polyline[data-fit-quality] title')].map(title => title.textContent)
     expect(titles).toHaveLength(5)
-    expect(titles[0]).toBe('Rolling OLS window 01/01/2018 to 01/01/2020: 9 fitted measurements (01/01/2018 to 01/01/2020), slope 0 mg/dl/year')
+    expect(titles[0]).toBe('Rolling OLS window 01/01/2018 to 01/01/2020: 9 fitted measurements (01/01/2018 to 01/01/2020), slope 0.00 mg/dl/year')
+  })
+  // Review finding 2026-11-21: the list and the tooltips wrote at most two decimals,
+  // so the windows of a parameter with small slopes all read "0".
+  it('writes the window slopes with the decimals of the column in the summary line, the list and the tooltips', () => {
+    const years = (date: string) => (day(date).getTime() - day('2018-01-01').getTime()) / (365.25 * 86_400_000)
+    const small = quarters.map(date => lab('S', CRP, date, 0.05 + 0.003 * years(date) + 0.0002 * years(date) ** 2))
+    render(<TrajectoriesWorkspace data={dataset(small, [CRP])} requestedPatientId="S" />)
+    fireEvent.change(screen.getByLabelText(`Trend method: ${CRP.label}`), { target: { value: 'rolling-ols' } })
+    fireEvent.click(screen.getByRole('checkbox', { name: `Analyse trend: ${CRP.label}` }))
+    const [, low, high] = screen.getByText(/local slopes/).textContent!.match(/local slopes (\S+) to (\S+) /)!
+    expect(low).toMatch(/^0\.00\d\d$/)
+    const table = screen.getByRole('table', { name: 'Rolling OLS windows', hidden: true })
+    const listed = [...table.querySelectorAll('tbody tr')].map(row => row.querySelector('td:last-child')!.textContent!)
+    expect(listed).toHaveLength(5)
+    for (const text of listed) expect(text).toMatch(/^0\.00\d\d$/)
+    expect(new Set(listed).size).toBeGreaterThan(1)
+    expect([listed.reduce((a, b) => a < b ? a : b), listed.reduce((a, b) => a > b ? a : b)]).toEqual([low, high])
+    const titles = [...chart(CRP.label).querySelectorAll('polyline[data-fit-quality] title')].map(title => title.textContent!)
+    expect(titles.map(title => title.match(/slope (\S+) mg\/l\/year$/)![1])).toEqual(listed)
   })
   // Review finding 2026-11-21: under quarterly medians (CKD progression) a
   // window is fitted on medians, and the list, tooltip and cell said "fitted

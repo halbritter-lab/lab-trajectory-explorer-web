@@ -123,6 +123,11 @@ export interface OverlayMarker {
   title: string
   snapWithinDays: number
   offMeasurementNote: string
+  /** The value the marker stands for, in the unit of this series, when the
+   * series is the one it was derived from. Where the series has several
+   * measurements on the date the marker sits on, the marker takes the one
+   * nearest to this value; without it, the first of that date. Display only. */
+  value?: number
 }
 
 export type SeriesOverlay = OverlayBand | OverlayMarker

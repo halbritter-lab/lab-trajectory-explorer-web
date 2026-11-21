@@ -305,7 +305,11 @@ exclusion setting can, because the slopes change.
 
 The number applies to the slope, both bounds of its interval and the
 smallest and largest rolling-window slope in the table cell and the patient
-view, and on the Cohort models page to the change per year with its
+view, to every slope of the Rolling OLS window list and of the window
+tooltips in the charts (without a plus sign, like the smallest and largest
+window slope; until the review fix of 2026-11-21 these two used the general
+display rounding, so two windows with slopes 0.249 and 0.251 both read
+"0.25"), and on the Cohort models page to the change per year with its
 interval, to every row of the coefficient table (estimate and bounds), to
 the patient slope SD and to the slope in the preview legend. There it is
 computed from the patients' own slopes under the same settings, as if Trend

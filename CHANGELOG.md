@@ -234,6 +234,12 @@ interfaces are still evolving before 1.0.
 - The calendar axis no longer repeats a date: a range shorter than four days
   gets one label per day.
 - The shaded AKI window says in its legend and tooltip that its length is the
+- The Rolling OLS window list and the window tooltips write each slope with
+  the decimals of the column, like the line above the list; before, two
+  windows with slopes 0.249 and 0.251 both read "0.25".
+- On a narrow screen the window list and the measurement table of the
+  patient view keep dates, counts and the "AKI detection" note whole and
+  scroll inside their frame.
   configured number of days after each onset, not the duration of the
   episode, and whether the column excludes the values from its fit ("excluded
   from this fit", "not excluded from this fit", or "this column has no fit").
