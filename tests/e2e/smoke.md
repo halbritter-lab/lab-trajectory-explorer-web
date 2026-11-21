@@ -488,3 +488,45 @@ Not verified: the leave-page question when closing a tab or window by hand
 (the automated check reloads), other browsers than Chromium, and a copy saved
 by the released version 0.3.7 restored in this version in a real browser
 (`tests/workspace/storage.test.tsx` covers a copy without settings).
+
+## Plot axes, event drawing and the dense overlay (2026-11-21)
+
+1. Import a file with a short series (a hospital stay of some days) and an
+   events file with a dated acute dialysis. Open the patient: the axis reads
+   "Years since first measurement of this parameter" as before. Display →
+   "Time axis" → "Days since first measurement": whole days on the axis, in
+   the patient charts and in the overlay, until the unit is changed back.
+2. "Calendar date" on a series of one or two days: every label a different
+   date. On a longer series: five dates, none cut off at the border.
+3. Switch on "Events": the dialysis is a dashed line at its start and a
+   shaded band to its end date; the legend names both. The points inside
+   carry "not used for AKI detection (dialysis)" in their tooltip, with and
+   without a trend, and "Show measurements" has the column "AKI detection"
+   and the events as set-off rows at their dates. "Events for this patient"
+   is in date order.
+4. Switch on "AKI windows and episodes": no stage label is cut at the left or
+   right border; equal neighbouring labels are merged ("AKI III ×2"). The
+   legend and the tooltip of the shaded window say "this column has no fit",
+   "not excluded from this fit" (Trend ticked, General exploration) or
+   "excluded from this fit" (CKD progression).
+5. Choose "Rolling OLS" and tick Trend: "Show windows (n)" lists the windows,
+   each dashed line names its window on hover, and the patient workbook ends
+   with the sheet `rolling_windows`.
+6. Load a cohort of more than 50 and of more than 200 patients and open
+   Overlay: no measurement points, paler (and from 201 thinner) lines and a
+   note above the chart; "Measurement points" under Display is unticked and
+   brings the points back. Move the pointer across the lines: the chart stays
+   responsive and the line under the pointer is drawn thick on top, with the
+   patient named at the upper right.
+
+Verified 2026-11-21 in Chromium against the production build: steps 1 to 6 by
+`tests/e2e/plot-axes-events.e2e.ts` (all 64 automated checks passed) and by
+scripted walkthroughs with screenshots on the synthetic review files (a
+20-day intensive-care series with dialysis, a rolling-OLS series, an
+800-patient cohort). In the 800-patient overlay, opening took under 0.2 s
+with 3,231 SVG elements (before: 3.6 s, 72,212 elements with two charts) and
+a pointer sweep caused no long task; with the points switched on by hand a
+sweep still causes tasks of 0.1 to 0.2 s (before: 1.0 to 1.7 s).
+
+Not verified: other browsers than Chromium, a phone-width layout of the new
+table rows and the window list, and real research data.
