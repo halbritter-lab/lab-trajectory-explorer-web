@@ -21,7 +21,10 @@ interfaces are still evolving before 1.0.
   ("OLS: +0.010 mg/dl/year"), and on the Cohort models page the change per
   year, the coefficient table (estimate and bounds alike), the patient slope
   SD and the preview legend use the same number. Display only; exports keep
-  full precision.
+  full precision. A column whose median absolute slope is 0.1 or more keeps
+  two decimals, so its small slopes still read "+0.01 [0.01, 0.01]"
+  (creatinine under the CKD progression preset); see the open detail in the
+  method decisions.
 - The interval beside a slope is labelled in the cell: "95% CI", or "range"
   for Theil–Sen bounds on fewer than five fitted dates.
 - A collapsed group no longer fills pages: pages hold the expanded rows only,

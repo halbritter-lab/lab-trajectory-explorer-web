@@ -316,7 +316,17 @@ slopes, median of the absolute values 0.0948, so three decimals. Patient 8:
 slope 0.010349 with bounds 0.006869 and 0.013829 is written "+0.010 mg/dl/yr
 95% CI [0.007, 0.014]" (until 2026-11-21 "+0.01 [0.01, 0.01]"). Patient 12:
 "+0.274 [-1.697, 2.246]". Imported eGFR: median 5.33, two decimals, no cell
-changes. In the table's minimal layout the bounds carry the visible label
+changes.
+
+Boundary case of the median rule, not yet put to the owner: once the median
+reaches 0.1 the column has two decimals, and slopes far below the median
+lose their digits again. Same data, creatinine [mg/dl] under the CKD
+progression preset or under Theil–Sen: the median is at least 0.1, so
+patients 1 and 8 read "+0.01 mg/dl/yr 95% CI [0.01, 0.01]" (Theil–Sen,
+patient 1: "[0.00, 0.01]"), where General exploration gives "+0.010 [0.007,
+0.013]" and "+0.010 [0.007, 0.014]".
+
+In the table's minimal layout the bounds carry the visible label
 "95% CI", or "range" where they are a Theil–Sen slope range on fewer than
 five fitted dates.
 

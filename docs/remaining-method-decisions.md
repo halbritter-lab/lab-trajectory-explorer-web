@@ -657,7 +657,13 @@ from the demo data. Neither changes a computed value.
   padded in the patient view as in the table; every row of a model's
   coefficient table uses the number (before: three decimals for the estimate
   and two for the bounds), so an eGFR coefficient shows two decimals instead
-  of three.
+  of three. This includes rows that are not slopes: the intercept and factor
+  terms.
+  Open for the owner: the median rule falls back to two decimals once the
+  median absolute slope reaches 0.1, so small slopes of such a column read
+  "+0.01 [0.01, 0.01]" again (demo creatinine under the CKD progression
+  preset or Theil–Sen). Alternatives are a lower quantile than the median or
+  the smallest interval width; nothing is changed until he decides.
 
 Details: [table order, mark filters and displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals).
 
