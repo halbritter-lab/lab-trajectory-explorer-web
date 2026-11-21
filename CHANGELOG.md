@@ -81,14 +81,14 @@ interfaces are still evolving before 1.0.
   anywhere. They now stay listed (see above).
 
 - A semicolon CSV whose data rows hold more commas than semicolons (test names
-  or free text with commas, decimal commas) is read with the semicolon. The
-  field delimiter is now taken from the header line; before, such a file was
-  rejected with "missing required column(s)". A `sep=` line keeps working,
-  and a header line that does not decide (as many commas as semicolons, for
-  example `patientId;Diagnose, genetisch`) is read as before. One layout that
-  loaded before no longer does: a header whose column names hold more commas
-  than the line holds semicolons; quote such a column name or add a `sep=;`
-  line.
+  or free text with commas, decimal commas) is read with the semicolon; before,
+  such a file was rejected with "missing required column(s)". The field
+  delimiter is taken from the header line when the header, split there, holds
+  more accepted column names than split at the delimiter the reader counted
+  over the start of the file. Every file that loaded before is read as before,
+  including a `sep=` line, a header line with as many commas as semicolons
+  (`patientId;Diagnose, genetisch`) and a column name with more commas than
+  the header has semicolons (`patientId;Diagnose, genetisch, bestätigt`).
 
 ### Changed (import error message)
 

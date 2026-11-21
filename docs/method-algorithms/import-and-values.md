@@ -33,31 +33,51 @@ Text files are parsed without type inference: every cell reaches the loaders as
 its verbatim text. The first row of a sheet supplies the headers and blank
 cells are read as empty.
 
-**Field delimiter.** `detectDelimiter` takes the delimiter from the header line
-alone, that is the text before the first line break outside double quotes. The
-candidates are comma, tab, semicolon and pipe; the one that occurs most often
-outside double quotes is used. The data rows are not counted, so decimal commas
-and free text cannot outvote the delimiter: the header `patientId;labDate;testName;unit;value`
-followed by rows such as `101;10.01.2021;Kreatinin, Serum, enzymatisch,
-IFCC;mg/dl;1,0` is read with the semicolon (four semicolons and no comma in the
-header line). Until 2026-11-21 the workbook reader counted the candidates in
-the first 1024 characters of the file, where the eight commas of two such rows
-outvoted the semicolons and the file failed with missing columns. Three cases
-are left to the workbook reader and its count over the first 1024 characters
-(a tie there goes to the comma, then tab, then semicolon): a file that starts
-with a `sep=` line (the character after `sep=` is the delimiter and the line is
-not a data row), a header line without any candidate (a single column), and a
-header line in which two candidates share the highest count. Example of the
-tie: the header `patientId;Diagnose, genetisch` holds one semicolon and one
-comma, so the reader counts the file; with four rows such as `Q1;ADPKD` it
-finds five semicolons and one comma and reads the file with the semicolon.
+**Field delimiter.** Two counts are compared (`detectDelimiter`). The
+candidates are comma, tab, semicolon and pipe, counted outside double quotes.
 
-A column name that holds more of another candidate than the header line holds
-delimiters is split at that candidate: `patientId;Diagnose, genetisch,
-bestätigt` (one semicolon, two commas) is read with the comma, whatever the
-data rows hold, and fails with a missing column. Until 2026-11-21 such a file
-loaded when the data rows held enough semicolons. Quoting the column name
-(`patientId;"Diagnose, genetisch, bestätigt"`) or a `sep=;` line avoids it.
+- The reader's count: the candidate that occurs most often in the first 1024
+  characters of the file; a tie goes to the comma, then tab, then semicolon,
+  then pipe. Until 2026-11-21 this count alone decided.
+- The header count: the candidate that occurs most often in the header line,
+  that is the text before the first line break outside double quotes. The data
+  rows are not counted, so decimal commas and free text cannot outvote the
+  delimiter here.
+
+When both name the same candidate, it is used. When they differ, the header
+line is split at each of the two and the cells that are accepted column names
+of the lab, event or attribute table (all aliases, compared as headers are:
+case-insensitively and without separators) are counted. The header count's
+candidate is used when it yields more accepted names than the reader's, or when
+neither yields any; otherwise the reader's candidate is used. A file that the
+reader's count reads with at least one accepted column, and so every file that
+loaded before 2026-11-21, is therefore read as before unless the header line
+yields strictly more accepted columns at the other candidate.
+
+Three cases are left to the reader's count without this comparison: a file
+that starts with a `sep=` line (the character after `sep=` is the delimiter and
+the line is not a data row), a header line without any candidate (a single
+column), and a header line in which two candidates share the highest count.
+
+Examples:
+
+- Header `patientId;labDate;testName;unit;value`, five rows such as
+  `101;10.01.2021;Kreatinin, Serum, enzymatisch, IFCC, kinetisch;mg/dl;1,0`
+  (four semicolons and five commas each). Reader's count: 24 semicolons and 25
+  commas, so comma; header count: four semicolons, no comma, so semicolon.
+  Split at the semicolon the header holds five accepted names, split at the
+  comma none: the semicolon is used. Before 2026-11-21 this file failed with
+  missing columns; with four rows (20 semicolons, 20 commas) it failed as well,
+  because the tie went to the comma, and with three rows it loaded.
+- Header `patientId;Diagnose, genetisch, bestätigt`, rows such as `Q1;ADPKD`.
+  Reader's count with three rows: four semicolons, two commas, so semicolon;
+  header count: one semicolon, two commas, so comma. Split at the semicolon
+  the header holds one accepted name (`patientId`), split at the comma none
+  (`patientId;Diagnose` is not one): the semicolon is used and the attribute
+  column is named `Diagnose, genetisch, bestätigt`.
+- Header `patientId;Diagnose, genetisch` (one semicolon, one comma): a tie in
+  the header line, so the reader's count decides; with four rows such as
+  `Q1;ADPKD` it finds five semicolons and one comma and uses the semicolon.
 
 Sheet selection in `loadDatasetFromWorkbook` depends on the number of sheets.
 Sheet names are compared after header normalisation (see Columns).

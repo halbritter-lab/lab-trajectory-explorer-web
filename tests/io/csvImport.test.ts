@@ -1,9 +1,10 @@
 import { describe, it, expect } from 'vitest'
 import * as XLSX from 'xlsx'
-import { detectDelimiter, readWorkbook } from '../../src/io/readWorkbook'
+import { detectDelimiter, readerDelimiterGuess, readWorkbook } from '../../src/io/readWorkbook'
 import { sourceRowNumber } from '../../src/core/types'
 import { loadDatasetFromWorkbook } from '../../src/io/loadDataset'
 import { normalizeClinicalEventsWithNotes } from '../../src/core/events/events'
+import { normalizePatientAttributes } from '../../src/core/attributes/attributes'
 
 /**
  * Regression tests for the import path as a user hits it: bytes of a CSV or
@@ -273,13 +274,19 @@ describe('import diagnostics', () => {
 
 describe('field separator detection', () => {
   it('reads a semicolon CSV whose data rows hold more commas than semicolons', () => {
-    const { rows } = loadDatasetFromWorkbook(bytes(`${HEADER}\n101;10.01.2021;Kreatinin, Serum, enzymatisch, IFCC;mg/dl;1,0\n101;10.02.2021;Kreatinin, Serum, enzymatisch, IFCC;mg/dl;1,2\n`))
-    expect(rows.map((r) => [r.bezeichnung, r.wertNum])).toEqual([['Kreatinin, Serum, enzymatisch, IFCC', 1], ['Kreatinin, Serum, enzymatisch, IFCC', 1.2]])
+    // 4 semicolons in the header and per row, 5 commas per row: from the fifth row the commas lead (25 to 24).
+    const csv = `${HEADER}\n${'101;10.01.2021;Kreatinin, Serum, enzymatisch, IFCC, kinetisch;mg/dl;1,0\n'.repeat(5)}`
+    expect(readerDelimiterGuess(csv)).toBe(',')
+    const { rows } = loadDatasetFromWorkbook(bytes(csv))
+    expect(rows.map((r) => [r.bezeichnung, r.wertNum])).toEqual(Array(5).fill(['Kreatinin, Serum, enzymatisch, IFCC, kinetisch', 1]))
   })
 
   it('reads a semicolon CSV with a free-text column full of commas', () => {
-    const { rows } = loadDatasetFromWorkbook(bytes(`PatientID;LabDatum;Bezeichnung;Einheit;Wert;Kommentar\n101;10.01.2021;Kreatinin;mg/dl;1,0;hämolytisch, lipämisch, ikterisch, Kontrolle empfohlen, s. Befund, Tel.\n`))
-    expect(rows.map((r) => [r.patientId, r.einheit, r.wertNum])).toEqual([[101, 'mg/dl', 1]])
+    // 5 semicolons in the header and per row, 6 commas per row: from the sixth row the commas lead (36 to 35).
+    const csv = `PatientID;LabDatum;Bezeichnung;Einheit;Wert;Kommentar\n${'101;10.01.2021;Kreatinin;mg/dl;1,0;hämolytisch, lipämisch, ikterisch, Kontrolle empfohlen, s. Befund, Tel.\n'.repeat(6)}`
+    expect(readerDelimiterGuess(csv)).toBe(',')
+    const { rows } = loadDatasetFromWorkbook(bytes(csv))
+    expect(rows.map((r) => [r.patientId, r.einheit, r.wertNum])).toEqual(Array(6).fill([101, 'mg/dl', 1]))
   })
 
   it('takes the separator from the header line, outside quotes', () => {
@@ -299,6 +306,42 @@ describe('field separator detection', () => {
       { patientId: 'P2', 'Diagnose, genetisch': 'ADPKD' }, { patientId: 'P3', 'Diagnose, genetisch': 'Alport' }])
     // With as many commas as semicolons in the whole file the reader prefers the comma, as before.
     expect(readWorkbook(bytes('a,b;c\n1,2;3\n'))).toEqual([{ a: '1', 'b;c': '2;3' }])
+  })
+
+  it('keeps the reader\'s delimiter when a column name holds more commas than the header has semicolons', () => {
+    // Both files load with the reader's count over the whole text (semicolons outnumber commas).
+    const attributes = 'patientId;Diagnose, genetisch, bestätigt\nQ1;ADPKD\nP1;Alport\nP2;ADPKD\n'
+    expect(detectDelimiter(attributes)).toBeUndefined()
+    expect(readWorkbook(bytes(attributes))).toEqual([
+      { patientId: 'Q1', 'Diagnose, genetisch, bestätigt': 'ADPKD' },
+      { patientId: 'P1', 'Diagnose, genetisch, bestätigt': 'Alport' },
+      { patientId: 'P2', 'Diagnose, genetisch, bestätigt': 'ADPKD' }])
+    expect(normalizePatientAttributes(readWorkbook(bytes(attributes))).map((r) => r.attributes)).toEqual([
+      { 'Diagnose, genetisch, bestätigt': 'ADPKD' }, { 'Diagnose, genetisch, bestätigt': 'Alport' }, { 'Diagnose, genetisch, bestätigt': 'ADPKD' }])
+
+    const lab = `${HEADER};Kommentar (Arzt, Station, Haus, Ort, Datum, Zeit, Art)\n101;10.01.2021;Kreatinin;mg/dl;1,0;ok\n101;10.02.2021;Kreatinin;mg/dl;1,2;ok\n`
+    expect(detectDelimiter(lab)).toBeUndefined()
+    expect(loadDatasetFromWorkbook(bytes(lab)).rows.map((r) => [r.patientId, r.bezeichnung, r.wertNum])).toEqual([[101, 'Kreatinin', 1], [101, 'Kreatinin', 1.2]])
+  })
+
+  it('prefers the header line over the reader only when it yields more accepted column names', () => {
+    // Reader's guess is the comma (data rows); the header split at the semicolon holds five accepted names.
+    expect(detectDelimiter(`${HEADER}\n${'101;10.01.2021;Kreatinin, Serum, enzymatisch, IFCC, kinetisch;mg/dl;1,0\n'.repeat(5)}`)).toBe(';')
+    // No accepted name under either delimiter: the header line decides.
+    expect(detectDelimiter('a;b;c\n1,2,3,4;5;6\n')).toBe(';')
+    // An accepted name under the reader's delimiter and none under the header's: the reader decides.
+    expect(detectDelimiter('patientId;x, y, z\n1;2\n3;4\n')).toBeUndefined()
+  })
+
+  it('mirrors the workbook reader\'s own guess', () => {
+    const firstRow = (text: string, FS?: string) =>
+      XLSX.utils.sheet_to_json<string[]>(XLSX.read(text, { type: 'string', raw: true, FS }).Sheets.Sheet1, { header: 1 })[0]
+    for (const text of ['a,b;c\n1,2;3\n', 'a;b\n1;2\n', 'a\tb;c\n1\t2;3\n', 'a|b\n', 'single\n1\n', 'a;"b,c,d"\n1;2\n', `a;b\n${'1,2,3\n'.repeat(400)}`]) {
+      expect(firstRow(text), JSON.stringify(text.slice(0, 30))).toEqual(firstRow(text, readerDelimiterGuess(text)))
+    }
+    expect(readerDelimiterGuess('a,b;c\n1,2;3\n')).toBe(',')
+    expect(readerDelimiterGuess('a\tb;c\n')).toBe('\t')
+    expect(readerDelimiterGuess(`a;b\n${'1,2,3\n'.repeat(400)}`)).toBe(',')
   })
 
   it('leaves a "sep=" line to the workbook reader and still counts it as a file row', () => {
