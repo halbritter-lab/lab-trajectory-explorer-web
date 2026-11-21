@@ -22,8 +22,9 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
    the buttons are in the toolbar menu "Show only" and the first chart is
    still on the first screen.
 4. Apply CKD-EPI 2021 on the Data page. Under Trajectories the computed eGFR
-   cell of patient 5 reads "No eGFR: sex missing" (hint: four creatinine
-   values, pointer to "Review and edit patients"), that of patient 10 "No
+   cell of patient 5 reads "No eGFR: sex and age missing" (hint: sex missing
+   and age missing with four creatinine values each, "Enter the sex and the
+   age under Data → “Review and edit patients”"), that of patient 10 "No
    eGFR: no creatinine in the source".
 5. A dataset of several hundred patients with a grouping attribute: the page
    controls stand above and below the table; *Next* below the table shows the

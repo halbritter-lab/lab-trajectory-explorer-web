@@ -188,18 +188,30 @@ yields nothing; no placeholder row is written.
 **Where the reason is named.** `egfrGapReason`
 (`src/workspace/egfr-gaps.ts`) reports the first condition of the table a
 source row fails, in the table's order, on the rows after demographic
-resolution. The Data page counts the rows per reason under *Derive eGFR*.
+resolution. The Data page counts the rows per reason under *Derive eGFR*,
+every row once under its first reason: a row without sex and without age
+counts under "Sex missing or unresolved" only.
 Since 2026-11-21 a patient without a single computed value also carries the
 reasons in the empty cell of the computed parameter under Trajectories and
-in the patient view: every reason found among the patient's source rows, in
-the table's order, each with its number of creatinine values, and a pointer
-to "Review and edit patients" when sex or age is missing. A patient with no
-row in the selected source at all (creatinine only under another name or
-unit) reads "no value in the creatinine source". Example: four creatinine
-values and no resolved sex give "No eGFR for this patient: sex missing (4
-creatinine values). Enter the sex under Data → “Review and edit patients”."
+in the patient view. There `egfrGapReasons` reports every condition a row
+fails, not only the first (date; value missing or else not positive; sex;
+age missing or else under 18), so the note names all that has to be
+supplied: every reason found among the patient's source rows, in the
+table's order, each with the number of creatinine values that fail it (a
+row failing two conditions counts under both), and a pointer to "Review and
+edit patients" naming the sex, the age or both. The cell itself shows the
+first reason ("No eGFR: sex missing"), or "No eGFR: sex and age missing"
+when both are missing. A patient with no row in the selected source at all
+(creatinine only under another name or unit) reads "no value in the
+creatinine source". Examples: four creatinine values with an age and no
+resolved sex give "No eGFR for this patient: sex missing (4 creatinine
+values). Enter the sex under Data → “Review and edit patients”." Patient 5
+of the demo data has four creatinine values and neither sex nor age: "No
+eGFR for this patient: sex missing (4 creatinine values); age missing (4
+creatinine values). Enter the sex and the age under Data → “Review and edit
+patients”.", while the Data page counts "4: Sex missing or unresolved".
 A value of 0 at age 12 and a second value at age 13 give "creatinine not
-positive (1 creatinine value); age under 18 (1 creatinine value)". A patient
+positive (1 creatinine value); age under 18 (2 creatinine values)". A patient
 with at least one computed value gets no note, also when other rows of the
 patient fail a condition. Display only.
 
@@ -391,7 +403,8 @@ bound, under-18 rows, rejected non-serum source),
 [Data page tests](../../tests/workspace/data-ui.test.tsx) (both plausibility
 notices, a saved non-serum source),
 [eGFR gap tests](../../tests/workspace/egfr-gaps.test.tsx) (order of the
-reasons, the age boundary at 18, the note per patient in cell and patient view),
+reasons, the age boundary at 18, sex and age missing on the same rows, the
+note per patient in cell and patient view),
 [eGFR module tests](../../tests/core/analysis/egfrModule.test.ts) (formula
 `off` contributes nothing, saved formula names validated), [unit-key tests](../../tests/core/parse/units.test.ts)
 and [eGFR fixture tests](../../tests/parity/egfr.parity.test.ts). The golden

@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrajectoriesWorkspace } from '../../src/workspace/TrajectoriesWorkspace'
-import { computedEgfrKey, EGFR_GAP_TEXT, egfrGapReason, missingEgfrNotes } from '../../src/workspace/egfr-gaps'
+import { computedEgfrKey, EGFR_GAP_TEXT, egfrGapReason, egfrGapReasons, missingEgfrNotes } from '../../src/workspace/egfr-gaps'
 import { appendComputedEgfr } from '../../src/core/domains/nephrology/egfr/series'
 import type { WorkspaceData } from '../../src/workspace/workspace-data'
 import type { LabRow, Sex } from '../../src/core/types'
@@ -55,13 +55,28 @@ describe('missingEgfrNotes', () => {
     const notes = missingEgfrNotes(data())
     expect([...notes.keys()]).toEqual(['P2', 'P3', 'P4'])
     expect(notes.get('P2')).toEqual({ label: 'No eGFR: sex missing', text: 'No eGFR for this patient: sex missing (4 creatinine values). Enter the sex under Data → “Review and edit patients”.' })
-    expect(notes.get('P3')).toEqual({ label: 'No eGFR: creatinine not positive', text: 'No eGFR for this patient: creatinine not positive (1 creatinine value); age under 18 (1 creatinine value).' })
+    expect(notes.get('P3')).toEqual({ label: 'No eGFR: creatinine not positive', text: 'No eGFR for this patient: creatinine not positive (1 creatinine value); age under 18 (2 creatinine values).' })
     expect(notes.get('P4')!.text).toBe('No eGFR for this patient: no value in the creatinine source Kreatinin [mg/dl]. Values under another name or unit are not used.')
   })
   it('names both demographics when sex and age are missing on different rows', () => {
     const input = data()
     input.rows = input.rows.map(row => row.patientId === 'P2' && row.labDatum!.getUTCFullYear() === 2020 ? { ...row, patientSex: 'm' as const, patientAgeAtLab: null } : row)
     expect(missingEgfrNotes(input).get('P2')!.text).toBe('No eGFR for this patient: sex missing (3 creatinine values); age missing (1 creatinine value). Enter the sex and the age under Data → “Review and edit patients”.')
+  })
+  it('names sex and age together when both are missing on the same rows', () => {
+    // The demo patient 5: entering the sex alone would still give no eGFR.
+    const input = data()
+    input.rows = input.rows.map(row => row.patientId === 'P2' ? { ...row, patientAgeAtLab: null } : row)
+    expect(missingEgfrNotes(input).get('P2')).toEqual({ label: 'No eGFR: sex and age missing', text: 'No eGFR for this patient: sex missing (4 creatinine values); age missing (4 creatinine values). Enter the sex and the age under Data → “Review and edit patients”.' })
+    // The count per row on the Data page keeps the first reason only.
+    expect(egfrGapReason(input.rows.find(row => row.patientId === 'P2')!)).toBe('sex')
+  })
+  it('counts every failed condition of a row, not only the first', () => {
+    const row = lab('P', 2020, 1, 'm', 50)
+    expect(egfrGapReasons(row)).toEqual([])
+    expect(egfrGapReasons({ ...row, labDatum: null, wertNum: null, patientSex: null, patientAgeAtLab: null })).toEqual(['date', 'value', 'sex', 'age'])
+    expect(egfrGapReasons({ ...row, wertNum: 0, patientAgeAtLab: 17 })).toEqual(['non_positive', 'under_18'])
+    expect(egfrGapReasons({ ...row, patientAgeAtLab: 18 })).toEqual([])
   })
   it('gives nothing while the derivation is off', () => {
     expect(computedEgfrKey(data('off'))).toBeNull()
@@ -93,6 +108,6 @@ describe('the empty cell of the computed eGFR names the reason (K06)', () => {
   it('states the reason in the patient view', () => {
     render(<TrajectoriesWorkspace data={data()} />)
     fireEvent.click(screen.getByRole('button', { name: 'Open patient P3' }))
-    expect(screen.getByText('No eGFR for this patient: creatinine not positive (1 creatinine value); age under 18 (1 creatinine value).')).toBeInTheDocument()
+    expect(screen.getByText('No eGFR for this patient: creatinine not positive (1 creatinine value); age under 18 (2 creatinine values).')).toBeInTheDocument()
   })
 })

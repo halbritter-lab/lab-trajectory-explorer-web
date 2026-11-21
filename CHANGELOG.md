@@ -50,6 +50,16 @@ interfaces are still evolving before 1.0.
 - An empty cell of the computed eGFR names the reason for that patient ("No
   eGFR: sex missing"), with the number of creatinine values affected and a
   pointer to "Review and edit patients"; the patient view states the same.
+  A patient lacking both sex and age is told both ("No eGFR: sex and age
+  missing", "Enter the sex and the age …"); the counts on the Data page keep
+  one reason per row.
+
+### Changed (methodology page; wording awaits the maintainer's approval)
+
+- The Trajectories topic has two new paragraphs: the order of a sort by
+  slope with *Uncertain slopes last* and the *Show only* filters, and the
+  rule for the decimals of slopes. They describe the changes above; the
+  wording is a proposal and not yet approved by the maintainer.
 
 ### Added (Cohort models: control over a running fit)
 

@@ -80,11 +80,11 @@ test('names the reason for a missing computed eGFR in the cell', async ({ page }
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
   await page.getByRole('button', { name: 'Apply calculation' }).click()
   await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
-  // Patient 5: four creatinine values, no sex. Patient 10: creatinine in µmol/l only.
-  const hint = rowOf(page, '5').getByRole('button', { name: 'No eGFR: sex missing' })
+  // Patient 5: four creatinine values, neither sex nor age. Patient 10: creatinine in µmol/l only.
+  const hint = rowOf(page, '5').getByRole('button', { name: 'No eGFR: sex and age missing' })
   await expect(hint).toBeVisible()
   await hint.hover()
-  await expect(page.getByRole('tooltip')).toContainText('No eGFR for this patient: sex missing (4 creatinine values). Enter the sex under Data → “Review and edit patients”.')
+  await expect(page.getByRole('tooltip')).toContainText('No eGFR for this patient: sex missing (4 creatinine values); age missing (4 creatinine values). Enter the sex and the age under Data → “Review and edit patients”.')
   await expect(rowOf(page, '10').getByRole('button', { name: 'No eGFR: no creatinine in the source' })).toBeVisible()
 })
 
