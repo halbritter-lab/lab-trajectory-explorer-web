@@ -18,7 +18,12 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
    Uncertain slope 1, Endpoint reached 4, AKI 4, Kidney transplant 3,
    Dialysis 3, Other event 1). *Rapid decline* leaves 13 rows, the export
    button reads "Export 13 of 28 patients (XLSX)" and "Select all 13
-   matching" is offered without a selection. *Show all* ends it. At 390 px
+   matching" is offered without a selection. *Show all* ends it. With Trend
+   on for all four columns and *Uncertain slope* chosen (patients 3, 5, 12),
+   open patient 5 and set the creatinine trend method to *No fit*: patient 5
+   stays open with the note "Patient 5 does not match “Show only: Uncertain
+   slope” and stays open", and *Export patient (XLSX)* downloads
+   a workbook named for patient 5. At 390 px
    the buttons are in the toolbar menu "Show only" and the first chart is
    still on the first screen.
 4. Apply CKD-EPI 2021 on the Data page. Under Trajectories the computed eGFR

@@ -599,7 +599,11 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const lastShown = Math.min((activeTablePage + 1) * pageSize, pagedRows.length)
   const collapsedRowCount = visible.length - pagedRows.length
   const sortAscending = activeMetric ? metricAscendingByDefault(activeMetric) !== sortReversed : true
-  const current = visible.find(row => row.patientId === patientId) ?? visible[0]
+  // A mark depends on the analysis settings, so a settings change in the patient
+  // view can take the open patient out of "Show only". They stay open then, with
+  // a note: switching to another patient unasked would also redirect the patient export.
+  const keptOutsideMarks = mode === 'detail' && markFilters.length > 0 && !visible.some(row => row.patientId === patientId) ? scoped.find(row => row.patientId === patientId) : undefined
+  const current = visible.find(row => row.patientId === patientId) ?? keptOutsideMarks ?? visible[0]
   const currentIndex = visible.findIndex(row => row.patientId === current?.patientId)
   const open = (id: PatientId) => {
     if (mode === 'table') {
@@ -726,7 +730,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     }}>Overlay</button><button aria-pressed={mode === 'detail'} disabled={!current} onClick={() => {
       if (mode !== 'detail' && current) open(current.patientId)
     }}>Individual patient</button></div></div>
-<div className="pv-exports"><WorkspaceExportActions data={data} parameterKeys={keys} patientIds={patientIds} cohortRows={visible} fitConfigByParameterKey={fitConfigs} moduleSettingsByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).moduleSettings]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
+<div className="pv-exports"><WorkspaceExportActions data={data} parameterKeys={keys} patientIds={keptOutsideMarks ? [keptOutsideMarks.patientId] : patientIds} cohortRows={keptOutsideMarks ? [keptOutsideMarks] : visible} fitConfigByParameterKey={fitConfigs} moduleSettingsByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).moduleSettings]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
         getCharts: () => [...(workspaceElement.current?.querySelectorAll<SVGSVGElement>('.wt-plot-card svg.wt-plot') ?? [])].map(svg => ({
           svg, title: `Patient ${current.patientId}: ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
         })) } : {})} /><button type="button" className="pv-defaults" onClick={() => { setSettingsScope(''); setOpenTool('analysis') }}>General defaults</button></div></div>
@@ -773,7 +777,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
         {selected.length > 0 && <button type="button" onClick={() => setSelected([])}>Clear selection</button>}
       </div>}
     </section>
-    {!visible.length && <p className="card">No matching patients. Change the search, group filter, “Show only” marks, or selection.</p>}
+    {!visible.length && !keptOutsideMarks && <p className="card">No matching patients. Change the search, group filter, “Show only” marks, or selection.</p>}
     {!parameters.length && <p className="card">Select at least one parameter.</p>}
 
     {mode === 'table' && visible.length > 0 && <div ref={tableScroller} onScroll={event => { tablePosition.current.left = event.currentTarget.scrollLeft }} className="wt-table-scroll" tabIndex={0} role="region" aria-label="Patient table, horizontal scrolling"><table className="wt-table" style={{ '--wt-chart-width': `${chartWidth}px` } as CSSProperties}><thead><tr><th title="Selection"><span className="sr-only">Selection</span><input type="checkbox" aria-label="Select visible patients on this page" title="Select visible patients on this page" disabled={!selectableRows.length} ref={element => { if (element) { element.indeterminate = pageSelectedCount > 0 && pageSelectedCount < selectableRows.length } }} checked={selectableRows.length > 0 && pageSelectedCount === selectableRows.length} onChange={event => { const scopeIds = new Set(pagePatientIds); setSelected(event.target.checked ? [...new Set([...selected, ...pagePatientIds])] : selected.filter(id => !scopeIds.has(id))) }} /></th><th aria-label="Patient" aria-sort={sort === 'id' ? 'ascending' : sort === 'id:desc' ? 'descending' : undefined}><ColumnActions active={active} label="Patient" shortLabel="ID" metrics={[{id:'id',label:'Patient ID'}]} activeMetric={sort === 'id' || sort === 'id:desc' ? 'id' : null} ascending={sort === 'id'} onSort={(_metric, ascending) => setSort(ascending ? 'id' : 'id:desc')} /></th>{shownAttributes.map(attribute => {
@@ -827,11 +831,11 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       const nextId = visible[Number(event.target.value)].patientId
       setPatientId(nextId)
       if (typeof window !== 'undefined' && window.history?.replaceState) window.history.replaceState({ page: 'Trajectories', mode: 'detail', patientId: nextId, returnMode }, '')
-    }}>{visible.map((row, index) => <option key={String(row.patientId)} value={index}>{row.patientId}</option>)}</select></label><button disabled={currentIndex >= visible.length - 1} onClick={() => {
+    }}>{keptOutsideMarks && <option value={-1}>{keptOutsideMarks.patientId} (not in “Show only”)</option>}{visible.map((row, index) => <option key={String(row.patientId)} value={index}>{row.patientId}</option>)}</select></label><button disabled={currentIndex >= visible.length - 1} onClick={() => {
       const nextId = visible[currentIndex + 1].patientId
       setPatientId(nextId)
       if (typeof window !== 'undefined' && window.history?.replaceState) window.history.replaceState({ page: 'Trajectories', mode: 'detail', patientId: nextId, returnMode }, '')
-    }}>Next patient</button><span>{currentIndex + 1} / {visible.length}</span></div><div className="wt-plot-grid">{parameters.map((parameter, index) => {
+    }}>Next patient</button><span>{keptOutsideMarks ? '–' : currentIndex + 1} / {visible.length}</span></div>{keptOutsideMarks && <p className="card pv-outside-marks" role="status">Patient {keptOutsideMarks.patientId} does not match “Show only: {markFilters.map(rowMarkLabel).join(' + ')}” and stays open. {visible.length === 0 ? 'No patient matches at present.' : `“Next patient” continues with the ${visible.length === 1 ? 'one matching patient' : `${visible.length} matching patients`}.`} <button type="button" onClick={() => { setMarkFilters([]); setTablePage(0) }}>Show all patients</button></p>}<div className="wt-plot-grid">{parameters.map((parameter, index) => {
       const measurements = measurementsFor(current.patientId, parameter)
       const fitStatus = measurementFitStatus(measurements, current.cells[index])
       return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed slopeDecimals={slopeDecimals[index]} missing={missingNote(parameter.key, current.patientId)} cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(current.patientId))} excludesAki={(columnSettings[parameter.key] ?? fitSettings).exclusions.excludeAkiWindows} timeBalancing={(columnSettings[parameter.key] ?? fitSettings).timeBalancing} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><div className="wt-table-scroll"><table aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th></tr></thead><tbody>{measurements.map((row, i) => <tr key={i}><td>{row.labDatum ? formatWorkspaceDate(row.labDatum) : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatWorkspaceNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatWorkspaceNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td></tr>)}</tbody></table></div>{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>

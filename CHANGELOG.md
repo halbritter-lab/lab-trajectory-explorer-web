@@ -46,7 +46,10 @@ interfaces are still evolving before 1.0.
   (rapid decline, uncertain slope, endpoint reached, AKI) and by the type of
   their clinical events, each with its number of patients. Several chosen
   marks must all apply. Overlay, patient navigation and export follow the
-  filter. On a phone the marks are in a toolbar menu.
+  filter. On a phone the marks are in a toolbar menu. A patient open in the
+  patient view stays open, with a note, when a changed trend method or
+  setting takes them out of the chosen marks; the view does not switch to
+  another patient and the patient export keeps writing the open one.
 - The cohort export button names a restricted scope ("Export 12 of 28
   patients (XLSX)"), and the workbook exports show "Exporting …" while the
   file is written.

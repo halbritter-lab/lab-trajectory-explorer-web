@@ -175,6 +175,50 @@ describe('filters with counts for marks and event types (K01), and select all ma
     expect(screen.getByText(/No matching patients/)).toBeInTheDocument()
   })
 
+  it('keeps the open patient when a settings change takes them out of the chosen mark', () => {
+    // A second patient with an uncertain slope: the one the view would otherwise switch to.
+    const data = marked()
+    const second = dataset([{ id: 'U2', values: [60, 59, 58, 57], stepDays: 50 }], 'ml/min/1.73m²')
+    data.patients.push(...second.patients); data.rows.push(...second.rows); data.rawRows.push(...second.rawRows)
+    data.patientAttributes.U2 = {}
+    render(<TrajectoriesWorkspace data={data} />)
+    enableTrend()
+    fireEvent.click(filterButton(/^Uncertain slope/))
+    expect(order()).toEqual(['U', 'U2'])
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient U2' }))
+    expect(screen.getByRole('heading', { name: 'Patient U2' })).toBeInTheDocument()
+    expect(screen.queryByText(/does not match “Show only/)).not.toBeInTheDocument()
+    // Without a fit nobody carries the mark any more.
+    fireEvent.change(screen.getByLabelText(`Trend method: ${LABEL}`), { target: { value: 'none' } })
+    expect(screen.getByRole('heading', { name: 'Patient U2' })).toBeInTheDocument()
+    expect(screen.getByText(/Patient U2 does not match “Show only: Uncertain slope” and stays open\. No patient matches at present\./)).toBeInTheDocument()
+    expect(screen.queryByText(/No matching patients/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Export patient (XLSX)' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Next patient' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Previous patient' })).toBeDisabled()
+    expect(within(screen.getByLabelText('Open patient directly')).getAllByRole('option').map(option => option.textContent)).toEqual(['U2 (not in “Show only”)'])
+    fireEvent.click(screen.getByRole('button', { name: 'Show all patients' }))
+    expect(screen.getByRole('heading', { name: 'Patient U2' })).toBeInTheDocument()
+    expect(screen.queryByText(/does not match “Show only/)).not.toBeInTheDocument()
+    expect(screen.getByText('5 / 5')).toBeInTheDocument()
+  })
+
+  it('leaves the open patient in place while others still match, and continues with them on "Next patient"', () => {
+    const data = marked()
+    render(<TrajectoriesWorkspace data={data} />)
+    enableTrend()
+    fireEvent.click(screen.getByRole('button', { name: 'Open patient R2' }))
+    // Chosen in the patient view: R2 has a transplant but no uncertain slope.
+    fireEvent.click(filterButton(/^Uncertain slope/))
+    expect(screen.getByRole('heading', { name: 'Patient R2' })).toBeInTheDocument()
+    expect(screen.getByText(/Patient R2 does not match “Show only: Uncertain slope” and stays open\. “Next patient” continues with the one matching patient\./)).toBeInTheDocument()
+    expect(screen.getByText('– / 1')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Next patient' }))
+    expect(screen.getByRole('heading', { name: 'Patient U' })).toBeInTheDocument()
+    expect(screen.getByText('1 / 1')).toBeInTheDocument()
+    expect(screen.queryByText(/does not match “Show only/)).not.toBeInTheDocument()
+  })
+
   it('offers "Select all matching" with the number of hits as soon as a search or filter is active', () => {
     render(<TrajectoriesWorkspace data={marked()} />)
     expect(screen.queryByRole('button', { name: /^Select all \d+ matching$/ })).not.toBeInTheDocument()

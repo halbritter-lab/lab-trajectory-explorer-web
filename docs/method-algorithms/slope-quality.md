@@ -271,7 +271,14 @@ so two chosen marks can show fewer patients than either number. A chosen
 button stays visible with 0 when its mark no longer occurs (for example
 after Trend was switched off). The filter applies to the table, the overlay,
 the patient navigation and the export; the export button then reads "Export
-14 of 28 patients (XLSX)". Opening a patient from the Data page clears the
+14 of 28 patients (XLSX)". A patient who is open in the patient view stays
+open when they stop matching the chosen marks, which a change of the trend
+method or another analysis setting in that view can cause, as can choosing a
+mark there: a note names the marks they do not match, the position reads
+"– / 2", "Next patient" continues with the first matching patient, "Show all
+patients" in the note clears the marks, and the patient export still writes
+the open patient. Search, group filter and "Selected only" do not keep a
+patient open in this way. Opening a patient from the Data page clears the
 chosen marks together with search and group filter. On a screen up to 600 px
 wide the buttons are in the toolbar menu "Show only" instead of a row, with
 the number of chosen marks on the menu button.
