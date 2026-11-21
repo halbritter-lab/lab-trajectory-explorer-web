@@ -45,6 +45,35 @@ export function decodeText(bytes: Uint8Array): string | null {
   }
 }
 
+/** Candidate field delimiters, in the order that breaks a tie (the order the
+ * workbook reader uses itself). */
+const DELIMITERS = [',', '\t', ';', '|'] as const
+
+/**
+ * The field delimiter of delimited text, taken from the header line alone: the
+ * candidate (comma, tab, semicolon, pipe) that occurs most often outside
+ * double quotes before the first line break. The header line holds only column
+ * names, so decimal commas and free text in the data rows cannot outvote the
+ * real delimiter, as they can in the workbook reader's own guess over the
+ * first 1024 characters. Returns undefined when the text starts with a `sep=`
+ * line (the reader honours it) or the header line holds no candidate.
+ */
+export function detectDelimiter(text: string): string | undefined {
+  if (text.startsWith('sep=')) return undefined
+  const counts = new Map<string, number>()
+  let quoted = false
+  for (const ch of text) {
+    if (ch === '"') quoted = !quoted
+    else if (!quoted && (ch === '\n' || ch === '\r')) break
+    else if (!quoted && (DELIMITERS as readonly string[]).includes(ch)) counts.set(ch, (counts.get(ch) ?? 0) + 1)
+  }
+  let best: string | undefined
+  for (const candidate of DELIMITERS) {
+    if ((counts.get(candidate) ?? 0) > (best === undefined ? 0 : counts.get(best)!)) best = candidate
+  }
+  return best
+}
+
 /**
  * Inspect an xlsx or csv file (as an ArrayBuffer or Uint8Array) and return its
  * sheet names along with a getter for raw rows of any sheet.
@@ -54,7 +83,11 @@ export function decodeText(bytes: Uint8Array): string | null {
  * types from CSV text: it reads the decimal comma in "1,5" as a thousands
  * separator (15), drops leading zeros from IDs, turns ranges such as "10-20"
  * into dates, reads 03/01/2024 month-first and decodes UTF-8 as Latin-1.
+ * The field delimiter comes from the header line (`detectDelimiter`).
  * Binary workbooks keep their typed cells (numbers, dates, text).
+ *
+ * Every row carries its position in the file as a non-enumerable
+ * `__rowNum__` (zero-based, header row = 0), read by `sourceRowNumber`.
  */
 export function readWorkbookSheets(data: ArrayBuffer | Uint8Array): WorkbookSheets {
   const arr =
@@ -64,7 +97,8 @@ export function readWorkbookSheets(data: ArrayBuffer | Uint8Array): WorkbookShee
   const text = isBinarySpreadsheet(arr) ? null : decodeText(arr)
   const wb = text === null
     ? XLSX.read(arr, { type: 'array', cellDates: true })
-    : XLSX.read(text, { type: 'string', raw: true })
+    : XLSX.read(text, { type: 'string', raw: true, FS: detectDelimiter(text) })
+  const sepLineRows = text !== null && /^sep=.\r?\n|^sep=.\r/.test(text) ? 1 : 0
   return {
     sheetNames: wb.SheetNames,
     getSheet(sheet: string | number): RawRow[] {
@@ -78,6 +112,9 @@ export function readWorkbookSheets(data: ArrayBuffer | Uint8Array): WorkbookShee
         for (const [k, v] of Object.entries(row)) {
           out[k] = v instanceof Date ? normaliseXlsxDate(v) : v
         }
+        // The reader removes a leading "sep=" line before counting rows.
+        const rowNum = (row as { __rowNum__?: unknown }).__rowNum__
+        if (typeof rowNum === 'number') Object.defineProperty(out, '__rowNum__', { value: rowNum + sepLineRows, enumerable: false })
         return out
       })
     },

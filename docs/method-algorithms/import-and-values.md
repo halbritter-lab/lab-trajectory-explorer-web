@@ -30,9 +30,23 @@ Every other file is decoded as text by `decodeText`, in this order:
 4. If the bytes are not valid UTF-8, Windows-1252.
 
 Text files are parsed without type inference: every cell reaches the loaders as
-its verbatim text. The field delimiter is detected by the SheetJS reader; comma
-and semicolon files are covered by tests. The first row of a sheet supplies the
-headers and blank cells are read as empty.
+its verbatim text. The first row of a sheet supplies the headers and blank
+cells are read as empty.
+
+**Field delimiter.** `detectDelimiter` takes the delimiter from the header line
+alone, that is the text before the first line break outside double quotes. The
+candidates are comma, tab, semicolon and pipe; the one that occurs most often
+outside double quotes is used, and a tie goes to the earlier candidate in that
+order. The data rows are not counted, so decimal commas and free text cannot
+outvote the delimiter: the header `patientId;labDate;testName;unit;value`
+followed by rows such as `101;10.01.2021;Kreatinin, Serum, enzymatisch,
+IFCC;mg/dl;1,0` is read with the semicolon (four semicolons and no comma in the
+header line). Until 2026-11-21 the workbook reader counted the candidates in
+the first 1024 characters of the file, where the eight commas of two such rows
+outvoted the semicolons and the file failed with missing columns. Two cases are
+left to the workbook reader: a file that starts with a `sep=` line (the
+character after `sep=` is the delimiter and the line is not a data row), and a
+header line without any candidate (a single column).
 
 Sheet selection in `loadDatasetFromWorkbook` depends on the number of sheets.
 Sheet names are compared after header normalisation (see Columns).
@@ -95,6 +109,20 @@ The lab sheet accepts these headers (`LAB_COLUMN_ALIASES`):
 A lab sheet with data rows that lacks a required column is rejected as a whole;
 the error names the missing columns and lists the columns found. `Geschlecht`
 is not a lab-sheet header; it is accepted in the attributes table only.
+
+The error adds one sentence on the likely cause in two cases; no column is
+mapped and the file stays rejected:
+
+- A found column name contains a semicolon or a tab: the header line was
+  probably split at the wrong field delimiter.
+- Otherwise, when test name, unit and value are all missing and at least two
+  columns match no accepted lab header (columns the reader named `__EMPTY…`
+  are not counted): "This file seems to have one column per lab test; one row
+  per measurement is required", with a pointer to the lab template and an
+  example header and row. A table with the columns `Patient`, `Geschlecht`,
+  `Geburtsdatum`, `Datum`, `Kreatinin (mg/dl)` and `Harnstoff (mg/dl)` gets
+  this sentence (six unrecognised columns); a long table whose value column is
+  merely misnamed does not (only `value` is missing).
 
 Two accepted headers that differ only in case or separators (`Patient ID` and
 `patient_id`) are an import error: "Ambiguous columns … Rename one of them."

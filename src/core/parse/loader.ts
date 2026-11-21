@@ -11,6 +11,7 @@ import {
   cell,
   collectHeaders,
   describeFoundColumns,
+  normaliseHeader,
   resolveColumns,
   shadowedColumnNotes,
 } from './headers'
@@ -115,7 +116,7 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
         `Required columns are: ${REQUIRED_COLUMNS.join(', ')}. ` +
         `The older German headers (${COLUMN_ALIASES.patientId[1]}, ${COLUMN_ALIASES.labDate[1]}, ` +
         `${COLUMN_ALIASES.testName[1]}, ${COLUMN_ALIASES.unit[1]}, ${COLUMN_ALIASES.value[1]}) ` +
-        `are still accepted. ${describeFoundColumns(headers)}`,
+        `are still accepted. ${describeFoundColumns(headers)}${layoutHint(headers, missing)}`,
     )
   }
 
@@ -229,6 +230,33 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[]): LoadedLabRows {
 
   const sheetNotes = notes.map((reason): LabImportIssue => ({ patientId: null, severity: 'warning', reason, scope: 'sheet' }))
   return { rows: out, issues: [...rejected, ...birthWarnings.values(), ...sheetNotes] }
+}
+
+/**
+ * One more sentence for the missing-columns error when the cause is the table
+ * layout rather than a misspelt header:
+ * - a found column name contains a semicolon or a tab: the header line was
+ *   split at the wrong field separator;
+ * - test name, unit and value are all missing and at least two columns match
+ *   no accepted header: the file probably has one column per lab test.
+ * Message text only; no column is mapped.
+ */
+function layoutHint(headers: Iterable<string>, missing: readonly string[]): string {
+  const found = [...headers]
+  const split = found.find((h) => h.includes(';') || h.includes('\t'))
+  if (split !== undefined) {
+    const semicolon = split.includes(';')
+    return ` A column name contains ${semicolon ? 'a semicolon' : 'a tab'}, so the header line was probably split at the wrong field separator. ` +
+      `Save the file with one separator throughout, or put the line "sep=${semicolon ? ';' : '<tab>'}" first.`
+  }
+  const accepted = new Set(Object.values<readonly string[]>(COLUMN_ALIASES).flatMap((aliases) => aliases.map(normaliseHeader)))
+  const unrecognised = found.filter((h) => !/^__EMPTY/.test(h) && !accepted.has(normaliseHeader(h)))
+  if (['testName', 'unit', 'value'].every((c) => missing.includes(c)) && unrecognised.length >= 2) {
+    return ' This file seems to have one column per lab test; one row per measurement is required. ' +
+      'Use the lab template under "Templates and example files". Example: the header line ' +
+      '"patientId,labDate,testName,unit,value" followed by one line such as "1,2024-01-31,Creatinine,mg/dl,1.1" for each measurement.'
+  }
+  return ''
 }
 
 // "1,234" or "<1,500": read as decimals, but in an English-locale export the

@@ -5,6 +5,21 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Fixed (import, after the persona review of 2026-11-21)
+
+- A semicolon CSV whose data rows hold more commas than semicolons (test names
+  or free text with commas, decimal commas) is read with the semicolon. The
+  field delimiter is now taken from the header line; before, such a file was
+  rejected with "missing required column(s)". Files that loaded before are
+  read as before; a `sep=` line keeps working.
+
+### Changed (import error message)
+
+- The "missing required column(s)" error names the likely cause when the file
+  has one column per lab test instead of one row per measurement, with an
+  example of the expected layout, and when a column name contains a semicolon
+  or a tab (wrong field delimiter). No column is mapped.
+
 ### Added (Cohort models: control over a running fit)
 
 - A running fit can be cancelled. Models fitted before stay; nothing of the

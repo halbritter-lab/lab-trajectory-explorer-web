@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import * as XLSX from 'xlsx'
-import { readWorkbook } from '../../src/io/readWorkbook'
+import { detectDelimiter, readWorkbook } from '../../src/io/readWorkbook'
+import { sourceRowNumber } from '../../src/core/types'
 import { loadDatasetFromWorkbook } from '../../src/io/loadDataset'
 import { normalizeClinicalEventsWithNotes } from '../../src/core/events/events'
 
@@ -267,5 +268,59 @@ describe('import diagnostics', () => {
     expect(() => loadDatasetFromWorkbook(bytes('patientId;labDate;Analyt\n1;2024-01-15;Kreatinin\n'))).toThrow(
       /missing required column\(s\): testName, unit, value\..*Columns found: patientId, labDate, Analyt\./,
     )
+  })
+})
+
+describe('field separator detection', () => {
+  it('reads a semicolon CSV whose data rows hold more commas than semicolons', () => {
+    const { rows } = loadDatasetFromWorkbook(bytes(`${HEADER}\n101;10.01.2021;Kreatinin, Serum, enzymatisch, IFCC;mg/dl;1,0\n101;10.02.2021;Kreatinin, Serum, enzymatisch, IFCC;mg/dl;1,2\n`))
+    expect(rows.map((r) => [r.bezeichnung, r.wertNum])).toEqual([['Kreatinin, Serum, enzymatisch, IFCC', 1], ['Kreatinin, Serum, enzymatisch, IFCC', 1.2]])
+  })
+
+  it('reads a semicolon CSV with a free-text column full of commas', () => {
+    const { rows } = loadDatasetFromWorkbook(bytes(`PatientID;LabDatum;Bezeichnung;Einheit;Wert;Kommentar\n101;10.01.2021;Kreatinin;mg/dl;1,0;hämolytisch, lipämisch, ikterisch, Kontrolle empfohlen, s. Befund, Tel.\n`))
+    expect(rows.map((r) => [r.patientId, r.einheit, r.wertNum])).toEqual([[101, 'mg/dl', 1]])
+  })
+
+  it('takes the separator from the header line, outside quotes', () => {
+    expect(detectDelimiter('a;b;c\n1,2,3,4;5;6\n')).toBe(';')
+    expect(detectDelimiter('a,b,c\r\n1;2;3;4,5,6\r\n')).toBe(',')
+    expect(detectDelimiter('a\tb\tc\n')).toBe('\t')
+    expect(detectDelimiter('"a,b,c,d";e;f\n')).toBe(';')
+    // A tie goes to the comma, then tab, then semicolon, as in the workbook reader.
+    expect(detectDelimiter('a,b;c\n')).toBe(',')
+    expect(detectDelimiter('single\n1\n')).toBeUndefined()
+  })
+
+  it('leaves a "sep=" line to the workbook reader and still counts it as a file row', () => {
+    expect(detectDelimiter('sep=;\na;b\n')).toBeUndefined()
+    const raw = readWorkbook(bytes(`sep=;\n${HEADER}\n1;2024-01-15;Kreatinin, Serum;mg/dl;1,5\n`))
+    expect(raw).toEqual([{ patientId: '1', labDate: '2024-01-15', testName: 'Kreatinin, Serum', unit: 'mg/dl', value: '1,5' }])
+    expect(sourceRowNumber(raw[0])).toBe(3)
+  })
+
+  it('numbers rows as the file shows them, skipping nothing for blank lines', () => {
+    const raw = readWorkbook(bytes(`${HEADER}\n1;2024-01-15;Kreatinin;mg/dl;1,5\n;;;;\n2;2024-01-16;Kreatinin;mg/dl;1,6\n`))
+    expect(raw.map(sourceRowNumber)).toEqual([2, 4])
+    expect(Object.keys(raw[0])).toEqual(['patientId', 'labDate', 'testName', 'unit', 'value'])
+  })
+})
+
+describe('missing-column message names the likely cause', () => {
+  it('names the wide layout when test name, unit and value are missing', () => {
+    const wide = 'Patient;Geschlecht;Geburtsdatum;Datum;Kreatinin (mg/dl);Harnstoff (mg/dl)\nP01;w;12.03.1961;14.01.2020;1,1;38\n'
+    expect(() => loadDatasetFromWorkbook(bytes(wide))).toThrow(/missing required column\(s\): patientId, labDate, testName, unit, value\..*This file seems to have one column per lab test; one row per measurement is required\..*"patientId,labDate,testName,unit,value" followed by one line such as "1,2024-01-31,Creatinine,mg\/dl,1\.1"/s)
+  })
+
+  it('does not name the wide layout for a single misspelt header', () => {
+    const csv = 'patientId;labDate;testName;unit;Ergebnis;Kommentar;Station\n1;2024-01-15;Kreatinin;mg/dl;1,5;a;b\n'
+    expect(() => loadDatasetFromWorkbook(bytes(csv))).toThrow(/missing required column\(s\): value\./)
+    expect(() => loadDatasetFromWorkbook(bytes(csv))).not.toThrow(/one column per lab test/)
+  })
+
+  it('names the separator when a found column name contains a semicolon', () => {
+    const csv = 'sep=,\npatientId;labDate;testName;unit;value\n1;2024-01-15;Kreatinin;mg/dl;1.5\n'
+    expect(() => loadDatasetFromWorkbook(bytes(csv))).toThrow(/A column name contains a semicolon, so the header line was probably split at the wrong field separator\./)
+    expect(() => loadDatasetFromWorkbook(bytes(csv))).not.toThrow(/one column per lab test/)
   })
 })
