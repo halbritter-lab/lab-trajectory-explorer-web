@@ -422,8 +422,15 @@ No finding changes an imported value.
   "This copy was saved by an earlier version: it has no import findings, no
   source rows and no times of day, so several creatinine values of one day
   are compared with earlier days only. Import the file again to get them."
-  The sentence is shown until the copy is saved again by the current version
-  (with the next change of the data).
+  The sentence is shown until the copy is saved again by the current version.
+  That happens with the next change of the lab rows, events, attributes,
+  manual demographic entries, import findings, the file name or the analysis
+  settings of the dataset (eGFR formula and source, AKI display and exclusion
+  days, rapid-decline threshold). The rewritten copy holds an empty list of
+  findings, so the sentence is no longer added although the source rows and
+  times of day are still missing. A change of presets, trend or display
+  settings alone writes only the settings record and leaves the sentence in
+  place.
 - **Data checks.** Four counts of the Data page are computed from the imported
   lab rows, not stored: values without a date, values without a numeric
   measurement, and exact dated serum creatinine values of zero or less or
