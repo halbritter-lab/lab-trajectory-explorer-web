@@ -71,13 +71,13 @@ describe('workspace workbook', () => {
     expect(records(workbook, 'aki_episodes')).toEqual([])
     expect(records(workbook, 'about').some(row => String(row.note).startsWith('aki_episodes lists every AKI episode'))).toBe(true)
   })
-  it('appends the LOINC code to measurements, raw_measurements and parameters, after the columns that existed before', () => {
+  it('appends the LOINC code to measurements, raw_measurements and parameters, after the columns that existed before and before patient_birth_date', () => {
     const input = exportFixture()
     input.data.rawRows[0].loinc = '1988-5'
     input.data.rawRows[2].loinc = '30522-7'
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name], { header: 1 })[0]
-    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc'])
+    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date'])
     expect(header('raw_measurements')).toEqual(header('measurements'))
     expect(header('parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
     expect(records(workbook, 'raw_measurements').map(row => row.loinc)).toEqual(['1988-5'])

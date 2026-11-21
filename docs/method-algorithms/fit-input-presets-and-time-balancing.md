@@ -200,7 +200,8 @@ Evidence: [export record tests](../../tests/core/cohort/exportRecords.test.ts),
 The cohort workbook has these sheets, in this order: `measurements`,
 `raw_measurements`, `cohort` (`slopes` in a patient export), `events`,
 `aki_episodes`, `patient_attributes`, `demographics`, `parameters`,
-`settings`, `about`, `columns`. Since 2026-11-21:
+`settings`, `about`, `columns`, `rolling_windows`, `import_diagnostics`.
+Since 2026-11-21:
 
 - **Fixed column lists.** Every sheet is written with its column list, so a
   sheet without rows (no event, no AKI episode, no imported row in scope) has
@@ -217,7 +218,7 @@ The cohort workbook has these sheets, in this order: `measurements`,
   types strictly. A dataset that mixes both kinds of ID (`7` and `A12`) still
   has both cell types in the column.
 - **Measurement sheets.** `measurements` and `raw_measurements` end with
-  `patient_birth_date`, after `demographics`. In `raw_measurements` it is the
+  `patient_birth_date`, after `demographics` and `loinc`. In `raw_measurements` it is the
   birth date read from the imported lab row (`YYYY-MM-DD`, empty text when
   the row had none); in `measurements` it is always empty text. It exists so
   that a re-import keeps an exact birth date (see
@@ -270,7 +271,7 @@ The cohort workbook has these sheets, in this order: `measurements`,
   different birth-date anchors. The
   `datasetHash` of the model workbook is a different quantity: a hash of the
   prepared model rows.
-- **`columns`.** The last sheet describes the columns of the `cohort` (or
+- **`columns`.** The sheet after `about` describes the columns of the `cohort` (or
   `slopes`) sheet, one row per column in sheet order: `column`, `meaning`,
   `unit`, `empty_when`. The export fails rather than write a column that has
   no entry. The other sheets have no directory.

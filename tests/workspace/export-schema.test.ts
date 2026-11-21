@@ -36,8 +36,8 @@ function groupedFixture() {
 describe('cohort workbook schema', () => {
   it('pins the sheets and the columns of every sheet', () => {
     const workbook = read(workspaceWorkbookBytes(exportFixture()))
-    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns'])
-    const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'patient_birth_date']
+    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics'])
+    const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date']
     expect(header(workbook, 'measurements')).toEqual(measurement)
     expect(header(workbook, 'raw_measurements')).toEqual(measurement)
     expect(header(workbook, 'cohort')).toEqual(COHORT_HEADER)
@@ -45,7 +45,7 @@ describe('cohort workbook schema', () => {
     expect(header(workbook, 'aki_episodes')).toEqual(['PatientID', 'creatinine_parameter', 'creatinine_unit', 'stage', 'onset_date', 'peak_date', 'peak_value_mg_dl', 'baseline_date', 'baseline_value_mg_dl', 'criterion'])
     expect(header(workbook, 'patient_attributes')).toEqual(['PatientID', 'group'])
     expect(header(workbook, 'demographics')).toEqual(['PatientID', 'baseline_age', 'birth_anchor', 'age_estimated', 'manual_override', 'warnings'])
-    expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit'])
+    expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
     expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope'])
     expect(header(workbook, 'about')).toEqual(['note'])
     expect(header(workbook, 'columns')).toEqual(['column', 'meaning', 'unit', 'empty_when'])
@@ -76,7 +76,7 @@ describe('cohort workbook schema', () => {
     expect(records(workbook, 'aki_episodes')).toEqual([])
     expect(header(workbook, 'aki_episodes')).toHaveLength(10)
     expect(records(workbook, 'raw_measurements')).toEqual([])
-    expect(header(workbook, 'raw_measurements')).toHaveLength(13)
+    expect(header(workbook, 'raw_measurements')).toHaveLength(14)
   })
 
   it('names the ID PatientID in every sheet and writes one type: a number for a numeric ID', () => {

@@ -57,7 +57,7 @@ describe('cohort workbook: import_diagnostics sheet', () => {
   it('is appended after the existing sheets and holds findings of the whole dataset', () => {
     const input = exportFixture()
     const before = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
-    expect(before.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'import_diagnostics'])
+    expect(before.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics'])
     input.data.importDiagnostics = diagnostics
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const sheet = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.import_diagnostics, { defval: '' })

@@ -76,8 +76,9 @@ interfaces are still evolving before 1.0.
   values stay one series.
 - "Imported parameters" shows the LOINC codes of each parameter. The sheets
   `measurements`, `raw_measurements` and `parameters` of the cohort and
-  patient workbooks get a last column `loinc`; existing columns keep their
-  names and positions.
+  patient workbooks get a column `loinc` after the existing ones (in the
+  measurement sheets before `patient_birth_date`, added the same day);
+  existing columns keep their names and positions.
 
 ### Added (Data page, after the persona review of 2026-11-21)
 
@@ -284,7 +285,7 @@ interfaces are still evolving before 1.0.
   every preset and without a trend, and can differ from "latest" in the
   table, which also counts bounds and values after transplantation or
   dialysis.
-- A last sheet `columns` describes every column of the `cohort` sheet:
+- A sheet `columns` after `about` describes every column of the `cohort` sheet:
   meaning, unit and when the cell is empty.
 - The `about` sheet of the cohort workbook ends with `app_version`,
   `exported_at` (UTC), `export_id` and `input_data_id`, an identifier of the

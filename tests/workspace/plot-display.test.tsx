@@ -302,12 +302,12 @@ describe('Rolling OLS windows (K18)', () => {
       expect(note).not.toContain('fitted measurement')
     })
   })
-  it('exports the windows as the sheet after about, empty without a rolling column', () => {
+  it('exports the windows as a sheet after about and columns, empty without a rolling column', () => {
     const data = { ...dataset(rows), analysis: { rows, messages: [], fitInputs: [] } } as unknown as WorkspaceData
     const workbook = (mode: 'rolling' | 'global') => XLSX.read(workspaceWorkbookBytes({ data, parameterKeys: [CREA.key], patientIds: ['R'], patientId: 'R',
       cohortRows: buildCohortRows(rows, ['R'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode }]) }), { type: 'array' })
     const rolling = workbook('rolling')
-    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'rolling_windows'])
+    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics'])
     const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(rolling.Sheets.rolling_windows)
     expect(records).toHaveLength(5)
     expect(Object.keys(records[0])).toEqual(['PatientID', 'Parameter', 'Unit', 'window', 'window_start', 'window_end', 'first_date', 'last_date', 'n', 'slope'])
@@ -315,7 +315,7 @@ describe('Rolling OLS windows (K18)', () => {
     expect(records[4].slope).toBeCloseTo(-8, 1)
     expect(XLSX.utils.sheet_to_json<Record<string, unknown>>(rolling.Sheets.about).some(row => String(row.note).startsWith('rolling_windows lists the fitted windows'))).toBe(true)
     const plain = workbook('global')
-    expect(plain.SheetNames.at(-1)).toBe('rolling_windows')
+    expect(plain.SheetNames).toContain('rolling_windows')
     expect(XLSX.utils.sheet_to_json(plain.Sheets.rolling_windows)).toHaveLength(0)
   })
 })
