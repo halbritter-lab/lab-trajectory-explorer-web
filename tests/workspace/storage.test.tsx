@@ -7,7 +7,7 @@ import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 import { defaultTrajectoryView, losesDataOnUnload } from '../../src/workspace/saved-settings'
 import { defaultFitSettings, defaultTrajectoryFitSettings } from '../../src/workspace/workspace-analysis'
-import { DATASET_TTL_MS, restoredNotice, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_SETTINGS_KEY, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
+import { DATASET_TTL_MS, restoredNotice, savedStatusText, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_SETTINGS_KEY, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
 
 // The workspace keeps its copy in its own database; the default database is
 // where earlier versions saved and other apps on the origin may still save.
@@ -155,7 +155,7 @@ describe('workspace local storage', () => {
     expect(useWorkspaceStorage.getState().settingsError).toMatch(/^Could not save the analysis settings on this device\. The dataset copy is unchanged/)
     const controls = render(<WorkspaceStorageControls hasData />)
     expect(screen.getByText(/^Could not save the analysis settings on this device/)).toBeInTheDocument()
-    expect(screen.getByText('Saved on this device')).toBeInTheDocument()
+    expect(screen.getByText(/^Saved on \d{4}-\d\d-\d\d \d\d:\d\d; removed when the app is next opened after /)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Retry saving' })).toBeNull()
     controls.unmount()
     act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), chartSize: 'large' }) })
@@ -483,5 +483,51 @@ describe('saving only what can be restored', () => {
     expect(useWorkspaceStorage.getState().status).toBe('error')
     expect(useWorkspaceStorage.getState().message).toMatch(/cannot be saved/)
     expect(useAppStore.getState().rows).toHaveLength(1)
+  })
+})
+
+describe('save and expiry time of the saved copy', () => {
+  it('states the save time and the time after which the next start removes the copy', () => {
+    // Local time, to the minute; the copy expires once more than seven days have passed.
+    const savedAt = new Date(2026, 10, 21, 14, 5, 59).getTime()
+    expect(savedStatusText(savedAt)).toBe('Saved on 2026-11-21 14:05; removed when the app is next opened after 2026-11-28 14:05')
+    expect(savedStatusText(new Date(2026, 0, 3, 9, 7).getTime())).toBe('Saved on 2026-01-03 09:07; removed when the app is next opened after 2026-01-10 09:07')
+    expect(savedStatusText(null)).toBe('Saved on this device')
+  })
+  it('takes the save time of the copy into the state, keeps it through a restore and a settings change, and drops it with the copy', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    expect(useWorkspaceStorage.getState().savedAt).toBeNull()
+    await setWorkspaceRemember(true)
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    expect(useWorkspaceStorage.getState().savedAt).toBe(copy.savedAt)
+    // A copy saved three days ago is restored with its own time, not the time of the restore.
+    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
+    stop?.(); useAppStore.getState().reset()
+    await set(WORKSPACE_STORAGE_KEY, { ...copy, savedAt: threeDaysAgo })
+    stop = await startWorkspaceStorage()
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', savedAt: threeDaysAgo })
+    act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), chartSize: 'large' }) })
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 30)) })
+    expect(useWorkspaceStorage.getState().savedAt).toBe(threeDaysAgo)
+    render(<WorkspaceStorageControls hasData />)
+    expect(screen.getByText(savedStatusText(threeDaysAgo))).toBeInTheDocument()
+    // A data change writes a new copy and starts the seven days again.
+    act(() => { useAppStore.setState({ rows: [{ ...row, wertNum: 61 }] }) })
+    await waitFor(async () => expect((await get(WORKSPACE_STORAGE_KEY)).savedAt).toBeGreaterThan(threeDaysAgo))
+    await waitFor(async () => expect(useWorkspaceStorage.getState().savedAt).toBe((await get(WORKSPACE_STORAGE_KEY)).savedAt))
+    await act(async () => { await setWorkspaceRemember(false) })
+    expect(useWorkspaceStorage.getState().savedAt).toBeNull()
+    expect(screen.getByText('This session only')).toBeInTheDocument()
+  })
+  it('says in one line when the copy is removed and keeps the list of what is saved in a disclosure', () => {
+    const { container } = render(<WorkspaceStorageControls hasData />)
+    const line = container.querySelector('.workspace-storage > p.muted')!
+    expect(line).toHaveTextContent('Optional. Keeps an unencrypted copy of the dataset in this browser. The copy is removed when the app is next opened more than seven days after the last data change; until then it stays on this device.')
+    const details = screen.getByText('What is saved').closest('details')!
+    expect(details).not.toHaveAttribute('open')
+    expect(details).toHaveTextContent(/Saved: lab values, events, attributes, demographic edits, derivation settings/)
+    expect(details).toHaveTextContent(/Not saved: sorting, grouping and patient selection, and cohort model settings and results\./)
+    expect(details).toHaveTextContent(/changing analysis settings does not extend them/)
+    expect(details).toHaveTextContent(/the browser asks before the page is reloaded or closed/)
   })
 })

@@ -54,8 +54,25 @@ interface StorageStatus {
    * status, which keeps describing the dataset copy; cleared by the next
    * successful write. */
   settingsError: string | null
+  /** When the dataset copy on this device was written (its `savedAt`, the
+   * start of the seven days); null while no copy of this tab is saved. */
+  savedAt: number | null
 }
-export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null }))
+export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null, savedAt: null }))
+
+/** Local date and time to the minute: "2026-11-21 14:05". */
+function localMinute(time: number): string {
+  const date = new Date(time)
+  const two = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${two(date.getHours())}:${two(date.getMinutes())}`
+}
+/** The status of a saved copy. Nothing removes the copy while the app is
+ * closed: expiry is checked only when the app starts (startWorkspaceStorage),
+ * so the copy stays on the device until the app is opened after that time. */
+export function savedStatusText(savedAt: number | null): string {
+  if (savedAt === null) return 'Saved on this device'
+  return `Saved on ${localMinute(savedAt)}; removed when the app is next opened after ${localMinute(savedAt + DATASET_TTL_MS)}`
+}
 
 const nullableText = (v: unknown) => v === null || typeof v === 'string'
 const nullableNumber = (v: unknown) => v === null || typeof v === 'number' && Number.isFinite(v)
@@ -232,7 +249,7 @@ function save(): Promise<void> {
       await writeCopy(value)
       lastWriteToken = value.writeToken
       claimPending = false
-      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null, settingsError: null })
+      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null, settingsError: null, savedAt: value.savedAt })
     } catch (error) {
       if (error instanceof StorageConflict) {
         ++revision
@@ -290,7 +307,7 @@ export async function setWorkspaceRemember(enabled: boolean): Promise<void> {
       await delMany([WORKSPACE_STORAGE_KEY, WORKSPACE_SETTINGS_KEY], workspaceIdbStore())
       lastWriteToken = undefined
       claimPending = false
-      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null, settingsError: null })
+      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null, settingsError: null, savedAt: null })
     } catch {
       if (currentRevision === revision) reportError('Could not remove the saved copy. Retry clearing saved data on this device.')
     }
@@ -303,7 +320,7 @@ export async function startWorkspaceStorage(): Promise<() => void> {
   await writes
   lastWriteToken = undefined
   claimPending = false
-  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null })
+  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null, savedAt: null })
   const legacy: LegacyStorageOutcome = { formerInterfaceData: false, legacyWorkspaceCopy: null }
   let legacyCleanupFailed = false
   try {
@@ -339,7 +356,7 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       const mine = record(storedSettings) && storedSettings.datasetToken === value.writeToken ? storedSettings : undefined
       const restored = restoreSavedSettings(mine, parameterKeys)
       useAppStore.setState({ trajectoryFitSettings: restored.trajectoryFitSettings, trajectoryView: restored.trajectoryView, notice: { kind: 'info', text: restoredNotice(restored) } })
-      useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null })
+      useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null, savedAt: value.savedAt })
     }
   } catch {
     reportError('Local storage is unavailable. You can still import and work in this tab.')
