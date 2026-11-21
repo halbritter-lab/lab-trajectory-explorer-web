@@ -494,6 +494,19 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getByRole('list', { name: 'Patients not in the model' })).toHaveTextContent('P-none: No usable measurement of this parameter after data preparation')
   })
 
+  it('names the patients with enough measurement times for the whole cohort when no factor lists them', () => {
+    const data = qualifyingData()
+    // One more patient with two measurement times: in the model, but not counted towards the minimum.
+    const short = [0, 1].map(year => ({ ...data.rows[0], patientId: 'P-short', labDatum: new Date(Date.UTC(2020 + year, 0, 1)) }))
+    studio({ ...data, rawRows: [...data.rows, ...short], rows: [...data.rows, ...short], patients: [...data.patients, { id: 'P-short', label: 'P-short', attributes: {}, baselineAge: 55 }] })
+    expect(document.querySelector('.cm-sample-meta')).toHaveTextContent('across 11 of 11 patients')
+    expect(screen.getByLabelText('Patients with enough measurement times')).toHaveTextContent('Whole cohort, patients with enough measurement times: 10 of 11.')
+    // With a categorical factor the per-level counts take its place.
+    fireEvent.click(screen.getByRole('button', { name: /Adjusted for age and sex/i }))
+    expect(screen.queryByLabelText('Patients with enough measurement times')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Patients per level')).toBeInTheDocument()
+  })
+
   it('shows which reference category each categorical factor uses', () => {
     render(<CohortModelsWorkspace data={dataset} onBrowseTrajectories={vi.fn()} onBrowseData={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Adjusted for age and sex/i }))

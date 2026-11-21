@@ -54,6 +54,31 @@ interfaces are still evolving before 1.0.
   the name of the imported file) with a request to check them before the
   file is passed on.
 
+### Added (cohort models, after the persona review of 2026-11-21)
+
+- A fitted model carries the notes of its input check: patients with a
+  single measurement or with too few distinct measurement times, and
+  repeated values at one time. These rows stay in the fit as before; the
+  notes are shown in the model's details and exported in `models.warnings`.
+  No estimate changes.
+- Without a categorical factor the fit summary names how many patients of
+  the whole cohort have enough measurement times ("… 26 of 27.").
+- The `models` sheet of the model workbook ends with the variance
+  components, unrounded: `intercept_sd`, `slope_sd`,
+  `intercept_slope_correlation`, `residual_sd`. They follow `unit_key`;
+  earlier columns keep their positions.
+- The `about` sheet of the model workbook ends with `app_version` and
+  `exported_at` (UTC) and lists the personal and device-related fields of
+  the file (patient IDs as imported, the browser's user agent) with a
+  request to check them before the file is passed on.
+
+### Changed (methodology page, wording awaiting the maintainer's approval)
+
+- "Export & reproducibility" lists the sheets of the cohort-model workbook,
+  explains `unit_key` and `export_id` and gives three steps to refit a model
+  in R with the exported script. The table of the cohort workbook names the
+  new `columns` sheet and the provenance rows of `about`.
+
 ### Changed (exports, after the persona review of 2026-11-21)
 
 - Workbooks are written compressed. The demo cohort export shrinks from

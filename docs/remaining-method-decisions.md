@@ -673,7 +673,22 @@ Implemented on assumptions that still need the owner's confirmation:
   `raw_measurements` (issue #35, provenance item; no owner decision yet on
   the definition).
 
-Still open, unchanged: whether the export records the grouping attribute;
+New text that awaits the maintainer's approval: the section "Cohort-model
+workbook" and the two changed table rows on the Methods page "Export &
+reproducibility"; the line "Whole cohort, patients with enough measurement
+times: n of m." in the fit summary of the Cohort models page; the new rows of
+the two `about` sheets and the texts of the `columns` sheet. The note on
+personal fields is to use the same wording as the notice of issue #75 (import
+area) once that exists.
+
+Implemented from issue #35 without a separate decision, export scope only:
+the variance components on the `models` sheet (after `unit_key`, so
+`unit_key` is no longer the last column of that sheet), the warnings of the
+passed input check on the fitted result, and `app_version`/`exported_at` and
+the personal-data note in the `about` sheets of both workbooks.
+
+Still open, unchanged: whether patients who do not qualify stay in a cohort
+model; whether the export records the grouping attribute;
 whether the `cohort` sheet is reordered once; whether the Trajectories table
 shows a bound with its sign ("latest <15").
 

@@ -1,6 +1,7 @@
 import { mixedModelCoefficientTerms, mixedModelExportSheets, mixedModelTermLabel } from '../../core/mixedModel/modelExport'
 import { mixedModelFactors, mixedModelFormulaForOutcome, mixedModelOutcomeLabel } from '../../core/mixedModel/config'
 import { downloadBlob, fileStamp, sheetsToXlsxBytes } from '../../io/export'
+import { version as APP_VERSION } from '../../../package.json'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import type { MixedModelConfig } from '../../core/mixedModel/config'
@@ -239,7 +240,7 @@ export function CohortModelTable({
     if (exportable.some((model) => current?.[model.key]?.result !== model.result || !mixedModelIdentityEquals(current?.[model.key]?.identity ?? null, model.identity))) return
     try {
       const fileName = `cohort-models-${fileStamp()}.xlsx`
-      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable, fileName)), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable, fileName, undefined, { appVersion: APP_VERSION })), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       setExportError(null)
     } catch (error) {
       setExportError(`Model export failed: ${error instanceof Error ? error.message : String(error)}`)
