@@ -61,8 +61,11 @@ test('the Content-Security-Policy of the build blocks nothing of import, charts 
   const policy = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(policy).toContain("default-src 'self'")
   expect(policy).toContain("connect-src 'self' https://webr.r-wasm.org https://repo.r-wasm.org")
-  // The policy is in force: a request to another host is refused.
+  // The policy is in force: a request to another host is refused by the
+  // policy. The refusal alone would not show it, since the request also fails
+  // on a machine without outbound network; the violation event does.
   expect(await page.evaluate(() => fetch('https://example.org/').then(() => 'allowed', () => 'refused'))).toBe('refused')
+  await expect.poll(() => page.evaluate(() => (window as unknown as { cspViolations: string[] }).cspViolations)).toEqual(['connect-src https://example.org/'])
   await page.evaluate(() => { (window as unknown as { cspViolations: string[] }).cspViolations.length = 0 })
   blocked.length = 0
   await page.getByRole('button', { name: 'Load demo data', exact: true }).click()
@@ -95,4 +98,28 @@ test('the saved copy states when it was saved and after which time the next star
   await expect(status).toHaveText(`Saved on ${saved}; removed when the app is next opened after ${removed}`)
   await page.getByText('What is saved', { exact: true }).click()
   await expect(page.locator('.workspace-storage-details')).toContainText('Not saved: sorting, grouping and patient selection, and cohort model settings and results.')
+})
+
+test('a tab whose saved copy another tab replaced stops showing its save time when it is shown again', async ({ page, context }) => {
+  await page.goto('/')
+  await page.getByLabel('Import lab values').setInputFiles(labsFile)
+  await expect(page.locator('.workspace-dataset')).toContainText('3 patients')
+  await page.getByRole('checkbox', { name: 'Remember on this device' }).check()
+  const status = page.locator('.workspace-storage .actions [role=status]')
+  await expect(status).toHaveText(/^Saved on /)
+  // A second tab resumes the copy and changes the data: the copy is rewritten.
+  const other = await context.newPage()
+  await other.goto('/')
+  await expect(other.locator('.workspace-dataset')).toContainText('3 patients')
+  await other.getByLabel('Import lab values').setInputFiles({ ...labsFile, name: 'other.csv', buffer: Buffer.from(labsCsv.replace(/P-03/g, 'P-04')) })
+  await expect(other.locator('.workspace-dataset')).toContainText('other.csv')
+  await expect(other.locator('.workspace-storage .actions [role=status]')).toHaveText(/^Saved on /)
+  // Headless pages are always visible; a real tab gets this event when the user returns to it.
+  await page.bringToFront()
+  await page.evaluate(() => window.dispatchEvent(new Event('focus')))
+  await expect(page.locator('.workspace-storage .actions [role=alert]')).toHaveText('The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.')
+  await expect(page.getByRole('checkbox', { name: 'Remember on this device' })).not.toBeChecked()
+  // The other tab's copy is untouched.
+  await page.reload()
+  await expect(page.locator('.workspace-dataset')).toContainText('other.csv')
 })

@@ -54,7 +54,13 @@ write token of the dataset copy they belong to.
   copy remove both. Settings whose token is not that of the dataset copy are
   never applied; the copy then starts from the defaults.
 - **Several tabs.** For data the rule is unchanged: a tab whose copy was
-  replaced or removed by another tab stops saving and says so. For analysis
+  replaced or removed by another tab stops saving and says so. It notices
+  this with its own next data change, and also when it is shown or focused
+  again (`visibilitychange`, window `focus`): it then compares the copy on
+  the device with its own last write, without writing anything, so its
+  status does not keep naming the save and removal time of a copy that is
+  no longer there. While the tab stays in the background and unchanged, its
+  status still describes its own last save. For analysis
   settings, two tabs on the same copy can both write and the last write wins;
   a tab whose dataset is no longer the saved copy does not write settings and
   shows no error for it.

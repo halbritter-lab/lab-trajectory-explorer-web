@@ -37,6 +37,10 @@ interfaces are still evolving before 1.0.
   next opened after 2026-11-28 14:05"). The notice says in one line that the
   copy stays on the device until the app is opened again; the list of what
   is saved moved into "What is saved". The seven-day rule is unchanged.
+- A tab whose saved copy was replaced or removed in another tab says so as
+  soon as it is shown or focused again, instead of only with its next data
+  change. Until then its status named the save and removal time of a copy
+  that was no longer on the device.
 - The build carries a Content-Security-Policy meta element: the page may load
   from its own address and, beyond it, only from the two webR hosts. It
   restricts the page itself, not the model worker, which takes its policy

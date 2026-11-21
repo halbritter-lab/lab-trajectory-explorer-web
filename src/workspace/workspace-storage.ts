@@ -200,6 +200,36 @@ function enqueue(operation: () => Promise<void>): Promise<void> {
 function reportError(message: string) {
   useWorkspaceStorage.setState({ status: 'error', message })
 }
+function reportConflict() {
+  ++revision
+  useWorkspaceStorage.setState({ enabled: false, status: 'error', message: 'The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.' })
+}
+/**
+ * Compare the copy on the device with this tab's last write. The status
+ * ("Saved on …; removed … after …") is this tab's knowledge; another tab can
+ * replace or remove the copy without this tab writing anything. Called when
+ * the tab is shown or focused again, so the status does not keep naming a
+ * save and removal time of a copy that is no longer on the device. Writes
+ * nothing. The settings record is read first because it is small and carries
+ * the token of the dataset copy it was written with; the dataset record is
+ * read only when that does not settle it.
+ */
+export function checkSavedCopy(): Promise<void> {
+  return enqueue(async () => {
+    const token = lastWriteToken
+    if (token === undefined || claimPending || !useWorkspaceStorage.getState().enabled) return
+    try {
+      const settings: unknown = await get(WORKSPACE_SETTINGS_KEY, workspaceIdbStore())
+      if (record(settings) && settings.datasetToken === token) return
+      const dataset: unknown = await get(WORKSPACE_STORAGE_KEY, workspaceIdbStore())
+      if (record(dataset) && dataset.writeToken === token) return
+    } catch {
+      // An unreadable store is reported by the next save, not here.
+      return
+    }
+    reportConflict()
+  })
+}
 function snapshot(): Snapshot {
   const state = useAppStore.getState()
   return { version: 1, writeToken: crypto.randomUUID(), savedAt: Date.now(), rows: state.rows, fileName: state.fileName,
@@ -252,8 +282,7 @@ function save(): Promise<void> {
       if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null, settingsError: null, savedAt: value.savedAt })
     } catch (error) {
       if (error instanceof StorageConflict) {
-        ++revision
-        useWorkspaceStorage.setState({ enabled: false, status: 'error', message: 'The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.' })
+        reportConflict()
       } else if (currentRevision === revision) reportError('Could not save on this device. Keep this tab open or export your data, then retry.')
     }
   })
@@ -370,6 +399,14 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       || state.analysisSettings !== previous.analysisSettings || state.fileName !== previous.fileName) void save()
     else if (state.trajectoryFitSettings !== previous.trajectoryFitSettings || state.trajectoryView !== previous.trajectoryView) saveSettings()
   })
-  unsubscribe = stop
-  return stop
+  const onShown = () => { if (document.visibilityState === 'visible') void checkSavedCopy() }
+  document.addEventListener('visibilitychange', onShown)
+  window.addEventListener('focus', onShown)
+  const stopAll = () => {
+    stop()
+    document.removeEventListener('visibilitychange', onShown)
+    window.removeEventListener('focus', onShown)
+  }
+  unsubscribe = stopAll
+  return stopAll
 }

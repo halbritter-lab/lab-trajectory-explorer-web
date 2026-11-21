@@ -514,8 +514,12 @@ by the released version 0.3.7 restored in this version in a real browser
 6. Tick "Remember on this device": the status reads "Saved on <date time>;
    removed when the app is next opened after <date time>", seven days apart,
    and is the same after a reload. "What is saved" opens the list.
+7. With the copy saved, open the app in a second tab, import another file
+   there, and return to the first tab: its status changes to "The saved copy
+   was changed or removed in another tab. …" and "Remember on this device" is
+   unticked. A reload shows the second tab's dataset.
 
-Verified 2026-11-21 against the production build: steps 1, 2, 5 and 6 and the
+Verified 2026-11-21 against the production build: steps 1, 2, 5, 6 and 7 and the
 exports of step 4 by `tests/e2e/start-and-offline.e2e.ts` in Chromium; step 3
 and the real fit of step 4 by an ad-hoc Playwright script in Chromium, Firefox
 and WebKit (fit, refit, model workbook, SVG, PNG and cohort workbook; no

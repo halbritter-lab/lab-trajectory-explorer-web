@@ -7,7 +7,7 @@ import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 import { defaultTrajectoryView, losesDataOnUnload } from '../../src/workspace/saved-settings'
 import { defaultFitSettings, defaultTrajectoryFitSettings } from '../../src/workspace/workspace-analysis'
-import { DATASET_TTL_MS, restoredNotice, savedStatusText, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_SETTINGS_KEY, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
+import { checkSavedCopy, DATASET_TTL_MS, restoredNotice, savedStatusText, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_SETTINGS_KEY, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
 
 // The workspace keeps its copy in its own database; the default database is
 // where earlier versions saved and other apps on the origin may still save.
@@ -361,6 +361,47 @@ describe('workspace local storage', () => {
     await waitFor(() => expect(useWorkspaceStorage.getState().status).not.toBe('saving'))
     expect((await get(WORKSPACE_STORAGE_KEY)).fileName).toBe('newer.csv')
     expect(useWorkspaceStorage.getState().enabled).toBe(false)
+  })
+  it('stops showing a save and removal time once another tab replaced or removed the copy', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row] })
+    await setWorkspaceRemember(true)
+    const mine = await get(WORKSPACE_STORAGE_KEY)
+    // Unchanged copy: showing or focusing the tab changes nothing and writes nothing.
+    window.dispatchEvent(new Event('focus'))
+    await act(async () => { await checkSavedCopy() })
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', message: null, savedAt: mine.savedAt })
+    expect(await get(WORKSPACE_STORAGE_KEY)).toEqual(mine)
+    // The same when the copy has no settings record of its own (saved by an earlier version).
+    await del(WORKSPACE_SETTINGS_KEY)
+    await act(async () => { await checkSavedCopy() })
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', message: null })
+    // Another tab saved data: new copy and settings record, seven days restarted.
+    const newer = { ...mine, writeToken: 'another-tab', savedAt: mine.savedAt + 3_600_000, fileName: 'newer.csv' }
+    await set(WORKSPACE_STORAGE_KEY, newer)
+    await set(WORKSPACE_SETTINGS_KEY, { version: 1, datasetToken: 'another-tab', trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView() })
+    const controls = render(<WorkspaceStorageControls hasData />)
+    expect(screen.getByText(/^Saved on /)).toBeInTheDocument()
+    // This tab writes nothing; it is only focused again.
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    await waitFor(() => expect(useWorkspaceStorage.getState().enabled).toBe(false))
+    expect(screen.queryByText(/^Saved on /)).toBeNull()
+    expect(screen.getByRole('alert')).toHaveTextContent('The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.')
+    expect(await get(WORKSPACE_STORAGE_KEY)).toEqual(newer)
+    controls.unmount()
+    // A removed copy is noticed the same way.
+    await act(async () => { await setWorkspaceRemember(true) })
+    expect(useWorkspaceStorage.getState().status).toBe('saved')
+    await del(WORKSPACE_STORAGE_KEY); await del(WORKSPACE_SETTINGS_KEY)
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await waitFor(() => expect(useWorkspaceStorage.getState().message).toMatch(/another tab/))
+    expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+    // After the listeners are removed, nothing is checked any more.
+    await act(async () => { await setWorkspaceRemember(true) })
+    stop?.()
+    await del(WORKSPACE_STORAGE_KEY); await del(WORKSPACE_SETTINGS_KEY)
+    window.dispatchEvent(new Event('focus'))
+    await settle()
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved' })
   })
   it('keeps live data usable and reports a failed save', async () => {
     useAppStore.getState().replaceDataset({ rows: [row] })
