@@ -244,6 +244,104 @@ interfaces are still evolving before 1.0.
 - The cohort mixed-model line is also drawn on the days axis.
 - No estimate, flag, endpoint or existing export column changes.
 
+### Changed (breaking for scripts that read the cohort export, decided 2026-11-21)
+
+- The patient ID column is named `PatientID` in every sheet. In `events`,
+  `patient_attributes` and `demographics` it was `patientId`; a script that
+  reads that name there fails on it. The cell has the type the import gave
+  the ID, the same in every sheet: `patient_attributes` writes a numeric ID
+  as a number like the other sheets (it wrote text), so the sheets join on
+  the ID without a conversion. A dataset with numeric and other IDs still
+  has both cell types in the column.
+- `group` is always the last column of the `cohort` and `slopes` sheets and
+  empty when the table is not grouped. In a grouped export a patient without
+  a value for the attribute has the text `Not recorded`, as before. A grouped export used to have it as
+  column A, with every other column one position further right; it now has
+  the positions of the ungrouped export. A script that reads a grouped
+  export by position must be adjusted. The ungrouped export keeps its 75
+  columns in place.
+- A number without a value is an empty cell instead of a text cell holding
+  an empty string (`slope`, `r2`, `ci_low`, `ci_high`, `intercept`,
+  `slope_se`, the rolling and endpoint numbers, `NumericValue`). A script
+  that tests such a cell for `""` must test for an empty cell.
+- Every sheet has its header row also when it has no rows (`events`,
+  `aki_episodes`, `raw_measurements`).
+- `fit_config` on the `settings` sheet no longer has the entry `xAxis`; a
+  script that reads it no longer finds it. No fit ever used it. The `about`
+  sheet states the time axis of the trend: years since `index_date`, where
+  `intercept` applies.
+- The Theil–Sen preset is written as `preset: theil_sen` in `fit_config`
+  (formerly `custom`); the same values set by hand stay `custom`. No number
+  changes. `theilSenConfig` of the library package returns the new id.
+
+### Added (cohort export, decided 2026-11-21)
+
+- The `cohort` and `slopes` sheets end with `first_eligible_value`,
+  `last_eligible_value`, `sex`, `baseline_age` and `group`. The two values
+  are the measurements at `first_eligible_date` and `last_eligible_date`:
+  exact values before the first kidney transplant or chronic dialysis, the
+  values `endpoint_percent_change` is computed from. They are filled with
+  every preset and without a trend, and can differ from "latest" in the
+  table, which also counts bounds and values after transplantation or
+  dialysis.
+- A last sheet `columns` describes every column of the `cohort` sheet:
+  meaning, unit and when the cell is empty.
+- The `about` sheet of the cohort workbook ends with `app_version`,
+  `exported_at` (UTC), `export_id` and `input_data_id`, an identifier of the
+  imported measurements in the exported scope, so an archived file can be
+  assigned to a version and two runs on the same data can be recognised.
+  The identifier covers the rows of `raw_measurements` including the
+  imported birth date; events, attributes and manual demographic entries
+  are not part of it.
+- `measurements` and `raw_measurements` end with `patient_birth_date`. In
+  `raw_measurements` it holds the birth date of the imported lab row; in
+  `measurements` it is empty (the resolved date is `birth_anchor` in
+  `demographics`).
+- The `about` sheet names the fixed parameters of segmented OLS, says what
+  the preset name records, and lists the personal and source-related fields
+  of the file (patient IDs as imported, the birth date estimated from age,
+  the name of the imported file) with a request to check them before the
+  file is passed on.
+
+### Added (cohort models, after the persona review of 2026-11-21)
+
+- A fitted model carries the notes of its input check: patients with a
+  single measurement or with too few distinct measurement times, and
+  repeated values at one time. These rows stay in the fit as before; the
+  notes are shown in the model's details and exported in `models.warnings`.
+  No estimate changes.
+- Without a categorical factor the fit summary names how many patients of
+  the whole cohort have enough measurement times ("… 26 of 27.").
+- The `models` sheet of the model workbook ends with the variance
+  components, unrounded: `intercept_sd`, `slope_sd`,
+  `intercept_slope_correlation`, `residual_sd`. They follow `unit_key`;
+  earlier columns keep their positions.
+- The `about` sheet of the model workbook ends with `app_version` and
+  `exported_at` (UTC) and lists the personal and device-related fields of
+  the file (patient IDs as imported, the browser's user agent) with a
+  request to check them before the file is passed on.
+
+### Changed (methodology page, wording awaiting the maintainer's approval)
+
+- "Export & reproducibility" lists the sheets of the cohort-model workbook,
+  explains `unit_key` and `export_id` and gives three steps to refit a model
+  in R with the exported script. The table of the cohort workbook names the
+  new `columns` sheet and the provenance rows of `about`.
+
+### Changed (exports, after the persona review of 2026-11-21)
+
+- The notice for restored settings that are shown as "Custom configuration"
+  no longer names a time axis of the exported fit configuration, which the
+  export no longer writes.
+- Workbooks are written compressed. The demo cohort export shrinks from
+  661 kB to about 214 kB; sheets and cells are unchanged.
+- A cohort workbook exported by the app can be loaded again as a dataset:
+  the import reads `raw_measurements` as the lab sheet and accepts its
+  `Date` and `Parameter` headers. It restores the exported patients and
+  parameters as imported, with events, attributes and a birth date on the
+  lab rows (`patient_birth_date`); derived values are computed anew, and
+  settings and manual demographic entries are not restored.
+
 ### Added (Cohort models: control over a running fit)
 
 - A running fit can be cancelled. Models fitted before stay; nothing of the

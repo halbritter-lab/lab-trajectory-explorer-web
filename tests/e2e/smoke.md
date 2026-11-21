@@ -511,9 +511,12 @@ it does not claim research, clinical or representative-user validation.
    windows are left out of the projection. The measurements used fall on fewer
    than three distinct dates, so no projection was made." It does not say the
    series has measurements on fewer than three dates.
-4. *Export cohort (XLSX)* in that state: the last seven columns of `cohort` are
+4. *Export cohort (XLSX)* in that state: the last twelve columns of `cohort` are
    `index_date`, `last_fitted_date`, `first_eligible_date`,
-   `last_eligible_date`, `intercept`, `slope_se`, `n_fitted_dates`; the row has
+   `last_eligible_date`, `intercept`, `slope_se`, `n_fitted_dates`,
+   `first_eligible_value`, `last_eligible_value`, `sex`, `baseline_age`,
+   `group` (empty without grouping), and the file ends with the sheet
+   `columns`; the row has
    `first_eligible_date` 2020-01-01, `last_eligible_date` 2021-12-16 and
    `last_fitted_date` 2020-01-01, and `endpoint_input_policy` ends in "AKI
    exclusion windows excluded from decline baseline and projection".
@@ -522,6 +525,22 @@ it does not claim research, clinical or representative-user validation.
    `excluded_patients`, `projections`, `about`, `vcov`, `model_rows`,
    `model_input_flags`, `r_script`; every sheet that names a unit has a
    `unit_key` column (`cohort` or `group:<value>`).
+   `models` ends with `unit_key`, `intercept_sd`, `slope_sd`,
+   `intercept_slope_correlation`, `residual_sd`, and `about` ends with
+   `app_version` and `exported_at`. With the demo data and the parameter
+   Kreatinin the fit summary reads "Whole cohort, patients with enough
+   measurement times: 26 of 27.", and the model's details and
+   `models.warnings` carry "1 patient has fewer than 3 distinct
+   time_since_baseline values …" (checked in Chromium with a real R fit on
+   2026-11-21; not automated).
+5a. Demo data, Trajectories, *Export cohort (XLSX)* with and without "Group
+   by": both files have the same 80 columns in `cohort` with `group` last,
+   `PatientID` in every sheet, a last sheet `columns`, and `app_version`,
+   `exported_at`, `export_id` and `input_data_id` in `about`. Import the
+   exported file under Data: it loads without a column error (automated in
+   `tests/e2e/cohort-export.e2e.ts`). With a file that has a `birthDate`
+   column, `demographics` of the export of the re-imported file shows the
+   same `birth_anchor` with `age_estimated` false.
 6. Open a saved session whose creatinine source is no longer a serum name. The
    Data page shows the amber notice that no eGFR is computed from it.
 

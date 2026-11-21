@@ -830,6 +830,77 @@ Details chosen during implementation, **not yet confirmed by the owner**:
 - Showing the actual episode duration as the band, once a recovery rule
   exists, is not decided.
 
+## Decisions of 2026-11-21 (cohort workbook, persona review)
+
+Owner decisions after the persona review of 2026-11-21 (issue #35). No
+fitted number changes.
+
+- **First and last value in the `cohort` sheet are the eligible ones.**
+  `first_eligible_value` and `last_eligible_value` hold the measured values
+  at `first_eligible_date` and `last_eligible_date`: exact values before the
+  first kidney transplant or chronic dialysis, matching
+  `endpoint_percent_change`, whatever the preset and also without a trend.
+  They can differ from "latest" in the table.
+- **`group` is always the last column, empty without grouping.** The
+  ungrouped export keeps every position; only grouped exports change their
+  layout.
+- **The ID column is `PatientID` in every sheet, with one data type.**
+  `events`, `patient_attributes` and `demographics` take the name of the
+  result sheets. Scripts that read `patientId` there fail on the name.
+- **A sheet `columns` at the end of the file** lists every column of the
+  `cohort` sheet with meaning, unit and when the cell is empty.
+- **The Theil–Sen preset is exported as `theil_sen`.** The export names the
+  preset as the app does; the same values set by hand stay `custom`. Older
+  exports show `custom` for the same choice. Saved settings are read as
+  before.
+- **`xAxis` is left out of the exported `fit_config`,** and the `about` sheet
+  names the actual time axis of the trend. A script that reads `xAxis` no
+  longer finds it.
+
+Implemented on assumptions that still need the owner's confirmation:
+
+- `sex` and `baseline_age` were appended to the `cohort` sheet in the same
+  step.
+- The ID keeps the type the import gave it (a number for a numeric ID,
+  otherwise text) in every sheet; `patient_attributes` no longer writes text
+  for a numeric ID. Whether the ID should always be text is open; a dataset
+  with both kinds of ID still has both cell types.
+- `columns` covers the `cohort` (or `slopes`) sheet only.
+- One `about` sentence says that the preset name only records how the
+  settings were selected.
+- `input_data_id` is defined as a 32-bit checksum of the rows of
+  `raw_measurements` (issue #35, provenance item; no owner decision yet on
+  the definition). It covers the imported birth date of the rows; events,
+  attributes and manual demographic entries are not part of it.
+- `patient_birth_date` was appended to the two measurement sheets, filled in
+  `raw_measurements` only, so that a re-import of the workbook keeps an exact
+  birth date instead of inferring an anchor from whole-year ages. The
+  alternative is to leave the column out and state that birth dates are not
+  restored.
+
+New text that awaits the maintainer's approval: the section "Cohort-model
+workbook" and the two changed table rows on the Methods page "Export &
+reproducibility"; the line "Whole cohort, patients with enough measurement
+times: n of m." in the fit summary of the Cohort models page; the new rows of
+the two `about` sheets and the texts of the `columns` sheet. The note on
+personal fields is to use the same wording as the notice of issue #75 (import
+area) once that exists.
+
+Implemented from issue #35 without a separate decision, export scope only:
+the variance components on the `models` sheet (after `unit_key`, so
+`unit_key` is no longer the last column of that sheet), the warnings of the
+passed input check on the fitted result, and `app_version`/`exported_at` and
+the personal-data note in the `about` sheets of both workbooks.
+
+Still open, unchanged: whether patients who do not qualify stay in a cohort
+model; whether the export records the grouping attribute;
+whether the `cohort` sheet is reordered once; whether the Trajectories table
+shows a bound with its sign ("latest <15").
+
+Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group),
+[workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
+and [fit axis](method-algorithms/fit-input-presets-and-time-balancing.md#fit-axis).
+
 ## Approved requirements
 
 ### Observed events and recovery

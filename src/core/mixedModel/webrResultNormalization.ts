@@ -23,6 +23,11 @@ export function normalizeExtractedFitResult(
   request: MixedModelWorkerRequest,
   metadata: MixedModelMetadata,
   extracted: FitExtractionResult,
+  /** Warnings of the passed input check (`validateMixedModelRows`): patients
+   * with one measurement or too few distinct times, duplicate patient/time
+   * rows. They precede the R warnings, so the model details and the export
+   * show what the fit received. */
+  inputWarnings: readonly string[] = [],
 ): MixedModelSuccess {
   if (typeof extracted.converged !== 'boolean') {
     throw new ResultExtractionError('webR fit result field converged must be boolean.')
@@ -30,7 +35,7 @@ export function normalizeExtractedFitResult(
   if (typeof extracted.singular !== 'boolean') {
     throw new ResultExtractionError('webR fit result field singular must be boolean.')
   }
-  const warnings = normalizeWarnings(extracted.warnings)
+  const warnings = [...inputWarnings, ...normalizeWarnings(extracted.warnings)]
   if (!isStringRecord(extracted.packageVersions)) {
     throw new ResultExtractionError('webR fit result field packageVersions must be Record<string, string>.')
   }

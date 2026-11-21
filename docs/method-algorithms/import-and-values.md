@@ -92,13 +92,33 @@ Sheet names are compared after header normalisation (see Columns).
   | --- | --- | --- |
   | events | `events`, `ereignisse`, `clinicalevents`, `annotations` | none; no events are read |
   | attributes | `attributes`, `attribute`, `patientattributes` | none; no attributes are read |
-  | labs | `labs`, `labor`, `labrows`, `labdata` | the first sheet not chosen as events or attributes, otherwise the first sheet |
+  | labs | `labs`, `labor`, `labrows`, `labdata`, `rawmeasurements` | the first sheet not chosen as events or attributes, otherwise the first sheet |
 
   For each role the first matching sheet in workbook order is used. Every other
   sheet, including a second sheet matching the same role, is ignored without a
   diagnostic. A workbook with sheets `Sheet1` and `Sheet2` loads `Sheet1` as
   labs and ignores `Sheet2`. A workbook holding only `events` and `attributes`
   reads its first sheet as the lab sheet and fails on its missing lab columns.
+
+  The app's own workbook export loads again (since 2026-11-21): its sheet
+  `raw_measurements` (the imported values of the exported patients and
+  parameters) is the lab sheet, `events` the events sheet and
+  `patient_attributes` the attributes sheet. The export's first sheet,
+  `measurements`, holds analysis values including derived eGFR rows and
+  resolved demographics and is ignored like every other sheet. What comes
+  back is the exported scope, not the original file: unselected parameters
+  and patients are absent, and manual demographic entries and settings are
+  not restored. A birth date on the imported lab rows comes back from the
+  column `patient_birth_date` of `raw_measurements`, so the birth-date anchor
+  and every age derived from it are the same after the re-import: a file with
+  birth date 1960-05-01 and no stated age exports `patient_birth_date`
+  1960-05-01 next to `patient_age_at_lab` 58 for a row of 2019-01-10, and the
+  re-import resolves the anchor 1960-05-01 again (`age_estimated` false). A
+  workbook exported before this column existed carries the whole-year ages
+  only; its re-import infers the anchor from them (`age_estimated` true).
+  Example: an export of patient 7 with creatinine and computed
+  eGFR selected loads patient 7's creatinine rows as imported; eGFR is
+  computed anew from them.
 
 Events and attributes can also be uploaded as separate files after the lab
 data. Such a file contributes its first sheet only and replaces the
@@ -126,20 +146,24 @@ The lab sheet accepts these headers (`LAB_COLUMN_ALIASES`):
 | Concept | Accepted headers, in order of precedence | Required |
 | --- | --- | --- |
 | patient ID | `patientId` (= `PatientID`) | yes |
-| lab date | `labDate`, `LabDatum` | yes |
-| test name | `testName`, `Bezeichnung` | yes |
+| lab date | `labDate`, `LabDatum`, `Date` | yes |
+| test name | `testName`, `Bezeichnung`, `Parameter` | yes |
 | unit | `unit`, `Einheit` | yes |
 | value | `value`, `Wert` | yes |
 | LOINC | `loinc` (= `LOINC`) | no |
 | sex | `sex`, `PatientSex` | no |
 | stated age at the measurement | `ageAtLab`, `PatientAgeAtLab` | no |
-| birth date | `birthDate`, `PatientGeburtsdatum`, `Geburtsdatum` | no |
+| birth date | `birthDate`, `PatientGeburtsdatum`, `Geburtsdatum`, `PatientBirthDate` (= `patient_birth_date`) | no |
 | pre-parsed number | `valueNum`, `Wert_num` | no |
 | pre-parsed operator | `valueOperator`, `Wert_operator` | no |
 
 A lab sheet with data rows that lacks a required column is rejected as a whole;
 the error names the missing columns and lists the columns found. `Geschlecht`
 is not a lab-sheet header; it is accepted in the attributes table only.
+`Date` and `Parameter` are the headers of the workbook export; its `Unit` and
+`Value` headers equal `unit` and `value` after normalisation. The export's
+`NumericValue` and `Operator` columns are not accepted headers, so the value
+text is interpreted again (`<15` is read as a bound of 15).
 
 The error adds one sentence on the likely cause in two cases; no column is
 mapped and the file stays rejected:
@@ -687,7 +711,10 @@ cover the two-header warning, the rejected row without a patient ID, the
 three-decimal warning and the empty or untrimmed pre-parsed operator cell; the
 [row resolution tests](../../tests/core/demographics/resolve.test.ts) cover the
 attribute birth dates that are no longer guessed. No dedicated regression
-test: UTF-16 decoding and the NUL-byte rule; the alternative sheet names, the
+test: UTF-16 decoding and the NUL-byte rule; the alternative sheet names
+other than `raw_measurements`, the
 labs fallback and the ignored sheets of multi-sheet workbooks; the
 all-capitals merge of `MU/L` with `mU/l`; the absence of size limits.
+The [workbook export tests](../../tests/workspace/export.test.ts) cover the
+re-import of an exported workbook, including a birth date on the lab rows.
 

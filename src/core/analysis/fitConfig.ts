@@ -7,7 +7,7 @@
 import type { BaseFitConfig } from '../fitPipeline/types'
 import { noAkiExclusion, noCensoring, noEndpoints, type NephrologyFitSections } from '../domains/nephrology/fitConfig'
 
-export type FitPreset = 'general_exploration' | 'ckd_progression' | 'acute_review' | 'custom'
+export type FitPreset = 'general_exploration' | 'theil_sen' | 'ckd_progression' | 'acute_review' | 'custom'
 
 export type FitConfig = BaseFitConfig & NephrologyFitSections & { preset: FitPreset }
 
@@ -46,10 +46,12 @@ export function generalExplorationConfig(parameter: FitConfig['parameter']): Fit
 }
 
 /** Theil–Sen robust trend: general exploration with the Theil–Sen estimator.
- * Recorded as a custom configuration (preset 'custom'), as exports have always
- * shown it. */
+ * Recorded under its own preset id, as the app names it (decided 2026-11-21;
+ * exports wrote 'custom' before). The id only records how the settings were
+ * selected: no fit, identity or stored setting reads `preset`, and the same
+ * values set by hand stay 'custom'. */
 export function theilSenConfig(parameter: FitConfig['parameter']): FitConfig {
-  return { ...generalExplorationConfig(parameter), preset: 'custom', fitModel: 'theil-sen' }
+  return { ...generalExplorationConfig(parameter), preset: 'theil_sen', fitModel: 'theil-sen' }
 }
 
 /** The domain-independent entries of the preset catalog. */

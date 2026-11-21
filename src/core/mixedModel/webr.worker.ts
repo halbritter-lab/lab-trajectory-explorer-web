@@ -117,7 +117,7 @@ async function runRequest(request: MixedModelWorkerRequest): Promise<MixedModelR
   try {
     await bindRows(webR, request.rows, request.config)
     const extracted = await extractFit(webR, request.engine, modelCall, request.config)
-    return normalizeExtractedFitResult(request, runtimeMetadata(webR, baseMetadata), extracted)
+    return normalizeExtractedFitResult(request, runtimeMetadata(webR, baseMetadata), extracted, validation.warnings)
   } catch (error) {
     if (error instanceof ResultExtractionError) {
       return failure(request, 'runtime-error', 'result-extraction', 'RESULT_EXTRACTION_FAILED', error.message, [], runtimeMetadata(webR, baseMetadata))

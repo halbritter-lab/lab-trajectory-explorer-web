@@ -202,6 +202,19 @@ describe('loadDatasetFromWorkbook', () => {
     expect(dataset.diagnostics).toHaveLength(4)
   })
 
+  it('reads raw_measurements with the export headers, not the measurements sheet before it', () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { PatientID: 1, Date: '2024-01-15', Parameter: 'Creatinine', Unit: 'mg/dl', Value: '1.2' },
+      { PatientID: 1, Date: '2024-01-15', Parameter: 'eGFR (CKD-EPI 2021, computed)', Unit: 'ml/min/1.73m2', Value: '61' },
+    ]), 'measurements')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { PatientID: 1, Date: '2024-01-15', Parameter: 'Creatinine', Unit: 'mg/dl', Value: '1.2' },
+    ]), 'raw_measurements')
+    const dataset = loadDatasetFromWorkbook(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
+    expect(dataset.rows.map((row) => [row.bezeichnung, row.wertNum, row.labDatum?.toISOString().slice(0, 10)])).toEqual([['Creatinine', 1.2, '2024-01-15']])
+  })
+
   it('parses multi-sheet workbook containing labs, events, and attributes', () => {
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(

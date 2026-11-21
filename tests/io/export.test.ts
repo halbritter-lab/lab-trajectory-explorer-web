@@ -55,6 +55,27 @@ describe('sheetsToXlsxBytes', () => {
   })
 })
 
+describe('workbook compression', () => {
+  // Bytes 8-9 of a ZIP local file header hold the method: 0 stored, 8 deflated.
+  const methods = (bytes: Uint8Array) => {
+    const found: number[] = []
+    for (let i = 0; i + 30 <= bytes.length; i++) {
+      if (bytes[i] === 0x50 && bytes[i + 1] === 0x4b && bytes[i + 2] === 3 && bytes[i + 3] === 4) found.push(bytes[i + 8] | (bytes[i + 9] << 8))
+    }
+    return found
+  }
+  const rows = Array.from({ length: 500 }, (_, i) => ({ PatientID: i, Parameter: 'Creatinine', Unit: 'mg/dl', Value: 1.25 }))
+
+  it('deflates every entry of both workbook writers and keeps the cells', () => {
+    for (const bytes of [rowsToXlsxBytes(rows, 'S1'), sheetsToXlsxBytes([{ name: 'S1', rows }])]) {
+      const found = methods(bytes)
+      expect(found.length).toBeGreaterThan(3)
+      expect(found.every((method) => method === 8)).toBe(true)
+      expect(XLSX.utils.sheet_to_json(XLSX.read(bytes, { type: 'array' }).Sheets.S1)).toEqual(rows)
+    }
+  })
+})
+
 describe('zipBytes', () => {
   it('packs named files into a zip readable back', () => {
     const z = zipBytes({ 'hello.txt': new TextEncoder().encode('hi'), 'n.txt': new TextEncoder().encode('123') })

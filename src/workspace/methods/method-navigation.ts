@@ -6,7 +6,7 @@ export const methodTopics = [
   { id: 'endpoints', label: 'Endpoints & projection', group: 'Analysis & interpretation', sections: [{ id: 'missing', label: 'Missing results' }, { id: 'observed', label: 'Observed events' }, { id: 'prediction', label: 'Projection algorithm' }] },
   { id: 'aki', label: 'AKI & exclusions', group: 'Analysis & interpretation', sections: [{ id: 'detection', label: 'Detection & limitations' }, { id: 'timing', label: 'Timing & windows' }] },
   { id: 'cohort', label: 'Cohort models', group: 'Analysis & interpretation', sections: [{ id: 'preparation', label: 'Inputs & safeguards' }, { id: 'specification', label: 'Model & projections' }] },
-  { id: 'export', label: 'Export & reproducibility', group: 'Reference', sections: [{ id: 'workbooks', label: 'Workbook contents' }, { id: 'provenance', label: 'Trace a result' }] },
+  { id: 'export', label: 'Export & reproducibility', group: 'Reference', sections: [{ id: 'workbooks', label: 'Workbook contents' }, { id: 'provenance', label: 'Trace a result' }, { id: 'model-workbook', label: 'Cohort-model workbook' }] },
   { id: 'sources', label: 'Limitations & sources', group: 'Reference', sections: [] },
 ] as const
 

@@ -67,8 +67,16 @@ The regression x value is always elapsed time in years from the first fitted
 point (see "Ordinary least squares"). Every slope is therefore in value units
 per year. The chart axis control (age, calendar date, time since first
 measurement) changes the drawing only. The `xAxis` value stored in a preset is
-metadata: it is written to the exported `fit_config` and is part of the
-mixed-model result identity, but no fit and no chart reads it.
+metadata: no fit and no chart reads it, and the mixed-model result identity
+(`mixedModelFitConfigHash`) does not include it. Since 2026-11-21 (owner
+decision) the exported `fit_config` leaves the entry out, and the `about`
+sheet states the time axis instead: years since the first fitted measurement,
+whose date is `index_date`, at which `intercept` applies. Until then the
+export wrote `xAxis: age` for the CKD progression preset and
+`xAxis: calendar_time` otherwise, which read as if the trend had been fitted
+on age. Example: slope −8.50 per year and intercept 67.20 with
+`index_date = 2019-02-01` and a baseline age of 67 mean a fitted value of
+67.20 on 2019-02-01, not 67.20 − 8.50 · 67 at age 67.
 
 ### Fit model and slope mode
 
@@ -112,9 +120,9 @@ Example: eight raw values in two calendar quarters under quarterly medians give
 
 ### Fit dates, intercept and slope standard error
 
-Since 2026-11-05 the `cohort` and `slopes` sheets end with seven further
+Since 2026-11-05 the `cohort` and `slopes` sheets carry seven further
 columns (`n_fitted_dates` since 2026-11-16), placed after the rolling columns so that earlier column positions are
-unchanged. They are read from the existing fit; nothing is refitted.
+unchanged; five more follow them since 2026-11-21 (next section). They are read from the existing fit; nothing is refitted.
 
 | Column | Content | Blank when |
 | --- | --- | --- |
@@ -143,6 +151,132 @@ under quarterly medians (CKD progression) give one 2020 Q1 bin dated
 2020-02-01: `index_date = 2020-02-01` and `first_eligible_date = 2020-01-05`.
 A kidney transplant before the first value leaves both eligible dates blank.
 Evidence: [export record tests](../../tests/core/cohort/exportRecords.test.ts).
+
+### First and last eligible value, sex, baseline age and group
+
+Since 2026-11-21 (owner decision) five further columns follow
+`n_fitted_dates`, again at the end so that earlier positions are unchanged.
+
+| Column | Content | Empty when |
+| --- | --- | --- |
+| `first_eligible_value` | Measured value of the row dated `first_eligible_date`, unrounded, in the unit of the parameter. | the series has no eligible row |
+| `last_eligible_value` | Measured value of the row dated `last_eligible_date`. | as above |
+| `sex` | The patient's resolved sex as the analysis uses it (`m`, `w` or `d`; see [demographics](demographics.md#demographics-resolution)). | no sex could be resolved |
+| `baseline_age` | The patient's resolved age in completed years at the earliest dated row of any parameter: the value of the `demographics` sheet. It is not the age at `index_date`. | no age is available |
+| `group` | Value of the attribute the Trajectories table was grouped by. A patient whose value is missing, empty or only whitespace has the text `Not recorded`, the label of that section of the table; an attribute value of the same text cannot be told apart from it. | the table was not grouped |
+
+The two values come from the same row set as the two dates: exact, finite,
+dated rows before the first kidney transplant or chronic dialysis and outside
+complete acute dialysis intervals, in the stored row order (ascending date; of
+several rows on one date the first stored row supplies the first value and
+the last stored row the last value). They are filled for every parameter, fit
+model and preset, also with fit model `none` and where endpoints are not
+evaluated. Bounds never supply them. `endpoint_percent_change` is computed
+from exactly these two values where it is evaluated:
+`(last_eligible_value − first_eligible_value) / first_eligible_value · 100`.
+
+The Trajectories table shows "latest" from a different rule: the last dated
+numeric row of the series, bounds and rows after kidney replacement therapy
+included. The two can therefore differ by design. Examples: eGFR 55, 48, 42,
+35, 29 and 24 up to 2022-06-10, a kidney transplant on 2022-07-01, then 72, 68
+and 64 give `first_eligible_value = 55`, `last_eligible_value = 24`,
+`last_eligible_date = 2022-06-10` and `endpoint_percent_change =
+(24 − 55) / 55 · 100 = −56.36`, while the table shows "latest 64". Values 34,
+27, 21, 17 and then `<15` give `last_eligible_value = 17`; the table shows
+"latest 15". `sex` and `baseline_age` repeat on every row of the patient.
+
+`group` was the first column of a grouped export until 2026-11-21, which
+moved every other column one position to the right. It is now always present
+and always the last column, so a grouped and an ungrouped export have the
+same 80 columns in the same positions; the 75 columns of the ungrouped export
+of 0.3.7 keep theirs. The file does not record which attribute was used for
+grouping.
+
+Evidence: [export record tests](../../tests/core/cohort/exportRecords.test.ts),
+[workbook schema tests](../../tests/workspace/export-schema.test.ts).
+
+### Workbook sheets, column names and empty cells
+
+The cohort workbook has these sheets, in this order: `measurements`,
+`raw_measurements`, `cohort` (`slopes` in a patient export), `events`,
+`aki_episodes`, `patient_attributes`, `demographics`, `parameters`,
+`settings`, `about`, `columns`. Since 2026-11-21:
+
+- **Fixed column lists.** Every sheet is written with its column list, so a
+  sheet without rows (no event, no AKI episode, no imported row in scope) has
+  its header row. `patient_attributes` has `PatientID` and one column per
+  attribute name in sorted order; `settings` has one column per configurable
+  module setting. New columns and sheets are appended; existing positions
+  stay (the rule of 2026-11-15 for the model workbook).
+- **Patient ID.** The column is `PatientID` in every sheet that has one. In
+  `events`, `patient_attributes` and `demographics` it was `patientId` before.
+  The cell has the type the import gave the ID: a number when the ID is a
+  numeric text that survives a round trip unchanged (`12`, not `012`),
+  otherwise text. `patient_attributes` wrote text for every ID before, so a
+  join with `cohort` on a numeric ID found no match in tools that compare
+  types strictly. A dataset that mixes both kinds of ID (`7` and `A12`) still
+  has both cell types in the column.
+- **Measurement sheets.** `measurements` and `raw_measurements` end with
+  `patient_birth_date`, after `demographics`. In `raw_measurements` it is the
+  birth date read from the imported lab row (`YYYY-MM-DD`, empty text when
+  the row had none); in `measurements` it is always empty text. It exists so
+  that a re-import keeps an exact birth date (see
+  [the import rule](import-and-values.md)).
+- **Empty cells.** A number without a value (`slope`, `r2`, `ci_low`,
+  `ci_high`, `intercept`, `slope_se`, the `rolling_*` numbers, the numeric
+  endpoint columns, `baseline_age`, and `NumericValue` on the measurement
+  sheets) is an empty cell. Before, it was a text cell holding an empty
+  string, which made the column text for readers that infer types. Text and
+  date columns without a value still hold an empty string.
+- **`settings`.** One row per exported parameter: `mode` (the slope mode),
+  `fit_config` (the column's fit configuration as JSON: `parameter`, `preset`,
+  `censoring`, `exclusions`, `timeBalancing`, `fitModel`, `endpoints`; no
+  `xAxis`, see "Fit axis"), the module settings, `analysis_settings`,
+  `patient_ids`, `source_file` and `scope`.
+- **`about`.** One column `note`. Rows are appended, never moved. Since
+  2026-11-21 it explains the time axis of the trend, the meaning of `preset`
+  and the fixed parameters of segmented OLS (a gap of more than 180 days, at
+  least 3 points per segment), lists the personal and source-related fields
+  of the file (patient IDs as imported, `birth_anchor`, `patient_ids`,
+  `source_file`) with a request to check them before passing the file on,
+  and ends with four provenance rows of the form `key: value`:
+
+  | Key | Value |
+  | --- | --- |
+  | `app_version` | version of the app that wrote the file (`package.json`), for example `0.3.7` |
+  | `exported_at` | time of the export, ISO 8601 in UTC with milliseconds, for example `2026-11-21T13:14:15.000Z` |
+  | `export_id` | a random UUID (version 4), new for every export |
+  | `input_data_id` | identifier of the imported rows in the exported scope (below) |
+
+  `input_data_id` (`inputDataId`) is computed from the rows of
+  `raw_measurements`: the imported rows of the exported patients and
+  parameters. Each row is reduced to the JSON array of patient ID as text,
+  `Date`, `Parameter`, `Unit`, `Value` (the text as imported), `patient_sex`
+  (empty text when absent), `patient_age_at_lab` (`null` when absent) and
+  `patient_birth_date` (empty text when absent). The
+  arrays are sorted as text by UTF-16 code units, joined with commas inside
+  `[` and `]`, and hashed with 32-bit FNV-1a over the UTF-16 code units
+  (offset basis `0x811c9dc5`, prime `0x01000193`), written as eight lower-case
+  hex digits. The identifier does not depend on the row order, the fit
+  settings, events, attributes, manual demographic entries or the app
+  version; it changes with any of the eight fields and with the exported
+  scope. It is a checksum for comparing runs, not a cryptographic hash: two
+  different inputs can share a value (about 1 in 4.3 thousand million per
+  pair). Example: patient 7, creatinine in mg/dl, sex `w`, stated age 54, no
+  birth date, with `1.2` on 2024-01-15 and `<1.0` on 2024-07-15 gives
+  `d2196115` in either row order; with `1.0` instead of `<1.0` it gives
+  `bf80cedd`. The birth date is part of the identifier because a file with
+  birth dates and a file with the same ages in whole years resolve to
+  different birth-date anchors. The
+  `datasetHash` of the model workbook is a different quantity: a hash of the
+  prepared model rows.
+- **`columns`.** The last sheet describes the columns of the `cohort` (or
+  `slopes`) sheet, one row per column in sheet order: `column`, `meaning`,
+  `unit`, `empty_when`. The export fails rather than write a column that has
+  no entry. The other sheets have no directory.
+
+Evidence: [workbook schema tests](../../tests/workspace/export-schema.test.ts),
+[settings and provenance tests](../../tests/workspace/export-provenance.test.ts).
 
 ### Rounding
 
@@ -210,9 +344,13 @@ fit only: the shaded AKI band in charts is drawn with the stored length whether
 or not the exclusion is on (see "AKI fit-exclusion window"). The construction
 of AKI windows and the endpoint rules are specified in their own sections.
 
-The Theil–Sen preset is general exploration with the Theil–Sen estimator. Its
-configuration is recorded with `preset: custom`, so an export cannot
-distinguish it from a manually edited configuration that has the same values.
+The Theil–Sen preset is general exploration with the Theil–Sen estimator.
+Since 2026-11-21 (owner decision) its configuration is recorded with
+`preset: theil_sen`, the id the app uses for it; a configuration with the
+same values reached by changing the trend method by hand stays
+`preset: custom`. Exports written before recorded both as `custom`. The name
+records how the settings were selected and decides nothing: no fit, model
+identity or saved setting reads `preset`, and the `about` sheet says so.
 
 Defaults and inheritance:
 
@@ -228,7 +366,8 @@ Defaults and inheritance:
 
 - Changing any single advanced setting, including the rapid-decline threshold,
   marks the configuration as custom. It is then recorded with `preset: custom`
-  and `xAxis: calendar_time`, whichever preset it started from.
+  and `xAxis: calendar_time`, whichever preset it started from (the exported
+  `fit_config` carries `preset` only).
 - A series specification built without a fit configuration (`cohortSeriesSpec`)
   uses General exploration.
 

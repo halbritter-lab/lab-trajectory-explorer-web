@@ -127,7 +127,52 @@ describe('R reproduction export', () => {
     expect(header('factors').slice(0,1)).toEqual(['entity'])
     expect(header('factors').at(-1)).toBe('unit_key')
     expect(header('models').slice(0,2)).toEqual(['entity','series_key'])
-    expect(header('models').at(-1)).toBe('unit_key')
+    // unit_key, then the variance components added on 2026-11-21.
+    expect(header('models').slice(-5)).toEqual(['unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
+  })
+
+  // Persona review 2026-11-21 (K33): the details show two decimals, the export every digit.
+  it('exports the variance components unrounded at the end of the models sheet', () => {
+    const fitted = {...result,randomEffects:{interceptSd:0.212345678901234,slopeSd:0.0512345678901234,interceptSlopeCorrelation:0.181234567890123},residualSd:0.312345678901234} satisfies MixedModelSuccess
+    const failed = {status:'fit-error',engine:'webr-lme4',stage:'fit',code:'MODEL_FIT_FAILED',message:'no',warnings:[],metadata:result.metadata} as unknown as MixedModelSuccess
+    const interceptOnly = {...result,randomEffects:{interceptSd:0.4,slopeSd:null,interceptSlopeCorrelation:null},residualSd:0.3} satisfies MixedModelSuccess
+    const list = mixedModelExportSheets([
+      {entity:'Whole cohort',result:fitted,identity:{seriesKey:'eGFR|ml/min'}},
+      {entity:'G1',result:failed,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'}},
+      {entity:'G2',result:interceptOnly,identity:{seriesKey:'eGFR|ml/min',groupValue:'G2'}},
+    ])
+    const book = XLSX.read(sheetsToXlsxBytes(list),{type:'array'})
+    const models = XLSX.utils.sheet_to_json<Record<string, unknown>>(book.Sheets.models)
+    expect(models[0]).toMatchObject({intercept_sd:0.212345678901234,slope_sd:0.0512345678901234,intercept_slope_correlation:0.181234567890123,residual_sd:0.312345678901234})
+    for (const column of ['intercept_sd','slope_sd','intercept_slope_correlation','residual_sd']) expect(column in models[1],column).toBe(false)
+    expect(models[2]).toMatchObject({intercept_sd:0.4,residual_sd:0.3})
+    expect('slope_sd' in models[2] || 'intercept_slope_correlation' in models[2]).toBe(false)
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.models,{header:1})[0].slice(-6)).toEqual(['message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
+    // Every other sheet is as before.
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.coefficients,{header:1})[0].at(-1)).toBe('unit_key')
+  })
+
+  // Persona review 2026-11-21 (K34): the notes of the passed input check travel with the result.
+  it('exports the warnings of a fitted result in models.warnings', () => {
+    const warned = {...result,warnings:['1 patient has fewer than 3 distinct time_since_baseline values and contributes limited within-patient time information.','boundary (singular) fit']} satisfies MixedModelSuccess
+    const models = mixedModelExportSheets([{entity:'Whole cohort',result:warned,identity:{seriesKey:'eGFR|ml/min'}}]).find(sheet => sheet.name === 'models')!.rows as Record<string, unknown>[]
+    expect(models[0].warnings).toBe('1 patient has fewer than 3 distinct time_since_baseline values and contributes limited within-patient time information.; boundary (singular) fit')
+  })
+
+  // Persona review 2026-11-21 (K32, K49).
+  it('appends app version, export time and the personal-data note to about, keeping export_id where the R script reads it', () => {
+    const about = (list: ReturnType<typeof mixedModelExportSheets>) => (list.find(sheet => sheet.name === 'about')!.rows as {note:string}[]).map(row => row.note)
+    const notes = about(mixedModelExportSheets([{entity:'G1',result,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'},rows,inputFlags}],'models.xlsx','fixed-id',{appVersion:'9.9.9',exportedAt:new Date('2026-11-21T13:14:15.000Z')}))
+    expect(notes).toContain('export_id: fixed-id')
+    expect(notes.slice(-3,-1)).toEqual(['app_version: 9.9.9','exported_at: 2026-11-21T13:14:15.000Z'])
+    expect(notes.indexOf('export_id: fixed-id')).toBe(about(sheets).findIndex(note => note.startsWith('export_id: ')))
+    const personal = notes.find(note => note.startsWith('This file contains personal data'))!
+    for (const field of ['not pseudonymised','patient_id','model_rows','model_input_flags','excluded_patients','browserUserAgent','r_script','Check these fields before passing the file on']) expect(personal,field).toContain(field)
+    expect(notes.some(note => note.startsWith('models ends with the variance components'))).toBe(true)
+    // Without a version (a caller outside the app) the row is left out; the time is always written.
+    const bare = about(sheets)
+    expect(bare.some(note => note.startsWith('app_version: '))).toBe(false)
+    expect(bare.find(note => note.startsWith('exported_at: '))).toMatch(/^exported_at: \d{4}-\d\d-\d\dT\d\d:\d\d:\d\d\.\d{3}Z$/)
   })
 
   // Review of PR #47: rows of one sheet differ in shape, and the writer orders columns by first appearance.
@@ -144,7 +189,7 @@ describe('R reproduction export', () => {
       {entity:'G1',result:failed,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'}},
     ])
     expect(header(mixed,'factors')).toEqual(['entity','key','kind','effect','column','reference','unit_key'])
-    expect(header(mixed,'models').slice(-3)).toEqual(['singular','message','unit_key'])
+    expect(header(mixed,'models').slice(-7)).toEqual(['singular','message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
     expect(XLSX.utils.sheet_to_json(XLSX.read(sheetsToXlsxBytes(mixed),{type:'array'}).Sheets.factors)[0]).toEqual({entity:'Whole cohort',key:'baseline_age',kind:'numeric',effect:'level_slope',column:'baseline_age_centered',unit_key:'cohort'})
     // A unit without projection targets (fewer columns) before one with a target.
     const base = {status:'success', converged:true, singular:false, metadata:{}, warnings:[], fixedEffects:{intercept:80,timeSinceBaseline:5}, fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as unknown as MixedModelSuccess

@@ -401,6 +401,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const patientsNotInModel = data.patients.map(patient => String(patient.id)).filter(id => !completePatients.has(id))
     .map(patientId => ({ patientId, reason: factorReasons.get(patientId) ?? 'No usable measurement of this parameter after data preparation' }))
   const levelCounts = [...mixedModelFactorLevelCounts(sampleSummary.rows, mixedModelConfig)]
+  // Without a categorical factor no level count is shown, so the number of
+  // patients that count towards the minimum is named for the whole cohort.
+  const qualifyingPatients = qualifyingMixedModelPatients(sampleSummary.rows, mixedModelConfig)
   // The model in words, built from the configuration; the R formula is in the details.
   const factorPhrases = activeFactors.map(factor => {
     const name = factor.key === 'baseline_age' ? 'baseline age' : factor.key === 'sex' ? 'sex' : availableFactors.find(f => f.key === factor.key)?.label ?? factor.key
@@ -654,6 +657,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         </p>}
         {levelCounts.length > 0 && <p className="muted cm-level-counts" aria-label="Patients per level">
           Whole cohort, patients per level (with enough measurement times): {levelCounts.map(([key, levels]) => `${key === 'sex' ? 'Sex' : key}: ${levels.map(item => `${item.level} ${item.patients} (${item.qualifying})`).join(', ')}`).join('; ')}
+        </p>}
+        {spec && !noFit && levelCounts.length === 0 && completePatients.size > 0 && <p className="muted cm-level-counts" aria-label="Patients with enough measurement times">
+          Whole cohort, patients with enough measurement times: {qualifyingPatients} of {completePatients.size}.
         </p>}
         {(noFit || !spec) ? <p className="muted" aria-label="Patients not in the model">{noFit ? 'No patient is in the model: the data preparation of this parameter is No fit.' : 'No patient is in the model: no parameter is selected.'}</p> : patientsNotInModel.length > 0 && <details className="cm-excluded-patients">
           <summary>Patients not in the model ({patientsNotInModel.length})</summary>

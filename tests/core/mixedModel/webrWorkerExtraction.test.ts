@@ -96,6 +96,12 @@ describe('webR worker fit extraction validation', () => {
       expect(dropped.warnings).toEqual([expect.stringMatching(/covariance matrix could not be read/)])
     }
   })
+  it('puts the input-check warnings before the R warnings and changes nothing else', () => {
+    const plain = normalizeExtractedFitResult(request, metadata, { ...validExtraction, warnings: ['R warning'] })
+    const withInput = normalizeExtractedFitResult(request, metadata, { ...validExtraction, warnings: ['R warning'] }, ['1 duplicate patient/time row was retained for mixed model fitting.'])
+    expect(withInput.warnings).toEqual(['1 duplicate patient/time row was retained for mixed model fitting.', 'R warning'])
+    expect({ ...withInput, warnings: plain.warnings }).toEqual(plain)
+  })
   it('accepts nullable numeric fields and rejects malformed extracted payloads', () => {
     expect(normalizeExtractedFitResult(request, metadata, validExtraction)).toMatchObject({
       status: 'success',

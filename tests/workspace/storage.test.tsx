@@ -293,7 +293,7 @@ describe('workspace local storage', () => {
     expect(text).toMatch(/^Dataset restored from this device\. Its saved analysis settings could not be used \(saved by another version\)/)
     expect(text).not.toMatch(/analysis settings \(presets, trend and display choices\) restored/)
     expect(restoredNotice({ stored: 'restored', notRestored: [], keptAsCustom: ['shared settings'] })).toContain('Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: shared settings.')
-    expect(restoredNotice({ stored: 'restored', notRestored: [], keptAsCustom: ['shared settings'] })).toContain('The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom" and time axis "calendar_time".')
+    expect(restoredNotice({ stored: 'restored', notRestored: [], keptAsCustom: ['shared settings'] })).toMatch(/The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom"\.$/)
   })
   it('keeps the dataset and names stored settings that no longer fit', async () => {
     useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })

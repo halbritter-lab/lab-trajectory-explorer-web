@@ -198,9 +198,11 @@ Both selections add local OLS fits to the global fit. Their parameters are
 fixed defaults in `summarizeByBezeichnung` and `buildCohortRows`; no interface
 control changes them. For rolling OLS the cohort and slope sheets record the
 window parameters and the local results in the `rolling_*` columns (below).
-For segmented OLS the export records neither: of the fit settings, the
+For segmented OLS the sheets record neither: of the fit settings, the
 `settings` sheet carries only the slope mode (column `mode`), `fit_config` and
-the rapid-decline threshold.
+the rapid-decline threshold. Since 2026-11-21 the `about` sheet names the two
+fixed segmentation parameters (a gap of more than 180 days, at least 3 points
+per fitted segment).
 
 ### Rolling OLS (`rolling-ols`, slope mode `rolling`)
 
