@@ -95,7 +95,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},
       {note:'rolling_windows lists the fitted windows of every Rolling OLS column, one row per window: window_start and window_end are the bounds of the window (both days included), first_date and last_date the first and last fitted measurement inside, n their number, slope the OLS slope of the window per year, unrounded. The sheet is empty when no selected parameter uses Rolling OLS. The reported slope stays the global OLS slope.'},
     ]},
-    // Added after the sheets above existed: new sheets follow `about`.
+    // Added on 2026-11-21, after the sheets above existed: their positions stay as they were.
     {name:'rolling_windows',rows:prepared.flatMap(row => row.cells.flatMap(cell => (cell.rolling?.windows ?? []).map((window,index) => ({
       PatientID:row.patientId,Parameter:cell.bezeichnung,Unit:cell.einheit ?? '',window:index+1,
       window_start:utcDateOrBlank(window.start),window_end:utcDateOrBlank(window.end),first_date:utcDateOrBlank(window.firstDate),last_date:utcDateOrBlank(window.lastDate),

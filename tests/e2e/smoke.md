@@ -510,12 +510,15 @@ by the released version 0.3.7 restored in this version in a real browser
    "not excluded from this fit" (Trend ticked, General exploration) or
    "excluded from this fit" (CKD progression).
 5. Choose "Rolling OLS" and tick Trend: "Show windows (n)" lists the windows,
-   each dashed line names its window on hover, and the patient workbook ends
-   with the sheet `rolling_windows`.
+   each dashed line names its window on hover, and the patient workbook has
+   the sheet `rolling_windows` after `about`.
 6. Load a cohort of more than 50 and of more than 200 patients and open
    Overlay: no measurement points, paler (and from 201 thinner) lines and a
    note above the chart; "Measurement points" under Display is unticked and
-   brings the points back. Move the pointer across the lines: the chart stays
+   brings the points back, also after a reload with "Remember on this
+   device". Start again without that choice: unticking "Connecting lines"
+   alone shows the points, and a chart of a parameter that fewer than 51 of
+   the patients have keeps its points. Move the pointer across the lines: the chart stays
    responsive and the line under the pointer is drawn thick on top, with the
    patient named at the upper right.
 

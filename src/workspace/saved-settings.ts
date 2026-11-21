@@ -34,6 +34,9 @@ export interface TrajectoryView {
   chartSize: SparkSize
   cellDetails: 'minimal' | 'full' | 'compact'
   warningIcons: boolean
+  /** "Measurement points" was switched by the user: the switch then decides,
+   * also in a dense overlay. Absent while the switch is untouched. */
+  pointsChosen?: true
 }
 
 export function defaultTrajectoryView(): TrajectoryView {
@@ -191,6 +194,8 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
   else out.notRestored.push('cell details')
   if (bool(view.warningIcons)) out.trajectoryView.warningIcons = view.warningIcons
   else out.notRestored.push('warning display')
+  if (view.pointsChosen === true) out.trajectoryView.pointsChosen = true
+  else if (view.pointsChosen !== undefined) out.notRestored.push('measurement points choice')
   return out
 }
 

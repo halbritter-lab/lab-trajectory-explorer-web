@@ -23,9 +23,12 @@ interfaces are still evolving before 1.0.
 - Rolling OLS: the patient view lists the windows ("Show windows") with
   bounds, first and last fitted measurement, their number and slope; each
   window line has a tooltip, and the legend says "Rolling OLS window lines".
-  The exported workbook has a new last sheet `rolling_windows` with the same
-  rows (empty without a Rolling OLS parameter). The reported slope stays the
-  global OLS slope.
+  The exported workbook has a new sheet `rolling_windows` with the same rows
+  (empty without a Rolling OLS parameter), placed after the sheets that
+  existed before 2026-11-21, whose positions are unchanged. The reported
+  slope stays the global OLS slope. The methodology page (Export) gains one
+  row describing the sheet; its wording is a proposal that awaits the
+  maintainer's approval.
 
 ### Changed (plots and events, after the persona review of 2026-11-21)
 
@@ -40,11 +43,15 @@ interfaces are still evolving before 1.0.
   chart, nor are points and diamonds on the first or last date. Equal labels
   next to each other are merged ("AKI III ×3"); others move apart and off the
   measurement points.
-- Overlay of many trajectories: from 51 trajectories the measurement points
-  are hidden and the lines paler, from 201 paler still and thinner; a note
-  above the chart says so. The "Measurement points" switch takes precedence
-  once it is used. Image exports show what is on the screen; numbers and
-  table exports are unchanged.
+- Overlay of many trajectories: from 51 trajectories in a chart its
+  measurement points are hidden and its lines paler, from 201 paler still and
+  thinner; a note above the chart says so. Each chart counts the trajectories
+  plotted in it, so a parameter that few patients have keeps its points in a
+  large cohort. Points are hidden only while the connecting lines are drawn.
+  The "Measurement points" switch takes precedence once it is used; that it
+  was used is saved with the other display choices and holds after a reload.
+  Image exports show what is on the screen; numbers and table exports are
+  unchanged.
 - Moving the pointer across the overlay no longer rebuilds every trajectory;
   the trajectory under the pointer is drawn on top of the others.
 - The cohort mixed-model line is also drawn on the days axis.

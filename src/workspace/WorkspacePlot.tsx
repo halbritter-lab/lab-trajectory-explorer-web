@@ -1,4 +1,4 @@
-import { memo, useId, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useId, useMemo, useRef, useState } from 'react'
 import { calendarTicks, niceTicks, tickLabels } from './plot-ticks'
 import { layoutMarkerLabels } from './marker-labels'
 import { NOT_USED_FOR_AKI_DETECTION, skippedByAkiDetection } from './aki-detection'
@@ -124,13 +124,16 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
   </g>
 })
 
-export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axis, groupBy, highlight, display, showFit, onOpen, sharedDomain, scaleMode, pointsAutoHidden = false }: {
+export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axis, groupBy, highlight, display: displayChoice, showFit, onOpen, sharedDomain, scaleMode, pointsAuto = false, onPointsAutoHidden }: {
   data: WorkspaceData; parameter: WorkspaceParameter; parameterIndex: number; cohortRows: CohortRow[];
   axis: WorkspaceAxis; groupBy: string; highlight: PatientId | null; display: WorkspaceDisplay; showFit: boolean;
   onOpen: (id: PatientId) => void;
   sharedDomain: SparkDomain; scaleMode: 'shared' | 'zoom';
-  /** The overlay hides measurement points by its density rule, not by the user's switch. */
-  pointsAutoHidden?: boolean
+  /** The overlay may hide the measurement points of a dense chart: the user has
+   * not switched "Measurement points" and the connecting lines are drawn. */
+  pointsAuto?: boolean
+  /** Told whether this chart hides its points by the density rule. */
+  onPointsAutoHidden?: (parameterKey: string, hidden: boolean) => void
 }) {
   const svg = useRef<SVGSVGElement>(null)
   const clip = useId().replace(/:/g, '')
@@ -198,6 +201,15 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const groupColor = (group: string) => colors[fullGroups.indexOf(group) % colors.length]
   const groupLabel = (group: string) => groupBy === 'sex' ? sexLabel(group) : group
   const visible = prepared.filter(p => !hiddenGroups.includes(p.group) && p.points.length > 0)
+  // Points are hidden by the density rule per chart, from the trajectories
+  // plotted in it: the same count that decides the line density below.
+  const pointsAutoHidden = pointsAuto && displayChoice.points && displayChoice.connect && visible.length >= DENSE_OVERLAY_POINTS_OFF
+  const display = useMemo(() => pointsAutoHidden ? { ...displayChoice, points: false } : displayChoice, [displayChoice, pointsAutoHidden])
+  useEffect(() => {
+    if (!onPointsAutoHidden || !pointsAutoHidden) return
+    onPointsAutoHidden(parameter.key, true)
+    return () => onPointsAutoHidden(parameter.key, false)
+  }, [onPointsAutoHidden, parameter.key, pointsAutoHidden])
   // Rolling OLS draws window lines only; a series without a window has a
   // global slope but nothing drawn, so it counts as without a fit line here.
   const hasFitLine = (cell: (typeof visible)[number]['cell']) => Number.isFinite(cell.slope) && (cell.mode !== 'rolling' || cell.fitLines.length > 0)
@@ -334,9 +346,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     <div className="wt-card-heading"><h3>{parameter.label}</h3><ChartExportActions getSvg={() => svg.current} title={exportTitle} /></div>
     {groupBy && <div className="wt-legend" role="group" aria-label={`Groups for ${parameter.label}`}>{groups.map(group => <button key={group} aria-pressed={!hiddenGroups.includes(group)} onClick={() => setHiddenGroups(previous => previous.includes(group) ? previous.filter(g => g !== group) : [...previous, group])}><span style={{ color: groupColor(group) }}>● </span>{groupLabel(group)}{hiddenGroups.includes(group) ? ' (hidden)' : ''}</button>)}</div>}
     <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? `; ${visible.length} of ${cohortRows.length} trajectories` : ''}{withoutValues > 0 ? `; ${withoutValues} without numeric measurements` : ''}{withoutAge > 0 ? `; ${withoutAge} additional trajectories without age data` : ''}</p>
-    {(density >= 2 || pointsAutoHidden) && <p className="wt-muted" data-testid="density-note">{density >= 2
-      ? `${visible.length} trajectories in this chart: lines are drawn ${density === 3 ? 'paler and thinner' : 'paler'}${pointsAutoHidden ? ' and measurement points are hidden' : ''}.`
-      : `Measurement points are hidden because the overlay holds ${DENSE_OVERLAY_POINTS_OFF} or more trajectories.`} Search, a group filter or a selection narrows the overlay{pointsAutoHidden ? '; Display → “Measurement points” shows the points' : ''}. Numbers and table exports are unchanged.</p>}
+    {density >= 2 && <p className="wt-muted" data-testid="density-note">{`${visible.length} trajectories in this chart: lines are drawn ${density === 3 ? 'paler and thinner' : 'paler'}${pointsAutoHidden ? ' and measurement points are hidden' : ''}.`} Search, a group filter or a selection narrows the overlay{pointsAutoHidden ? '; Display → “Measurement points” shows the points' : ''}. Numbers and table exports are unchanged.</p>}
     {axis === 'age' && <p className="wt-muted">{cohortRows.length === 1 ? visible[0]?.ageEstimated ? 'Age: estimated birth-date anchor.' : visible.length ? 'Age: recorded birth date.' : 'Age unavailable.' : `${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors; other ages use recorded birth dates.`}</p>}
     {!visible.length ? <p>No trajectories can be plotted. Check measurements, ages, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-x-min={xMin} data-y-min={yMin} data-y-max={yMax} data-density={density} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${pointsAutoHidden ? '; measurement points hidden in this dense overlay' : ''}${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? fitModel === 'none' ? '; Fit model disabled' : `; ${uncertain} uncertain individual ${modelLabel} fits; ${noFit} without a fit` : ''}${excludedCount ? `; ${countLabel(excludedCount, 'measurement')} excluded from the fit (grey open circles)` : ''}${shownOverlays.map(module => `; ${module.presentation.exportContext(markerCount(module.id))}`).join('')}${pooledModelLine ? '; Cohort mixed model mean line' : ''}${groupModelLines.length ? `; Group mixed model mean lines: ${groupModelLines.map(line => groupLabel(line.group!)).join(', ')}` : ''}`}>
       <title>{parameter.label} by {axisLabel.charAt(0).toLowerCase()}{axisLabel.slice(1)}</title>

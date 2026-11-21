@@ -290,7 +290,8 @@ window slopes were computed and discarded and no line was drawn):
   columns are blank.
 
   Since 2026-11-21 the workbook also has the sheet `rolling_windows`, placed
-  after `about` so that the positions of the earlier sheets are unchanged. It
+  after the sheets that existed before that day (`about` was the last of
+  them), so that their positions are unchanged. It
   holds one row per fitted window of every selected patient and parameter
   whose slope mode is `rolling`, and no row otherwise:
 

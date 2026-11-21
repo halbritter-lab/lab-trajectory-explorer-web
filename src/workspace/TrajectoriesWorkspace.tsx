@@ -1,5 +1,5 @@
 import { Icon, ToolPopover, AnalysisDrawer, Hint } from './trajectory-ui/Controls'
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { buildCohortRows, cohortCellFlags, type CohortCell } from '../core/cohort/screening'
 import type { ColumnModuleSettings } from '../core/analysis/registry'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../core/types'
@@ -7,7 +7,7 @@ import { slopeQualityLabel, THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualit
 import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
 import { workspaceSpecs, type WorkspaceData, type WorkspaceParameter } from './workspace-data'
 import { WorkspaceExportActions } from './WorkspaceExports'
-import { DEFAULT_WORKSPACE_DISPLAY, DENSE_OVERLAY_POINTS_OFF, OVERLAY_MODULES, WorkspacePlot, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from './WorkspacePlot'
+import { DEFAULT_WORKSPACE_DISPLAY, OVERLAY_MODULES, WorkspacePlot, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from './WorkspacePlot'
 import { PatientMeasurementTable, eventText, eventsByDate } from './PatientMeasurementTable'
 import { RollingWindowList } from './RollingWindowList'
 import './trajectories-workspace.css'
@@ -291,15 +291,18 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const [attributeTableWidth, setAttributeTableWidth] = useState(0)
   const [highlight, setHighlight] = useState<PatientId | null>(null)
   const [display, setDisplay] = useState<WorkspaceDisplay>({ ...DEFAULT_WORKSPACE_DISPLAY, ...savedView.display })
-  // Whether "Measurement points" was switched in this session: from then on the
-  // switch decides, also in a dense overlay.
-  const [pointsChosen, setPointsChosen] = useState(false)
+  // Whether "Measurement points" was ever switched: from then on the switch
+  // decides, also in a dense overlay. Kept with the view, so it holds after a reload.
+  const [pointsChosen, setPointsChosen] = useState(savedView.pointsChosen === true)
+  // Overlay charts that hide their points by the density rule right now.
+  const [autoHiddenCharts, setAutoHiddenCharts] = useState<Record<string, boolean>>({})
+  const reportPointsAutoHidden = useCallback((key: string, hidden: boolean) => setAutoHiddenCharts(previous => (previous[key] ?? false) === hidden ? previous : { ...previous, [key]: hidden }), [])
   const [fitKeys, setFitKeys] = useState<string[]>(savedView.fitKeys)
   const [trendKeys, setTrendKeys] = useState<string[]>(savedView.trendKeys)
   // The view reaches the store, and with it the saved settings, only once it
   // differs from what the page mounted with: mounting alone writes nothing, so
   // it cannot replace stored settings with the page's defaults.
-  const view = { parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons }
+  const view = { parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons, ...(pointsChosen ? { pointsChosen: true as const } : {}) }
   const viewJson = JSON.stringify(view)
   const [mountedViewJson] = useState(viewJson)
   const viewChanged = useRef(false)
@@ -530,8 +533,10 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   })
   const patientIds = visible.map(row => row.patientId)
   // A dense overlay hides the measurement points until the switch is used.
-  const pointsAutoHidden = mode === 'overlay' && !pointsChosen && display.points && visible.length >= DENSE_OVERLAY_POINTS_OFF
-  const overlayDisplay = useMemo(() => pointsAutoHidden ? { ...display, points: false } : display, [display, pointsAutoHidden])
+  // The density rule may hide points only while the switch is untouched; each
+  // overlay chart decides from its own trajectories and reports back.
+  const pointsAuto = mode === 'overlay' && !pointsChosen
+  const pointsAutoHidden = pointsAuto && Object.values(autoHiddenCharts).some(Boolean)
   const activeSort = sort === 'id' || sort === 'id:desc' ? null : parseSortKey(sort)
   const activeMetric = activeSort && keys.includes(activeSort.paramKey) ? activeSort.metric : null
   const sortAscending = activeMetric ? metricAscendingByDefault(activeMetric) !== sortReversed : true
@@ -733,7 +738,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
         })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i]) && parameterKeySet.has(keys[i])} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(row.patientId))} timeBalancing={(columnSettings[keys[i]] ?? fitSettings).timeBalancing} /></td>)}</tr>)}
       </tbody>
     })}</table></div>}
-    {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <div key={`${parameter.key}-${groupBy}`}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={overlayDisplay} pointsAutoHidden={pointsAutoHidden} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /></div>)}</div>}
+    {mode === 'overlay' && <div className="wt-plot-grid">{parameters.map((parameter, index) => <div key={`${parameter.key}-${groupBy}`}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={visible} axis={axis} groupBy={groupBy} highlight={highlight} display={display} pointsAuto={pointsAuto} onPointsAutoHidden={reportPointsAutoHidden} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /></div>)}</div>}
     {mode === 'detail' && current && <section><div className="wt-toolbar"><button type="button" className="wt-back-button" aria-label={`Back to ${returnMode}`} onClick={() => {
       if (returnMode === 'table') tablePosition.current.restore = true
       setMode(returnMode)

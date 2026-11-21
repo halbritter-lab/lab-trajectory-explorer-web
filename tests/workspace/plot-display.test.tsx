@@ -309,8 +309,66 @@ describe('density of a large overlay (K24)', () => {
   it('does not store the automatic state as the switch and shows points again in the patient view', () => {
     overlay(51)
     expect(useAppStore.getState().trajectoryView.display.points ?? true).toBe(true)
+    expect(useAppStore.getState().trajectoryView.pointsChosen).toBeUndefined()
     fireEvent.click(screen.getByRole('button', { name: 'Individual patient' }))
     expect(chart().querySelectorAll('svg.wt-plot circle')).toHaveLength(2)
+  })
+  it('keeps the points of a dense overlay when only the connecting lines are switched off', () => {
+    overlay(51)
+    display()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Connecting lines' }))
+    expect(plot().querySelectorAll('polyline')).toHaveLength(0)
+    expect(plot().querySelectorAll('circle')).toHaveLength(102)
+    expect(screen.getByRole('checkbox', { name: 'Measurement points' })).toBeChecked()
+    expect(within(chart()).queryByText('Measurement points and connecting lines are hidden.')).toBeNull()
+    expect(within(chart()).getByTestId('density-note')).toHaveTextContent('51 trajectories in this chart: lines are drawn paler. Search, a group filter or a selection narrows the overlay. Numbers and table exports are unchanged.')
+    // Back on, the density rule applies again: the switch itself was never touched.
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Connecting lines' }))
+    expect(plot().querySelectorAll('circle')).toHaveLength(0)
+  })
+  it('keeps the points when saved settings without connecting lines meet a large cohort', () => {
+    useAppStore.setState({ trajectoryView: { ...defaultTrajectoryView(), display: { connect: false } } })
+    overlay(51)
+    expect(plot().querySelectorAll('circle')).toHaveLength(102)
+  })
+  it('decides per chart: a chart with few trajectories keeps its points in a large cohort', () => {
+    const rows = cohort(60).rows
+    render(<TrajectoriesWorkspace data={dataset([...rows, ...Array.from({ length: 5 }, (_, i) => [lab(`P00${i}`, CRP, '2026-01-01', 3 + i), lab(`P00${i}`, CRP, '2026-07-01', 4 + i)]).flat()], [CREA, CRP])} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
+    const sparse = chart(CRP.label)
+    expect(sparse.querySelector('svg.wt-plot')).toHaveAttribute('data-density', '0')
+    expect(sparse.querySelectorAll('svg.wt-plot circle')).toHaveLength(10)
+    expect(within(sparse).queryByTestId('density-note')).toBeNull()
+    expect(sparse.querySelector('svg.wt-plot')!.getAttribute('data-export-context')).not.toContain('measurement points hidden')
+    expect(plot()).toHaveAttribute('data-density', '2')
+    expect(plot().querySelectorAll('circle')).toHaveLength(0)
+    // One chart still hides its points by the rule, so the switch is shown off.
+    display()
+    expect(screen.getByRole('checkbox', { name: 'Measurement points' })).not.toBeChecked()
+  })
+  it('keeps the switched choice with the view, so it holds after the page is opened again', () => {
+    const data = cohort(51)
+    const first = render(<TrajectoriesWorkspace data={data} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
+    display()
+    fireEvent.click(screen.getByRole('checkbox', { name: 'Measurement points' }))
+    expect(useAppStore.getState().trajectoryView).toMatchObject({ pointsChosen: true, display: { points: true } })
+    const saved = { version: SAVED_SETTINGS_VERSION, trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: useAppStore.getState().trajectoryView }
+    first.unmount()
+    const restored = restoreSavedSettings(JSON.parse(JSON.stringify(saved)), new Set([CREA.key]))
+    expect(restored.notRestored).toEqual([])
+    expect(restored.trajectoryView.pointsChosen).toBe(true)
+    useAppStore.setState({ trajectoryView: restored.trajectoryView })
+    overlay(51)
+    expect(plot().querySelectorAll('circle')).toHaveLength(102)
+    display()
+    expect(screen.getByRole('checkbox', { name: 'Measurement points' })).toBeChecked()
+  })
+  it('names a stored points choice that is not valid and falls back to the density rule', () => {
+    const saved = { version: SAVED_SETTINGS_VERSION, trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: { ...defaultTrajectoryView(), pointsChosen: 'yes' } }
+    const restored = restoreSavedSettings(JSON.parse(JSON.stringify(saved)), new Set())
+    expect(restored.notRestored).toEqual(['measurement points choice'])
+    expect(restored.trajectoryView.pointsChosen).toBeUndefined()
   })
   it('keeps the first level up to 200 trajectories', () => {
     overlay(200)
