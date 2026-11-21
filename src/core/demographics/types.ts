@@ -19,6 +19,14 @@ export interface SexCount {
   count: number
 }
 
+/** A lab date whose stated age differs from the age derived from the birth
+ * anchor; `derived` is null when the anchor lies after the lab date. */
+export interface AgeMismatch {
+  labDate: Date
+  stated: number
+  derived: number | null
+}
+
 export type DemographicsConflict =
   | { kind: 'sex_row_disagreement'; patientId: PatientId; counts: SexCount[]; resolved: Sex }
   /** `resolved` is null when the tie stands, and the sex that broke it
@@ -26,7 +34,12 @@ export type DemographicsConflict =
    * split patient can still end up with a sex and a computed eGFR. */
   | { kind: 'sex_tie'; patientId: PatientId; counts: SexCount[]; resolved: Sex | null }
   | { kind: 'sex_source_disagreement'; patientId: PatientId; fromAttributes: Sex; fromRows: Sex }
-  | { kind: 'age_no_common_birth_date'; patientId: PatientId; gapDays: number }
+  /** `gapDays` is the gap between the birth-date intervals, not the size of
+   * an error, so the message does not quote it. `mismatches` are the lab
+   * dates whose stated age the anchor does not reproduce, ascending, one
+   * entry per lab date and stated age (several parameters measured on one
+   * day share it); `statedDates` counts all such entries with a stated age. */
+  | { kind: 'age_no_common_birth_date'; patientId: PatientId; gapDays: number; mismatches?: AgeMismatch[]; statedDates?: number }
   /** Stated ages that are not plausible ages at their lab date (negative, or a
    * birth year in the age column). `example` is the first such stated value. */
   | { kind: 'age_implausible'; patientId: PatientId; rows: number; example: number }

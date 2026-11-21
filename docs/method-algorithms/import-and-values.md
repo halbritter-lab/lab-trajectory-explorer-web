@@ -30,9 +30,54 @@ Every other file is decoded as text by `decodeText`, in this order:
 4. If the bytes are not valid UTF-8, Windows-1252.
 
 Text files are parsed without type inference: every cell reaches the loaders as
-its verbatim text. The field delimiter is detected by the SheetJS reader; comma
-and semicolon files are covered by tests. The first row of a sheet supplies the
-headers and blank cells are read as empty.
+its verbatim text. The first row of a sheet supplies the headers and blank
+cells are read as empty.
+
+**Field delimiter.** Two counts are compared (`detectDelimiter`). The
+candidates are comma, tab, semicolon and pipe, counted outside double quotes.
+
+- The reader's count: the candidate that occurs most often in the first 1024
+  characters of the file; a tie goes to the comma, then tab, then semicolon,
+  then pipe. Until 2026-11-21 this count alone decided.
+- The header count: the candidate that occurs most often in the header line,
+  that is the text before the first line break outside double quotes. The data
+  rows are not counted, so decimal commas and free text cannot outvote the
+  delimiter here.
+
+When both name the same candidate, it is used. When they differ, the header
+line is split at each of the two and the cells that are accepted column names
+of the lab, event or attribute table (all aliases, compared as headers are:
+case-insensitively and without separators) are counted. The header count's
+candidate is used when it yields more accepted names than the reader's, or when
+neither yields any; otherwise the reader's candidate is used. A file that the
+reader's count reads with at least one accepted column, and so every file that
+loaded before 2026-11-21, is therefore read as before unless the header line
+yields strictly more accepted columns at the other candidate.
+
+Three cases are left to the reader's count without this comparison: a file
+that starts with a `sep=` line (the character after `sep=` is the delimiter and
+the line is not a data row), a header line without any candidate (a single
+column), and a header line in which two candidates share the highest count.
+
+Examples:
+
+- Header `patientId;labDate;testName;unit;value`, five rows such as
+  `101;10.01.2021;Kreatinin, Serum, enzymatisch, IFCC, kinetisch;mg/dl;1,0`
+  (four semicolons and five commas each). Reader's count: 24 semicolons and 25
+  commas, so comma; header count: four semicolons, no comma, so semicolon.
+  Split at the semicolon the header holds five accepted names, split at the
+  comma none: the semicolon is used. Before 2026-11-21 this file failed with
+  missing columns; with four rows (20 semicolons, 20 commas) it failed as well,
+  because the tie went to the comma, and with three rows it loaded.
+- Header `patientId;Diagnose, genetisch, bestätigt`, rows such as `Q1;ADPKD`.
+  Reader's count with three rows: four semicolons, two commas, so semicolon;
+  header count: one semicolon, two commas, so comma. Split at the semicolon
+  the header holds one accepted name (`patientId`), split at the comma none
+  (`patientId;Diagnose` is not one): the semicolon is used and the attribute
+  column is named `Diagnose, genetisch, bestätigt`.
+- Header `patientId;Diagnose, genetisch` (one semicolon, one comma): a tie in
+  the header line, so the reader's count decides; with four rows such as
+  `Q1;ADPKD` it finds five semicolons and one comma and uses the semicolon.
 
 Sheet selection in `loadDatasetFromWorkbook` depends on the number of sheets.
 Sheet names are compared after header normalisation (see Columns).
@@ -96,6 +141,20 @@ A lab sheet with data rows that lacks a required column is rejected as a whole;
 the error names the missing columns and lists the columns found. `Geschlecht`
 is not a lab-sheet header; it is accepted in the attributes table only.
 
+The error adds one sentence on the likely cause in two cases; no column is
+mapped and the file stays rejected:
+
+- A found column name contains a semicolon or a tab: the header line was
+  probably split at the wrong field delimiter.
+- Otherwise, when test name, unit and value are all missing and at least two
+  columns match no accepted lab header (columns the reader named `__EMPTY…`
+  are not counted): "This file seems to have one column per lab test; one row
+  per measurement is required", with a pointer to the lab template and an
+  example header and row. A table with the columns `Patient`, `Geschlecht`,
+  `Geburtsdatum`, `Datum`, `Kreatinin (mg/dl)` and `Harnstoff (mg/dl)` gets
+  this sentence (six unrecognised columns); a long table whose value column is
+  merely misnamed does not (only `value` is missing).
+
 Two accepted headers that differ only in case or separators (`Patient ID` and
 `patient_id`) are an import error: "Ambiguous columns … Rename one of them."
 Columns that match no accepted header are never checked. A header repeated
@@ -158,8 +217,52 @@ trimmed; the unit is the canonical spelling chosen under Units. Test names are
 not harmonised: `Kreatinin` and `kreatinin` are two series, as are names that
 differ in inner spacing. A missing unit is its own series, separate from every
 named unit. Rows without a test name are imported and counted but belong to no
-selectable parameter. The LOINC column is read and stored; no analysis uses it,
-and it does not join or separate series.
+selectable parameter.
+
+**LOINC.** The LOINC column is read, trimmed and stored with each row. It is
+shown per parameter under "Imported parameters" and exported (column `loinc`
+of the sheets `measurements`, `raw_measurements` and `parameters`). It does
+not join series and, with the one exception below, does not separate them.
+
+- **Several codes in one parameter.** When the rows of one parameter (test
+  name and unit) carry more than one code, one sheet-level warning names the
+  codes with their number of values: "eGFR [ml/min/1.73m2]: 2 LOINC codes in
+  one parameter: 62238-1 (1 value), 98979-8 (2 values). The values stay one
+  series; check that they are the same test and material." Rows without a
+  code are not counted and stay in the series. A code that does not fit the
+  unit (the mass code 2160-0 on µmol/l rows) is not reported.
+- **Creatinine with a non-serum code (decided 2026-11-21).** A row whose test
+  name contains `kreatinin` or `creatinin` and whose code is 2161-8
+  (creatinine, mass concentration in urine) or 14683-7 (creatinine, substance
+  concentration in urine) is stored under the test name followed by
+  ` (urine, LOINC <code>)`: `Kreatinin` with code 2161-8 becomes the parameter
+  `Kreatinin (urine, LOINC 2161-8)`. The code is compared exactly after
+  trimming. The new name contains `urin`, so the parameter is a non-serum name
+  under the rule in [eGFR derivation](egfr.md#eligible-source-series): it is
+  not offered as an eGFR source, detects no AKI and supplies no AKI episodes
+  to other columns. It is otherwise an ordinary parameter with its own
+  trends. The stored name is the one shown and exported everywhere, including
+  `raw_measurements`; the code stays in `loinc`. One sheet-level warning per
+  imported name and code reports the number of rows moved and lists them.
+  Not moved: rows whose name already marks a non-serum material
+  (`Kreatinin Urin` with 2161-8 keeps its name), rows of other tests with
+  these codes, rows without a code, and creatinine with any other code,
+  including the whole-blood codes 38483-4 and 59826-8, which stay eligible
+  like serum. The list holds these two codes only; other non-serum materials
+  are still recognised by name alone. The rule is applied when a file is
+  imported: a copy saved before 2026-11-21 keeps its series until the file is
+  imported again, and `loadLabRows` called directly applies it only when
+  given the rule (`LabImportOptions.separateSeries`).
+
+  Example (synthetic): one patient has, under `Kreatinin` in mg/dl, serum
+  values with code 2160-0 (0.98, 1.10, 1.17, 1.21, 1.35) and urine values
+  with code 2161-8 (3.92, 4.40, 4.68, 4.84, 5.40) on the same five days, and
+  a sixth urine value 5.72 half a year later. Before the rule this was one
+  series of eleven values with five stage 3 AKI episodes, each with baseline
+  and peak on the same day, and eleven computed eGFR values (CKD-EPI 2021).
+  With the rule `Kreatinin` has five values, `Kreatinin (urine, LOINC
+  2161-8)` six, no AKI episode is detected, and five eGFR values are computed
+  (95.7, 83.3, 76.9, 73.9, 64.8).
 
 ### Row acceptance
 
@@ -178,28 +281,102 @@ For all other rows:
   patient. `0012`, `12.0` and `1e3` remain text and are patients distinct from
   12 and 1000. Lab rows, attribute rows and manual entries are matched by the
   text form of the ID.
+- **Similar patient IDs.** IDs are never merged. A sheet-level warning names
+  the IDs of the lab sheet that become equal after lowercasing, removing all
+  whitespace and removing leading zeros (a lone `0` stays): `0012` and `12`,
+  `ab 1` and `AB1`. `12.0` and `12` are not reported, because the rule does
+  not read numbers. There is one warning per group of such IDs; it lists the
+  first row of every ID in the group. IDs of the events and attributes tables
+  are not compared.
 - **Invalid lab date.** A row whose lab date cell is present but not a valid
   date (see Dates) is rejected. The diagnostic quotes the cell and states the
   reason; the row is not imported.
+- **Implausible lab date.** A row whose lab date lies after the import day or
+  before 1927-05-18 is imported unchanged, with a warning (see Dates).
 - **Empty lab date.** A row with an empty lab date is imported with no date and
-  no diagnostic. It takes part in no dated calculation and is included in the
-  Data page count "values without a date". It still contributes its sex to the
-  sex vote and keeps its stated age (see Demographics resolution).
+  no import warning. It takes part in no dated calculation and is included in
+  the Data page count "values without a date", which lists the rows on demand.
+  It still contributes its sex to the sex vote and keeps its stated age (see
+  Demographics resolution).
 - **No numeric value.** A row whose value is empty, unparseable or a range is
-  imported without a number. It is included in the Data page count "values
-  without a numeric measurement" and enters no calculation. Its date, sex and
-  stated age still feed demographics resolution.
+  imported without a number and without an import warning. It is included in
+  the Data page count "values without a numeric measurement", which lists the
+  rows on demand, and enters no calculation. Its date, sex and stated age
+  still feed demographics resolution.
 - **Exact duplicates.** Two rows are duplicates when patient, lab date, test
   name, canonical unit and the raw value text are all equal. Duplicates are
   kept and each counts as a separate measurement. One sheet-level warning
-  reports their number and the number of affected patients. Because the raw
-  text is compared, `1,5` and `1.5` on the same day are not duplicates. Rows on
-  the same date with different values are not flagged.
+  reports their number and the number of affected patients and lists the
+  repeated rows (not the first occurrence). Because the raw text is compared,
+  `1,5` and `1.5` on the same day are not duplicates.
+- **Differing values on one day.** Per parameter (test name and unit), a
+  patient-day is reported when its dated rows with a number carry at least two
+  different values. Values are compared by number and operator: `1,5` and
+  `1.50` are equal, `5` and `<5` differ. Rows without a date, without a number
+  or without a test name are not compared. One sheet-level warning per
+  parameter gives the number of such patient-days and patients and lists all
+  rows of those days. Nothing is changed: every value stays a separate
+  measurement in fits, endpoints and AKI detection (see
+  [the detection rule](aki.md#kdigo-creatinine-aki-detection) for what
+  same-day creatinine values do there). Example: a patient with `1,1` and
+  `1,9` mg/dl creatinine on 2023-10-01 gives "Kreatinin [mg/dl]: 1 patient-day
+  with differing values on the same day for 1 patient; all values are kept and
+  each counts as a separate measurement."
+- **Unreadable sex.** A sex cell in a spelling that is not accepted (see
+  [Sex](demographics.md#sex)) leaves the row without a sex. One sheet-level
+  warning quotes up to six such spellings, each with its number of rows and
+  patients, counts further spellings and lists the rows.
 
 Sheet-level warnings also report two columns for one field, day-first and
 Excel-serial dates, merged unit spellings, values with three digits after a
 comma or a point that may be thousands notation, and the number of `<` and `>`
 values per parameter.
+
+### Import findings
+
+The import reports rejected rows and warnings as findings (`ImportDiagnostic`).
+No finding changes an imported value.
+
+- **Source row.** Every row read from a file keeps its row number as a
+  spreadsheet shows it: the header row is 1 and the first data row is 2; blank
+  rows count, and so does a leading `sep=` line. A finding about one row
+  (rejected lab, event or attribute row, warning on an accepted event row,
+  unreadable birth date, attribute row of an unknown patient) names that row.
+  The row of an accepted event is used for its import warning only; it is not
+  kept with the event.
+- **Affected rows.** A collective warning lists the rows it counts with source
+  row, patient, lab date, parameter and the cell as written: thousands
+  notation, duplicates, differing values on one day, bounded values,
+  unreadable sex, similar patient IDs and implausible lab dates. At most 1000
+  rows are listed per warning; the warning keeps the total.
+- **Per source table.** Findings belong to the table they came from: lab
+  values, events or attributes. A workbook import sets all three. A later
+  events or attributes upload replaces the findings of that table only; the
+  lab findings stay. An upload that fails leaves the findings as they were.
+- **Saved copy.** With "Remember on this device" the findings are saved with
+  the dataset and restored with it. A copy saved before 2026-11-21 restores
+  without findings and without source rows.
+- **Data checks.** Four counts of the Data page are computed from the imported
+  lab rows, not stored: values without a date, values without a numeric
+  measurement, and exact dated serum creatinine values of zero or less or
+  above 25 mg/dl. Each lists its rows on demand.
+- **Export.** "Download import diagnostics (XLSX)" on the Data page and the
+  sheet `import_diagnostics` of the cohort and patient workbooks hold the same
+  table: the findings of all three tables, then the data checks. Columns:
+  `source` (`labs`, `events`, `attributes`), `sheet` (sheet or file name),
+  `kind` (`rejected`, `warning`, `data check`), `row`, `patient_id`, `date`,
+  `parameter`, `value`, `message`. A finding about one row or without rows is
+  one line; a collective warning is one line per listed row, each repeating
+  the message, plus one line without a row when more rows were affected than
+  listed. The download holds every line. The workbook sheet leaves out the
+  lines about a loaded patient who is not part of the export, like that
+  patient's measurements; lines without a patient stay, and a cohort workbook
+  also keeps lines about IDs that never became a patient (all rows rejected,
+  attribute or event rows of an unknown patient), while a patient workbook
+  holds only that patient's lines and those without a patient. Parameters are
+  not filtered. The sheet is the last sheet of the workbook and is empty when
+  there is nothing to report; the download button is shown only when the
+  import produced a finding.
 
 ### Dates
 
@@ -226,9 +403,26 @@ Rejected as unrecognised: two-digit years (`15.01.24`), dashed day-first dates
 four-digit numbers (`2020`). Rejected as impossible: any day that does not
 exist, such as `2024-02-30`, `2023-02-29`, `31/04/2024` or month 13.
 
-Text dates and workbook date cells have no plausibility range: any year from
-0100 to 9999 is accepted (`0203-01-05`, `3000-01-01`). Years 0000 to 0099 are
-rejected as impossible. Only serial numbers are range-checked (below).
+Text dates and workbook date cells are not rejected for their year: any year
+from 0100 to 9999 is accepted (`0203-01-05`, `3000-01-01`). Years 0000 to 0099
+are rejected as impossible. Only serial numbers are rejected by range (below).
+
+**Plausibility warning for lab dates (decided 2026-11-21).** A lab date after
+the import day or before 1927-05-18 gives a warning; the row is imported and
+used unchanged. The lower bound is the first day of the serial range for lab
+dates (below). The import day is the calendar day of the device at the time of
+the import; dates are compared as calendar days. A lab date equal to the
+import day, or equal to 1927-05-18, gives no warning; the day after the import
+day and 1927-05-17 do. There is one warning per affected patient. It gives the
+number of rows, names up to three different dates in ascending order, each
+with its reason, counts further dates and lists the rows. With import day
+2026-11-21, a patient with rows on 1923-07-18, 0203-06-05 and 2026-12-15 gets
+"3 lab rows with an implausible lab date: 0203-06-05 (before 1927-05-18),
+1923-07-18 (before 1927-05-18), 2026-12-15 (after the import day 2026-11-21);
+the rows are used unchanged." A date such as 2003-08-08 in a series of 2023 is
+inside the range and is not reported. The warning is issued at import only: a
+restored dataset is not checked again. Event dates, event end dates and birth
+dates are not checked.
 
 **Time of day and time zone.** A date may be followed by a time: `T` or spaces,
 `h:mm` or `hh:mm`, optional seconds and fraction, and an optional `Z`,

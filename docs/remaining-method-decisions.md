@@ -685,6 +685,51 @@ and [dates at import](method-algorithms/import-and-values.md#dates). The
 methodology page is not changed; its wording is drafted as G1 in the
 [methodology wording drafts](methodology-wording-drafts.md) and tracked as
 OD-34.
+## Decisions of 2026-11-21 (persona review, issues #74, #2, #34)
+
+Owner decisions after the simulated-user review of 2026-11-21, taken on
+synthetic examples and the demo data.
+
+- **Implausible lab dates give a warning, not a rejection.** A lab date after
+  the import day or before 1927-05-18 is reported once per affected patient
+  with the date; the row stays in the analysis unchanged. The lower bound is
+  the one that already applies to Excel serial numbers. No value, slope or
+  export column changes. Example with import day 2026-11-21: 3024-05-08,
+  1923-07-18, 0203-06-05 and 2026-12-15 are reported; a mistyped 2003-08-08
+  in a series of 2023 is not. Event dates, event end dates and birth dates
+  are not checked; whether they should be is open.
+  Details: [Dates](method-algorithms/import-and-values.md#dates).
+- **Age conflicts keep one level and name the rows** (issue #2). Stated ages
+  that fit no single birth date stay a "Conflict" whatever the size of the
+  deviation, and the rule without tolerance stays. The message names the lab
+  dates with the stated and the derived age (the number of differing lab
+  dates and the first three) instead of the day count, which measured the gap
+  between birth-date intervals and not the error. No age, eGFR value or
+  export column changes; the text in the `warnings` column of the
+  `demographics` sheet changes with the message.
+  Details: [Age](method-algorithms/demographics.md#age).
+- **The LOINC code marks the material for creatinine only** (issue #34;
+  **changes numeric output** for files that carry such a code). Creatinine
+  with a known non-serum code becomes its own, labelled series and is
+  excluded from AKI detection and eGFR, like a non-serum name. The non-serum
+  codes are 2161-8 and 14683-7 (urine), confirmed by the owner on 2026-11-21;
+  whole-blood creatinine (38483-4, 59826-8) stays eligible like serum. Other
+  series with several codes are only reported, and LOINC is shown and
+  exported (`loinc` appended to `measurements`, `raw_measurements` and
+  `parameters`). This complements the name rule of 2026-11-05 and does not
+  replace it; merging series by LOINC stays undecided (issue #68).
+  What moves: in a file where serum and urine creatinine share one test name,
+  the urine rows leave the creatinine series. Its slope, the AKI episodes
+  detected on it, the AKI exclusion windows of every column that takes its
+  episodes from it, and the computed eGFR (fewer values, other slope) change.
+  Synthetic example: eleven mixed values with five false stage 3 episodes
+  become five serum and six urine values with no episode, and the computed
+  eGFR has five values instead of eleven. Files without these two codes on
+  creatinine rows are unaffected: the demo data and the golden fixtures
+  contain neither code, so no fixture moved.
+  Details: [Series identity](method-algorithms/import-and-values.md#columns),
+  [eligible source series](method-algorithms/egfr.md#eligible-source-series)
+  and [AKI input](method-algorithms/aki.md#input-series-and-conversion).
 
 ## Approved requirements
 

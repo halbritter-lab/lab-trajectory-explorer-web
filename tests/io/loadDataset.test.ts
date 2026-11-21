@@ -194,10 +194,10 @@ describe('loadDatasetFromWorkbook', () => {
     expect(dataset.patientAttributes['1']).toEqual({ genotype: 'A' })
     expect(dataset.rejectedEvents.map((item) => [item.event.title, item.reason])).toEqual([['Start', 'invalid_date']])
     expect(dataset.diagnostics).toEqual(expect.arrayContaining([
-      { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
-      { sheet: 'events', patientId: 999, severity: 'warning', reason: 'Patient 999 has no lab values in this dataset; the event is kept.' },
-      { sheet: 'attributes', patientId: 1, severity: 'rejected', reason: 'Patient 1 already has an attribute row; this later row is not imported.' },
-      { sheet: 'attributes', patientId: 999, severity: 'warning', reason: 'Patient 999 has no lab values in this dataset; the attributes are kept.' },
+      { source: 'events', sheet: 'events', patientId: 1, severity: 'rejected', row: 2, reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
+      { source: 'events', sheet: 'events', patientId: 999, severity: 'warning', row: 3, reason: 'Patient 999 has no lab values in this dataset; the event is kept.' },
+      { source: 'attributes', sheet: 'attributes', patientId: 1, severity: 'rejected', row: 3, reason: 'Patient 1 already has an attribute row; this later row is not imported.' },
+      { source: 'attributes', sheet: 'attributes', patientId: 999, severity: 'warning', row: 4, reason: 'Patient 999 has no lab values in this dataset; the attributes are kept.' },
     ]))
     expect(dataset.diagnostics).toHaveLength(4)
   })

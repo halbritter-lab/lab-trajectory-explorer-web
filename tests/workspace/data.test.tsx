@@ -125,7 +125,7 @@ it('keeps sheet names in the diagnostics of a multi-sheet workbook without an Ex
   ]), 'labs')
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ patientId: 'X-1', cohort: 'A' }]), 'attributes')
   await importWorkspaceFile({ name: 'study.ods', arrayBuffer: async () => XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) } as File)
-  const sheets = useAppStore.getState().notice?.details?.map(d => d.sheet) ?? []
+  const sheets = useAppStore.getState().importDiagnostics.map(d => d.sheet)
   expect(sheets.length).toBeGreaterThan(0)
   expect(sheets).not.toContain('study.ods')
   expect(sheets).toContain('labs')

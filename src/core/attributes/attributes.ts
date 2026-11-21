@@ -1,9 +1,11 @@
 import type { RawRow } from '../types'
-import { patientIdKey, type LabRow, type PatientId } from '../types'
+import { patientIdKey, sourceRowNumber, type LabRow, type PatientId } from '../types'
 
 export interface RawPatientAttributes {
   patientId: PatientId | null
   attributes: Record<string, string>
+  /** Row of the source file (header row = 1), when read from a file. */
+  sourceRow?: number
 }
 
 export type PatientAttributeWarning = '' | 'unknown_patient'
@@ -13,6 +15,7 @@ export interface PatientAttributeRecord {
   patientId: PatientId
   attributes: Record<string, string>
   warning: PatientAttributeWarning
+  sourceRow?: number
 }
 
 export interface RejectedPatientAttributeRow {
@@ -99,7 +102,8 @@ export function normalizePatientAttributes(rows: RawRow[]): RawPatientAttributes
       const text = parseText(row[rawHeader])
       if (text !== null) attributes[canonicalKey] = text
     }
-    return { patientId: parsePatientId(row[patientIdHeader]), attributes }
+    const sourceRow = sourceRowNumber(row)
+    return { patientId: parsePatientId(row[patientIdHeader]), attributes, ...(sourceRow === undefined ? {} : { sourceRow }) }
   })
 }
 
@@ -132,7 +136,7 @@ export function validatePatientAttributes(
     const warning: PatientAttributeWarning = knownPatientIds.has(record.patientId)
       ? ''
       : 'unknown_patient'
-    valid.push({ patientId: record.patientId, attributes: record.attributes, warning })
+    valid.push({ patientId: record.patientId, attributes: record.attributes, warning, ...(record.sourceRow === undefined ? {} : { sourceRow: record.sourceRow }) })
     byPatient[key] = record.attributes
     for (const name of Object.keys(record.attributes)) attributeNames.add(name)
   }
@@ -192,17 +196,17 @@ export function readAttributeBirthDate(value: string | undefined): ImportDateRes
  * value (the value is kept but ignored for age) and counts for the day-first
  * and Excel-serial notes. */
 export function attributeBirthDateFindings(records: readonly PatientAttributeRecord[]): {
-  warnings: { patientId: PatientId; reason: string }[]
+  warnings: { patientId: PatientId; reason: string; sourceRow?: number }[]
   dateReads: DateReadCounts
 } {
-  const warnings: { patientId: PatientId; reason: string }[] = []
+  const warnings: { patientId: PatientId; reason: string; sourceRow?: number }[] = []
   const dateReads = noDateReads()
   for (const record of records) {
     const value = record.attributes.birthDate
     const parsed = readAttributeBirthDate(value)
     countDateRead(dateReads, parsed)
     if (parsed.kind === 'invalid') {
-      warnings.push({ patientId: record.patientId, reason: `${describeDateProblem('Birth date', value, parsed.problem, 'birth')}; it is ignored.` })
+      warnings.push({ patientId: record.patientId, reason: `${describeDateProblem('Birth date', value, parsed.problem, 'birth')}; it is ignored.`, ...(record.sourceRow === undefined ? {} : { sourceRow: record.sourceRow }) })
     }
   }
   return { warnings, dateReads }

@@ -32,6 +32,97 @@ interfaces are still evolving before 1.0.
 - The time of day is a sort key only; it is not shown and not exported. A
   dataset stored in the browser before this change has no times until the
   file is imported again. The methodology page is not yet updated (OD-34).
+### Added (import diagnostics, after the persona review of 2026-11-21)
+
+- Import diagnostics name the row of the source file ("labs.csv, row 12,
+  patient 7, rejected: …"), also for warnings on accepted event rows. Collective warnings (duplicates, thousands
+  notation, bounded values and the new ones below) open a list of the affected
+  rows with patient, date, parameter and the value as written.
+- The counts of values without a date or without a numeric measurement and
+  the serum creatinine plausibility notices on the Data page open the rows
+  behind them.
+- Diagnostics are kept per table: replacing events or attributes no longer
+  removes the diagnostics of the lab import. They are saved with "Remember on
+  this device" and restored with the dataset. Copies saved before restore
+  without them.
+- "Download import diagnostics (XLSX)" on the Data page, and a new last sheet
+  `import_diagnostics` in the cohort and patient workbooks, hold the
+  diagnostics and data-check rows. The workbook sheet leaves out lines about
+  patients who are not part of the export. Existing sheets keep their names,
+  columns and positions.
+- New import warnings; none changes an imported value, a series or a result:
+  - a lab date after the import day or before 1927-05-18, once per patient
+    with the date (owner decision of 2026-11-21);
+  - differing values of one parameter on the same day, per parameter with the
+    number of patient-days and patients;
+  - unreadable sex spellings with their number of rows and patients, also
+    when no eGFR formula is selected;
+  - patient IDs that differ only in leading zeros, spaces or letter case
+    ("0012" and "12"); they remain separate patients.
+
+### Changed (creatinine material by LOINC code, decided 2026-11-21; changes results for affected files)
+
+- Creatinine rows with the urine LOINC code 2161-8 or 14683-7 are imported as
+  their own parameter, named after the test with " (urine, LOINC <code>)",
+  and are not used for AKI detection or as an eGFR source. Before, serum and
+  urine creatinine delivered under one test name formed one series, with
+  false AKI episodes and a wrong computed eGFR. In such files the creatinine
+  slope, the AKI episodes, AKI exclusion windows and the computed eGFR
+  change. Files without these codes on creatinine rows, among them the demo
+  data and the golden fixtures, are unaffected. Whole-blood creatinine codes
+  stay eligible like serum. The import reports the rows it moved.
+- The import warns when one parameter carries more than one LOINC code. The
+  values stay one series.
+- "Imported parameters" shows the LOINC codes of each parameter. The sheets
+  `measurements`, `raw_measurements` and `parameters` of the cohort and
+  patient workbooks get a last column `loinc`; existing columns keep their
+  names and positions.
+
+### Added (Data page, after the persona review of 2026-11-21)
+
+- When the selected eGFR formula or creatinine source differs from the one
+  in use, the Data page says "Preview not applied" at the selection and
+  beside "Open trajectories", with a button to apply it. Before, only the
+  grey line "Active: Off, 0 computed values" showed the difference.
+- "Review and edit patients" shows the number of dated numeric values and the
+  first and last date per patient; "Imported parameters" shows how many
+  patients have fewer than three dated numeric values of a parameter.
+- Under "Templates and example files" a sentence states the allowed event
+  types, the intent values (dialysis only) and the date forms, and points to
+  "Demo events" as a filled example.
+- "Loaded events" and "Rejected event rows" show the event description.
+
+### Changed (age conflict message, decided 2026-11-21)
+
+- When the stated ages of a patient fit no single birth date, the conflict
+  names the lab dates concerned with the stated and the derived age ("on 2 of
+  7 lab dates: 2023-07-11 (stated 54, derived 55), …") instead of "N days
+  apart", which was not the size of the error. The same text is in the
+  `warnings` column of the `demographics` export sheet. Ages, the conflict
+  count and `demographics_conflict` are unchanged.
+
+### Fixed (import, after the persona review of 2026-11-21)
+
+- After "Replace events" or "Replace attributes", and after reloading a saved
+  copy, the rows rejected by the lab import could no longer be inspected
+  anywhere. They now stay listed (see above).
+
+- A semicolon CSV whose data rows hold more commas than semicolons (test names
+  or free text with commas, decimal commas) is read with the semicolon; before,
+  such a file was rejected with "missing required column(s)". The field
+  delimiter is taken from the header line when the header, split there, holds
+  more accepted column names than split at the delimiter the reader counted
+  over the start of the file. Every file that loaded before is read as before,
+  including a `sep=` line, a header line with as many commas as semicolons
+  (`patientId;Diagnose, genetisch`) and a column name with more commas than
+  the header has semicolons (`patientId;Diagnose, genetisch, bestätigt`).
+
+### Changed (import error message)
+
+- The "missing required column(s)" error names the likely cause when the file
+  has one column per lab test instead of one row per measurement, with an
+  example of the expected layout, and when a column name contains a semicolon
+  or a tab (wrong field delimiter). No column is mapped.
 
 ### Added (Cohort models: control over a running fit)
 

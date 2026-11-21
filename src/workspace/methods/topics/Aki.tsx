@@ -11,8 +11,10 @@ export function Aki() { return <>
         secretions and lymph are recognised in their German spelling only (“Punktat”, “Serom”,
         “Sekret”, “Lymphe”). A single letter “U” in the name also counts as urine, except where
         “u.” stands for “und” between two blood materials (“Serum u. Plasma”) or in “vor u. nach”.
-        The rule reads the parameter name only. Every other creatinine name is treated as serum
-        creatinine, so check the <em>Creatinine source</em> under Data.
+        The rule reads the parameter name. One LOINC rule is added to it at import: creatinine
+        rows with the urine codes 2161-8 or 14683-7 become a parameter of their own, named with
+        “(urine, LOINC …)”, and are left out as well. Every other creatinine name is treated as
+        serum creatinine, so check the <em>Creatinine source</em> under Data.
       </p>
       <p>
         Only dated exact numeric values are used. Values of zero or

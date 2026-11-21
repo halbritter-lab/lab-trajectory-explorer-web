@@ -13,14 +13,18 @@ const LEVEL_LIMIT = 8
  * spellings of one test became two parameters. */
 export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData; onBrowse: (patientId?: PatientId) => void }) {
   const parameters = useMemo(() => {
-    const counts = new Map<string, { values: number; patients: Set<PatientId> }>()
+    const counts = new Map<string, { values: number; patients: Set<PatientId>; loinc: Set<string>; dated: Map<PatientId, number> }>()
     for (const row of data.rawRows) {
       if (row.bezeichnung === null) continue
       const key = JSON.stringify([row.bezeichnung, row.einheit])
-      const entry = counts.get(key) ?? { values: 0, patients: new Set<PatientId>() }
+      const entry = counts.get(key) ?? { values: 0, patients: new Set<PatientId>(), loinc: new Set<string>(), dated: new Map<PatientId, number>() }
+      entry.dated.set(row.patientId, (entry.dated.get(row.patientId) ?? 0) + (row.labDatum && row.wertNum !== null ? 1 : 0))
       entry.values++; entry.patients.add(row.patientId); counts.set(key, entry)
+      if (row.loinc !== null) entry.loinc.add(row.loinc)
     }
-    return data.parameters.filter(parameter => !parameter.derived).map(parameter => ({ ...parameter, values: counts.get(parameter.key)?.values ?? 0, patients: counts.get(parameter.key)?.patients.size ?? 0 }))
+    return data.parameters.filter(parameter => !parameter.derived).map(parameter => ({ ...parameter, values: counts.get(parameter.key)?.values ?? 0, patients: counts.get(parameter.key)?.patients.size ?? 0, loinc: [...counts.get(parameter.key)?.loinc ?? []],
+      // Patients with fewer than three dated numeric values of this parameter: too few for a supported trend.
+      sparse: [...counts.get(parameter.key)?.dated.values() ?? []].filter(n => n < 3).length }))
   }, [data.rawRows, data.parameters])
   const attributes = useMemo(() => {
     const names = [...new Set(data.patients.flatMap(patient => Object.keys(patient.attributes)))].sort()
@@ -38,10 +42,10 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
   return <div className="data-event-tables">
     <details>
       <summary>Imported parameters ({parameters.length})</summary>
-      <p className="muted">One parameter per test name and unit, exactly as written in the file. Different spellings or units of one test are separate parameters and are not merged.</p>
+      <p className="muted">One parameter per test name and unit, exactly as written in the file. Different spellings or units of one test are separate parameters and are not merged. LOINC codes are shown as imported and do not separate parameters, with one exception: creatinine with a urine code (2161-8, 14683-7) is its own parameter, named with the code.</p>
       <div className="table-scroll" role="region" aria-label="Imported parameters, horizontal scrolling" tabIndex={0}>
-        <table aria-label="Imported parameters"><thead><tr><th>Parameter</th><th>Unit</th><th>Values</th><th>Patients</th></tr></thead>
-          <tbody>{parameters.map(parameter => <tr key={parameter.key}><td>{parameter.bezeichnung}</td><td>{parameter.einheit ?? '–'}</td><td>{parameter.values}</td><td>{parameter.patients}</td></tr>)}</tbody>
+        <table aria-label="Imported parameters"><thead><tr><th>Parameter</th><th>Unit</th><th>LOINC</th><th>Values</th><th>Patients</th><th>Patients with fewer than 3 dated numeric values</th></tr></thead>
+          <tbody>{parameters.map(parameter => <tr key={parameter.key}><td>{parameter.bezeichnung}</td><td>{parameter.einheit ?? '–'}</td><td>{parameter.loinc.join(', ') || '–'}</td><td>{parameter.values}</td><td>{parameter.patients}</td><td>{parameter.sparse}</td></tr>)}</tbody>
         </table>
       </div>
     </details>

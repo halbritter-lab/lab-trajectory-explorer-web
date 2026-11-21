@@ -11,6 +11,15 @@ export type Sex = 'm' | 'w' | 'd'
 /** One spreadsheet row as read from a file: header → cell value. */
 export type RawRow = Record<string, unknown>
 
+/** The row of the source file a raw row came from, counted as a spreadsheet
+ * shows it (header row = 1, first data row = 2), or undefined when the row was
+ * not read from a file. `readWorkbook` attaches the position as a
+ * non-enumerable `__rowNum__`. */
+export function sourceRowNumber(row: RawRow): number | undefined {
+  const rowNum = (row as { __rowNum__?: unknown }).__rowNum__
+  return typeof rowNum === 'number' && Number.isFinite(rowNum) ? rowNum + 1 : undefined
+}
+
 export type PatientId = number | string
 
 export function patientIdKey(patientId: PatientId): string {
@@ -49,6 +58,10 @@ export interface LabRow {
    * anchor from integer ages. Optional: datasets persisted before this field
    * existed, and row literals in tests, simply omit it. */
   patientBirthDate?: Date | null
+  /** Row of the source file the measurement was read from (header row = 1),
+   * so import findings and data checks can name it. Absent on derived rows,
+   * on rows not read from a file and in datasets saved before 2026-11-21. */
+  sourceRow?: number
   /** On a derived row (computed eGFR): the (name, unit) of the imported series
    * it was computed from, so AKI detection for the derived series uses that
    * series. Absent on imported rows. */

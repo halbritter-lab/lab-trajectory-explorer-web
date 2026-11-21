@@ -96,9 +96,22 @@ describe('useAppStore', () => {
     expect(state.events).toEqual([])
     expect(state.rejectedEvents.map((item) => item.event.title)).toEqual(['Start'])
     expect(state.notice?.text).toContain('1 row rejected')
-    expect(state.notice?.details).toEqual([
-      { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
+    expect(state.importDiagnostics).toEqual([
+      { source: 'events', sheet: 'events', patientId: 1, severity: 'rejected', row: 2, reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
     ])
+  })
+
+  it('keeps import diagnostics per source: a source is replaced alone, a new dataset clears all', () => {
+    const d = (source: 'labs' | 'events' | 'attributes', reason: string) => ({ source, sheet: source, patientId: null, severity: 'warning' as const, reason })
+    useAppStore.getState().replaceDataset({ rows: [row({})], importDiagnostics: [d('labs', 'L1'), d('events', 'E1')] })
+    useAppStore.getState().setImportDiagnostics('attributes', [d('attributes', 'A1')])
+    expect(useAppStore.getState().importDiagnostics.map((x) => x.reason)).toEqual(['L1', 'E1', 'A1'])
+    useAppStore.getState().setImportDiagnostics('events', [d('events', 'E2'), d('events', 'E3')])
+    expect(useAppStore.getState().importDiagnostics.map((x) => x.reason)).toEqual(['L1', 'A1', 'E2', 'E3'])
+    useAppStore.getState().setImportDiagnostics('attributes', [])
+    expect(useAppStore.getState().importDiagnostics.map((x) => x.reason)).toEqual(['L1', 'E2', 'E3'])
+    useAppStore.getState().replaceDataset({ rows: [row({})] })
+    expect(useAppStore.getState().importDiagnostics).toEqual([])
   })
 
   it('sets an error notice and keeps the session on an unreadable file', async () => {

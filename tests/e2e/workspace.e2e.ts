@@ -343,7 +343,8 @@ test('real workbook: quality, derivation, many parameters, shared scope and actu
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await upload(page)
-  await page.getByText(/import diagnostics — show details/).click()
+  // One list per source table (lab values, events, attributes).
+  for (const summary of await page.getByText(/import diagnostics — show details/).all()) await summary.click()
   await expect(page.getByRole('listitem').filter({ hasText: /Event date "bad-date" is not a recognised date/ })).toBeVisible()
   await expect(page.getByRole('table', { name: 'Rejected events' })).toContainText('Rejected visit')
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')

@@ -109,6 +109,7 @@ describe('loadLabRows', () => {
     expect(issues.filter((issue) => issue.reason.includes('after a point'))).toEqual([{
       patientId: null, severity: 'warning', scope: 'sheet',
       reason: '2 values with three digits after a point, such as "0.850", were read as decimals; check that the point is not a thousands separator.',
+      rows: [expect.objectContaining({ value: '0.850' }), expect.objectContaining({ value: '1.234' })],
     }])
   })
 
