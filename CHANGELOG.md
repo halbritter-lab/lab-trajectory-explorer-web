@@ -24,6 +24,13 @@ interfaces are still evolving before 1.0.
   that tests such a cell for `""` must test for an empty cell.
 - Every sheet has its header row also when it has no rows (`events`,
   `aki_episodes`, `raw_measurements`).
+- `fit_config` on the `settings` sheet no longer has the entry `xAxis`; a
+  script that reads it no longer finds it. No fit ever used it. The `about`
+  sheet states the time axis of the trend: years since `index_date`, where
+  `intercept` applies.
+- The Theil–Sen preset is written as `preset: theil_sen` in `fit_config`
+  (formerly `custom`); the same values set by hand stay `custom`. No number
+  changes. `theilSenConfig` of the library package returns the new id.
 
 ### Added (cohort export, decided 2026-11-21)
 
@@ -37,6 +44,15 @@ interfaces are still evolving before 1.0.
   dialysis.
 - A last sheet `columns` describes every column of the `cohort` sheet:
   meaning, unit and when the cell is empty.
+- The `about` sheet of the cohort workbook ends with `app_version`,
+  `exported_at` (UTC), `export_id` and `input_data_id`, an identifier of the
+  imported measurements in the exported scope, so an archived file can be
+  assigned to a version and two runs on the same data can be recognised.
+- The `about` sheet names the fixed parameters of segmented OLS, says what
+  the preset name records, and lists the personal and source-related fields
+  of the file (patient IDs as imported, the birth date estimated from age,
+  the name of the imported file) with a request to check them before the
+  file is passed on.
 
 ### Changed (exports, after the persona review of 2026-11-21)
 

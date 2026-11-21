@@ -67,8 +67,16 @@ The regression x value is always elapsed time in years from the first fitted
 point (see "Ordinary least squares"). Every slope is therefore in value units
 per year. The chart axis control (age, calendar date, time since first
 measurement) changes the drawing only. The `xAxis` value stored in a preset is
-metadata: it is written to the exported `fit_config` and is part of the
-mixed-model result identity, but no fit and no chart reads it.
+metadata: no fit and no chart reads it, and the mixed-model result identity
+(`mixedModelFitConfigHash`) does not include it. Since 2026-11-21 (owner
+decision) the exported `fit_config` leaves the entry out, and the `about`
+sheet states the time axis instead: years since the first fitted measurement,
+whose date is `index_date`, at which `intercept` applies. Until then the
+export wrote `xAxis: age` for the CKD progression preset and
+`xAxis: calendar_time` otherwise, which read as if the trend had been fitted
+on age. Example: slope −8.50 per year and intercept 67.20 with
+`index_date = 2019-02-01` and a baseline age of 67 mean a fitted value of
+67.20 on 2019-02-01, not 67.20 − 8.50 · 67 at age 67.
 
 ### Fit model and slope mode
 
@@ -214,12 +222,51 @@ The cohort workbook has these sheets, in this order: `measurements`,
   sheets) is an empty cell. Before, it was a text cell holding an empty
   string, which made the column text for readers that infer types. Text and
   date columns without a value still hold an empty string.
+- **`settings`.** One row per exported parameter: `mode` (the slope mode),
+  `fit_config` (the column's fit configuration as JSON: `parameter`, `preset`,
+  `censoring`, `exclusions`, `timeBalancing`, `fitModel`, `endpoints`; no
+  `xAxis`, see "Fit axis"), the module settings, `analysis_settings`,
+  `patient_ids`, `source_file` and `scope`.
+- **`about`.** One column `note`. Rows are appended, never moved. Since
+  2026-11-21 it explains the time axis of the trend, the meaning of `preset`
+  and the fixed parameters of segmented OLS (a gap of more than 180 days, at
+  least 3 points per segment), lists the personal and source-related fields
+  of the file (patient IDs as imported, `birth_anchor`, `patient_ids`,
+  `source_file`) with a request to check them before passing the file on,
+  and ends with four provenance rows of the form `key: value`:
+
+  | Key | Value |
+  | --- | --- |
+  | `app_version` | version of the app that wrote the file (`package.json`), for example `0.3.7` |
+  | `exported_at` | time of the export, ISO 8601 in UTC with milliseconds, for example `2026-11-21T13:14:15.000Z` |
+  | `export_id` | a random UUID (version 4), new for every export |
+  | `input_data_id` | identifier of the imported rows in the exported scope (below) |
+
+  `input_data_id` (`inputDataId`) is computed from the rows of
+  `raw_measurements`: the imported rows of the exported patients and
+  parameters. Each row is reduced to the JSON array of patient ID as text,
+  `Date`, `Parameter`, `Unit`, `Value` (the text as imported), `patient_sex`
+  (empty text when absent) and `patient_age_at_lab` (`null` when absent). The
+  arrays are sorted as text by UTF-16 code units, joined with commas inside
+  `[` and `]`, and hashed with 32-bit FNV-1a over the UTF-16 code units
+  (offset basis `0x811c9dc5`, prime `0x01000193`), written as eight lower-case
+  hex digits. The identifier does not depend on the row order, the fit
+  settings, events, attributes, manual demographic entries or the app
+  version; it changes with any of the seven fields and with the exported
+  scope. It is a checksum for comparing runs, not a cryptographic hash: two
+  different inputs can share a value (about 1 in 4.3 thousand million per
+  pair). Example: patient 7, creatinine in mg/dl, sex `w`, stated age 54,
+  with `1.2` on 2024-01-15 and `<1.0` on 2024-07-15 gives `2d00e7b1` in either
+  row order; with `1.0` instead of `<1.0` it gives `025df805`. The
+  `datasetHash` of the model workbook is a different quantity: a hash of the
+  prepared model rows.
 - **`columns`.** The last sheet describes the columns of the `cohort` (or
   `slopes`) sheet, one row per column in sheet order: `column`, `meaning`,
   `unit`, `empty_when`. The export fails rather than write a column that has
   no entry. The other sheets have no directory.
 
-Evidence: [workbook schema tests](../../tests/workspace/export-schema.test.ts).
+Evidence: [workbook schema tests](../../tests/workspace/export-schema.test.ts),
+[settings and provenance tests](../../tests/workspace/export-provenance.test.ts).
 
 ### Rounding
 
@@ -287,9 +334,13 @@ fit only: the shaded AKI band in charts is drawn with the stored length whether
 or not the exclusion is on (see "AKI fit-exclusion window"). The construction
 of AKI windows and the endpoint rules are specified in their own sections.
 
-The Theil–Sen preset is general exploration with the Theil–Sen estimator. Its
-configuration is recorded with `preset: custom`, so an export cannot
-distinguish it from a manually edited configuration that has the same values.
+The Theil–Sen preset is general exploration with the Theil–Sen estimator.
+Since 2026-11-21 (owner decision) its configuration is recorded with
+`preset: theil_sen`, the id the app uses for it; a configuration with the
+same values reached by changing the trend method by hand stays
+`preset: custom`. Exports written before recorded both as `custom`. The name
+records how the settings were selected and decides nothing: no fit, model
+identity or saved setting reads `preset`, and the `about` sheet says so.
 
 Defaults and inheritance:
 
@@ -305,7 +356,8 @@ Defaults and inheritance:
 
 - Changing any single advanced setting, including the rapid-decline threshold,
   marks the configuration as custom. It is then recorded with `preset: custom`
-  and `xAxis: calendar_time`, whichever preset it started from.
+  and `xAxis: calendar_time`, whichever preset it started from (the exported
+  `fit_config` carries `preset` only).
 - A series specification built without a fit configuration (`cohortSeriesSpec`)
   uses General exploration.
 

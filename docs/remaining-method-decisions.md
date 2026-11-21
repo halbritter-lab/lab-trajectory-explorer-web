@@ -650,6 +650,13 @@ fitted number changes.
   result sheets. Scripts that read `patientId` there fail on the name.
 - **A sheet `columns` at the end of the file** lists every column of the
   `cohort` sheet with meaning, unit and when the cell is empty.
+- **The Theil–Sen preset is exported as `theil_sen`.** The export names the
+  preset as the app does; the same values set by hand stay `custom`. Older
+  exports show `custom` for the same choice. Saved settings are read as
+  before.
+- **`xAxis` is left out of the exported `fit_config`,** and the `about` sheet
+  names the actual time axis of the trend. A script that reads `xAxis` no
+  longer finds it.
 
 Implemented on assumptions that still need the owner's confirmation:
 
@@ -660,13 +667,19 @@ Implemented on assumptions that still need the owner's confirmation:
   for a numeric ID. Whether the ID should always be text is open; a dataset
   with both kinds of ID still has both cell types.
 - `columns` covers the `cohort` (or `slopes`) sheet only.
+- One `about` sentence says that the preset name only records how the
+  settings were selected.
+- `input_data_id` is defined as a 32-bit checksum of the rows of
+  `raw_measurements` (issue #35, provenance item; no owner decision yet on
+  the definition).
 
 Still open, unchanged: whether the export records the grouping attribute;
 whether the `cohort` sheet is reordered once; whether the Trajectories table
 shows a bound with its sign ("latest <15").
 
-Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group)
-and [workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
+Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group),
+[workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
+and [fit axis](method-algorithms/fit-input-presets-and-time-balancing.md#fit-axis).
 
 ## Approved requirements
 
