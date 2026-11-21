@@ -50,6 +50,15 @@ interfaces are still evolving before 1.0.
   patient workbooks get a last column `loinc`; existing columns keep their
   names and positions.
 
+### Changed (age conflict message, decided 2026-11-21)
+
+- When the stated ages of a patient fit no single birth date, the conflict
+  names the lab dates concerned with the stated and the derived age ("on 2 of
+  7 lab dates: 2023-07-11 (stated 54, derived 55), …") instead of "N days
+  apart", which was not the size of the error. The same text is in the
+  `warnings` column of the `demographics` export sheet. Ages, the conflict
+  count and `demographics_conflict` are unchanged.
+
 ### Fixed (import, after the persona review of 2026-11-21)
 
 - After "Replace events" or "Replace attributes", and after reloading a saved

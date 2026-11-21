@@ -645,6 +645,15 @@ synthetic examples and the demo data.
   in a series of 2023 is not. Event dates, event end dates and birth dates
   are not checked; whether they should be is open.
   Details: [Dates](method-algorithms/import-and-values.md#dates).
+- **Age conflicts keep one level and name the rows** (issue #2). Stated ages
+  that fit no single birth date stay a "Conflict" whatever the size of the
+  deviation, and the rule without tolerance stays. The message names the lab
+  dates with the stated and the derived age (the number of differing lab
+  dates and the first three) instead of the day count, which measured the gap
+  between birth-date intervals and not the error. No age, eGFR value or
+  export column changes; the text in the `warnings` column of the
+  `demographics` sheet changes with the message.
+  Details: [Age](method-algorithms/demographics.md#age).
 - **The LOINC code marks the material for creatinine only** (issue #34;
   **changes numeric output** for files that carry such a code). Creatinine
   with a known non-serum code becomes its own, labelled series and is
