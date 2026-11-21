@@ -47,6 +47,9 @@ interfaces are still evolving before 1.0.
 - The cohort export button names a restricted scope ("Export 12 of 28
   patients (XLSX)"), and the workbook exports show "Exporting …" while the
   file is written.
+- An empty cell of the computed eGFR names the reason for that patient ("No
+  eGFR: sex missing"), with the number of creatinine values affected and a
+  pointer to "Review and edit patients"; the patient view states the same.
 
 ### Added (Cohort models: control over a running fit)
 

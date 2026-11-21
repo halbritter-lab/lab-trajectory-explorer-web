@@ -19,6 +19,7 @@ import './data-workspace.css'
 import { WorkspaceStorageControls } from './WorkspaceStorageControls'
 import { WorkspaceEventTables } from './WorkspaceEventTables'
 import { WorkspaceDataOverview } from './WorkspaceDataOverview'
+import { EGFR_GAP_TEXT, egfrGapReason } from './egfr-gaps'
 
 const DIAGNOSTIC_PREVIEW_LIMIT = 20
 
@@ -64,7 +65,8 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
     .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
   const reasons = new Map<string, number>()
   for (const r of candidates) {
-    const reason = !r.labDatum ? 'Date missing' : r.wertNum === null ? 'Numeric value missing' : !(r.wertNum > 0) ? 'Creatinine must be positive' : !r.patientSex ? 'Sex missing or unresolved' : r.patientAgeAtLab === null ? 'Age missing' : r.patientAgeAtLab < 18 ? 'Age under 18 — adult eGFR formulas do not apply' : null
+    const code = egfrGapReason(r)
+    const reason = code && EGFR_GAP_TEXT[code]
     if (reason) reasons.set(reason, (reasons.get(reason) ?? 0) + 1)
   }
   useEffect(() => {
