@@ -11,7 +11,7 @@ import { layoutMarkerLabels } from '../../src/workspace/marker-labels'
 import { skippedByAkiDetection } from '../../src/workspace/aki-detection'
 import { workspaceWorkbookBytes } from '../../src/workspace/workspace-export'
 import { defaultTrajectoryView, restoreSavedSettings, SAVED_SETTINGS_VERSION } from '../../src/workspace/saved-settings'
-import { defaultTrajectoryFitSettings } from '../../src/workspace/workspace-analysis'
+import { defaultFitSettings, defaultTrajectoryFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
 
 for (const method of ['show', 'showModal', 'close'] as const) {
   if (!HTMLDialogElement.prototype[method]) Object.defineProperty(HTMLDialogElement.prototype, method, { configurable: true, writable: true, value() {} })
@@ -252,6 +252,55 @@ describe('Rolling OLS windows (K18)', () => {
     const titles = [...chart().querySelectorAll('polyline[data-fit-quality] title')].map(title => title.textContent)
     expect(titles).toHaveLength(5)
     expect(titles[0]).toBe('Rolling OLS window 01/01/2018 to 01/01/2020: 9 fitted measurements (01/01/2018 to 01/01/2020), slope 0 mg/dl/year')
+  })
+  // Review finding 2026-11-21: under quarterly medians (CKD progression) a
+  // window is fitted on medians, and the list, tooltip and cell said "fitted
+  // measurements" of them.
+  describe('under quarterly medians', () => {
+    // CRP, not creatinine: no AKI detection interferes. Three values per quarter on the 1st, 2nd and 3rd of its first month, from 2019-10-01: 48 values, 16 medians.
+    const starts = Array.from({ length: 16 }, (_, i) => { const month = 9 + 3 * i; return `${2019 + Math.floor(month / 12)}-${String(1 + month % 12).padStart(2, '0')}` })
+    const balanced = starts.flatMap((start, q) => [1, 2, 3].map(d => lab('M', CRP, `${start}-0${d}`, 60 - q + d)))
+    const quarterly = () => ({ ...defaultFitSettings('ckd_progression'), fitModel: 'rolling-ols' as const })
+    it('counts medians in the window, dated to their representative dates', () => {
+      const [row] = buildCohortRows(balanced, ['M'], [{ bezeichnung: 'CRP', einheit: 'mg/l', mode: 'rolling', fitConfig: toFitConfig(quarterly(), CRP) }])
+      const cell = row.cells[0]
+      expect(cell.nNumeric).toBe(48)
+      expect(cell.nFitted).toBe(16)
+      expect(cell.rolling!.timeBalancing).toBe('quarterly-median')
+      // 8 medians from 24 measurements; 2019-10-01 lies before the window start and is in the first median.
+      expect(cell.rolling!.windows[0]).toMatchObject({ start: day('2019-10-02'), end: day('2021-10-01'), firstDate: day('2019-10-02'), lastDate: day('2021-07-02'), n: 8 })
+      expect(buildCohortRows(rows, ['R'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'rolling' }])[0].cells[0].rolling!.timeBalancing).toBe('raw')
+    })
+    it('says quarterly medians in the window list, the tooltip and the cell', () => {
+      useAppStore.getState().setTrajectoryFitSettings({ shared: quarterly(), columns: {} })
+      render(<TrajectoriesWorkspace data={dataset(balanced, [CRP])} requestedPatientId="M" />)
+      fireEvent.click(screen.getByRole('checkbox', { name: `Analyse trend: ${CRP.label}` }))
+      const table = screen.getByRole('table', { name: 'Rolling OLS windows', hidden: true })
+      expect([...table.querySelectorAll('th')].map(cell => cell.textContent).slice(0, 4)).toEqual(['Window', 'Quarterly medians from', 'to', 'n'])
+      expect([...table.querySelector('tbody tr')!.querySelectorAll('td')].map(cell => cell.textContent).slice(0, 4)).toEqual(['02/10/2019 to 01/10/2021', '02/10/2019', '02/07/2021', '8'])
+      const details = table.closest('details')!
+      expect(details).toHaveTextContent('Each fitted point is the median of one calendar quarter, dated to one of its measurement days: n counts medians, and a measurement outside the window bounds can enter through the median of its quarter.')
+      const titles = [...chart(CRP.label).querySelectorAll('polyline[data-fit-quality] title')].map(title => title.textContent)
+      expect(titles[0]).toMatch(/^Rolling OLS window 02\/10\/2019 to 01\/10\/2021: 8 quarterly medians \(02\/10\/2019 to 02\/07\/2021\), slope /)
+      expect(document.body).not.toHaveTextContent(/\d+ fitted measurements \(/)
+      expect(document.querySelector('[title*="with at least three quarterly medians"]')).not.toBeNull()
+      expect(document.querySelector('[title*="with at least three fitted measurements"]')).toBeNull()
+    })
+    it('keeps "fitted measurements" without time balancing and explains the medians in the export', () => {
+      render(<TrajectoriesWorkspace data={dataset(rows)} requestedPatientId="R" />)
+      fireEvent.change(screen.getByLabelText(`Trend method: ${CREA.label}`), { target: { value: 'rolling-ols' } })
+      fireEvent.click(screen.getByRole('checkbox', { name: `Analyse trend: ${CREA.label}` }))
+      const table = screen.getByRole('table', { name: 'Rolling OLS windows', hidden: true })
+      expect(table.querySelector('th:nth-child(2)')).toHaveTextContent('Fitted measurements from')
+      expect(table.closest('details')).not.toHaveTextContent('median')
+      const data = { ...dataset(balanced, [CRP]), analysis: { rows: balanced, messages: [], fitInputs: [] } } as unknown as WorkspaceData
+      const workbook = XLSX.read(workspaceWorkbookBytes({ data, parameterKeys: [CRP.key], patientIds: ['M'], patientId: 'M',
+        cohortRows: buildCohortRows(balanced, ['M'], [{ bezeichnung: 'CRP', einheit: 'mg/l', mode: 'rolling', fitConfig: toFitConfig(quarterly(), CRP) }]) }), { type: 'array' })
+      expect(XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.rolling_windows)[0]).toMatchObject({ window_start: '2019-10-02', first_date: '2019-10-02', last_date: '2021-07-02', n: 8 })
+      const note = XLSX.utils.sheet_to_json<Record<string, string>>(workbook.Sheets.about).map(row => row.note).find(text => text?.startsWith('rolling_windows'))!
+      expect(note).toContain('n counts medians and a measurement outside the window bounds can enter through the median of its period')
+      expect(note).not.toContain('fitted measurement')
+    })
   })
   it('exports the windows as the sheet after about, empty without a rolling column', () => {
     const data = { ...dataset(rows), analysis: { rows, messages: [], fitInputs: [] } } as unknown as WorkspaceData

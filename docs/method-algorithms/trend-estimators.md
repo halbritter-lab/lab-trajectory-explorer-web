@@ -258,18 +258,45 @@ window slopes were computed and discarded and no line was drawn):
   global line is not drawn in this mode.
 - **Window statistics.** The cell shows the number of windows and the smallest
   and largest window slope ("5 windows, local slopes −8 to 0 …/year"), or
-  "No 730-day window with three fitted measurements; no local slopes". A
+  "No 730-day window with three fitted measurements; no local slopes" (under
+  time balancing "… with three monthly medians" or "… with three quarterly
+  medians"). A
   series without any fitted value shows neither. The variance `slopeVar` is
   computed but not shown.
 - **Window list (since 2026-11-21).** The patient view lists the windows
   under "Show windows (n)": the bounds of each window (centre − 365 days to
   centre + 365 days, both days included), the dates of the first and last
-  fitted measurement inside, their number and the window slope per year. The
+  fitted point inside, their number and the window slope per year. The
   rows are the windows counted by the window statistics, in time order, also
   those without a drawn line. In the patient chart and the overlay each window
   line carries the same information as a tooltip, and the legend reads
   "Rolling OLS window lines". The list is an addition to the display; the
   reported slope and every number derived from it are unchanged.
+- **Windows under time balancing.** The windows are fitted on the points
+  that remain after
+  [time balancing](fit-input-presets-and-time-balancing.md#time-balancing).
+  With `monthly-median` or `quarterly-median` (the CKD progression default)
+  a fitted point is the median of one calendar month or quarter, and:
+  - `n` counts medians, and the minimum of three applies to medians;
+  - a median belongs to a window when its representative date (the date of
+    the lower-middle measurement of its period) lies inside the bounds, and
+    the first and last date of a window are representative dates;
+  - a measurement outside the bounds contributes to a window when the
+    median of its period is dated inside, and a measurement inside the
+    bounds contributes nothing to it when that date lies outside.
+
+  The window list, the tooltip and the cell text then say "monthly medians"
+  or "quarterly medians" instead of "fitted measurements" (column heading
+  "Quarterly medians from"), and the list adds one sentence on the medians.
+  The export sheet has the same columns in every mode; its `about` note
+  states the rule, and the `settings` sheet records the time balancing in
+  `fit_config`.
+  Example: 48 values, three per quarter on the 1st, 2nd and 3rd of October,
+  January, April and July from 2019-10-01, under quarterly medians give 16
+  medians dated on the 2nd. The first window runs from 2019-10-02 to
+  2021-10-01 and holds the 8 medians dated 2019-10-02 to 2021-07-02, built
+  from 24 measurements; the value of 2019-10-01 lies one day before the
+  window start and enters through the median of its quarter.
 - **Overlay counts.** In rolling mode a series counts as fitted when a window
   line is drawn. A series with a global slope but no window is counted among
   the trajectories without an available fit and not among the uncertain fits.
@@ -299,9 +326,9 @@ window slopes were computed and discarded and no line was drawn):
   | --- | --- |
   | `PatientID`, `Parameter`, `Unit` | The series, as on the `measurements` sheet. |
   | `window` | Number of the window within the series, from 1, in time order. |
-  | `window_start`, `window_end` | Centre − 365 days and centre + 365 days as `YYYY-MM-DD`; measurements on both days belong to the window. |
-  | `first_date`, `last_date` | Dates of the first and last fitted measurement inside the window. |
-  | `n` | Number of fitted measurements inside the window (at least 3). |
+  | `window_start`, `window_end` | Centre − 365 days and centre + 365 days as `YYYY-MM-DD`; fitted points dated on both days belong to the window. |
+  | `first_date`, `last_date` | Dates of the first and last fitted point inside the window; under time balancing the representative dates of the first and last median. |
+  | `n` | Number of fitted points inside the window (at least 3); under time balancing the number of medians, not of the measurements behind them. |
   | `slope` | OLS slope of the window per year, unrounded. |
 
   The smallest and largest `slope` of a series equal its `rolling_slope_min`

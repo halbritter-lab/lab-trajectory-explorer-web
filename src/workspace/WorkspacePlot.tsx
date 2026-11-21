@@ -10,7 +10,7 @@ import { slopeQualityLabel } from './labels/qualityLabels'
 import type { WorkspaceData, WorkspaceParameter } from './workspace-data'
 import { ChartExportActions } from './WorkspaceExports'
 import type { SparkDomain } from './WorkspaceSparkline'
-import { countLabel, exclusionReasonLabel, sexLabel } from './workspace-labels'
+import { countLabel, exclusionReasonLabel, fittedPointNoun, sexLabel } from './workspace-labels'
 import { useAppStore } from './state/store'
 import { mixedModelFitConfigHash, mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
 import type { MixedModelSpikeRow } from '../core/mixedModel/types'
@@ -95,7 +95,7 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
   const unit = series.cell.einheit ?? ''
   const windowTitle = (lineIndex: number) => {
     const window = series.cell.rolling?.windows.find(candidate => candidate.lineIndex === lineIndex)
-    return window ? `Rolling OLS window ${formatWorkspaceDate(window.start)} to ${formatWorkspaceDate(window.end)}: ${countLabel(window.n, 'fitted measurement')} (${formatWorkspaceDate(window.firstDate)} to ${formatWorkspaceDate(window.lastDate)}), slope ${formatWorkspaceNumber(window.slope)} ${unit}/year` : null
+    return window ? `Rolling OLS window ${formatWorkspaceDate(window.start)} to ${formatWorkspaceDate(window.end)}: ${countLabel(window.n, fittedPointNoun(series.cell.rolling!.timeBalancing))} (${formatWorkspaceDate(window.firstDate)} to ${formatWorkspaceDate(window.lastDate)}), slope ${formatWorkspaceNumber(window.slope)} ${unit}/year` : null
   }
   const eventPositions = display.events ? series.events.flatMap(event => { const position = series.xValue(event.date); return position === null ? [] : [{ event, position, end: event.endDate ? series.xValue(event.endDate) : null }] }) : []
   return <g id={domId} clipPath={`url(#${clipId})`} opacity={active || opacity === 1 ? undefined : opacity} data-active={active || undefined}>

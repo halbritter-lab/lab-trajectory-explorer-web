@@ -13,7 +13,7 @@ import { RollingWindowList } from './RollingWindowList'
 import './trajectories-workspace.css'
 import './trajectory-ui/trajectories-ui.css'
 import { SPARK_SIZES, sparkWidth, WorkspaceSparkline, type SparkDomain, type SparkSize } from './WorkspaceSparkline'
-import { exclusionReasonLabel, sexLabel } from './workspace-labels'
+import { exclusionReasonLabel, fittedPointNoun, sexLabel } from './workspace-labels'
 import { measurementFitStatus } from './measurement-fit-status'
 import { fitInclusionCaveat } from './labels/fitInclusion'
 import { akiCriterionLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes'
@@ -120,10 +120,10 @@ function CellSummary({
     : Number.isFinite(cell.slope)
       ? `${modelLabel}: ${formatWorkspaceNumber(cell.slope)} ${cell.einheit ?? ''}/year, R² ${formatWorkspaceNumber(cell.r2)}`
       : 'No fit available'
-  const rollingTitle = cell.rolling && `Rolling OLS: an OLS fit in each ${cell.rolling.windowDays}-day window, moved in steps of ${cell.rolling.stepDays} days, with at least three fitted measurements. The slope above is the global OLS slope; the short lines in the chart are the window fits.`
+  const rollingTitle = cell.rolling && `Rolling OLS: an OLS fit in each ${cell.rolling.windowDays}-day window, moved in steps of ${cell.rolling.stepDays} days, with at least three ${fittedPointNoun(cell.rolling.timeBalancing)}s. The slope above is the global OLS slope; the short lines in the chart are the window fits.`
   const rollingText = cell.rolling && (cell.rolling.nWindows > 0
     ? `${cell.rolling.nWindows} ${cell.rolling.nWindows === 1 ? 'window' : 'windows'}, local slopes ${formatWorkspaceNumber(cell.rolling.slopeMin)} to ${formatWorkspaceNumber(cell.rolling.slopeMax)} ${cell.einheit ?? ''}/year`
-    : `No ${cell.rolling.windowDays}-day window with three fitted measurements; no local slopes`)
+    : `No ${cell.rolling.windowDays}-day window with three ${fittedPointNoun(cell.rolling.timeBalancing)}s; no local slopes`)
   const hasCi = Number.isFinite(cell.ciLow) && Number.isFinite(cell.ciHigh)
   // Below the date minimum of a Theil–Sen projection the bounds are not a 95%
   // interval (decided 2026-11-16). Several values on one date raise the point

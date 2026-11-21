@@ -12,6 +12,7 @@ import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ClinicalEvent } from '../events/events'
 import { applyExclusionWindows, exclusionReasonsAt, type ExclusionWindow } from '../exclusions/windows'
 import type { FitConfig } from '../analysis/fitConfig'
+import type { TimeBalancing } from '../fitPipeline/types'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 import { CENSORED_VALUE_REASON, isExactMeasurement } from '../measurements/censored'
@@ -98,6 +99,11 @@ export interface RollingSummary {
   nWindows: number
   slopeMin: number
   slopeMax: number
+  /** Time balancing of the column. Not 'raw': the fitted points of a window
+   * are monthly or quarterly medians, `n` counts medians, and `firstDate` and
+   * `lastDate` are the representative dates of medians. A label only; no
+   * number depends on this field. */
+  timeBalancing: TimeBalancing
   /** The fitted windows in time order, as counted by `nWindows`. */
   windows: RollingWindow[]
 }
@@ -218,7 +224,7 @@ export function buildCohortRows(
       const eligibleRows = eligible.map(point => point.row)
       const slope = match?.slope ?? Number.NaN
       const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match && match.nFitted > 0
-        ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN, windows: rollingWindowsFor(match, spec.stepDays ?? 180, fitLines.length) }
+        ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN, timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw', windows: rollingWindowsFor(match, spec.stepDays ?? 180, fitLines.length) }
         : undefined
       return {
         bezeichnung: spec.bezeichnung,

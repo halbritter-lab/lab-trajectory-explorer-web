@@ -23,6 +23,11 @@ interfaces are still evolving before 1.0.
 - Rolling OLS: the patient view lists the windows ("Show windows") with
   bounds, first and last fitted measurement, their number and slope; each
   window line has a tooltip, and the legend says "Rolling OLS window lines".
+  With monthly or quarterly medians as time balancing (the CKD progression
+  default) the list, the tooltip and the cell say "monthly medians" or
+  "quarterly medians" instead of "fitted measurements", and the list and the
+  export note state that the count is one of medians and that a measurement
+  outside the window bounds can enter through the median of its period.
   The exported workbook has a new sheet `rolling_windows` with the same rows
   (empty without a Rolling OLS parameter), placed after the sheets that
   existed before 2026-11-21, whose positions are unchanged. The reported
