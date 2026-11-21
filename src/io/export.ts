@@ -31,24 +31,30 @@ function uniqueSheetName(raw: string, used: Set<string>): string {
   return name
 }
 
+/** One worksheet: its rows and, optionally, its fixed column list. With
+ * `header` the columns are written in that order and the header row is
+ * written also when there are no rows. */
+export interface WorkbookSheet { name: string; rows: readonly object[]; header?: readonly string[] }
+
 /** Multiple named sheets → xlsx bytes, one worksheet per entry (order kept).
+ * A `null` or `undefined` value leaves the cell empty.
  * NOTE: cells are written as string-typed (`t:'s'`), which Excel never evaluates
  * as formulas, so formula/DDE ("CSV") injection does not apply here. If a CSV
  * export is ever added, sanitise cells starting with = + - @ before writing. */
-export function sheetsToXlsxBytes(sheets: { name: string; rows: readonly object[] }[]): Uint8Array {
+export function sheetsToXlsxBytes(sheets: readonly WorkbookSheet[]): Uint8Array {
   const wb = XLSX.utils.book_new()
   const used = new Set<string>()
   for (const s of sheets) {
-    const ws = XLSX.utils.json_to_sheet(s.rows as object[])
-    applyColumnWidths(ws, s.rows)
+    const ws = XLSX.utils.json_to_sheet(s.rows as object[], s.header ? { header: [...s.header] } : undefined)
+    applyColumnWidths(ws, s.rows, s.header)
     XLSX.utils.book_append_sheet(wb, ws, uniqueSheetName(s.name, used))
   }
   const result = XLSX.write(wb, { type: 'array', bookType: 'xlsx', compression: true })
   return result instanceof Uint8Array ? result : new Uint8Array(result as ArrayBuffer)
 }
 
-function applyColumnWidths(ws: XLSX.WorkSheet, rows: readonly object[]): void {
-  const headers = rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : []
+function applyColumnWidths(ws: XLSX.WorkSheet, rows: readonly object[], header?: readonly string[]): void {
+  const headers = header ?? (rows.length > 0 ? Object.keys(rows[0] as Record<string, unknown>) : [])
   if (headers.length === 0) return
   ws['!cols'] = headers.map((header) => {
     // A loop, not Math.max(...values): spreading ~100k values overflows the call stack.

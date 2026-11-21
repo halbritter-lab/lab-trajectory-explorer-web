@@ -231,6 +231,7 @@ The workbook export records the resolution:
 | Sheet | Column | Content |
 | --- | --- | --- |
 | `cohort` or `slopes` | `demographics_conflict` | `yes` when the patient has at least one conflict message, otherwise blank |
+| `cohort` or `slopes` | `sex`, `baseline_age` | the patient's resolved sex (`m`, `w`, `d`; blank when unresolved) and the `baseline_age` of the `demographics` sheet, repeated on each of the patient's rows (since 2026-11-21) |
 | `demographics` | `baseline_age` | resolved age at the patient's earliest dated row; blank when unavailable |
 | `demographics` | `birth_anchor` | the birth-date anchor as a calendar date; blank when the patient has none |
 | `demographics` | `age_estimated` | true when a manual age is set, or when the anchor was inferred from stated ages without any explicit birth date; false otherwise |

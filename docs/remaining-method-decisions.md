@@ -631,6 +631,43 @@ on examples from the demo data.
 Details: [rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
 and [labels](method-algorithms/slope-quality.md#labels).
 
+## Decisions of 2026-11-21 (cohort workbook, persona review)
+
+Owner decisions after the persona review of 2026-11-21 (issue #35). No
+fitted number changes.
+
+- **First and last value in the `cohort` sheet are the eligible ones.**
+  `first_eligible_value` and `last_eligible_value` hold the measured values
+  at `first_eligible_date` and `last_eligible_date`: exact values before the
+  first kidney transplant or chronic dialysis, matching
+  `endpoint_percent_change`, whatever the preset and also without a trend.
+  They can differ from "latest" in the table.
+- **`group` is always the last column, empty without grouping.** The
+  ungrouped export keeps every position; only grouped exports change their
+  layout.
+- **The ID column is `PatientID` in every sheet, with one data type.**
+  `events`, `patient_attributes` and `demographics` take the name of the
+  result sheets. Scripts that read `patientId` there fail on the name.
+- **A sheet `columns` at the end of the file** lists every column of the
+  `cohort` sheet with meaning, unit and when the cell is empty.
+
+Implemented on assumptions that still need the owner's confirmation:
+
+- `sex` and `baseline_age` were appended to the `cohort` sheet in the same
+  step.
+- The ID keeps the type the import gave it (a number for a numeric ID,
+  otherwise text) in every sheet; `patient_attributes` no longer writes text
+  for a numeric ID. Whether the ID should always be text is open; a dataset
+  with both kinds of ID still has both cell types.
+- `columns` covers the `cohort` (or `slopes`) sheet only.
+
+Still open, unchanged: whether the export records the grouping attribute;
+whether the `cohort` sheet is reordered once; whether the Trajectories table
+shows a bound with its sign ("latest <15").
+
+Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group)
+and [workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
+
 ## Approved requirements
 
 ### Observed events and recovery

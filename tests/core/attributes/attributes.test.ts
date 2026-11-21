@@ -162,16 +162,21 @@ describe('patient attributes - validate', () => {
 })
 
 describe('patient attributes - export rows', () => {
-  it('builds rows with patientId first, numeric id order, and a sorted column union', () => {
+  it('builds rows with PatientID first, numeric id order, and a sorted column union', () => {
     const rows = patientAttributesExportRows({
       '2': { sex: 'w', genotype: 'MUC1' },
       '10': { genotype: 'UMOD', gout_age: '38' },
     })
 
     expect(rows).toEqual([
-      { patientId: '2', genotype: 'MUC1', gout_age: '', sex: 'w' },
-      { patientId: '10', genotype: 'UMOD', gout_age: '38', sex: '' },
+      { PatientID: '2', genotype: 'MUC1', gout_age: '', sex: 'w' },
+      { PatientID: '10', genotype: 'UMOD', gout_age: '38', sex: '' },
     ])
+  })
+
+  it('writes the ID as the caller maps it, so a numeric ID stays a number', () => {
+    const rows = patientAttributesExportRows({ '7': { genotype: 'MUC1' }, A12: { genotype: 'UMOD' } }, (key) => key === '7' ? 7 : key)
+    expect(rows.map((row) => row.PatientID)).toEqual([7, 'A12'])
   })
 
   it('returns no rows when there are no attributes', () => {

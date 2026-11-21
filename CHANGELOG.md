@@ -5,6 +5,39 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (breaking for scripts that read the cohort export, decided 2026-11-21)
+
+- The patient ID column is named `PatientID` in every sheet. In `events`,
+  `patient_attributes` and `demographics` it was `patientId`; a script that
+  reads that name there fails on it. `patient_attributes` writes a numeric ID
+  as a number like the other sheets (it wrote text), so the sheets join on
+  the ID without a conversion.
+- `group` is always the last column of the `cohort` and `slopes` sheets and
+  empty when the table is not grouped. A grouped export used to have it as
+  column A, with every other column one position further right; it now has
+  the positions of the ungrouped export. A script that reads a grouped
+  export by position must be adjusted. The ungrouped export keeps its 75
+  columns in place.
+- A number without a value is an empty cell instead of a text cell holding
+  an empty string (`slope`, `r2`, `ci_low`, `ci_high`, `intercept`,
+  `slope_se`, the rolling and endpoint numbers, `NumericValue`). A script
+  that tests such a cell for `""` must test for an empty cell.
+- Every sheet has its header row also when it has no rows (`events`,
+  `aki_episodes`, `raw_measurements`).
+
+### Added (cohort export, decided 2026-11-21)
+
+- The `cohort` and `slopes` sheets end with `first_eligible_value`,
+  `last_eligible_value`, `sex`, `baseline_age` and `group`. The two values
+  are the measurements at `first_eligible_date` and `last_eligible_date`:
+  exact values before the first kidney transplant or chronic dialysis, the
+  values `endpoint_percent_change` is computed from. They are filled with
+  every preset and without a trend, and can differ from "latest" in the
+  table, which also counts bounds and values after transplantation or
+  dialysis.
+- A last sheet `columns` describes every column of the `cohort` sheet:
+  meaning, unit and when the cell is empty.
+
 ### Changed (exports, after the persona review of 2026-11-21)
 
 - Workbooks are written compressed. The demo cohort export shrinks from

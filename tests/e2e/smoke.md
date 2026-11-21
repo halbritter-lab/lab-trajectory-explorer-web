@@ -422,9 +422,12 @@ it does not claim research, clinical or representative-user validation.
    windows are left out of the projection. The measurements used fall on fewer
    than three distinct dates, so no projection was made." It does not say the
    series has measurements on fewer than three dates.
-4. *Export cohort (XLSX)* in that state: the last seven columns of `cohort` are
+4. *Export cohort (XLSX)* in that state: the last twelve columns of `cohort` are
    `index_date`, `last_fitted_date`, `first_eligible_date`,
-   `last_eligible_date`, `intercept`, `slope_se`, `n_fitted_dates`; the row has
+   `last_eligible_date`, `intercept`, `slope_se`, `n_fitted_dates`,
+   `first_eligible_value`, `last_eligible_value`, `sex`, `baseline_age`,
+   `group` (empty without grouping), and the file ends with the sheet
+   `columns`; the row has
    `first_eligible_date` 2020-01-01, `last_eligible_date` 2021-12-16 and
    `last_fitted_date` 2020-01-01, and `endpoint_input_policy` ends in "AKI
    exclusion windows excluded from decline baseline and projection".

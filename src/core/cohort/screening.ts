@@ -66,6 +66,10 @@ export interface CohortCell {
    * exact, before KRT, outside complete acute dialysis intervals; no run-in, fit window or balancing. */
   firstEligibleDate: Date | null
   lastEligibleDate: Date | null
+  /** Measured values at those two dates (owner decision 2026-11-21): the
+   * values the total percent change is computed from. */
+  firstEligibleValue: number | null
+  lastEligibleValue: number | null
   r2: number
   ciLow: number
   ciHigh: number
@@ -206,6 +210,8 @@ export function buildCohortRows(
         lastFittedDate: match?.lastFittedDate ?? null,
         firstEligibleDate: eligibleRows[0]?.labDatum ?? null,
         lastEligibleDate: eligibleRows.at(-1)?.labDatum ?? null,
+        firstEligibleValue: eligibleRows[0]?.wertNum ?? null,
+        lastEligibleValue: eligibleRows.at(-1)?.wertNum ?? null,
         r2: match?.r2 ?? Number.NaN,
         ciLow: match?.ciLow ?? Number.NaN,
         ciHigh: match?.ciHigh ?? Number.NaN,
@@ -339,8 +345,9 @@ export interface CohortExportRecord {
   // threshold) and the CKD endpoint columns (`endpoint_*`). The rolling
   // columns (`rolling_*`) come last, appended so positional readers keep
   // working; they are filled for slope mode `rolling` only. The fit dates,
-  // `intercept`, `slope_se` and `n_fitted_dates` follow them, appended for the
-  // same reason.
+  // `intercept`, `slope_se` and `n_fitted_dates` follow them, then
+  // `first_eligible_value` and `last_eligible_value`, appended for the same
+  // reason.
   [moduleColumn: string]: string | number | undefined
 }
 
@@ -426,6 +433,8 @@ export function cohortExportRecords(
         intercept: numOrBlank(c.intercept),
         slope_se: numOrBlank(c.slopeSe),
         n_fitted_dates: c.nFittedDates,
+        first_eligible_value: c.firstEligibleValue ?? '',
+        last_eligible_value: c.lastEligibleValue ?? '',
       })
     }
   }
@@ -434,12 +443,15 @@ export function cohortExportRecords(
 
 /** One row of the workbook's cohort sheet: an export record with the sheet's
  * column names and order (`Parameter`, `Unit`, the fitted counts of its cell).
- * The newest columns stay last, rolling then fit dates, so earlier column
- * positions are unchanged. */
+ * The newest columns stay last, rolling, then fit dates, then the eligible
+ * values, so earlier column positions are unchanged. The workbook puts
+ * `group` behind them (see cohort-sheet-columns). */
 export function cohortSheetRecord(record: CohortExportRecord, cell: Pick<CohortCell, 'nFitted' | 'fittedSpanDays'>) {
   const { Bezeichnung, Einheit, rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max,
-    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates, ...fields } = record
+    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates,
+    first_eligible_value, last_eligible_value, ...fields } = record
   return { ...fields, Parameter: Bezeichnung, Unit: Einheit, n_fitted: cell.nFitted, fitted_span_days: cell.fittedSpanDays,
     rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max,
-    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates }
+    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates,
+    first_eligible_value, last_eligible_value }
 }

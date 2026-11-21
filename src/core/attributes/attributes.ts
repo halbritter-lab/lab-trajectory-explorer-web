@@ -140,12 +140,15 @@ export function validatePatientAttributes(
   return { valid, byPatient, rejected, attributeNames: [...attributeNames].sort() }
 }
 
-/** Flatten the byPatient map into export rows: one row per patient, `patientId`
+/** Flatten the byPatient map into export rows: one row per patient, `PatientID`
  * first, then every attribute column (sorted union) with empty cells filled, so
- * all rows share the same columns. Patients are ordered by numeric-aware id. */
+ * all rows share the same columns. Patients are ordered by numeric-aware id.
+ * `idOf` gives the ID as the other sheets write it (a number for a numeric
+ * ID), so the sheets join without a type conversion; the map key is text. */
 export function patientAttributesExportRows(
   byPatient: Record<string, Record<string, string>>,
-): Array<Record<string, string>> {
+  idOf: (key: string) => PatientId = (key) => key,
+): Array<Record<string, PatientId>> {
   const names = new Set<string>()
   for (const attributes of Object.values(byPatient)) {
     for (const name of Object.keys(attributes)) names.add(name)
@@ -155,7 +158,7 @@ export function patientAttributesExportRows(
     a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }),
   )
   return keys.map((key) => {
-    const row: Record<string, string> = { patientId: key }
+    const row: Record<string, PatientId> = { PatientID: idOf(key) }
     for (const name of sortedNames) row[name] = byPatient[key][name] ?? ''
     return row
   })

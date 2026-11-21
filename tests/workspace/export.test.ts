@@ -55,7 +55,7 @@ describe('workspace workbook', () => {
   it('keeps the rolling columns last in the cohort sheet, after the columns that existed before', () => {
     const workbook = XLSX.read(workspaceWorkbookBytes(exportFixture()), { type: 'array' })
     const [header] = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets.cohort, { header: 1 })
-    expect(header.slice(-14)).toEqual(['n_fitted', 'fitted_span_days', 'rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max',
+    expect(header.slice(61, 75)).toEqual(['n_fitted', 'fitted_span_days', 'rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max',
       'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates'])
   })
   it('preserves UTC import dates in a negative-offset timezone', () => {
@@ -102,7 +102,7 @@ describe('workspace workbook', () => {
     ]
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     expect(records(workbook, 'cohort')[0]).toMatchObject({ PatientID: 'P:001', demographics_conflict: 'yes' })
-    expect(records(workbook, 'demographics')[0]).toMatchObject({ patientId: 'P:001', warnings: 'Conflicting recorded sex' })
+    expect(records(workbook, 'demographics')[0]).toMatchObject({ PatientID: 'P:001', warnings: 'Conflicting recorded sex' })
   })
   it('roundtrips the visible scope with actual prepared summaries and derived provenance', () => {
     const input = exportFixture()
@@ -112,7 +112,7 @@ describe('workspace workbook', () => {
     expect(records(workbook,'measurements')).toEqual(expect.arrayContaining([expect.objectContaining({PatientID:'001-A',Parameter:'Marker|one',Unit:'mg/L',NumericValue:10,origin:'imported'}),expect.objectContaining({Parameter:'Derived eGFR',origin:'derived',formula:'ekfc-2021'})]))
     expect(records(workbook,'raw_measurements')).toHaveLength(1)
     expect(records(workbook,'cohort')[0]).toMatchObject({PatientID:'001-A',slope:123.456})
-    expect(records(workbook,'events')).toEqual([expect.objectContaining({patientId:'001-A',title:'Visit'})])
+    expect(records(workbook,'events')).toEqual([expect.objectContaining({PatientID:'001-A',title:'Visit'})])
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('SECRET')
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('hidden')
     expect(records(workbook,'parameters')).toEqual(expect.arrayContaining([expect.objectContaining({formula:'ekfc-2021',source_parameter:'Creatinine',source_unit:'mg/dl'})]))

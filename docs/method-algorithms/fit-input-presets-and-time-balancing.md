@@ -112,9 +112,9 @@ Example: eight raw values in two calendar quarters under quarterly medians give
 
 ### Fit dates, intercept and slope standard error
 
-Since 2026-11-05 the `cohort` and `slopes` sheets end with seven further
+Since 2026-11-05 the `cohort` and `slopes` sheets carry seven further
 columns (`n_fitted_dates` since 2026-11-16), placed after the rolling columns so that earlier column positions are
-unchanged. They are read from the existing fit; nothing is refitted.
+unchanged; five more follow them since 2026-11-21 (next section). They are read from the existing fit; nothing is refitted.
 
 | Column | Content | Blank when |
 | --- | --- | --- |
@@ -143,6 +143,83 @@ under quarterly medians (CKD progression) give one 2020 Q1 bin dated
 2020-02-01: `index_date = 2020-02-01` and `first_eligible_date = 2020-01-05`.
 A kidney transplant before the first value leaves both eligible dates blank.
 Evidence: [export record tests](../../tests/core/cohort/exportRecords.test.ts).
+
+### First and last eligible value, sex, baseline age and group
+
+Since 2026-11-21 (owner decision) five further columns follow
+`n_fitted_dates`, again at the end so that earlier positions are unchanged.
+
+| Column | Content | Empty when |
+| --- | --- | --- |
+| `first_eligible_value` | Measured value of the row dated `first_eligible_date`, unrounded, in the unit of the parameter. | the series has no eligible row |
+| `last_eligible_value` | Measured value of the row dated `last_eligible_date`. | as above |
+| `sex` | The patient's resolved sex as the analysis uses it (`m`, `w` or `d`; see [demographics](demographics.md#demographics-resolution)). | no sex could be resolved |
+| `baseline_age` | The patient's resolved age in completed years at the earliest dated row of any parameter: the value of the `demographics` sheet. It is not the age at `index_date`. | no age is available |
+| `group` | Value of the attribute the Trajectories table was grouped by. | the table was not grouped, or the patient has no value |
+
+The two values come from the same row set as the two dates: exact, finite,
+dated rows before the first kidney transplant or chronic dialysis and outside
+complete acute dialysis intervals, in the stored row order (ascending date; of
+several rows on one date the first stored row supplies the first value and
+the last stored row the last value). They are filled for every parameter, fit
+model and preset, also with fit model `none` and where endpoints are not
+evaluated. Bounds never supply them. `endpoint_percent_change` is computed
+from exactly these two values where it is evaluated:
+`(last_eligible_value − first_eligible_value) / first_eligible_value · 100`.
+
+The Trajectories table shows "latest" from a different rule: the last dated
+numeric row of the series, bounds and rows after kidney replacement therapy
+included. The two can therefore differ by design. Examples: eGFR 55, 48, 42,
+35, 29 and 24 up to 2022-06-10, a kidney transplant on 2022-07-01, then 72, 68
+and 64 give `first_eligible_value = 55`, `last_eligible_value = 24`,
+`last_eligible_date = 2022-06-10` and `endpoint_percent_change =
+(24 − 55) / 55 · 100 = −56.36`, while the table shows "latest 64". Values 34,
+27, 21, 17 and then `<15` give `last_eligible_value = 17`; the table shows
+"latest 15". `sex` and `baseline_age` repeat on every row of the patient.
+
+`group` was the first column of a grouped export until 2026-11-21, which
+moved every other column one position to the right. It is now always present
+and always the last column, so a grouped and an ungrouped export have the
+same 80 columns in the same positions; the 75 columns of the ungrouped export
+of 0.3.7 keep theirs. The file does not record which attribute was used for
+grouping.
+
+Evidence: [export record tests](../../tests/core/cohort/exportRecords.test.ts),
+[workbook schema tests](../../tests/workspace/export-schema.test.ts).
+
+### Workbook sheets, column names and empty cells
+
+The cohort workbook has these sheets, in this order: `measurements`,
+`raw_measurements`, `cohort` (`slopes` in a patient export), `events`,
+`aki_episodes`, `patient_attributes`, `demographics`, `parameters`,
+`settings`, `about`, `columns`. Since 2026-11-21:
+
+- **Fixed column lists.** Every sheet is written with its column list, so a
+  sheet without rows (no event, no AKI episode, no imported row in scope) has
+  its header row. `patient_attributes` has `PatientID` and one column per
+  attribute name in sorted order; `settings` has one column per configurable
+  module setting. New columns and sheets are appended; existing positions
+  stay (the rule of 2026-11-15 for the model workbook).
+- **Patient ID.** The column is `PatientID` in every sheet that has one. In
+  `events`, `patient_attributes` and `demographics` it was `patientId` before.
+  The cell has the type the import gave the ID: a number when the ID is a
+  numeric text that survives a round trip unchanged (`12`, not `012`),
+  otherwise text. `patient_attributes` wrote text for every ID before, so a
+  join with `cohort` on a numeric ID found no match in tools that compare
+  types strictly. A dataset that mixes both kinds of ID (`7` and `A12`) still
+  has both cell types in the column.
+- **Empty cells.** A number without a value (`slope`, `r2`, `ci_low`,
+  `ci_high`, `intercept`, `slope_se`, the `rolling_*` numbers, the numeric
+  endpoint columns, `baseline_age`, and `NumericValue` on the measurement
+  sheets) is an empty cell. Before, it was a text cell holding an empty
+  string, which made the column text for readers that infer types. Text and
+  date columns without a value still hold an empty string.
+- **`columns`.** The last sheet describes the columns of the `cohort` (or
+  `slopes`) sheet, one row per column in sheet order: `column`, `meaning`,
+  `unit`, `empty_when`. The export fails rather than write a column that has
+  no entry. The other sheets have no directory.
+
+Evidence: [workbook schema tests](../../tests/workspace/export-schema.test.ts).
 
 ### Rounding
 
