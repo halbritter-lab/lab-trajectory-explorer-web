@@ -8,6 +8,9 @@ import { workspaceWorkbookBytes, exportChartSvg, safeExportFilename } from '../.
 import { defaultFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
 import { loadDatasetFromWorkbook } from '../../src/io/loadDataset'
 import { resolveBirthAnchor } from '../../src/core/demographics/resolveAge'
+import { buildCohortRows } from '../../src/core/cohort/screening'
+import { akiEpisodeRows } from '../../src/workspace/aki-episodes'
+import type { WorkspaceData } from '../../src/workspace/workspace-data'
 
 function records(workbook: XLSX.WorkBook, name: string) {return XLSX.utils.sheet_to_json<Record<string,unknown>>(workbook.Sheets[name])}
 
@@ -24,6 +27,27 @@ describe('workspace workbook', () => {
     expect(dataset.events).toEqual([expect.objectContaining({ patientId: '001-A', type: 'other', title: 'Visit' })])
     expect(dataset.patientAttributes).toEqual({ '001-A': { group: 'A' } })
     expect(dataset.diagnostics.filter(d => d.severity === 'rejected')).toEqual([])
+  })
+  // Review finding 2026-11-21: the time of day orders creatinine values of one day in AKI
+  // detection but is in no export, and nothing said that a re-import can give other episodes.
+  it('does not carry the time of day: a re-import of a file with times can lose an AKI episode, and about says so', () => {
+    const csv = ['patientId,labDate,testName,unit,value,sex,ageAtLab', 'RISE,2026-09-01 06:00,Kreatinin,mg/dl,1.0,f,60', 'RISE,2026-09-01 20:00,Kreatinin,mg/dl,1.6,f,60', 'RISE,2026-09-04 06:00,Kreatinin,mg/dl,1.2,f,60'].join('\n')
+    const rows = loadDatasetFromWorkbook(new TextEncoder().encode(csv)).rows
+    expect(rows.map(row => row.labTime)).toEqual([6 * 3_600_000, 20 * 3_600_000, 6 * 3_600_000])
+    const parameter = { key: JSON.stringify(['Kreatinin', 'mg/dl']), label: 'Kreatinin [mg/dl]', bezeichnung: 'Kreatinin', einheit: 'mg/dl', derived: false }
+    const data = { rawRows: rows, rows, fileName: 'times.csv', parameters: [parameter], patients: [{ id: 'RISE', label: 'RISE', attributes: { sex: 'w' }, baselineAge: 60 }], events: [], patientAttributes: { RISE: { sex: 'w' } },
+      analysis: { rows, messages: [], fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
+    const bytes = workspaceWorkbookBytes({ data, parameterKeys: [parameter.key], patientIds: ['RISE'], cohortRows: buildCohortRows(rows, ['RISE'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }]) })
+    const workbook = XLSX.read(bytes, { type: 'array' })
+    expect(records(workbook, 'aki_episodes')).toEqual([expect.objectContaining({ PatientID: 'RISE', onset_date: '2026-09-01', peak_value_mg_dl: 1.6 })])
+    expect(records(workbook, 'raw_measurements').map(row => row.Date)).toEqual(['2026-09-01', '2026-09-01', '2026-09-04'])
+    const again = loadDatasetFromWorkbook(bytes).rows
+    expect(again.map(row => row.labTime)).toEqual([undefined, undefined, undefined])
+    expect(akiEpisodeRows(again, [])).toEqual([])
+    const note = records(workbook, 'about').map(row => String(row.note)).find(text => text.startsWith('Date holds the calendar day'))!
+    expect(note).toContain('a time of day of the imported lab date is not written to any sheet')
+    expect(note).toContain('AKI episodes, exclusion windows and slopes can differ from this export')
+    expect(note).toContain('input_data_id does not cover the time of day')
   })
   it('writes the imported birth date to raw_measurements, so a re-import keeps the exact birth-date anchor', () => {
     const input = exportFixture()

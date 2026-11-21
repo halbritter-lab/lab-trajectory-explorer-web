@@ -663,7 +663,12 @@ Details chosen during implementation, **not yet confirmed by the owner**:
 
 - The time of day stays internal: a sort key that is not shown in the
   measurement table or the tooltips and is in no export (the review left
-  this open).
+  this open). Consequence to weigh with it: a cohort workbook exported from
+  a file with times and loaded again has no times, so AKI episodes can
+  differ from the export although `input_data_id` is the same; the `about`
+  sheet, the changelog and the method reference say so. Writing the time as
+  an appended column of `raw_measurements`, reading it at re-import and
+  taking it into `input_data_id` would remove the difference.
 - The rule for days without a time applies per day of a series, not per
   file: one value without a time makes that day a day without time; the
   other days keep their time order.

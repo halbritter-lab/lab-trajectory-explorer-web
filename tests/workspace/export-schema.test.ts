@@ -79,6 +79,17 @@ describe('cohort workbook schema', () => {
     expect(header(workbook, 'raw_measurements')).toHaveLength(14)
   })
 
+  // Review finding 2026-11-21: without a Rolling OLS column and without an
+  // import finding (the usual export) these two sheets had no cell at all.
+  it('writes the header row of rolling_windows and import_diagnostics without rows, and a header for every sheet', () => {
+    const workbook = read(workspaceWorkbookBytes(exportFixture()))
+    expect(records(workbook, 'rolling_windows')).toEqual([])
+    expect(header(workbook, 'rolling_windows')).toEqual(['PatientID', 'Parameter', 'Unit', 'window', 'window_start', 'window_end', 'first_date', 'last_date', 'n', 'slope'])
+    expect(records(workbook, 'import_diagnostics')).toEqual([])
+    expect(header(workbook, 'import_diagnostics')).toEqual(['source', 'sheet', 'kind', 'row', 'patient_id', 'date', 'parameter', 'value', 'message'])
+    for (const name of workbook.SheetNames) expect(header(workbook, name)?.length ?? 0, name).toBeGreaterThan(0)
+  })
+
   it('names the ID PatientID in every sheet and writes one type: a number for a numeric ID', () => {
     const input = exportFixture()
     const rename = <T,>(value: T): T => value === '001-A' ? 7 as T : value

@@ -116,6 +116,19 @@ Sheet names are compared after header normalisation (see Columns).
   re-import resolves the anchor 1960-05-01 again (`age_estimated` false). A
   workbook exported before this column existed carries the whole-year ages
   only; its re-import infers the anchor from them (`age_estimated` true).
+
+  The time of day of a lab date does not come back: `Date` holds the calendar
+  day, and no sheet carries the time (see [Dates](#dates)). Where the original
+  file gave times, the re-imported rows have none, so several serum
+  creatinine values of one day are compared with earlier days only
+  ([Measurements on the same date](aki.md#measurements-on-the-same-date)),
+  and AKI episodes, their exclusion windows and slopes can differ from the
+  export. Example: 1.0 mg/dl at 06:00 and 1.6 mg/dl at 20:00 on 1 September
+  and 1.2 mg/dl on 4 September give a stage I episode after the import of
+  the file (`aki_episodes` of its export: onset 2026-09-01, peak 1.6) and no
+  episode after the re-import of that export; the Data page then names one
+  patient-day without an order. `input_data_id` is computed from the rows of
+  `raw_measurements` and is the same for both. The `about` sheet states this.
   Example: an export of patient 7 with creatinine and computed
   eGFR selected loads patient 7's creatinine rows as imported; eGFR is
   computed anew from them.
@@ -485,7 +498,9 @@ The time of day has one use: it orders the serum creatinine values of one
 date in AKI detection (see
 [Measurements on the same date](aki.md#measurements-on-the-same-date), which
 also states the rule for dates without a time and the note on the Data page).
-It is not shown in the measurement table or the tooltips, is in no export and
+It is not shown in the measurement table or the tooltips, is in no export
+(so a re-imported export has none, see the app's own workbook export under
+[Files and sheets](#files-and-sheets)) and
 is not part of the duplicate comparison above: two rows of one date with the
 same value at different times still count as duplicates. The times of event
 dates and birth dates are read and ignored. The time is stored with a dataset

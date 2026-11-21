@@ -31,7 +31,18 @@ interfaces are still evolving before 1.0.
   order.
 - The time of day is a sort key only; it is not shown and not exported. A
   dataset stored in the browser before this change has no times until the
-  file is imported again. The methodology page is not yet updated (OD-34).
+  file is imported again; the notice shown when such a copy is restored says
+  so. The methodology page is not yet updated (OD-34).
+- Because no export carries the time of day, an exported cohort workbook that
+  is loaded again has none: several creatinine values of one day are then
+  compared with earlier days only, and AKI episodes, exclusion windows and
+  slopes can differ from the export (a rise from 1.0 at 06:00 to 1.6 at 20:00
+  is an episode after the import of the file and none after the re-import of
+  its export). `input_data_id` does not cover the time of day and is the same
+  for both. The `about` sheet says so.
+- With several creatinine values on the peak day, the AKI marker of a
+  creatinine chart sits on the peak value of the episode, not on the first
+  value of that day.
 
 ### Added (import diagnostics, after the persona review of 2026-11-21)
 
@@ -266,7 +277,8 @@ interfaces are still evolving before 1.0.
   `slope_se`, the rolling and endpoint numbers, `NumericValue`). A script
   that tests such a cell for `""` must test for an empty cell.
 - Every sheet has its header row also when it has no rows (`events`,
-  `aki_episodes`, `raw_measurements`).
+  `aki_episodes`, `raw_measurements`, and the new sheets `rolling_windows`
+  and `import_diagnostics`, which are empty in most exports).
 - `fit_config` on the `settings` sheet no longer has the entry `xAxis`; a
   script that reads it no longer finds it. No fit ever used it. The `about`
   sheet states the time axis of the trend: years since `index_date`, where
@@ -309,8 +321,11 @@ interfaces are still evolving before 1.0.
 - A fitted model carries the notes of its input check: patients with a
   single measurement or with too few distinct measurement times, and
   repeated values at one time. These rows stay in the fit as before; the
-  notes are shown in the model's details and exported in `models.warnings`.
-  No estimate changes.
+  notes are shown in the model's details and exported in `models.warnings`
+  and, for an applied projection, in the existing column
+  `projections.warnings`, which was empty for such a model before. A script
+  that tests `projections.warnings` for an empty cell must allow for these
+  notes. No estimate changes.
 - Without a categorical factor the fit summary names how many patients of
   the whole cohort have enough measurement times ("… 26 of 27.").
 - The `models` sheet of the model workbook ends with the variance
@@ -335,13 +350,15 @@ interfaces are still evolving before 1.0.
   no longer names a time axis of the exported fit configuration, which the
   export no longer writes.
 - Workbooks are written compressed. The demo cohort export shrinks from
-  661 kB to about 214 kB; sheets and cells are unchanged.
+  661 kB to about 250 kB, with the columns and sheets added in this release;
+  the cells of the earlier sheets and columns are unchanged.
 - A cohort workbook exported by the app can be loaded again as a dataset:
   the import reads `raw_measurements` as the lab sheet and accepts its
   `Date` and `Parameter` headers. It restores the exported patients and
   parameters as imported, with events, attributes and a birth date on the
   lab rows (`patient_birth_date`); derived values are computed anew, and
-  settings and manual demographic entries are not restored.
+  settings and manual demographic entries are not restored. Times of day
+  are not exported and therefore not restored (see the AKI section above).
 
 ### Fixed (start and lost connection, persona review of 2026-11-21)
 

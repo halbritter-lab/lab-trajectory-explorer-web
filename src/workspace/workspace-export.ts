@@ -44,7 +44,10 @@ const SEGMENT_MIN_POINTS = 3
  * and imported birth date, sorted, as JSON. Events, attributes and manual
  * demographic entries are not part of it. The same rows give the same identifier whatever
  * their order, the fit settings and the app version; it is a checksum for
- * comparing runs, not a cryptographic hash. */
+ * comparing runs, not a cryptographic hash. The time of day of a lab date
+ * (`LabRow.labTime`) is not exported and not part of it: a file with times and
+ * its re-imported export share the identifier although AKI detection can
+ * differ between them. */
 export function inputDataId(rawMeasurementRows: readonly Record<string, unknown>[]): string {
   const rows = rawMeasurementRows.map(row => JSON.stringify([String(row.PatientID),row.Date,row.Parameter,row.Unit,row.Value,row.patient_sex ?? '',row.patient_age_at_lab ?? null,row.patient_birth_date ?? ''])).sort()
   return hashString(`[${rows.join(',')}]`)
@@ -66,6 +69,8 @@ export const EVENTS_SHEET_HEADER = ['PatientID','type','date','title','descripti
 export const AKI_EPISODES_SHEET_HEADER = ['PatientID','creatinine_parameter','creatinine_unit','stage','onset_date','peak_date','peak_value_mg_dl','baseline_date','baseline_value_mg_dl','criterion'] as const
 export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings'] as const
 export const PARAMETERS_SHEET_HEADER = ['parameter_key','parameter','unit','origin','formula','source_parameter','source_unit','loinc'] as const
+export const ROLLING_WINDOWS_SHEET_HEADER = ['PatientID','Parameter','Unit','window','window_start','window_end','first_date','last_date','n','slope'] as const
+export const IMPORT_DIAGNOSTICS_SHEET_HEADER = ['source','sheet','kind','row','patient_id','date','parameter','value','message'] as const
 
 /** All sheets share the supplied visible scope; summaries are never fitted again. */
 export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
@@ -166,6 +171,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:`Fixed parameters that fit_config does not carry: Segmented OLS (slope_mode gap-split) starts a new segment where two consecutive fitted points are more than ${SEGMENT_GAP_DAYS} days apart and fits a segment of at least ${SEGMENT_MIN_POINTS} points; slope, intercept, r2 and the bounds are those of the global OLS fit across all segments. Rolling OLS: see rolling_window_days and rolling_step_days in the result sheet.`},
       {note:`This file contains personal data and details of its origin. The patient IDs are written as imported, not pseudonymised: in column PatientID of every sheet and in settings (patient_ids). The measurement sheets hold dated values, sex and age, and raw_measurements the birth date where the imported lab rows carried one (patient_birth_date); demographics holds birth_anchor, a birth date (estimated from the stated age where age_estimated is true); events and patient_attributes hold the imported texts and attributes. settings names the imported file (source_file). Check these fields before passing the file on.`},
       {note:'patient_birth_date is the last column of the measurement sheets. In raw_measurements it holds the birth date of the imported lab row, so that loading this file again keeps an exact birth date; where the import had no birth date it is empty, and patient_age_at_lab is then the stated age. In measurements it is empty: the birth date used by the analysis is birth_anchor in demographics.'},
+      {note:'Date holds the calendar day; a time of day of the imported lab date is not written to any sheet. Where the imported file gave times, they ordered several serum creatinine values of one day in AKI detection. A dataset loaded from this file has no times: such values are then compared with values of earlier days only, so AKI episodes, exclusion windows and slopes can differ from this export. input_data_id does not cover the time of day and is the same in both cases.'},
       {note:`app_version: ${APP_VERSION}`},
       {note:`exported_at: ${exportedAt.toISOString()}`},
       {note:`export_id: ${exportId}`},
@@ -175,7 +181,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     // Sheets added later follow the earlier ones, so sheet positions stay.
     {name:'columns',header:['column','meaning','unit','empty_when'],rows:cohortColumnDirectoryRows()},
     // Added on 2026-11-21, after the sheets above existed: their positions stay as they were.
-    {name:'rolling_windows',rows:prepared.flatMap(row => row.cells.flatMap(cell => (cell.rolling?.windows ?? []).map((window,index) => ({
+    {name:'rolling_windows',header:ROLLING_WINDOWS_SHEET_HEADER,rows:prepared.flatMap(row => row.cells.flatMap(cell => (cell.rolling?.windows ?? []).map((window,index) => ({
       PatientID:row.patientId,Parameter:cell.bezeichnung,Unit:cell.einheit ?? '',window:index+1,
       window_start:utcDateOrBlank(window.start),window_end:utcDateOrBlank(window.end),first_date:utcDateOrBlank(window.firstDate),last_date:utcDateOrBlank(window.lastDate),
       n:window.n,slope:window.slope,
@@ -184,7 +190,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     // Lines about a loaded patient outside the exported scope are left out, like that patient's
     // measurements. Lines without a patient stay; so do, in a cohort export, lines about IDs
     // that never became a patient (all rows rejected, attribute rows of unknown patients).
-    {name:'import_diagnostics',rows:importDiagnosticRecords(data.importDiagnostics ?? [],dataChecks(data.rawRows)).filter(record => {
+    {name:'import_diagnostics',header:IMPORT_DIAGNOSTICS_SHEET_HEADER,rows:importDiagnosticRecords(data.importDiagnostics ?? [],dataChecks(data.rawRows)).filter(record => {
       if (record.patient_id === '') return true
       const key = patientIdKey(record.patient_id)
       return exportedKeys.has(key) || (patientId === undefined && !loadedKeys.has(key))
