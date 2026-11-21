@@ -1,4 +1,4 @@
-import { lazy, Suspense, useId, useMemo, useRef, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import { trajectorySettingsDiscardModels, useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceModelSpec } from './workspace-data'
@@ -24,11 +24,12 @@ import { entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohort
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
 import { defaultModelParameterKey } from './cohort-model-parameter'
 import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
+// Part of the main bundle on purpose: the page is rendered (hidden) as soon as
+// data are loaded, so a separately fetched chunk failed for everyone who lost
+// the connection or kept a tab open across a deployment.
+import { CohortModelTable } from './models/CohortModelTable'
+import { WEBR_FIRST_FIT_DOWNLOAD, WEBR_PACKAGE_HOST, WEBR_RUNTIME_HOST } from '../core/mixedModel/runtimeHosts'
 import './cohort-models-workspace.css'
-
-const CohortModelTable = lazy(() =>
-  import('./models/CohortModelTable').then(module => ({ default: module.CohortModelTable }))
-)
 
 export type CohortModelPreset = 'unadjusted' | 'stratified' | 'demographic' | 'interaction' | 'custom'
 
@@ -685,6 +686,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={cancelFit}>Cancel</button>}
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
+        {!runtimeLoaded && <p className="muted cm-runtime-note" data-testid="runtime-download-note">The first fit of a session downloads the R runtime from {WEBR_RUNTIME_HOST} and R packages from {WEBR_PACKAGE_HOST} ({WEBR_FIRST_FIT_DOWNLOAD}). These are downloads only; no measurements are sent. <a href="#methods/data/network">Network access and local storage</a></p>}
         </section>
         <details className="cm-preparation-details">
           <summary>Preparation and fitting details</summary>
@@ -714,7 +716,6 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
       {/* Results Table & Projections */}
       {spec && (
-        <Suspense fallback={<div className="card" role="status"><p>Loading results table …</p></div>}>
           <CohortModelTable
             entities={entities}
             entityLabels={entityLabels}
@@ -729,7 +730,6 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             config={mixedModelConfig}
             formula={formulaText}
           />
-        </Suspense>
       )}
     </div>
   )

@@ -1,3 +1,5 @@
+import { WEBR_FIRST_FIT_DOWNLOAD, WEBR_PACKAGE_HOST, WEBR_RUNTIME_HOST } from '../../../core/mixedModel/runtimeHosts'
+
 export function Data() { return <>
 <p>Review imported measurements and demographics under Data. Select a creatinine source and eGFR formula, inspect the preview, then apply the calculation.</p><section className="methodology-section"><h3 id="methods-egfr" tabIndex={-1}>eGFR (Estimated Glomerular Filtration Rate)</h3>
 
@@ -91,6 +93,25 @@ export function Data() { return <>
           in the source file, usually by a year, and the eGFR follows that correction.
         </li>
       </ul>
+</section><section className="methodology-section"><h3 id="methods-network" tabIndex={-1}>Network access and local storage</h3>
+      <p>
+        Importing data, the Trajectories page, this Methods page and the exports make no network
+        requests beyond loading the app and its bundled demo and template files from the address
+        the app is served from.
+      </p>
+      <p>
+        The first cohort model fit of a session downloads the R runtime
+        from <code>{WEBR_RUNTIME_HOST}</code> and R packages
+        from <code>{WEBR_PACKAGE_HOST}</code> ({WEBR_FIRST_FIT_DOWNLOAD}, measured in November 2026).
+        These are downloads only; no measurements are sent. As with any download, both servers
+        see the IP address, the browser type and the address of this app.
+      </p>
+      <p>
+        “Remember on this device” on the Data page is off by default. When it is on, an
+        unencrypted copy of the dataset is kept in this browser. The copy is removed when the app
+        is next opened more than seven days after the last data change, or at once with “Clear
+        saved data”; until then it stays on the device.
+      </p>
 </section><details className="methodology-calculations"><summary>Calculation details</summary>
 <details className="methodology-detail"><summary>eGFR: Conditions, Age and Rounding</summary>
 <section className="methodology-section"><h3 id="methods-rounding" tabIndex={-1}>eGFR: Conditions, Age and Rounding</h3>

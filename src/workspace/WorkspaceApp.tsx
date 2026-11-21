@@ -5,6 +5,7 @@ import { Methodology } from './methods/Methodology'
 import { DataWorkspace } from './DataWorkspace'
 import { TrajectoriesWorkspace } from './TrajectoriesWorkspace'
 import { CohortModelsWorkspace } from './CohortModelsWorkspace'
+import { ErrorBoundary } from './ErrorBoundary'
 import { useWorkspaceData } from './workspace-data'
 import { useAppStore } from './state/store'
 import { countLabel } from './workspace-labels'
@@ -125,11 +126,15 @@ export function WorkspaceApp() {
           : <div className="card"><h1>Compare trajectories</h1><p>Load a file or the demo data first. Then compare patients and multiple parameters in the table, individual view and overlay.</p><button type="button" className="primary" onClick={() => go('Data')}>Load data</button></div>}
       </section>
       <section hidden={page !== 'Cohort models'} aria-label="Cohort model workspace">
-        <CohortModelsWorkspace key={datasetKey(data.rawRows)}
-          data={data}
-          onBrowseTrajectories={() => go('Trajectories')}
-          onBrowseData={() => go('Data')}
-        />
+        {/* The page is rendered while hidden, so without a boundary an error in it would blank every page. */}
+        <ErrorBoundary key={datasetKey(data.rawRows)} area="The Cohort models page"
+          hint="The loaded data and the other pages are not affected. Retry displays the page again.">
+          <CohortModelsWorkspace
+            data={data}
+            onBrowseTrajectories={() => go('Trajectories')}
+            onBrowseData={() => go('Data')}
+          />
+        </ErrorBoundary>
       </section>
       {page === 'Methods' && <section className="card workspace-methodology">
         <h1>Methods and interpretation</h1>

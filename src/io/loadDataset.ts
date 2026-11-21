@@ -182,6 +182,18 @@ export async function loadBundledFixture(baseUrl = import.meta.env.BASE_URL): Pr
   return datasetFromArrayBuffer(buf)
 }
 
+/** The demo files are fetched from the app's own address. A request that gets
+ * no response rejects with the browser's own text ("Failed to fetch",
+ * "NetworkError when attempting to fetch resource."), which names neither the
+ * file nor the cause. */
+async function fetchBundled(url: string): Promise<Response> {
+  try {
+    return await fetch(url)
+  } catch {
+    throw new Error('Could not load the demo dataset: the demo file could not be fetched from this app\'s address. Check the connection to the app and try again. Importing your own file does not need a connection.')
+  }
+}
+
 export interface BundledFixtureData {
   rows: LabRow[]
   events: ClinicalEvent[]
@@ -190,7 +202,7 @@ export interface BundledFixtureData {
 
 /** Fetch the bundled demo labs plus demo event markers shipped in public/. */
 export async function loadBundledFixtureData(baseUrl = import.meta.env.BASE_URL): Promise<BundledFixtureData> {
-  const res = await fetch(`${baseUrl}test_labs.xlsx`)
+  const res = await fetchBundled(`${baseUrl}test_labs.xlsx`)
   if (!res.ok) throw new Error(`Could not load the demo dataset (HTTP ${res.status}).`)
   const buf = await res.arrayBuffer()
   const dataset = loadDatasetFromWorkbook(buf)
@@ -204,7 +216,7 @@ export async function loadBundledFixtureData(baseUrl = import.meta.env.BASE_URL)
   }
 
   // Fallback for when test_labs.xlsx is a single-sheet workbook:
-  const eventsRes = await fetch(`${baseUrl}test_events.csv`)
+  const eventsRes = await fetchBundled(`${baseUrl}test_events.csv`)
   const patientAttributes = await loadBundledPatientAttributes(dataset.rows, baseUrl)
   if (!eventsRes.ok) return { rows: dataset.rows, events: [], patientAttributes }
   const normalized = normalizeClinicalEvents(readWorkbook(await eventsRes.arrayBuffer()))
@@ -219,7 +231,7 @@ async function loadBundledPatientAttributes(
   rows: LabRow[],
   baseUrl = import.meta.env.BASE_URL,
 ): Promise<Record<string, Record<string, string>>> {
-  const res = await fetch(`${baseUrl}test_attributes.csv`)
+  const res = await fetchBundled(`${baseUrl}test_attributes.csv`)
   if (!res.ok) return {}
   const normalized = normalizePatientAttributes(readWorkbook(await res.arrayBuffer()))
   const { byPatient, rejected } = validatePatientAttributes(normalized, rows)

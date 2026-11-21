@@ -28,8 +28,9 @@ machine. `pnpm test:e2e` then runs the stable browser-regression subset in
 Chromium against the workspace at `/` (the only interface since 2026-10-06):
 the PR 5 quality and endpoint labels, AKI and endpoint badges side by side,
 import warnings, template and demo downloads, the mobile methodology path,
-cohort-model factors and projections, local storage, and the `workspace.html`
-redirect. CI installs Chromium and runs the suite after the unit tests and build.
+cohort-model factors and projections, local storage, the `workspace.html`
+redirect, and start-up without a connection or from a folder together with the
+build's Content-Security-Policy (no real model fit: see the smoke checklist). CI installs Chromium and runs the suite after the unit tests and build.
 
 `tests/e2e/smoke.md` remains the broader manual checklist for paths that are too
 expensive or subjective to automate. It carries a "Verified <date>" line per

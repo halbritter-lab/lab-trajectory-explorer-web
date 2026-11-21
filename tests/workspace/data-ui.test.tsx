@@ -216,6 +216,15 @@ it('lists loaded and rejected events from a separate event upload', async () => 
   await waitFor(() => expect(useAppStore.getState().events[0].title).toBe('Visit'))
   expect(screen.queryByRole('table', { name: 'Rejected events' })).not.toBeInTheDocument()
 })
+it('says before any import that patient IDs are not pseudonymised, and again at the lab template', () => {
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const note = screen.getByTestId('pseudonymisation-note')
+  expect(note).toHaveTextContent('Nothing is pseudonymised: patient IDs appear as imported on screen, in the copy saved on this device, in exports and in export file names, and exports name the imported file. Use pseudonymous IDs.')
+  // Next to the import controls, not inside the collapsed templates section.
+  expect(note.closest('details')).toBeNull()
+  const templates = screen.getByText('Templates and example files').closest('details')!
+  expect(within(templates).getByText(/^Lab template: one row per measurement\./)).toHaveTextContent('patientId is not pseudonymised: it is shown, saved and exported as imported, so enter a pseudonymous ID.')
+})
 it('offers the demo files next to the empty templates', () => {
   render(<DataWorkspace onBrowse={vi.fn()} />)
   const demo = screen.getByRole('group', { name: 'Demo files' })

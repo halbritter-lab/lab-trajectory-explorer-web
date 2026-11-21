@@ -24,6 +24,24 @@ pnpm test        # vitest
 pnpm build       # static site -> dist/
 ```
 
+## Run a local copy
+
+`pnpm build` writes a static site to `dist/`. It needs a web server: opening
+`dist/index.html` directly from a folder (`file://`) does not start the
+application, because browsers block its script there; the page then shows a
+notice instead. Serve the folder with any static web server and open its
+`http://` address, for example:
+
+```bash
+pnpm preview                              # http://localhost:4173
+python3 -m http.server --directory dist   # http://localhost:8000
+```
+
+There is no offline variant. Import, trajectories and exports work without
+internet access once the page is loaded. The first cohort model fit of a
+session downloads the R runtime from `webr.r-wasm.org` and R packages from
+`repo.r-wasm.org`, so cohort models need access to both hosts.
+
 ## License
 
 MIT © 2026 Jan-Paul Lerch

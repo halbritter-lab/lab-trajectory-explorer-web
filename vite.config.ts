@@ -2,12 +2,22 @@
 import { defineConfig } from 'vite'
 import { configDefaults } from 'vitest/config'
 import react from '@vitejs/plugin-react'
+import { contentSecurityPolicy } from './src/build/contentSecurityPolicy'
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), {
+    // Build only: the development server injects an inline script for hot
+    // reloading, which the policy would block.
+    name: 'content-security-policy',
+    apply: 'build',
+    transformIndexHtml: () => [{ tag: 'meta', attrs: { 'http-equiv': 'Content-Security-Policy', content: contentSecurityPolicy() }, injectTo: 'head-prepend' }],
+  }],
   // Relative base so the static build works under any subpath (e.g. GitHub
-  // Pages project sites) and from file://. Deliberate; do not change to '/'
-  // without revisiting the deployment target.
+  // Pages project sites). Deliberate; do not change to '/' without revisiting
+  // the deployment target. The build does not run from file://: Chromium
+  // blocks the module script and the stylesheet there (origin 'null'), and
+  // Firefox starts the app but cannot start the model worker. index.html
+  // carries a static notice for that case; the build needs a web server.
   base: './',
   build: {
     rollupOptions: {

@@ -540,7 +540,8 @@ Attribute birth dates stored by the app since 2026-10-06 are ISO calendar
 dates and are not affected. A workspace copy saved by an earlier build can
 still hold the long form; after restoring it that birth date gives no age, and
 no warning appears, because birth-date warnings are issued at import only.
-Saved copies expire after seven days.
+Saved copies expire after seven days and are removed when the app is next
+opened after that.
 
 ### Values
 

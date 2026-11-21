@@ -559,9 +559,10 @@ workspace passes them resolved values only.
 
 - **Runtime.** webR is the npm dependency `webr` at `^0.6.0`, locked to 0.6.0.
   The worker starts it with default options, so the R runtime is downloaded from
-  webR's default location on first use.
+  webR's default location, `https://webr.r-wasm.org/v0.6.0/`, on first use.
 - **R packages.** `lme4` (or `nlme`) and `jsonlite` are installed from webR's
-  default package repository when the first model is fitted in a session. No
+  default package repository, `https://repo.r-wasm.org`, when the first model
+  is fitted in a session. No
   version is pinned. The same data can give different numbers after a
   repository update.
 - **Recorded per result.** The R version, the package versions actually loaded,
