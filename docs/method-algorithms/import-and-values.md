@@ -282,8 +282,10 @@ not join series and, with the one exception below, does not separate them.
   values with code 2160-0 (0.98, 1.10, 1.17, 1.21, 1.35) and urine values
   with code 2161-8 (3.92, 4.40, 4.68, 4.84, 5.40) on the same five days, and
   a sixth urine value 5.72 half a year later. Before the rule this was one
-  series of eleven values with five stage 3 AKI episodes, each with baseline
-  and peak on the same day, and eleven computed eGFR values (CKD-EPI 2021).
+  series of eleven values with eleven computed eGFR values (CKD-EPI 2021),
+  and, until values of one day without a time of day stopped being compared
+  with each other (same day, [AKI](aki.md#measurements-on-the-same-date)),
+  with five stage 3 AKI episodes, each with baseline and peak on the same day.
   With the rule `Kreatinin` has five values, `Kreatinin (urine, LOINC
   2161-8)` six, no AKI episode is detected, and five eGFR values are computed
   (95.7, 83.3, 76.9, 73.9, 64.8).

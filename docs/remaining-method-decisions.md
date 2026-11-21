@@ -725,7 +725,10 @@ synthetic examples and the demo data.
   episodes from it, and the computed eGFR (fewer values, other slope) change.
   Synthetic example: eleven mixed values with five false stage 3 episodes
   become five serum and six urine values with no episode, and the computed
-  eGFR has five values instead of eleven. Files without these two codes on
+  eGFR has five values instead of eleven. (The five episodes had baseline and
+  peak on one day without a time of day; under the same-day rule decided the
+  same day the mixed series would no longer report them, the eleven eGFR
+  values remain.) Files without these two codes on
   creatinine rows are unaffected: the demo data and the golden fixtures
   contain neither code, so no fixture moved.
   Details: [Series identity](method-algorithms/import-and-values.md#columns),

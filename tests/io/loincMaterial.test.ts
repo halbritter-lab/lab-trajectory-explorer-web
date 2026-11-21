@@ -37,10 +37,13 @@ describe('creatinine with a non-serum LOINC code', () => {
     })])
   })
 
-  it('differs from the mixed series the import formed before: five false stage 3 episodes and eleven eGFR values', () => {
+  // Until the same-day rule of 2026-11-21 the mixed series also gave five false
+  // stage 3 episodes, each with baseline and peak on one day. Values of one day
+  // without a time of day are no longer compared with each other.
+  it('differs from the mixed series the import formed before: eleven eGFR values from serum and urine', () => {
     const mixed = loadDatasetFromWorkbook(bytes(P103), { today: TODAY, separateSeries: () => null })
     expect(new Set(mixed.rows.map((r) => r.bezeichnung))).toEqual(new Set(['Kreatinin']))
-    expect(akiEpisodeRows(mixed.rows, []).map((e) => e.stage)).toEqual([3, 3, 3, 3, 3])
+    expect(akiEpisodeRows(mixed.rows, [])).toEqual([])
     expect(appendComputedEgfr(mixed.rows, { formula: 'ckd-epi-2021' }).length - mixed.rows.length).toBe(11)
   })
 
