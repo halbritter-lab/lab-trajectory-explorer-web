@@ -25,6 +25,14 @@ write token of the dataset copy they belong to.
   change (labs, events, attributes, demographic edits, derivation settings,
   file name). Changing analysis settings writes only the settings record, and
   restoring a copy writes nothing at all, so neither extends the seven days.
+- **Removal happens at start-up only.** Nothing removes an expired copy while
+  the app is closed: expiry is checked when the app starts, and a copy is
+  removed when more than seven days (604 800 000 ms) have passed since its
+  save time; at exactly seven days it is still restored. Until the app is
+  opened again the unencrypted copy stays on the device. The Data page shows
+  both times in local time to the minute, for example "Saved on 2026-11-21
+  14:05; removed when the app is next opened after 2026-11-28 14:05". The
+  header keeps the short "Saved on this device".
 - **When settings are written.** With every data change, and after that only
   when the user changes a setting. Opening the Trajectories page writes
   nothing: the view reaches the store only once it differs from what the page
@@ -36,7 +44,7 @@ write token of the dataset copy they belong to.
   over from the earlier shared database). The first settings change then
   writes the record, if the dataset copy is still this tab's.
 - **A failed settings write** is reported next to the storage status, which
-  keeps describing the dataset copy ("Saved on this device"). It does not
+  keeps describing the dataset copy ("Saved on …"). It does not
   turn on the leave-page question and offers no "Retry saving", which would
   rewrite the dataset; the next successful settings write clears the
   message.
@@ -88,6 +96,40 @@ settings) is removed at start-up regardless of age, and the Data page says so on
 **Clear dataset** confirms and removes both. Storage errors remain visible and
 imports still work. A stale tab cannot overwrite a newer or deleted snapshot;
 its next save stops and explains how to resume or explicitly save its own data.
+
+## Network access
+
+Loading the app, importing, the Trajectories page, Methods and the exports
+request nothing beyond the app's own address (the bundled demo and template
+files included). The first cohort model fit of a session downloads the R
+runtime from `webr.r-wasm.org` and R packages from `repo.r-wasm.org`: 22
+requests and 32.5 MB on the demo data on 2026-11-21, GET and one HEAD, no
+request body. Later fits of the session request nothing. The interface names
+both hosts next to the fit button, in the message after a failed download and
+under Methods, "Data & eGFR", "Network access and local storage".
+
+The build adds a Content-Security-Policy meta element
+(`src/build/contentSecurityPolicy.ts`): own address, plus the two hosts for
+scripts and connections, `data:` and `blob:` images, inline styles. It
+restricts the document, not the model worker: a worker takes its policy from
+the response headers of its script, and GitHub Pages sends none. A real fit
+ran in Chromium, Firefox and WebKit on 2026-11-21 with the policy, and also
+with the two hosts removed from it. The development server page carries no
+policy.
+
+## Starting a local copy
+
+The build does not start from `file://`: Chromium blocks the module script
+and the stylesheet (origin `null`); Firefox starts the app, but a model fit
+fails there. `index.html` holds a static notice inside `#root` that the
+started app replaces; it becomes visible after two seconds and stays when the
+script does not load. Serve `dist/` through a web server (see the README).
+
+The results table of the Cohort models page is part of the main bundle. The
+page is rendered while hidden as soon as data are loaded, so a separately
+fetched chunk failed whenever the connection was gone. An error boundary
+around that page and one around the app show a message with "Retry" instead
+of unmounting everything.
 The application language is English;
 imported parameter names and patient attributes retain their original values.
 

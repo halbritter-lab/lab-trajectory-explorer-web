@@ -1,4 +1,5 @@
 import { mixedModelCoefficientTerms, mixedModelExportSheets, mixedModelTermLabel } from '../../core/mixedModel/modelExport'
+import { WEBR_PACKAGE_HOST, WEBR_RUNTIME_HOST } from '../../core/mixedModel/runtimeHosts'
 import { mixedModelFactors, mixedModelFormulaForOutcome, mixedModelOutcomeLabel } from '../../core/mixedModel/config'
 import { downloadBlob, fileStamp, sheetsToXlsxBytes } from '../../io/export'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
@@ -374,7 +375,7 @@ function failureStatusText(result: MixedModelFailure): string {
     (result.stage === 'runtime-load' && result.code === 'WEBR_INIT_FAILED') ||
     (result.stage === 'package-load' && result.code === 'PACKAGE_UNAVAILABLE')
   ) {
-    return `${message} First-time WebR setup downloads the R runtime and packages from a CDN/package repository. Check your internet connection and access to those sources, then retry the fit.`
+    return `${message} The first fit of a session downloads the R runtime from ${WEBR_RUNTIME_HOST} and R packages from ${WEBR_PACKAGE_HOST}. Check your internet connection and that both hosts can be reached from this network, then retry the fit.`
   }
   return message
 }

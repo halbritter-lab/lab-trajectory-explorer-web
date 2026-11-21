@@ -488,3 +488,41 @@ Not verified: the leave-page question when closing a tab or window by hand
 (the automated check reloads), other browsers than Chromium, and a copy saved
 by the released version 0.3.7 restored in this version in a real browser
 (`tests/workspace/storage.test.tsx` covers a copy without settings).
+
+## Start, lost connection, network and storage notices (2026-11-21)
+
+1. Load the page, cut the network, import a CSV: header, navigation and all
+   pages stay; Cohort models shows "Model results". "Load demo data" without a
+   network says "Could not load the demo dataset: the demo file could not be
+   fetched from this app's address. …".
+2. Open `dist/index.html` from a folder in Chrome or Edge: after two seconds
+   the notice "Lab Trajectory Explorer has not started" appears. Over http the
+   notice never shows.
+3. Cohort models, before the first fit: under the fit button "The first fit
+   of a session downloads the R runtime from webr.r-wasm.org and R packages
+   from repo.r-wasm.org (about 33 MB). …"; the link opens Methods, "Data &
+   eGFR", "Network access and local storage". After a finished fit the
+   sentence is gone.
+4. Production build only: the page carries a Content-Security-Policy meta
+   element. Fit a model on the demo data with a real network (first fit), fit
+   again, then "Export models (xlsx)", "Download SVG", "Download PNG" and
+   "Export cohort (XLSX)": all work and the console reports no blocked
+   request. Repeat this after every change to the policy or an update of
+   `webr`; the automated check does not fit a model.
+5. Data: "Nothing is pseudonymised: …" stands above the file input; the lab
+   template text names `patientId`.
+6. Tick "Remember on this device": the status reads "Saved on <date time>;
+   removed when the app is next opened after <date time>", seven days apart,
+   and is the same after a reload. "What is saved" opens the list.
+
+Verified 2026-11-21 against the production build: steps 1, 2, 5 and 6 and the
+exports of step 4 by `tests/e2e/start-and-offline.e2e.ts` in Chromium; step 3
+and the real fit of step 4 by an ad-hoc Playwright script in Chromium, Firefox
+and WebKit (fit, refit, model workbook, SVG, PNG and cohort workbook; no
+policy violation). Step 2 in Firefox: the app starts from `file://`, so the
+notice does not appear.
+
+Not verified: Safari and Edge themselves, the patient bundle (ZIP) and the
+patient chart exports under the policy (same export functions as the checked
+ones), a deployment that removes files while a tab is open, and the notice
+with JavaScript switched off.

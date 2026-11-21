@@ -83,6 +83,15 @@ describe('datasetFromArrayBuffer', () => {
 })
 
 describe('loadBundledFixtureData', () => {
+  it('names the demo file and the cause when the request gets no response', async () => {
+    const originalFetch = globalThis.fetch
+    // What Chromium rejects with when the network is gone.
+    globalThis.fetch = async () => { throw new TypeError('Failed to fetch') }
+    try {
+      await expect(loadBundledFixtureData('/')).rejects.toThrow(/^Could not load the demo dataset: the demo file could not be fetched from this app's address\./)
+      await expect(loadBundledFixtureData('/')).rejects.not.toThrow(/Failed to fetch/)
+    } finally { globalThis.fetch = originalFetch }
+  })
   it('loads validated dialysis and transplant demo events with the bundled fixture', async () => {
     const labBytes = readFileSync(FIXTURE)
     const eventBytes = readFileSync(EVENTS)

@@ -5,6 +5,43 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Fixed (start and lost connection, persona review of 2026-11-21)
+
+- Importing a file after the connection was lost no longer blanks the page.
+  The results table of the Cohort models page was a separately fetched file
+  that the hidden page requested as soon as data were loaded; it is now part
+  of the main bundle.
+- A rendering error on the Cohort models page, or anywhere in the app, shows
+  a message with "Retry" instead of an empty page. The loaded data stay.
+- "Load demo data" without a connection says that the demo file could not be
+  fetched from the app's address, instead of "Failed to fetch".
+- Opening the built `index.html` from a folder (`file://`) in Chrome or Edge
+  shows a notice instead of a blank page. There is no offline variant: the
+  build needs a web server, and the README names a local start. The comment
+  in `vite.config.ts` no longer names `file://` as supported.
+
+### Added (network, privacy and storage notices, persona review of 2026-11-21)
+
+- Next to the fit button, until R has been loaded in the session: the first
+  fit downloads the R runtime from `webr.r-wasm.org` and R packages from
+  `repo.r-wasm.org` (about 33 MB), and no measurements are sent. The message
+  after a failed download names both hosts.
+- Methods, "Data & eGFR": a section "Network access and local storage"
+  describes which hosts are contacted and when, what they see, and the local
+  copy.
+- The Data page says that nothing is pseudonymised: patient IDs appear as
+  imported on screen, in the saved copy, in exports and in export file names.
+  The lab template text says the same for `patientId`.
+- The status of a saved copy gives its save time and the time after which the
+  next start removes it ("Saved on 2026-11-21 14:05; removed when the app is
+  next opened after 2026-11-28 14:05"). The notice says in one line that the
+  copy stays on the device until the app is opened again; the list of what
+  is saved moved into "What is saved". The seven-day rule is unchanged.
+- The build carries a Content-Security-Policy meta element: the page may load
+  from its own address and, beyond it, only from the two webR hosts. It
+  restricts the page itself, not the model worker, which takes its policy
+  from response headers a static host does not send.
+
 ### Added (Cohort models: control over a running fit)
 
 - A running fit can be cancelled. Models fitted before stay; nothing of the
