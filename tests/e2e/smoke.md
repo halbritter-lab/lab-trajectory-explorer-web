@@ -1,5 +1,49 @@
 # Manual browser smoke checklist
 
+## Trajectories table: order, decimals, filters, paging (2026-11-21)
+
+Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
+
+1. Load the demo, open Trajectories, tick Trend for Kreatinin [mg/dl] and
+   eGFR. Creatinine slopes have three decimals with a labelled interval
+   (patient 8: "+0.010 mg/dl/yr 95% CI [0.007, 0.014]"), eGFR two (patient 8:
+   "-1.23 … 95% CI [-1.50, -0.97]"). The patient view writes the same digits
+   ("OLS: +0.010 mg/dl/year").
+2. Sort eGFR by *Slope: ascending*. Patient 12 (follow-up under a year) stands
+   at rank 25, after patient 14 and before 3, 5 and 10; the status line reads
+   "1 uncertain slope placed after the reliable ones". Unticking *Uncertain
+   slopes last* puts it at rank 9, between 9 and 6. *Export cohort (XLSX)*
+   lists the eGFR rows of `cohort` in the order of the table.
+3. "Show only": the buttons carry counts (demo, eGFR trend: Rapid decline 13,
+   Uncertain slope 1, Endpoint reached 4, AKI 4, Kidney transplant 3,
+   Dialysis 3, Other event 1). *Rapid decline* leaves 13 rows, the export
+   button reads "Export 13 of 28 patients (XLSX)" and "Select all 13
+   matching" is offered without a selection. *Show all* ends it. At 390 px
+   the buttons are in the toolbar menu "Show only" and the first chart is
+   still on the first screen.
+4. Apply CKD-EPI 2021 on the Data page. Under Trajectories the computed eGFR
+   cell of patient 5 reads "No eGFR: sex missing" (hint: four creatinine
+   values, pointer to "Review and edit patients"), that of patient 10 "No
+   eGFR: no creatinine in the source".
+5. A dataset of several hundred patients with a grouping attribute: the page
+   controls stand above and below the table; *Next* below the table shows the
+   top of the next page with the focus on the table region; "Per page" offers
+   25, 50 and 100, "Page" jumps. Collapse the largest group: the next rows
+   follow on the same page, the group is one header row with its total on
+   every page, and the status reads "Showing 1–50 of 527 patients (273 more in
+   collapsed groups)".
+6. Export a cohort of several hundred patients: "Exporting …" appears beside
+   the button until the download starts.
+
+Verified 2026-11-21 against the production build in Chromium
+(`tests/e2e/table-screening.e2e.ts`, seven checks, and scripted walkthroughs
+with the demo and an 800-patient review dataset): steps 1 to 6. With 800
+patients and one parameter a page of 100 rows rendered in about 0.3 s. The
+Cohort models decimals were checked with a fixed worker result, not with a
+real R fit. Not built: a table header that stays in view while scrolling
+(the table region scrolls sideways, so a fixed header needs either a region
+that also scrolls vertically or a scripted header).
+
 ## Cohort model presets with the demo, plain punctuation (2026-10-13)
 
 Branch `fix/cohort-demo-subgroups`. Subgroup comparison could not fit any
