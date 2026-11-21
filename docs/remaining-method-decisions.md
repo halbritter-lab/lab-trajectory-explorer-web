@@ -672,6 +672,12 @@ Details chosen during implementation, **not yet confirmed by the owner**:
 - Values with the same time of day are not compared with each other.
 - The patient-day count covers serum creatinine only, the one series the
   rule affects.
+- "The import names the affected patient-days" is implemented as a note
+  under "Demographics and data quality" on the Data page, which stays while
+  the dataset is loaded, and as a sentence with the count in the message
+  shown after an import of lab values. The count is not listed among the
+  import diagnostics and is not part of the warning count, like the other
+  creatinine notes of the Data page.
 
 Details and examples:
 [measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date)

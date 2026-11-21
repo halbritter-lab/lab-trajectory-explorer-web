@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import * as XLSX from 'xlsx'
 import { findKdigoAkiEpisodes } from '../../../src/core/domains/nephrology/aki/kdigo'
 import { episodesForSeries, sameDayUnorderedCreatinine } from '../../../src/core/domains/nephrology/aki/akiAware'
@@ -138,6 +138,35 @@ describe('imported files with several creatinine values per day', () => {
     const dateOnly = sheet([new Date(2026, 8, 1), new Date(2026, 8, 1), new Date(2026, 8, 4)])
     expect(dateOnly.every((row) => !('labTime' in row))).toBe(true)
     expect(episodes(dateOnly, 'RISE')).toEqual([])
+  })
+})
+
+describe('workbook date cells outside UTC', () => {
+  const zone = process.env.TZ
+  beforeAll(() => { process.env.TZ = 'Europe/Berlin' })
+  afterAll(() => { if (zone === undefined) delete process.env.TZ; else process.env.TZ = zone })
+
+  it('reads a time that does not exist in the local zone like the same text and serial', () => {
+    // 29 March 2026 has no 02:30 in Europe/Berlin; read through local time it became 03:30,
+    // after the 03:15 value, and the fall from 1.6 to 1.0 was reported as a stage 1 episode.
+    expect(new Date(2026, 2, 29, 2, 30).getHours()).toBe(3)
+    const values = [1.6, 1.0, 0.9]
+    // 46110 is 2026-03-29.
+    const serials = [46110 + 2.5 / 24, 46110 + 3.25 / 24, 46111.25]
+    const sheet = (asDateCell: boolean) => {
+      const ws: XLSX.WorkSheet = XLSX.utils.aoa_to_sheet([['patientId', 'labDate', 'testName', 'unit', 'value'], ...values.map((value) => ['DST', null, 'Kreatinin', 'mg/dl', value])])
+      serials.forEach((serial, i) => { ws[`B${i + 2}`] = { t: 'n', v: serial, ...(asDateCell ? { z: 'dd/mm/yyyy hh:mm' } : {}) } })
+      const wb = XLSX.utils.book_new()
+      XLSX.utils.book_append_sheet(wb, ws, 'labs')
+      return loadLabRows(readWorkbook(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer))
+    }
+    const text = csvRows(['DST,2026-03-29 02:30,Kreatinin,mg/dl,1.6', 'DST,2026-03-29 03:15,Kreatinin,mg/dl,1.0', 'DST,2026-03-30 06:00,Kreatinin,mg/dl,0.9'])
+    const key = (rows: LabRow[]) => rows.map((row) => [day(row.labDatum!), row.labTime, row.wertNum])
+    expect(key(text)).toEqual([['2026-03-29', 2.5 * HOUR, 1.6], ['2026-03-29', 3.25 * HOUR, 1.0], ['2026-03-30', 6 * HOUR, 0.9]])
+    expect(key(sheet(true))).toEqual(key(text))
+    expect(key(sheet(false))).toEqual(key(text))
+    expect(episodes(sheet(true), 'DST')).toEqual([])
+    expect(episodes(text, 'DST')).toEqual([])
   })
 })
 

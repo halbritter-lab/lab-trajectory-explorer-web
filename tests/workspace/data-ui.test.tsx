@@ -224,7 +224,7 @@ it('names the patient-days whose serum creatinine values cannot be ordered withi
   unmount()
   useAppStore.getState().replaceDataset({ rows: [at('2020-01-01', 1), at('2020-01-01', 1.4), at('2020-01-02', 1), at('2020-01-02', 1.1), { ...at('2020-01-03', 1), patientId: 'P-02' }] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
-  expect(screen.getByText(/^2 patient-days in 1 patient with several serum creatinine values whose order within the day is unknown \(no time of day, or the same time\): AKI detection compares these values with values of earlier days only, not with each other\.$/)).toHaveClass('notice', 'amber')
+  expect(screen.getByText(/^2 patient-days in 1 patient with several serum creatinine values whose order within the day is unknown \(no time of day, or the same time\): AKI detection compares these values with earlier values only, not with each other\.$/)).toHaveClass('notice', 'amber')
 })
 it('warns about creatinine above 25 mg/dl and computed eGFR above 200 without changing values', () => {
   useAppStore.getState().replaceDataset({ rows: [

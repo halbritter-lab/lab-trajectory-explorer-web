@@ -238,7 +238,11 @@ The time and the offset never change the date. The calendar day is taken as
 written and is not converted between time zones: `2024-01-15T23:30:00+02:00`
 is 15 January 2024, and `2024-01-14T23:00:00.000Z` is 14 January 2024. A
 workbook date cell is read by its calendar day as shown in the workbook; a
-cell holding 15 January 2024 14:30 is 15 January 2024.
+cell holding 15 January 2024 14:30 is 15 January 2024. The day and the clock
+time of a date cell do not depend on the time zone of the browser: a cell
+holding 29 March 2026 02:30 is 29 March 2026 02:30 also where that hour is
+skipped by daylight saving time (Europe/Berlin), as the text `2026-03-29
+02:30` and the serial 46110.104167 are.
 
 Since 2026-11-21 (issue #34) the time of day of a **lab date** is kept beside
 the date (`LabRow.labTime`, milliseconds after midnight); before, it was

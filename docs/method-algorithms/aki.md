@@ -190,8 +190,14 @@ sixth row would give no episode.
 **Data page note.** The Data page states how many patient-days this concerns:
 "2 patient-days in 2 patients with several serum creatinine values whose
 order within the day is unknown (no time of day, or the same time): AKI
-detection compares these values with values of earlier days only, not with
-each other." (`sameDayUnorderedCreatinine` in `aki/akiAware.ts`). A
+detection compares these values with earlier values only, not with each
+other." (`sameDayUnorderedCreatinine` in `aki/akiAware.ts`). Earlier values
+are those of earlier dates and, where only a shared time is the reason,
+also the values of the date with an earlier time (eighth row). The message
+shown after an import of lab values repeats the count: "… 0 rows rejected; 0
+warnings. 2 patient-days with several serum creatinine values whose order
+within the day is unknown: see “Demographics and data quality”."; the count
+is not an import diagnostic and not part of the warning count. A
 patient-day is counted when one eligible serum creatinine series of the
 patient has two or more exact dated values above zero on that date and at
 least one of them has no time of day or two of them share a time. A date

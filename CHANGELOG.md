@@ -19,7 +19,16 @@ interfaces are still evolving before 1.0.
   and the `aki_episodes` sheet. Files with one value per day are unaffected;
   no fixture value moved.
 - The Data page names the patient-days whose creatinine values cannot be
-  ordered within the day.
+  ordered within the day, and the message after an import of lab values
+  states their number.
+- A workbook date cell gives the same day and time in every time zone of the
+  browser. Read through local time, a cell time skipped by daylight saving
+  time (02:30 on 29 March 2026 in Europe/Berlin) would have been moved by one
+  hour.
+- Kidney package: `findKdigoAkiEpisodes`, `episodesForSeries` and
+  `fitAkiAware` follow the same rule. `SeriesPoint` has an optional
+  `timeOfDay`; points of one date without it are no longer compared in input
+  order.
 - The time of day is a sort key only; it is not shown and not exported. A
   dataset stored in the browser before this change has no times until the
   file is imported again. The methodology page is not yet updated (OD-34).
