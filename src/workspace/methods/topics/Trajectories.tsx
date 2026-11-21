@@ -37,6 +37,21 @@ export function Trajectories() { return <>
         value, slope, absolute slope, number of values, or observation span), in either direction.
       </p>
       <p>
+        Under a sort by slope or absolute slope, slopes that carry the reliability note (fewer than
+        three fitted measurement dates or less than one year of fitted follow-up) stand after the
+        reliable ones and before patients without a slope. The status line gives their number, and{' '}
+        <em>Uncertain slopes last</em> switches the rule off. <em>Show only</em> narrows the table
+        to patients who carry a mark (rapid decline, uncertain slope, endpoint reached, AKI) or a
+        type of clinical event; with several chosen, a patient must carry all of them. The export
+        holds the patients shown, in the order shown.
+      </p>
+      <p>
+        Slopes and their interval bounds are written with one number of decimals per parameter: as
+        many as give the median absolute slope of the loaded dataset two significant digits, at
+        least two and at most four. The Cohort models page uses the same number for that
+        parameter. Exports keep full precision.
+      </p>
+      <p>
         For eGFR series it also applies a single, explicit clinical flag:{' '}
         <strong>rapid eGFR decline</strong>. An eGFR series whose fitted slope falls faster than the
         configured threshold is marked <span className="rapid-badge rapid-badge-inline">rapid ↓</span>{' '}

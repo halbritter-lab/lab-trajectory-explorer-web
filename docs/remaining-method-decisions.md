@@ -685,6 +685,7 @@ and [dates at import](method-algorithms/import-and-values.md#dates). The
 methodology page is not changed; its wording is drafted as G1 in the
 [methodology wording drafts](methodology-wording-drafts.md) and tracked as
 OD-34.
+
 ## Decisions of 2026-11-21 (persona review, issues #74, #2, #34)
 
 Owner decisions after the simulated-user review of 2026-11-21, taken on
@@ -730,6 +731,42 @@ synthetic examples and the demo data.
   Details: [Series identity](method-algorithms/import-and-values.md#columns),
   [eligible source series](method-algorithms/egfr.md#eligible-source-series)
   and [AKI input](method-algorithms/aki.md#input-series-and-conversion).
+
+## Decisions of 2026-11-21 (Trajectories table: slope order and decimals)
+
+Owner decisions after the persona review of 2026-11-21, taken on examples
+from the demo data. Neither changes a computed value.
+
+- **A sort by slope places uncertain slopes after the reliable ones.** Under
+  *Slope* and *Absolute slope*: first the slopes that do not meet the
+  reliability rule, then the uncertain ones, then patients without a slope.
+  The status line gives the number of rows moved back, and a switch restores
+  the order by value. Demo data, imported eGFR ascending: patient 12 (−7.35
+  per year over 151 days) moves from rank 9 to rank 25.
+  Assumptions until the owner confirms them: the export keeps following the
+  order of the table, so its row order changes with the new default; the
+  switch is built.
+- **One number of decimals per parameter for slopes.** As many decimals as
+  give the median of the absolute slopes in the loaded dataset two
+  significant digits, at least two; the same for the slope and its interval
+  bounds, in the table, the patient view and on the Cohort models page.
+  Display only; exports keep full precision. Demo data: creatinine in mg/dl
+  takes three decimals (median 0.0948), eGFR stays at two.
+  Assumptions until the owner confirms them: the number is derived from the
+  slopes of the loaded dataset, not fixed per unit; it is limited to four
+  decimals. Implemented without a separate decision: the slope is signed and
+  padded in the patient view as in the table; every row of a model's
+  coefficient table uses the number (before: three decimals for the estimate
+  and two for the bounds), so an eGFR coefficient shows two decimals instead
+  of three. This includes rows that are not slopes: the intercept and factor
+  terms.
+  Open for the owner: the median rule falls back to two decimals once the
+  median absolute slope reaches 0.1, so small slopes of such a column read
+  "+0.01 [0.01, 0.01]" again (demo creatinine under the CKD progression
+  preset or Theil–Sen). Alternatives are a lower quantile than the median or
+  the smallest interval width; nothing is changed until he decides.
+
+Details: [table order, mark filters and displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals).
 
 ## Approved requirements
 

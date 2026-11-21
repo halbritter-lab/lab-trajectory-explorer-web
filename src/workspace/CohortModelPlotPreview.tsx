@@ -5,6 +5,7 @@ import { mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
 import type { MixedModelSpikeRow } from '../core/mixedModel/types'
 import { ChartExportActions } from './WorkspaceExports'
 import { formatWorkspaceNumber } from './WorkspacePlot'
+import { formatFixedDecimals, MIN_SLOPE_DECIMALS } from '../core/format'
 
 interface Props {
   parameterLabel: string
@@ -18,6 +19,8 @@ interface Props {
   /** Whether the studio's Fit model action is available; only steers the guidance line. */
   canFit: boolean
   isFitting?: boolean
+  /** Decimals for this parameter's slopes, as in the results table. */
+  slopeDecimals?: number
 }
 
 // Workspace text and muted tones; literal because exported SVGs carry no CSS variables.
@@ -42,6 +45,7 @@ export function CohortModelPlotPreview({
   modelRowsByEntity,
   canFit,
   isFitting,
+  slopeDecimals = MIN_SLOPE_DECIMALS,
 }: Props) {
   const svg = useRef<SVGSVGElement>(null)
   const clipId = useId().replace(/:/g, '')
@@ -167,7 +171,7 @@ export function CohortModelPlotPreview({
           {slopeBadges.map(b => (
             <span key={b.label} className="cm-slope-badge" style={{ borderColor: b.color }}>
               <span className="cm-badge-swatch" style={{ background: b.color }} />
-              <strong>{b.label}:</strong> {formatWorkspaceNumber(b.slope)} {parameterUnit ? `${parameterUnit}/yr` : '/yr'}
+              <strong>{b.label}:</strong> {formatFixedDecimals(b.slope, slopeDecimals, true)} {parameterUnit ? `${parameterUnit}/yr` : '/yr'}
             </span>
           ))}
         </div>
@@ -273,7 +277,7 @@ export function CohortModelPlotPreview({
                 strokeWidth={line.key === 'cohort' ? 3.5 : 2.8}
                 strokeDasharray="8 4"
               >
-                <title>{`${line.label} fitted trajectory (slope: ${line.slope !== undefined ? formatWorkspaceNumber(line.slope) : '—'})`}</title>
+                <title>{`${line.label} fitted trajectory (slope: ${line.slope !== undefined ? formatFixedDecimals(line.slope, slopeDecimals, true) : '—'})`}</title>
               </polyline>
             ))}
           </g>

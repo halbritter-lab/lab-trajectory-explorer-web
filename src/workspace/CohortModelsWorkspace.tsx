@@ -7,6 +7,8 @@ import { PresetOptions } from './WorkspaceAnalysisSettings'
 import { STANDARD_PRESETS } from '../core/analysis/fitConfig'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
+import { buildCohortRows } from '../core/cohort/screening'
+import { MIN_SLOPE_DECIMALS, slopeDisplayDecimals } from '../core/format'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
 import {
   DEFAULT_MIXED_MODEL_CONFIG,
@@ -241,6 +243,11 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
     paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])
   const hasSuccessfulModel = Object.keys(currentModels).length > 0
+  // The decimals of this parameter's slope column under Trajectories: from the
+  // patients' own slopes under the same settings. Needed only once a model shows.
+  const slopeDecimals = useMemo(() => spec && hasSuccessfulModel
+    ? slopeDisplayDecimals(buildCohortRows(data.rows, patientIds, [spec]).map(row => row.cells[0].slope))
+    : MIN_SLOPE_DECIMALS, [spec, hasSuccessfulModel, data.rows, patientIds])
   // Every unit the button would submit already has a current, usable fit: the
   // button stays available for a refit but no longer reads as the next step.
   const allEligibleFitted = eligibleEntities.length > 0 && eligibleEntities.every(item => currentModels[entityKey(item.entity)] !== undefined)
@@ -695,6 +702,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           modelRowsByEntity={Object.fromEntries(entities.map(item => [item.entity.kind === 'cohort' ? 'cohort' : `group:${item.entity.value}`, item.rows]))}
           isFitting={cohortModelRunning}
           canFit={canFit}
+          slopeDecimals={slopeDecimals}
         />
       )}
 
@@ -709,6 +717,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             seriesKey={activeParamKey}
             seriesUnit={spec.einheit}
             definesWindows={definesWindows}
+            slopeDecimals={slopeDecimals}
             sourceResponse={{ outcome: spec.bezeichnung, unit: spec.einheit ?? '' }}
             fitConfigHash={fitConfigHash}
             config={mixedModelConfig}

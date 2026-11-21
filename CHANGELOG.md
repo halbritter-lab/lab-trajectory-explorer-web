@@ -32,6 +32,7 @@ interfaces are still evolving before 1.0.
 - The time of day is a sort key only; it is not shown and not exported. A
   dataset stored in the browser before this change has no times until the
   file is imported again. The methodology page is not yet updated (OD-34).
+
 ### Added (import diagnostics, after the persona review of 2026-11-21)
 
 - Import diagnostics name the row of the source file ("labs.csv, row 12,
@@ -123,6 +124,68 @@ interfaces are still evolving before 1.0.
   has one column per lab test instead of one row per measurement, with an
   example of the expected layout, and when a column name contains a semicolon
   or a tab (wrong field delimiter). No column is mapped.
+
+### Changed (Trajectories table, after the persona review of 2026-11-21)
+
+- **A sort by slope or absolute slope places uncertain slopes after the
+  reliable ones** (decided 2026-11-21): reliable slopes, then slopes with
+  fewer than three fitted dates or under one year of follow-up, then patients
+  without a slope. The status line gives the number of rows moved back;
+  "Uncertain slopes last" restores the order by value. The export follows the
+  table, so its row order changes with it. No value changes.
+- **Slopes and their interval bounds have one number of decimals per
+  parameter** (decided 2026-11-21): as many as give the median absolute slope
+  of the loaded dataset two significant digits, between two and four.
+  Creatinine in mg/dl reads "+0.010 mg/dl/yr [0.007, 0.014]" where it read
+  "+0.01 [0.01, 0.01]". The patient view writes the slope the same way
+  ("OLS: +0.010 mg/dl/year"), and on the Cohort models page the change per
+  year, the coefficient table (estimate and bounds alike), the patient slope
+  SD and the preview legend use the same number. Display only; exports keep
+  full precision. A column whose median absolute slope is 0.1 or more keeps
+  two decimals, so its small slopes still read "+0.01 [0.01, 0.01]"
+  (creatinine under the CKD progression preset); see the open detail in the
+  method decisions.
+- The interval beside a slope is labelled in the cell: "95% CI", or "range"
+  for Theil–Sen bounds on fewer than five fitted dates.
+- A collapsed group no longer fills pages: pages hold the expanded rows only,
+  a collapsed group is one header row with its total on every page, and
+  "Showing 1–50 of 527 patients (273 more in collapsed groups)" counts the
+  expanded rows. Selection and export keep the full scope.
+- The page controls are repeated below the table, and a page change from
+  there returns to the top of the table. A page can be chosen directly, and
+  the page holds 25, 50 or 100 patients. The two selects are hidden on
+  screens up to 900 px wide. The table header does not stay in view while
+  scrolling; that part of the proposal is not built.
+- "Select all 100 matching" names the number of hits and is offered as soon
+  as a search, group filter or mark filter is active, without selecting a
+  patient first.
+
+### Added (Trajectories table, after the persona review of 2026-11-21)
+
+- "Show only" under the status line filters the patients by the marks present
+  (rapid decline, uncertain slope, endpoint reached, AKI) and by the type of
+  their clinical events, each with its number of patients. Several chosen
+  marks must all apply. Overlay, patient navigation and export follow the
+  filter. On a phone the marks are in a toolbar menu. A patient open in the
+  patient view stays open, with a note, when a changed trend method or
+  setting takes them out of the chosen marks; the view does not switch to
+  another patient and the patient export keeps writing the open one.
+- The cohort export button names a restricted scope ("Export 12 of 28
+  patients (XLSX)"), and the workbook exports show "Exporting …" while the
+  file is written.
+- An empty cell of the computed eGFR names the reason for that patient ("No
+  eGFR: sex missing"), with the number of creatinine values affected and a
+  pointer to "Review and edit patients"; the patient view states the same.
+  A patient lacking both sex and age is told both ("No eGFR: sex and age
+  missing", "Enter the sex and the age …"); the counts on the Data page keep
+  one reason per row.
+
+### Changed (methodology page; wording awaits the maintainer's approval)
+
+- The Trajectories topic has two new paragraphs: the order of a sort by
+  slope with *Uncertain slopes last* and the *Show only* filters, and the
+  rule for the decimals of slopes. They describe the changes above; the
+  wording is a proposal and not yet approved by the maintainer.
 
 ### Added (Cohort models: control over a running fit)
 
