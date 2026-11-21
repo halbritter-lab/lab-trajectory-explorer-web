@@ -1,5 +1,44 @@
 # Manual browser smoke checklist
 
+## Import diagnostics, LOINC material rule and Data page notes (2026-11-21)
+
+Branch `feat/import-diagnostics` (issues #74, #2, #34; persona review of
+2026-11-21). Checked with ad-hoc Playwright scripts against the production
+build in Chromium, with the synthetic review files.
+
+- A semicolon CSV with more commas than semicolons in its rows loads (36 and
+  12 lab values, 0 warnings); a `sep=` file and a three-comma file load as
+  before. A wide table (one column per test) is rejected with the sentence
+  "This file seems to have one column per lab test …".
+- Register file with deliberate errors: 41 lab values, 4 rows rejected, 9
+  warnings. Each rejected row names its file row (12, 27, 28, 39); the
+  implausible date 3024-05-08, the same-day values 1.1 and 1.9, the sex code
+  "x" and the IDs "0012" and "12" are each reported and open their rows.
+- "Replace attributes" afterwards: the notice reads "9 attribute rows
+  imported; 1 row rejected", and the panel shows "Lab values (…, 4 rows
+  rejected): 13 import diagnostics" beside "Attributes (…): 3 import
+  diagnostics". After "Remember on this device" and a reload both lists are
+  still there.
+- "Download import diagnostics (XLSX)" gives 28 lines (18 lab findings, 3
+  attribute findings, 7 data-check rows); the cohort workbook ends with the
+  sheet `import_diagnostics` holding the same lines.
+- Review file with urine creatinine marked only by LOINC 2161-8: parameters
+  `Kreatinin` (15 values), `Creatinin (Jaffe)` (3) and `Kreatinin (urine,
+  LOINC 2161-8)` (6); 0 AKI episodes (5 before); the urine parameter is not
+  offered as eGFR source; 15 computed values (21 before). Demo data: numbers
+  unchanged, the LOINC column shows 62238-1 and 98979-8 for `eGFR`.
+- Demo, CKD-EPI 2021 selected without applying: "Preview not applied" at the
+  selection and "eGFR preview not applied [Apply]" beside "Open trajectories";
+  both disappear after Apply. At 390 px the note wraps above the button
+  without horizontal scrolling.
+- Age-conflict file: "… on 2 of 7 lab dates: 2023-07-11 (stated 54, derived
+  55), 2024-07-09 (stated 56, derived 55)."; no "days apart".
+- Patient table with "Dated numeric values", "First date", "Last date";
+  event tables with "Description"; the event-template sentence under
+  "Templates and example files".
+- Not checked in a browser: Firefox and WebKit; a workbook with more than
+  1000 affected rows per warning (unit test only).
+
 ## Cohort model presets with the demo, plain punctuation (2026-10-13)
 
 Branch `fix/cohort-demo-subgroups`. Subgroup comparison could not fit any

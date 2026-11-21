@@ -19,9 +19,10 @@ interfaces are still evolving before 1.0.
   this device" and restored with the dataset. Copies saved before restore
   without them.
 - "Download import diagnostics (XLSX)" on the Data page, and a new last sheet
-  `import_diagnostics` in the cohort and patient workbooks, hold all
-  diagnostics and data-check rows of the imported dataset. Existing sheets
-  keep their names, columns and positions.
+  `import_diagnostics` in the cohort and patient workbooks, hold the
+  diagnostics and data-check rows. The workbook sheet leaves out lines about
+  patients who are not part of the export. Existing sheets keep their names,
+  columns and positions.
 - New import warnings; none changes an imported value, a series or a result:
   - a lab date after the import day or before 1927-05-18, once per patient
     with the date (owner decision of 2026-11-21);
@@ -49,6 +50,20 @@ interfaces are still evolving before 1.0.
   `measurements`, `raw_measurements` and `parameters` of the cohort and
   patient workbooks get a last column `loinc`; existing columns keep their
   names and positions.
+
+### Added (Data page, after the persona review of 2026-11-21)
+
+- When the selected eGFR formula or creatinine source differs from the one
+  in use, the Data page says "Preview not applied" at the selection and
+  beside "Open trajectories", with a button to apply it. Before, only the
+  grey line "Active: Off, 0 computed values" showed the difference.
+- "Review and edit patients" shows the number of dated numeric values and the
+  first and last date per patient; "Imported parameters" shows how many
+  patients have fewer than three dated numeric values of a parameter.
+- Under "Templates and example files" a sentence states the allowed event
+  types, the intent values (dialysis only) and the date forms, and points to
+  "Demo events" as a filled example.
+- "Loaded events" and "Rejected event rows" show the event description.
 
 ### Changed (age conflict message, decided 2026-11-21)
 

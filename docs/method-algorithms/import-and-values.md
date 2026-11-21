@@ -250,13 +250,13 @@ For all other rows:
   patient. `0012`, `12.0` and `1e3` remain text and are patients distinct from
   12 and 1000. Lab rows, attribute rows and manual entries are matched by the
   text form of the ID.
-- **Similar patient IDs.** IDs are never merged. One sheet-level warning names
+- **Similar patient IDs.** IDs are never merged. A sheet-level warning names
   the IDs of the lab sheet that become equal after lowercasing, removing all
   whitespace and removing leading zeros (a lone `0` stays): `0012` and `12`,
   `ab 1` and `AB1`. `12.0` and `12` are not reported, because the rule does
-  not read numbers. The warning names up to five such groups, counts the rest
-  and lists the first row of every ID involved. IDs of the events and
-  attributes tables are not compared.
+  not read numbers. There is one warning per group of such IDs; it lists the
+  first row of every ID in the group. IDs of the events and attributes tables
+  are not compared.
 - **Invalid lab date.** A row whose lab date cell is present but not a valid
   date (see Dates) is rejected. The diagnostic quotes the cell and states the
   reason; the row is not imported.
@@ -336,10 +336,15 @@ No finding changes an imported value.
   `parameter`, `value`, `message`. A finding about one row or without rows is
   one line; a collective warning is one line per listed row, each repeating
   the message, plus one line without a row when more rows were affected than
-  listed. The sheet covers the whole imported dataset, whatever patients and
-  parameters are selected for the export, and is the last sheet of the
-  workbook. It is empty when there is nothing to report; the download button
-  is shown only when the import produced a finding.
+  listed. The download holds every line. The workbook sheet leaves out the
+  lines about a loaded patient who is not part of the export, like that
+  patient's measurements; lines without a patient stay, and a cohort workbook
+  also keeps lines about IDs that never became a patient (all rows rejected,
+  attribute or event rows of an unknown patient), while a patient workbook
+  holds only that patient's lines and those without a patient. Parameters are
+  not filtered. The sheet is the last sheet of the workbook and is empty when
+  there is nothing to report; the download button is shown only when the
+  import produced a finding.
 
 ### Dates
 

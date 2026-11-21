@@ -366,7 +366,9 @@ function implausibleLabDateWarnings(rows: readonly LabRow[], now: Date): LabImpo
     const time = row.labDatum.getTime()
     if (time <= importDay && time >= earliest) continue
     const key = patientIdKey(row.patientId)
-    byPatient.set(key, [...(byPatient.get(key) ?? []), row])
+    const affected = byPatient.get(key)
+    if (affected) affected.push(row)
+    else byPatient.set(key, [row])
   }
   return [...byPatient.values()].map((affected) => {
     const dates = [...new Set(affected.map((row) => row.labDatum!.getTime()))].sort((a, b) => a - b)
@@ -523,22 +525,19 @@ function similarIdKey(id: PatientId): string {
 }
 
 /** Patient IDs that differ only in leading zeros, whitespace or letter case
- * ("0012" and "12"). They remain separate patients; the first row of each ID
- * is listed. */
+ * ("0012" and "12"), one warning per group of such IDs. They remain separate
+ * patients; the first row of each ID is listed. */
 function similarPatientIdNote(rows: readonly LabRow[]): LabImportIssue[] {
-  const GROUPS_NAMED = 5
   const firstRow = new Map<string, LabRow>()
   for (const row of rows) if (!firstRow.has(patientIdKey(row.patientId))) firstRow.set(patientIdKey(row.patientId), row)
   const groups = new Map<string, LabRow[]>()
   for (const row of firstRow.values()) {
     const key = similarIdKey(row.patientId)
-    groups.set(key, [...(groups.get(key) ?? []), row])
+    const group = groups.get(key)
+    if (group) group.push(row)
+    else groups.set(key, [row])
   }
-  const similar = [...groups.values()].filter((group) => group.length > 1)
-  if (similar.length === 0) return []
-  const named = similar.slice(0, GROUPS_NAMED).map((group) => group.map((row) => `"${row.patientId}"`).join(' and '))
-  const more = similar.length > GROUPS_NAMED ? `; and ${plural(similar.length - GROUPS_NAMED, 'more group')}` : ''
-  return [collectiveWarning(
-    `Patient IDs that differ only in leading zeros, spaces or letter case are kept as separate patients: ${named.join('; ')}${more}. Check whether they are the same patient.`,
-    similar.flat(), null, () => '')]
+  return [...groups.values()].filter((group) => group.length > 1).map((group) => collectiveWarning(
+    `Patient IDs ${group.map((row) => `"${row.patientId}"`).join(' and ')} differ only in leading zeros, spaces or letter case and are kept as separate patients. Check whether they are the same patient.`,
+    group, null, () => ''))
 }

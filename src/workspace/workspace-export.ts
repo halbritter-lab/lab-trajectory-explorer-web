@@ -38,6 +38,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const ids = patientId === undefined ? visibleIds : visibleIds.filter(id => id === patientId)
   if (!ids.length) throw new Error('No patients available in the current selection.')
   const idSet = new Set(ids)
+  const exportedKeys = new Set(ids.map(patientIdKey))
+  const loadedKeys = new Set(data.patients.map(patient => patientIdKey(patient.id)))
   const bySeries = new Map(selectedParameters.map(parameter => [seriesIdentity(parameter.bezeichnung,parameter.einheit),parameter]))
   const scopedRows = (rows: LabRow[]) => rows.filter(row => idSet.has(row.patientId) && bySeries.has(seriesIdentity(row.bezeichnung,row.einheit)))
   const prepared = ids.map(id => {
@@ -99,10 +101,17 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:`ci_low and ci_high are the 95 % interval of the slope. For a Theil-Sen fit with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval. ${THEIL_SEN_FEW_DATES_COVERAGE}.`},
       {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},
       {note:'loinc is the LOINC code as imported (measurements, raw_measurements) and the distinct codes of a parameter (parameters). Codes do not separate or join parameters, with one exception: creatinine with a urine code (2161-8, 14683-7) is a parameter of its own, named with the code, and is not used for AKI detection or eGFR.'},
-      {note:'import_diagnostics lists what the import reported for lab values, events and attributes (rejected rows and warnings) and the rows behind the data checks of the Data page (values without a date or a number, implausible serum creatinine). It covers the whole imported dataset, not only the selected patients and parameters. row is the row in the source file (header row = 1); a collective warning has one line per affected row. The sheet is empty when there is nothing to report.'},
+      {note:'import_diagnostics lists what the import reported for lab values, events and attributes (rejected rows and warnings) and the rows behind the data checks of the Data page (values without a date or a number, implausible serum creatinine). Lines about patients outside this export are left out; all parameters are covered, not only the selected ones. row is the row in the source file (header row = 1); a collective warning has one line per affected row. The sheet is empty when there is nothing to report.'},
     ]},
     // Appended after the sheets that existed before 2026-11-21, so their positions stay.
-    {name:'import_diagnostics',rows:importDiagnosticRecords(data.importDiagnostics ?? [],dataChecks(data.rawRows))},
+    // Lines about a loaded patient outside the exported scope are left out, like that patient's
+    // measurements. Lines without a patient stay; so do, in a cohort export, lines about IDs
+    // that never became a patient (all rows rejected, attribute rows of unknown patients).
+    {name:'import_diagnostics',rows:importDiagnosticRecords(data.importDiagnostics ?? [],dataChecks(data.rawRows)).filter(record => {
+      if (record.patient_id === '') return true
+      const key = patientIdKey(record.patient_id)
+      return exportedKeys.has(key) || (patientId === undefined && !loadedKeys.has(key))
+    })},
   ]
 }
 

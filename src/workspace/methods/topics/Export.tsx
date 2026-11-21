@@ -10,7 +10,7 @@ export function Export() { return <>
 <tr><td>events / patient_attributes / demographics</td><td>Event context, attributes, resolved demographics, overrides and warnings.</td></tr>
 <tr><td>parameters / settings</td><td>Parameter identity, derivation formula and source, fit configuration, source file and exported scope.</td></tr>
 <tr><td>about</td><td>Research-use disclaimer and interpretation notes.</td></tr>
-<tr><td>import_diagnostics</td><td>Rows the import rejected and its warnings for lab values, events and attributes, with the row of the source file, and the rows behind the data checks of the Data page. Covers the whole imported dataset, not only the selected scope.</td></tr></tbody></table></ReferenceTable>
+<tr><td>import_diagnostics</td><td>Rows the import rejected and its warnings for lab values, events and attributes, with the row of the source file, and the rows behind the data checks of the Data page. Lines about patients outside the export are left out; the download on the Data page holds all of them.</td></tr></tbody></table></ReferenceTable>
 <p>Select the source creatinine parameter as well as the computed eGFR parameter to include its imported measurements in the export.</p>
 <h3 id="methods-provenance" tabIndex={-1}>Trace a result</h3>
 <p>In the exported slope table, <code>fit_model</code> identifies the estimator and <code>slope_mode</code> records rolling, segmentation and other paths. Retain the settings and parameter sheets alongside results to reproduce the analysis.</p>

@@ -67,4 +67,20 @@ describe('cohort workbook: import_diagnostics sheet', () => {
     ])
     expect(XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.about).some((row) => String(row.note).startsWith('import_diagnostics lists what the import reported'))).toBe(true)
   })
+
+  it('leaves out lines about loaded patients outside the export, and in a patient export all other IDs', () => {
+    const input = exportFixture()
+    const mine = { source: 'labs' as const, sheet: 'labs.csv', patientId: '001-A', severity: 'rejected' as const, row: 5, reason: 'Lab date "x" is not a recognised date; row not imported.' }
+    const hidden = { ...mine, patientId: 'hidden', row: 6 }
+    const shared = { source: 'labs' as const, sheet: 'labs.csv', patientId: null, severity: 'warning' as const, scope: 'sheet' as const, reason: '2 duplicate lab rows.',
+      rows: [{ row: 8, patientId: '001-A', date: '2024-01-01', parameter: 'Marker|one [mg/L]', value: '10' }, { row: 9, patientId: 'hidden', date: '2024-01-01', parameter: 'Marker|one [mg/L]', value: 'SECRET' }] }
+    input.data.importDiagnostics = [...diagnostics, mine, hidden, shared]
+    input.data.rawRows.push({ ...input.data.rawRows[2], wert: 'SECRET-TEXT', wertNum: null, wertOperator: 'unparseable', sourceRow: 12 })
+    const sheet = (bytes: Uint8Array) => XLSX.utils.sheet_to_json<Record<string, unknown>>(XLSX.read(bytes, { type: 'array' }).Sheets.import_diagnostics, { defval: '' })
+    const cohort = sheet(workspaceWorkbookBytes(input))
+    expect(cohort.map((r) => r.patient_id)).toEqual(['', 'A', 'B', '', '', '001-A', '001-A', 'B'])
+    expect(JSON.stringify(cohort)).not.toContain('SECRET')
+    const patient = sheet(workspaceWorkbookBytes({ ...input, patientId: '001-A' }))
+    expect(patient.map((r) => r.patient_id)).toEqual(['', '', '', '001-A', '001-A'])
+  })
 })

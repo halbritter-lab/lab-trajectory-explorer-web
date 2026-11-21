@@ -146,9 +146,12 @@ describe('unreadable sex codes and similar patient IDs', () => {
       '120;2023-10-01;HbA1c;%;6,1;w',
     ])
     expect(new Set(rows.map((r) => r.patientId)).size).toBe(6)
-    const [note] = find(diagnostics, /Patient IDs that differ only/)
-    expect(note.reason).toBe('Patient IDs that differ only in leading zeros, spaces or letter case are kept as separate patients: "0012" and "12"; "ab 1" and "AB1". Check whether they are the same patient.')
-    expect(note.rows?.map((r) => [r.row, r.patientId])).toEqual([[2, '0012'], [3, 12], [4, 'ab 1'], [5, 'AB1']])
+    const notes = find(diagnostics, /differ only in leading zeros/)
+    expect(notes.map((d) => d.reason)).toEqual([
+      'Patient IDs "0012" and "12" differ only in leading zeros, spaces or letter case and are kept as separate patients. Check whether they are the same patient.',
+      'Patient IDs "ab 1" and "AB1" differ only in leading zeros, spaces or letter case and are kept as separate patients. Check whether they are the same patient.',
+    ])
+    expect(notes.map((d) => d.rows?.map((r) => [r.row, r.patientId]))).toEqual([[[2, '0012'], [3, 12]], [[4, 'ab 1'], [5, 'AB1']]])
   })
 
   it('adds neither warning to a clean file', () => {

@@ -46,7 +46,7 @@ test('reads a German semicolon CSV as text and lists its import diagnostics', as
   await expect(page.getByText(/3 lab values.*1 row rejected; 4 warnings\./)).toBeVisible()
   await page.getByText(/import diagnostics — show details/).click()
   await expect(page.getByText('labs.csv, row 4, patient 12, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.')).toBeVisible()
-  await expect(page.getByText(/Patient IDs that differ only in leading zeros, spaces or letter case are kept as separate patients: "0012" and "12"\./)).toBeVisible()
+  await expect(page.getByText(/Patient IDs "0012" and "12" differ only in leading zeros, spaces or letter case and are kept as separate patients\./)).toBeVisible()
   await expect(page.getByText(/read day-first/)).toBeVisible()
   await expect(page.getByText('labs.csv, warning: Kreatinin: unit spellings "µmol/l" (2), "umol/L" (1) were merged as "µmol/l".')).toBeVisible()
   await expect(page.getByText(/Kreatinin \[µmol\/l\]: 1 censored value/)).toBeVisible()
