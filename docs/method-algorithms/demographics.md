@@ -239,6 +239,8 @@ The workbook export records the resolution:
 | `demographics` | `warnings` | the texts of the patient's conflict messages |
 | `measurements` | `patient_sex`, `patient_age_at_lab` | resolved values; column `demographics` reads "resolved analysis values" |
 | `raw_measurements` | `patient_sex`, `patient_age_at_lab` | values as imported; column `demographics` reads "as imported" |
+| `raw_measurements` | `patient_birth_date` | the birth date read from the lab row as a calendar date; blank when the row had none or it was unreadable (since 2026-11-21) |
+| `measurements` | `patient_birth_date` | always blank; the resolved date is `birth_anchor` of `demographics` |
 
 The term "age anchor" has two meanings in this document: the birth-date anchor
 of this section is a date from which every row's age is derived, whereas the

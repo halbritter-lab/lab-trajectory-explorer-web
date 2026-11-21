@@ -90,7 +90,10 @@ describe('about sheet: provenance and personal data', () => {
     // The worked example of the method reference.
     const a = { PatientID: 7, Date: '2024-01-15', Parameter: 'Creatinine', Unit: 'mg/dl', Value: '1.2', patient_sex: 'w', patient_age_at_lab: 54 }
     const b = { ...a, Date: '2024-07-15', Value: '<1.0' }
-    expect([inputDataId([a, b]), inputDataId([b, a]), inputDataId([a, { ...b, Value: '1.0' }])]).toEqual(['2d00e7b1', '2d00e7b1', '025df805'])
+    expect([inputDataId([a, b]), inputDataId([b, a]), inputDataId([a, { ...b, Value: '1.0' }])]).toEqual(['d2196115', 'd2196115', 'bf80cedd'])
+    // The imported birth date is part of the identifier: an exact date and an age in whole years are different inputs.
+    expect(inputDataId([{ ...a, patient_birth_date: '1969-05-06' }])).not.toBe(inputDataId([a]))
+    expect(inputDataId([{ ...a, patient_birth_date: '' }])).toBe(inputDataId([a]))
     expect(inputDataId([{ PatientID: 7, Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1' }])).toBe(inputDataId([{ PatientID: '7', Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1', patient_sex: '', patient_age_at_lab: null }]))
   })
 

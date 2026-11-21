@@ -9,9 +9,11 @@ interfaces are still evolving before 1.0.
 
 - The patient ID column is named `PatientID` in every sheet. In `events`,
   `patient_attributes` and `demographics` it was `patientId`; a script that
-  reads that name there fails on it. `patient_attributes` writes a numeric ID
+  reads that name there fails on it. The cell has the type the import gave
+  the ID, the same in every sheet: `patient_attributes` writes a numeric ID
   as a number like the other sheets (it wrote text), so the sheets join on
-  the ID without a conversion.
+  the ID without a conversion. A dataset with numeric and other IDs still
+  has both cell types in the column.
 - `group` is always the last column of the `cohort` and `slopes` sheets and
   empty when the table is not grouped. A grouped export used to have it as
   column A, with every other column one position further right; it now has
@@ -48,6 +50,13 @@ interfaces are still evolving before 1.0.
   `exported_at` (UTC), `export_id` and `input_data_id`, an identifier of the
   imported measurements in the exported scope, so an archived file can be
   assigned to a version and two runs on the same data can be recognised.
+  The identifier covers the rows of `raw_measurements` including the
+  imported birth date; events, attributes and manual demographic entries
+  are not part of it.
+- `measurements` and `raw_measurements` end with `patient_birth_date`. In
+  `raw_measurements` it holds the birth date of the imported lab row; in
+  `measurements` it is empty (the resolved date is `birth_anchor` in
+  `demographics`).
 - The `about` sheet names the fixed parameters of segmented OLS, says what
   the preset name records, and lists the personal and source-related fields
   of the file (patient IDs as imported, the birth date estimated from age,
@@ -81,13 +90,17 @@ interfaces are still evolving before 1.0.
 
 ### Changed (exports, after the persona review of 2026-11-21)
 
+- The notice for restored settings that are shown as "Custom configuration"
+  no longer names a time axis of the exported fit configuration, which the
+  export no longer writes.
 - Workbooks are written compressed. The demo cohort export shrinks from
   661 kB to about 214 kB; sheets and cells are unchanged.
 - A cohort workbook exported by the app can be loaded again as a dataset:
   the import reads `raw_measurements` as the lab sheet and accepts its
   `Date` and `Parameter` headers. It restores the exported patients and
-  parameters as imported, with events and attributes; derived values are
-  computed anew, and settings are not restored.
+  parameters as imported, with events, attributes and a birth date on the
+  lab rows (`patient_birth_date`); derived values are computed anew, and
+  settings and manual demographic entries are not restored.
 
 ### Added (Cohort models: control over a running fit)
 

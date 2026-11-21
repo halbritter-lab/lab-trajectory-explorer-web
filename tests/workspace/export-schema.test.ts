@@ -36,7 +36,7 @@ describe('cohort workbook schema', () => {
   it('pins the sheets and the columns of every sheet', () => {
     const workbook = read(workspaceWorkbookBytes(exportFixture()))
     expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns'])
-    const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics']
+    const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'patient_birth_date']
     expect(header(workbook, 'measurements')).toEqual(measurement)
     expect(header(workbook, 'raw_measurements')).toEqual(measurement)
     expect(header(workbook, 'cohort')).toEqual(COHORT_HEADER)
@@ -75,7 +75,7 @@ describe('cohort workbook schema', () => {
     expect(records(workbook, 'aki_episodes')).toEqual([])
     expect(header(workbook, 'aki_episodes')).toHaveLength(10)
     expect(records(workbook, 'raw_measurements')).toEqual([])
-    expect(header(workbook, 'raw_measurements')).toHaveLength(12)
+    expect(header(workbook, 'raw_measurements')).toHaveLength(13)
   })
 
   it('names the ID PatientID in every sheet and writes one type: a number for a numeric ID', () => {

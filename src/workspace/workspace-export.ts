@@ -39,12 +39,13 @@ const SEGMENT_MIN_POINTS = 3
 
 /** Identifier of the imported rows in the export scope: the FNV-1a hash (32
  * bit, eight hex digits) of the rows of `raw_measurements`, each reduced to
- * patient ID (as text), date, parameter, unit, value text, sex and stated
- * age, sorted, as JSON. The same rows give the same identifier whatever
+ * patient ID (as text), date, parameter, unit, value text, sex, stated age
+ * and imported birth date, sorted, as JSON. Events, attributes and manual
+ * demographic entries are not part of it. The same rows give the same identifier whatever
  * their order, the fit settings and the app version; it is a checksum for
  * comparing runs, not a cryptographic hash. */
 export function inputDataId(rawMeasurementRows: readonly Record<string, unknown>[]): string {
-  const rows = rawMeasurementRows.map(row => JSON.stringify([String(row.PatientID),row.Date,row.Parameter,row.Unit,row.Value,row.patient_sex ?? '',row.patient_age_at_lab ?? null])).sort()
+  const rows = rawMeasurementRows.map(row => JSON.stringify([String(row.PatientID),row.Date,row.Parameter,row.Unit,row.Value,row.patient_sex ?? '',row.patient_age_at_lab ?? null,row.patient_birth_date ?? ''])).sort()
   return hashString(`[${rows.join(',')}]`)
 }
 
@@ -55,8 +56,11 @@ const seriesIdentity = (name: string | null, unit: string | null) => JSON.string
  * (one column per attribute) and `settings` (one column per module setting)
  * take their columns from their rows, which are never empty. The patient ID
  * is `PatientID` in every sheet, written as the import read it: a number for
- * a numeric ID, otherwise text. */
-export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics'] as const
+ * a numeric ID, otherwise text. `patient_birth_date` is the birth date of
+ * the imported lab row: filled in `raw_measurements` only, so that a
+ * re-import keeps an exact birth date; the resolved date of the analysis is
+ * `birth_anchor` in `demographics`. */
+export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics','patient_birth_date'] as const
 export const EVENTS_SHEET_HEADER = ['PatientID','type','date','title','description','endDate','intent','warning'] as const
 export const AKI_EPISODES_SHEET_HEADER = ['PatientID','creatinine_parameter','creatinine_unit','stage','onset_date','peak_date','peak_value_mg_dl','baseline_date','baseline_value_mg_dl','criterion'] as const
 export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings'] as const
@@ -90,6 +94,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       formula:!raw && parameter.derived ? data.analysisSettings.egfr.formula : '',
       patient_sex:row.patientSex ?? '',patient_age_at_lab:row.patientAgeAtLab,
       demographics:raw ? 'as imported' : 'resolved analysis values',
+      patient_birth_date:raw ? utcDateOrBlank(row.patientBirthDate ?? null) : '',
     }))
   })
   const attrs = Object.fromEntries(ids.map(id => [patientIdKey(id),data.patientAttributes[patientIdKey(id)] ?? {}]))
@@ -149,12 +154,13 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Time axis of the trend: every slope is fitted on the time in years (365.25 days) since the first fitted measurement of the patient and parameter, whose date is index_date. slope is the change per year and intercept is the fitted value at index_date, not at age 0 or at a calendar origin. The axis chosen for the charts (age, calendar date, time since first measurement) changes the drawing only. fit_config no longer carries the entry xAxis (until 2026-11-21 it did, with "age" for the CKD progression preset); no fit ever read it.'},
       {note:'preset in fit_config records how the settings were selected: a preset of the app, or custom after any setting was changed by hand. The Theil-Sen preset is written as theil_sen (until 2026-11-21 as custom). The other entries of fit_config, the settings sheet and the columns of the result sheet determine the computation; two files with the same entries and a different preset name were computed the same way.'},
       {note:`Fixed parameters that fit_config does not carry: Segmented OLS (slope_mode gap-split) starts a new segment where two consecutive fitted points are more than ${SEGMENT_GAP_DAYS} days apart and fits a segment of at least ${SEGMENT_MIN_POINTS} points; slope, intercept, r2 and the bounds are those of the global OLS fit across all segments. Rolling OLS: see rolling_window_days and rolling_step_days in the result sheet.`},
-      {note:`This file contains personal data and details of its origin. The patient IDs are written as imported, not pseudonymised: in column PatientID of every sheet and in settings (patient_ids). The measurement sheets hold dated values, sex and age; demographics holds birth_anchor, a birth date (estimated from the stated age where age_estimated is true); events and patient_attributes hold the imported texts and attributes. settings names the imported file (source_file). Check these fields before passing the file on.`},
+      {note:`This file contains personal data and details of its origin. The patient IDs are written as imported, not pseudonymised: in column PatientID of every sheet and in settings (patient_ids). The measurement sheets hold dated values, sex and age, and raw_measurements the birth date where the imported lab rows carried one (patient_birth_date); demographics holds birth_anchor, a birth date (estimated from the stated age where age_estimated is true); events and patient_attributes hold the imported texts and attributes. settings names the imported file (source_file). Check these fields before passing the file on.`},
+      {note:'patient_birth_date is the last column of the measurement sheets. In raw_measurements it holds the birth date of the imported lab row, so that loading this file again keeps an exact birth date; where the import had no birth date it is empty, and patient_age_at_lab is then the stated age. In measurements it is empty: the birth date used by the analysis is birth_anchor in demographics.'},
       {note:`app_version: ${APP_VERSION}`},
       {note:`exported_at: ${exportedAt.toISOString()}`},
       {note:`export_id: ${exportId}`},
       {note:`input_data_id: ${inputDataId(rawMeasurements)}`},
-      {note:'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements: patient, date, parameter, unit, value, sex and stated age; a 32-bit checksum, independent of row order and of the settings): two exports with the same input_data_id were computed from the same imported rows.'},
+      {note:'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements: patient, date, parameter, unit, value, sex, stated age and imported birth date; a 32-bit checksum, independent of row order and of the settings): two exports with the same input_data_id were computed from the same imported rows. Events, attributes and manual demographic entries are not part of it.'},
     ]},
     // Sheets added later follow the earlier ones, so sheet positions stay.
     {name:'columns',header:['column','meaning','unit','empty_when'],rows:cohortColumnDirectoryRows()},

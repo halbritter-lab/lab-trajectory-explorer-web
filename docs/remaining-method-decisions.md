@@ -671,7 +671,13 @@ Implemented on assumptions that still need the owner's confirmation:
   settings were selected.
 - `input_data_id` is defined as a 32-bit checksum of the rows of
   `raw_measurements` (issue #35, provenance item; no owner decision yet on
-  the definition).
+  the definition). It covers the imported birth date of the rows; events,
+  attributes and manual demographic entries are not part of it.
+- `patient_birth_date` was appended to the two measurement sheets, filled in
+  `raw_measurements` only, so that a re-import of the workbook keeps an exact
+  birth date instead of inferring an anchor from whole-year ages. The
+  alternative is to leave the column out and state that birth dates are not
+  restored.
 
 New text that awaits the maintainer's approval: the section "Cohort-model
 workbook" and the two changed table rows on the Methods page "Export &

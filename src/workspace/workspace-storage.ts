@@ -163,7 +163,7 @@ export function restoredNotice({ stored, notRestored, keptAsCustom }: Pick<Resto
   if (stored === 'none') return `Dataset restored from this device. No analysis settings were saved with this copy, so presets, trend and display settings start from their defaults. ${notSaved}`
   if (stored === 'discarded') return `Dataset restored from this device. Its saved analysis settings could not be used (saved by another version), so presets, trend and display settings start from their defaults. ${notSaved}`
   return `Dataset and analysis settings (presets, trend and display choices) restored from this device. ${notSaved}`
-    + (keptAsCustom.length ? ` Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: ${keptAsCustom.join('; ')}. The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom" and time axis "calendar_time".` : '')
+    + (keptAsCustom.length ? ` Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: ${keptAsCustom.join('; ')}. The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom".` : '')
     + (notRestored.length ? ` Not restored, the defaults are used instead: ${notRestored.join('; ')}.` : '')
 }
 

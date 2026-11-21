@@ -7,6 +7,7 @@ import process from 'node:process'
 import { workspaceWorkbookBytes, exportChartSvg, safeExportFilename } from '../../src/workspace/workspace-export'
 import { defaultFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
 import { loadDatasetFromWorkbook } from '../../src/io/loadDataset'
+import { resolveBirthAnchor } from '../../src/core/demographics/resolveAge'
 
 function records(workbook: XLSX.WorkBook, name: string) {return XLSX.utils.sheet_to_json<Record<string,unknown>>(workbook.Sheets[name])}
 
@@ -23,6 +24,24 @@ describe('workspace workbook', () => {
     expect(dataset.events).toEqual([expect.objectContaining({ patientId: '001-A', type: 'other', title: 'Visit' })])
     expect(dataset.patientAttributes).toEqual({ '001-A': { group: 'A' } })
     expect(dataset.diagnostics.filter(d => d.severity === 'rejected')).toEqual([])
+  })
+  it('writes the imported birth date to raw_measurements, so a re-import keeps the exact birth-date anchor', () => {
+    const input = exportFixture()
+    const birth = new Date('1968-05-06T00:00:00Z')
+    const [withBirth, withoutBirth] = input.data.rawRows.filter(row => row.patientId === '001-A' && row.bezeichnung === 'Marker|one')
+    Object.assign(withBirth, { labDatum: new Date('2024-01-01T00:00:00Z'), patientBirthDate: birth })
+    Object.assign(withoutBirth, { labDatum: new Date('2024-03-01T00:00:00Z'), patientBirthDate: null })
+    const bytes = workspaceWorkbookBytes({ ...input, parameterKeys: ['marker', 'other-unit', 'derived'] })
+    const workbook = XLSX.read(bytes, { type: 'array' })
+    expect(records(workbook, 'raw_measurements').map(row => row.patient_birth_date)).toEqual(['1968-05-06', ''])
+    // The analysis sheet leaves the column empty: the resolved date is birth_anchor in demographics.
+    expect(records(workbook, 'measurements').map(row => row.patient_birth_date)).toEqual(['', '', ''])
+    const dataset = loadDatasetFromWorkbook(bytes)
+    expect(dataset.rows.map(row => row.patientBirthDate?.toISOString().slice(0, 10) ?? null)).toEqual(['1968-05-06', null])
+    expect(dataset.diagnostics).toEqual([])
+    const anchor = (rows: typeof dataset.rows) => resolveBirthAnchor({ patientId: '001-A', rows: rows.map(row => ({ labDatum: row.labDatum, ageAtLab: row.patientAgeAtLab, birthDate: row.patientBirthDate ?? null })), attributeBirthDate: null, manualAge: undefined }).birthAnchor
+    expect(anchor(dataset.rows)).toEqual(birth)
+    expect(anchor(dataset.rows)).toEqual(anchor([withBirth, withoutBirth]))
   })
   it('exports each column model and rapid-decline threshold with matching flags', () => {
     const input = exportFixture()

@@ -449,7 +449,9 @@ it does not claim research, clinical or representative-user validation.
    `PatientID` in every sheet, a last sheet `columns`, and `app_version`,
    `exported_at`, `export_id` and `input_data_id` in `about`. Import the
    exported file under Data: it loads without a column error (automated in
-   `tests/e2e/cohort-export.e2e.ts`).
+   `tests/e2e/cohort-export.e2e.ts`). With a file that has a `birthDate`
+   column, `demographics` of the export of the re-imported file shows the
+   same `birth_anchor` with `age_estimated` false.
 6. Open a saved session whose creatinine source is no longer a serum name. The
    Data page shows the amber notice that no eGFR is computed from it.
 
