@@ -84,6 +84,25 @@ interfaces are still evolving before 1.0.
   patient's eGFR was computed from, and the `about` sheet a note on them.
   AKI windows of the computed eGFR column come from that same series.
 
+### Added (display extensions, issue #70, decided 2026-11-21)
+
+- **Logarithmic value axis per column, with doubling or halving time.** The
+  toggle "log" beside a column's trend controls draws its table, overlay and
+  patient charts on a base-10 logarithmic axis. With a trend, the column's own
+  fit (same mode, estimator, exclusions and time balancing) is run again on
+  the natural logarithm of the values; values of zero or less are left out
+  and counted. The doubling time is ln 2 / slope in years (negative: halving
+  time), with an interval from the slope bounds when they exclude zero. A new
+  number for the new option only: with the option off no number, sheet or
+  column changes; with it on the workbook gains the sheet `log_trend` and one
+  `about` note. Method: `docs/method-algorithms/log-scale-and-doubling-time.md`.
+- **Events in the table charts.** With "Events" on (now also in the table's
+  Display menu), the charts of the Trajectories table draw a dashed line at
+  each event date and a band to the end date of an event that has one,
+  clipped to the chart's time range.
+- More than three parameter columns: there was no limit; the default stays
+  the first three parameters.
+
 ### Changed (open points of the persona review, decided 2026-11-22)
 
 - Review of the combined branch (2026-11-22): a before/after side fitted

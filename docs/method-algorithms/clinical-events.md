@@ -165,6 +165,17 @@ order, an event before the measurements of its own day, and the card "Events
 for this patient" lists them by date (events of one date in file order).
 Counts, fits and exports are unaffected.
 
+Since 2026-11-22 (issue #70) the charts of the Trajectories table draw the
+patient's events too, under the same "Events" switch, which the table's
+Display menu now offers as well (off by default). The time range of a table
+chart is fixed (days 0 to the longest series of the column, from the patient's
+first measurement of the parameter), so it is not widened for events: an
+event dated inside that range is a dashed line, an event with an `endDate` is
+in addition a band clipped to the range (an interval that starts before the
+first measurement and reaches into the range shows only its part inside), and
+an event wholly outside the range is not drawn. The chart's tooltip and
+accessible name list or count the drawn events.
+
 Defaults:
 
 - When a caller passes no censoring configuration, every option is on and the

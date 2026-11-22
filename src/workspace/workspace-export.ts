@@ -3,7 +3,7 @@ import { cohortExportRecords, cohortSheetRecord, EXPORT_DISCLAIMER_ROWS, slopeUn
 import type { AnchorComparisonSettings, AnchorSide } from '../core/cohort/anchorComparison'
 import { hashString } from '../core/mixedModel/validation'
 import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
-import { THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
+import { isUnstableSlope, THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
 import { patientMeasurementRecords } from '../core/patient/patientExport'
 import { patientAttributesExportRows } from '../core/attributes/attributes'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
@@ -86,6 +86,11 @@ export const ANCHOR_COMPARISON_SHEET_HEADER = ['PatientID','Parameter','Unit','f
   // Appended 2026-11-22 (review of the combined branch): below five dates Theil-Sen bounds are not a 95 % interval.
   'before_n_fitted_dates','after_n_fitted_dates'] as const
 
+/** Columns of `log_trend` (issue #70): the sheet exists only when a column is
+ * shown on a logarithmic axis, so an export without one is unchanged. */
+export const LOG_TREND_SHEET_HEADER = ['PatientID','Parameter','Unit','slope_mode','fit_model','n_fitted','n_fitted_dates','fitted_span_days','n_non_positive','index_date','last_fitted_date',
+  'log_slope','log_slope_ci_low','log_slope_ci_high','log_slope_se','log_intercept','r2','reason','unstable_slope','doubling_time_years','doubling_time_ci_low','doubling_time_ci_high'] as const
+
 const numberOrBlank = (value: number | undefined): number | '' => value === undefined || !Number.isFinite(value) ? '' : value
 
 /** One row per patient and column with a before/after comparison (issue #64);
@@ -108,6 +113,24 @@ function anchorComparisonRows(rows: readonly CohortRow[]) {
       slope_difference: numberOrBlank(comparison.difference), difference_ci_low: numberOrBlank(comparison.differenceCiLow), difference_ci_high: numberOrBlank(comparison.differenceCiHigh),
       slope_unit: slopeUnit(cell.einheit),
       before_n_fitted_dates: comparison.before?.nFittedDates ?? '', after_n_fitted_dates: comparison.after?.nFittedDates ?? '',
+    }]
+  }))
+}
+
+/** One row per patient and column shown on a logarithmic axis: the fit on
+ * ln(value) and the doubling time (positive) or halving time (negative). */
+function logTrendRows(rows: readonly CohortRow[]) {
+  return rows.flatMap(row => row.cells.flatMap(cell => {
+    const trend = cell.logTrend
+    if (!trend) return []
+    return [{
+      PatientID: row.patientId, Parameter: cell.bezeichnung, Unit: cell.einheit ?? '', slope_mode: cell.mode, fit_model: cell.fitModel,
+      n_fitted: trend.nFitted, n_fitted_dates: trend.nFittedDates, fitted_span_days: trend.fittedSpanDays, n_non_positive: trend.nNonPositive,
+      index_date: utcDateOrBlank(trend.firstFittedDate), last_fitted_date: utcDateOrBlank(trend.lastFittedDate),
+      log_slope: numberOrBlank(trend.slope), log_slope_ci_low: numberOrBlank(trend.ciLow), log_slope_ci_high: numberOrBlank(trend.ciHigh),
+      log_slope_se: numberOrBlank(trend.slopeSe), log_intercept: numberOrBlank(trend.intercept), r2: numberOrBlank(trend.r2), reason: trend.reason ?? '',
+      unstable_slope: isUnstableSlope({ reason: trend.reason, nFitted: trend.nFitted, nFittedDates: trend.nFittedDates, fittedSpanDays: trend.fittedSpanDays, fitModel: cell.fitModel }) ? 'yes' : '',
+      doubling_time_years: numberOrBlank(trend.doublingTimeYears), doubling_time_ci_low: numberOrBlank(trend.doublingCiLow), doubling_time_ci_high: numberOrBlank(trend.doublingCiHigh),
     }]
   }))
 }
@@ -181,6 +204,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     return exported
   }
   const rawMeasurements = measurementRows(data.rawRows,true)
+  const logTrends = logTrendRows(prepared)
   return [
     {name:'measurements',header:MEASUREMENT_SHEET_HEADER,rows:measurementRows(data.rows)},
     {name:'raw_measurements',header:MEASUREMENT_SHEET_HEADER,rows:rawMeasurements},
@@ -234,6 +258,9 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:`anchor_comparison lists the before/after comparison at an anchor event, one row per patient and parameter whose settings switch it on (settings: anchor_comparison). The anchor is the first event of the patient (anchor_rule first) or the first whose title or type equals anchor_value; among events of one date the first in the file. Measurements on the anchor date count as before; those of the exclusion_days days after it are left out of the after slope (n_excluded_window). Both sides use the points of the column\'s own fit (same censoring, exclusions and time balancing, balanced per side) and its estimator; n counts fitted points and n_fitted_dates their distinct dates. ci_low and ci_high of a side are its 95 % interval; for Theil-Sen with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval, as for the slope of the cohort sheet. slope_difference is after minus before; its 95 % interval is the Welch interval from the two OLS standard errors, assuming independent sides, and is empty for Theil-Sen and for a side with two points. A patient without a matching event has a row with empty values. The slope, flags and endpoints of the cohort sheet are those of the whole series.`},
       // Appended 2026-11-22 (issue #65).
       {note:'A computed eGFR reads one serum creatinine series per patient: the creatinine source of the Data page (source_parameter and source_unit in parameters), or, when that source is in mg/dl and the patient has no serum creatinine in mg/dl, the patient\'s series in µmol/l (divided by 88.42). egfr_source_parameter and egfr_source_unit, the last columns of demographics, name the series used for each patient; they are empty for a patient without a computed eGFR value. Series are not merged.'},
+
+      // Only with a log_trend sheet (issue #70), so an export without a logarithmic column is unchanged.
+      ...(logTrends.length ? [{note:'log_trend lists, for every parameter shown on a logarithmic value axis, the trend fitted to the natural logarithm of the values with the same slope mode, estimator, exclusions and time balancing as the column (monthly or quarterly medians are medians of the log values). Values of zero or less have no logarithm and are left out (n_non_positive); bounds stay out as in every fit. log_slope is per year; doubling_time_years is ln 2 / log_slope: positive is the doubling time, negative the halving time in years. doubling_time_ci_low and doubling_time_ci_high are ln 2 divided by the upper and the lower bound of log_slope, empty when the bounds include zero. The column\'s own slope and every other sheet are unchanged by this setting.'}] : []),
     ]},
     // Sheets added later follow the earlier ones, so sheet positions stay.
     {name:'columns',header:['column','meaning','unit','empty_when'],rows:cohortColumnDirectoryRows()},
@@ -254,6 +281,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     })},
     // Added 2026-11-22 (issue #64), after every earlier sheet, so their positions stay.
     {name:'anchor_comparison',header:ANCHOR_COMPARISON_SHEET_HEADER,rows:anchorComparisonRows(prepared)},
+    // Added 2026-11-22 (issue #70), only when a column has a logarithmic axis, after every other sheet.
+    ...(logTrends.length ? [{name:'log_trend',header:LOG_TREND_SHEET_HEADER,rows:logTrends}] : []),
   ]
 }
 

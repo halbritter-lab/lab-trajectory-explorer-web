@@ -1,5 +1,30 @@
 # Manual browser smoke checklist
 
+## Logarithmic axis, doubling time and table-chart events (2026-11-22, issue #70)
+
+Branch `wp/70-display-extensions`. Automated in
+`tests/e2e/log-axis-events.e2e.ts` (CEA of two patients, 1280 px and 390 px).
+
+1. Trajectories → a column's toggle **log** → the table charts of that column
+   use a logarithmic axis over the positive range; Trend on → the cell shows
+   "doubles in 1.02 y" for the worked example of
+   `docs/method-algorithms/log-scale-and-doubling-time.md`, "halves in …" for
+   a falling series. At 390 px the column controls stay in one row and the
+   settings button stays inside the table.
+2. Display → Events (table menu) → dashed lines at event dates and a band to
+   the end date in the table charts, also at the small chart size.
+3. Open the patient → the chart has a log axis (ticks 2, 5, 10, 20), the note
+   "Logarithmic value axis …", and the full sentence "Doubling time 1.02 years
+   (95% CI 0.888 to 1.19 years) …".
+4. Export cohort (XLSX) with a log column: last sheet `log_trend`, one `about`
+   note more; without a log column no `log_trend` sheet.
+
+Verified 2026-11-22 in Chromium against the development server: steps 1 to 3
+by the automated test with screenshots at 1280 px and 390 px; step 4 by the
+unit test `tests/workspace/log-axis.test.tsx`. Not checked: Firefox and
+WebKit, real tumour-marker data, the overlay with many log trajectories, and a
+Theil-Sen, Rolling or Segmented column on a log axis in the browser.
+
 ## Combined branch of the open points (2026-11-22)
 
 Branch `integration/open-items-2026-11-22` (`chore/persona-review-open-details`,
