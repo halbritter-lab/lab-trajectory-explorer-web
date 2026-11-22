@@ -61,9 +61,10 @@ describe('cohort workbook schema', () => {
     expect(records(plain, 'cohort').map(row => row.group ?? '')).toEqual(['', ''])
     // Column F is `slope` either way; a leading group column used to move it to G.
     expect(grouped.Sheets.cohort.F1.v).toBe('slope')
-    // K40 (2026-11-22): settings records the grouping attribute, last, empty without grouping.
+    // K40 (2026-11-22): settings records the grouping attribute, empty without grouping,
+    // after scope and before anchor_comparison (issue #64, appended the same day).
     expect(header(grouped, 'settings')).toEqual(header(plain, 'settings'))
-    expect(header(grouped, 'settings').at(-1)).toBe('group_by')
+    expect(header(grouped, 'settings').slice(-3)).toEqual(['scope', 'group_by', 'anchor_comparison'])
     expect(records(grouped, 'settings').length).toBeGreaterThan(0)
     expect(records(grouped, 'settings').every(row => row.group_by === 'group')).toBe(true)
     expect(records(plain, 'settings').every(row => row.group_by === '')).toBe(true)
