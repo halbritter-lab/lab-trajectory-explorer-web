@@ -13,7 +13,6 @@ import { columnSettingModules } from '../core/analysis/registry'
 import { COMPUTED_EGFR_UNIT, computedEgfrName } from '../core/domains/nephrology/analytes'
 import { defaultTrajectoryView, restoreSavedSettings, parameterKeyLabel, SAVED_SETTINGS_VERSION } from './saved-settings'
 import { defaultFitSettings, type TrajectoryFitSettings } from './workspace-analysis'
-import type { TrajectoryView } from './saved-settings'
 import { parameterLabel } from './workspace-labels'
 
 export interface ExportedColumn {
@@ -169,18 +168,20 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
   notApplied.push(...restored.notRestored)
   if (restored.keptAsCustom.length) applied.push(`${restored.keptAsCustom.join(', ')}: the preset has changed since the export, so the values are kept as custom settings`)
   const sharedApplied = shared !== undefined && !restored.notRestored.includes('shared analysis settings')
+  // Own settings of parameters the file does not list stay as they are.
+  const exportedKeys = new Set(exported.columns.map(column => column.parameterKey))
+  const kept = Object.fromEntries(Object.entries(target.trajectoryFitSettings.columns).filter(([key]) => !exportedKeys.has(key)))
   const trajectoryFitSettings: TrajectoryFitSettings = {
     shared: sharedApplied ? restored.trajectoryFitSettings.shared : target.trajectoryFitSettings.shared,
-    columns: restored.trajectoryFitSettings.columns,
+    columns: { ...kept, ...restored.trajectoryFitSettings.columns },
   }
   if (sharedApplied) applied.push('shared analysis settings')
-  const own = Object.keys(trajectoryFitSettings.columns)
+  const own = Object.keys(restored.trajectoryFitSettings.columns)
   if (own.length) applied.push(`own settings of ${own.map(label).join(', ')}`)
   if (exported.rebuilt) applied.push('settings rebuilt from fit_config (the workbook was written before column_settings existed)')
 
   // Selection and Trend.
   const parameterKeys = present.length ? present.map(column => column.parameterKey) : null
-  const exportedKeys = new Set(exported.columns.map(column => column.parameterKey))
   const trendKeys = [...target.trendKeys.filter(key => !exportedKeys.has(key)), ...present.filter(column => column.trend).map(column => column.parameterKey)]
   if (parameterKeys) applied.push(`parameter selection and Trend (${countText(parameterKeys.length, 'parameter')})`)
 
@@ -190,8 +191,3 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
 }
 
 const countText = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
-
-/** The view after applying: the exported selection and Trend, the rest as it is. */
-export function viewAfterApplying(view: TrajectoryView, result: AppliedSettings): TrajectoryView {
-  return { ...view, parameterKeys: result.parameterKeys ?? view.parameterKeys, trendKeys: result.trendKeys }
-}

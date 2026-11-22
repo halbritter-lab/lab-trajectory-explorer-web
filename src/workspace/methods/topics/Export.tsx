@@ -8,7 +8,7 @@ export function Export() { return <>
 <tr><td>cohort / slopes</td><td>The displayed summaries, fit estimators, quality flags and endpoint results.</td></tr>
 <tr><td>aki_episodes</td><td>Detected AKI episodes of the selected patients: stage, onset, peak and baseline per serum creatinine parameter.</td></tr>
 <tr><td>events / patient_attributes / demographics</td><td>Event context, attributes, resolved demographics, overrides and warnings.</td></tr>
-<tr><td>parameters / settings</td><td>Parameter identity, derivation formula and source, fit configuration, source file and exported scope.</td></tr>
+<tr><td>parameters / settings</td><td>Parameter identity, derivation formula and source, fit configuration, source file and exported scope; at the end of settings, Trend and each parameter's settings as the app keeps them, which "Apply settings from an export" in the analysis record (Trajectories) applies again.</td></tr>
 <tr><td>about</td><td>Research-use disclaimer, interpretation notes, app version, export time and identifiers of the export and its input data.</td></tr>
 <tr><td>columns</td><td>One row per column of the cohort or slopes sheet: meaning, unit and when the cell is empty.</td></tr>
 <tr><td>rolling_windows</td><td>The fitted windows of every Rolling OLS parameter: bounds of the window, first and last fitted point (a measurement, or a monthly or quarterly median under time balancing), their number and the window slope per year. Empty without a Rolling OLS parameter.</td></tr>

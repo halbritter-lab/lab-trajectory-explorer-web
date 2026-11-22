@@ -106,6 +106,13 @@ describe('settings round trip on the demo workbook', () => {
     expect(result.notApplied).toEqual([`settings of ${other.label} (parameter not in this dataset)`])
     expect(result.parameterKeys).toEqual(parameterKeys.filter(key => key !== other.key))
     expect(result.trajectoryFitSettings).toEqual(settings)
+    // Own settings of a parameter the file does not list stay; one the file lists as shared loses its own.
+    const elsewhere = JSON.stringify(['Not exported', 'u'])
+    const kept = applyExportedSettings(readExportedSettings(exported), {
+      parameterKeys: keys, importedParameters: [], analysisSettings: defaultAnalysisSettings(), trendKeys: [],
+      trajectoryFitSettings: { shared: defaultFitSettings(), columns: { [elsewhere]: defaultFitSettings('theil_sen'), [other.key]: defaultFitSettings('theil_sen') } },
+    })
+    expect(kept.trajectoryFitSettings.columns).toEqual({ ...settings.columns, [elsewhere]: defaultFitSettings('theil_sen') })
     // A file without a settings sheet is refused with a reason.
     expect(() => readExportedSettings(demo())).toThrow(/no settings sheet/)
   })
