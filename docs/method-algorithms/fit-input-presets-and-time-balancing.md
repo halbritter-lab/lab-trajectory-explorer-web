@@ -238,7 +238,11 @@ Since 2026-11-21:
   `fit_config` (the column's fit configuration as JSON: `parameter`, `preset`,
   `censoring`, `exclusions`, `timeBalancing`, `fitModel`, `endpoints`; no
   `xAxis`, see "Fit axis"), the module settings, `analysis_settings`,
-  `patient_ids`, `source_file` and `scope`.
+  `patient_ids`, `source_file`, `scope` and `group_by`. `group_by` (appended
+  2026-11-22) is the attribute the Trajectories table was grouped by, the
+  same on every row, and empty text without grouping; it names the attribute
+  whose values the `group` column of `cohort` holds. Example: grouped by
+  `sex`, `group_by` is `sex` and `group` holds `f` or `m`.
 - **`about`.** One column `note`. Rows are appended, never moved. Since
   2026-11-21 it explains the time axis of the trend, the meaning of `preset`
   and the fixed parameters of segmented OLS (a gap of more than 180 days, at

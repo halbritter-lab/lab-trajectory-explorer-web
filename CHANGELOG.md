@@ -31,6 +31,8 @@ interfaces are still evolving before 1.0.
   its interval have the same number of decimals, that of the coefficient
   table ("45.50 [44.12, 46.90]" instead of "45.5 [44.12, 46.9]"). Display
   only.
+- The `settings` sheet of the cohort workbook ends with `group_by`, the
+  attribute the table was grouped by (empty without grouping).
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 

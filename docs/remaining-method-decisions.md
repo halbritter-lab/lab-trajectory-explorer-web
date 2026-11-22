@@ -909,7 +909,8 @@ passed input check on the fitted result, and `app_version`/`exported_at` and
 the personal-data note in the `about` sheets of both workbooks.
 
 Still open, unchanged: whether patients who do not qualify stay in a cohort
-model; whether the export records the grouping attribute;
+model; whether the export records the grouping attribute (decided on
+2026-11-22: it does, in `settings`);
 whether the `cohort` sheet is reordered once; whether the Trajectories table
 shows a bound with its sign ("latest <15"; decided on 2026-11-22: it does).
 
@@ -992,6 +993,14 @@ Resolved with a change:
   "45.50 [44.12, 46.90]" instead of "45.5 [44.12, 46.9]", a creatinine column
   with three decimals "1.200 [1.050, 1.350]". Details:
   [displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals).
+- **The cohort workbook records the grouping attribute** (K40). The
+  `settings` sheet gains the last column `group_by`: the attribute the
+  Trajectories table was grouped by, empty without grouping. Existing
+  columns keep their positions. Detail of the implementation: the column is
+  filled on every row of the sheet (one per parameter), also in the export
+  of a single patient, where it names the grouping that was active in the
+  table; the `about` note on `group` names it. Details:
+  [workbook sheets](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
 
 ## Approved requirements
 
