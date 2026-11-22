@@ -84,9 +84,10 @@ Each entry is described in full in the section named, with an example where
 one applies. The documentation review of 2026-10-07 produced 29 entries; the
 owner decided all of them on the same day (see
 [method decisions](remaining-method-decisions.md)). Those settled since are
-listed under *Resolved decisions* below. Four remain, **OD-11, OD-21, OD-22
-and OD-29: to be changed after release 0.3.0.** Their behaviour is unchanged
-until then. OD-30, added on 2026-11-05 with the R reproduction export, was
+listed under *Resolved decisions* below. Two remain, **OD-22 and OD-29: to
+be changed after release 0.3.0.** Their behaviour is unchanged until then.
+OD-11 and OD-21, in the same group, were implemented on 2026-11-22 as
+decided. OD-30, added on 2026-11-05 with the R reproduction export, was
 decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
 `u` that abbreviates "und" in creatinine names and was decided the same day.
 OD-31 is not used on `main`; the number is reserved by the deferred MCP
@@ -101,8 +102,6 @@ instruction of 2026-11-22 to resolve the open points.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
-| OD-11 | [Ordinary least squares](method-algorithms/trend-estimators.md#ordinary-least-squares) | The t critical value is a step function above 40 degrees of freedom, untested against a reference in that range. |
-| OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit. (The pinning of R package versions, the other half of this entry, was settled on 2026-11-22.) |
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
 
@@ -125,6 +124,7 @@ methodology page. The numbers are not reused.
 | OD-8 | Text with three digits after a point is read as a decimal and reported. | [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation) |
 | OD-9 | Fitted points on one date get their own "no slope" note. | [Reason codes and the slope reliability rule](method-algorithms/slope-quality.md#reason-codes-and-the-slope-reliability-rule) |
 | OD-10 | The rapid-decline flag stayed without a reliability gate (2026-10-07). Replaced on 2026-11-17: the flag is not set on a slope that meets the reliability rule. | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
+| OD-11 | The OLS t critical value is the exact Student-t quantile above 40 degrees of freedom (the table of exact values up to 40 stays); implemented 2026-11-22. | [Ordinary least squares](method-algorithms/trend-estimators.md#95--confidence-interval-for-the-slope) |
 | OD-12 | Both creatinine conversion constants stay; the methodology page names them. | [eGFR derivation](method-algorithms/egfr.md#egfr-derivation) |
 | OD-13 | Creatinine of zero or less takes no part in AKI detection. | [KDIGO creatinine AKI detection](method-algorithms/aki.md#kdigo-creatinine-aki-detection) |
 | OD-14 | Creatinine measured under dialysis is left out of AKI detection. | [KDIGO creatinine AKI detection](method-algorithms/aki.md#kdigo-creatinine-aki-detection) |
@@ -134,6 +134,7 @@ methodology page. The numbers are not reused.
 | OD-18 | A confirmed observed G5 always withholds the projection. | [Observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction) |
 | OD-19 | The minimum confirmation interval is at most 365 days. | [Observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction) |
 | OD-20 | eGFR is recognised by the unit mL/min/1.73 m² everywhere, in four accepted spellings. | [Observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction) |
+| OD-21 | The unused model `tolerance` is no longer exported or hashed into `fitConfigHash`; the R package versions are pinned; implemented 2026-11-22. | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) |
 | OD-23 | The "Group interaction" preset builds a valid numeric factor. | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) |
 | OD-24 | The JavaScript date-parser fallback for attribute birth dates is removed. | [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation) |
 | OD-25 | Two accepted headers for one lab or event field produce a warning naming the column used. | [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation) |

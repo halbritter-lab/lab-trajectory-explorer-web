@@ -5,6 +5,23 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (OD-11 and OD-21, decided 2026-10-07, implemented 2026-11-22, issue #4)
+
+- **OLS 95 % intervals above 40 degrees of freedom use the exact Student-t
+  quantile** (OD-11) instead of a step function. Up to 42 fitted points
+  nothing changes. From 43 to 122 points `ci_low`/`ci_high` become up to
+  0.62 % narrower (t at df 50: 2.021075 → 2.008559), from 123 points on up to
+  1.01 % wider (t at df 121: 1.959964 → 1.979764; df 1000: 1.962339). The
+  projection's confidence gate and the before/after difference interval use
+  the same value. Slopes, `slope_se` and R² are unchanged; no stored fixture
+  moves (the OLS fixtures have at most five points).
+- **The unused model `tolerance` is removed** (OD-21). The `models` sheet of
+  the cohort workbook no longer has the column `tolerance` (constant 1e-6,
+  used by no fit); the columns after it (`datasetId` onward) move one
+  position left with names unchanged. The constant is no longer part of
+  `fitConfigHash`, so every `fitConfigHash` differs from earlier exports of
+  the same model and data. No fitted number changes.
+
 ### Changed (open points of the persona review, decided 2026-11-22)
 
 - Review of the combined branch (2026-11-22): a before/after side fitted

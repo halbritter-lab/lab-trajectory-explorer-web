@@ -214,8 +214,8 @@ items under "after 0.3.0" ship with their markers in place.
 
 | ID | Intended direction |
 | --- | --- |
-| OD-11 | Exact t quantiles above 40 degrees of freedom. |
-| OD-21 | Remove the unused `tolerance` export field. Pinning the R package versions was done on 2026-11-22. |
+| OD-11 | Exact t quantiles above 40 degrees of freedom. Implemented on 2026-11-22. |
+| OD-21 | Remove the unused `tolerance` export field. Pinning the R package versions was done on 2026-11-22; the field was removed the same day. |
 | OD-22 | A control to switch a factor between numeric and categorical. |
 | OD-29 | Choose the default reference level from the fitted data. |
 
@@ -1380,7 +1380,8 @@ fitted number changes.
   jsonlite 2.0.0, MASS 7.3-66, Rcpp 1.1.2, Rdpack 2.6.6, boot 1.3-32,
   lattice 0.23-1, minqa 1.2.8, nlme 3.1-171, nloptr 2.2.1.9000,
   rbibutils 2.4.1, reformulas 0.4.4. This settles the pinning half of OD-21;
-  the unused `tolerance` field stays open. A later update is a deliberate
+  the unused `tolerance` field was removed later the same day (see
+  "Decisions of 2026-11-22 (OD-11 and OD-21, issue #4)"). A later update is a deliberate
   step with an entry here.
 - **The export records the provenance:** `wasmAssetSource` is `self-hosted`
   instead of `cdn`, and `packageVersions` lists every pinned package the fit
@@ -1528,6 +1529,30 @@ maintainer's approval):
   type and which files are requested." and, as a paragraph of its own, "The
   app does not pseudonymise: patient IDs are shown, kept and exported as
   imported."
+
+## Decisions of 2026-11-22 (OD-11 and OD-21, issue #4)
+
+Implementation of the two decisions of 2026-10-07 scheduled after 0.3.0
+("After 0.3.0, markers remain"). Both entries move to the resolved list of the
+[method algorithms](method-algorithms.md) index.
+
+- **OD-11, exact t quantiles above 40 degrees of freedom.** `tCritical95`
+  computes `qt(0.975, df)` above df 40 from the regularized incomplete beta
+  function; the table of exact values up to df 40 stays, so no interval with
+  42 points or fewer changes. Above, `ci_low` and `ci_high` of OLS, the
+  confidence gate of the projection and the before/after difference interval
+  move: up to 0.62 % narrower from 43 to 122 points (df 50: 2.021075 →
+  2.008559) and up to 1.01 % wider from 123 points on (df 121: 1.959964 →
+  1.979764). Slopes, standard errors and R² are unchanged; no stored fixture
+  moves, because the OLS fixtures have at most five points. Details and an
+  example with 62 points: [trend estimators](method-algorithms/trend-estimators.md#95--confidence-interval-for-the-slope).
+- **OD-21, the unused `tolerance`.** The constant `1e-6` is removed from the
+  result metadata, from the `models` sheet of the cohort workbook and from
+  the input of `fitConfigHash`. Chosen where the decision left it open: the
+  column is removed, not left empty, so the 0.3.7 columns after it move one
+  position left (names unchanged); every `fitConfigHash` changes (e3861a2b →
+  74ba071d in the example of the reference). No fitted number changes. Details:
+  [cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models).
 
 ## Approved requirements
 
