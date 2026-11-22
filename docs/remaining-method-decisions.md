@@ -216,8 +216,13 @@ items under "after 0.3.0" ship with their markers in place.
 | --- | --- |
 | OD-11 | Exact t quantiles above 40 degrees of freedom. |
 | OD-21 | Remove the unused `tolerance` export field. Pinning the R package versions was done on 2026-11-22. |
-| OD-22 | A control to switch a factor between numeric and categorical. |
-| OD-29 | Choose the default reference level from the fitted data. |
+
+### After 0.3.0, implemented on 2026-11-22
+
+| ID | Decision as implemented |
+| --- | --- |
+| OD-22 | A control to switch a factor between numeric and categorical. Offered for every attribute factor (not baseline age or sex); the automatic type stays the default, a switch is recorded as `kindSource: 'user'` and exported as `kind_source`. |
+| OD-29 | Choose the default reference level from the fitted data. Each fitted unit takes the first level among its own model rows; a reference chosen by the user is kept unchanged and shared by all units. Exported as `reference_source`. |
 
 ### Implementation notes
 
