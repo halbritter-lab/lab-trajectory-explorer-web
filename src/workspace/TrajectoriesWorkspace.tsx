@@ -16,7 +16,8 @@ import { SPARK_SIZES, sparkWidth, WorkspaceSparkline, type SparkDomain, type Spa
 import { countLabel, exclusionReasonLabel, fittedPointNoun, sexLabel } from './workspace-labels'
 import { anchorRuleLabel, type AnchorSide } from '../core/cohort/anchorComparison'
 import { measurementFitStatus } from './measurement-fit-status'
-import { fitInclusionCaveat } from './labels/fitInclusion'
+import { fitInclusionCaveat, openUnknownDialysisWarning, type FitInclusionCaveat } from './labels/fitInclusion'
+import { krtSegmentText, slopeTierNote } from './labels/slopeTier'
 import { doublingTimeText } from './labels/doublingTime'
 import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
 import { akiCriterionLabel, akiEpisodeDialysisLabel, akiEpisodeEndLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes'
@@ -183,11 +184,18 @@ function CellSummary({
   const ciText = `${slopeRange ? 'Slope range' : '95% slope CI'} [${slopeNumber(cell.ciLow)}, ${slopeNumber(cell.ciHigh)}] ${cell.einheit ?? ''}/year`
   const qualityLabel = quality && `${qualityText}${quality.caveat ? ', uncertain slope' : ''}`
   const excludedText = `${markedCount} excluded from the fit (${markedLabels.join(', ')})`
-  const included = fit && last ? fitInclusionCaveat(cell, events) : null
+  const included = fit && last ? combinedCaveat(fitInclusionCaveat(cell, events), openUnknownDialysisWarning(cell)) : null
   // A slope fitted across a change of the eGFR equation (issue #66).
   const switched = fit && last ? formulaSwitchNote(cell, formulaSwitches) : null
   // 20 % or more of the fitted points are bounded values (issue #73).
   const bounded = fit && last ? boundedShareLabel({ ...cell, timeBalancing }) : null
+  // Slope tier (decision `minfu`, 2026-11-22): reliable or estimable; an uncertain slope keeps its amber note.
+  const tierNote = fit && last ? slopeTierNote(cell) : null
+  const reliableBadge = tierNote?.tier === 'reliable'
+    ? <span className="wt-badge wt-badge-reliable" title={tierNote.title} aria-label={`${tierNote.label}: ${tierNote.title}`}>{tierNote.short}</span>
+    : null
+  // The values after KRT the column includes, fitted as their own segment (decision `censor`, 2026-11-22).
+  const segmentText = fit && last ? krtSegmentText(cell, slopeNumber) : null
   // A 95% interval with zero strictly inside: the direction of the change is
   // not established. A note only; the reliability rule and the flags ignore it.
   const zeroInside = fit && last && hasCi && !slopeRange && cell.ciLow < 0 && cell.ciHigh > 0
@@ -220,8 +228,9 @@ function CellSummary({
           : <strong aria-label={last ? `Latest value: ${latestText}` : missing?.label ?? 'No numeric measurements with a date'}>{last ? latestText : '—'}</strong>}
         {last && <span aria-label={fittedCount ? mediansText ? `${measurementCount}, ${mediansText}` : `${cell.nFitted} fitted of ${measurementCount}` : measurementCount}>{fittedCount ? fittedText : `n=${cell.nNumeric}`}</span>}
         <div className="pv-cell-indicators">
-          <Hint label={last ? 'Measurement details' : missing?.label ?? 'No numeric measurements'} text={!last && missing && !warningIcons ? missing.label : undefined}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : missing?.text ?? 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p>{doubling && <p>{doubling.long}</p>}<p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.{zeroInside ? ` ${zeroInside.title}` : ''}</p>}{rollingText && <p>{rollingText}</p>}</>}</Hint>
+          <Hint label={last ? 'Measurement details' : missing?.label ?? 'No numeric measurements'} text={!last && missing && !warningIcons ? missing.label : undefined}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : missing?.text ?? 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p>{doubling && <p>{doubling.long}</p>}<p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.{zeroInside ? ` ${zeroInside.title}` : ''}</p>}{rollingText && <p>{rollingText}</p>}{tierNote && <p>{tierNote.label}: {tierNote.title}</p>}{segmentText && <p>{segmentText}</p>}</>}</Hint>
           {fit && last && quality && <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'} text={warningIcons ? undefined : qualityText}>{quality.title}</Hint>}
+          {reliableBadge}
           {included && <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>}
           {switched && <Hint label={switched.label} icon="warning" tone="caution" text={warningIcons ? undefined : switched.label}>{switched.title}</Hint>}
           {bounded && <Hint label={bounded.label} icon="warning" tone="caution" text={warningIcons ? undefined : bounded.label}>{bounded.title}</Hint>}
@@ -236,7 +245,7 @@ function CellSummary({
   }
 
   if (compact && !detailed) {
-    const hasSecondaryDetails = Boolean((fit && last && (cell.rolling || hasCi || quality || doubling)) || included || switched || bounded || endpoint || markedCount > 0)
+    const hasSecondaryDetails = Boolean((fit && last && (cell.rolling || hasCi || quality || doubling || tierNote || segmentText)) || included || switched || bounded || endpoint || markedCount > 0)
     return <div className="wt-cell-summary wt-cell-summary-compact">
       <span className={last ? undefined : 'wt-muted'}>
         {!last
@@ -249,6 +258,7 @@ function CellSummary({
         <span>{slopeText}</span>
         {doubling && <span data-testid="doubling-time" title={doubling.long}>{doubling.short ? `${doubling.short[0].toUpperCase()}${doubling.short.slice(1)}${doubling.uncertain ? ' (uncertain)' : ''}` : 'No doubling time'}</span>}
         {quality && (warningIcons ? <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'}>{quality.title}</Hint> : <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityLabel}</span>)}
+        {reliableBadge}
         {included && <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>}
         {switched && <Hint label={switched.label} icon="warning" tone="caution" text={warningIcons ? undefined : switched.label}>{switched.title}</Hint>}
         {bounded && <Hint label={bounded.label} icon="warning" tone="caution" text={warningIcons ? undefined : bounded.label}>{bounded.title}</Hint>}
@@ -265,6 +275,8 @@ function CellSummary({
         {zeroInside && <p>{zeroInside.label}: {zeroInside.title}</p>}
         {fit && last && hasCi && slopeRange && <p className="wt-muted">{rangeHint}</p>}
         {fit && last && quality && <p>{quality.title}</p>}
+        {tierNote && <p>{tierNote.label}: {tierNote.title}</p>}
+        {segmentText && <p data-testid="krt-segment">{segmentText}</p>}
         {included && <p>{included.label}. {included.title}</p>}
         {switched && <p>{switched.label}. {switched.title}</p>}
         {bounded && <p>{bounded.label}. {bounded.title}</p>}
@@ -298,6 +310,10 @@ function CellSummary({
           {/* Tooltips are unreachable by keyboard and touch; the disclosure is not. */}
           <details className="wt-quality-details"><summary>{quality.caveat ? 'Why is the slope uncertain?' : 'Why is there no slope?'}</summary><p>{quality.title}</p></details>
         </>)}
+      {tierNote && (detailed
+        ? <p role="note" className="wt-quality-note wt-muted" data-testid="slope-tier"><strong>{tierNote.label}</strong>: {tierNote.title}</p>
+        : reliableBadge)}
+      {segmentText && <p role="note" className="wt-quality-note" data-testid="krt-segment">{segmentText}</p>}
       {included && (detailed
         ? <p role="note" className="wt-quality-note wt-warning"><strong>{included.label}</strong>: {included.title}</p>
         : <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>)}
@@ -316,6 +332,12 @@ function CellSummary({
     {flags.filter(flag => !flag.requiresFit).map(badge)}
     {markedCount > 0 && <span className="wt-muted">{excludedText}</span>}
   </div>
+}
+
+/** Both notes on what a fit runs across or leaves out, as one. */
+function combinedCaveat(a: FitInclusionCaveat | null, b: FitInclusionCaveat | null): FitInclusionCaveat | null {
+  if (!a || !b) return a ?? b
+  return { label: `${a.label}; ${b.label}`, title: `${a.title} ${b.title}` }
 }
 
 /** The before/after comparison of a cell (issue #64), beside its slope. */
@@ -890,7 +912,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
           </ToolPopover>
         </div>
       </div>
-      <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{groupBy && mode === 'table' && <span className="pv-group-summary"> · {groupedRows.length} {groupedRows.length === 1 ? 'group' : 'groups'} · sorted within groups</span>}{parameterKeySet.size > 0 ? <span> · Trend analysis: {parameterKeySet.size}</span> : parameters.some(p => (columnSettings[p.key] ?? fitSettings).fitModel !== 'none') && <span> · Tick “Trend” at a parameter to calculate slopes</span>}{uncertainSorted > 0 && <span className="pv-uncertain-note"> · {uncertainSorted} uncertain {uncertainSorted === 1 ? 'slope' : 'slopes'} {uncertainLast ? 'placed after the reliable ones' : 'ranked among the reliable ones'}</span>}</div>
+      <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{groupBy && mode === 'table' && <span className="pv-group-summary"> · {groupedRows.length} {groupedRows.length === 1 ? 'group' : 'groups'} · sorted within groups</span>}{parameterKeySet.size > 0 ? <span> · Trend analysis: {parameterKeySet.size}</span> : parameters.some(p => (columnSettings[p.key] ?? fitSettings).fitModel !== 'none') && <span> · Tick “Trend” at a parameter to calculate slopes</span>}{uncertainSorted > 0 && <span className="pv-uncertain-note"> · {uncertainSorted} uncertain {uncertainSorted === 1 ? 'slope' : 'slopes'} {uncertainLast ? 'placed after the other slopes' : 'ranked among the other slopes'}</span>}</div>
         {uncertainSorted > 0 && <label className="pv-uncertain-toggle" title="Uncertain: fewer than three fitted measurement dates or less than one year of follow-up. Patients without a slope stay last."><input type="checkbox" checked={uncertainLast} onChange={event => { setUncertainLast(event.target.checked); setTablePage(0) }} />Uncertain slopes last</label>}
         {mode === 'table' && pagedRows.length > TABLE_PAGE_SIZES[0] && <nav className="wt-table-pages" aria-label="Patient table pages">
           {pageCount > 1 && <><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1)}>Previous</button><span role="status"><span className="wt-page-long">Showing </span>{firstShown}–{lastShown} of {pagedRows.length}<span className="wt-page-long"> {pagedRows.length === 1 ? 'patient' : 'patients'}{collapsedRowCount > 0 ? ` (${collapsedRowCount} more in collapsed groups)` : ''}</span></span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1)}>Next</button>

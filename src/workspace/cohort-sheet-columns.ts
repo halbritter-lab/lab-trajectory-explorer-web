@@ -112,6 +112,15 @@ export const COHORT_SHEET_COLUMNS: readonly CohortSheetColumn[] = [
   text('endpoint_observed_decline_50', 'yes when a decline of at least 50 % from the baseline was observed and confirmed, by the rule of the 40 % and 57 % declines.', 'not confirmed, or not evaluated (the 50 % decline is off unless switched on)'),
   ...eventColumns('endpoint_decline_50', '50 % decline', 'whose decline from the baseline is below 50 %', 'the 50 % decline is not confirmed, or not evaluated'),
   text('endpoint_g5_single_value_unconfirmed', 'yes when no CKD G5 is confirmed and a measurement date has only values below 15 while the eligible dates directly before and after it (if any) do not, a conclusive bound >x with x at or above 15 counting as such a date: a single value below 15, unconfirmed (possible AKI). It is never an observed G5 and does not withhold the projection.', 'no such value, a confirmed G5, or neither observed G5 nor the projection is evaluated'),
+  // Then the separate segment after KRT and the slope tier (2026-11-22); `group` stays last.
+  date('krt_segment_start', 'Start of the separate segment after kidney replacement therapy: the date of the patient\'s first kidney transplant or chronic dialysis start, when the column includes the values from it on (its censoring option is off). The values from that date on are not part of slope; they are fitted on their own, with the same estimator and time balancing, up to the next such event.', 'the column censors from the event, the patient has no such event, or fit_model is none'),
+  number('krt_segment_n_fitted', 'Points the segment fit used, as n_fitted.', 'count', 'as krt_segment_start'),
+  number('krt_segment_n_fitted_dates', 'Distinct calendar dates among those points.', 'count', 'as krt_segment_start'),
+  number('krt_segment_fitted_span_days', 'Whole days between the first and the last point of the segment fit.', 'days', 'as krt_segment_start'),
+  number('krt_segment_slope', 'Slope of the segment per year, unrounded. It describes kidney function after kidney replacement therapy (for example a graft), not native kidney function.', SLOPE_UNIT, 'as krt_segment_start, or the segment gave no slope'),
+  number('krt_segment_ci_low', 'Lower bound of the segment slope, as ci_low.', SLOPE_UNIT, 'as krt_segment_slope, or the bound is undefined'),
+  number('krt_segment_ci_high', 'Upper bound of the segment slope, as ci_high.', SLOPE_UNIT, 'as krt_segment_ci_low'),
+  text('slope_tier', 'Tier of slope: uncertain (a slope with unstable_slope yes), estimable (at least 3 fitted dates over at least 365 days of fitted span) or reliable (in addition at least 4 fitted dates over at least 2 × 365.25 days, that is 731 whole days). Counts n_fitted_dates and fitted_span_days, not n.', 'no slope was estimated, or fit_model is none'),
   text('group', `Value of the attribute the table was grouped by when the file was exported. A patient without a value for the attribute has the text "${GROUP_NOT_RECORDED}", which cannot be told apart from an attribute value of the same text.`, 'the table was not grouped'),
 ]
 

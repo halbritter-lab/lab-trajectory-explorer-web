@@ -97,11 +97,12 @@ describe('the example of issue #73 (demo patient 2, UACR)', () => {
     expect(boundedShareLabel({ ...cell, fitModel: 'none' })).toBeNull()
   })
 
-  it('exports n_bounded as the last column of the record', () => {
+  it('exports n_bounded after the eligible values, before the KRT segment and slope tier columns', () => {
     const rows = buildCohortRows(demoUacr(), [2], [spec(UACR)])
     const record = cohortExportRecords(rows)[0]
     expect(record.n_bounded).toBe(3)
-    expect(Object.keys(record).at(-1)).toBe('n_bounded')
+    const keys = Object.keys(record)
+    expect(keys.slice(keys.indexOf('last_eligible_value'), keys.indexOf('last_eligible_value') + 3)).toEqual(['last_eligible_value', 'n_bounded', 'krt_segment_start'])
   })
 
   it('names the entering value in the measurement table', () => {

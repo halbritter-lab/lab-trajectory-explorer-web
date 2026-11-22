@@ -353,8 +353,11 @@ describe('cohortExportRecords', () => {
 
     it('appends the seven columns after the rolling columns', () => {
       const [rec] = cohortExportRecords(buildCohortRows(yearly, [1], [spec('global')]))
-      expect(Object.keys(rec).slice(-11)).toEqual(['rolling_slope_max', 'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
+      expect(Object.keys(rec).slice(-19, -8)).toEqual(['rolling_slope_max', 'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
         'first_eligible_value', 'last_eligible_value', 'n_bounded'])
+      // Appended 2026-11-22: n_bounded (#73), then the separate segment after KRT, then the slope tier.
+      expect(Object.keys(rec).slice(-8)).toEqual(['krt_segment_start', 'krt_segment_n_fitted', 'krt_segment_n_fitted_dates', 'krt_segment_fitted_span_days',
+        'krt_segment_slope', 'krt_segment_ci_low', 'krt_segment_ci_high', 'slope_tier'])
       expect(rec.n_fitted_dates).toBe(4)
       // Dates, not rows: a second value on the last date leaves the count at four.
       const [repeat] = cohortExportRecords(buildCohortRows([...yearly, row({ labDatum: d('2023-01-01'), wertNum: 45 })], [1], [spec('global')]))

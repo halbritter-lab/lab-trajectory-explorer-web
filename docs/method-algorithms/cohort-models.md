@@ -179,8 +179,11 @@ always used general exploration, so no window and no time balancing could
 apply and the count was always 0.
 
 - Until a preset is chosen, and for a dataset just loaded, the configuration
-  is general exploration: no event censoring, no AKI exclusion, raw time
-  balancing. When the Trajectories page is unmounted, which happens when
+  is general exploration: censoring after kidney transplant and chronic
+  dialysis (since 2026-11-22; no event censoring before), no AKI exclusion,
+  raw time balancing. With a censoring option unticked the values after the
+  first such event form the separate segment of the Trajectories table and
+  are still not model rows, so they count as excluded by the preset. When the Trajectories page is unmounted, which happens when
   another dataset is loaded, the settings return to these defaults.
 - **Data preparation on the Cohort models page.** The select
   offers the same presets as *Analysis preset* under Trajectories and has the

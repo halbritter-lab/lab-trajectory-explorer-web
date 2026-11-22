@@ -2614,3 +2614,62 @@ Draft:
 The question "Why is there no G5 projection?" (topic *Start here*) is still
 true and was left unchanged. Optional draft: "Why is there no extrapolation
 to CKD G5?", with the same link.
+
+## Part: censoring at kidney replacement therapy and slope tier (2026-11-22, for approval)
+
+Follows the owner decisions `censor`, `dial` and `minfu` of 2026-11-22
+([method decisions](remaining-method-decisions.md#decisions-of-2026-11-22-decision-artifact-issues-2-4-6585)).
+Two sentences of the block "Analysis Presets" (`src/workspace/methods/topics/Fits.tsx`)
+became false and were corrected minimally on 2026-11-22: General exploration
+"no event censoring" now reads "values censored from kidney transplant and
+from chronic dialysis start", and Acute review "no event censoring" now reads
+"values after kidney transplant and chronic dialysis start marked as
+censored". The drafts below are new explanatory wording for the
+maintainer's approval; nothing of them is applied.
+
+### Censoring at kidney replacement therapy
+
+Topic *Fits*, block "Analysis Presets", after the list. Draft:
+
+> In every preset the values from a kidney transplant or the start of chronic
+> dialysis on stay visible but are not part of the slope: after kidney
+> replacement therapy the series no longer describes native kidney function.
+> Unticking "Censor after kidney transplant" or "Censor after chronic
+> dialysis" for a parameter does not let the slope run across the event: the
+> values from the first such event on are fitted as a separate segment, shown
+> and exported beside the slope.
+
+### Dialysis of unknown intent without an end date
+
+Topic *Fits*, block "Analysis Presets", the CKD progression entry. Current:
+"acute dialysis intervals and dated dialysis intervals of unknown intent
+excluded". Draft:
+
+> acute dialysis intervals excluded; dialysis of unknown intent excluded for
+> its dated interval, and from its start on when it has no end date (it may be
+> maintenance dialysis; the cell names the values left out)
+
+### Slope tiers
+
+Topic *Sources*, after the paragraph "Uncertain slope". Draft:
+
+> **Estimable and reliable slopes.** A slope from at least three fitted
+> measurement dates over at least one year is estimable. It is called
+> reliable from at least four fitted dates over at least two years: slopes
+> over longer periods are more closely associated with kidney failure (Grams
+> et al., JASN 2019). The tier describes how well the slope is supported by
+> the measurements, not how fast the value changes.
+
+### Sort and filters (Trajectories)
+
+Topic *Trajectories* (`src/workspace/methods/topics/Trajectories.tsx`),
+paragraph on the sort by slope. Since the slope tier, "reliable" names a
+tier of its own; the interface now says "placed after the other slopes".
+Current: "stand after the reliable ones and before patients without a
+slope"; "(rapid decline, possible rapid decline, uncertain slope, endpoint
+reached, AKI)". Draft:
+
+> stand after the other slopes and before patients without a slope
+
+> (rapid decline, possible rapid decline, uncertain slope, reliable slope,
+> endpoint reached, AKI)

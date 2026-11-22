@@ -135,6 +135,66 @@ Regression evidence: [summary tests](../../tests/core/stats/summarize.test.ts),
 dedicated regression test covers the identical-timestamp case in the summary
 or the 364/365-day boundary.
 
+### Slope tier
+
+Owner decision `minfu` of 2026-11-22 (*adjusted*; KDIGO 2012 CKD, rationale
+to Rec 2.1.3, p. 66; Grams ME et al., JASN 2019;30:1746, PMID 31292199:
+slopes over longer periods, three years in that analysis, were associated
+most strongly with kidney failure). `slopeTier`
+(`src/core/stats/slopeQuality.ts`) layers a tier over the reliability rule,
+which stays as it is. For a cell with a slope (a finite number and a fit
+model other than `none`), the first matching row applies:
+
+| Order | Condition | Tier |
+| --- | --- | --- |
+| 1 | The reliability rule is met (`unstable_slope = yes`) | uncertain |
+| 2 | `nFittedDates >= 4` and `fittedSpanDays >= 2 × 365.25` | reliable |
+| 3 | Otherwise (at least 3 fitted dates over at least 365 days) | estimable |
+
+Without a slope there is no tier. Counted are the fitted points as for the
+rule above: distinct dates (`nFittedDates`, never `nNumeric`) and the
+whole-day fitted span after windows and time balancing; under quarterly
+medians one quarter is one date. Because spans are whole days, 2 × 365.25 =
+730.5 days means at least 731 days: 2020-01-01 to 2022-01-01 (731 days, 2020
+is a leap year) is reliable, 2021-01-01 to 2023-01-01 (730 days) is not.
+Rolling and segmented OLS take the tier of their global OLS fit; the separate
+segment after kidney replacement therapy has no tier. The tier changes no
+slope, no `unstable_slope`, no sort order and not the gate of the
+rapid-decline flag, which stays the reliability rule.
+
+Examples: four yearly values on 1 January 2020 to 2023 (1096 days) are
+reliable; three yearly values over 1500 days are estimable (3 dates); four
+values over 730 days are estimable; six values on three dates over 900 days
+are estimable; eight values in two quarters under quarterly medians are
+uncertain, as before. Demo workbook, imported eGFR, General exploration,
+OLS: 21 reliable slopes, 2 estimable (patient 4: 8 dates over 630 days;
+patient 6: 11 dates over 608 days), 2 uncertain (12 and 14), 3 patients
+without a slope (3, 5, 10).
+
+Display. In the table a reliable slope carries the quiet green badge
+"reliable" (its tooltip names the dates, the span and the rule); an
+estimable slope has no badge, and an uncertain one keeps its amber note.
+The compact layout's details and the tooltip "Measurement details" of the
+minimal layout give the tier sentence for both reliable and estimable
+slopes; the patient view shows "Reliable slope: 8 fitted dates over 1276
+days …" or "Estimable slope: Not yet reliable: 630 days of fitted follow-up
+…" as a note. Below a chart with fit lines the key reads "Slope tiers: 21
+reliable (at least 4 fitted dates over at least 2 years), 2 estimable (at
+least 3 dates over at least 1 year), 2 uncertain (dotted)" (linear value
+axis only). The filter "Reliable slope" (below) selects the patients with a
+reliable slope in a shown column with Trend on. The export column
+`slope_tier` (after `baseline_age`, before `group`) holds `uncertain`,
+`estimable` or `reliable`, empty without a slope.
+
+The thresholds of the tier are the owner's decision on the basis of the
+sources above; neither source defines a tier in this form (see the
+[index](../method-algorithms.md#rules-of-this-tool-that-are-not-published-standards)).
+
+Regression evidence: [segment and tier tests](../../tests/core/cohort/krtSegmentAndTier.test.ts)
+(boundaries 730/731 days and 3/4 dates, no tier without a slope or a fit,
+quarterly medians) and the [table tests](../../tests/workspace/trajectories-screening.test.tsx)
+(filter button and count).
+
 ## Rapid eGFR decline flag
 
 `rapidEgfrDeclineModule`
@@ -230,7 +290,8 @@ column "eGFR (CKD-EPI 2021, computed)", General exploration, OLS, threshold 5:
 | --- | --- | --- | --- | --- |
 | 2 (computed column) | −12.39 | −13.54 to −11.24 | rapid ↓ | rapid ↓ |
 | 4 | −16.53 | −18.00 to −15.06 | rapid ↓ | rapid ↓ |
-| 9 | −7.73 | −8.47 to −7.00 | rapid ↓ | rapid ↓ |
+| 9 | −8.50 | −9.07 to −7.93 | rapid ↓ | rapid ↓ (−7.73, −8.47 to −7.00, across the chronic dialysis start of 2024-04-15, until 2026-11-22) |
+| 13 | −12.83 (computed column −11.87, −13.08 to −10.67) | −13.32 to −12.34 | rapid ↓ | none (+4.37 across the transplant of 2022-07-01, until 2026-11-22) |
 | 7 | −13.37 | −26.01 to −0.72 | rapid ↓? | rapid ↓ |
 | 6 | −6.20 | −25.08 to 12.68 | rapid ↓? | rapid ↓ |
 | 27 | −6.06 | −7.78 to −4.35 | rapid ↓? | rapid ↓ |
@@ -240,7 +301,12 @@ Patients 20, 21, 24, 25 and 26 (all interval upper bounds below −6.8) stay
 "rapid ↓"; patients 17, 19 and 22 (slopes −5.28, −5.21, −5.33, upper bounds
 −3.94, −4.05, −3.98) become "rapid ↓?". Patient 2's imported eGFR falls at
 −4.00 per year and is not flagged. Patient 12 lost the flag on 2026-11-17
-(reliability gate).
+(reliability gate). Since 2026-11-22 the fit ends at a kidney transplant or
+chronic dialysis start in every preset (see
+[clinical events](clinical-events.md#kidney-replacement-therapy-in-every-preset)):
+patient 13 is flagged, patient 9's slope is steeper, and patient 14 (−10.14
+from 3 dates over 360 days, +25.29 before) has an uncertain slope and no
+flag.
 
 In the table the badge appears only while the fit is shown for that column. Its
 tooltip states the comparison: "Rapid decline: slope and its whole 95%
@@ -291,23 +357,29 @@ the sorted parameter form three blocks, in this order whatever the direction:
 Blocks 1 and 2 are each sorted by the chosen metric and direction; ties, and
 all of block 3, are in patient-ID order. With grouping the blocks form inside
 every group. The status line states the number of shown patients in block 2
-("1 uncertain slope placed after the reliable ones"). The switch *Uncertain
-slopes last* beside it is on by default; switched off, blocks 1 and 2 are one
-block sorted by value, as until 2026-11-21, and the status line reads "ranked
-among the reliable ones". Note and switch appear only while the table is
+("1 uncertain slope placed after the other slopes"; "after the reliable
+ones" until the slope tier of 2026-11-22 gave "reliable" its own meaning).
+The switch *Uncertain slopes last* beside it is on by default; switched off,
+blocks 1 and 2 are one block sorted by value, as until 2026-11-21, and the
+status line reads "ranked among the other slopes". Note and switch appear only while the table is
 sorted by slope or absolute slope and at least one shown patient is in block
 2. The switch is not stored with the saved settings. Other metrics (latest
 value, measurements, follow-up) are unchanged: values in the chosen
 direction, patients without a value last.
 
 Example, demo data, imported eGFR, OLS, General exploration, *Slope:
-ascending*. Patient 12 has −7.35 per year over 151 days and is uncertain.
-By value alone the order begins 4 (−16.53), 7 (−13.37), 26, 24, 20, 21, 25,
-9 (−7.73), 12 (−7.35), 6 (−6.20), with patient 12 at rank 9. With the rule
-the order is 4, 7, 26, 24, 20, 21, 25, 9, 6, 27, 22, 17, 19, 23, 2, 28, 18,
-16, 15, 11, 8, 1, 13, 14 (+25.29), then 12 at rank 25, then 3, 5 and 10
-without a slope. The `cohort` sheet of the export lists the patients in the
-same order.
+ascending* (recomputed 2026-11-22, after the censoring at kidney replacement
+therapy). Patients 12 (−7.35 per year over 151 days) and 14 (−10.14 over 360
+days) are uncertain. By value alone the order begins 4 (−16.53), 7 (−13.37),
+13 (−12.83), 14 (−10.14), 26, 24, 20, 21, 9 (−8.50), 25 (−8.37), 12 (−7.35),
+6 (−6.20), with patient 12 at rank 11. With the rule the order is 4, 7, 13,
+26, 24, 20, 21, 9, 25, 6, 27, 22, 17, 19, 23, 2, 28, 18, 16, 15, 11, 8, 1,
+then 14 and 12 at ranks 24 and 25, then 3, 5 and 10 without a slope; the
+status line reads "2 uncertain slopes placed after the other slopes". Until
+2026-11-22 the order was 4, 7, 26, 24, 20, 21, 25, 9, 6, 27, 22, 17, 19, 23,
+2, 28, 18, 16, 15, 11, 8, 1, 13 (+4.37), 14 (+25.29), then 12, with patient
+12 at rank 9 by value. The `cohort` sheet of the export lists the patients
+in the same order.
 
 ### Filters by mark and event type
 
@@ -321,6 +393,7 @@ leave. A patient carries a mark when any shown parameter column does:
 | Rapid decline | a cell shows "rapid ↓", the first level of the [rapid-decline flag](#rapid-egfr-decline-flag); needs Trend on for that column |
 | Possible rapid decline | a cell shows "rapid ↓?" (since 2026-11-21); needs Trend on for that column |
 | Uncertain slope | a cell with Trend on has measurements and an uncertain slope as defined above |
+| Reliable slope | a cell with Trend on has measurements and a slope of the tier "reliable" (since 2026-11-22, see [slope tier](#slope-tier)) |
 | Endpoint reached | a cell reports kidney failure reached by an event, a confirmed observed CKD G4 or G5, or a confirmed 40% or 57% decline; projections and the total percent change do not count |
 | AKI | a cell carries the AKI mark of its creatinine series |
 | Kidney transplant, Dialysis, Other event | the patient has a clinical event of that type, whatever the shown columns |
@@ -344,12 +417,19 @@ chosen marks together with search and group filter. On a screen up to 600 px
 wide the buttons are in the toolbar menu "Show only" instead of a row, with
 the number of chosen marks on the menu button.
 
-Example, demo data with eGFR (CKD-EPI 2021) applied and Trend on for all
-four default columns: Rapid decline 8, Possible rapid decline 6, Uncertain
+Example, demo data, Trend on for the imported eGFR only (recomputed
+2026-11-22, pinned by the browser regression): Rapid decline 8, Possible
+rapid decline 6, Uncertain slope 2 (patients 12 and 14), Reliable slope 21,
+Endpoint reached 4, AKI 4, Kidney transplant 3, Dialysis 3, Other event 1.
+Before the censoring at kidney replacement therapy of 2026-11-22 the same
+view gave Rapid decline 7 (patient 13 is added) and Uncertain slope 1, and
+the example with eGFR (CKD-EPI 2021) applied and Trend on for all four
+default columns read Rapid decline 8, Possible rapid decline 6, Uncertain
 slope 3 (patients 3, 5 and 12), Endpoint reached 4, AKI 4, Kidney transplant
-3, Dialysis 3, Other event 1. Until 2026-11-21 there was one button, Rapid
-decline 14; the six patients 6, 7, 17, 19, 22 and 27 have moved to the
-possible level (see the [recomputed example](#rapid-egfr-decline-flag)).
+3, Dialysis 3, Other event 1; patients 13 (rapid ↓) and 14 (uncertain) now
+add one to the first and the third count there. Until 2026-11-21 there was
+one button, Rapid decline 14; the six patients 6, 7, 17, 19, 22 and 27 have
+moved to the possible level (see the [recomputed example](#rapid-egfr-decline-flag)).
 
 ### Decimals of slopes
 
@@ -390,7 +470,8 @@ unchanged. Display only: no computed value and no export changes; exports
 keep full precision.
 
 Example, demo data, OLS, General exploration. Creatinine [mg/dl]: 27
-slopes, median of the absolute values 0.0948, so three decimals. Patient 8:
+slopes, median of the absolute values 0.0987 (0.0948 until the censoring at
+kidney replacement therapy of 2026-11-22), so three decimals. Patient 8:
 slope 0.010349 with bounds 0.006869 and 0.013829 is written "+0.010 mg/dl/yr
 95% CI [0.007, 0.014]" (until 2026-11-21 "+0.01 [0.01, 0.01]"). Patient 12:
 "+0.274 [-1.697, 2.246]". Imported eGFR: median 5.33, two decimals, no cell

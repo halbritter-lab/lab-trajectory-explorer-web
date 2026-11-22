@@ -1,5 +1,41 @@
 # Manual browser smoke checklist
 
+## Kidney replacement therapy in every preset, undated unknown-intent dialysis, slope tier (2026-11-22, issue #4)
+
+Branch `wp/fits-2611`. Partly automated in `tests/e2e/table-screening.e2e.ts`
+and `tests/e2e/anchor-comparison.e2e.ts`.
+
+1. Demo → Trajectories → Trend on for eGFR [ml/min/1,73m²]. Patient 13 reads
+   -12.83 /yr with "rapid ↓" and "6 of 9 fitted"; its three values after the
+   transplant of 01/07/2022 are grey open circles ("after kidney
+   transplant"). Patient 14: -10.14 /yr, amber "Follow-up < 1 year".
+2. Reliable slopes carry the green badge "reliable"; "Show only" offers
+   "Reliable slope 21". The patient view of patient 4 reads "Estimable slope:
+   Not yet reliable: 630 days of fitted follow-up …". The chart key under a
+   patient chart names the slope tiers.
+3. Patient 13 → analysis settings → Calculation settings: both censoring
+   options ticked, the sentence on the separate segment below them; untick
+   "Censor after kidney transplant" → the patient view states "After kidney
+   transplant (01/07/2022), fitted as a separate segment: -8.01 …", the
+   chart draws a dash-dot line over the three values, the slope stays
+   -12.83. *Export patient (XLSX)*: `krt_segment_start` 2022-07-01,
+   `krt_segment_n_fitted` 3, `slope_tier` reliable, `group` still last.
+4. HbA1c (another parameter) → settings: the censoring options are shown and
+   ticked, the AKI options are not.
+5. A dataset with a dialysis of unknown intent without end date, CKD
+   progression: the values from its start are grey ("after dialysis start of
+   unknown intent without end date"), the cell shows "… values after dialysis
+   of unknown intent left out", the event table reads "censor from dialysis
+   start, unknown intent without end date"; the endpoint badges still use
+   those values.
+
+Verified 2026-11-22 in Chromium against the production build by the browser
+regressions only: the counts of step 2 (filter buttons, order of a slope
+sort) and step 3 through the before/after test of patient 13 (segment line,
+segment sentence, export columns). Steps 1, 4 and 5 and the badge, the
+patient-view tier note and the chart key are covered by unit tests, not
+clicked through. Not checked: Firefox, WebKit, 390 px.
+
 ## Logarithmic axis, doubling time and table-chart events (2026-11-22, issue #70)
 
 Branch `wp/70-display-extensions`. Automated in
@@ -218,7 +254,9 @@ build.
    settings → Calculation settings → "Before/after comparison": tick it, anchor
    "Type: kidney_transplant" (menu lists "First event of the patient", the
    five titles as "Title: …" and the three types of the demo as "Type: …"). The preset stays "General
-   exploration".
+   exploration". Since 2026-11-22 untick "Censor after kidney transplant"
+   as well: every preset censors from the transplant on, and without the
+   values after it the after side is empty.
 2. Export cohort (XLSX): last sheet `anchor_comparison` with 28 rows; patient
    13: anchor 2022-07-01, before n 6 over 882 days, after n 3 over 365 days,
    difference 4.823 [4.320, 5.326]; `settings` ends with `anchor_comparison`
@@ -227,11 +265,14 @@ build.
 3. Patient 13: under the eGFR slope "Before/after first event of type
    kidney_transplant (01/07/2022): before -12.83 … after -8.01 … difference
    after − before +4.82 … (95% CI [4.32, 5.33])". With a window of 60 days the
-   value of 10/08/2022 is a grey open circle and the difference is +4.76; the
-   legend reads "Grey open circles: 1 measurement in the exclusion window
-   after the anchor event: left out of the after-anchor slope only; it still
-   enters the slope of the whole series." and does not say "excluded from the
-   fit".
+   value of 10/08/2022 is a grey open circle and the difference is +4.76.
+   Since 2026-11-22 the three values after the transplant are the separate
+   segment, so the legend reads "Grey open circles: 3 measurements excluded
+   from the fit (after kidney replacement therapy, fitted as a separate
+   segment). They stay visible but do not enter the slope."; with the
+   censoring of 2026-11-21 (none) it read "1 measurement in the exclusion
+   window after the anchor event: left out of the after-anchor slope only; it
+   still enters the slope of the whole series."
 4. Display → Time axis → "Years since event": the overlay draws patients 13
    and 14 with both jumps at 0 (ticks -2 … 1), says "2 of 28 trajectories; 3
    without numeric measurements; 23 trajectories without a matching anchor
@@ -381,18 +422,22 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
    (patient 8: "+0.010 mg/dl/yr 95% CI [0.007, 0.014]"), eGFR two (patient 8:
    "-1.23 … 95% CI [-1.50, -0.97]"). The patient view writes the same digits
    ("OLS: +0.010 mg/dl/year").
-2. Sort eGFR by *Slope: ascending*. Patient 12 (follow-up under a year) stands
-   at rank 25, after patient 14 and before 3, 5 and 10; the status line reads
-   "1 uncertain slope placed after the reliable ones". Unticking *Uncertain
-   slopes last* puts it at rank 9, between 9 and 6. *Export cohort (XLSX)*
+2. Sort eGFR by *Slope: ascending*. Patients 14 and 12 (follow-up under a
+   year) stand at ranks 24 and 25, before 3, 5 and 10; the status line reads
+   "2 uncertain slopes placed after the other slopes" (corrected 2026-11-22:
+   patient 14 is uncertain since the censoring at the transplant, and the
+   wording changed with the slope tier). Unticking *Uncertain slopes last*
+   puts patient 12 at rank 11, between 25 and 6. *Export cohort (XLSX)*
    lists the eGFR rows of `cohort` in the order of the table.
-3. "Show only": the buttons carry counts (demo, eGFR trend: Rapid decline 7,
-   Possible rapid decline 6, Uncertain slope 1, Endpoint reached 4, AKI 4,
-   Kidney transplant 3, Dialysis 3, Other event 1; until 2026-11-21 Rapid
-   decline 13). *Rapid decline* leaves 7 rows, the export button reads
-   "Export 7 of 28 patients (XLSX)" and "Select all 7 matching" is offered
+3. "Show only": the buttons carry counts (demo, eGFR trend: Rapid decline 8,
+   Possible rapid decline 6, Uncertain slope 2, Reliable slope 21, Endpoint
+   reached 4, AKI 4, Kidney transplant 3, Dialysis 3, Other event 1; Rapid
+   decline 7 and Uncertain slope 1 until 2026-11-22, Rapid decline 13 until
+   2026-11-21). *Rapid decline* leaves 8 rows, the export button reads
+   "Export 8 of 28 patients (XLSX)" and "Select all 8 matching" is offered
    without a selection. *Show all* ends it. With Trend
-   on for all four columns and *Uncertain slope* chosen (patients 3, 5, 12),
+   on for all four columns and *Uncertain slope* chosen (patients 3, 5, 12
+   and, since 2026-11-22, 14),
    open patient 5 and set the creatinine trend method to *No fit*: patient 5
    stays open with the note "Patient 5 does not match “Show only: Uncertain
    slope” and stays open", and *Export patient (XLSX)* downloads

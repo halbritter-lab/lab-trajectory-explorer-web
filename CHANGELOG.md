@@ -171,6 +171,50 @@ interfaces are still evolving before 1.0.
   sheet describes them. Open decisions OD-40 to OD-44 record the gaps of
   these decisions.
 
+### Changed (kidney replacement therapy, dialysis of unknown intent and slope tier, decided 2026-11-22, issue #4; changes slopes)
+
+- **Every preset censors after kidney replacement therapy** (decision
+  `censor`). General exploration, Theil–Sen and Acute review now tick
+  "Censor after kidney transplant" and "Censor after chronic dialysis", as
+  CKD progression did: values from the event date on stay visible but leave
+  the slope. Slopes of patients with such an event and later values change.
+  Demo workbook, imported eGFR, General exploration: patient 13 −12.83 per
+  year (was +4.37) and now "rapid ↓", patient 14 −10.14 over 360 days, an
+  uncertain slope (was +25.29), patient 9 −8.50 (was −7.73); Theil–Sen 13
+  −12.84 (was −2.71), 14 −10.15 (was +31.12), 9 −8.57 (was −7.97). No golden
+  fixture moves (none has events); the expectations of the demo examples,
+  the before/after test of patient 13 and the browser regressions of the
+  table order and filters were updated for these values. The censoring
+  options are shown for every parameter (OD-51).
+- **Values after kidney replacement therapy are included only as a separate
+  segment.** Unticking a censoring option no longer lets the fit run across
+  the event: the values from the first transplant or chronic dialysis start
+  on are fitted on their own (`krt_segment`), shown beside the slope and in
+  the patient chart (dash-dot line), and exported as `krt_segment_start`,
+  `krt_segment_n_fitted`, `krt_segment_n_fitted_dates`,
+  `krt_segment_fitted_span_days`, `krt_segment_slope`, `krt_segment_ci_low`
+  and `krt_segment_ci_high`. The slope stays that of the values before the
+  event (OD-50, OD-52). Settings saved before keep both options unticked as
+  custom settings (OD-53). A before/after comparison at a transplant has an
+  after side only with the option unticked.
+- **CKD progression: dialysis of unknown intent without an end date**
+  (decision `dial`) leaves the values from its start on out of the slope,
+  with the cell note "… values after dialysis of unknown intent left out"
+  (policy "Dated interval, else from start"; a dated one still excludes its
+  interval only). Endpoint input is unchanged; such a dialysis is never
+  kidney failure reached (OD-54). The event table reads "censor from dialysis
+  start, unknown intent without end date" for it.
+- **Slope tier "reliable"** (decision `minfu`, tier part): at least 4
+  distinct fitted dates over at least 2 × 365.25 days (731 whole days) of
+  fitted span; the existing reliability rule remains as "estimable".
+  Shown as the badge "reliable", in the patient view, as a chart key and as
+  the filter "Reliable slope"; exported as `slope_tier` (`uncertain`,
+  `estimable`, `reliable`). These eight columns come after `baseline_age`,
+  before `group`, which stays last (88 columns). `unstable_slope` and the
+  gate of the rapid-decline flag are unchanged. The status line of a slope
+  sort now reads "placed after the other slopes" (was "after the reliable
+  ones").
+
 ### Changed (OD-11 and OD-21, decided 2026-10-07, implemented 2026-11-22, issue #4)
 
 - **OLS 95 % intervals above 40 degrees of freedom use the exact Student-t

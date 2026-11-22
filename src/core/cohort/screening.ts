@@ -13,12 +13,14 @@ import type { ClinicalEvent } from '../events/events'
 import { applyExclusionWindows, exclusionReasonsAt, type ExclusionWindow } from '../exclusions/windows'
 import type { FitConfig } from '../analysis/fitConfig'
 import type { TimeBalancing } from '../fitPipeline/types'
-import { isUnstableSlope } from '../stats/slopeQuality'
+import { isUnstableSlope, slopeTier } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 import { CENSORED_VALUE_REASON, DEFAULT_BOUNDED_VALUE_POLICY, fitValueOf, isExactMeasurement, type BoundedValuePolicy } from '../measurements/censored'
 import { filterEndpointPointsForEvents } from '../domains/nephrology/endpoints/endpointEventPolicy'
 import { doublingTime, expLines, logTransformedRows, type LogTrend } from './logTrend'
 import { compareAtAnchor, type AnchorComparison, type AnchorComparisonSettings } from './anchorComparison'
+import { fitKrtSegment, KRT_SEGMENT_REASON, type KrtSegment } from './krtSegment'
+import { krtSegmentEvent } from '../domains/nephrology/censoring'
 
 
 export interface CohortSeriesSpec {
@@ -118,6 +120,11 @@ export interface CohortCell {
   /** Present when the spec asks for the log axis: the trend of ln(value) and
    * the doubling or halving time derived from it. */
   logTrend?: LogTrend
+  /** Present when the column includes the values after the patient's first
+   * kidney transplant or chronic dialysis start (its censoring option is off,
+   * decided 2026-11-22): their fit as a separate segment. An additional
+   * result; `slope`, flags and endpoints stay those of the values before it. */
+  krtSegment?: KrtSegment
 }
 
 export interface RollingSummary {
@@ -260,9 +267,21 @@ export function buildCohortRows(
       // Log axis of the column (issue #70): the same fit on ln(value), an additional result.
       const logTrend = spec.logTrend ? logTrendFor(prows, seriesRows, boundedValues, summarize, slopeLines) : undefined
       const eligibleRows = eligible.map(point => point.row)
-      // The same points the column's fit can use: exact and outside every window.
+      // Exact points whose only reason is the KRT segment window: the values
+      // after KRT that the column includes, fitted as their own segment.
+      const inSegment = (reasons: string[]) => reasons.length === 1 && reasons[0] === KRT_SEGMENT_REASON
+      const krtSegment = fitKrtSegment({
+        event: krtSegmentEvent(cellEvents(spec, pid), spec.fitConfig?.censoring),
+        // Bounds at their policy value, as in the column's own fit (issue #73).
+        points: fitInputPoints,
+        segmentIdx: pointExclusionReasons.flatMap((reasons, i) => inSegment(reasons) ? [i] : []),
+        fitModel,
+        timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw',
+      })
+      // The points the column's fit can use: exact and outside every window;
+      // with the values after KRT included, those of the segment as well.
       const anchorComparison = spec.anchorComparison
-        ? compareAtAnchor({ points: fitInputPoints, available: pointExclusionReasons.map(reasons => reasons.length === 0), events: cellEvents(spec, pid), settings: spec.anchorComparison, fitModel, timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw' })
+        ? compareAtAnchor({ points: fitInputPoints, available: pointExclusionReasons.map(reasons => reasons.length === 0 || inSegment(reasons)), events: cellEvents(spec, pid), settings: spec.anchorComparison, fitModel, timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw' })
         : undefined
       const slope = match?.slope ?? Number.NaN
       const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match && match.nFitted > 0
@@ -305,6 +324,7 @@ export function buildCohortRows(
         endpoints,
         ...(anchorComparison ? { anchorComparison } : {}),
         ...(logTrend ? { logTrend } : {}),
+        ...(krtSegment ? { krtSegment } : {}),
       }
     })
     const groupValue = attributeName
@@ -506,6 +526,12 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
 
+/** The slope tier of a cell (see `slopeTier`): uncertain, estimable or
+ * reliable; null without a slope. */
+export function cellSlopeTier(cell: Pick<CohortCell, 'reason' | 'nFitted' | 'nFittedDates' | 'fittedSpanDays' | 'fitModel' | 'slope'>) {
+  return slopeTier({ reason: cell.reason, nFitted: cell.nFitted, nFittedDates: cell.nFittedDates, fittedSpanDays: cell.fittedSpanDays, fitModel: cell.fitModel, slope: cell.slope })
+}
+
 /** Every badge of a fitted cell: those known before fitting plus those that
  * depend on the fit and the column's module settings (evaluated only for
  * modules the column configures). */
@@ -571,6 +597,15 @@ export function cohortExportRecords(
         last_eligible_value: c.lastEligibleValue ?? '',
         // Appended 2026-11-22 (issue #73), after every earlier column.
         n_bounded: c.nBounded,
+        // Then the separate segment after KRT, then the slope tier.
+        krt_segment_start: utcDateOrBlank(c.krtSegment?.event.date ?? null),
+        krt_segment_n_fitted: c.krtSegment?.fit.nFitted ?? '',
+        krt_segment_n_fitted_dates: c.krtSegment?.fit.nFittedDates ?? '',
+        krt_segment_fitted_span_days: c.krtSegment?.fit.fittedSpanDays ?? '',
+        krt_segment_slope: c.krtSegment ? numOrBlank(c.krtSegment.fit.slope) : '',
+        krt_segment_ci_low: c.krtSegment ? numOrBlank(c.krtSegment.fit.ciLow) : '',
+        krt_segment_ci_high: c.krtSegment ? numOrBlank(c.krtSegment.fit.ciHigh) : '',
+        slope_tier: cellSlopeTier(c) ?? '',
       })
     }
   }

@@ -7,7 +7,10 @@ import type { FitConfig, FitPresetDefinition } from '../../analysis/fitConfig'
 import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS } from './constants'
 import { DEFAULT_BOUNDED_VALUE_POLICY } from '../../measurements/censored'
 
-export type UnknownDialysisPolicy = 'flag-only' | 'exclude-dated-interval' | 'censor-from-start'
+/** How dialysis of unknown intent enters a fit. `dated-interval-or-from-start`
+ * (CKD progression since 2026-11-22): the dated interval when the event has an
+ * end date, otherwise everything from the dialysis start on. */
+export type UnknownDialysisPolicy = 'flag-only' | 'exclude-dated-interval' | 'censor-from-start' | 'dated-interval-or-from-start'
 
 /** Which clinical events censor or exclude measurements (see censoring.ts). */
 export interface ClinicalEventCensoringConfig {
@@ -54,14 +57,18 @@ export type ExclusionReason =
   | 'aki'
   | 'acute_dialysis'
   | 'unknown_dialysis_interval'
+  | 'unknown_dialysis_open'
   | 'post_chronic_dialysis'
   | 'post_kidney_transplant'
+  | 'krt_segment'
 
 const precedence: ExclusionReason[] = [
   'post_kidney_transplant',
   'post_chronic_dialysis',
+  'krt_segment',
   'acute_dialysis',
   'unknown_dialysis_interval',
+  'unknown_dialysis_open',
   'aki',
 ]
 
@@ -70,9 +77,17 @@ export function primaryExclusionReason(reasons: readonly ExclusionReason[]): Exc
   return precedence.find((reason) => reasons.includes(reason)) ?? null
 }
 
-/** No clinical-event censoring. */
+/** No clinical-event censoring. No preset uses it since 2026-11-22. */
 export function noCensoring(): ClinicalEventCensoringConfig {
   return { censorAfterKidneyTransplant: false, censorAfterChronicDialysis: false, excludeAcuteDialysisPeriods: false, unknownDialysisPolicy: 'flag-only' }
+}
+
+/** The censoring of every preset except CKD progression (owner decision
+ * `censor` of 2026-11-22): values from a kidney transplant or the start of
+ * chronic dialysis on are left out of fits of native kidney function; dialysis
+ * intervals are not excluded and dialysis of unknown intent is only flagged. */
+export function krtCensoring(): ClinicalEventCensoringConfig {
+  return { censorAfterKidneyTransplant: true, censorAfterChronicDialysis: true, excludeAcuteDialysisPeriods: false, unknownDialysisPolicy: 'flag-only' }
 }
 
 /** No AKI-window exclusion (default window length kept for when it is enabled). */
@@ -86,9 +101,11 @@ export function noEndpoints(): CkdEndpointConfig {
 }
 
 /** CKD progression: quarterly medians, censored after transplant and chronic
- * dialysis, acute and dated unknown dialysis intervals and 30-day AKI windows
- * excluded, the observed CKD endpoints, age axis. The individual G5
- * extrapolation is off (decided 2026-11-22, issue #81); a column switches it on. */
+ * dialysis, acute dialysis intervals, dialysis of unknown intent (its dated
+ * interval, or from its start without an end date, decided 2026-11-22) and
+ * 30-day AKI windows excluded, the observed CKD endpoints, age axis. The
+ * individual G5 extrapolation is off (decided 2026-11-22, issue #81); a column
+ * switches it on. */
 export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConfig {
   return {
     parameter,
@@ -98,7 +115,7 @@ export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConf
       censorAfterKidneyTransplant: true,
       censorAfterChronicDialysis: true,
       excludeAcuteDialysisPeriods: true,
-      unknownDialysisPolicy: 'exclude-dated-interval',
+      unknownDialysisPolicy: 'dated-interval-or-from-start',
     },
     exclusions: { excludeAkiWindows: true, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
     timeBalancing: 'quarterly-median',
@@ -114,7 +131,7 @@ export function acuteReviewConfig(parameter: FitConfig['parameter']): FitConfig 
     parameter,
     preset: 'acute_review',
     xAxis: 'calendar_time',
-    censoring: noCensoring(),
+    censoring: krtCensoring(),
     exclusions: noAkiExclusion(),
     timeBalancing: 'raw',
     fitModel: 'none',

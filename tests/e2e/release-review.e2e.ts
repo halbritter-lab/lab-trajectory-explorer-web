@@ -75,10 +75,11 @@ test('names the AKI exclusion in a withheld G5 projection and exports the eligib
   await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
   const exported = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
   const header = XLSX.utils.sheet_to_json<string[]>(exported.Sheets.cohort, { header: 1 })[0]
-  // 2026-11-22: egfr_formula_switch, n_bounded, then the 50 % decline and the unconfirmed single value below 15 come before group, which stays last.
-  expect(header.slice(-22)).toEqual(['index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
+  // 2026-11-22: egfr_formula_switch, n_bounded, then the 50 % decline and the unconfirmed single value below 15 then the segment after KRT and the slope tier come before group, which stays last.
+  expect(header.slice(-30)).toEqual(['index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
     'first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'egfr_formula_switch', 'n_bounded', 'endpoint_observed_decline_50', 'endpoint_decline_50_first_date', 'endpoint_decline_50_confirmed_date',
-    'endpoint_decline_50_recovery_date', 'endpoint_decline_50_first_value', 'endpoint_decline_50_confirmed_value', 'endpoint_decline_50_recovery_value', 'endpoint_g5_single_value_unconfirmed', 'group'])
+    'endpoint_decline_50_recovery_date', 'endpoint_decline_50_first_value', 'endpoint_decline_50_confirmed_value', 'endpoint_decline_50_recovery_value', 'endpoint_g5_single_value_unconfirmed',
+    'krt_segment_start', 'krt_segment_n_fitted', 'krt_segment_n_fitted_dates', 'krt_segment_fitted_span_days', 'krt_segment_slope', 'krt_segment_ci_low', 'krt_segment_ci_high', 'slope_tier', 'group'])
   // The eligible dates ignore the AKI windows; the fit keeps only the first day.
   expect(XLSX.utils.sheet_to_json(exported.Sheets.cohort)[0]).toMatchObject({
     first_eligible_date: '2020-01-01', last_eligible_date: '2021-12-16', index_date: '2020-01-01', last_fitted_date: '2020-01-01',

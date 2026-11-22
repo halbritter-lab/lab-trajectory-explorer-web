@@ -180,6 +180,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
               />
               Censor after chronic dialysis
             </label>
+            <p className="wt-muted">Unticked, the values from the first kidney transplant or chronic dialysis start on are fitted as a separate segment; the slope of the parameter stays that of the values before it.</p>
             <label>
               <input
                 type="checkbox"
@@ -202,6 +203,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
                 <option value="flag-only">Flag only</option>
                 <option value="exclude-dated-interval">Exclude dated interval</option>
                 <option value="censor-from-start">Censor from start</option>
+                <option value="dated-interval-or-from-start">Dated interval, else from start</option>
               </select>
             </label>
           </div>

@@ -257,8 +257,9 @@ describe('clinical events', () => {
         endDate: null,
         intent: 'unknown',
         warning: '',
-      }).effect,
-    ).toBe('warning_no_exclusion')
+      }),
+    // Since 2026-11-22 (decision `dial`) the CKD progression policy censors from its start.
+    ).toEqual({ effect: 'censor_from_date', label: 'censor from dialysis start, unknown intent without end date' })
     expect(
       effectForEvent({
         patientId: 1,

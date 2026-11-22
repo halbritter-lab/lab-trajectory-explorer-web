@@ -195,7 +195,8 @@ export function Fits() { return <>
       <ul>
         <li>
           <strong>General exploration</strong> (the starting configuration) — OLS on raw
-          measurements; no event censoring, no AKI exclusion, no time balancing, no endpoints.
+          measurements; values censored from kidney transplant and from chronic dialysis start;
+          no AKI exclusion, no time balancing, no endpoints.
         </li>
         <li>
           <strong>Theil–Sen robust trend</strong> — General exploration with the Theil–Sen
@@ -209,8 +210,8 @@ export function Fits() { return <>
           90-day minimum confirmation interval.
         </li>
         <li>
-          <strong>Acute review</strong> — raw measurements without a fit; no event censoring, no
-          AKI exclusion, no endpoints.
+          <strong>Acute review</strong> — raw measurements without a fit; values after kidney
+          transplant and chronic dialysis start marked as censored; no AKI exclusion, no endpoints.
         </li>
       </ul>
       <p>

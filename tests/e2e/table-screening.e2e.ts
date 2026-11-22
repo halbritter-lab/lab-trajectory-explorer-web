@@ -21,10 +21,12 @@ test('sorts uncertain slopes after the reliable ones, says so, and exports in th
   await demoTrajectories(page, [EGFR])
   await page.getByRole('button', { name: `Sort: ${EGFR}`, exact: true }).click()
   await page.getByRole('menuitemradio', { name: 'Slope: ascending', exact: true }).click()
-  // Decided 2026-11-21. Patient 12 (-7.35 per year over 151 days) stood at rank 9, between 9 and 6.
-  const expected = ['4', '7', '26', '24', '20', '21', '25', '9', '6', '27', '22', '17', '19', '23', '2', '28', '18', '16', '15', '11', '8', '1', '13', '14', '12', '3', '5', '10']
+  // Decided 2026-11-21. Patient 12 (-7.35 per year over 151 days) stands at rank 11 by value, between 25 and 6.
+  // Since 2026-11-22 the default preset ends the fit at a kidney transplant: patient 13 falls at -12.83
+  // (was +4.37) and patient 14 at -10.14 over 360 days, an uncertain slope (was +25.29).
+  const expected = ['4', '7', '13', '26', '24', '20', '21', '9', '25', '6', '27', '22', '17', '19', '23', '2', '28', '18', '16', '15', '11', '8', '1', '14', '12', '3', '5', '10']
   expect(await tableOrder(page)).toEqual(expected)
-  await expect(page.locator('.pv-scope')).toContainText('1 uncertain slope placed after the reliable ones')
+  await expect(page.locator('.pv-scope')).toContainText('2 uncertain slopes placed after the other slopes')
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
   const workbook = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
@@ -34,8 +36,8 @@ test('sorts uncertain slopes after the reliable ones, says so, and exports in th
   expect(cohort[24]).toMatchObject({ PatientID: 12, unstable_slope: 'yes' })
   expect(Number(cohort[24].slope)).toBeCloseTo(-7.35, 2)
   await page.getByRole('checkbox', { name: 'Uncertain slopes last' }).uncheck()
-  expect((await tableOrder(page)).slice(7, 10)).toEqual(['9', '12', '6'])
-  await expect(page.locator('.pv-scope')).toContainText('1 uncertain slope ranked among the reliable ones')
+  expect((await tableOrder(page)).slice(9, 12)).toEqual(['25', '12', '6'])
+  await expect(page.locator('.pv-scope')).toContainText('2 uncertain slopes ranked among the other slopes')
 })
 
 test('writes small slopes with the decimals of their parameter in table and patient view', async ({ page }) => {
@@ -58,13 +60,17 @@ test('filters by mark and event type, and names the scope on the export button',
   await demoTrajectories(page, [EGFR])
   const filters = page.getByRole('group', { name: 'Show only patients with' })
   await expect(filters.getByRole('button', { name: 'Kidney transplant: 3 patients' })).toBeVisible()
-  // Decided 2026-11-21 (issue #72): the whole interval below -5 (7 patients) and the possible level (6).
+  // Decided 2026-11-21 (issue #72): the whole interval below -5 (8 patients, patient 13 since the
+  // censoring at the transplant of 2026-11-22) and the possible level (6).
   await expect(filters.getByRole('button', { name: 'Possible rapid decline: 6 patients' })).toBeVisible()
-  await filters.getByRole('button', { name: 'Rapid decline: 7 patients' }).click()
+  await expect(filters.getByRole('button', { name: 'Uncertain slope: 2 patients' })).toBeVisible()
+  // Slope tier of 2026-11-22: at least 4 fitted dates over at least 2 years.
+  await expect(filters.getByRole('button', { name: 'Reliable slope: 21 patients' })).toBeVisible()
+  await filters.getByRole('button', { name: 'Rapid decline: 8 patients' }).click()
   const shown = await tableOrder(page)
   expect(shown.length).toBeGreaterThan(0)
   expect(shown).not.toContain('12')
-  expect([...shown].sort()).toEqual(['20', '21', '24', '25', '26', '4', '9'])
+  expect([...shown].sort()).toEqual(['13', '20', '21', '24', '25', '26', '4', '9'])
   for (const id of shown.slice(0, 3)) await expect(rowOf(page, id).getByRole('button', { name: 'rapid ↓', exact: true }).first()).toBeVisible()
   await expect(page.getByRole('button', { name: `Select all ${shown.length} matching` })).toBeVisible()
   const pending = page.waitForEvent('download')

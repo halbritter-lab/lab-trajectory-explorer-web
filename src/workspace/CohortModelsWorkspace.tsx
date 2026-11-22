@@ -191,10 +191,11 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [data, activeParamKey, preparationKey])
   const noFit = spec?.fitConfig?.fitModel === 'none'
-  // Whether the parameter's settings can exclude anything by an event or an AKI window.
-  const definesWindows = Boolean(spec?.fitConfig && (spec.fitConfig.exclusions.excludeAkiWindows
-    || Object.values(spec.fitConfig.censoring).some(value => value === true)
-    || spec.fitConfig.censoring.unknownDialysisPolicy !== 'flag-only'))
+  // Whether the parameter's settings can exclude anything by an event or an AKI
+  // window. Since 2026-11-22 every setting does: values after kidney
+  // replacement therapy are censored, or fitted as a separate segment when
+  // included, and in either case left out of the model.
+  const definesWindows = Boolean(spec?.fitConfig)
 
   const paramIndex = useMemo(() => {
     return (data.parameters ?? []).findIndex(p => p.key === activeParamKey)
