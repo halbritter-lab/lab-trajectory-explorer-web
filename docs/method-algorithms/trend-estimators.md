@@ -186,6 +186,24 @@ the lowest and highest pairwise slope, with an actual coverage of 1 - 2/n!
 distinct dates under Theil-Sen (since 2026-11-05; see "Individual G5
 projection"); the bounds themselves are unchanged.
 
+**Comparison with R** (2026-11-22, issue #79; details in
+[reference comparisons](../reference-comparisons.md#theilsen)). On the 12
+fitted golden series the slope equals the median of the pairwise slopes of
+`mblm` 0.12.1 and `zyp` 0.11-1. Their intercept is `median(y − slope × x)`;
+the app's convention above differs in 6 series (x = 0, 1, 2, 3, y = 0, 0, 4,
+9: −3.25 against −2.25).
+
+**Open decision OD-87.** `zyp`'s `confint` uses the same normal approximation
+but the 1-based ranks `round((N − C)/2)` and `round((N + C)/2)`; the app's
+upper rank, `roundEven((N + C)/2)` zero-based, is one higher. Twelve points,
+N = 66 pairwise slopes, V = 212.67 (ties corrected), C = 28.58: the app takes
+ranks 19 and 48 (1-based) and reports [1.5, 2.3], `zyp` ranks 19 and 47,
+[1.5, 2.285714]. With three to five points `zyp`'s lower rank is 0 and its
+interval collapses to one value. The app keeps the SciPy convention of the
+Python reference; whether Sen (1968) and Hollander and Wolfe give the upper
+bound at rank `(N + C)/2` or `(N + C)/2 + 1` was not checked against the
+texts.
+
 **Label of the bounds** (decided 2026-11-16). The table and the patient view
 call the bounds `95% slope CI`. For a Theil-Sen fit on fewer than five
 distinct fitted dates (`nFittedDates < 5`, the minimum of a Theil-Sen

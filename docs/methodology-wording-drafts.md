@@ -2821,3 +2821,65 @@ Topic *Export & reproducibility*, a new row after the cohort-model workbook.
 > Aalen–Johansen estimate, and an R script that reproduces them with the
 > package survival.
 
+## Part K: Sources after the reference comparisons (issue #79, for approval 2026-11-22)
+
+Drafted on 2026-11-22 with the stored reference cases of decision `rref`
+([reference comparisons](reference-comparisons.md)). **Nothing of Part K is
+applied**: `src/workspace/methods/topics/Sources.tsx` is unchanged, and the
+removal of the external OLS comparison (H1, issue #84) is still pending
+there. K1 builds on the H1 draft and replaces its second paragraph; it claims
+only what the tests in `tests/reference/` show.
+
+### K1. Validation scope
+
+Topic *Limitations & sources*, block "Validation scope", second paragraph of
+the H1 draft ("No comparison with an independent reference implementation is
+published yet. …").
+
+Draft:
+
+> **Comparison with R.** Further automated tests compare the application with
+> reference cases computed in R 4.6.0 and stored with the R and package
+> versions used (`tests/reference/` in the repository; one command
+> regenerates them). On synthetic and hand-made inputs they show:
+>
+> - **Cohort models:** the browser's lme4 fit and native lme4 on the same model
+>   rows and formula agree in fixed effects, standard errors, Wald intervals
+>   and variance components (three models: random intercept and slope, with a
+>   categorical and a numeric factor, random intercept with baseline age).
+> - **OLS:** slope, intercept, standard error, R² and 95 % interval agree with
+>   R's `lm` on the stored series.
+> - **Theil–Sen:** the slope agrees with the R packages mblm and zyp. The
+>   intercept follows this tool's convention, median(y) − slope × median(x),
+>   which differs from theirs, median(y − slope × x). The upper bound of the
+>   slope interval lies one rank above zyp's.
+> - **eGFR:** CKD-EPI 2021 and 2009, MDRD, EKFC, CKiD U25 and bedside
+>   Schwartz agree with the R package egfr. The R package kidney.epi differs
+>   for EKFC above 25 years (up to 0.7 %), for CKD-EPI 2009 in women (0.3 %)
+>   and for CKiD U25 from 15 to 17 years (up to 14 %); the differences are
+>   documented in the method reference. No case is yet checked against a
+>   table of a primary publication.
+> - **AKI:** the KDIGO stage of a value against a baseline agrees with the R
+>   package epocakir where the definitions match; where they differ (calendar
+>   days, the 0.3 mg/dl rise outside 48 hours) the differences are documented.
+>   Episodes and recovery are not compared.
+>
+> These comparisons show agreement with other implementations of the same
+> definitions, not clinical validity. The observed G4/G5 and endpoint
+> projection rules are this application's own research definitions: unit
+> tests cover them, but no reference comparison applies. Rolling and
+> segmented OLS are covered by the stored regression cases only. None of this
+> replaces acceptance with representative research data.
+
+The link "observed G4/G5 and endpoint projection rules" (`#methods/endpoints`)
+stays on the same words. If H1 is not applied, K1 replaces the second list
+item of the current page ("External comparison …") and the paragraph "In
+short: …" instead; the sentence "OLS has automated and external comparison
+checks" in `Fits.tsx` (H1 b) would then still need H1's correction.
+
+### Points to check in Part K
+
+- The figures in K1 (0.7 %, 0.3 %, 14 %) are those of the stored grid; the
+  owner decides whether the page names figures or only the packages.
+- OD-85, OD-86 and OD-88 (eGFR against kidney.epi) and OD-87 (Theil–Sen
+  interval against zyp) are open; the wording should follow their decision.

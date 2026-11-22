@@ -1,0 +1,156 @@
+{
+ "about": "Native R lme4 fits of tests/reference/inputs/mixed_models.json (the model rows, R data code and lmer call the app sends to webR). Synthetic data. Research use only.",
+ "generatedBy": "scripts/reference/generate.R",
+ "generated": "2026-11-22",
+ "environment": {
+  "R": "4.6.0",
+  "platform": "x86_64-pc-linux-gnu",
+  "packages": {
+   "lme4": "2.0.6",
+   "Matrix": "1.7.6",
+   "nloptr": "2.2.1",
+   "minqa": "1.2.8",
+   "lmerTest": "3.2.1",
+   "jsonlite": "2.0.0"
+  }
+ },
+ "cases": [
+  {
+   "name": "random_slope_no_factors",
+   "formula": "value ~ time_since_baseline + (1 + time_since_baseline | patient_id)",
+   "nObservations": 194,
+   "nPatients": 18,
+   "converged": true,
+   "singular": false,
+   "warnings": [],
+   "optimizer": "nloptwrap",
+   "remlCriterion": 864.042362475761,
+   "fixedEffectTerms": [
+    {
+     "term": "(Intercept)",
+     "estimate": 64.6462044470534,
+     "standardError": 1.4525012721065,
+     "waldInterval": [61.7993542662261, 67.4930546278808],
+     "satterthwaiteDf": 17.013915551897,
+     "satterthwaiteP": 4.72535488954861e-19
+    },
+    {
+     "term": "time_since_baseline",
+     "estimate": -2.53052648868442,
+     "standardError": 0.228898980262211,
+     "waldInterval": [-2.9791602460963, -2.08189273127254],
+     "satterthwaiteDf": 16.798098076879,
+     "satterthwaiteP": 3.97199850431488e-09
+    }
+   ],
+   "randomEffects": {
+    "interceptSd": 6.09463601906211,
+    "slopeSd": 0.902341122755216,
+    "interceptSlopeCorrelation": -0.197466955512899
+   },
+   "residualSd": 1.62777670521548
+  },
+  {
+   "name": "categorical_and_numeric_factor",
+   "formula": "value ~ time_since_baseline + factor_0_ + time_since_baseline:factor_0_ + factor_1_ + (1 + time_since_baseline | patient_id)",
+   "nObservations": 264,
+   "nPatients": 24,
+   "converged": true,
+   "singular": false,
+   "warnings": [],
+   "optimizer": "nloptwrap",
+   "remlCriterion": 1193.37994806146,
+   "fixedEffectTerms": [
+    {
+     "term": "(Intercept)",
+     "estimate": 60.3735008404931,
+     "standardError": 1.36342111653531,
+     "waldInterval": [57.7012445563225, 63.0457571246637],
+     "satterthwaiteDf": 21.0048134168016,
+     "satterthwaiteP": 3.14910807561754e-22
+    },
+    {
+     "term": "time_since_baseline",
+     "estimate": -2.24536958918281,
+     "standardError": 0.139090169458078,
+     "waldInterval": [-2.51798131192421, -1.9727578664414],
+     "satterthwaiteDf": 22.5121649931697,
+     "satterthwaiteP": 7.25720329980108e-14
+    },
+    {
+     "term": "factor_0_B",
+     "estimate": 8.28704091000263,
+     "standardError": 2.36151206772839,
+     "waldInterval": [3.65856230819828, 12.915519511807],
+     "satterthwaiteDf": 21.004281090506,
+     "satterthwaiteP": 0.00208603687292392
+    },
+    {
+     "term": "factor_1_",
+     "estimate": 0.056204964314395,
+     "standardError": 0.198225626052751,
+     "waldInterval": [-0.332310123561901, 0.444720052190691],
+     "satterthwaiteDf": 20.9954862767039,
+     "satterthwaiteP": 0.779539765066416
+    },
+    {
+     "term": "time_since_baseline:factor_0_B",
+     "estimate": -1.05530806418146,
+     "standardError": 0.240900296584907,
+     "waldInterval": [-1.52746396935289, -0.583152159010021],
+     "satterthwaiteDf": 22.511868674093,
+     "satterthwaiteP": 0.000227412941470354
+    }
+   ],
+   "randomEffects": {
+    "interceptSd": 5.36112716041091,
+    "slopeSd": 0.417366752937798,
+    "interceptSlopeCorrelation": 0.00441727476044128
+   },
+   "residualSd": 1.83086254931105
+  },
+  {
+   "name": "random_intercept_baseline_age",
+   "formula": "value ~ time_since_baseline + baseline_age_centered + (1 | patient_id)",
+   "nObservations": 162,
+   "nPatients": 15,
+   "converged": true,
+   "singular": false,
+   "warnings": [],
+   "optimizer": "nloptwrap",
+   "remlCriterion": 754.723167534267,
+   "fixedEffectTerms": [
+    {
+     "term": "(Intercept)",
+     "estimate": 64.8395453477363,
+     "standardError": 1.08494668334791,
+     "waldInterval": [62.7130889232282, 66.9660017722444],
+     "satterthwaiteDf": 14.2854244467457,
+     "satterthwaiteP": 1.50406807569844e-18
+    },
+    {
+     "term": "time_since_baseline",
+     "estimate": -2.71965869549548,
+     "standardError": 0.100495598372048,
+     "waldInterval": [-2.91662644890949, -2.52269094208146],
+     "satterthwaiteDf": 146.726079939884,
+     "satterthwaiteP": 6.52930489173079e-59
+    },
+    {
+     "term": "baseline_age_centered",
+     "estimate": -0.26602387983698,
+     "standardError": 0.10701963981561,
+     "waldInterval": [-0.475778519514024, -0.0562692401599364],
+     "satterthwaiteDf": 12.9917794531288,
+     "satterthwaiteP": 0.0273228203776404
+    }
+   ],
+   "randomEffects": {
+    "interceptSd": 4.04926195339934,
+    "slopeSd": null,
+    "interceptSlopeCorrelation": null
+   },
+   "residualSd": 2.0907273651286
+  }
+ ]
+}

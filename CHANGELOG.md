@@ -63,6 +63,20 @@ interfaces are still evolving before 1.0.
   policies "Dated interval, else from start" (CKD progression) and "Censor
   from start", and the label now says so.
 
+### Added (reference comparisons against native R, decision `rref` of 2026-11-22, issues #79 and #34; no numeric change)
+
+- Stored reference cases from native R 4.6.0 in `tests/reference/`, regenerated
+  with `pnpm reference:generate` (`scripts/reference/`), each file recording
+  the R and package versions: lme4 on the model rows, R data code and lmer
+  call the app sends to webR, with the webR fits of the production worker;
+  `lm` and Theil–Sen (`mblm`, `zyp`) on the golden series; eGFR equations from
+  `egfr` and `kidney.epi`; KDIGO AKI staging from `epocakir`; Kaplan–Meier and
+  log-rank cases from `survival` for issue #78. Vitest compares them with
+  stated tolerances ([reference comparisons](docs/reference-comparisons.md)).
+  webR and native lme4 agree in all stored digits. Differences with
+  independent implementations are recorded as OD-85 to OD-88; a draft for
+  Methods › Sources is in the wording drafts (part K).
+
 ### Added (release preparation and wording drafts, issues #80 and #84, decided 2026-11-22)
 
 - Drafts only; no code, number or Methods page text changed. `CITATION.cff`
