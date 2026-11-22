@@ -4,6 +4,7 @@ import { episodesForSeries, isAkiCreatinineSource } from '../core/domains/nephro
 import { episodeLastDay, type AkiEpisode } from '../core/domains/nephrology/aki/kdigo'
 import { DEFAULT_AKI_RECOVERY_HOURS, MAX_AKI_RECOVERY_HOURS } from '../core/domains/nephrology/constants'
 import { formatDisplayDate, formatDisplayNumber, utcDateOrBlank } from '../core/format'
+import { msg, t, tp, tx } from '../i18n'
 
 export interface AkiEpisodeRow {
   patientId: PatientId
@@ -50,31 +51,31 @@ const ROMAN: Record<number, string> = { 1: 'I', 2: 'II', 3: 'III' }
 export const akiStageLabel = (stage: number) => ROMAN[stage] ?? String(stage)
 
 const CRITERIA: Record<string, string> = {
-  absolute_0_3_mg_dl_48h: 'rise ≥ 0.3 mg/dl within 48 hours',
-  relative_1_5x_7d: 'rise to ≥ 1.5 times within 7 days',
-  relative_1_5x_lookback_mean: 'first value of an admission ≥ 1.5 times the mean of the values 7 to 365 days before',
-  retrospective_fall_in_admission: 'first value of an admission, later fall in the admission by ≥ 0.3 mg/dl or to ≤ 1/1.5 (retrospective)',
+  absolute_0_3_mg_dl_48h: msg('rise ≥ 0.3 mg/dl within 48 hours'),
+  relative_1_5x_7d: msg('rise to ≥ 1.5 times within 7 days'),
+  relative_1_5x_lookback_mean: msg('first value of an admission ≥ 1.5 times the mean of the values 7 to 365 days before'),
+  retrospective_fall_in_admission: msg('first value of an admission, later fall in the admission by ≥ 0.3 mg/dl or to ≤ 1/1.5 (retrospective)'),
 }
-export const akiCriterionLabel = (criterion: string) => CRITERIA[criterion] ?? criterion
+export const akiCriterionLabel = (criterion: string) => CRITERIA[criterion] ? tx(CRITERIA[criterion]) : criterion
 
 /** Baseline as listed: value and date, for a look-back mean also the number
  * of values and that the date is the latest of them. */
 export const akiEpisodeBaselineLabel = (episode: Pick<AkiEpisodeRow, 'baselineValue' | 'baselineDate' | 'baselineSource' | 'baselineN'>) =>
   episode.baselineSource === 'lookback_mean'
-    ? `mean ${formatDisplayNumber(episode.baselineValue)} of ${episode.baselineN} ${episode.baselineN === 1 ? 'value' : 'values'} 7 to 365 days before, latest ${formatDisplayDate(episode.baselineDate)}`
+    ? tp('mean {value} of {n} value 7 to 365 days before, latest {date}', 'mean {value} of {n} values 7 to 365 days before, latest {date}', episode.baselineN, { value: formatDisplayNumber(episode.baselineValue), date: formatDisplayDate(episode.baselineDate) })
     : episode.baselineSource === 'admission_minimum'
-      ? `${formatDisplayNumber(episode.baselineValue)} on ${formatDisplayDate(episode.baselineDate)}, lowest later value of the admission`
-      : `${formatDisplayNumber(episode.baselineValue)} on ${formatDisplayDate(episode.baselineDate)}`
+      ? t('{value} on {date}, lowest later value of the admission', { value: formatDisplayNumber(episode.baselineValue), date: formatDisplayDate(episode.baselineDate) })
+      : t('{value} on {date}', { value: formatDisplayNumber(episode.baselineValue), date: formatDisplayDate(episode.baselineDate) })
 
 /** Episode end as listed: the date, a note that no end was observed before
  * a gap, or a note that the episode is still open. */
 export const akiEpisodeEndLabel = (episode: Pick<AkiEpisodeRow, 'endDate' | 'endedByGap' | 'lastValueDate'> & Partial<Pick<AkiEpisodeRow, 'endAfterOpenDialysis'>>) =>
-  episode.endDate ? `${formatDisplayDate(episode.endDate)}${episode.endAfterOpenDialysis ? ` (after dialysis start ${formatDisplayDate(episode.endAfterOpenDialysis)} without end date)` : ''}`
-    : episode.endedByGap ? `not observed: no values for more than 7 days after ${formatDisplayDate(episode.lastValueDate)}`
-      : 'open at the last value'
+  episode.endDate ? `${formatDisplayDate(episode.endDate)}${episode.endAfterOpenDialysis ? ` ${t('(after dialysis start {date} without end date)', { date: formatDisplayDate(episode.endAfterOpenDialysis) })}` : ''}`
+    : episode.endedByGap ? t('not observed: no values for more than 7 days after {date}', { date: formatDisplayDate(episode.lastValueDate) })
+      : t('open at the last value')
 /** Dialysis start as listed: date and intent, or "none". */
 export const akiEpisodeDialysisLabel = (episode: Pick<AkiEpisodeRow, 'dialysis'>) =>
-  episode.dialysis ? `${formatDisplayDate(episode.dialysis.start)} (${episode.dialysis.intent})` : 'none'
+  episode.dialysis ? `${formatDisplayDate(episode.dialysis.start)} (${episode.dialysis.intent})` : t('none')
 
 /** The recovery length the Data page field applies: whole calendar days,
  * which are all the detector distinguishes (36 hours act as 24), from 0 to

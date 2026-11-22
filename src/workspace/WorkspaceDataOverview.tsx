@@ -7,8 +7,9 @@ import type { WorkspaceData } from './workspace-data'
 import { useAppStore } from './state/store'
 import { DraftNumberInput } from './DraftNumberInput'
 import { MAX_AKI_RECOVERY_HOURS } from '../core/domains/nephrology/constants'
-import { countLabel, sexLabel } from './workspace-labels'
+import { sexLabel } from './workspace-labels'
 import { WorkspacePeriEventCreatinine } from './WorkspacePeriEventCreatinine'
+import { t, tp } from '../i18n'
 
 /** Levels listed per attribute before the rest is summarised as a count. */
 const LEVEL_LIMIT = 8
@@ -48,37 +49,37 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
   const episodes = useMemo(() => akiEpisodeRows(data.rows, data.events, recoveryHours, retrospectiveFall, data.analysisSettings.egfr?.source ?? null), [data.rows, data.events, recoveryHours, retrospectiveFall, data.analysisSettings.egfr?.source])
   return <div className="data-event-tables">
     <details>
-      <summary>Imported parameters ({parameters.length})</summary>
-      <p className="muted">One parameter per test name and unit, exactly as written in the file. Different spellings or units of one test are separate parameters and are not merged. LOINC codes are shown as imported and do not separate parameters, with one exception: creatinine with a urine code (2161-8, 14683-7) is its own parameter, named with the code.</p>
-      <div className="table-scroll" role="region" aria-label="Imported parameters, horizontal scrolling" tabIndex={0}>
-        <table aria-label="Imported parameters"><thead><tr><th>Parameter</th><th>Unit</th><th>LOINC</th><th>Values</th><th>Patients</th><th>Patients with fewer than 3 dated numeric values</th></tr></thead>
+      <summary>{t('Imported parameters ({parameters})', { parameters: parameters.length })}</summary>
+      <p className="muted">{t('One parameter per test name and unit, exactly as written in the file. Different spellings or units of one test are separate parameters and are not merged. LOINC codes are shown as imported and do not separate parameters, with one exception: creatinine with a urine code (2161-8, 14683-7) is its own parameter, named with the code.')}</p>
+      <div className="table-scroll" role="region" aria-label={t('Imported parameters, horizontal scrolling')} tabIndex={0}>
+        <table aria-label={t('Imported parameters')}><thead><tr><th>{t('Parameter')}</th><th>{t('Unit')}</th><th>{t('LOINC')}</th><th>{t('Values')}</th><th>{t('Patients')}</th><th>{t('Patients with fewer than 3 dated numeric values')}</th></tr></thead>
           <tbody>{parameters.map(parameter => <tr key={parameter.key}><td>{parameter.bezeichnung}</td><td>{parameter.einheit ?? '–'}</td><td>{parameter.loinc.join(', ') || '–'}</td><td>{parameter.values}</td><td>{parameter.patients}</td><td>{parameter.sparse}</td></tr>)}</tbody>
         </table>
       </div>
     </details>
     {attributes.length > 0 && <details>
-      <summary>Patient attributes ({attributes.length})</summary>
-      <p className="muted">Attributes can be shown as columns and used for grouping under Trajectories, and as factors under Cohort models.</p>
+      <summary>{t('Patient attributes ({attributes})', { attributes: attributes.length })}</summary>
+      <p className="muted">{t('Attributes can be shown as columns and used for grouping under Trajectories, and as factors under Cohort models.')}</p>
       <ul>{attributes.map(attribute => <li key={attribute.name}><strong>{attribute.name}</strong>: {attribute.levels.length > LEVEL_LIMIT
-        ? `${attribute.levels.length} different values`
-        : attribute.levels.map(([value, count]) => `${attribute.name === 'sex' ? sexLabel(value) : value} (${count})`).join(', ')}{attribute.missing > 0 ? `; not recorded for ${countLabel(attribute.missing, 'patient')}` : ''}</li>)}</ul>
+        ? t('{n} different values', { n: attribute.levels.length })
+        : attribute.levels.map(([value, count]) => `${attribute.name === 'sex' ? sexLabel(value) : value} (${count})`).join(', ')}{attribute.missing > 0 ? `; ${t('not recorded for {patients}', { patients: tp('{n} patient', '{n} patients', attribute.missing) })}` : ''}</li>)}</ul>
     </details>}
     <details>
-      <summary>Detected AKI episodes ({episodes.length})</summary>
-      <p className="muted">Automated screening with the KDIGO creatinine criteria on each serum creatinine parameter; not a diagnosis. Creatinine values are in mg/dl. <a href="#methods/aki">How episodes are detected</a></p>
-      <label className="field aki-recovery-field" id="data-aki-recovery">Recovery between episodes (hours)
+      <summary>{t('Detected AKI episodes ({episodes})', { episodes: episodes.length })}</summary>
+      <p className="muted">{t('Automated screening with the KDIGO creatinine criteria on each serum creatinine parameter; not a diagnosis. Creatinine values are in mg/dl.')} <a href="#methods/aki">{t('How episodes are detected')}</a></p>
+      <label className="field aki-recovery-field" id="data-aki-recovery">{t('Recovery between episodes (hours)')}
         <DraftNumberInput min={0} max={MAX_AKI_RECOVERY_HOURS} step={24} value={recoveryHours} aria-describedby="aki-recovery-note"
           normalise={hours => akiRecoveryFieldHours(hours)} onCommit={hours => useAppStore.getState().setAkiRecoveryHours(hours)} />
       </label>
-      <p className="muted" id="aki-recovery-note">A new episode starts only after creatinine was back below the criterion for this long, counted in calendar days (48 hours: the next two days), so the value is rounded down to whole days (multiples of 24, at most {MAX_AKI_RECOVERY_HOURS}). It applies to this list, the AKI windows and markers of every column and the export.</p>
-      <p className="muted" id="aki-admission-note">The first value of an admission (the first value, or the first after more than 7 days without values, followed by another value on one of the next 2 days) has no earlier value in the 48-hour and 7-day windows: it is compared with the mean of the values 7 to 365 days before it and is an episode at 1.5 times that mean or more.</p>
-      <label className="check-field" id="data-aki-retrospective"><input type="checkbox" checked={retrospectiveFall} aria-describedby="aki-retrospective-note" onChange={event => useAppStore.getState().setAkiRetrospectiveFall(event.target.checked)} /> Retrospective detection: without values 7 to 365 days before, a later fall during the admission marks the first value as AKI</label>
-      <p className="muted" id="aki-retrospective-note">Off by default. When on, the first value of an admission without such a value is an episode when a later value of the admission lies at least 0.3 mg/dl below it or at most 1/1.5 of it (KDIGO retrospective detection).</p>
-      {episodes.length === 0 ? <p>No AKI episode detected.</p> : <div className="table-scroll" role="region" aria-label="Detected AKI episodes, horizontal scrolling" tabIndex={0}>
-        <table aria-label="Detected AKI episodes" className="aki-episodes-table"><thead><tr><th>Patient</th><th>Stage</th><th>Onset</th><th>Peak</th><th>Peak value</th><th>Baseline</th><th>Criterion</th><th>Creatinine parameter</th><th>End</th><th>Dialysis start</th></tr></thead>
+      <p className="muted" id="aki-recovery-note">{t('A new episode starts only after creatinine was back below the criterion for this long, counted in calendar days (48 hours: the next two days), so the value is rounded down to whole days (multiples of 24, at most {MAX_AKI_RECOVERY_HOURS}). It applies to this list, the AKI windows and markers of every column and the export.', { MAX_AKI_RECOVERY_HOURS })}</p>
+      <p className="muted" id="aki-admission-note">{t('The first value of an admission (the first value, or the first after more than 7 days without values, followed by another value on one of the next 2 days) has no earlier value in the 48-hour and 7-day windows: it is compared with the mean of the values 7 to 365 days before it and is an episode at 1.5 times that mean or more.')}</p>
+      <label className="check-field" id="data-aki-retrospective"><input type="checkbox" checked={retrospectiveFall} aria-describedby="aki-retrospective-note" onChange={event => useAppStore.getState().setAkiRetrospectiveFall(event.target.checked)} /> {t('Retrospective detection: without values 7 to 365 days before, a later fall during the admission marks the first value as AKI')}</label>
+      <p className="muted" id="aki-retrospective-note">{t('Off by default. When on, the first value of an admission without such a value is an episode when a later value of the admission lies at least 0.3 mg/dl below it or at most 1/1.5 of it (KDIGO retrospective detection).')}</p>
+      {episodes.length === 0 ? <p>{t('No AKI episode detected.')}</p> : <div className="table-scroll" role="region" aria-label={t('Detected AKI episodes, horizontal scrolling')} tabIndex={0}>
+        <table aria-label={t('Detected AKI episodes')} className="aki-episodes-table"><thead><tr><th>{t('Patient')}</th><th>{t('Stage')}</th><th>{t('Onset')}</th><th>{t('Peak')}</th><th>{t('Peak value')}</th><th>{t('Baseline')}</th><th>{t('Criterion')}</th><th>{t('Creatinine parameter')}</th><th>{t('End')}</th><th>{t('Dialysis start')}</th></tr></thead>
           <tbody>{episodes.map((episode, index) => <tr key={index}>
             <th><button onClick={() => onBrowse(episode.patientId)}>{episode.patientId}</button></th><td>{akiStageLabel(episode.stage)}</td><td className="aki-date">{formatDisplayDate(episode.onset)}</td><td className="aki-date">{formatDisplayDate(episode.peakDate)}</td>
-            <td>{formatDisplayNumber(episode.peakValue)}</td><td>{akiEpisodeBaselineLabel(episode)}</td><td>{akiCriterionLabel(episode.criterion)}</td><td>{episode.parameter} [{episode.unit ?? 'no unit'}]</td>
+            <td>{formatDisplayNumber(episode.peakValue)}</td><td>{akiEpisodeBaselineLabel(episode)}</td><td>{akiCriterionLabel(episode.criterion)}</td><td>{episode.parameter} [{episode.unit ?? t('no unit')}]</td>
             <td className="aki-end">{akiEpisodeEndLabel(episode)}</td><td>{akiEpisodeDialysisLabel(episode)}</td>
           </tr>)}</tbody>
         </table>

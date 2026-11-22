@@ -5,7 +5,8 @@ import type { ImportDiagnostic } from '../io/loadDataset'
 import { downloadBlob, rowsToXlsxBytes } from '../io/export'
 import { safeExportFilename } from './workspace-export'
 import { dataChecks, diagnosticsBySource, importDiagnosticRecords } from './import-diagnostics'
-import { countLabel } from './workspace-labels'
+import { importMessage } from './labels/importMessages'
+import { inEnglish, t, tp } from '../i18n'
 
 const DIAGNOSTIC_PREVIEW_LIMIT = 20
 /** Rows shown per list on the page; the download holds all listed rows. */
@@ -20,10 +21,10 @@ export function AffectedRows({ rows, total = rows.length, summary }: { rows: rea
     <summary onClick={() => setOpened(true)}>{summary}</summary>
     {opened && <div className="table-scroll data-preview-scroll" role="region" aria-label={summary} tabIndex={0}>
       <table>
-        <thead><tr><th>Row</th><th>Patient</th><th>Date</th><th>Parameter</th><th>Value</th></tr></thead>
+        <thead><tr><th>{t('Row')}</th><th>{t('Patient')}</th><th>{t('Date')}</th><th>{t('Parameter')}</th><th>{t('Value')}</th></tr></thead>
         <tbody>{shown.map((row, i) => <tr key={i}><td>{row.row ?? '–'}</td><td>{row.patientId ?? '–'}</td><td>{row.date || '–'}</td><td>{row.parameter || '–'}</td><td>{row.value || '–'}</td></tr>)}</tbody>
       </table>
-      {total > shown.length && <p className="muted">Showing the first {shown.length} of {total} rows. The diagnostics download lists {total > rows.length ? `the first ${rows.length}` : 'all of them'}.</p>}
+      {total > shown.length && <p className="muted">{total > rows.length ? t('Showing the first {shown} of {total} rows. The diagnostics download lists the first {listed}.', { shown: shown.length, total, listed: rows.length }) : t('Showing the first {shown} of {total} rows. The diagnostics download lists all of them.', { shown: shown.length, total })}</p>}
     </div>}
   </details>
 }
@@ -35,12 +36,12 @@ function SourceDiagnostics({ label, details }: { label: string; details: ImportD
   const remaining = details.length - visible.length
   const rejected = details.filter(d => d.severity === 'rejected').length
   return <details className="data-diagnostics-source">
-    <summary><strong>{label}</strong> ({[...new Set(details.map(d => d.sheet))].join(', ')}{rejected > 0 ? `, ${countLabel(rejected, 'row')} rejected` : ''}): <span>{details.length} import diagnostics — show details</span></summary>
+    <summary><strong>{label}</strong> ({[...new Set(details.map(d => d.sheet))].join(', ')}{rejected > 0 ? `, ${tp('{n} row rejected', '{n} rows rejected', rejected)}` : ''}): <span>{t('{n} import diagnostics — show details', { n: details.length })}</span></summary>
     <div className="data-diagnostics"><ul>{visible.map((d, i) => <li key={i}>
-      {d.sheet}{d.row !== undefined ? `, row ${d.row}` : ''}{d.scope === 'sheet' ? '' : `, patient ${d.patientId ?? 'without ID'}`}, {d.severity === 'rejected' ? 'rejected' : 'warning'}: {d.reason}
-      {!!d.rows?.length && <AffectedRows rows={d.rows} total={d.affected ?? d.rows.length} summary={`Show the ${countLabel(d.affected ?? d.rows.length, 'affected row')}`} />}
+      {d.sheet}{d.row !== undefined ? `, ${t('row {row}', { row: d.row })}` : ''}{d.scope === 'sheet' ? '' : `, ${d.patientId === null ? t('patient without ID') : t('patient {id}', { id: d.patientId })}`}, {d.severity === 'rejected' ? t('rejected') : t('warning')}: {importMessage(d.reason)}
+      {!!d.rows?.length && <AffectedRows rows={d.rows} total={d.affected ?? d.rows.length} summary={tp('Show the {n} affected row', 'Show the {n} affected rows', d.affected ?? d.rows.length)} />}
     </li>)}</ul>
-      {remaining > 0 && <button type="button" onClick={() => setShowAll(true)}>Show {remaining} remaining diagnostics</button>}
+      {remaining > 0 && <button type="button" onClick={() => setShowAll(true)}>{t('Show {remaining} remaining diagnostics', { remaining })}</button>}
     </div>
   </details>
 }
@@ -53,8 +54,8 @@ export function WorkspaceImportDiagnostics({ diagnostics, rows }: { diagnostics:
   const groups = useMemo(() => diagnosticsBySource(diagnostics), [diagnostics])
   if (groups.length === 0) return null
   const rejected = diagnostics.some(d => d.severity === 'rejected')
-  return <div className={`notice data-diagnostics-panel ${rejected ? 'amber' : ''}`} role="group" aria-label="Import diagnostics">
+  return <div className={`notice data-diagnostics-panel ${rejected ? 'amber' : ''}`} role="group" aria-label={t('Import diagnostics')}>
     <div className="data-diagnostics-sources">{groups.map(group => <SourceDiagnostics key={group.source} label={group.label} details={group.diagnostics} />)}</div>
-    <button type="button" onClick={() => downloadBlob(rowsToXlsxBytes(importDiagnosticRecords(diagnostics, dataChecks(rows)), 'import_diagnostics'), safeExportFilename('import-diagnostics', 'xlsx'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}>Download import diagnostics (XLSX)</button>
+    <button type="button" onClick={() => downloadBlob(rowsToXlsxBytes(inEnglish(() => importDiagnosticRecords(diagnostics, dataChecks(rows))), 'import_diagnostics'), safeExportFilename('import-diagnostics', 'xlsx'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}>{t('Download import diagnostics (XLSX)')}</button>
   </div>
 }

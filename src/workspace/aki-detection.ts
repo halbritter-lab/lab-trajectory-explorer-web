@@ -1,8 +1,12 @@
 import { isAkiCreatinineSource, isUnderDialysis } from '../core/domains/nephrology/aki/akiAware'
 import type { ClinicalEvent } from '../core/events/events'
 
-/** Shown wherever a creatinine value is left out of AKI detection. */
-export const NOT_USED_FOR_AKI_DETECTION = 'not used for AKI detection (dialysis)'
+import { t } from '../i18n'
+
+/** Shown wherever a creatinine value is left out of AKI detection; capitalised at the start of a cell. */
+export function notUsedForAkiDetection(capital = false): string {
+  return capital ? t('Not used for AKI detection (dialysis)') : t('not used for AKI detection (dialysis)')
+}
 
 /** Whether a value of this series, measured on `date`, is left out of AKI
  * detection because it was measured under dialysis. Display only: it asks the

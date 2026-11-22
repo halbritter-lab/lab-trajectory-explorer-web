@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrajectoriesWorkspace } from '../../src/workspace/TrajectoriesWorkspace'
-import { computedEgfrKey, EGFR_GAP_TEXT, egfrGapContext, egfrGapReason, egfrGapReasons, missingEgfrNotes } from '../../src/workspace/egfr-gaps'
+import { computedEgfrKey, egfrGapText, egfrGapContext, egfrGapReason, egfrGapReasons, missingEgfrNotes } from '../../src/workspace/egfr-gaps'
 import { appendComputedEgfr } from '../../src/core/domains/nephrology/egfr/series'
 import type { WorkspaceData } from '../../src/workspace/workspace-data'
 import type { LabRow, Sex } from '../../src/core/types'
@@ -48,7 +48,7 @@ describe('egfrGapReason', () => {
     // 18 is an adult; 17 is not.
     expect(egfrGapReason({ ...row, patientAgeAtLab: 17 })).toBe('under_18')
     expect(egfrGapReason({ ...row, patientAgeAtLab: 18 })).toBeNull()
-    expect(EGFR_GAP_TEXT.sex).toBe('Sex missing or unresolved')
+    expect(egfrGapText('sex')).toBe('Sex missing or unresolved')
   })
 })
 
@@ -128,7 +128,7 @@ describe('missingEgfrNotes', () => {
     expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 8), withHeight)).toEqual([])
     expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 30), withHeight)).toEqual(['sex'])
     expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 8), egfrGapContext({ formula: 'ckd-epi-2021', paediatric: 'ckid-u25-ekfc' }, []))).toEqual(['sex'])
-    expect(EGFR_GAP_TEXT.under_2).toBe('Age under 2 — no eGFR formula is used below 2 years')
+    expect(egfrGapText('under_2')).toBe('Age under 2 — no eGFR formula is used below 2 years')
   })
   it('gives nothing while the derivation is off', () => {
     expect(computedEgfrKey(data('off'))).toBeNull()

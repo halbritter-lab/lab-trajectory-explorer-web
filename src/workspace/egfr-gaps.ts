@@ -3,6 +3,7 @@ import { COMPUTED_EGFR_UNIT, computedEgfrName, DEFAULT_PAEDIATRIC_RULE, normalis
 import { creatinineSourceOptions, defaultCreatinineSource, equationUsesSex, HEIGHT_MATCH_DAYS, isSerumCreatinineSource, patientCreatinineSources, patientHeights, rowEgfrFormula, type EgfrRule, type HeightPoint, type Source } from '../core/domains/nephrology/egfr/series'
 import { parameterLabel } from './workspace-labels'
 import type { WorkspaceData } from './workspace-data'
+import { msg, t, tp, type MessageKey } from '../i18n'
 
 /** Why no eGFR is computed from one row of the creatinine source, in the order
  * the reasons are checked. One rule for the counts on the Data page (first
@@ -57,26 +58,28 @@ export function egfrGapReason(row: GapRow, context?: EgfrGapContext): EgfrGapRea
   return egfrGapReasons(row, context)[0] ?? null
 }
 
-/** Wording of the counts on the Data page. */
-export const EGFR_GAP_TEXT: Record<EgfrGapReason, string> = {
-  date: 'Date missing',
-  value: 'Numeric value missing',
-  non_positive: 'Creatinine must be positive',
-  sex: 'Sex missing or unresolved',
-  age: 'Age missing',
-  under_18: 'Age under 18 — adult eGFR formulas do not apply',
-  under_2: 'Age under 2 — no eGFR formula is used below 2 years',
-  no_height: 'Height missing — bedside Schwartz needs a height in cm',
-  height_gap: `No height within ${HEIGHT_MATCH_DAYS} days before and after — bedside Schwartz needs a height`,
+/** Wording of the counts on the Data page (message keys; `{days}` is HEIGHT_MATCH_DAYS). */
+const EGFR_GAP_MESSAGES: Record<EgfrGapReason, MessageKey> = {
+  date: msg('Date missing'),
+  value: msg('Numeric value missing'),
+  non_positive: msg('Creatinine must be positive'),
+  sex: msg('Sex missing or unresolved'),
+  age: msg('Age missing'),
+  under_18: msg('Age under 18 — adult eGFR formulas do not apply'),
+  under_2: msg('Age under 2 — no eGFR formula is used below 2 years'),
+  no_height: msg('Height missing — bedside Schwartz needs a height in cm'),
+  height_gap: msg('No height within {days} days before and after — bedside Schwartz needs a height'),
 }
-const SHORT: Record<EgfrGapReason, string> = {
-  date: 'date missing', value: 'numeric value missing', non_positive: 'creatinine not positive',
-  sex: 'sex missing', age: 'age missing', under_18: 'age under 18', under_2: 'age under 2',
-  no_height: 'height missing', height_gap: `no height within ${HEIGHT_MATCH_DAYS} days before and after`,
+export const egfrGapText = (reason: EgfrGapReason): string => t(EGFR_GAP_MESSAGES[reason], { days: HEIGHT_MATCH_DAYS })
+const SHORT_MESSAGES: Record<EgfrGapReason, MessageKey> = {
+  date: msg('date missing'), value: msg('numeric value missing'), non_positive: msg('creatinine not positive'),
+  sex: msg('sex missing'), age: msg('age missing'), under_18: msg('age under 18'), under_2: msg('age under 2'),
+  no_height: msg('height missing'), height_gap: msg('no height within {days} days before and after'),
 }
+const short = (reason: EgfrGapReason): string => t(SHORT_MESSAGES[reason], { days: HEIGHT_MATCH_DAYS })
 /** Where the height comes from, for the notes that name a height reason. */
-export const HEIGHT_SOURCE_TEXT = 'Height is read from a series named Größe, Körpergröße or height in cm, or with LOINC 8302-2.'
-const ORDER = Object.keys(EGFR_GAP_TEXT) as EgfrGapReason[]
+export const heightSourceText = () => t('Height is read from a series named Größe, Körpergröße or height in cm, or with LOINC 8302-2.')
+const ORDER = Object.keys(EGFR_GAP_MESSAGES) as EgfrGapReason[]
 
 export interface MissingEgfrNote {
   /** Short form for the cell: the first reason, e.g. "No eGFR: sex missing",
@@ -125,19 +128,19 @@ export function missingEgfrNotes(data: Pick<WorkspaceData, 'rows' | 'rawRows' | 
     if (computed.has(key)) continue
     const resolved = perPatient.get(key)
     if (!resolved) {
-      notes.set(key, { label: 'No eGFR: no serum creatinine', text: 'No eGFR for this patient: no serum creatinine value in mg/dl or µmol/l.' })
+      notes.set(key, { label: t('No eGFR: no serum creatinine'), text: t('No eGFR for this patient: no serum creatinine value in mg/dl or µmol/l.') })
       continue
     }
     if (resolved.gap === 'other_mgdl') {
-      notes.set(key, { label: 'No eGFR: creatinine under another name', text: `No eGFR for this patient: no value in the creatinine source ${selected}. Serum creatinine in mg/dl under another name (${labels(resolved.others.filter(([, unit]) => normaliseUnit(unit) === 'mg/dl'))}) is not used, and µmol/l values are used only for patients without any serum creatinine in mg/dl.` })
+      notes.set(key, { label: t('No eGFR: creatinine under another name'), text: t('No eGFR for this patient: no value in the creatinine source {selected}. Serum creatinine in mg/dl under another name ({others}) is not used, and µmol/l values are used only for patients without any serum creatinine in mg/dl.', { selected, others: labels(resolved.others.filter(([, unit]) => normaliseUnit(unit) === 'mg/dl')) }) })
       continue
     }
     if (resolved.gap === 'several_umoll') {
-      notes.set(key, { label: 'No eGFR: several µmol/l series', text: `No eGFR for this patient: no serum creatinine in mg/dl and several series in µmol/l (${labels(resolved.others)}), none under the name of the creatinine source ${selected}. Series are not merged, so none is used.` })
+      notes.set(key, { label: t('No eGFR: several µmol/l series'), text: t('No eGFR for this patient: no serum creatinine in mg/dl and several series in µmol/l ({others}), none under the name of the creatinine source {selected}. Series are not merged, so none is used.', { others: labels(resolved.others), selected }) })
       continue
     }
     if (resolved.gap === 'no_source') {
-      notes.set(key, { label: 'No eGFR: no creatinine in the source', text: `No eGFR for this patient: no value in the creatinine source ${selected}. ${labels(resolved.others)} ${resolved.others.length === 1 ? 'is' : 'are'} not used: only a source in mg/dl falls back to a patient's µmol/l series.` })
+      notes.set(key, { label: t('No eGFR: no creatinine in the source'), text: `${t('No eGFR for this patient: no value in the creatinine source {selected}.', { selected })} ${resolved.others.length === 1 ? t("{series} is not used: only a source in mg/dl falls back to a patient's µmol/l series.", { series: labels(resolved.others) }) : t("{series} are not used: only a source in mg/dl falls back to a patient's µmol/l series.", { series: labels(resolved.others) })}` })
       continue
     }
     const counts = reasons.get(key)
@@ -145,14 +148,14 @@ export function missingEgfrNotes(data: Pick<WorkspaceData, 'rows' | 'rawRows' | 
     const found = ORDER.filter(reason => counts.has(reason))
     // Every row could be computed, yet nothing was: not a per-patient reason.
     if (!found.length) continue
-    const demographics = found.filter(reason => reason === 'sex' || reason === 'age').map(reason => reason === 'sex' ? 'the sex' : 'the age')
+    const sex = found.includes('sex'), age = found.includes('age')
     const own = resolved.source!
     notes.set(key, {
-      label: `No eGFR: ${found[0] === 'sex' && counts.has('age') ? 'sex and age missing' : SHORT[found[0]]}`,
-      text: `No eGFR for this patient: ${found.map(reason => `${SHORT[reason]} (${counts.get(reason)} creatinine ${counts.get(reason) === 1 ? 'value' : 'values'})`).join('; ')}.`
-        + (demographics.length ? ` Enter ${demographics.join(' and ')} under Data → “Review and edit patients”.` : '')
-        + (found.some(reason => reason === 'no_height' || reason === 'height_gap') ? ` ${HEIGHT_SOURCE_TEXT}` : '')
-        + (resolved.fallback ? ` Creatinine source of this patient: ${parameterLabel(own[0], own[1])}, because the patient has no serum creatinine in mg/dl.` : ''),
+      label: t('No eGFR: {reason}', { reason: found[0] === 'sex' && counts.has('age') ? t('sex and age missing') : short(found[0]) }),
+      text: t('No eGFR for this patient: {reasons}.', { reasons: found.map(reason => `${short(reason)} (${tp('{n} creatinine value', '{n} creatinine values', counts.get(reason)!)})`).join('; ') })
+        + (sex && age ? ` ${t('Enter the sex and the age under Data → “Review and edit patients”.')}` : sex ? ` ${t('Enter the sex under Data → “Review and edit patients”.')}` : age ? ` ${t('Enter the age under Data → “Review and edit patients”.')}` : '')
+        + (found.some(reason => reason === 'no_height' || reason === 'height_gap') ? ` ${heightSourceText()}` : '')
+        + (resolved.fallback ? ` ${t('Creatinine source of this patient: {source}, because the patient has no serum creatinine in mg/dl.', { source: parameterLabel(own[0], own[1]) })}` : ''),
     })
   }
   return notes

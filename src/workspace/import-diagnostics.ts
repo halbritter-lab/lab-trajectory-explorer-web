@@ -4,13 +4,14 @@ import { implausiblyHighCreatinineRows, nonPositiveCreatinineRows } from '../cor
 import { IMPLAUSIBLE_CREATININE_ABOVE_MGDL } from '../core/domains/nephrology/constants'
 import { IMPORT_SOURCES, type ImportDiagnostic, type ImportSource } from '../io/loadDataset'
 import { countLabel } from './workspace-labels'
+import { msg, t, tp, type MessageKey } from '../i18n'
 
-export const IMPORT_SOURCE_LABELS: Record<ImportSource, string> = { labs: 'Lab values', events: 'Events', attributes: 'Attributes' }
+export const IMPORT_SOURCE_LABELS: Record<ImportSource, MessageKey> = { labs: msg('Lab values'), events: msg('Events'), attributes: msg('Attributes') }
 
 /** The findings of each source table that has any, in the fixed order lab
  * values, events, attributes. */
 export function diagnosticsBySource(diagnostics: readonly ImportDiagnostic[]): { source: ImportSource; label: string; diagnostics: ImportDiagnostic[] }[] {
-  return IMPORT_SOURCES.map(source => ({ source, label: IMPORT_SOURCE_LABELS[source], diagnostics: diagnostics.filter(d => d.source === source) }))
+  return IMPORT_SOURCES.map(source => ({ source, label: t(IMPORT_SOURCE_LABELS[source]), diagnostics: diagnostics.filter(d => d.source === source) }))
     .filter(group => group.diagnostics.length > 0)
 }
 
@@ -32,10 +33,10 @@ export function dataChecks(rows: readonly LabRow[]): DataCheck[] {
   const nonPositive = nonPositiveCreatinineRows(rows)
   const high = implausiblyHighCreatinineRows(rows)
   const checks: DataCheck[] = [
-    { id: 'no_date', message: `${countLabel(noDate.length, 'value')} without a date; kept, but used in no dated calculation.`, rows: noDate.map(r => diagnosticRow(r)) },
-    { id: 'no_number', message: `${countLabel(noNumber.length, 'value')} without a numeric measurement; kept, but used in no calculation.`, rows: noNumber.map(r => diagnosticRow(r)) },
-    { id: 'creatinine_non_positive', message: `${nonPositive.length} serum creatinine ${nonPositive.length === 1 ? 'value' : 'values'} of zero or less: not plausible, so not used for AKI detection or eGFR.`, rows: nonPositive.map(r => diagnosticRow(r)) },
-    { id: 'creatinine_high', message: `${high.length} serum creatinine ${high.length === 1 ? 'value' : 'values'} above ${IMPLAUSIBLE_CREATININE_ABOVE_MGDL} mg/dl (µmol/l converted): not plausible, check the unit. The values are used unchanged.`, rows: high.map(r => diagnosticRow(r)) },
+    { id: 'no_date', message: t('{values} without a date; kept, but used in no dated calculation.', { values: countLabel(noDate.length, 'value') }), rows: noDate.map(r => diagnosticRow(r)) },
+    { id: 'no_number', message: t('{values} without a numeric measurement; kept, but used in no calculation.', { values: countLabel(noNumber.length, 'value') }), rows: noNumber.map(r => diagnosticRow(r)) },
+    { id: 'creatinine_non_positive', message: tp('{n} serum creatinine value of zero or less: not plausible, so not used for AKI detection or eGFR.', '{n} serum creatinine values of zero or less: not plausible, so not used for AKI detection or eGFR.', nonPositive.length), rows: nonPositive.map(r => diagnosticRow(r)) },
+    { id: 'creatinine_high', message: tp('{n} serum creatinine value above {limit} mg/dl (µmol/l converted): not plausible, check the unit. The values are used unchanged.', '{n} serum creatinine values above {limit} mg/dl (µmol/l converted): not plausible, check the unit. The values are used unchanged.', high.length, { limit: IMPLAUSIBLE_CREATININE_ABOVE_MGDL }), rows: high.map(r => diagnosticRow(r)) },
   ]
   return checks.filter(check => check.rows.length > 0)
 }
@@ -67,7 +68,7 @@ export function importDiagnosticRecords(diagnostics: readonly ImportDiagnostic[]
     for (const d of group.diagnostics) {
       if (!d.rows?.length) { out.push(line(d.source, d.sheet, d.severity, d.reason, { row: d.row ?? null, patientId: d.patientId })); continue }
       for (const row of d.rows) out.push(line(d.source, d.sheet, d.severity, d.reason, row))
-      if (d.affected !== undefined && d.affected > d.rows.length) out.push(line(d.source, d.sheet, d.severity, `${d.reason} (${d.affected - d.rows.length} further rows are not listed.)`, { patientId: d.patientId }))
+      if (d.affected !== undefined && d.affected > d.rows.length) out.push(line(d.source, d.sheet, d.severity, `${d.reason} (${t('{n} further rows are not listed.', { n: d.affected - d.rows.length })})`, { patientId: d.patientId }))
     }
   }
   for (const check of checks) for (const row of check.rows) out.push(line('labs', '', 'data check', check.message, row))

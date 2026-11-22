@@ -1,26 +1,27 @@
 import type { PeriEventCriterion, PeriEventReason, PeriEventResult, PeriEventRule } from '../core/domains/nephrology/aki/periEvent'
 import { formatDisplayDate, utcDateOrBlank } from '../core/format'
 import { countLabel } from './workspace-labels'
+import { msg, t, type MessageKey } from '../i18n'
 
-const REASONS: Record<PeriEventReason, string> = {
-  no_creatinine: 'no serum creatinine values',
-  event_under_dialysis: 'event day under dialysis',
-  no_baseline: 'no value on or before the event day',
-  no_value_in_window: 'no value in the window',
+const REASONS: Record<PeriEventReason, MessageKey> = {
+  no_creatinine: msg('no serum creatinine values'),
+  event_under_dialysis: msg('event day under dialysis'),
+  no_baseline: msg('no value on or before the event day'),
+  no_value_in_window: msg('no value in the window'),
 }
-export const periEventReasonLabel = (reason: PeriEventReason) => REASONS[reason]
+export const periEventReasonLabel = (reason: PeriEventReason) => t(REASONS[reason])
 
-const CRITERIA: Record<PeriEventCriterion, string> = {
-  absolute_0_3_mg_dl: 'rise ≥ 0.3 mg/dl',
-  relative_1_5x: 'rise to ≥ 1.5 times baseline',
-  both: 'rise ≥ 0.3 mg/dl and to ≥ 1.5 times baseline',
+const CRITERIA: Record<PeriEventCriterion, MessageKey> = {
+  absolute_0_3_mg_dl: msg('rise ≥ 0.3 mg/dl'),
+  relative_1_5x: msg('rise to ≥ 1.5 times baseline'),
+  both: msg('rise ≥ 0.3 mg/dl and to ≥ 1.5 times baseline'),
 }
 
 /** "Met: rise ≥ 0.3 mg/dl", "Not met" or "Not evaluable: <reason>". */
 export function periEventStatusLabel(result: Pick<PeriEventResult, 'status' | 'reason' | 'criterion'>): string {
-  if (result.status === 'met') return `Met: ${CRITERIA[result.criterion!]}`
-  if (result.status === 'not_met') return 'Not met'
-  return `Not evaluable: ${periEventReasonLabel(result.reason!)}`
+  if (result.status === 'met') return t('Met: {criterion}', { criterion: t(CRITERIA[result.criterion!]) })
+  if (result.status === 'not_met') return t('Not met')
+  return t('Not evaluable: {reason}', { reason: periEventReasonLabel(result.reason!) })
 }
 
 /** The notes beside a result: overlapping events, dialysis in the window and
@@ -28,10 +29,10 @@ export function periEventStatusLabel(result: Pick<PeriEventResult, 'status' | 'r
 export function periEventNotes(result: PeriEventResult): string {
   const days = result.windowHours / 24
   const notes = [
-    result.overlappingEvents > 0 ? `${countLabel(result.overlappingEvents, 'other selected event')} within ${days} days` : '',
-    result.dialysisStartInWindow ? `dialysis start ${formatDisplayDate(result.dialysisStartInWindow.date)} (${result.dialysisStartInWindow.intent})` : '',
-    result.windowValuesUnderDialysis > 0 ? `${countLabel(result.windowValuesUnderDialysis, 'value')} under dialysis left out` : '',
-    result.baselineDayValues > 1 ? `baseline chosen among ${result.baselineDayValues} values of its day` : '',
+    result.overlappingEvents > 0 ? t('{events} within {days} days', { events: countLabel(result.overlappingEvents, 'other selected event'), days }) : '',
+    result.dialysisStartInWindow ? t('dialysis start {date} ({intent})', { date: formatDisplayDate(result.dialysisStartInWindow.date), intent: result.dialysisStartInWindow.intent }) : '',
+    result.windowValuesUnderDialysis > 0 ? t('{values} under dialysis left out', { values: countLabel(result.windowValuesUnderDialysis, 'value') }) : '',
+    result.baselineDayValues > 1 ? t('baseline chosen among {n} values of its day', { n: result.baselineDayValues }) : '',
   ].filter(Boolean)
   return notes.length ? notes.join('; ') : '–'
 }

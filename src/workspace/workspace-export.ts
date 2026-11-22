@@ -25,6 +25,7 @@ import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
 import { dataChecks, importDiagnosticRecords } from './import-diagnostics'
 import type { ColumnSettingsRecord } from './trajectory-ui/analysis'
+import { inEnglish } from '../i18n'
 
 export interface WorkspaceExportInput {
   data: WorkspaceData
@@ -177,7 +178,13 @@ function columnSettingsColumns(record: ColumnSettingsRecord | undefined) {
 export const COLUMN_SETTINGS_NOTE = 'trend, settings_source and column_settings, the last columns of settings, record the settings of each parameter as the app keeps them: trend is true when Trend was on (with Trend off, fit_config has fitModel none and the column has no slope), settings_source is shared for a parameter that used the shared settings and own for one with its own settings, and column_settings holds those settings as JSON (the entries of fit_config with the preset id, the module settings and the before/after setting). Loading this file does not apply them; "Apply settings from an export" in the analysis record (Trajectories) does, together with analysis_settings, and lists what it could not apply.'
 
 /** All sheets share the supplied visible scope; summaries are never fitted again. */
-export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,groupBy = '',anchorComparisonByParameterKey,columnSettingsByParameterKey,periEventSettings = null,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
+/** The workbook sheets of an export. Always English, whatever the interface
+ * language (issue #71): column names, values and notes are composed under
+ * `inEnglish`. */
+export function workspaceWorkbookSheets(input: WorkspaceExportInput): WorkbookSheet[] {
+  return inEnglish(() => composeWorkbookSheets(input))
+}
+function composeWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,groupBy = '',anchorComparisonByParameterKey,columnSettingsByParameterKey,periEventSettings = null,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
   const requestedKeys = [...new Set(parameterKeys)]
   const parameters = requestedKeys.map(key => data.parameters.find(parameter => parameter.key === key))
   if (!parameters.length || parameters.some(parameter => !parameter)) throw new Error('No valid parameters selected for export.')
@@ -406,6 +413,9 @@ function chartLegend(svg: SVGSVGElement): {label:string;color:string}[] {
 
 /** Clone with visible title, context, legend and research framing, also for PNG. */
 export function exportChartSvg(svg: SVGSVGElement, title: string): {svg:string;width:number;height:number} {
+  return inEnglish(() => composeChartSvg(svg, title))
+}
+function composeChartSvg(svg: SVGSVGElement, title: string): {svg:string;width:number;height:number} {
   const box = (svg.getAttribute('viewBox') ?? '').trim().split(/[ ,]+/).map(Number)
   const validBox = box.length === 4 && box.every(Number.isFinite) && box[2] > 0 && box[3] > 0
   const width = validBox ? box[2] : Number(svg.getAttribute('width'))

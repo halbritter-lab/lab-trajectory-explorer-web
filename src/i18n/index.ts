@@ -15,7 +15,7 @@
  * and imported names, values and units.
  */
 import { createElement, Fragment, useSyncExternalStore, type ReactNode } from 'react'
-import type { MessageKey } from './en'
+import { EN_MESSAGES, type MessageKey } from './en'
 import { de } from './de'
 
 export type { MessageKey } from './en'
@@ -82,6 +82,14 @@ export function t(key: MessageKey, params?: MessageParams): string {
  * one is singular). `{n}` is filled with the count. */
 export function tp(one: MessageKey, other: MessageKey, count: number, params?: MessageParams): string {
   return t(count === 1 ? one : other, { n: count, ...params })
+}
+
+const KNOWN: ReadonlySet<string> = new Set(EN_MESSAGES)
+/** A fixed text from outside the interface layer (a core module label, a
+ * preset name, an exclusion reason): translated when the catalog lists it
+ * (see `core-labels.ts`), otherwise shown as it is. */
+export function tx(text: string, params?: MessageParams): string {
+  return KNOWN.has(text) ? t(text as MessageKey, params) : fill(text, params)
 }
 
 /** Marks a message key without translating it, for constant tables that are
