@@ -419,7 +419,16 @@ No finding changes an imported value.
 - **Per source table.** Findings belong to the table they came from: lab
   values, events or attributes. A workbook import sets all three. A later
   events or attributes upload replaces the findings of that table only; the
-  lab findings stay. An upload that fails leaves the findings as they were.
+  lab findings stay. An upload that cannot be read or fails a column check
+  leaves the findings as they were. An upload whose rows are all rejected
+  ("No usable events …", "No usable attributes …") leaves the loaded table as
+  it was but lists its rejected rows (since 2026-11-22): the findings of that
+  file are added to those of the table, which keep their own; findings of an
+  earlier upload under the same file name are replaced. Example: `events.csv`
+  is loaded with one warning, then `bad-events.csv` with two rejected rows;
+  the events of `events.csv` stay, and the events list of the diagnostics
+  reads "(events.csv, bad-events.csv, 2 rows rejected)" with three lines.
+  Before, the rejected rows were named only in the error message.
 - **Saved copy.** With "Remember on this device" the findings are saved with
   the dataset and restored with it. A copy saved before 2026-11-21 restores
   without findings and without source rows; the restore notice then adds:

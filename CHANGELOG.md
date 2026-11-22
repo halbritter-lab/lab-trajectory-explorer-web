@@ -48,6 +48,9 @@ interfaces are still evolving before 1.0.
   data leaving the machine follows the Methods page (downloads of the R
   runtime only, no measurements sent). The notice of a page opened from a
   folder links to the online version.
+- An events or attributes file whose rows are all rejected ("No usable
+  events …") still lists its rejected rows in the import diagnostics; the
+  loaded events or attributes stay as before.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 

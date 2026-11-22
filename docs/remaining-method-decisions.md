@@ -1041,6 +1041,16 @@ Resolved with a change:
   cohort models are downloads only, no measurements are sent. The host names
   and the Content-Security-Policy are left as they are (self-hosting of the
   R runtime is a separate change).
+- **A file rejected as a whole still lists its rejected rows** (K09). When
+  every row of a separately uploaded events or attributes file is rejected
+  ("No usable events …"), the loaded table stays as it was and the rejected
+  rows of that file are listed in the import diagnostics (and therefore in
+  the `import_diagnostics` export sheet). Details of the implementation: the
+  rows are added to the findings of the table, which keep those of the file
+  that is still loaded; a second upload under the same file name replaces
+  the findings of the first; the summary of the list names every file it
+  holds. Details:
+  [import findings](method-algorithms/import-and-values.md#import-findings).
 
 ## Approved requirements
 

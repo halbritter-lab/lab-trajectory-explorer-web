@@ -35,7 +35,7 @@ function SourceDiagnostics({ label, details }: { label: string; details: ImportD
   const remaining = details.length - visible.length
   const rejected = details.filter(d => d.severity === 'rejected').length
   return <details className="data-diagnostics-source">
-    <summary><strong>{label}</strong> ({details[0].sheet}{rejected > 0 ? `, ${countLabel(rejected, 'row')} rejected` : ''}): <span>{details.length} import diagnostics — show details</span></summary>
+    <summary><strong>{label}</strong> ({[...new Set(details.map(d => d.sheet))].join(', ')}{rejected > 0 ? `, ${countLabel(rejected, 'row')} rejected` : ''}): <span>{details.length} import diagnostics — show details</span></summary>
     <div className="data-diagnostics"><ul>{visible.map((d, i) => <li key={i}>
       {d.sheet}{d.row !== undefined ? `, row ${d.row}` : ''}{d.scope === 'sheet' ? '' : `, patient ${d.patientId ?? 'without ID'}`}, {d.severity === 'rejected' ? 'rejected' : 'warning'}: {d.reason}
       {!!d.rows?.length && <AffectedRows rows={d.rows} total={d.affected ?? d.rows.length} summary={`Show the ${countLabel(d.affected ?? d.rows.length, 'affected row')}`} />}
