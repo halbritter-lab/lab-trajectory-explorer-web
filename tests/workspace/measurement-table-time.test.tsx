@@ -20,6 +20,12 @@ describe('patient measurement table: time of day', () => {
     expect(measurementDisplayOrder(mixed)).toEqual([0, 1])
   })
 
+  it('keeps file order on a day with an untimed row although AKI detection orders the timed values', () => {
+    // AKI detection looks only at the positive exact values; the table looks at every row of the day.
+    const day = ['patientId,labDate,testName,unit,value', 'P1,2026-09-01 20:00,Kreatinin,mg/dl,1.6', 'P1,2026-09-01 06:00,Kreatinin,mg/dl,1.0', 'P1,2026-09-01,Kreatinin,mg/dl,<0.5'].join('\n')
+    expect(measurementDisplayOrder(loadDatasetFromWorkbook(new TextEncoder().encode(day)).rows)).toEqual([0, 1, 2])
+  })
+
   it('shows the time beside the date and keeps the fit status with its row', () => {
     const cell = buildCohortRows(rows, ['P1'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }])[0].cells[0]
     const status = measurementFitStatus(rows, cell)

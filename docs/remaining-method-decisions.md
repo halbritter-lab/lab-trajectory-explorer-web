@@ -966,8 +966,10 @@ Resolved with a change:
   derived values (computed eGFR) have no time; `input_data_id` takes the time
   in only for rows that have one, so the identifier of a dataset without
   times does not change; the table orders the rows of a date by time only
-  when every row of that date has one (the rule of AKI detection) and keeps
-  the file order otherwise, and the fit status moves with its row. Details:
+  when every row of that date has one, bounds and values under dialysis
+  included, and keeps the file order otherwise (AKI detection looks at the
+  positive exact values only, so the two can differ on a date with an untimed
+  bound), and the fit status moves with its row. Details:
   [Dates](method-algorithms/import-and-values.md#dates) and
   [workbook sheets](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
   The shipped demo workbook (`public/test_labs.xlsx`) stored its lab dates

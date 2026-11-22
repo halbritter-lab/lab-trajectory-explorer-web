@@ -566,7 +566,11 @@ Since 2026-11-22 it is also shown beside the date in the measurement table of
 the patient view (`01/09/2026 06:00`, with seconds only when they are not
 zero), where the rows of a date are ordered by it when every row of that date
 has one and keep the row order of the file otherwise; the fit status of each
-row moves with it. It is written to the column `time_of_day` of both
+row moves with it. The table looks at every row of the date, bounds,
+non-positive values and values under dialysis included, while AKI detection
+looks at the positive exact values only: on 1 September 1.6 at 20:00, 1.0 at
+06:00 (in this file order) and `<0.5` without a time stay in file order in
+the table, while AKI detection compares 1.0 before 1.6. It is written to the column `time_of_day` of both
 measurement sheets and read again from `raw_measurements` (see the app's own
 workbook export under [Files and sheets](#files-and-sheets)). It is not shown
 in the tooltips or the chart line, which keeps the values of one date in file

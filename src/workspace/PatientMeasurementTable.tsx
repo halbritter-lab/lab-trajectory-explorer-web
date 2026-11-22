@@ -15,9 +15,12 @@ export const eventText = (event: ClinicalEvent) => `${event.title}${event.endDat
 
 /** Display order of measurements that are already in date order: the rows of
  * one date are ordered by their time of day when every row of that date has
- * one, and keep their order otherwise (the rule of AKI detection, decided
- * 2026-11-21). Returns indices into `rows`, so that values aligned with
- * `rows` (the fit status, which follows the fitted points) move with them. */
+ * one (bounds, non-positive values and values under dialysis included), and
+ * keep their order otherwise (decided 2026-11-22). AKI detection applies its
+ * rule to the positive exact values only, so on a date with an untimed bound
+ * it can order timed values that the table leaves in file order. Returns
+ * indices into `rows`, so that values aligned with `rows` (the fit status,
+ * which follows the fitted points) move with them. */
 export function measurementDisplayOrder(rows: readonly LabRow[]): number[] {
   const order: number[] = []
   for (let start = 0; start < rows.length;) {
