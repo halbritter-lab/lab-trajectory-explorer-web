@@ -15,7 +15,10 @@ export function measurementFitStatus(rows: LabRow[], cell: CohortCell): string[]
     const visibleReasons = cell.fitModel === 'none' ? reasons.filter(reason => reason === 'censored-value') : reasons
     if (visibleReasons.length) return `Excluded: ${visibleReasons.map(exclusionReasonLabel).join('; ')}`
     if (cell.fitModel === 'none') return 'Fit disabled'
-    if (cell.anchorComparison?.windowIdx.includes(index)) return 'Available before time balancing; left out of the after-anchor slope (exclusion window after the anchor event)'
-    return 'Available before time balancing'
+    // Issue #73: a bound that enters the fit says at which value.
+    const bound = row.wertOperator === '=' ? ''
+      : cell.boundedValues === 'half-limit' && row.wertOperator === '<' ? `; bounded value, enters the fit at half its limit (${row.wertNum / 2})` : `; bounded value, enters the fit at its limit (${row.wertNum})`
+    if (cell.anchorComparison?.windowIdx.includes(index)) return `Available before time balancing${bound}; left out of the after-anchor slope (exclusion window after the anchor event)`
+    return `Available before time balancing${bound}`
   })
 }

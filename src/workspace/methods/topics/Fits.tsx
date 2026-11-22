@@ -179,8 +179,10 @@ export function Fits() { return <>
         </li>
       </ul>
       <p>Values marked &lt; or &gt; are bounds. They remain visible with their numeric
-        limits and count as raw numeric measurements, but are excluded from slopes,
-        endpoint evaluation and projection, AKI detection, and cohort mixed models.
+        limits and count as raw numeric measurements. In slopes and trend lines they enter as
+        the parameter’s setting “Bounded values” says (by default at their limit);
+        they are excluded from endpoint evaluation and projection, AKI detection, and cohort
+        mixed models.
         Exact measurements on the same date remain eligible.</p>
 </section>
 </details><details className="methodology-detail"><summary>Analysis Presets</summary>

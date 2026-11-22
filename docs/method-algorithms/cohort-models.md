@@ -756,12 +756,15 @@ extended in R. They add no estimate and change none.
   (same name and unit) of every patient in the unit, patients in model order
   and each patient's measurements in import order, with
   `entity`, `unit_key`, `group`, `patient_id`, `date`, `value`, `status`,
-  `reason` and `model_date`. `status` is `entered` (the value entered unchanged as the model
+  `reason`, `model_date` and, appended 2026-11-22 (issue #73), `operator`
+  (`=`, `<`, `>`, or `range`/`unparseable` as stored). `status` is `entered` (the value entered unchanged as the model
   row dated `model_date`), `aggregated_into_median` (one of at least two
   values of a calendar month or quarter whose median is the model row dated
   `model_date`) or `excluded`. `reason` is set for `excluded` only, from the
   first stage that removed the measurement (see *Which measurements enter*):
-  `no_date`, `no_numeric_value`, `bound_value` (operator other than `=`), the
+  `no_date`, `no_numeric_value`, `bound_value` (operator other than `=`;
+  followed by `; ` and the window reasons when the bound lies in an event or
+  AKI window, so `bound_value` alone marks a bound outside every window), the
   reasons of every event or AKI window containing the date joined by `; `
   (`post_kidney_transplant`, `post_chronic_dialysis`, `acute_dialysis`,
   `unknown_dialysis_interval`, `aki`), `run_in` (the measurement or its median
@@ -802,7 +805,18 @@ extended in R. They add no estimate and change none.
   code (`mixedModelDataRCode`), runs the worker's exact call
   `lme4::lmer(<formula>, data = mm_data, REML = TRUE, na.action = na.fail)`
   per successful lme4 unit, prints the browser and refitted estimates side by
-  side and ends with `sessionInfo()`. Each unit runs inside its own `local()`
+  side and ends with `sessionInfo()`. Before that line, since 2026-11-22
+  (issue #73, decision row `bounded`), a block of comments only suggests a
+  censored mixed model as a sensitivity analysis: it reads
+  `model_input_flags`, keeps the rows of unit `cohort` that entered, were
+  aggregated, or have reason `bound_value` alone, sets time to years since each
+  patient's first such row, and fits `lmec::lmec` (left censoring, so `>x` rows
+  are dropped) with a random intercept and slope and no covariates, or
+  `brms::brm(value | cens(censoring) ~ time + (time | patient_id))` for both
+  directions. It does not reproduce the browser data (no time balancing,
+  run-in or factors) and needs neither package to run the rest of the script.
+  The browser models themselves exclude bounds under every bounded-value
+  setting. Each unit runs inside its own `local()`
   block whose value is stored in `mm_fits[[<unit_key>]]`; the fit's formula
   environment holds that unit's `mm_data`, so `update()`, `anova()` or
   `emmeans` on any fit use its own rows even after later units were fitted.

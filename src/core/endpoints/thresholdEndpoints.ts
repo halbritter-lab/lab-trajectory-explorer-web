@@ -26,6 +26,16 @@ export interface EndpointPoint {
   ageYears: number | null
 }
 
+/** A bounded measurement (`<limit`, `>limit`) offered to an observed
+ * endpoint. It never starts, confirms or records the recovery of a crossing;
+ * it only interrupts an unconfirmed candidate when it proves that the value
+ * did not cross on its date (decided 2026-11-22, issue #73). */
+export interface EndpointBound {
+  date: Date
+  operator: '<' | '>'
+  limit: number
+}
+
 /** Whether a value has crossed the threshold. Inclusive above is used for
  * percent-decline boundaries, with a small rounding tolerance. */
 export type CrossingDirection = 'below' | 'above' | 'above_or_equal'
@@ -80,6 +90,17 @@ function addUtcMonthsClamped(date: Date, months: number): Date {
 
 const utcCalendarDay = (date: Date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
 
+/** Whether a bound proves that the value did not cross: `>x` with x at or
+ * above the threshold for a crossing below it (the value exceeds x, so it is
+ * not below the threshold), `<x` with x at or below the threshold for a
+ * crossing above it. Bounds never decide `above_or_equal` (percent decline). */
+export function boundExcludesCrossing(bound: EndpointBound, def: Pick<ThresholdCrossingDefinition, 'threshold' | 'direction'>): boolean {
+  if (!Number.isFinite(bound.limit)) return false
+  if (def.direction === 'below') return bound.operator === '>' && bound.limit >= def.threshold
+  if (def.direction === 'above') return bound.operator === '<' && bound.limit <= def.threshold
+  return false
+}
+
 /**
  * Process valid, date-sorted points chronologically. The first crossing value
  * starts a candidate; a later crossing value at least `confirmationDays` after
@@ -87,10 +108,19 @@ const utcCalendarDay = (date: Date) => Date.UTC(date.getUTCFullYear(), date.getU
  * interrupts the candidate. After confirmation, the first non-crossing value
  * is recorded as recovery and does not revoke the event. Points sharing a
  * timestamp are one observation: any non-crossing value among them counts.
+ * A bound in `bounds` that proves no crossing on its date
+ * (boundExcludesCrossing) interrupts an unconfirmed candidate like a
+ * non-crossing value; it is not recorded as recovery after a confirmed event,
+ * and other bounds are ignored.
  */
-export function observeThresholdCrossing(points: readonly EndpointPoint[], def: Omit<ThresholdCrossingDefinition, 'id' | 'label'>): ObservedCrossing {
+export function observeThresholdCrossing(points: readonly EndpointPoint[], def: Omit<ThresholdCrossingDefinition, 'id' | 'label'>, bounds: readonly EndpointBound[] = []): ObservedCrossing {
   const result = emptyObservedCrossing()
   let candidate: EndpointPoint | null = null
+  const resets = bounds
+    .filter((bound) => bound.date instanceof Date && !Number.isNaN(bound.date.getTime()) && boundExcludesCrossing(bound, def))
+    .map((bound) => bound.date.getTime())
+    .sort((a, b) => a - b)
+  let nextReset = 0
   for (let i = 0; i < points.length;) {
     // A conflicting timestamp cannot establish persistence: any non-crossing
     // value interrupts an unconfirmed candidate, independent of source-row order.
@@ -99,9 +129,17 @@ export function observeThresholdCrossing(points: readonly EndpointPoint[], def: 
     const group = points.slice(i, end)
     const recovery = group.find((p) => !crosses(p.value, def))
     const point = group[0]
+    // A conclusive bound before this timestamp interrupts an unconfirmed
+    // candidate; one at this timestamp conflicts with a crossing value as a
+    // non-crossing value would.
+    let reset = false
+    while (nextReset < resets.length && resets[nextReset] <= point.date.getTime()) {
+      if (resets[nextReset] < point.date.getTime()) { if (!result.met) candidate = null } else reset = true
+      nextReset++
+    }
     if (result.met) {
       if (recovery) { result.recoveryDate = recovery.date; result.recoveryValue = recovery.value; return result }
-    } else if (recovery) {
+    } else if (recovery || reset) {
       candidate = null
     } else if (!candidate) {
       candidate = point

@@ -37,7 +37,7 @@ describe('settings sheet: preset name and time axis', () => {
     for (const row of settings) expect(String(row.fit_config)).not.toContain('xAxis')
     const { xAxis: _dropped, ...rest } = ckd
     expect(JSON.parse(String(settings[0].fit_config))).toEqual(JSON.parse(JSON.stringify(rest)))
-    expect(Object.keys(JSON.parse(String(settings[0].fit_config)))).toEqual(['parameter', 'preset', 'censoring', 'exclusions', 'timeBalancing', 'fitModel', 'endpoints'])
+    expect(Object.keys(JSON.parse(String(settings[0].fit_config)))).toEqual(['parameter', 'preset', 'censoring', 'exclusions', 'timeBalancing', 'fitModel', 'endpoints', 'boundedValues'])
   })
 
   it('explains the time axis, the preset name and the fixed segmentation parameters in about', () => {

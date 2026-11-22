@@ -91,6 +91,7 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   [`${FIT_PREFIX}.presetId`]: { label: 'Analysis preset', area: 'Trajectories', exportField: 'settings.fit_config (preset)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.fitModel`]: { label: 'Fit model', area: 'Trajectories', exportField: 'settings.fit_config (fitModel)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.timeBalancing`]: { label: 'Time balancing', area: 'Trajectories', exportField: 'settings.fit_config (timeBalancing)', control: TRAJECTORY_SETTINGS },
+  [`${FIT_PREFIX}.boundedValues`]: { label: 'Bounded values (<x, >x) in the fit', area: 'Trajectories', exportField: 'settings.fit_config (boundedValues)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.censoring.censorAfterKidneyTransplant`]: { label: 'Censor after kidney transplant', area: 'Trajectories', exportField: 'settings.fit_config (censoring)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.censoring.censorAfterChronicDialysis`]: { label: 'Censor after chronic dialysis', area: 'Trajectories', exportField: 'settings.fit_config (censoring)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.censoring.excludeAcuteDialysisPeriods`]: { label: 'Exclude acute dialysis intervals', area: 'Trajectories', exportField: 'settings.fit_config (censoring)', control: TRAJECTORY_SETTINGS },
@@ -220,6 +221,7 @@ export interface RecordSection {
 
 const FIT_MODEL_TEXT: Record<string, string> = { ols: 'OLS', 'theil-sen': 'Theil–Sen', 'rolling-ols': 'Rolling OLS', 'segmented-ols': 'Segmented OLS', none: 'None (no fit line)' }
 const TIME_BALANCING_TEXT: Record<string, string> = { raw: 'Raw (unweighted points)', 'monthly-median': 'Monthly median', 'quarterly-median': 'Quarterly median' }
+const BOUNDED_VALUES_TEXT: Record<string, string> = { limit: 'Limit (x)', exclude: 'Exclude', 'half-limit': 'Half limit for <x (x/2)' }
 const DIALYSIS_TEXT: Record<string, string> = { 'flag-only': 'Flag only', 'exclude-dated-interval': 'Exclude dated interval', 'censor-from-start': 'Censor from start' }
 const MODEL_TEXT: Record<string, string> = { time_since_baseline: 'Time since first measurement', age: 'Age', intercept: 'Own starting level', intercept_slope: 'Own starting level and rate', apply: 'Applied', skip: 'Skipped' }
 
@@ -238,6 +240,7 @@ export function settingValueText(path: string, value: unknown): string {
   if (path.endsWith('.presetId')) return value === 'custom' ? 'Custom configuration' : fitPresetById(String(value))?.name ?? String(value)
   if (path.endsWith('.fitModel')) return FIT_MODEL_TEXT[String(value)] ?? String(value)
   if (path.endsWith('.timeBalancing')) return TIME_BALANCING_TEXT[String(value)] ?? String(value)
+  if (path.endsWith('.boundedValues')) return BOUNDED_VALUES_TEXT[String(value)] ?? String(value)
   if (path.endsWith('.unknownDialysisPolicy')) return DIALYSIS_TEXT[String(value)] ?? String(value)
   if (path.endsWith('anchorComparison')) {
     if (!value) return 'Off'

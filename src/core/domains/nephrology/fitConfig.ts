@@ -5,6 +5,7 @@
  */
 import type { FitConfig, FitPresetDefinition } from '../../analysis/fitConfig'
 import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS } from './constants'
+import { DEFAULT_BOUNDED_VALUE_POLICY } from '../../measurements/censored'
 
 export type UnknownDialysisPolicy = 'flag-only' | 'exclude-dated-interval' | 'censor-from-start'
 
@@ -99,6 +100,7 @@ export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConf
     timeBalancing: 'quarterly-median',
     fitModel: 'ols',
     endpoints: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, confirmationDays: DEFAULT_CONFIRMATION_DAYS, projectedAgeToCkdG5: true },
+    boundedValues: DEFAULT_BOUNDED_VALUE_POLICY,
   }
 }
 
@@ -113,6 +115,7 @@ export function acuteReviewConfig(parameter: FitConfig['parameter']): FitConfig 
     timeBalancing: 'raw',
     fitModel: 'none',
     endpoints: noEndpoints(),
+    boundedValues: DEFAULT_BOUNDED_VALUE_POLICY,
   }
 }
 

@@ -5,6 +5,39 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (bounded values in fits, decided 2026-11-21 and 2026-11-22, issue #73)
+
+- **Bounded values (`<x`, `>x`) enter individual fits at their limit by
+  default.** Each parameter has the setting "Bounded values" (Calculation
+  settings): `limit` (x, the default), `half-limit` (`<x` at x/2, `>x` at x) or
+  `exclude` (the only rule before). It applies to slopes, trend lines, rolling
+  and segmented OLS, the before/after comparison and the log-axis trend, is
+  saved with the settings and exported as `boundedValues`, the last entry of
+  `fit_config`, with an analysis-record entry. **This changes slope, interval,
+  `n_fitted` and the fit dates of every series with bounds**; series without
+  bounds are unchanged and no golden fixture moves (none has a bound). Example:
+  demo patient 2, UACR `<30`, 45, 120, `>300`, `>300`: +159.06 mg/g per year
+  (limit), +165.06 (half limit), the two-point line +148.88 (exclude, before).
+  Settings saved or exported earlier load with `limit`; applying such an
+  export names each affected parameter.
+- **`n_bounded` and a warning.** Every fit counts its bounded fitted points (a
+  monthly or quarterly median counts when its period holds a bound);
+  `n_bounded` is the new last column of the cohort record and stands before
+  `group` in the cohort and slopes sheets. At 20 % or more of the fitted points
+  the cell shows "*p* % bounded"; the method reference names the bias of
+  substitution at high censored fractions (Hornung and Reed 1990; Hughes 1999).
+- **Endpoints, AKI detection and cohort models keep excluding bounds**,
+  whatever the setting. New: a bound `>x` with x at or above 30 or 15 clears an
+  unconfirmed G4 or G5 candidate (it proves the value was not low that day);
+  bounds still never start, confirm or recover an event. Observed G4/G5 can
+  therefore be confirmed later or not at all where such a bound lies between
+  two low values.
+- **Cohort model workbook:** `model_input_flags` gains `operator` as its last
+  column, a bound inside an event or AKI window also names the window, and
+  `r_script` ends with a commented censored mixed-model sketch (`lmec`,
+  `brms`) as a sensitivity analysis. Open decisions OD-60 to OD-63 record the
+  cases the decisions do not name.
+
 ### Changed (OD-11 and OD-21, decided 2026-10-07, implemented 2026-11-22, issue #4)
 
 - **OLS 95 % intervals above 40 degrees of freedom use the exact Student-t

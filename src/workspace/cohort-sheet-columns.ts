@@ -105,6 +105,8 @@ export const COHORT_SHEET_COLUMNS: readonly CohortSheetColumn[] = [
   number('last_eligible_value', 'Measured value at last_eligible_date. It can differ from "latest" in the Trajectories table, which is the last dated numeric value of the series without these restrictions.', VALUE_UNIT, 'the series has no eligible measurement'),
   text('sex', 'Resolved sex of the patient as used in the analysis: m, w or d. The same value in every row of the patient.', 'no sex could be resolved'),
   number('baseline_age', 'Resolved age of the patient at the earliest dated measurement of any parameter (demographics sheet, baseline_age). The same value in every row of the patient; it is not the age at index_date.', 'completed years', 'no age is available'),
+  // Appended 2026-11-22 (issue #73); `group` stays last.
+  number('n_bounded', 'Fitted points that are bounded values (<x, >x), entered as fit_config boundedValues says (limit: at x; half-limit: <x at x/2, >x at x). Under time balancing a monthly or quarterly median counts when its period holds a bound, whichever value is the median. 0 under exclude, where bounds enter no fit. The app warns when n_bounded is 20 % or more of n_fitted: substituted limits bias slopes when many values are bounded.', 'count', 'never; 0 when no bound was fitted'),
   text('group', `Value of the attribute the table was grouped by when the file was exported. A patient without a value for the attribute has the text "${GROUP_NOT_RECORDED}", which cannot be told apart from an attribute value of the same text.`, 'the table was not grouped'),
 ]
 

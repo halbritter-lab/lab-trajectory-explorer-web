@@ -63,7 +63,9 @@ review turn all four off.
 
 **Which measurements.** Endpoint input is the column's measurements of the
 patient that have a valid date, a finite numeric value and the operator `=`
-(bounds are excluded by row; see "Bounded measurements"), after this event
+(bounds are excluded by row whatever the column's bounded-value setting; see
+"Bounded measurements"; a conclusive bound can only interrupt a G4/G5
+candidate, see below), after this event
 filter (`filterEndpointPointsForEvents`):
 
 - Values on or after the earliest kidney transplant or chronic dialysis start
@@ -249,7 +251,12 @@ After confirmation, the first non-low value of a same-time group is the
 recovery value.
 
 Missing dates and non-finite values are ignored. A bound cannot start,
-confirm, interrupt or recover an event.
+confirm or recover an event. Since 2026-11-22 (issue #73) a bound `>x` with
+x at or above the threshold, which passes the same event filter, proves the
+value was not low that day and clears an unconfirmed candidate as in rule 3;
+on the date of an exact observation it makes that observation not low. Other
+bounds are ignored. Details and examples:
+[Bounds and endpoints](bounded-measurements.md#bounds-and-endpoints-2026-11-22).
 
 Examples (G5, default interval): values below 15 on January 14 and May 13 and
 a value of 15 or more on November 20 give a January crossing, May confirmation

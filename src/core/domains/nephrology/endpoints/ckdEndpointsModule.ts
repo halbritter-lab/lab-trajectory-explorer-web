@@ -55,7 +55,7 @@ export const ckdEndpointsModule = {
     const projecting = enabled.projectedAgeToCkdG5
     const kidneyFailureReached = ctx.hasSeriesMeasurements && isEgfrUnit(ctx.seriesKey.einheit) ? firstKidneyFailureEvent(ctx.events) : null
     const fit = projecting && !kidneyFailureReached ? ctx.fit() : { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
-    return computeCkdEndpoints({ points: ctx.points(projecting), fitPoints: ctx.fitPoints(projecting), slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
+    return computeCkdEndpoints({ points: ctx.points(projecting), fitPoints: ctx.fitPoints(projecting), bounds: ctx.bounds?.() ?? [], slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
       kidneyFailureReached, ageBasis: ctx.ageBasis, fitModel: ctx.scalarFitModel,
       inputExcludesAkiWindows: excludesAkiWindows(ctx) })
   },

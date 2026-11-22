@@ -29,7 +29,8 @@ describe('patient measurement table: time of day', () => {
   it('shows the time beside the date and keeps the fit status with its row', () => {
     const cell = buildCohortRows(rows, ['P1'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }])[0].cells[0]
     const status = measurementFitStatus(rows, cell)
-    expect(status[0]).toMatch(/^Excluded: censored value/)
+    // Issue #73: under the default 'limit' the bound enters the fit at its limit.
+    expect(status[0]).toBe('Available before time balancing; bounded value, enters the fit at its limit (0.5)')
     render(<PatientMeasurementTable parameter={parameter} measurements={rows} fitStatus={status} events={[]} />)
     const body = screen.getByRole('table', { name: 'Measurements Kreatinin [mg/dl]' }).querySelectorAll('tbody tr')
     const cells = [...body].map(row => within(row as HTMLElement).getAllByRole('cell').map(td => td.textContent))
@@ -40,6 +41,6 @@ describe('patient measurement table: time of day', () => {
       ['03/09/2026', '1.1', status[3]],
       ['05/09/2026 08:30:15', '0.9', status[4]],
     ])
-    expect(cells[1][4]).toMatch(/^Excluded: censored value/)
+    expect(cells[1][4]).toMatch(/bounded value, enters the fit at its limit/)
   })
 })

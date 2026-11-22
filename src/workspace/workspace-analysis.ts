@@ -2,6 +2,7 @@ import type { FitConfig } from '../core/analysis/fitConfig'
 import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
 import { defaultColumnModuleSettings, fitPresetById, fitPresetCatalog, type ColumnModuleSettings } from '../core/analysis/registry'
 import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
+import { DEFAULT_BOUNDED_VALUE_POLICY, type BoundedValuePolicy } from '../core/measurements/censored'
 
 /** The analysis presets offered in the workspace (core catalog). */
 export const ANALYSIS_CATALOG = fitPresetCatalog
@@ -13,6 +14,8 @@ export interface WorkspaceFitSettings {
   censoring: FitConfig['censoring']
   exclusions: FitConfig['exclusions']
   endpoints: FitConfig['endpoints']
+  /** How bounded values enter the column's fits and slope lines (issue #73). */
+  boundedValues: BoundedValuePolicy
   /** The column's own module settings (e.g. its rapid-decline threshold). */
   moduleSettings: ColumnModuleSettings
   /** Before/after comparison at an anchor event (issue #64); off when absent.
@@ -36,6 +39,7 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
     censoring: { ...config.censoring },
     exclusions: { ...config.exclusions },
     endpoints: { ...config.endpoints },
+    boundedValues: config.boundedValues ?? DEFAULT_BOUNDED_VALUE_POLICY,
     moduleSettings: defaultColumnModuleSettings(),
   }
 }
@@ -63,6 +67,7 @@ export function toFitConfig(
     timeBalancing: settings.timeBalancing,
     fitModel: settings.fitModel,
     endpoints: { ...settings.endpoints },
+    boundedValues: settings.boundedValues,
   }
 }
 

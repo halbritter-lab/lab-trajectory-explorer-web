@@ -33,10 +33,14 @@ path (`buildCohortRows`, then `buildSlopeLines` in
 for the line, step 1 is done by `buildCohortRows` before it calls
 `buildSlopeLines`:
 
-1. Exact rows only. Every row whose operator is not `=` is removed by operator,
-   not by date. These are the bounds `<` and `>` (see "Bounded measurements")
-   and, with pre-parsed value columns, numeric rows whose operator is `range`
-   or unrecognised. An empty operator cell beside a number is exact.
+1. Exact rows and, by the column's bounded-value setting, bounds. Since
+   2026-11-22 a bound `<x` or `>x` enters at x (`limit`, the default), `<x` at
+   x/2 and `>x` at x (`half-limit`), or is removed (`exclude`); see
+   [Bounded values in individual fits](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22).
+   Every other row whose operator is not `=` is removed by operator, not by
+   date: with pre-parsed value columns, numeric rows whose operator is `range`
+   or unrecognised. An empty operator cell beside a number is exact. A bound
+   that enters is marked and counted as `n_bounded` after the remaining steps.
 2. Censoring windows. Points inside any censoring window of the series are
    removed. These windows come from clinical events under the column's
    censoring options.

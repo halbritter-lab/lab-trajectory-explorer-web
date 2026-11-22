@@ -6,6 +6,7 @@ import {
   percentDeclineFromBaseline,
   projectAgeAtCrossing,
   validEndpointPoints,
+  type EndpointBound,
   type EndpointPoint,
   type ObservedCrossing,
   type ProjectedCrossingReason,
@@ -91,6 +92,10 @@ export interface ComputeCkdEndpointsInput {
   /** `points` outside the column's AKI exclusion windows: the decline baseline
    * and the projection read these (decided 2026-11-05). Defaults to `points`. */
   fitPoints?: EndpointPoint[]
+  /** Event-eligible bounded eGFR values (`<x`, `>x`). They enter no endpoint;
+   * a conclusive one only interrupts an unconfirmed G4 or G5 candidate
+   * (decided 2026-11-22, issue #73). Decline events and the projection ignore them. */
+  bounds?: EndpointBound[]
   slopePerYear: number
   /** Intercept at the first valid point's date; callers pass the raw-data fit. */
   intercept?: number
@@ -202,13 +207,14 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
       out.observedDecline57 = observeDecline(57)
     }
   }
-  if (input.enabled.observedCkdG4) out.observedCkdG4 = observeThresholdCrossing(points, definitions.observedCkdG4)
-  if (input.enabled.observedCkdG5) out.observedCkdG5 = observeThresholdCrossing(points, definitions.observedCkdG5)
+  const bounds = input.bounds ?? []
+  if (input.enabled.observedCkdG4) out.observedCkdG4 = observeThresholdCrossing(points, definitions.observedCkdG4, bounds)
+  if (input.enabled.observedCkdG5) out.observedCkdG5 = observeThresholdCrossing(points, definitions.observedCkdG5, bounds)
 
   if (input.enabled.projectedAgeToCkdG5) {
     // A confirmed G5 in the data rules out a future G5 crossing whether or not
     // the observed-G5 endpoint is displayed (decided 2026-10-07).
-    const observedG5 = input.enabled.observedCkdG5 ? out.observedCkdG5.met : observeThresholdCrossing(points, definitions.observedCkdG5).met
+    const observedG5 = input.enabled.observedCkdG5 ? out.observedCkdG5.met : observeThresholdCrossing(points, definitions.observedCkdG5, bounds).met
     if (out.kidneyFailureReached && !observedG5) {
       out.projectedAgeToCkdG5 = { value: null, reason: 'kidney_failure_reached' }
       return out

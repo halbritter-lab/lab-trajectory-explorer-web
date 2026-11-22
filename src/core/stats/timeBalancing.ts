@@ -33,5 +33,7 @@ function medianPoint(points: SeriesPoint[]): SeriesPoint {
   const value = sortedValues.length % 2 === 0
     ? (sortedValues[mid - 1] + sortedValues[mid]) / 2
     : sortedValues[mid]
-  return { date: sortedByDate[dateMid].date, value }
+  // A bin that holds a bound counts as bounded, whichever value is its median
+  // (decided 2026-11-22, issue #73): the median can rest on the substituted value.
+  return { date: sortedByDate[dateMid].date, value, ...(points.some((p) => p.bounded) ? { bounded: true as const } : {}) }
 }

@@ -25,6 +25,24 @@ describe('restoreSavedSettings', () => {
     expect(restored.trajectoryView).toEqual(value.trajectoryView)
   })
 
+  // Issue #73: the bounded-value setting is kept; a copy saved before it existed gets the default.
+  it('keeps the bounded-value setting and defaults it for older copies', () => {
+    const value = saved()
+    value.trajectoryFitSettings.columns[EGFR] = { ...defaultFitSettings(), presetId: 'custom', boundedValues: 'half-limit' }
+    expect(restoreSavedSettings(JSON.parse(JSON.stringify(value)), keys).trajectoryFitSettings.columns[EGFR].boundedValues).toBe('half-limit')
+    const old = JSON.parse(JSON.stringify(saved()))
+    delete old.trajectoryFitSettings.shared.boundedValues
+    delete old.trajectoryFitSettings.columns[EGFR].boundedValues
+    const restored = restoreSavedSettings(old, keys)
+    expect(restored.notRestored).toEqual([])
+    expect(restored.keptAsCustom).toEqual([])
+    expect(restored.trajectoryFitSettings.shared.boundedValues).toBe('limit')
+    expect(restored.trajectoryFitSettings.columns[EGFR]).toEqual(defaultFitSettings('ckd_progression'))
+    const invalid = JSON.parse(JSON.stringify(saved()))
+    invalid.trajectoryFitSettings.columns[EGFR].boundedValues = 'zero'
+    expect(restoreSavedSettings(invalid, keys).notRestored).toEqual([`own settings of ${'eGFR'} [ml/min/1,73m²]`])
+  })
+
   it('uses the defaults without a complaint for a copy saved before settings were kept', () => {
     expect(restoreSavedSettings(undefined, keys)).toEqual({ trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [] })
   })

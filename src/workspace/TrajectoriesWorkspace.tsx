@@ -3,7 +3,7 @@ import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, typ
 import { buildCohortRows, cohortCellFlags, type CohortCell } from '../core/cohort/screening'
 import type { ColumnModuleSettings } from '../core/analysis/registry'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId, type WertOperator } from '../core/types'
-import { slopeQualityLabel, THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
+import { boundedShareLabel, slopeQualityLabel, THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
 import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
 import { workspaceSpecs, type WorkspaceData, type WorkspaceParameter } from './workspace-data'
 import { WorkspaceExportActions } from './WorkspaceExports'
@@ -175,6 +175,8 @@ function CellSummary({
   const qualityLabel = quality && `${qualityText}${quality.caveat ? ', uncertain slope' : ''}`
   const excludedText = `${markedCount} excluded from the fit (${markedLabels.join(', ')})`
   const included = fit && last ? fitInclusionCaveat(cell, events) : null
+  // 20 % or more of the fitted points are bounded values (issue #73).
+  const bounded = fit && last ? boundedShareLabel({ ...cell, timeBalancing }) : null
   // A 95% interval with zero strictly inside: the direction of the change is
   // not established. A note only; the reliability rule and the flags ignore it.
   const zeroInside = fit && last && hasCi && !slopeRange && cell.ciLow < 0 && cell.ciHigh > 0
@@ -210,6 +212,7 @@ function CellSummary({
           <Hint label={last ? 'Measurement details' : missing?.label ?? 'No numeric measurements'} text={!last && missing && !warningIcons ? missing.label : undefined}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : missing?.text ?? 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p>{doubling && <p>{doubling.long}</p>}<p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.{zeroInside ? ` ${zeroInside.title}` : ''}</p>}{rollingText && <p>{rollingText}</p>}</>}</Hint>
           {fit && last && quality && <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'} text={warningIcons ? undefined : qualityText}>{quality.title}</Hint>}
           {included && <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>}
+          {bounded && <Hint label={bounded.label} icon="warning" tone="caution" text={warningIcons ? undefined : bounded.label}>{bounded.title}</Hint>}
           {/* Icon mode: a second "i" beside Measurement details would look the same; the sentence is in that hint. */}
           {zeroInside && !warningIcons && <Hint label={zeroInside.label} text={zeroInside.label}>{zeroInside.title}</Hint>}
           {visibleFlags.map(flag => <Hint key={flag.id} label={flag.label} icon={flagIcon(flag.tone)} tone={flag.tone} text={flag.tone === 'aki' ? 'AKI' : !warningIcons ? flag.label : flag.tone === 'rapid-possible' ? '?' : undefined}>{flag.title}</Hint>)}
@@ -221,7 +224,7 @@ function CellSummary({
   }
 
   if (compact && !detailed) {
-    const hasSecondaryDetails = Boolean((fit && last && (cell.rolling || hasCi || quality || doubling)) || included || endpoint || markedCount > 0)
+    const hasSecondaryDetails = Boolean((fit && last && (cell.rolling || hasCi || quality || doubling)) || included || bounded || endpoint || markedCount > 0)
     return <div className="wt-cell-summary wt-cell-summary-compact">
       <span className={last ? undefined : 'wt-muted'}>
         {!last
@@ -235,6 +238,7 @@ function CellSummary({
         {doubling && <span data-testid="doubling-time" title={doubling.long}>{doubling.short ? `${doubling.short[0].toUpperCase()}${doubling.short.slice(1)}${doubling.uncertain ? ' (uncertain)' : ''}` : 'No doubling time'}</span>}
         {quality && (warningIcons ? <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'}>{quality.title}</Hint> : <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityLabel}</span>)}
         {included && <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>}
+        {bounded && <Hint label={bounded.label} icon="warning" tone="caution" text={warningIcons ? undefined : bounded.label}>{bounded.title}</Hint>}
         {zeroInside && !warningIcons && <Hint label={zeroInside.label} text={zeroInside.label}>{zeroInside.title}</Hint>}
         {flags.filter(flag => flag.requiresFit).map(badge)}
       </>}
@@ -249,6 +253,7 @@ function CellSummary({
         {fit && last && hasCi && slopeRange && <p className="wt-muted">{rangeHint}</p>}
         {fit && last && quality && <p>{quality.title}</p>}
         {included && <p>{included.label}. {included.title}</p>}
+        {bounded && <p>{bounded.label}. {bounded.title}</p>}
         {endpoint && <><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></>}
         {markedCount > 0 && <p className="wt-muted">{excludedText}</p>}
       </details>}
@@ -282,6 +287,9 @@ function CellSummary({
       {included && (detailed
         ? <p role="note" className="wt-quality-note wt-warning"><strong>{included.label}</strong>: {included.title}</p>
         : <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>)}
+      {bounded && (detailed
+        ? <p role="note" className="wt-quality-note wt-warning" data-testid="bounded-share"><strong>{bounded.label}</strong>: {bounded.title}</p>
+        : <Hint label={bounded.label} icon="warning" tone="caution" text={warningIcons ? undefined : bounded.label}>{bounded.title}</Hint>)}
       {zeroInside && <p role="note" className="wt-quality-note wt-muted"><strong>{zeroInside.label}</strong>: {zeroInside.title}</p>}
       {detailed && noAkiText && <span className="wt-muted">{noAkiText}</span>}
       {cell.anchorComparison && <AnchorComparisonText comparison={cell.anchorComparison} unit={cell.einheit} fitModel={cell.fitModel} slopeNumber={slopeNumber} />}

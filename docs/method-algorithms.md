@@ -45,8 +45,10 @@ Conventions used throughout:
 - **A series** is one patient, one parameter name and one unit, compared as
   stored after import. Different names or units are never pooled.
 - **An exact measurement** is a dated numeric row whose operator is `=`.
-  Bounded rows (`<x`, `>x`) are shown and counted as raw rows but enter no fit,
-  endpoint, AKI detection or cohort model. A bounded creatinine row still
+  Bounded rows (`<x`, `>x`) are shown and counted as raw rows. They enter a
+  column's individual fits and lines as its bounded-value setting says (at the
+  limit by default since 2026-11-22), but no endpoint, AKI detection or cohort
+  model; a conclusive bound only interrupts a G4/G5 candidate. A bounded creatinine row still
   yields a derived eGFR bound, and its sex and stated age still feed
   demographics resolution; see
   [bounded measurements](method-algorithms/bounded-measurements.md#bounded-measurements-2026-10-06).
@@ -60,6 +62,8 @@ Contents:
 1. [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation)
 2. [Demographics resolution](method-algorithms/demographics.md#demographics-resolution)
 3. [Bounded measurements](method-algorithms/bounded-measurements.md#bounded-measurements-2026-10-06)
+    - [Bounded values in individual fits](method-algorithms/bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22)
+      and [bounds and endpoints](method-algorithms/bounded-measurements.md#bounds-and-endpoints-2026-11-22)
 4. [Fit pipeline and fit-input selection](method-algorithms/fit-input-presets-and-time-balancing.md#fit-pipeline-and-fit-input-selection)
 5. [Fit presets](method-algorithms/fit-input-presets-and-time-balancing.md#fit-presets)
 6. [Time balancing](method-algorithms/fit-input-presets-and-time-balancing.md#time-balancing)
@@ -91,6 +95,7 @@ it; the way the tool applies it is its own.
 | Rule | What is from a source, and what is this tool's | Section |
 | --- | --- | --- |
 | Rapid eGFR decline flag, two levels | The default threshold of 5 mL/min/1.73 m² per year goes back to the KDIGO 2012 CKD guideline; KDIGO 2024 gives no numeric threshold for rapid progression. The threshold is a configurable convention. Applying it to one fitted slope without testing that the decline is sustained, and the two levels "rapid ↓" (whole 95 % interval below −threshold) and "rapid ↓?" (only the slope below it), are this tool's rules (decided 2026-11-21). | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
+| Bounded-value substitution and the 20 % warning | Substituting the limit or half of it for a censored value is a common convention whose bias at high censored fractions is documented (Hornung and Reed 1990; Hughes 1999). The three settings, the default `limit`, counting a median bin as bounded when it holds a bound and the warning at 20 % of the fitted points are this tool's rules (decided 2026-11-21 and 2026-11-22). | [Bounded values in individual fits](method-algorithms/bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22) |
 | Slope reliability rule | Fewer than three fitted dates or under 365 days of fitted span: a clinical rule of thumb, not a published cut-off. | [Reliability rule](method-algorithms/slope-quality.md#reliability-rule) |
 
 ## Open decisions
@@ -124,7 +129,16 @@ implemented with the option that changes least. OD-38 was added on
 of its decision and resolved the same day: the decision prescribes calendar
 days.
 
-No decision is open at present.
+OD-60 to OD-63 were added on 2026-11-22 with the bounded-value setting of
+issue #73, for cases its decisions of 2026-11-21 and 2026-11-22 do not name;
+each is implemented with the option that changes least.
+
+| ID | Open question | Section |
+| --- | --- | --- |
+| OD-60 | `n_bounded` and the 20 % warning are defined on fitted values (decision of 2026-11-21), so under `exclude` they are 0 and silent even when most raw values of a series are bounds and leaving them out biases the slope. Should `exclude` warn on the raw share? | [Bounded values in individual fits](method-algorithms/bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22) |
+| OD-61 | A conclusive bound (for example `>60`) after a confirmed G4/G5 event is not recorded as recovery; the decision of 2026-11-22 names only the reset of a candidate. Should it record recovery, with the limit as value? | [Bounds and endpoints](method-algorithms/bounded-measurements.md#bounds-and-endpoints-2026-11-22) |
+| OD-62 | Bounds do not interrupt a 40 % or 57 % decline candidate, although `>x` can prove the decline from the baseline was below the threshold that day; the decision names G4/G5 only. | [Bounds and endpoints](method-algorithms/bounded-measurements.md#bounds-and-endpoints-2026-11-22) |
+| OD-63 | Settings saved on the device or exported before 2026-11-22 carry no bounded-value setting and load with the new default `limit`, so their slopes of series with bounds change without a choice by the user; "Apply settings from an export" names the affected parameters. Should they load as `exclude` instead? | [Bounded values in individual fits](method-algorithms/bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22) |
 
 ### Resolved decisions
 

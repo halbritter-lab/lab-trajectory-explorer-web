@@ -69,6 +69,12 @@ export function measurementText(row: LabRow): string {
 interface PlotScale { xMin: number; xMax: number; yMin: number; yMax: number; log: boolean }
 const scaleX = (scale: PlotScale, n: number) => PLOT.left + (n - scale.xMin) / (scale.xMax - scale.xMin) * (PLOT.right - PLOT.left)
 const scaleY = (scale: PlotScale, n: number) => PLOT.bottom - ((scale.log ? Math.log10(n) : n) - scale.yMin) / (scale.yMax - scale.yMin) * (PLOT.bottom - PLOT.top)
+/** How the bounds of a chart enter its fit (issue #73), by the column's setting. */
+function boundedFitText(policy: CohortRow['cells'][number]['boundedValues'] | undefined): string {
+  if (policy === 'exclude') return 'They are excluded from fits and endpoints.'
+  return `They enter the trend ${policy === 'half-limit' ? 'with <x at half its limit and >x at its limit' : 'at their limit'} and are excluded from endpoints.`
+}
+
 /** The fit lines a chart draws for a cell: on a logarithmic axis those of the
  * fit on log values (issue #70), straight on that axis. */
 export const drawnFitLines = (cell: CohortRow['cells'][number] | undefined, log: boolean) => (log ? cell?.logTrend?.fitLines : cell?.fitLines) ?? []
@@ -459,7 +465,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {shownOverlays.flatMap(module => bandNotes(module).map(note => <p key={`${module.id}:${note}`} className="wt-muted" data-testid={`${module.id}-band-note`}>{note}</p>))}
     {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurement dates or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
-    {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Bounds marked &lt; or &gt; remain visible at their numeric limits. They are excluded from fits and endpoints.</p>}
+    {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Bounds marked &lt; or &gt; remain visible at their numeric limits. {boundedFitText(visible[0]?.cell.boundedValues)}</p>}
     {!display.points && !display.connect && <p>Measurement points and connecting lines are hidden.</p>}
     {groupBy && <p className="wt-muted">The legend only changes the display; selection and exports remain unchanged.</p>}
   </section>

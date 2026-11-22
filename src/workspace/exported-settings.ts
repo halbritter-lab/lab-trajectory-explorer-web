@@ -74,7 +74,8 @@ function rebuiltColumn(row: Record<string, unknown>): { settings: unknown; trend
     trend,
     settings: {
       presetId, fitModel: trend ? config.fitModel : defaultFitSettings(presetId).fitModel, timeBalancing: config.timeBalancing,
-      censoring: config.censoring, exclusions: config.exclusions, endpoints: config.endpoints, moduleSettings,
+      censoring: config.censoring, exclusions: config.exclusions, endpoints: config.endpoints,
+      ...(config.boundedValues === undefined ? {} : { boundedValues: config.boundedValues }), moduleSettings,
       ...(anchorComparison === undefined ? {} : { anchorComparison }),
     },
   }
@@ -202,6 +203,9 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
   const own = Object.keys(restored.trajectoryFitSettings.columns)
   if (own.length) applied.push(`own settings of ${own.map(label).join(', ')}`)
   if (exported.rebuilt) applied.push('settings rebuilt from fit_config (the workbook was written before column_settings existed)')
+  // Exports before 2026-11-22 (issue #73) left bounds out of every fit and carry no boundedValues.
+  const withoutBounded = present.filter(column => isRecord(column.settings) && !('boundedValues' in column.settings))
+  if (withoutBounded.length) notApplied.push(`bounded values of ${withoutBounded.map(column => column.label).join(', ')}: the export has no such setting (it left bounds out of every fit); the default "Limit" applies, choose "Exclude" to reproduce its slopes`)
 
   // Selection and Trend.
   const parameterKeys = present.length ? present.map(column => column.parameterKey) : null

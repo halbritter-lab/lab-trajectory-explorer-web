@@ -8,6 +8,10 @@ export interface SeriesPoint {
   /** Milliseconds after midnight (`LabRow.labTime`). Read by AKI detection
    * only, to order the values of one day; fits ignore it. */
   timeOfDay?: number | null
+  /** The point is, or (after time balancing) its bin holds, a bounded value
+   * (`<x`, `>x`) that entered under the column's bounded-value policy. Fits
+   * ignore it; it is counted as `nBounded`. */
+  bounded?: true
 }
 
 /** OLS fit over an entire (date,value) series. Mirrors the Python
