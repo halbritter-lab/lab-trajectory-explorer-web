@@ -45,9 +45,10 @@ interfaces are still evolving before 1.0.
   too few measurement times, duplicate times) are shown in plain words with
   the patient IDs concerned (up to five, then "and N more"). The exported
   text in `models.warnings` and `projections.warnings` is unchanged.
-- The header row of the Trajectories table stays in sight while the rows
-  scroll: the table scrolls inside a box no taller than the window. On a
-  phone the position ("1–25 of 28") is shown between Previous and Next.
+- On a phone the page position ("1–25 of 28") is shown between Previous and
+  Next of the Trajectories table. A sticky header row for that table was
+  left out: it needs the rows to scroll inside a box of their own, which
+  hides part of the table below the window and, at its end, the header row.
 - README: one concrete way to start a local copy (a static file server;
   opening `index.html` by double-click does not work), and the sentence on
   data leaving the machine follows the Methods page (downloads of the R

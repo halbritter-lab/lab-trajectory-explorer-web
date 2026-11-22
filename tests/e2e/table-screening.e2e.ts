@@ -111,9 +111,7 @@ test('pages below the table, returns to its top, and gives collapsed groups no p
   const below = page.getByRole('navigation', { name: 'Patient table pages, below the table' })
   await expect(above.getByRole('status')).toHaveText('Showing 1–50 of 120 patients')
   await below.scrollIntoViewIfNeeded()
-  // Since 2026-11-22 the rows scroll inside a box no taller than the window (sticky header row),
-  // so the pager below the table is about one window height down, no longer thousands of pixels.
-  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(300)
+  expect(await page.evaluate(() => scrollY)).toBeGreaterThan(2000)
   await expect(below).toContainText('Page 1 of 3 · patients 1–50 of 120')
   await below.getByRole('button', { name: 'Below the table: next page' }).click()
   await expect(page.getByRole('button', { name: 'Open patient P-051', exact: true })).toBeVisible()
@@ -122,7 +120,6 @@ test('pages below the table, returns to its top, and gives collapsed groups no p
   await expect.poll(async () => (await table.boundingBox())!.y).toBeLessThan(40)
   expect((await table.boundingBox())!.y).toBeGreaterThanOrEqual(0)
   await expect(table).toBeFocused()
-  expect(await table.evaluate(element => element.scrollTop)).toBe(0)
 
   await page.getByLabel('Patients per page').selectOption('100')
   await expect(above.getByRole('status')).toHaveText('Showing 1–100 of 120 patients')

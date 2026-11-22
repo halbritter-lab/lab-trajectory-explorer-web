@@ -12,6 +12,11 @@ and 390 px), with the demo data, the review file with times of day, the
   loaded again, the same 4 AKI episodes and the same `input_data_id`. The
   measurement table of ANSTIEG-ZEIT shows "01/09/2026 06:00" 1.0 before
   "01/09/2026 20:00" 1.6, with "Fit disabled" on each row.
+- Demo: the measurement table of patient 6 shows dates without a time
+  ("10/01/2022"); the cohort export has an empty `time_of_day` in all 467
+  rows of both measurement sheets and `input_data_id` `b59dd57d`, as on main,
+  without a fit, with OLS, with CKD progression / Theil-Sen / segmented and
+  with acute review.
 - Events file with 3024-05-08 and an end date 2099-12-31, lab birth date
   2030-02-01: "Implausible event date 3024-05-08 (after the import day
   2026-11-22); the event is used unchanged.", the same for the end date, and
@@ -33,12 +38,12 @@ and 390 px), with the demo data, the review file with times of day, the
   "7 patients have a single measurement in this model. … Patients: S13, S14,
   S15, S16, S17 and 2 more."; the R warning on the singular fit is shown as
   recorded.
-- 800 patients, 1440 px and 390 px: the header row of the table stays at the
-  top of the table box while the rows scroll inside it, the ID column stays
-  at the left; the pager below the table is reached when the box is at its
-  end; Next starts the new page at its first row; back from a patient the
-  position inside the box is restored. At 390 px the top bar reads "1–50 of
-  800" between Previous and Next, with no horizontal page scroll.
+- 800 patients, 1440 px and 390 px: the rows scroll with the page (no
+  sticky header row: tried and left out, see the decisions of 2026-11-22,
+  because the rows then scrolled inside a box of their own whose lower part
+  stayed below the window and whose last rows were read without the header
+  row). At 390 px the top bar reads "1–50 of 800" between Previous and Next,
+  with no horizontal page scroll.
 - Methods → AKI detection → AKI Timing: the two paragraphs of draft G1.
 
 ## Combined branch of the persona review: fixes after its review (2026-11-21)

@@ -394,8 +394,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const personButtons = useRef(new Map<PatientId, HTMLButtonElement>())
   const originatingPerson = useRef<PatientId | null>(null)
   const parameterHeaders = useRef(new Map<string, HTMLTableCellElement>())
-  // `inner` is the vertical position inside the table box, which scrolls on its own since the header row sticks (2026-11-22).
-  const tablePosition = useRef({ left: 0, top: 0, inner: 0, restore: false })
+  const tablePosition = useRef({ left: 0, top: 0, restore: false })
   const knownParameters = useRef(new Map(data.parameters.map(parameter => [parameter.key, parameter])))
   const [parameterNotice, setParameterNotice] = useState('')
   useEffect(() => {
@@ -586,8 +585,6 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     const scroller = tableScroller.current, jump = pageJump.current
     pageJump.current = false
     if (!jump || !scroller) return
-    // A new page starts at its first row, also inside the table box.
-    scroller.scrollTop = 0
     // Only when the top of the table is out of sight: a change from the bar above it moves nothing.
     const top = scroller.getBoundingClientRect().top
     if ((top < 0 || top > window.innerHeight) && typeof scroller.scrollIntoView === 'function') scroller.scrollIntoView({ block: 'start' })
@@ -629,7 +626,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const currentIndex = visible.findIndex(row => row.patientId === current?.patientId)
   const open = (id: PatientId) => {
     if (mode === 'table') {
-      tablePosition.current = { left: tableScroller.current?.scrollLeft ?? 0, top: document.scrollingElement?.scrollTop ?? document.documentElement.scrollTop, inner: tableScroller.current?.scrollTop ?? 0, restore: true }
+      tablePosition.current = { left: tableScroller.current?.scrollLeft ?? 0, top: document.scrollingElement?.scrollTop ?? document.documentElement.scrollTop, restore: true }
       originatingPerson.current = id
     }
     const nextReturn = mode !== 'detail' ? mode : returnMode
@@ -651,7 +648,6 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       if (originatingPerson.current !== null) personButtons.current.get(originatingPerson.current)?.focus({ preventScroll: true })
       const page = document.scrollingElement ?? document.documentElement
       page.scrollTop = tablePosition.current.top
-      tableScroller.current.scrollTop = tablePosition.current.inner
       tablePosition.current.restore = false
     }
   }, [mode])

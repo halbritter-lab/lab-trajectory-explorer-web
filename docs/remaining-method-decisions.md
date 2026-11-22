@@ -1039,15 +1039,20 @@ Resolved with a change:
   duplicate warning names each patient once although it counts rows;
   warnings from R are shown as recorded. Details:
   [minimum data and validity gates](method-algorithms/cohort-models.md#minimum-data-and-validity-gates).
-- **The header row of the Trajectories table stays in sight** (K21). The
-  table box scrolls in both directions and is at most as tall as the window,
-  so the header row sticks to its top while the checkbox and ID columns stick
-  to its left edge. On a phone the position ("1–25 of 28") stands between
-  Previous and Next. Display only. Details of the implementation: the rows
-  scroll inside the box once it reaches the top of the window, and the page
-  continues to the pager below the table when the box is at its end; a new
-  page starts at its first row inside the box, and the position inside the
-  box is restored on the way back from a patient.
+- **The position of the page is shown on a phone; the header row of the
+  Trajectories table does not stick** (K21). On a phone the position
+  ("1–25 of 28") stands between Previous and Next. Display only. A sticky
+  header row was tried and left out: inside the box that scrolls the table
+  sideways, `position: sticky` sticks to that box, so the rows have to scroll
+  inside a box of their own, at most as tall as the window. Checked with 800
+  patients: at 1440 × 900 the box starts 402 px down, wheel scrolling over
+  the table scrolls inside the box first while its lower 400 px stay below
+  the window, and once the box is at its end the page scrolls on and the
+  last rows are read without the header row; at 390 × 844 only the top
+  175 px of the box are in sight at first. A header that sticks to the window
+  needs a second header row kept in step with the sideways scroll, which is
+  more than a display detail in a file other changes work on. The rows
+  scroll with the page as before.
 - **README and start notice** (K44, K46). The README names one concrete
   way to start a local copy (a static file server, `python3 -m http.server
   --directory dist`) and says that opening `index.html` by double-click does

@@ -284,12 +284,6 @@
 .wt-table-pages-below button { padding: 5px 9px; min-height: 30px; font-size: 12px; }
 .pv-cell-values > .pv-cell-ci { font-variant-numeric: tabular-nums; }
 .pv-explorer > .wt-table-scroll { scroll-margin-top: 12px; }
-/* Sticky header row (K21, 2026-11-22): the table scrolls in both directions
-   inside a box no taller than the window, so the header row can stick to the
-   top of that box while the first two columns stick to its left edge. */
-.pv-explorer > .wt-table-scroll { max-height: calc(100vh - 8px); max-height: calc(100dvh - 8px); overflow: auto; }
-.pv-explorer > .wt-table-scroll .wt-table thead th { position: sticky; top: 0; z-index: 3; }
-.pv-explorer > .wt-table-scroll .wt-table thead th:nth-child(-n+2) { z-index: 4; }
 @media (max-width: 900px) {
   .pv-mark-filters { padding: 0 12px 8px; }
   .pv-mark-filters.pv-mark-menu { padding: 0; }
