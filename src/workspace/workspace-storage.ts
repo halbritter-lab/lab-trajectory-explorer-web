@@ -7,6 +7,7 @@ import type { LabRow, Sex, WertOperator } from '../core/types'
 import { nonSerumCreatinineLoincName } from '../core/domains/nephrology/analytes'
 import { parsePeriEventSettings, type PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 import { IMPORT_SOURCES, type ImportDiagnostic, type ImportSource } from '../io/loadDataset'
+import { getLanguage, setLanguage, subscribeLanguage, t, tp } from '../i18n'
 import { allValues, projectionOnNotice, restoreSavedSettings, SAVED_SETTINGS_VERSION, type RestoredSettings, type SavedSettings } from './saved-settings'
 import {
   CLINICAL_EVENT_TYPES,
@@ -80,8 +81,8 @@ function localMinute(time: number): string {
  * closed: expiry is checked only when the app starts (startWorkspaceStorage),
  * so the copy stays on the device until the app is opened after that time. */
 export function savedStatusText(savedAt: number | null): string {
-  if (savedAt === null) return 'Saved on this device'
-  return `Saved on ${localMinute(savedAt)}; removed when the app is next opened after ${localMinute(savedAt + DATASET_TTL_MS)}`
+  if (savedAt === null) return t('Saved on this device')
+  return t('Saved on {saved}; removed when the app is next opened after {expiry}', { saved: localMinute(savedAt), expiry: localMinute(savedAt + DATASET_TTL_MS) })
 }
 
 const nullableText = (v: unknown) => v === null || typeof v === 'string'
@@ -225,23 +226,23 @@ export function separateStoredNonSerumCreatinine(rows: LabRow[]): { rows: LabRow
 
 /** What a restored copy lacks or had changed because an earlier version saved it. */
 export function earlierVersionNotice({ withoutImportFindings, movedCreatinine }: { withoutImportFindings: boolean; movedCreatinine: number }): string {
-  return (withoutImportFindings ? ' This copy was saved by an earlier version: it has no import findings, no source rows and no times of day, so several creatinine values of one day are compared with earlier days only. Import the file again to get them.' : '')
-    + (movedCreatinine ? ` ${movedCreatinine} creatinine ${movedCreatinine === 1 ? 'value' : 'values'} with a urine LOINC code (2161-8, 14683-7) ${movedCreatinine === 1 ? 'was' : 'were'} moved to a parameter of ${movedCreatinine === 1 ? 'its' : 'their'} own, as an import does: not used for AKI detection or eGFR.` : '')
+  return (withoutImportFindings ? ` ${t('This copy was saved by an earlier version: it has no import findings, no source rows and no times of day, so several creatinine values of one day are compared with earlier days only. Import the file again to get them.')}` : '')
+    + (movedCreatinine ? ` ${tp('{n} creatinine value with a urine LOINC code (2161-8, 14683-7) was moved to a parameter of its own, as an import does: not used for AKI detection or eGFR.', '{n} creatinine values with a urine LOINC code (2161-8, 14683-7) were moved to a parameter of their own, as an import does: not used for AKI detection or eGFR.', movedCreatinine)}` : '')
 }
 
 /** What a restored copy brought back and what starts from defaults. */
 export function restoredNotice({ stored, notRestored, keptAsCustom, projectionOn = [] }: Pick<RestoredSettings, 'stored' | 'notRestored' | 'keptAsCustom'> & Partial<Pick<RestoredSettings, 'projectionOn'>>): string {
-  const notSaved = 'Cohort model settings and results are not saved: fit the models again under Cohort models.'
-  if (stored === 'none') return `Dataset restored from this device. No analysis settings were saved with this copy, so presets, trend and display settings start from their defaults. ${notSaved}`
-  if (stored === 'discarded') return `Dataset restored from this device. Its saved analysis settings could not be used (saved by another version), so presets, trend and display settings start from their defaults. ${notSaved}`
-  return `Dataset and analysis settings (presets, trend and display choices) restored from this device. ${notSaved}`
-    + (keptAsCustom.length ? ` Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: ${keptAsCustom.join('; ')}. The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom".` : '')
+  const notSaved = t('Cohort model settings and results are not saved: fit the models again under Cohort models.')
+  if (stored === 'none') return `${t('Dataset restored from this device. No analysis settings were saved with this copy, so presets, trend and display settings start from their defaults.')} ${notSaved}`
+  if (stored === 'discarded') return `${t('Dataset restored from this device. Its saved analysis settings could not be used (saved by another version), so presets, trend and display settings start from their defaults.')} ${notSaved}`
+  return `${t('Dataset and analysis settings (presets, trend and display choices) restored from this device.')} ${notSaved}`
+    + (keptAsCustom.length ? ` ${t('Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: {list}. The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom".', { list: keptAsCustom.join('; ') })}` : '')
     + (projectionOn.length ? ` ${projectionOnNotice(projectionOn)}` : '')
-    + (notRestored.length ? ` Not restored, the defaults are used instead: ${notRestored.join('; ')}.` : '')
+    + (notRestored.length ? ` ${t('Not restored, the defaults are used instead: {list}.', { list: notRestored.join('; ') })}` : '')
 }
 
-const EXPIRED_MESSAGE = 'The saved workspace expired after seven days and was removed. Import your file to continue.'
-const INVALID_MESSAGE = 'The saved workspace could not be read (invalid or from an unsupported version) and was removed. Import your file to continue.'
+const EXPIRED_MESSAGE = () => t('The saved workspace expired after seven days and was removed. Import your file to continue.')
+const INVALID_MESSAGE = () => t('The saved workspace could not be read (invalid or from an unsupported version) and was removed. Import your file to continue.')
 
 let writes: Promise<void> = Promise.resolve()
 let revision = 0
@@ -258,7 +259,7 @@ function reportError(message: string) {
 }
 function reportConflict() {
   ++revision
-  useWorkspaceStorage.setState({ enabled: false, status: 'error', message: 'The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.' })
+  useWorkspaceStorage.setState({ enabled: false, status: 'error', message: t('The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.') })
 }
 /**
  * Compare the copy on the device with this tab's last write. The status
@@ -295,7 +296,7 @@ function snapshot(): Snapshot {
 }
 function settingsRecord(datasetToken: string): SettingsRecord {
   const state = useAppStore.getState()
-  return { version: SAVED_SETTINGS_VERSION, datasetToken, trajectoryFitSettings: state.trajectoryFitSettings, trajectoryView: state.trajectoryView }
+  return { version: SAVED_SETTINGS_VERSION, datasetToken, trajectoryFitSettings: state.trajectoryFitSettings, trajectoryView: state.trajectoryView, language: getLanguage() }
 }
 /** One read/write transaction: IndexedDB makes the compare-and-swap atomic
  * across tabs, so a stale tab cannot resurrect a deleted copy or overwrite a
@@ -326,7 +327,7 @@ function save(): Promise<void> {
   const value = snapshot()
   // Never write a copy the next start would reject and delete.
   if (!validSnapshot(value)) {
-    reportError('This dataset cannot be saved on this device because it contains values the saved format does not accept. It stays available in this tab; export your data to keep it.')
+    reportError(t('This dataset cannot be saved on this device because it contains values the saved format does not accept. It stays available in this tab; export your data to keep it.'))
     return Promise.resolve()
   }
   useWorkspaceStorage.setState({ status: 'saving', message: null })
@@ -340,7 +341,7 @@ function save(): Promise<void> {
     } catch (error) {
       if (error instanceof StorageConflict) {
         reportConflict()
-      } else if (currentRevision === revision) reportError('Could not save on this device. Keep this tab open or export your data, then retry.')
+      } else if (currentRevision === revision) reportError(t('Could not save on this device. Keep this tab open or export your data, then retry.'))
     }
   })
 }
@@ -377,7 +378,7 @@ function saveSettings(): void {
       }))
       if (useWorkspaceStorage.getState().settingsError !== null) useWorkspaceStorage.setState({ settingsError: null })
     } catch {
-      useWorkspaceStorage.setState({ settingsError: 'Could not save the analysis settings on this device. The dataset copy is unchanged and its seven days are not extended; the next settings change is saved again.' })
+      useWorkspaceStorage.setState({ settingsError: t('Could not save the analysis settings on this device. The dataset copy is unchanged and its seven days are not extended; the next settings change is saved again.') })
     }
   })
 }
@@ -395,7 +396,7 @@ export async function setWorkspaceRemember(enabled: boolean): Promise<void> {
       claimPending = false
       if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null, settingsError: null, savedAt: null })
     } catch {
-      if (currentRevision === revision) reportError('Could not remove the saved copy. Retry clearing saved data on this device.')
+      if (currentRevision === revision) reportError(t('Could not remove the saved copy. Retry clearing saved data on this device.'))
     }
   })
 }
@@ -423,13 +424,13 @@ export async function startWorkspaceStorage(): Promise<() => void> {
     const state = value === undefined ? null : classifySnapshot(value)
     if (state === 'expired') {
       await deleteIfUnchanged(value)
-      useWorkspaceStorage.setState({ message: EXPIRED_MESSAGE })
+      useWorkspaceStorage.setState({ message: EXPIRED_MESSAGE() })
     } else if (state === 'invalid') {
       await deleteIfUnchanged(value)
-      useWorkspaceStorage.setState({ message: INVALID_MESSAGE })
+      useWorkspaceStorage.setState({ message: INVALID_MESSAGE() })
     } else if (state === null && (legacy.legacyWorkspaceCopy === 'expired' || legacy.legacyWorkspaceCopy === 'invalid')) {
       // An unusable copy left by the previous release was removed during migration.
-      useWorkspaceStorage.setState({ message: legacy.legacyWorkspaceCopy === 'expired' ? EXPIRED_MESSAGE : INVALID_MESSAGE })
+      useWorkspaceStorage.setState({ message: legacy.legacyWorkspaceCopy === 'expired' ? EXPIRED_MESSAGE() : INVALID_MESSAGE() })
     } else if (state === 'usable' && validSnapshot(value)) {
       lastWriteToken = value.writeToken
       // The import's series rule for creatinine with a urine LOINC code, for copies saved before it existed.
@@ -444,11 +445,13 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       // Settings written for another dataset copy are never applied.
       const mine = record(storedSettings) && storedSettings.datasetToken === value.writeToken ? storedSettings : undefined
       const restored = restoreSavedSettings(mine, parameterKeys)
+      // The saved interface language applies before any message is composed.
+      if (restored.language) setLanguage(restored.language)
       useAppStore.setState({ trajectoryFitSettings: restored.trajectoryFitSettings, trajectoryView: restored.trajectoryView, notice: { kind: 'info', text: restoredNotice(restored) + earlierVersionNotice({ withoutImportFindings: value.importDiagnostics === undefined, movedCreatinine: separated.moved }) } })
       useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null, savedAt: value.savedAt })
     }
   } catch {
-    reportError('Local storage is unavailable. You can still import and work in this tab.')
+    reportError(t('Local storage is unavailable. You can still import and work in this tab.'))
   }
   const stop = useAppStore.subscribe((state, previous) => {
     if (!useWorkspaceStorage.getState().enabled) return
@@ -460,11 +463,14 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       || state.importDiagnostics !== previous.importDiagnostics || state.periEventSettings !== previous.periEventSettings) void save()
     else if (state.trajectoryFitSettings !== previous.trajectoryFitSettings || state.trajectoryView !== previous.trajectoryView) saveSettings()
   })
+  // The interface language is kept with the settings record, so only while saving is on.
+  const stopLanguage = subscribeLanguage(() => { if (useWorkspaceStorage.getState().enabled) saveSettings() })
   const onShown = () => { if (document.visibilityState === 'visible') void checkSavedCopy() }
   document.addEventListener('visibilitychange', onShown)
   window.addEventListener('focus', onShown)
   const stopAll = () => {
     stop()
+    stopLanguage()
     document.removeEventListener('visibilitychange', onShown)
     window.removeEventListener('focus', onShown)
   }

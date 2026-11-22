@@ -18,6 +18,7 @@ import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
 import { DEFAULT_WORKSPACE_DISPLAY, type WorkspaceAxis } from './WorkspacePlot'
 import type { SparkSize } from './WorkspaceSparkline'
 import { ENDPOINT_BADGE_IDS, type EndpointBadgeId } from './labels/endpointLabels'
+import { isLanguage, t, type Language } from '../i18n'
 
 /** Every value a union allows, checked at compile time: adding a code to the
  * union without listing it here fails the build instead of making every saved
@@ -61,6 +62,9 @@ export interface SavedSettings {
   version: typeof SAVED_SETTINGS_VERSION
   trajectoryFitSettings: TrajectoryFitSettings
   trajectoryView: TrajectoryView
+  /** The interface language (issue #71), kept only with "Remember on this
+   * device". Absent in copies saved before 2026-11-22: the browser language applies. */
+  language?: Language
 }
 
 const FIT_MODELS = allValues<FitModel>()(['none', 'ols', 'theil-sen', 'rolling-ols', 'segmented-ols'])
@@ -138,11 +142,13 @@ export interface RestoredSettings {
   /** Settings restored with the extrapolation to CKD G5 switched on. It is off
    * by default since 2026-11-22 (issue #81); a stored "on" is kept and named. */
   projectionOn: string[]
+  /** The saved interface language; null when none was saved or it is unknown. */
+  language: Language | null
 }
 
 /** Restored or applied settings with the extrapolation to CKD G5 on (issue #81). */
 export function projectionOnNotice(labels: readonly string[]): string {
-  return `The extrapolation to CKD G5 is switched on in ${labels.join('; ')}, as saved: a conditional extrapolation of the fitted trend, not a prognosis. It has been off by default since 2026-11-22 and can be switched off in the endpoint settings of the parameter.`
+  return t('The extrapolation to CKD G5 is switched on in {list}, as saved: a conditional extrapolation of the fitted trend, not a prognosis. It has been off by default since 2026-11-22 and can be switched off in the endpoint settings of the parameter.', { list: labels.join('; ') })
 }
 
 /** Parameter keys are `JSON.stringify([name, unit])`. */
@@ -169,10 +175,11 @@ const isComputedParameter = (key: string) => parsedKey(key)?.[0].endsWith(COMPUT
  * dataset is dropped and named, unless it is a computed eGFR parameter.
  */
 export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<string>): RestoredSettings {
-  const out: RestoredSettings = { trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [], projectionOn: [] }
+  const out: RestoredSettings = { trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [], projectionOn: [], language: null }
   if (value === undefined) return out
   if (!record(value) || value.version !== SAVED_SETTINGS_VERSION) { out.stored = 'discarded'; return out }
   out.stored = 'restored'
+  if (isLanguage(value.language)) out.language = value.language
   const keeps = (key: string) => parameterKeys.has(key) || isComputedParameter(key)
   /** A saved preset id only names the preset whose current definition the
    * saved values still match; otherwise the values stay and the name goes. */
@@ -186,75 +193,75 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
   const parse = (stored: unknown, label: string): WorkspaceFitSettings | null => {
     const ignored: string[] = []
     const parsed = parseFitSettings(stored, ignored)
-    for (const id of ignored) out.notRestored.push(`module settings "${id}" (${label})`)
+    for (const id of ignored) out.notRestored.push(t('module settings "{id}" ({label})', { id, label }))
     if (parsed?.endpoints.projectedAgeToCkdG5) out.projectionOn.push(label)
     return parsed && underCurrentPreset(parsed, label)
   }
   const fit = value.trajectoryFitSettings
   if (record(fit)) {
-    const shared = parse(fit.shared, 'shared settings')
+    const shared = parse(fit.shared, t('shared settings'))
     if (shared) out.trajectoryFitSettings.shared = shared
-    else out.notRestored.push('shared analysis settings')
+    else out.notRestored.push(t('shared analysis settings'))
     for (const [key, stored] of Object.entries(record(fit.columns) ? fit.columns : {})) {
-      const own = keeps(key) ? parse(stored, `own settings of ${parameterKeyLabel(key)}`) : null
+      const own = keeps(key) ? parse(stored, t('own settings of {parameter}', { parameter: parameterKeyLabel(key) })) : null
       if (own) out.trajectoryFitSettings.columns[key] = own
-      else out.notRestored.push(`own settings of ${parameterKeyLabel(key)}${keeps(key) ? '' : ' (parameter not in this dataset)'}`)
+      else out.notRestored.push(keeps(key) ? t('own settings of {parameter}', { parameter: parameterKeyLabel(key) }) : t('own settings of {parameter} (parameter not in this dataset)', { parameter: parameterKeyLabel(key) }))
     }
-  } else out.notRestored.push('analysis settings of all parameters')
+  } else out.notRestored.push(t('analysis settings of all parameters'))
 
   const view = value.trajectoryView
-  if (!record(view)) { out.notRestored.push('trend and display settings'); return out }
-  const keyList = (name: 'trendKeys' | 'fitKeys', label: string) => {
+  if (!record(view)) { out.notRestored.push(t('trend and display settings')); return out }
+  const keyList = (name: 'trendKeys' | 'fitKeys', choices: string, of: (parameter: string) => string) => {
     const stored = view[name]
-    if (!Array.isArray(stored) || !stored.every(k => typeof k === 'string')) { out.notRestored.push(`${label} choices`); return }
+    if (!Array.isArray(stored) || !stored.every(k => typeof k === 'string')) { out.notRestored.push(choices); return }
     for (const key of new Set(stored as string[])) {
       if (keeps(key)) out.trajectoryView[name].push(key)
-      else out.notRestored.push(`${label} of ${parameterKeyLabel(key)} (parameter not in this dataset)`)
+      else out.notRestored.push(of(parameterKeyLabel(key)))
     }
   }
   if (view.parameterKeys !== null) {
     if (Array.isArray(view.parameterKeys) && view.parameterKeys.every(k => typeof k === 'string')) {
       const stored = [...new Set(view.parameterKeys as string[])]
       const shown = stored.filter(keeps)
-      for (const key of stored) if (!keeps(key)) out.notRestored.push(`column ${parameterKeyLabel(key)} (parameter not in this dataset)`)
+      for (const key of stored) if (!keeps(key)) out.notRestored.push(t('column {parameter} (parameter not in this dataset)', { parameter: parameterKeyLabel(key) }))
       out.trajectoryView.parameterKeys = shown.some(key => parameterKeys.has(key)) ? shown : null
-    } else out.notRestored.push('selected parameters')
+    } else out.notRestored.push(t('selected parameters'))
   }
-  keyList('trendKeys', 'Trend')
-  keyList('fitKeys', 'trend line')
+  keyList('trendKeys', t('Trend choices'), parameter => t('Trend of {parameter} (parameter not in this dataset)', { parameter }))
+  keyList('fitKeys', t('trend line choices'), parameter => t('trend line of {parameter} (parameter not in this dataset)', { parameter }))
   if (record(view.display)) {
     for (const [key, shown] of Object.entries(view.display)) {
       if (Object.hasOwn(DEFAULT_WORKSPACE_DISPLAY, key) && bool(shown)) out.trajectoryView.display[key] = shown
-      else out.notRestored.push(`display option "${key}"`)
+      else out.notRestored.push(t('display option "{key}"', { key }))
     }
-  } else out.notRestored.push('display options')
+  } else out.notRestored.push(t('display options'))
   if (oneOf(AXES, view.axis)) out.trajectoryView.axis = view.axis
-  else out.notRestored.push('time axis')
+  else out.notRestored.push(t('time axis'))
   if (oneOf(SCALE_MODES, view.scaleMode)) out.trajectoryView.scaleMode = view.scaleMode
-  else out.notRestored.push('scale mode')
+  else out.notRestored.push(t('scale mode'))
   if (oneOf(CHART_SIZES, view.chartSize)) out.trajectoryView.chartSize = view.chartSize
-  else out.notRestored.push('chart size')
+  else out.notRestored.push(t('chart size'))
   if (oneOf(CELL_DETAILS, view.cellDetails)) out.trajectoryView.cellDetails = view.cellDetails
-  else out.notRestored.push('cell details')
+  else out.notRestored.push(t('cell details'))
   if (bool(view.warningIcons)) out.trajectoryView.warningIcons = view.warningIcons
-  else out.notRestored.push('warning display')
+  else out.notRestored.push(t('warning display'))
   if (view.pointsChosen === true) out.trajectoryView.pointsChosen = true
-  else if (view.pointsChosen !== undefined) out.notRestored.push('measurement points choice')
+  else if (view.pointsChosen !== undefined) out.notRestored.push(t('measurement points choice'))
   if (view.logKeys !== undefined) {
     if (Array.isArray(view.logKeys) && view.logKeys.every(k => typeof k === 'string')) {
       const kept: string[] = []
       for (const key of new Set(view.logKeys as string[])) {
         if (keeps(key)) kept.push(key)
-        else out.notRestored.push(`log axis of ${parameterKeyLabel(key)} (parameter not in this dataset)`)
+        else out.notRestored.push(t('log axis of {parameter} (parameter not in this dataset)', { parameter: parameterKeyLabel(key) }))
       }
       if (kept.length) out.trajectoryView.logKeys = kept
-    } else out.notRestored.push('log axis choices')
+    } else out.notRestored.push(t('log axis choices'))
   }
   if (view.hiddenEndpointBadges !== undefined) {
     if (Array.isArray(view.hiddenEndpointBadges) && view.hiddenEndpointBadges.every(id => ENDPOINT_BADGE_IDS.includes(id as EndpointBadgeId))) {
       const hidden = [...new Set(view.hiddenEndpointBadges as EndpointBadgeId[])]
       if (hidden.length) out.trajectoryView.hiddenEndpointBadges = hidden
-    } else out.notRestored.push('endpoint badge choices')
+    } else out.notRestored.push(t('endpoint badge choices'))
   }
   return out
 }

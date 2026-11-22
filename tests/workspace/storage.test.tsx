@@ -7,6 +7,7 @@ import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 import { defaultTrajectoryView, losesDataOnUnload } from '../../src/workspace/saved-settings'
 import { defaultFitSettings, defaultTrajectoryFitSettings } from '../../src/workspace/workspace-analysis'
+import { getLanguage, setLanguage } from '../../src/i18n'
 import { checkSavedCopy, DATASET_TTL_MS, restoredNotice, savedStatusText, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_SETTINGS_KEY, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
 
 // The workspace keeps its copy in its own database; the default database is
@@ -144,13 +145,37 @@ describe('workspace local storage', () => {
     await settle()
     const copy = await get(WORKSPACE_STORAGE_KEY)
     expect(copy.settings).toBeUndefined()
-    expect(await get(WORKSPACE_SETTINGS_KEY)).toEqual({ version: 1, datasetToken: copy.writeToken, trajectoryFitSettings: fit, trajectoryView: view })
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toEqual({ version: 1, datasetToken: copy.writeToken, trajectoryFitSettings: fit, trajectoryView: view, language: 'en' })
     await restart()
     expect(useAppStore.getState().trajectoryFitSettings).toEqual(fit)
     expect(useAppStore.getState().trajectoryView).toEqual(view)
     // Clearing the saved copy removes the settings with it.
     await act(async () => { await setWorkspaceRemember(false) })
     expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toBeUndefined()
+  })
+  it('keeps the interface language only with "Remember on this device" (issue #71)', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    // Without saving, a switch is not written anywhere.
+    act(() => setLanguage('de'))
+    await settle()
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toBeUndefined()
+    await setWorkspaceRemember(true)
+    expect((await get(WORKSPACE_SETTINGS_KEY)).language).toBe('de')
+    act(() => setLanguage('en'))
+    await settle()
+    expect((await get(WORKSPACE_SETTINGS_KEY)).language).toBe('en')
+    act(() => setLanguage('de'))
+    await settle()
+    // A restart in an English browser restores the saved choice, and the notice is in German.
+    stop?.()
+    setLanguage('en')
+    await restart()
+    expect(getLanguage()).toBe('de')
+    expect(document.documentElement.lang).toBe('de')
+    expect(useAppStore.getState().notice?.text).toContain('wiederhergestellt')
+    // Clearing the saved copy removes the choice: the next start uses the browser language.
+    await act(async () => { await setWorkspaceRemember(false) })
     expect(await get(WORKSPACE_SETTINGS_KEY)).toBeUndefined()
   })
   it('does not touch the dataset copy when only analysis settings change', async () => {
@@ -311,7 +336,7 @@ describe('workspace local storage', () => {
     act(() => { useAppStore.getState().replaceDataset({ rows: [{ ...row, bezeichnung: 'Other' }], fileName: 'other.csv' }) })
     await waitFor(async () => expect((await get(WORKSPACE_STORAGE_KEY)).fileName).toBe('other.csv'))
     const copy = await get(WORKSPACE_STORAGE_KEY)
-    expect(await get(WORKSPACE_SETTINGS_KEY)).toEqual({ version: 1, datasetToken: copy.writeToken, trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView() })
+    expect(await get(WORKSPACE_SETTINGS_KEY)).toEqual({ version: 1, datasetToken: copy.writeToken, trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), language: 'en' })
   })
   it('restores a copy without settings with defaults and says so', async () => {
     useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })

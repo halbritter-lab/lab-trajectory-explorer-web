@@ -9,3 +9,9 @@ if (typeof URL.createObjectURL === 'undefined') {
 if (typeof URL.revokeObjectURL === 'undefined') {
   Object.defineProperty(URL, 'revokeObjectURL', { writable: true, value: () => {} })
 }
+
+// The interface starts in the browser language (issue #71). The tests query
+// English texts, so every test runs in English unless it switches itself.
+import { setLanguage } from '../src/i18n'
+setLanguage('en')
+beforeEach(() => { setLanguage('en') })
