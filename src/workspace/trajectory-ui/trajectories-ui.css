@@ -115,7 +115,8 @@
   .pv-popover { right: 8px; left: 8px; top: 100%; width: auto; max-width: none; max-height: 65dvh; overflow-y: auto; }
   .pv-statusbar { padding: 5px 12px; flex-wrap: wrap; gap: 4px; }
   .pv-statusbar .wt-table-pages { margin-left: auto; }
-  .pv-statusbar .wt-table-pages span { display: none; }
+  .pv-statusbar .wt-table-pages .wt-page-long { display: none; }
+  .pv-statusbar .wt-table-pages [role=status] { margin-right: 0; white-space: nowrap; }
   .pv-statusbar .wt-table-pages button { min-height: 44px; min-width: 44px; font-size: 11px; padding: 5px; }
 }
 @media (max-width: 480px) {

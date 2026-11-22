@@ -22,7 +22,7 @@ import type {
   MixedModelSpikeRow,
   MixedModelSuccess,
 } from '../../core/mixedModel/types'
-import { validateMixedModelRows } from '../../core/mixedModel/validation'
+import { mixedModelWarningDetails, patientIdList, validateMixedModelRows, type MixedModelWarningDetail } from '../../core/mixedModel/validation'
 import { useAppStore, type StoredMixedModelResult } from '../state/store'
 import { projectionSettingsKey } from '../state/store'
 import { buildProjectionSnapshot, type ProjectionResponse, type ProjectionSnapshot } from '../../core/projection/projectionSnapshot'
@@ -70,6 +70,8 @@ interface EntityRow {
   inputFlags?: CohortModelEntityRows['inputFlags']
   validationMessage: string | null
   eligible: boolean
+  /** The input warnings of the passed check, with their meaning and patients. */
+  warningDetails: MixedModelWarningDetail[]
 }
 
 /** One results table over the whole cohort + each group. Each row can be
@@ -117,6 +119,7 @@ export function CohortModelTable({
             inputFlags,
             validationMessage: validation.ok ? null : validation.message,
             eligible: validation.ok,
+            warningDetails: validation.ok ? mixedModelWarningDetails(rows, config) : [],
           }
         })
         // Always keep the pooled cohort row; drop empty groups (no model rows).
@@ -326,7 +329,7 @@ export function CohortModelTable({
                       <td>{row.nPatients}</td>
                       <td>{row.nMeasurements}</td>
                       <td>{success ? <>{formatSlope(success.fixedEffects.timeSinceBaseline, seriesUnit, slopeDecimals)}<IntervalText value={success.fixedEffectConfidenceIntervals.timeSinceBaseline} decimals={slopeDecimals} /></> : '—'}</td>
-                      <td>{success ? <>{formatValue(success.fixedEffects.intercept, seriesUnit)}<IntervalText value={success.fixedEffectTerms?.find(term => term.term === '(Intercept)')?.confidenceInterval ?? null} /></> : '—'}</td>
+                      <td>{success ? <>{formatValue(success.fixedEffects.intercept, seriesUnit, slopeDecimals)}<IntervalText value={success.fixedEffectTerms?.find(term => term.term === '(Intercept)')?.confidenceInterval ?? null} decimals={slopeDecimals} /></> : '—'}</td>
                       <td className="cohort-model-status" data-testid="cohort-model-status">{statusText(row)}
                         <div>{row.preparation?.presetExclusionPolicy !== 'skip' && !definesWindows ? 'No event or AKI windows defined: nothing excluded' : `Preset windows ${row.preparation?.presetExclusionPolicy === 'skip' ? 'skipped' : 'applied'}: ${row.preparation?.excludedByPreset ?? 0} eligible measurements excluded`}</div>
                         {(row.preparation?.excludedPatients.length ?? 0) > 0 && <details><summary>Excluded for factor values ({row.preparation!.excludedPatients.length})</summary><ul>{row.preparation!.excludedPatients.map((patient) => <li key={patient.patientId}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul></details>}
@@ -347,7 +350,7 @@ export function CohortModelTable({
                     {success && isExpanded && (
                       <tr className="cohort-model-details-row" data-testid="cohort-model-details" data-entity={row.key}>
                         <td className="cohort-model-details-cell" data-testid="cohort-model-details-cell" colSpan={8}>
-                          <ModelDetails result={success} outcome={mixedModelOutcomeLabel(sourceResponse.outcome, sourceResponse.unit)} decimals={slopeDecimals} />
+                          <ModelDetails result={success} outcome={mixedModelOutcomeLabel(sourceResponse.outcome, sourceResponse.unit)} decimals={slopeDecimals} warningDetails={row.warningDetails} />
                           {(() => {
                             const snapshot = exportable.find((model) => model.key === row.key)?.projection
                             return snapshot ? <ModelProjectionPanel snapshot={snapshot} showWarnings={false}
@@ -386,12 +389,21 @@ function failureStatusText(result: MixedModelFailure): string {
   return message
 }
 
-function ModelDetails({ result, outcome, decimals }: { result: MixedModelSuccess; outcome: string; decimals: number }) {
+/** A stored warning as the interface shows it: an input warning of the check
+ * in plain words with the patients concerned (2026-11-22), any other warning
+ * (from R, for example) as recorded. The export keeps the recorded text. */
+function warningText(warning: string, details: readonly MixedModelWarningDetail[]): string {
+  const detail = details.find((candidate) => candidate.text === warning)
+  if (!detail) return warning
+  return `${detail.plain} ${detail.patientIds.length === 1 ? 'Patient' : 'Patients'}: ${patientIdList(detail.patientIds)}.`
+}
+
+function ModelDetails({ result, outcome, decimals, warningDetails }: { result: MixedModelSuccess; outcome: string; decimals: number; warningDetails: readonly MixedModelWarningDetail[] }) {
   const factors = result.metadata.modelConfig ? mixedModelFactors(result.metadata.modelConfig) : []
   return (
     <>
     {factors.length > 0 && <p>Reference starting level and change per year: {factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : `${factor.key} at its included-patient mean`).join('; ')}. Associations are conditional on this model and population.</p>}
-    {result.warnings.map((warning, index) => <p role="status" key={index}>{warning}</p>)}
+    {result.warnings.map((warning, index) => <p role="status" key={index}>{warningText(warning, warningDetails)}</p>)}
     <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{formatFixedDecimals(coefficient.estimate, decimals)}</td><td>{formatFixedInterval(coefficient.confidenceInterval, decimals)}</td></tr>)}</tbody></table>
     <dl className="cohort-model-details">
       <div className="cohort-model-detail-item">
@@ -439,7 +451,9 @@ function ModelDetails({ result, outcome, decimals }: { result: MixedModelSuccess
 // A slope, its interval and the coefficients carry the decimals of the
 // parameter's slope column (decided 2026-11-21), so the table, the preview
 // legend and the Trajectories table write the same quantity alike. The starting
-// level keeps the workspace display rounding. Display only: exports keep the
+// level and its interval take the same number, as its row among the coefficients
+// does (2026-11-22; before, the general display rounding, so "45.5 [44.12, 46.9]").
+// Display only: exports keep the
 // unrounded values.
 /** The 95% interval beside an estimate in the results table; nothing when the fit recorded none.
  * With `decimals` both bounds are written with exactly that many. */
@@ -452,9 +466,9 @@ function formatSlope(value: number, unit: string | null, decimals: number): stri
   return `${formatFixedDecimals(value, decimals, true)}${unitText}/yr`
 }
 
-function formatValue(value: number, unit: string | null): string {
+function formatValue(value: number, unit: string | null, decimals: number): string {
   const unitText = unit ? ` ${unit}` : ''
-  return `${formatWorkspaceNumber(value)}${unitText}`
+  return `${formatFixedDecimals(value, decimals)}${unitText}`
 }
 
 function formatOptionalNumber(value: number | null): string {

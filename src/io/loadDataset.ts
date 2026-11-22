@@ -20,7 +20,7 @@ import {
   validatePatientAttributes,
   type PatientAttributesResult,
 } from '../core/attributes/attributes'
-import { dateReadNotes, type DateReadCounts } from '../core/parse/dates'
+import { dateReadNotes, implausibleMeasurementDate, type DateReadCounts } from '../core/parse/dates'
 import { normaliseHeader } from '../core/parse/headers'
 import { nonSerumCreatinineSeries } from '../core/domains/nephrology/analytes'
 
@@ -61,19 +61,31 @@ export function eventDiagnostics(
   dateReads: DateReadCounts,
   { valid, rejected, sourceRows }: ClinicalEventValidationResult,
   notes: readonly string[] = [],
+  today: Date = new Date(),
 ): ImportDiagnostic[] {
   const source = 'events'
+  // Event dates and end dates after the import day or before 1927-05-18, as for
+  // lab dates (2026-11-22): one warning per accepted event, which is kept unchanged.
+  const implausible = valid.flatMap((e): ImportDiagnostic[] => {
+    const found = ([['event date', e.date], ['end date', e.endDate]] as const).flatMap(([label, date]) => {
+      const why = date === null ? null : implausibleMeasurementDate(date, today)
+      return why === null ? [] : [`${label} ${date!.toISOString().slice(0, 10)} (${why})`]
+    })
+    if (!found.length) return []
+    return [{ source, sheet, patientId: e.patientId, severity: 'warning', reason: `Implausible ${found.join(' and ')}; the event is used unchanged.`, ...at(sourceRows.get(e)) }]
+  })
   return [
     ...rejected.map((r): ImportDiagnostic => ({ source, sheet, patientId: r.event.patientId, severity: 'rejected', reason: describeEventRejection(r), ...at(r.event.sourceRow) })),
     ...valid.filter((e) => e.warning).map((e): ImportDiagnostic => ({ source, sheet, patientId: e.patientId, severity: 'warning', reason: describeEventWarning(e), ...at(sourceRows.get(e)) })),
+    ...implausible,
     ...notes.map((reason) => sheetNote(source, sheet, reason)),
     ...dateReadNotes('event date', dateReads).map((reason) => sheetNote(source, sheet, reason)),
   ]
 }
 
 /** Diagnostics for an attributes table, including unreadable birth dates. */
-export function attributeDiagnostics(sheet: string, { valid, rejected }: PatientAttributesResult): ImportDiagnostic[] {
-  const birth = attributeBirthDateFindings(valid)
+export function attributeDiagnostics(sheet: string, { valid, rejected }: PatientAttributesResult, today: Date = new Date()): ImportDiagnostic[] {
+  const birth = attributeBirthDateFindings(valid, today)
   const source = 'attributes'
   return [
     ...rejected.map((r): ImportDiagnostic => ({ source, sheet, patientId: r.row.patientId, severity: 'rejected', reason: describeAttributeRejection(r), ...at(r.row.sourceRow) })),
@@ -114,8 +126,10 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, importOp
     if (wb.sheetNames.length === 0) {
       return { rows: [], events: [], patientAttributes: {}, sheetNames: [], diagnostics: [], rejectedEvents: [] }
     }
+    // The app's own `raw_measurements` sheet carries the time of day in a column of its own.
+    const labOptions = (sheetName: string): LabImportOptions => normaliseHeader(sheetName) === 'rawmeasurements' ? { ...options, timeOfDayColumn: true } : options
     if (wb.sheetNames.length === 1) {
-      const labs = loadLabRowsWithDiagnostics(wb.getSheet(0), options)
+      const labs = loadLabRowsWithDiagnostics(wb.getSheet(0), labOptions(wb.sheetNames[0]))
       return { rows: labs.rows, events: [], patientAttributes: {}, sheetNames: wb.sheetNames, diagnostics: labDiagnostics(wb.sheetNames[0], labs.issues), rejectedEvents: [] }
     }
 
@@ -128,7 +142,7 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, importOp
       labsSheetName = wb.sheetNames.find((s) => s !== eventsSheetName && s !== attributesSheetName) ?? wb.sheetNames[0]
     }
 
-    const labs = loadLabRowsWithDiagnostics(wb.getSheet(labsSheetName), options)
+    const labs = loadLabRowsWithDiagnostics(wb.getSheet(labsSheetName), labOptions(labsSheetName))
     const rows = labs.rows
     const diagnostics: ImportDiagnostic[] = labDiagnostics(labsSheetName, labs.issues)
 
@@ -141,7 +155,7 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, importOp
         const validation = validateClinicalEvents(normalized.events, rows)
         events = validation.valid
         rejectedEvents = validation.rejected
-        diagnostics.push(...eventDiagnostics(eventsSheetName, normalized.dateReads, validation, normalized.notes))
+        diagnostics.push(...eventDiagnostics(eventsSheetName, normalized.dateReads, validation, normalized.notes, importOptions.today))
       }
     }
 
@@ -153,7 +167,7 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, importOp
       if (rawAttributes.length > 0 && hasPatientAttributeColumns(rawAttributes)) {
         const validation = validatePatientAttributes(normalizePatientAttributes(rawAttributes), rows)
         patientAttributes = validation.byPatient
-        diagnostics.push(...attributeDiagnostics(attributesSheetName, validation))
+        diagnostics.push(...attributeDiagnostics(attributesSheetName, validation, importOptions.today))
       }
     }
 

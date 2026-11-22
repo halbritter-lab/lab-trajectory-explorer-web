@@ -29,6 +29,16 @@ describe('shipped demo workbook', () => {
     expect(resolved).toBe(rows)
   })
 
+  it('stores lab dates without a time of day', () => {
+    // The demo has no measured times; a serial with a time-zone remainder
+    // (01:00 or 02:00) would show as a time and enter input_data_id.
+    const file = resolve(__dirname, '../../public/test_labs.xlsx')
+    const buf = readFileSync(file)
+    const { rows } = loadDatasetFromWorkbook(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength))
+    expect(rows.length).toBeGreaterThan(100)
+    expect(rows.filter(r => r.labTime !== undefined)).toEqual([])
+  })
+
   it('loads as a complete 3-sheet workbook with labs, events, and attributes', () => {
     const file = resolve(__dirname, '../../public/test_labs.xlsx')
     const buf = readFileSync(file)

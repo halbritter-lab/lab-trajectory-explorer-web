@@ -132,18 +132,22 @@ Sheet names are compared after header normalisation (see Columns).
   and so is a separately uploaded attributes file without an attribute column
   (see [Columns](#columns)).
 
-  The time of day of a lab date does not come back: `Date` holds the calendar
-  day, and no sheet carries the time (see [Dates](#dates)). Where the original
-  file gave times, the re-imported rows have none, so several serum
-  creatinine values of one day are compared with earlier days only
-  ([Measurements on the same date](aki.md#measurements-on-the-same-date)),
-  and AKI episodes, their exclusion windows and slopes can differ from the
-  export. Example: 1.0 mg/dl at 06:00 and 1.6 mg/dl at 20:00 on 1 September
-  and 1.2 mg/dl on 4 September give a stage I episode after the import of
-  the file (`aki_episodes` of its export: onset 2026-09-01, peak 1.6) and no
-  episode after the re-import of that export; the Data page then names one
-  patient-day without an order. `input_data_id` is computed from the rows of
-  `raw_measurements` and is the same for both. The `about` sheet states this.
+  The time of day of a lab date comes back (since 2026-11-22): the export
+  writes it to the last column `time_of_day` of `raw_measurements`
+  (`HH:MM:SS`, empty text where the row has none), and the re-import of a
+  sheet named `raw_measurements` reads that column, so several serum
+  creatinine values of one day keep their order
+  ([Measurements on the same date](aki.md#measurements-on-the-same-date))
+  and the AKI episodes are those of the export. Example: 1.0 mg/dl at 06:00
+  and 1.6 mg/dl at 20:00 on 1 September and 1.2 mg/dl on 4 September give a
+  stage I episode (onset 2026-09-01, peak 1.6) after the import of the file
+  and after the re-import of its export. The column is read as `HH:MM` or
+  `HH:MM:SS` text, as a fraction of a day (0.25 is 06:00) or as a workbook
+  time cell; midnight and an unreadable cell count as no time, and a time in
+  `Date` itself takes precedence. A `time_of_day` column of any other lab
+  sheet is not read. Until 2026-11-22 no sheet carried the time, and the
+  re-imported rows had none: the same example then gave no episode after the
+  re-import.
   Example: an export of patient 7 with creatinine and computed
   eGFR selected loads patient 7's creatinine rows as imported; eGFR is
   computed anew from them.
@@ -415,7 +419,21 @@ No finding changes an imported value.
 - **Per source table.** Findings belong to the table they came from: lab
   values, events or attributes. A workbook import sets all three. A later
   events or attributes upload replaces the findings of that table only; the
-  lab findings stay. An upload that fails leaves the findings as they were.
+  lab findings stay. An upload that cannot be read or fails a column check
+  leaves the findings as they were. An upload whose rows are all rejected
+  ("No usable events …", "No usable attributes …") leaves the loaded table as
+  it was but lists its rejected rows (since 2026-11-22): the findings of that
+  file are added under "<file name> (rejected upload)" to those of the
+  table, which keep their own, also when the rejected file has the name of
+  the loaded one; a further rejected upload under the same file name replaces
+  only the rejected rows of the earlier one. Example: `events.csv` is loaded
+  with one warning, then `bad-events.csv` with two rejected rows; the events
+  of `events.csv` stay, and the events list of the diagnostics reads
+  "(events.csv, bad-events.csv (rejected upload), 2 rows rejected)" with
+  three lines. A corrected but still unusable file uploaded again as
+  `events.csv` is listed as "events.csv (rejected upload)" and leaves the
+  warning of the loaded `events.csv` in place.
+  Before, the rejected rows were named only in the error message.
 - **Saved copy.** With "Remember on this device" the findings are saved with
   the dataset and restored with it. A copy saved before 2026-11-21 restores
   without findings and without source rows; the restore notice then adds:
@@ -496,8 +514,23 @@ with its reason, counts further dates and lists the rows. With import day
 1923-07-18 (before 1927-05-18), 2026-12-15 (after the import day 2026-11-21);
 the rows are used unchanged." A date such as 2003-08-08 in a series of 2023 is
 inside the range and is not reported. The warning is issued at import only: a
-restored dataset is not checked again. Event dates, event end dates and birth
-dates are not checked.
+restored dataset is not checked again.
+
+**Event dates and birth dates (decided 2026-11-22).** The same bounds apply to
+the `date` and the `endDate` of every accepted event, in an events sheet of a
+workbook and in a separately uploaded events file. There is one warning per
+event row, naming the row and each implausible date with its reason; the
+event is used unchanged. With import day 2026-11-21, a dialysis from
+2026-11-01 to 2026-12-15 gets "Implausible end date 2026-12-15 (after the
+import day 2026-11-21); the event is used unchanged.", and an event on
+3024-05-08 "Implausible event date 3024-05-08 (after the import day
+2026-11-21); …". Rejected event rows are not checked again. A **birth date
+after the import day** gives a warning, from the lab column (once per patient
+and value, at the first row with it) and from the `birthDate` attribute (per
+attribute row): "Birth date 2030-02-01 is after the import day 2026-11-21; it
+is used unchanged." A birth date equal to the import day gives none, and no
+lower bound applies to birth dates. Before 2026-11-22, event dates, event end
+dates and birth dates were not checked.
 
 **Time of day and time zone.** A date may be followed by a time: `T` or spaces,
 `h:mm` or `hh:mm`, optional seconds and fraction, and an optional `Z`,
@@ -534,10 +567,19 @@ The time of day has one use: it orders the serum creatinine values of one
 date in AKI detection (see
 [Measurements on the same date](aki.md#measurements-on-the-same-date), which
 also states the rule for dates without a time and the note on the Data page).
-It is not shown in the measurement table or the tooltips, is in no export
-(so a re-imported export has none, see the app's own workbook export under
-[Files and sheets](#files-and-sheets)) and
-is not part of the duplicate comparison above: two rows of one date with the
+Since 2026-11-22 it is also shown beside the date in the measurement table of
+the patient view (`01/09/2026 06:00`, with seconds only when they are not
+zero), where the rows of a date are ordered by it when every row of that date
+has one and keep the row order of the file otherwise; the fit status of each
+row moves with it. The table looks at every row of the date, bounds,
+non-positive values and values under dialysis included, while AKI detection
+looks at the positive exact values only: on 1 September 1.6 at 20:00, 1.0 at
+06:00 (in this file order) and `<0.5` without a time stay in file order in
+the table, while AKI detection compares 1.0 before 1.6. It is written to the column `time_of_day` of both
+measurement sheets and read again from `raw_measurements` (see the app's own
+workbook export under [Files and sheets](#files-and-sheets)). It is not shown
+in the tooltips or the chart line, which keeps the values of one date in file
+order, and it is not part of the duplicate comparison above: two rows of one date with the
 same value at different times still count as duplicates. The times of event
 dates and birth dates are read and ignored. The time is stored with a dataset
 kept in the browser; a dataset stored before 2026-11-21 has none until the

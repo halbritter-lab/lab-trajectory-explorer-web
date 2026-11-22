@@ -5,6 +5,60 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (open points of the persona review, decided 2026-11-22)
+
+- The methodology page (AKI detection, "AKI Timing, Episodes and the
+  Fit-Exclusion Window") states the rule for several creatinine values on one
+  day: ordered by the time of day where each has one, otherwise compared with
+  values of earlier days only (OD-34 resolved).
+- **The time of day is exported and read again.** `measurements` and
+  `raw_measurements` gain the last column `time_of_day` (`HH:MM:SS`, empty
+  when the file gave none). Loading the app's own workbook again reads it from
+  `raw_measurements`, so the AKI episodes are the same after a round trip
+  (before, a rise from 1.0 at 06:00 to 1.6 at 20:00 was an episode after the
+  import of the file and none after the re-import of its export).
+  `input_data_id` covers the time of the rows that have one; for a dataset
+  without times it is unchanged.
+- The demo workbook stores its lab dates at midnight. Its date cells carried
+  a time-zone remainder (01:00, 02:00 in summer time) that would have been
+  shown as a measured time and written to `time_of_day`; the calendar days
+  are unchanged, and so are the demo's values, AKI episodes, fits and
+  `input_data_id` (`b59dd57d` under every preset).
+- The measurement table of the patient view shows the time beside the date
+  where the file gave one, and orders the rows of one day by it when every
+  row of that day has one (file order otherwise).
+- Import warns about event dates and event end dates after the import day or
+  before 1927-05-18, and about birth dates after the import day, as it does
+  for lab dates. Warning only; the events and rows are used unchanged.
+- The Trajectories table shows the sign of a bound as the latest value
+  ("latest <15" instead of "latest 15"). Display only.
+- Cohort models: the starting level in the results table and both bounds of
+  its interval have the same number of decimals, that of the coefficient
+  table ("45.50 [44.12, 46.90]" instead of "45.5 [44.12, 46.9]"). Display
+  only.
+- The `settings` sheet of the cohort workbook ends with `group_by`, the
+  attribute the table was grouped by (empty without grouping).
+- A chart column that does not exclude AKI windows from its fit ("Acute
+  review", for example) says under the chart that nothing is excluded there
+  and that the shaded band shows the configured window length.
+- Cohort models: the warnings of the model input check (single measurement,
+  too few measurement times, duplicate times) are shown in plain words with
+  the patient IDs concerned (up to five, then "and N more"). The exported
+  text in `models.warnings` and `projections.warnings` is unchanged.
+- On a phone the page position ("1–25 of 28") is shown between Previous and
+  Next of the Trajectories table. A sticky header row for that table was
+  left out: it needs the rows to scroll inside a box of their own, which
+  hides part of the table below the window and, at its end, the header row.
+- README: one concrete way to start a local copy (a static file server;
+  opening `index.html` by double-click does not work), and the sentence on
+  data leaving the machine follows the Methods page (downloads of the R
+  runtime only, no measurements sent). The notice of a page opened from a
+  folder links to the online version.
+- An events or attributes file whose rows are all rejected ("No usable
+  events …") still lists its rejected rows in the import diagnostics, under
+  "<file name> (rejected upload)"; the loaded events or attributes stay as
+  before, with their findings, also when the rejected file has the same name.
+
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
 - **AKI detection no longer depends on the row order of the file.** A time
@@ -29,11 +83,11 @@ interfaces are still evolving before 1.0.
   `fitAkiAware` follow the same rule. `SeriesPoint` has an optional
   `timeOfDay`; points of one date without it are no longer compared in input
   order.
-- The time of day is a sort key only; it is not shown and not exported. A
-  dataset stored in the browser before this change has no times until the
+- The time of day is a sort key only; it was not shown and not exported
+  (both changed on 2026-11-22, see above). A dataset stored in the browser before this change has no times until the
   file is imported again; the notice shown when such a copy is restored says
-  so. The methodology page is not yet updated (OD-34).
-- Because no export carries the time of day, an exported cohort workbook that
+  so. The methodology page was updated on 2026-11-22 (OD-34).
+- Until 2026-11-22, because no export carried the time of day, an exported cohort workbook that
   is loaded again has none: several creatinine values of one day are then
   compared with earlier days only, and AKI episodes, exclusion windows and
   slopes can differ from the export (a rise from 1.0 at 06:00 to 1.6 at 20:00

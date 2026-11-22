@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MixedModelConfig } from '../../../src/core/mixedModel/config'
-import { hashMixedModelInput, hashString, mixedModelFactorLevelCounts, validateMixedModelRows } from '../../../src/core/mixedModel/validation'
+import { hashMixedModelInput, hashString, mixedModelFactorLevelCounts, mixedModelWarningDetails, patientIdList, validateMixedModelRows } from '../../../src/core/mixedModel/validation'
 import type { MixedModelSpikeRow } from '../../../src/core/mixedModel/types'
 
 const NO_COVARIATE_CONFIG: MixedModelConfig = {
@@ -125,6 +125,25 @@ describe('validateMixedModelRows', () => {
       ok: true,
       warnings: ['1 patient has fewer than 2 repeated measurements and contributes limited within-patient information.'],
     })
+  })
+
+  // K34 (2026-11-22): the same warnings with their meaning and patients, for the interface.
+  it('gives each warning of a passed check in plain words with the patients concerned', () => {
+    const input = [...rows,
+      { patient_id: '11', value: 51, time_since_baseline: 0 }, { patient_id: '11', value: 50, time_since_baseline: 1 },
+      { patient_id: '12', value: 51, time_since_baseline: 0 },
+      { patient_id: '1', value: 52, time_since_baseline: 0 }]
+    const result = validateMixedModelRows(input, NO_COVARIATE_CONFIG)
+    const details = mixedModelWarningDetails(input, NO_COVARIATE_CONFIG)
+    expect(details.map(detail => detail.text)).toEqual(result.ok ? result.warnings : null)
+    expect(details.map(detail => [detail.plain, detail.patientIds])).toEqual([
+      ['1 patient has a single measurement in this model. It counts towards the starting level but says nothing about the change over time within the patient.', ['12']],
+      ['1 patient has measurements at fewer than 3 different times since the first measurement, so it says little about the change over time within the patient.', ['11']],
+      ['1 measurement has the same time as another measurement of the same patient; it is kept in the model.', ['1']],
+    ])
+    expect(mixedModelWarningDetails(input.slice(0, 3), NO_COVARIATE_CONFIG)).toEqual([])
+    expect(patientIdList(['a', 'b', 'c'])).toBe('a, b, c')
+    expect(patientIdList(['1', '2', '3', '4', '5', '6', '7'])).toBe('1, 2, 3, 4, 5 and 2 more')
   })
 
   it('accepts an otherwise fit-ready cohort when an extra patient has no time variation', () => {

@@ -659,7 +659,8 @@ such day.
   of day. Files with one value per day are unaffected. No golden fixture and
   no demo value moved, because none contains such a day.
 
-Details chosen during implementation, **not yet confirmed by the owner**:
+Details chosen during implementation, **accepted by the owner with the merge
+of PR #76 on 2026-11-22**:
 
 - The time of day stays internal: a sort key that is not shown in the
   measurement table or the tooltips and is in no export (the review left
@@ -668,7 +669,9 @@ Details chosen during implementation, **not yet confirmed by the owner**:
   differ from the export although `input_data_id` is the same; the `about`
   sheet, the changelog and the method reference say so. Writing the time as
   an appended column of `raw_measurements`, reading it at re-import and
-  taking it into `input_data_id` would remove the difference.
+  taking it into `input_data_id` would remove the difference. *Superseded on
+  2026-11-22*: the time is now shown and exported, see
+  [the decisions of 2026-11-22](#decisions-of-2026-11-22-open-points-of-the-persona-review).
 - The rule for days without a time applies per day of a series, not per
   file: one value without a time makes that day a day without time; the
   other days keep their time order.
@@ -687,9 +690,9 @@ Details chosen during implementation, **not yet confirmed by the owner**:
 Details and examples:
 [measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date)
 and [dates at import](method-algorithms/import-and-values.md#dates). The
-methodology page is not changed; its wording is drafted as G1 in the
-[methodology wording drafts](methodology-wording-drafts.md) and tracked as
-OD-34.
+methodology page was not changed that day; its wording was drafted as G1 in
+the [methodology wording drafts](methodology-wording-drafts.md), tracked as
+OD-34 and applied on 2026-11-22.
 
 ## Decisions of 2026-11-21 (persona review, issues #74, #2, #34)
 
@@ -703,7 +706,8 @@ synthetic examples and the demo data.
   export column changes. Example with import day 2026-11-21: 3024-05-08,
   1923-07-18, 0203-06-05 and 2026-12-15 are reported; a mistyped 2003-08-08
   in a series of 2023 is not. Event dates, event end dates and birth dates
-  are not checked; whether they should be is open.
+  are not checked; whether they should be is open (decided on 2026-11-22:
+  they are, see below).
   Details: [Dates](method-algorithms/import-and-values.md#dates).
 - **Age conflicts keep one level and name the rows** (issue #2). Stated ages
   that fit no single birth date stay a "Conflict" whatever the size of the
@@ -751,18 +755,18 @@ from the demo data. Neither changes a computed value.
   The status line gives the number of rows moved back, and a switch restores
   the order by value. Demo data, imported eGFR ascending: patient 12 (−7.35
   per year over 151 days) moves from rank 9 to rank 25.
-  Assumptions until the owner confirms them: the export keeps following the
-  order of the table, so its row order changes with the new default; the
-  switch is built.
+  Details accepted by the owner with the merge of PR #76 on 2026-11-22: the
+  export keeps following the order of the table, so its row order changes
+  with the new default; the switch is built.
 - **One number of decimals per parameter for slopes.** As many decimals as
   give the median of the absolute slopes in the loaded dataset two
   significant digits, at least two; the same for the slope and its interval
   bounds, in the table, the patient view and on the Cohort models page.
   Display only; exports keep full precision. Demo data: creatinine in mg/dl
   takes three decimals (median 0.0948), eGFR stays at two.
-  Assumptions until the owner confirms them: the number is derived from the
-  slopes of the loaded dataset, not fixed per unit; it is limited to four
-  decimals. Implemented without a separate decision: the slope is signed and
+  Details accepted by the owner with the merge of PR #76 on 2026-11-22: the
+  number is derived from the slopes of the loaded dataset, not fixed per
+  unit; it is limited to four decimals. Implemented without a separate decision: the slope is signed and
   padded in the patient view as in the table; every row of a model's
   coefficient table uses the number (before: three decimals for the estimate
   and two for the bounds), so an eGFR coefficient shows two decimals instead
@@ -811,7 +815,8 @@ when both are merged**, and the wording here, in the changelog and in the
 The methodology page (Export) describes the sheet in one new row whose
 wording awaits the maintainer's approval.
 
-Details chosen during implementation, **not yet confirmed by the owner**:
+Details chosen during implementation, **accepted by the owner with the merge
+of PR #76 on 2026-11-22**:
 
 - Years stay the default of the elapsed-time axis, also when every loaded
   trajectory is short.
@@ -833,7 +838,9 @@ Details chosen during implementation, **not yet confirmed by the owner**:
 - Image exports (SVG, PNG) of a dense overlay show what is on the screen,
   that is without points, and say so in their context line.
 - "Acute review" gets no extra sentence under the chart; legend and tooltip
-  carry the statement. The wording "this column has no fit, so nothing is
+  carry the statement. *Superseded on 2026-11-22* by a sentence under the
+  chart, see
+  [the decisions of 2026-11-22](#decisions-of-2026-11-22-open-points-of-the-persona-review). The wording "this column has no fit, so nothing is
   excluded" also applies while Trend is not ticked for the column.
 - Showing the actual episode duration as the band, once a recovery rule
   exists, is not decided.
@@ -865,7 +872,8 @@ fitted number changes.
   names the actual time axis of the trend. A script that reads `xAxis` no
   longer finds it.
 
-Implemented on assumptions that still need the owner's confirmation:
+Implemented on assumptions, **accepted by the owner with the merge of PR #76
+on 2026-11-22**:
 
 - `sex` and `baseline_age` were appended to the `cohort` sheet in the same
   step.
@@ -901,13 +909,171 @@ passed input check on the fitted result, and `app_version`/`exported_at` and
 the personal-data note in the `about` sheets of both workbooks.
 
 Still open, unchanged: whether patients who do not qualify stay in a cohort
-model; whether the export records the grouping attribute;
+model; whether the export records the grouping attribute (decided on
+2026-11-22: it does, in `settings`);
 whether the `cohort` sheet is reordered once; whether the Trajectories table
-shows a bound with its sign ("latest <15").
+shows a bound with its sign ("latest <15"; decided on 2026-11-22: it does).
 
 Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group),
 [workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
 and [fit axis](method-algorithms/fit-input-presets-and-time-balancing.md#fit-axis).
+
+## Decisions of 2026-11-22 (open points of the persona review)
+
+The owner merged PR #76 on 2026-11-22 and decided that everything decided on
+2026-11-21 stands and that the open points of the persona review are
+resolved. The details listed above as chosen during implementation are
+accepted with that merge. No fitted number changes with any entry of this
+section.
+
+Confirmed as implemented, no change:
+
+- Whole-blood creatinine (LOINC 38483-4, 59826-8) stays eligible like serum
+  (K39).
+- The patient ID keeps one consistent type per workbook, a number for a
+  numeric ID, otherwise text; it is not forced to text (K40).
+- The `columns` sheet covers the `cohort` (or `slopes`) sheet only (K37).
+- The preview of the cohort models stays in years whatever the time axis
+  (K27).
+- The density note of the overlay appears from 51 trajectories (K24).
+- The Excel export follows the order of the Trajectories table (K02).
+- The age-conflict message carries no day count ("N days apart") anywhere
+  (K13): it names the number of differing lab dates and the first three, on
+  screen, in the `warnings` column of the `demographics` sheet and in the
+  [method reference](method-algorithms/demographics.md#age), as implemented
+  on 2026-11-21. Checked on 2026-11-22; nothing left to remove.
+
+Resolved with a change:
+
+- **The methodology page states the rule for several creatinine values on
+  one day** (OD-34 resolved). Draft G1 of the
+  [methodology wording drafts](methodology-wording-drafts.md) is applied as
+  written to the block "AKI Timing, Episodes and the Fit-Exclusion Window".
+  The points the draft left out (midnight counts as no time, values with the
+  same time are not compared) stay in the
+  [method reference](method-algorithms/aki.md#measurements-on-the-same-date).
+- **The time of day is shown and exported** (K26 follow-up; replaces the
+  accepted detail "the time of day stays internal" of 2026-11-21). Both
+  measurement sheets gain the last column `time_of_day` (`HH:MM:SS`, empty
+  when the file gave none); a re-import of the app's workbook reads it from
+  `raw_measurements`, so AKI episodes are the same after a round trip; and
+  `input_data_id` covers it. The measurement table of the patient view shows
+  the time beside the date and orders the rows of one day by it. A real
+  sample at 00:00 still counts as no time. AKI detection itself is unchanged;
+  only a re-imported export now gives the episodes of the original file.
+  Details of the implementation: the column is read only from a sheet named
+  `raw_measurements`, and only where `Date` gives no time of its own;
+  derived values (computed eGFR) have no time; `input_data_id` takes the time
+  in only for rows that have one, so the identifier of a dataset without
+  times does not change; the table orders the rows of a date by time only
+  when every row of that date has one, bounds and values under dialysis
+  included, and keeps the file order otherwise (AKI detection looks at the
+  positive exact values only, so the two can differ on a date with an untimed
+  bound), and the fit status moves with its row. Details:
+  [Dates](method-algorithms/import-and-values.md#dates) and
+  [workbook sheets](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
+  The shipped demo workbook (`public/test_labs.xlsx`) stored its lab dates
+  as serials with a time-zone remainder (01:00, 02:00 in summer time), which
+  the new display and export would have shown as measured times in all 467
+  measurement rows and which would have moved the demo's `input_data_id`
+  from `b59dd57d` to `aea1a9a8`. Its date cells are stored at midnight
+  (`scripts/strip_demo_lab_times.mjs`): the calendar days are unchanged, the
+  demo shows and exports no times, and its exports match those of before
+  cell by cell apart from the new columns and notes, `input_data_id`
+  `b59dd57d` included, with no fit, OLS, the CKD progression, Theil-Sen,
+  segmented and acute review settings.
+- **The date warning also covers event dates, event end dates and future
+  birth dates** (K10). An accepted event whose `date` or `endDate` lies after
+  the import day or before 1927-05-18 gives a warning; a birth date after
+  the import day gives one, from the lab column and from the attributes. A
+  warning only: no event, row or age changes. Details of the implementation:
+  one warning per event row (lab dates: one per patient), naming both dates
+  when both are implausible; rejected event rows are not checked; a birth
+  date is checked against the import day only, without a lower bound, once
+  per patient and value in the lab column and once per attribute row.
+  Details: [Dates](method-algorithms/import-and-values.md#dates).
+- **The latest value in the Trajectories table keeps the sign of a bound**
+  (K04): "latest <15" instead of "latest 15" when the last dated numeric
+  row of the series is a bound (`<` or `>`). Display only. Detail of the
+  implementation: the sign is written without a space, as in the review
+  ("<15"); a value of another non-exact kind (a range) is shown without a
+  sign, as before. Details:
+  [first and last eligible value](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group).
+- **The starting level of a cohort model is written with the same decimals
+  as its interval** (K35). In the results table of the Cohort models page the
+  starting level and both bounds of its interval take the number of decimals
+  of the parameter's slope column, as the `(Intercept)` row of the
+  coefficient table already did; the factor terms there already used it for
+  estimate and bounds. Display only. Detail of the implementation: the
+  number is the slope-column number (not a separate one for levels), so the
+  results row and the coefficient row read alike; an eGFR column gives
+  "45.50 [44.12, 46.90]" instead of "45.5 [44.12, 46.9]", a creatinine column
+  with three decimals "1.200 [1.050, 1.350]". Details:
+  [displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals).
+- **The cohort workbook records the grouping attribute** (K40). The
+  `settings` sheet gains the last column `group_by`: the attribute the
+  Trajectories table was grouped by, empty without grouping. Existing
+  columns keep their positions. Detail of the implementation: the column is
+  filled on every row of the sheet (one per parameter), also in the export
+  of a single patient, where it names the grouping that was active in the
+  table; the `about` note on `group` names it. Details:
+  [workbook sheets](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
+- **A column that does not exclude AKI windows says so under the chart**
+  (K30; replaces the accepted detail "'Acute review' gets no extra sentence
+  under the chart" of 2026-11-21). While the AKI bands of such a column are
+  drawn, one sentence under the chart reads "In this column nothing is
+  excluded for AKI (it has no fit): the shaded band only shows the
+  configured 30 days after each onset." Legend and tooltip are unchanged.
+  Details of the implementation: the sentence also appears for a column with
+  a fit that keeps the values, then without "(it has no fit)"; it is shown
+  only while bands are drawn (Display → "AKI windows and episodes", and for
+  the highlighted patient in an overlay), once per chart. Details:
+  [exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window).
+- **The model-validation warning says what it means and names the patients**
+  (K34). On the Cohort models page each input warning of the model check is
+  shown in plain words with the patient IDs concerned, up to five and then
+  "and N more". The text stored with the fit and exported in
+  `models.warnings` and `projections.warnings` keeps its wording, so scripts
+  that match it keep working; the two wordings differ on purpose. Details of
+  the implementation: the IDs are listed in the order of the model rows; the
+  duplicate warning names each patient once although it counts rows;
+  warnings from R are shown as recorded. Details:
+  [minimum data and validity gates](method-algorithms/cohort-models.md#minimum-data-and-validity-gates).
+- **The position of the page is shown on a phone; the header row of the
+  Trajectories table does not stick** (K21). On a phone the position
+  ("1–25 of 28") stands between Previous and Next. Display only. A sticky
+  header row was tried and left out: inside the box that scrolls the table
+  sideways, `position: sticky` sticks to that box, so the rows have to scroll
+  inside a box of their own, at most as tall as the window. Checked with 800
+  patients: at 1440 × 900 the box starts 402 px down, wheel scrolling over
+  the table scrolls inside the box first while its lower 400 px stay below
+  the window, and once the box is at its end the page scrolls on and the
+  last rows are read without the header row; at 390 × 844 only the top
+  175 px of the box are in sight at first. A header that sticks to the window
+  needs a second header row kept in step with the sideways scroll, which is
+  more than a display detail in a file other changes work on. The rows
+  scroll with the page as before.
+- **README and start notice** (K44, K46). The README names one concrete
+  way to start a local copy (a static file server, `python3 -m http.server
+  --directory dist`) and says that opening `index.html` by double-click does
+  not work; the notice shown when the page is opened from a folder links to
+  the online version. The README sentence "no data leaves the machine" is
+  replaced by the descriptive wording of the Methods section: no network
+  requests beyond loading the app, and the downloads of the R runtime for
+  cohort models are downloads only, no measurements are sent. The host names
+  and the Content-Security-Policy are left as they are (self-hosting of the
+  R runtime is a separate change).
+- **A file rejected as a whole still lists its rejected rows** (K09). When
+  every row of a separately uploaded events or attributes file is rejected
+  ("No usable events …"), the loaded table stays as it was and the rejected
+  rows of that file are listed in the import diagnostics (and therefore in
+  the `import_diagnostics` export sheet). Details of the implementation: the
+  rows are added under "<file name> (rejected upload)" to the findings of
+  the table, which keep those of the file that is still loaded, also when
+  the rejected file has the same name; a further rejected upload under the
+  same file name replaces only the rejected rows of the earlier one; the
+  summary of the list names every file it holds. Details:
+  [import findings](method-algorithms/import-and-values.md#import-findings).
 
 ## Approved requirements
 

@@ -337,6 +337,23 @@ give these three warnings, each with the count 1, and all 36 rows enter the
 fit. The warnings change no estimate; whether such patients should stay in
 the fit is a separate question that has not been decided.
 
+**Interface and export word the warnings differently** (since 2026-11-22).
+The texts above are stored with the fit and exported unchanged in
+`models.warnings` and `projections.warnings`, so scripts that match them keep
+working. The model's details on the Cohort models page show each of them in
+plain words instead, followed by the patient IDs concerned in the order of
+the model rows, up to five and then "and N more" (`mixedModelWarningDetails`,
+the same rule as `validateMixedModelRows`):
+
+| Exported text | Shown in the interface |
+| --- | --- |
+| "7 patients have fewer than 2 repeated measurements and contribute limited within-patient information." | "7 patients have a single measurement in this model. They count towards the starting level but say nothing about the change over time within the patient. Patients: s0, s1, s2, s3, s4 and 2 more." |
+| "1 patient has fewer than 3 distinct time_since_baseline values and contributes limited within-patient time information." | "1 patient has measurements at fewer than 3 different times since the first measurement, so it says little about the change over time within the patient. Patient: 11." |
+| "1 duplicate patient/time row was retained for mixed model fitting." | "1 measurement has the same time as another measurement of the same patient; it is kept in the model. Patient: 1." |
+
+The duplicate warning counts rows, its patient list names each patient with
+such a row once. Warnings from R and lme4 are shown as recorded.
+
 Without a categorical factor, the fit summary names the count behind item 5
 for the whole cohort: "Whole cohort, patients with enough measurement times:
 26 of 27." (qualifying patients of the patients with a model row). With a

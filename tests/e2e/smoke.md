@@ -1,5 +1,54 @@
 # Manual browser smoke checklist
 
+## Open points of the persona review (2026-11-22)
+
+Verified 2026-11-22 on branch `chore/persona-review-open-details` with
+ad-hoc Playwright scripts against the production build in Chromium (1440 px
+and 390 px), with the demo data, the review file with times of day, the
+800-patient review file and small synthetic files.
+
+- Review file with times of day: cohort export writes `time_of_day`
+  (`06:00:00`, `20:00:00`, empty without a time) in both measurement sheets;
+  loaded again, the same 4 AKI episodes and the same `input_data_id`. The
+  measurement table of ANSTIEG-ZEIT shows "01/09/2026 06:00" 1.0 before
+  "01/09/2026 20:00" 1.6, with "Fit disabled" on each row.
+- Demo: the measurement table of patient 6 shows dates without a time
+  ("10/01/2022"); the cohort export has an empty `time_of_day` in all 467
+  rows of both measurement sheets and `input_data_id` `b59dd57d`, as on main,
+  without a fit, with OLS, with CKD progression / Theil-Sen / segmented and
+  with acute review.
+- Events file with 3024-05-08 and an end date 2099-12-31, lab birth date
+  2030-02-01: "Implausible event date 3024-05-08 (after the import day
+  2026-11-22); the event is used unchanged.", the same for the end date, and
+  "Birth date 2030-02-01 is after the import day 2026-11-22; it is used
+  unchanged."
+- Then an events file with two invalid rows: the alert "No usable events …";
+  the events stay, and the diagnostics list "Events (events.csv,
+  bad-events.csv (rejected upload), 2 rows rejected)" with both rejected
+  rows. The same invalid file uploaded as `events.csv`: the warning of the
+  loaded `events.csv` stays, the rows are listed under "events.csv (rejected
+  upload)".
+- eGFR series ending with `<15`: the table cell reads "<15", with a trend
+  "latest <15"; another patient "latest 35".
+- Demo, grouped by `cohort`: `settings` ends with `group_by` = `cohort` on
+  every row; ungrouped it is empty.
+- Demo, patient 6, Display → AKI windows and episodes, Trend not ticked:
+  under the Kreatinin and eGFR charts "In this column nothing is excluded for
+  AKI (it has no fit): the shaded band only shows the configured 30 days
+  after each onset."
+- Demo, Cohort models, whole cohort: "73.15 ml/min/1,73m² 95% interval
+  [67.41, 78.88]". A synthetic file with 7 single-measurement patients:
+  "7 patients have a single measurement in this model. … Patients: S13, S14,
+  S15, S16, S17 and 2 more."; the R warning on the singular fit is shown as
+  recorded.
+- 800 patients, 1440 px and 390 px: the rows scroll with the page (no
+  sticky header row: tried and left out, see the decisions of 2026-11-22,
+  because the rows then scrolled inside a box of their own whose lower part
+  stayed below the window and whose last rows were read without the header
+  row). At 390 px the top bar reads "1–50 of 800" between Previous and Next,
+  with no horizontal page scroll.
+- Methods → AKI detection → AKI Timing: the two paragraphs of draft G1.
+
 ## Combined branch of the persona review: fixes after its review (2026-11-21)
 
 Branch `integration/persona-review-2026-11-21` (all six branches of the
@@ -19,10 +68,12 @@ branch differs, they say so.
   window lines say "slope 0.251 mg/dl/year" and "slope 0.249 mg/dl/year".
 - Review file with times of day (rise from 1.0 at 06:00 to 1.6 at 20:00, in
   both row orders): the AKI marker sits on 1.6, not on the first value of the
-  day. Its cohort export lists 4 episodes and carries the `about` note "Date
-  holds the calendar day; a time of day … is not written to any sheet". That
-  export loaded again: 2 episodes, "7 patient-days … order within the day is
-  unknown", the same `input_data_id`.
+  day. Its cohort export lists 4 episodes, writes `time_of_day` in both
+  measurement sheets and carries the `about` note "Date holds the calendar
+  day and time_of_day …". That export loaded again: the same 4 episodes and
+  the same `input_data_id` (checked 2026-11-22: 4 and 4 episodes,
+  `a9259237` twice). The measurement table of ANSTIEG-ZEIT (1.6 first in the
+  file) shows "01/09/2026 06:00" 1.0 before "01/09/2026 20:00" 1.6.
 - A copy saved with "Remember on this device" by the build of `main` (review
   file with urine creatinine marked only by LOINC 2161-8 and with times of
   day), opened with this build: the notice ends "This copy was saved by an

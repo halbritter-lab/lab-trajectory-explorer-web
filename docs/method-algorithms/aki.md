@@ -178,9 +178,12 @@ the lowest value of the date that reaches the episode's stage, and when the
 values of one date cross by different criteria the lower one comes first.
 
 The time of day is a sort key only. Onset, peak, baseline and staging dates
-are calendar days, both KDIGO windows and the fit-exclusion window count
-calendar days, and the time is neither shown in the measurement table and the
-tooltips nor exported.
+are calendar days, and both KDIGO windows and the fit-exclusion window count
+calendar days. Since 2026-11-22 the time is shown in the measurement table of
+the patient view and exported in the column `time_of_day`, and a re-import of
+the app's workbook reads it again, so the episodes are the same after a round
+trip (see [Dates](import-and-values.md#dates)); it is not shown in the
+tooltips.
 
 Before 2026-11-21 the time was dropped at import and rows of one date stayed
 in source row order, an earlier row being a valid baseline for a later row of
@@ -225,12 +228,12 @@ there is no note; dates whose values are all ordered by time are not counted.
 In the examples above the third to seventh rows are one counted patient-day
 each, the eighth is one (two values at 20:00), the first two are none.
 
-**Open decision OD-34.** The methodology page of the app still reads "Lab
-dates are calendar days without a time of day. The 48-hour window therefore
-covers earlier measurements on the same date or one or two calendar days
-earlier" and does not state the rule of this section. A draft is in the
-[methodology wording drafts](../methodology-wording-drafts.md#part-g-draft-after-the-persona-review-of-2026-11-21-not-applied)
-(G1); the wording is the maintainer's decision.
+The methodology page of the app states the rule of this section (wording G1
+of the
+[methodology wording drafts](../methodology-wording-drafts.md#part-g-draft-after-the-persona-review-of-2026-11-21-applied-2026-11-22),
+applied 2026-11-22, formerly OD-34). Before, it read "Lab dates are calendar
+days without a time of day. The 48-hour window therefore covers earlier
+measurements on the same date or one or two calendar days earlier".
 
 ### Staging
 
@@ -526,7 +529,14 @@ are not excluded from this fit" when it has a fit that keeps them, and "this
 column has no fit, so nothing is excluded" with fit model "No fit" or while
 "Trend" is not ticked. The tooltip gives the dates and the length of the
 drawn band, which exceeds N when windows were merged (39 days for four
-episodes within nine days and N = 30).
+episodes within nine days and N = 30). Since 2026-11-22 a column that does
+not exclude the window (fit model "No fit", "Trend" not ticked, or a fit that
+keeps the values) also carries one sentence under the chart while its bands
+are drawn: "In this column nothing is excluded for AKI (it has no fit): the
+shaded band only shows the configured 30 days after each onset." for the
+first two cases ("Acute review", for example) and the same without "(it has
+no fit)" for the third. A column that excludes the window has no such
+sentence.
 
 **Scope and order.** The windows apply to any analyte column whose
 configuration has the switch on, not only to creatinine and eGFR; the

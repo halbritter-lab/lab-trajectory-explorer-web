@@ -104,10 +104,18 @@ export function Aki() { return <>
 <section className="methodology-section"><h3 id="methods-timing" tabIndex={-1}>AKI Timing, Episodes and the Fit-Exclusion Window</h3>
 
       <p>
-        Lab dates are calendar days without a time of day. The 48-hour window therefore covers
-        earlier measurements on the same date or one or two calendar days earlier, and the 7-day
-        window those up to seven calendar days earlier, limits included. A rise from 1.0 to
-        1.3 mg/dl two days apart is detected; three days apart it is not.
+        Lab dates are calendar days. The 48-hour window covers earlier measurements one or two
+        calendar days earlier, and the 7-day window those up to seven calendar days earlier, limits
+        included. A rise from 1.0 to 1.3 mg/dl two days apart is detected; three days apart it is
+        not.
+      </p>
+      <p>
+        Several creatinine values on one day are ordered by their time of day when the file gives
+        one for each of them; an earlier value of the day can then be the baseline of a later one.
+        The windows still count calendar days. Without a time of day the order within the day is
+        unknown: these values are compared with values of earlier days only, not with each other,
+        so a rise within that day is not detected on that day. The Data page states how many
+        patient-days this concerns.
       </p>
       <p>
         Each measurement that meets a criterion is a crossing. Consecutive crossings form one

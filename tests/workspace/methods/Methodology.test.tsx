@@ -64,6 +64,16 @@ describe('Methodology', () => {
     details()
     expect(screen.getByText(/Every preset sets the rapid-decline threshold to 5 mL\/min\/1\.73 m² per year/)).toBeInTheDocument()
   })
+  // Draft G1, applied 2026-11-22 (OD-34 resolved by the owner).
+  it('states how several creatinine values on one day are ordered in AKI detection', () => {
+    topic('aki')
+    render(<Methodology />)
+    details()
+    expect(screen.getByText(/^Lab dates are calendar days\. The 48-hour window covers earlier measurements one or two calendar days earlier/)).toBeInTheDocument()
+    expect(screen.getByText(/Several creatinine values on one day are ordered by their time of day when the file gives one for each of them/)).toBeInTheDocument()
+    expect(screen.getByText(/so a rise within that day is not detected on that day\. The Data page states how many patient-days this concerns\./)).toBeInTheDocument()
+    expect(screen.queryByText(/calendar days without a time of day/)).not.toBeInTheDocument()
+  })
   // Parts C, D and E1 of the wording drafts, approved by the owner on 2026-11-16.
   it('states the rules changed since the clinical review as the code applies them', () => {
     render(<Methodology />)
