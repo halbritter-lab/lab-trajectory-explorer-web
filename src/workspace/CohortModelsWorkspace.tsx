@@ -36,6 +36,7 @@ import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormu
 // data are loaded, so a separately fetched chunk failed for everyone who lost
 // the connection or kept a tab open across a deployment.
 import { CohortModelTable } from './models/CohortModelTable'
+import { TimeToEventPanel } from './models/TimeToEventPanel'
 import { R_FIRST_FIT_DOWNLOAD } from '../core/mixedModel/rRuntime'
 import './cohort-models-workspace.css'
 
@@ -85,6 +86,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
   const [groupByAttribute, setGroupByAttribute] = useState<string | null>(null)
   const [preset, setPreset] = useState<CohortModelPreset>('unadjusted')
+  // Two areas on this page (decision `taxonomy`, 2026-11-22): slope models and time to event.
+  const [area, setArea] = useState<'slope' | 'tte'>('slope')
+  const areaId = useId()
 
   const patientIds = useMemo(() => (data.patients ?? []).map(p => p.id), [data.patients])
 
@@ -520,6 +524,15 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         </div>
       </header>
 
+      <div className="cm-area-tabs" role="tablist" aria-label="Cohort analysis">
+        <button type="button" role="tab" id={`${areaId}-slope`} aria-selected={area === 'slope'} aria-controls={`${areaId}-slope-panel`} className={area === 'slope' ? 'active' : ''} onClick={() => setArea('slope')}>Slope models</button>
+        <button type="button" role="tab" id={`${areaId}-tte`} aria-selected={area === 'tte'} aria-controls={`${areaId}-tte-panel`} className={area === 'tte' ? 'active' : ''} onClick={() => setArea('tte')}>Time to event</button>
+      </div>
+      {area === 'tte' && <div role="tabpanel" id={`${areaId}-tte-panel`} aria-labelledby={`${areaId}-tte`}>
+        <TimeToEventPanel data={data} onBrowseTrajectories={onBrowseTrajectories} />
+      </div>}
+      <div className="stack" role="tabpanel" id={`${areaId}-slope-panel`} aria-labelledby={`${areaId}-slope`} hidden={area !== 'slope'}>
+
       {/* Model Studio Card */}
       <section className="cm-studio-card card" aria-label="Model Studio">
         <div className="cm-primary-controls">
@@ -852,6 +865,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             dropoutByEntity={dropoutByEntity}
           />
       )}
+      </div>
     </div>
   )
 }

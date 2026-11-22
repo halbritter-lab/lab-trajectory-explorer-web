@@ -48,7 +48,7 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
     // Baseline 34 (2020-04-01 is day 91); 16 is a 52.9 % decline but has no confirmation.
     expect(cell.endpoints.declineBaselineValue).toBe(34)
     expect(cell.endpoints.observedDecline40.met).toBe(false)
-    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded; AKI exclusion windows excluded from decline baseline and projection')
+    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); values dated after a death excluded; bounds excluded; AKI exclusion windows excluded from decline baseline and projection')
     expect(endpointBadge(cell.endpoints, cell.points.length)?.label).toBe('-53%, G5 not projected')
   })
 
@@ -110,7 +110,7 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
     expect(cell.endpoints.projectedAgeToCkdG5.value).toBeCloseTo(64.9767, 3)
     expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-7.4350, 3)
     expect(cell.endpoints.projectedAgeToCkdG5.slopeCiHigh).toBeCloseTo(-2.4558, 3)
-    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded')
+    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); values dated after a death excluded; bounds excluded')
   })
 
   it('takes the decline baseline after the AKI window (example 2)', () => {

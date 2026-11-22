@@ -32,7 +32,7 @@ const observedEvaluated = (e: CkdEndpoints) => e.evaluated.observedCkdG4 || e.ev
 const confirmationUsed = (e: CkdEndpoints) => observedEvaluated(e) || e.evaluated.projectedAgeToCkdG5
 const anyEvaluated = (e: CkdEndpoints) => observedEvaluated(e) || e.evaluated.percentDecline || e.evaluated.projectedAgeToCkdG5
 type Cell = ModuleExportCell<CkdEndpoints>
-const ENDPOINT_INPUT_POLICY = 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded'
+const ENDPOINT_INPUT_POLICY = 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); values dated after a death excluded; bounds excluded'
 /** The six date and value columns of one confirmed decline event. */
 function declineEventColumns(threshold: string, field: 'observedDecline40' | 'observedDecline50' | 'observedDecline57') {
   return [

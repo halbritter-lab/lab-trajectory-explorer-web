@@ -25,7 +25,7 @@ export function EndpointSettings({ settings: fitSettings, onUpdate: updateSettin
   return <div className="wt-pipeline-group">
     <h2>eGFR endpoints & thresholds</h2>
     <p className="wt-muted">Applies only to parameters with eGFR units.</p>
-    <p className="wt-muted">Endpoints and projection use exact dated eGFR measurements before the first transplant or chronic dialysis start, excluding complete dated acute dialysis intervals. Later values after acute dialysis remain eligible. Values marked &lt; or &gt; are excluded. Time balancing does not apply. When AKI windows are excluded from the fit, they are also left out of the decline baseline and the G5 projection. Kidney failure reached is reported separately from observed G5.</p>
+    <p className="wt-muted">Endpoints and projection use exact dated eGFR measurements before the first transplant or chronic dialysis start and not after a recorded death, excluding complete dated acute dialysis intervals. Later values after acute dialysis remain eligible. Values marked &lt; or &gt; are excluded. Time balancing does not apply. When AKI windows are excluded from the fit, they are also left out of the decline baseline and the G5 projection. Kidney failure reached is reported separately from observed G5.</p>
     <label><input type="checkbox" aria-label="Observed CKD G4" checked={endpoints.observedCkdG4 ?? false} onChange={e => set({ observedCkdG4: e.target.checked })} />Observed CKD G4</label>
     <label>Confirmation preset
       <select aria-label="Confirmation preset" value={preset ? String(preset.days) : 'other'} onChange={e => { if (e.target.value !== 'other') set({ confirmationDays: Number(e.target.value) }) }}>

@@ -605,3 +605,13 @@
 .cm-dropout-table-wrap { max-width: 100%; overflow-x: auto; }
 .cm-dropout table { border-collapse: collapse; }
 .cm-dropout th, .cm-dropout td { padding: 2px 8px; text-align: left; white-space: nowrap; }
+
+/* Areas of the page (decision `taxonomy`, 2026-11-22) and the time-to-event area. */
+.cm-area-tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--border, #dce4e2); }
+.cm-area-tabs button { border: 1px solid transparent; border-bottom: 3px solid transparent; background: none; padding: 8px 12px; font-weight: 600; }
+.cm-area-tabs button.active { border-bottom-color: var(--accent, #176c68); }
+.cm-tte-definition { display: grid; gap: 6px; justify-items: start; }
+.cm-tte-definition p { margin: 0; }
+.cm-tte-curve { display: flex; flex-wrap: wrap; gap: 12px; }
+.cm-tte table { border-collapse: collapse; font-size: 13px; }
+.cm-tte th, .cm-tte td { padding: 4px 8px; text-align: left; border-bottom: 1px solid #e4ecee; }

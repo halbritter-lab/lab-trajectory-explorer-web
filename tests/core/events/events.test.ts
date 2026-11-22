@@ -30,11 +30,11 @@ function labRow(id: number): LabRow {
 describe('clinical events', () => {
   it('publishes the supported event codes for import and persistence', () => {
     expect(new Set(CLINICAL_EVENT_TYPES))
-      .toEqual(new Set(['kidney_transplant', 'dialysis', 'other']))
+      .toEqual(new Set(['kidney_transplant', 'dialysis', 'other', 'death']))
     expect(new Set(DIALYSIS_INTENTS))
       .toEqual(new Set(['acute', 'chronic', 'unknown']))
     expect(new Set(CLINICAL_EVENT_WARNINGS))
-      .toEqual(new Set(['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval']))
+      .toEqual(new Set(['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval', 'values_after_death', 'repeated_death']))
   })
 
   it('accepts a label title with a tolerant type alias', () => {
@@ -378,6 +378,31 @@ describe('clinical events', () => {
         },
       ]),
     ).toThrow(/Ambiguous columns/)
+  })
+})
+
+describe('event type death (issue #78)', () => {
+  const raw = (type: string, date: string, extra: Partial<{ endDate: string; intent: string; patientId: number }> = {}) => ({
+    patientId: extra.patientId ?? 1, type, date: new Date(`${date}T00:00:00Z`), title: 'Death', description: null,
+    endDate: extra.endDate ? new Date(`${extra.endDate}T00:00:00Z`) : null, intent: extra.intent ?? '',
+  })
+
+  it('accepts death, deceased, Tod and verstorben in any case, and no other synonym', () => {
+    const result = validateClinicalEvents([raw('death', '2024-06-01'), raw(' Deceased ', '2024-06-01'), raw('TOD', '2024-06-01'), raw('Verstorben', '2024-06-01'), raw('died', '2024-06-01'), raw('Exitus', '2024-06-01')], [labRow(1)])
+    expect(result.valid.map(event => event.type)).toEqual(['death', 'death', 'death', 'death'])
+    expect(result.rejected.map(item => [item.event.type, item.reason])).toEqual([['died', 'invalid_type'], ['Exitus', 'invalid_type']])
+  })
+
+  it('rejects an end date or an intent on a death', () => {
+    const result = validateClinicalEvents([raw('death', '2024-06-01', { endDate: '2024-06-02' }), raw('death', '2024-06-01', { intent: 'chronic' })], [labRow(1)])
+    expect(result.rejected.map(item => item.reason)).toEqual(['invalid_date_range', 'invalid_intent'])
+  })
+
+  it('warns on lab values after the death and on a second death', () => {
+    // The lab row is dated 2024-01-01: a death on 2023-12-31 has a value after it; one on 2024-01-01 has none.
+    const result = validateClinicalEvents([raw('death', '2023-12-31'), raw('death', '2024-01-01'), raw('death', '2024-03-01', { patientId: 2 })], [labRow(1)])
+    expect(result.valid.map(event => event.warning)).toEqual(['values_after_death', 'repeated_death', 'unknown_patient'])
+    expect(effectForEvent(result.valid[0])).toEqual({ effect: 'display_only', label: 'display only in fits; ends follow-up for endpoints and time to event' })
   })
 })
 

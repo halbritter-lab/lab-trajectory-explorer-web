@@ -267,7 +267,7 @@ it('reports readable reasons and birth-date problems for supplementary files', a
   expect(screen.getByText('extra.csv, row 2, patient P-01, warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('patientId,type,date,title\nP-01,other,2020-03-01,Visit\nP-01,surgery,2020-04-01,Other\n')] } })
   await waitFor(() => expect(useAppStore.getState().events).toHaveLength(1))
-  expect(screen.getByText('extra.csv, row 3, patient P-01, rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other; row not imported.')).toBeInTheDocument()
+  expect(screen.getByText('extra.csv, row 3, patient P-01, rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other, death (death also as deceased, tod, verstorben); row not imported.')).toBeInTheDocument()
   // The attribute findings stay beside the event findings (each source keeps its own).
   expect(screen.getByText('extra.csv, row 2, patient P-01, warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
   expect(within(screen.getByRole('group', { name: 'Import diagnostics' })).getAllByText(/import diagnostics — show details/)).toHaveLength(2)
@@ -470,7 +470,7 @@ it('shows the number and period of dated numeric values per patient', () => {
 it('states the allowed event types, intent and date forms before an events import', () => {
   render(<DataWorkspace onBrowse={vi.fn()} />)
   const hint = screen.getByText(/^Event template: one row per event\./)
-  expect(hint).toHaveTextContent('type is exactly kidney_transplant, dialysis or other; any other word rejects the row. intent (chronic, acute or unknown) is allowed for dialysis only.')
+  expect(hint).toHaveTextContent('type is exactly kidney_transplant, dialysis, other or death (also written deceased, Tod or verstorben); any other word rejects the row. intent (chronic, acute or unknown) is allowed for dialysis only.')
   expect(hint).toHaveTextContent('other events, such as the start of a therapy, are shown in charts and change no calculation. “Demo events” is a filled example.')
 })
 it('shows the description of loaded and rejected events', async () => {

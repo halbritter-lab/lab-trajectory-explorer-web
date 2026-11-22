@@ -165,6 +165,9 @@ export const UNDATED_UNKNOWN_DIALYSIS_LABEL = 'censor from dialysis start under 
 export function effectForEvent(event: ClinicalEvent, censoring?: ClinicalEventCensoring): ClinicalEventEffectInfo {
   const window = clinicalEventExclusionWindow(event, censoring)
   if (window === null) {
+    // Death ends follow-up in the time-to-event analysis and drops later values
+    // from endpoint input; it removes nothing from fits (issue #78).
+    if (event.type === 'death') return { effect: 'display_only', label: 'display only in fits; ends follow-up for endpoints and time to event' }
     return event.type === 'other'
       ? { effect: 'display_only', label: 'display only' }
       : { effect: 'warning_no_exclusion', label: 'warning, not excluded from fit' }

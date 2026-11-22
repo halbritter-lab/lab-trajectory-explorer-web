@@ -20,7 +20,7 @@ export function Trajectories() { return <>
 
       <p>
         Clinical events are patient-level annotations with a date, title, optional end date, and
-        optional description. Kidney transplant, dialysis, and other events can be loaded from the
+        optional description. Kidney transplant, dialysis, death and other events can be loaded from the
         dataset. Kidney transplant and chronic dialysis can censor values from the event date;
         acute dialysis and unknown dialysis can exclude a dated interval when an end date is
         available. Events that are not configured to affect the fit remain display-only context.
