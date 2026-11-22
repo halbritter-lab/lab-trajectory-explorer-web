@@ -263,6 +263,10 @@ describe('workspace workbook', () => {
     expect(records(workbook,'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_source_parameter:'Creatinine',egfr_source_unit:'mg/dl',egfr_male_coefficients_for_sex_d:false})])
     expect(records(workbook,'about').some(row => String(row.note).includes('Research use only'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).startsWith('eGFR series whose name ends in ", computed)", for example "eGFR (CKD-EPI 2021, computed)", are calculated by the app'))).toBe(true)
+    // Since issue #66 the note names the rule under 18 and the per-row equation column, no longer "adults only".
+    const egfrNote = String(records(workbook,'about').find(row => String(row.note).startsWith('eGFR series whose name ends in'))?.note)
+    for (const part of ['CKiD U25', 'EKFC', 'height in cm', 'no eGFR under 2 years', 'egfr_equation']) expect(egfrNote, part).toContain(part)
+    expect(egfrNote).not.toContain('adults only')
     expect(records(workbook,'about').some(row => String(row.note).startsWith('endpoint_percent_change is the total eGFR change in percent'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('numeric limits remain'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('For a Theil-Sen fit with n_fitted_dates below 5 they are Theil-Sen bounds, not a 95 % interval. With one measurement on each of three or four dates, the Theil–Sen bounds are the full range of pairwise slopes and cover the true slope only about 67 % or 92 % of the time.'))).toBe(true)

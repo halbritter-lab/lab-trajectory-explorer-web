@@ -31,6 +31,9 @@ interfaces are still evolving before 1.0.
   single value below 15) and OD-72 (bounds in the segment after kidney
   replacement therapy and in the before/after comparison) record rules set
   during the merges without an owner decision; behaviour unchanged.
+- The export note on computed eGFR no longer says "adults only": it names the
+  rule from 2 to 17 years (CKiD U25 with a height, otherwise EKFC), the height
+  input, no eGFR under 2 and the per-row column `egfr_equation`.
 
 ### Added (release preparation and wording drafts, issues #80 and #84, decided 2026-11-22)
 
