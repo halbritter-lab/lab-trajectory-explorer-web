@@ -59,6 +59,11 @@ describe('Data page: Merge series', () => {
     expect(draftMergeProblem({ ...merge, name: 'Other' }, imported, [merge])).toMatch(/already belongs to a merged series/)
     expect(draftMergeProblem({ name: 'Mixed', unit: 'mg/dl', sources: [merge.sources[0], imported[2]] }, imported, [])).toMatch(/Hb \[g\/dl\] cannot be converted to mg\/dl/)
     expect(draftMergeProblem(merge, imported, [])).toBeNull()
+    // Code review of wave 3: unitless series, creatinine of two materials, the name of a computed eGFR.
+    expect(draftMergeProblem({ name: 'X', unit: '', sources: [{ bezeichnung: 'Note', einheit: null }, { bezeichnung: 'Note 2', einheit: null }] }, imported, [])).toBe('Series without a unit cannot be merged.')
+    expect(draftMergeProblem({ name: 'X', unit: 'mg/dl', sources: [merge.sources[0], { bezeichnung: 'Kreatinin i.U.', einheit: 'mg/dl' }] }, imported, [])).toMatch(/^Creatinine of different materials cannot be merged/)
+    expect(draftMergeProblem({ name: 'eGFR (CKD-EPI 2021, computed)', unit: 'ml/min/1,73m²', sources: [{ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }, { bezeichnung: 'eGFR lab', einheit: 'ml/min/1,73m²' }] }, imported, []))
+      .toMatch(/is the name of a computed eGFR/)
   })
 
   it('returns the eGFR source to Automatic when its merged series is removed', () => {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { applySeriesMerges, parseSeriesMerges, type SeriesMerge } from '../../../src/core/analysis/seriesMerge'
-import { mergeUnitConversion, seriesMergeModule } from '../../../src/core/domains/nephrology/seriesMergeModule'
+import { COMPUTED_EGFR_SERIES, mergeMaterialMismatch, mergeUnitConversion, seriesMergeModule } from '../../../src/core/domains/nephrology/seriesMergeModule'
 import { appendComputedEgfr, creatinineSourceOptions, defaultCreatinineSource, importedCreatinineSourceOptions, patientCreatinineSources } from '../../../src/core/domains/nephrology/egfr/series'
 import { episodesForSeries, largestCreatinineSeries, sameDayUnorderedCreatinine } from '../../../src/core/domains/nephrology/aki/akiAware'
 import { computeAnalysisResult, defaultAnalysisSettings, parseAnalysisSettings } from '../../../src/core/analysis/registry'
@@ -87,6 +87,40 @@ describe('applySeriesMerges', () => {
     const rows = [row({}), row({ bezeichnung: 'Kreatinin enzym.' }), row({ bezeichnung: 'Kreatinin enzym.', sourceSeries: { bezeichnung: 'x', einheit: 'mg/dl' } })]
     const merge: SeriesMerge = { name: 'Crea', unit: 'mg/dl', sources: [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }, { bezeichnung: 'Kreatinin enzym.', einheit: 'mg/dl' }] }
     expect(applySeriesMerges(rows, [merge], mergeUnitConversion).applied[0].counts).toEqual([1, 1])
+  })
+})
+
+describe('merge checks of the code review of wave 3', () => {
+  it('counts distinct present sources: a source listed twice is one', () => {
+    const rows = [row({}), row({ einheit: 'µmol/l', wertNum: 88.42 })]
+    const twice: SeriesMerge = { ...creatinineMerge, sources: [creatinineMerge.sources[0], creatinineMerge.sources[0]] }
+    expect(applySeriesMerges(rows, [twice], mergeUnitConversion).skipped).toEqual([{ merge: twice, reason: 'too_few_sources' }])
+    // Parsing keeps a repeated source once; the stored array is returned unchanged when nothing repeats.
+    expect(parseSeriesMerges([{ ...creatinineMerge, sources: [...creatinineMerge.sources, creatinineMerge.sources[0]] }])).toEqual([creatinineMerge])
+    const stored = [creatinineMerge]
+    expect(parseSeriesMerges(stored)).toBe(stored)
+  })
+
+  it('refuses creatinine sources of different materials, in the module and the analysis', () => {
+    expect(mergeMaterialMismatch([{ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }, { bezeichnung: 'Kreatinin i.U.', einheit: 'mg/dl' }])).toBe(true)
+    expect(mergeMaterialMismatch([{ bezeichnung: 'Kreatinin i.S.', einheit: 'mg/dl' }, { bezeichnung: 'Kreatinin', einheit: 'µmol/l' }])).toBe(false)
+    expect(mergeMaterialMismatch([{ bezeichnung: 'Kreatinin Urin', einheit: 'mg/dl' }, { bezeichnung: 'Kreatinin SU24h', einheit: 'mg/dl' }])).toBe(false)
+    // No creatinine: material is not checked.
+    expect(mergeMaterialMismatch([{ bezeichnung: 'Albumin', einheit: 'g/l' }, { bezeichnung: 'Albumin Urin', einheit: 'g/l' }])).toBe(false)
+    const mixed: SeriesMerge = { name: 'Crea', unit: 'mg/dl', sources: [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }, { bezeichnung: 'Kreatinin i.U.', einheit: 'mg/dl' }] }
+    const rows = [row({}), row({ bezeichnung: 'Kreatinin i.U.', wertNum: 80 })]
+    const result = computeAnalysisResult({ rows, settings: { ...defaultAnalysisSettings(), seriesMerge: { merges: [mixed] } }, manualDemographics: {}, patientAttributes: {}, events: [] })
+    expect(result.rows.some(r => r.bezeichnung === 'Crea')).toBe(false)
+    expect(result.messages.find(m => m.id === 'series-merge-skipped:Crea|mg/dl')?.text).toMatch(/different materials/)
+  })
+
+  it('refuses the name and unit of a computed eGFR, for every formula', () => {
+    expect(COMPUTED_EGFR_SERIES).toHaveLength(5)
+    const [reserved] = COMPUTED_EGFR_SERIES
+    const merge: SeriesMerge = { name: reserved.bezeichnung, unit: reserved.einheit!, sources: [{ bezeichnung: 'eGFR', einheit: reserved.einheit }, { bezeichnung: 'eGFR lab', einheit: reserved.einheit }] }
+    const rows = [row({ bezeichnung: 'eGFR', einheit: reserved.einheit, wertNum: 60 }), row({ bezeichnung: 'eGFR lab', einheit: reserved.einheit, wertNum: 61 })]
+    expect(applySeriesMerges(rows, [merge], mergeUnitConversion, { reserved: COMPUTED_EGFR_SERIES }).skipped).toEqual([{ merge, reason: 'name_reserved' }])
+    expect(applySeriesMerges(rows, [merge], mergeUnitConversion).applied).toHaveLength(1)
   })
 })
 

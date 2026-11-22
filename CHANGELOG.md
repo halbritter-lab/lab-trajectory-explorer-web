@@ -63,6 +63,11 @@ interfaces are still evolving before 1.0.
   creatinine series no longer repeats the episodes of its source series. It
   is listed only when it is the creatinine source of the computed eGFR,
   whose column excludes its episodes.
+- Merge series: refused for creatinine sources of different materials
+  (serum or plasma with urine or another fluid), for series without a unit
+  ("Series without a unit cannot be merged.") and for the name and unit of a
+  computed eGFR; a stored merge of that kind is not formed and the Data page
+  names why. A source listed twice in stored settings counts once.
 
 ### Fixed (code review of the 2026-11-22 merges)
 

@@ -43,9 +43,17 @@ export const seriesRefKey = (ref: MergeSeriesRef) => JSON.stringify([ref.bezeich
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value)
 
-/** A stored list of merges, or null when its shape is wrong. Entries are
- * kept as stored; whether they apply to a dataset is decided by
- * `applySeriesMerges`, which reports what it skips. */
+/** The sources of a merge without repeats (by `seriesRefKey`), first occurrence kept. */
+export function distinctSources(sources: readonly MergeSeriesRef[]): MergeSeriesRef[] {
+  const seen = new Set<string>()
+  return sources.filter((source) => { const key = seriesRefKey(source); if (seen.has(key)) return false; seen.add(key); return true })
+}
+
+/** A stored list of merges, or null when its shape is wrong. A source listed
+ * twice is kept once (code review of wave 3); otherwise entries are kept as
+ * stored: whether they apply to a dataset is decided by `applySeriesMerges`,
+ * which reports what it skips (a merge left with one distinct source is
+ * skipped there as `too_few_sources`). */
 export function parseSeriesMerges(value: unknown): SeriesMerge[] | null {
   if (!Array.isArray(value)) return null
   for (const merge of value) {
@@ -54,7 +62,10 @@ export function parseSeriesMerges(value: unknown): SeriesMerge[] | null {
     if (!Array.isArray(merge.sources) || merge.sources.length < 2) return null
     if (!merge.sources.every((source) => isRecord(source) && typeof source.bezeichnung === 'string' && (source.einheit === null || typeof source.einheit === 'string'))) return null
   }
-  return value as SeriesMerge[]
+  const merges = value as SeriesMerge[]
+  // The stored array itself when nothing repeats, so callers keep its identity.
+  if (merges.every((merge) => distinctSources(merge.sources).length === merge.sources.length)) return merges
+  return merges.map((merge) => ({ ...merge, sources: distinctSources(merge.sources) }))
 }
 
 /** Why a merge, or one of its source series, was not applied. */
@@ -63,7 +74,9 @@ export type MergeSkipReason =
   | 'duplicate_name'      // an earlier merge already produces this name and unit
   | 'source_in_other_merge' // a source series already belongs to an earlier merge
   | 'unit_not_convertible' // a source unit is not the target unit nor a known pair
-  | 'too_few_sources'      // fewer than two source series are in the dataset
+  | 'too_few_sources'      // fewer than two distinct source series are in the dataset
+  | 'name_reserved'        // the name and unit are a series the app computes (computed eGFR)
+  | 'material_differs'     // creatinine sources of different materials (serum and urine, ...)
 
 export interface AppliedMerge {
   merge: SeriesMerge
@@ -97,10 +110,11 @@ function convertedText(value: number): string {
  * docs/method-algorithms/series-comparison-and-merge.md):
  * - only imported rows are sources: a row that is itself derived
  *   (`sourceSeries` or `mergedFrom` set) never is;
- * - a merge is skipped when its name and unit equal an imported series or an
- *   earlier merge, when a source already belongs to an earlier merge, when a
- *   source unit does not convert, or when fewer than two of its sources occur
- *   in the rows; absent sources are reported, present ones still merge when at
+ * - a merge is skipped when its name and unit equal an imported series, an
+ *   earlier merge or a reserved (computed) series, when the domain check
+ *   refuses its sources, when a source already belongs to an earlier merge,
+ *   when a source unit does not convert, or when fewer than two distinct
+ *   sources occur in the rows; absent sources are reported, present ones still merge when at
  *   least two remain;
  * - a converted row takes `wertNum × factor` unrounded; its value text is the
  *   converted number with a decimal comma (two decimals below 10, one from
@@ -114,26 +128,39 @@ function convertedText(value: number): string {
  *   fits, endpoints and AKI detection treat like any same-day values.
  * Returns the same array when nothing applies.
  */
-export function applySeriesMerges(rows: LabRow[], merges: readonly SeriesMerge[], convert: UnitConversion = sameUnitOnly): SeriesMergeResult {
+export interface SeriesMergeOptions {
+  /** Series the app computes later in the analysis (computed eGFR): a merge
+   * with one of these names and units is skipped as `name_reserved`. */
+  reserved?: readonly MergeSeriesRef[]
+  /** A domain check of the sources; a merge it refuses is skipped as `material_differs`. */
+  sourcesMismatch?: (sources: readonly MergeSeriesRef[]) => boolean
+}
+
+export function applySeriesMerges(rows: LabRow[], merges: readonly SeriesMerge[], convert: UnitConversion = sameUnitOnly, options: SeriesMergeOptions = {}): SeriesMergeResult {
   const result: SeriesMergeResult = { rows, applied: [], skipped: [] }
   if (merges.length === 0) return result
   const imported = new Set<string>()
   for (const r of rows) if (r.bezeichnung !== null && !r.sourceSeries && !r.mergedFrom) imported.add(seriesRefKey({ bezeichnung: r.bezeichnung, einheit: r.einheit }))
   const produced = new Set<string>()
+  const reserved = new Set((options.reserved ?? []).map(seriesRefKey))
   const used = new Set<string>()
   const added: LabRow[] = []
   for (const merge of merges) {
     const target = seriesRefKey({ bezeichnung: merge.name, einheit: merge.unit })
     if (imported.has(target)) { result.skipped.push({ merge, reason: 'name_taken' }); continue }
     if (produced.has(target)) { result.skipped.push({ merge, reason: 'duplicate_name' }); continue }
+    if (reserved.has(target)) { result.skipped.push({ merge, reason: 'name_reserved' }); continue }
+    if (options.sourcesMismatch?.(merge.sources)) { result.skipped.push({ merge, reason: 'material_differs' }); continue }
     const factors = merge.sources.map((source) => convert(source, merge.unit))
     const badUnit = merge.sources.find((_, i) => factors[i] === null)
     if (badUnit) { result.skipped.push({ merge, reason: 'unit_not_convertible', source: badUnit }); continue }
     const taken = merge.sources.find((source) => used.has(seriesRefKey(source)))
     if (taken) { result.skipped.push({ merge, reason: 'source_in_other_merge', source: taken }); continue }
     const absent = merge.sources.filter((source) => !imported.has(seriesRefKey(source)))
-    if (merge.sources.length - absent.length < 2) { result.skipped.push({ merge, reason: 'too_few_sources' }); continue }
-    const index = new Map(merge.sources.map((source, i) => [seriesRefKey(source), i]))
+    // Distinct present sources: a source listed twice counts once.
+    if (new Set(merge.sources.filter((source) => imported.has(seriesRefKey(source))).map(seriesRefKey)).size < 2) { result.skipped.push({ merge, reason: 'too_few_sources' }); continue }
+    const index = new Map<string, number>()
+    merge.sources.forEach((source, i) => { if (!index.has(seriesRefKey(source))) index.set(seriesRefKey(source), i) })
     const counts = merge.sources.map(() => 0)
     const days = new Map<string, Set<number>>()
     for (const r of rows) {

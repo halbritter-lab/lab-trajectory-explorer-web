@@ -1,6 +1,7 @@
 import { applySeriesMerges, parseSeriesMerges, type MergeSeriesRef, type SeriesMerge, type UnitConversion } from '../../analysis/seriesMerge'
 import type { AnalysisContext, AnalysisContribution, AnalysisMessage, SettingsModule } from '../../analysis/types'
-import { isSerumCreatinineSeries, normaliseUnit } from './analytes'
+import { COMPUTED_EGFR_UNIT, computedEgfrName, EGFR_FORMULA_LABELS, isCreatinineName, isNonSerumName, isSerumCreatinineSeries, normaliseUnit } from './analytes'
+import type { FormulaName } from './egfr/series'
 import { MGDL_PER_UMOLL } from './constants'
 
 export interface SeriesMergeModuleSettings {
@@ -24,6 +25,22 @@ export const mergeUnitConversion: UnitConversion = (source: MergeSeriesRef, targ
   return null
 }
 
+/** Creatinine sources of different materials (code review of wave 3): when
+ * any source has a creatinine name, the sources must all be serum or plasma
+ * (`isNonSerumName` false) or all another material (urine, dialysate, ...).
+ * Serum and urine creatinine are different measurements, whatever the unit. */
+export function mergeMaterialMismatch(sources: readonly MergeSeriesRef[]): boolean {
+  if (!sources.some((source) => isCreatinineName(source.bezeichnung))) return false
+  const nonSerum = sources.map((source) => isNonSerumName(source.bezeichnung))
+  return nonSerum.some(Boolean) && nonSerum.some((value) => !value)
+}
+
+/** The series the eGFR module computes, one per formula, in its unit: a
+ * merge may not take such a name, whichever formula is selected now, since
+ * switching the formula would make the two series collide. */
+export const COMPUTED_EGFR_SERIES: readonly MergeSeriesRef[] = (Object.keys(EGFR_FORMULA_LABELS) as FormulaName[])
+  .map((formula) => ({ bezeichnung: computedEgfrName(formula), einheit: COMPUTED_EGFR_UNIT }))
+
 const label = (ref: MergeSeriesRef) => `${ref.bezeichnung} [${ref.einheit ?? 'no unit'}]`
 
 const SKIP_TEXT = {
@@ -32,6 +49,8 @@ const SKIP_TEXT = {
   source_in_other_merge: 'a source series already belongs to an earlier merge',
   unit_not_convertible: 'a source unit is neither the target unit nor a known pair (creatinine mg/dl and µmol/l)',
   too_few_sources: 'fewer than two of its source series are in this dataset',
+  name_reserved: 'its name and unit are those of a computed eGFR',
+  material_differs: 'its creatinine sources are of different materials (serum or plasma and another material)',
 } as const
 
 /** Deliberately merged series (issue #68). Runs after demographics, so the
@@ -45,11 +64,13 @@ export const seriesMergeModule = {
   parseSettings: (value: unknown): SeriesMergeModuleSettings | null => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
     const merges = parseSeriesMerges((value as Record<string, unknown>).merges)
-    return merges === null ? null : value as SeriesMergeModuleSettings
+    if (merges === null) return null
+    const stored = value as SeriesMergeModuleSettings
+    return merges === stored.merges ? stored : { ...stored, merges }
   },
   apply: (ctx: AnalysisContext, settings: SeriesMergeModuleSettings): AnalysisContribution => {
     if (!settings.merges.length) return {}
-    const result = applySeriesMerges(ctx.rows, settings.merges, mergeUnitConversion)
+    const result = applySeriesMerges(ctx.rows, settings.merges, mergeUnitConversion, { reserved: COMPUTED_EGFR_SERIES, sourcesMismatch: mergeMaterialMismatch })
     const messages: AnalysisMessage[] = [
       ...result.applied.filter((applied) => applied.absent.length).map((applied): AnalysisMessage => ({
         id: `series-merge-absent:${applied.merge.name}|${applied.merge.unit}`,

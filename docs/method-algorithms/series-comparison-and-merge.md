@@ -95,12 +95,26 @@ not formed (the Data page shows a warning) when:
 | Condition | Draft | Stored merge |
 | --- | --- | --- |
 | fewer than two series ticked | blocked | — (a stored entry needs two sources to be read at all) |
+| a ticked series has no unit | blocked: "Series without a unit cannot be merged." | not formed (`unit_not_convertible`) |
+| a source has a creatinine name and the sources differ in material: some serum or plasma (`isNonSerumName` false), some another material (urine, dialysate, puncture fluid, …) | blocked: "Creatinine of different materials cannot be merged: …" | not formed (`material_differs`) |
 | empty name | blocked | not readable |
 | name and unit equal an imported series | blocked | not formed (`name_taken`) |
 | name and unit equal an earlier merge | blocked | not formed (`duplicate_name`) |
+| name and unit equal a computed eGFR of any formula (`computedEgfrName(formula)` with unit `ml/min/1,73m²`, exact) | blocked: "… is the name of a computed eGFR: choose another name." | not formed (`name_reserved`) |
 | a series already belongs to an earlier merge | blocked | not formed (`source_in_other_merge`) |
 | a source unit neither equals the target unit nor converts | blocked | not formed (`unit_not_convertible`) |
-| fewer than two of the sources occur in the dataset | — | not formed (`too_few_sources`) |
+| fewer than two distinct sources occur in the dataset | — | not formed (`too_few_sources`) |
+
+The material, unitless and computed-eGFR rules were added in the code review
+of wave 3 (2026-11-22). Every computed eGFR name is reserved, not only the one
+of the selected formula, since a later change of formula would otherwise give
+two series of one name and unit. Two non-serum materials (urine and
+dialysate) are not told apart. Examples: `Kreatinin` [mg/dl] with
+`Kreatinin i.U.` [mg/dl] is refused, although the units are equal;
+`Kreatinin i.S.` [mg/dl] with `Kreatinin` [µmol/l] merges as before. A stored
+source listed twice is read once (`parseSeriesMerges`), and only distinct
+present sources count for `too_few_sources`: `[A, A]` with A present is not
+formed.
 
 A stored merge whose sources are partly absent but at least two present is
 formed from the present ones, with the warning "Merged series … : … not in

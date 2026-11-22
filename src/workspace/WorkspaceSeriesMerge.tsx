@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { applySeriesMerges, seriesRefKey, type MergeSeriesRef, type SeriesMerge } from '../core/analysis/seriesMerge'
-import { mergeUnitConversion, seriesMerges } from '../core/domains/nephrology/seriesMergeModule'
+import { COMPUTED_EGFR_SERIES, mergeMaterialMismatch, mergeUnitConversion, seriesMerges } from '../core/domains/nephrology/seriesMergeModule'
 import { MGDL_PER_UMOLL } from '../core/domains/nephrology/constants'
 import { unitKey } from '../core/parse/units'
 import { useAppStore } from './state/store'
@@ -10,13 +10,17 @@ import { countLabel, parameterLabel } from './workspace-labels'
 const refLabel = (ref: MergeSeriesRef) => parameterLabel(ref.bezeichnung, ref.einheit)
 
 /** Why a draft merge cannot be formed, or null. Pure, for the form and tests:
- * at least two series, a name, a name and unit not already used by an
- * imported series or another merge, no series already merged, and every unit
+ * at least two series, each with a unit, creatinine of one material (serum
+ * or plasma, or another), a name, a name and unit not already used by an
+ * imported series, another merge or a computed eGFR, no series already merged, and every unit
  * the target unit or a known pair (serum creatinine mg/dl and µmol/l). */
 export function draftMergeProblem(draft: SeriesMerge, imported: readonly MergeSeriesRef[], existing: readonly SeriesMerge[]): string | null {
   if (draft.sources.length < 2) return 'Choose at least two series.'
+  if (draft.sources.some(source => source.einheit === null)) return 'Series without a unit cannot be merged.'
+  if (mergeMaterialMismatch(draft.sources)) return 'Creatinine of different materials cannot be merged: serum or plasma creatinine and creatinine in urine or another fluid are different measurements.'
   if (draft.name.trim() === '') return 'Enter a name for the merged series.'
   const target = seriesRefKey({ bezeichnung: draft.name.trim(), einheit: draft.unit })
+  if (COMPUTED_EGFR_SERIES.some(ref => seriesRefKey(ref) === target)) return `${parameterLabel(draft.name.trim(), draft.unit)} is the name of a computed eGFR: choose another name.`
   if (imported.some(ref => seriesRefKey(ref) === target)) return `${parameterLabel(draft.name.trim(), draft.unit)} is an imported series: choose another name.`
   if (existing.some(merge => seriesRefKey({ bezeichnung: merge.name, einheit: merge.unit }) === target)) return `A merged series ${parameterLabel(draft.name.trim(), draft.unit)} exists already.`
   const used = new Set(existing.flatMap(merge => merge.sources.map(seriesRefKey)))
