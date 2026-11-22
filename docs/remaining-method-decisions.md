@@ -214,7 +214,7 @@ items under "after 0.3.0" ship with their markers in place.
 | ID | Intended direction |
 | --- | --- |
 | OD-11 | Exact t quantiles above 40 degrees of freedom. |
-| OD-21 | Remove the unused `tolerance` export field; pin R package versions. |
+| OD-21 | Remove the unused `tolerance` export field. Pinning the R package versions was done on 2026-11-22. |
 | OD-22 | A control to switch a factor between numeric and categorical. |
 | OD-29 | Choose the default reference level from the fitted data. |
 
@@ -908,6 +908,62 @@ shows a bound with its sign ("latest <15").
 Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group),
 [workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
 and [fit axis](method-algorithms/fit-input-presets-and-time-balancing.md#fit-axis).
+
+## Decisions of 2026-11-22 (R served with the app, K43, issue #75)
+
+Owner decision of 2026-11-21 on K43 (option b), implemented on 2026-11-22. No
+fitted number changes.
+
+- **Every build serves R itself.** The R runtime (webR 0.6.0 with R 4.6.0)
+  and a fixed set of R packages sit next to the app, also on the public site.
+  A cohort model fit loads them from the app's own address and makes no
+  request to `webr.r-wasm.org`, `repo.r-wasm.org` or any other host. The
+  Content-Security-Policy of the build names no other host any more.
+- **Pinned to the versions loaded before:** lme4 2.0-6, Matrix 1.7-6,
+  jsonlite 2.0.0, MASS 7.3-66, Rcpp 1.1.2, Rdpack 2.6.6, boot 1.3-32,
+  lattice 0.23-1, minqa 1.2.8, nlme 3.1-171, nloptr 2.2.1.9000,
+  rbibutils 2.4.1, reformulas 0.4.4. This settles the pinning half of OD-21;
+  the unused `tolerance` field stays open. A later update is a deliberate
+  step with an entry here.
+- **The export records the provenance:** `wasmAssetSource` is `self-hosted`
+  instead of `cdn`, and `packageVersions` lists every pinned package the fit
+  loaded and `webr`.
+
+Details of the implementation, chosen where the decision left them open
+(the option that changes least):
+
+- The files are not in git. `scripts/vendor_r_runtime.mjs` copies the
+  runtime from the installed npm package `webr` and downloads the package
+  archives from webR's repository and their source packages from CRAN into
+  `public/` during `pnpm build` and `pnpm dev`, checks every file against a
+  SHA-256 pin and stops the build on a difference.
+- Packages are installed with webR's installer `webr::install` and a
+  `PACKAGES` index the script writes for the pinned set, not with
+  `installPackages`: that call first asks the repository for a
+  `PACKAGES.rds`, which only R can write.
+- The whole runtime directory of the npm package is served (47.7 MB),
+  without the REPL, tests and type declarations; the first fit loads 38.7 MB
+  of it and of the packages.
+- `THIRD-PARTY-NOTICES.txt` and `licenses/` are shipped with every build.
+  They list each component with version, licence and source; the CRAN source
+  package of every pinned package except nloptr is served under
+  `r-packages/src/contrib/`.
+- `packageVersions` keeps its first keys (`lme4`, `Matrix`, `jsonlite`, or
+  `nlme`, `jsonlite`) in their order and appends the other loaded pinned
+  packages in the order of the pin file, then `webr`.
+- The development and preview servers serve the `.gz` files of the runtime
+  unchanged (a plugin in `vite.config.ts`): they would otherwise label them
+  `Content-Encoding: gzip`, the browser would unpack them and the fit would
+  fail to load its packages.
+
+Not settled: the source of nloptr 2.2.1.9000 (a development version; the
+binary does not record its revision and CRAN has no such source package), and
+whether the R 4.6.0 and webR 0.6.0 sources should also be mirrored next to
+the app instead of being named in the notices. Upstream may remove a pinned
+archive from `repo.r-wasm.org` once a newer version is built; the build then
+fails until the files are supplied or the pin is changed.
+
+Details: [reproducibility](method-algorithms/cohort-models.md#reproducibility).
 
 ## Approved requirements
 

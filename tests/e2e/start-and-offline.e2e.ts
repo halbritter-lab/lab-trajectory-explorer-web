@@ -31,7 +31,7 @@ test('importing a file without a connection keeps the app, and the demo says why
   await expect(page.getByRole('navigation', { name: 'Main navigation' })).toBeVisible()
   await page.getByRole('button', { name: 'Cohort models', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Model results' })).toBeVisible()
-  await expect(page.getByTestId('runtime-download-note')).toContainText('downloads the R runtime from webr.r-wasm.org and R packages from repo.r-wasm.org')
+  await expect(page.getByTestId('runtime-download-note')).toContainText('loads the R runtime and R packages, which are served with this app from its own address')
   await page.getByRole('button', { name: 'Trajectories', exact: true }).click()
   await expect(page.getByLabel('Trajectory workspace').getByText('P-01').first()).toBeVisible()
   expect(pageErrors).toEqual([])
@@ -60,7 +60,8 @@ test('the Content-Security-Policy of the build blocks nothing of import, charts 
   await page.goto('/')
   const policy = await page.locator('meta[http-equiv="Content-Security-Policy"]').getAttribute('content')
   expect(policy).toContain("default-src 'self'")
-  expect(policy).toContain("connect-src 'self' https://webr.r-wasm.org https://repo.r-wasm.org")
+  expect(policy).toContain("connect-src 'self';")
+  expect(policy).not.toContain('r-wasm.org')
   // The policy is in force: a request to another host is refused by the
   // policy. The refusal alone would not show it, since the request also fails
   // on a machine without outbound network; the violation event does.

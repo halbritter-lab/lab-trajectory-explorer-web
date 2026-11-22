@@ -1,4 +1,4 @@
-import { WEBR_FIRST_FIT_DOWNLOAD, WEBR_PACKAGE_HOST, WEBR_RUNTIME_HOST } from '../../../core/mixedModel/runtimeHosts'
+import { R_FIRST_FIT_DOWNLOAD } from '../../../core/mixedModel/rRuntime'
 
 export function Data() { return <>
 <p>Review imported measurements and demographics under Data. Select a creatinine source and eGFR formula, inspect the preview, then apply the calculation.</p><section className="methodology-section"><h3 id="methods-egfr" tabIndex={-1}>eGFR (Estimated Glomerular Filtration Rate)</h3>
@@ -100,11 +100,9 @@ export function Data() { return <>
         the app is served from.
       </p>
       <p>
-        The first cohort model fit of a session downloads the R runtime
-        from <code>{WEBR_RUNTIME_HOST}</code> and R packages
-        from <code>{WEBR_PACKAGE_HOST}</code> ({WEBR_FIRST_FIT_DOWNLOAD}, measured in November 2026).
-        These are downloads only; no measurements are sent. As with any download, both servers
-        see the IP address, the browser type and the address of this app.
+        The first cohort model fit of a session loads the R runtime and R packages. They are
+        served with the app from the same address ({R_FIRST_FIT_DOWNLOAD}, measured in November
+        2026); no other server is contacted. These are downloads only; no measurements are sent.
       </p>
       <p>
         “Remember on this device” on the Data page is off by default. When it is on, an

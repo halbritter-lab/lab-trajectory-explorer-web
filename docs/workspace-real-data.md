@@ -107,21 +107,22 @@ its next save stops and explains how to resume or explicitly save its own data.
 
 Loading the app, importing, the Trajectories page, Methods and the exports
 request nothing beyond the app's own address (the bundled demo and template
-files included). The first cohort model fit of a session downloads the R
-runtime from `webr.r-wasm.org` and R packages from `repo.r-wasm.org`: 22
-requests and 32.5 MB on the demo data on 2026-11-21, GET and one HEAD, no
-request body. Later fits of the session request nothing. The interface names
-both hosts next to the fit button, in the message after a failed download and
-under Methods, "Data & eGFR", "Network access and local storage".
+files included). The first cohort model fit of a session loads the R runtime
+and R packages, which every build serves next to the app (since 2026-11-22):
+22 requests and 38.7 MB on the demo data, GET and one HEAD, no request body,
+all to the app's own address. Later fits of the session request nothing.
+Before, the same files came from `webr.r-wasm.org` and `repo.r-wasm.org`.
+The interface says so next to the fit button, in the message after a failed
+load and under Methods, "Data & eGFR", "Network access and local storage".
 
 The build adds a Content-Security-Policy meta element
-(`src/build/contentSecurityPolicy.ts`): own address, plus the two hosts for
-scripts and connections, `data:` and `blob:` images, inline styles. It
-restricts the document, not the model worker: a worker takes its policy from
-the response headers of its script, and GitHub Pages sends none. A real fit
-ran in Chromium, Firefox and WebKit on 2026-11-21 with the policy, and also
-with the two hosts removed from it. The development server page carries no
-policy.
+(`src/build/contentSecurityPolicy.ts`): own address only (since
+2026-11-22; before, also the two webR hosts for scripts and connections),
+`data:` and `blob:` images, inline styles. It restricts the document, not the
+model worker: a worker takes its policy from the response headers of its
+script, and GitHub Pages sends none. A real fit ran in Chromium on
+2026-11-22 with the policy and every other host blocked. The development
+server page carries no policy.
 
 ## Starting a local copy
 

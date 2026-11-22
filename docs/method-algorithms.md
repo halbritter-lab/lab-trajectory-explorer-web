@@ -96,7 +96,7 @@ it is open.
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
 | OD-11 | [Ordinary least squares](method-algorithms/trend-estimators.md#ordinary-least-squares) | The t critical value is a step function above 40 degrees of freedom, untested against a reference in that range. |
-| OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
+| OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit. (The pinning of R package versions, the other half of this entry, was settled on 2026-11-22.) |
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
 | OD-34 | [Measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date) | The methodology page says that lab dates have no time of day and that the 48-hour window covers earlier measurements on the same date; since 2026-11-21 a time of day orders the values of one day, and values without one are compared with earlier days only. Wording drafted (G1), not approved. |

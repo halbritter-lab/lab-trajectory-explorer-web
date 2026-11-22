@@ -10,8 +10,8 @@ import type { MixedModelWorkerRequest, MixedModelWorkerResponse } from '../../..
 
 type MockWebRBehavior = {
   init?: () => Promise<unknown>
-  installPackages?: () => Promise<void>
-  evalRVoid?: () => Promise<void>
+  constructed?: (options: unknown) => void
+  evalRVoid?: (code: string) => Promise<void>
   evalRString?: (code: string) => Promise<string>
 }
 
@@ -82,6 +82,30 @@ describe('webR worker runtime behavior', () => {
     expect(codes[0]).toContain(lme4ModelCall(config))
     expect(codes[0]).toContain('col.dropped')
   })
+  it('loads the R runtime and the pinned packages from the app\'s own address (K43)', async () => {
+    const options: unknown[] = []
+    const rCode: string[] = []
+    const fitCode: string[] = []
+    const { messages, postRequest } = await setupWorker({
+      constructed: (value) => options.push(value),
+      evalRVoid: (code) => { rCode.push(code); return Promise.resolve() },
+      evalRString: (code) => { fitCode.push(code); return Promise.resolve(validFitJson) },
+    })
+    postRequest(baseRequest)
+    await waitForMessages(messages, 1)
+    expect(messages[0].result.status).toBe('success')
+    // Vitest runs the worker like the development server: the app's address is the root.
+    expect(options).toEqual([{ baseUrl: 'file:///webr/', repoUrl: 'file:///r-packages' }])
+    const install = rCode.find(code => code.includes('webr::install('))!
+    expect(install).toContain('mm_contrib <- "file:///r-packages/bin/emscripten/contrib/4.6"')
+    expect(install).toContain('utils::download.file(paste0(mm_contrib, "/PACKAGES"), mm_index, quiet = TRUE)')
+    expect(install).toContain('webr::install(c("lme4", "jsonlite"), info = mm_info, quiet = TRUE)')
+    expect([...rCode, ...fitCode].join('\n')).not.toMatch(/r-wasm\.org/)
+    // The export records the version of every pinned package the fit loaded.
+    expect(fitCode[0]).toContain('mm_pkgs <- unique(c(first, "lme4", "Matrix", "jsonlite", "MASS", "Rcpp", "Rdpack", "boot", "lattice", "minqa", "nlme", "nloptr", "rbibutils", "reformulas", "webr"))')
+    expect(fitCode[0]).toContain('packageVersions = mm_package_versions(c("lme4", "Matrix", "jsonlite"))')
+  })
+
   it('rejects a second concurrent request while R globals are in use', async () => {
     let resolveInit: (value: unknown) => void = () => {}
     const initPromise = new Promise((resolve) => {
@@ -112,7 +136,8 @@ describe('webR worker runtime behavior', () => {
         initCalls += 1
         return initCalls === 1 ? Promise.reject(new Error('init failed')) : Promise.resolve()
       },
-      installPackages: () => {
+      evalRVoid: (code) => {
+        if (!code.includes('webr::install(')) return Promise.resolve()
         installCalls += 1
         return installCalls === 1 ? Promise.reject(new Error('install failed')) : Promise.resolve()
       },
@@ -292,16 +317,16 @@ async function setupWorker(behavior: MockWebRBehavior = {}): Promise<{
       version = '0.6.0'
       versionR = 'R-test'
 
+      constructor(options?: unknown) {
+        behavior.constructed?.(options)
+      }
+
       init(): Promise<unknown> {
         return behavior.init?.() ?? Promise.resolve()
       }
 
-      installPackages(): Promise<void> {
-        return behavior.installPackages?.() ?? Promise.resolve()
-      }
-
-      evalRVoid(): Promise<void> {
-        return behavior.evalRVoid?.() ?? Promise.resolve()
+      evalRVoid(code: string): Promise<void> {
+        return behavior.evalRVoid?.(code) ?? Promise.resolve()
       }
 
       evalRString(code: string): Promise<string> {

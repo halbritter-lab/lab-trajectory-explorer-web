@@ -5,6 +5,29 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (R served with the app, decided 2026-11-21, K43)
+
+- **Cohort models load R from the app's own address.** Every build carries
+  the R runtime (webR 0.6.0 with R 4.6.0) and a pinned set of 13 R packages
+  (lme4 2.0-6, Matrix 1.7-6, jsonlite 2.0.0 and their dependencies) next to
+  the app. A fit no longer contacts `webr.r-wasm.org` or `repo.r-wasm.org`
+  and works where only the app's address can be reached. The first fit
+  still loads about 39 MB, now from the same address.
+- **Package versions are pinned** (the pinning half of OD-21). They are the
+  versions the fit loaded before, so no number moved: the model workbook of
+  the demo fit equals the earlier one in every value cell.
+- **Model export:** `wasmAssetSource` is `self-hosted` instead of `cdn`, and
+  `packageVersions` also lists the other loaded pinned packages and `webr`.
+- The Content-Security-Policy of the build names no other host. The note
+  next to the fit button, the message after a failed load and the Methods
+  section "Network access and local storage" say that R is served with the
+  app.
+- The build runs `scripts/vendor_r_runtime.mjs`, which fetches the pinned
+  files into `public/` (not in git) and stops on a checksum that differs. The
+  deployment grows from about 1.4 MB to about 80 MB and ships
+  `THIRD-PARTY-NOTICES.txt`, the licence texts and the packages' source
+  packages.
+
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
 - **AKI detection no longer depends on the row order of the file.** A time

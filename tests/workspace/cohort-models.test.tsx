@@ -337,10 +337,10 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.queryByText(/Click 'Fit model'/)).not.toBeInTheDocument()
   })
 
-  it('names both download hosts next to the fit button until R has been loaded in the session', () => {
+  it('says next to the fit button, until R has been loaded in the session, that R is loaded from the app\'s own address', () => {
     const view = studio(qualifyingData())
     const note = screen.getByTestId('runtime-download-note')
-    expect(note).toHaveTextContent('The first fit of a session downloads the R runtime from webr.r-wasm.org and R packages from repo.r-wasm.org (about 33 MB). These are downloads only; no measurements are sent.')
+    expect(note).toHaveTextContent('The first fit of a session loads the R runtime and R packages, which are served with this app from its own address (about 39 MB). These are downloads only; no measurements are sent.')
     expect(within(note).getByRole('link', { name: 'Network access and local storage' })).toHaveAttribute('href', '#methods/data/network')
     // Visible before the first click, not only inside the collapsed details.
     expect(note.closest('details')).toBeNull()
