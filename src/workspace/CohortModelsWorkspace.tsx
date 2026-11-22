@@ -528,10 +528,10 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         <button type="button" role="tab" id={`${areaId}-slope`} aria-selected={area === 'slope'} aria-controls={`${areaId}-slope-panel`} className={area === 'slope' ? 'active' : ''} onClick={() => setArea('slope')}>Slope models</button>
         <button type="button" role="tab" id={`${areaId}-tte`} aria-selected={area === 'tte'} aria-controls={`${areaId}-tte-panel`} className={area === 'tte' ? 'active' : ''} onClick={() => setArea('tte')}>Time to event</button>
       </div>
-      {area === 'tte' && <div role="tabpanel" id={`${areaId}-tte-panel`} aria-labelledby={`${areaId}-tte`}>
+      {area === 'tte' && <div className="cm-area-panel" role="tabpanel" id={`${areaId}-tte-panel`} aria-labelledby={`${areaId}-tte`}>
         <TimeToEventPanel data={data} onBrowseTrajectories={onBrowseTrajectories} />
       </div>}
-      <div className="stack" role="tabpanel" id={`${areaId}-slope-panel`} aria-labelledby={`${areaId}-slope`} hidden={area !== 'slope'}>
+      <div className="cm-area-panel" role="tabpanel" id={`${areaId}-slope-panel`} aria-labelledby={`${areaId}-slope`} hidden={area !== 'slope'}>
 
       {/* Model Studio Card */}
       <section className="cm-studio-card card" aria-label="Model Studio">

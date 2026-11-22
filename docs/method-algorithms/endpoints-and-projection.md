@@ -94,6 +94,13 @@ filter (`filterEndpointPointsForEvents`):
 - Values within a complete dated acute dialysis interval are removed,
   including its start and end dates. Later values remain eligible. An interval
   is complete when it has an end date not before its start date.
+- Values dated after the patient's earliest `death` event are removed (since
+  2026-11-22, issue #78): they can only be data errors, and the import warns
+  about them (`values_after_death`). A value on the day of death is kept.
+  Example: eGFR on 2019-01-01 and 2020-06-01, death on 2020-01-01: only the
+  value of 2019-01-01 is endpoint input, and `last_eligible_date` is
+  2019-01-01. Fits are unchanged: the display fit still uses the later value
+  (**Open decision OD-79**).
 - Unknown-intent dialysis, acute dialysis without an end date and `other`
   events remove nothing.
 
@@ -790,7 +797,7 @@ endpoint toggles on a series that passes the unit gate.
 | `endpoint_projected_age_to_ckd_g5` | A projection is reported. | Age in years, unrounded. |
 | `endpoint_observed_ckd_g4` | Observed G4 confirmed. | `yes` |
 | `endpoint_confirmation_days` | G4, G5, percent decline or the projection enabled. | Effective minimum interval in days, at most 365. |
-| `endpoint_input_policy` | Any endpoint enabled. | Fixed text: "dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded", followed by "; AKI exclusion windows excluded from decline baseline and projection" when the column excludes AKI windows (since 2026-11-05). |
+| `endpoint_input_policy` | Any endpoint enabled. | Fixed text: "dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); values dated after a death excluded; bounds excluded" (the clause on death since 2026-11-22, issue #78), followed by "; AKI exclusion windows excluded from decline baseline and projection" when the column excludes AKI windows (since 2026-11-05). |
 | `endpoint_kidney_failure_reached` | Kidney failure reached, whatever the toggles. | `yes` |
 | `endpoint_kidney_failure_type` | As above. | `kidney_transplant` or `chronic_dialysis` |
 | `endpoint_kidney_failure_date` | As above. | Event date. |

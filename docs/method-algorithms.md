@@ -86,6 +86,7 @@ Contents:
 16. [Observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction)
 17. [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models)
 18. [Cohort-model projections](method-algorithms/cohort-models.md#cohort-model-projections)
+    - [Time to event](method-algorithms/time-to-event.md#time-to-event-2026-11-22)
 19. [Fit code not reachable from the interface](method-algorithms/unreachable-code.md#fit-code-not-reachable-from-the-interface)
 
 ## Rules of this tool that are not published standards
@@ -108,6 +109,7 @@ it; the way the tool applies it is its own.
 | Minimum data of the extrapolation to CKD G5 | Four measurements over three years are from KDIGO 2012 CKD (p. 66, "in most cases"); counting them as distinct dates over 36 calendar months, the 365-day and three-date minimums before it and the 20-year horizon are this tool's (2026-11-22). | [Minimum data](method-algorithms/endpoints-and-projection.md#individual-g5-projection) |
 | Slope tier "reliable" | At least 4 fitted dates over at least 2 × 365.25 days: the owner's decision of 2026-11-22, resting on KDIGO 2012 CKD (≥ 4 measurements over ≥ 3 years for extrapolating a rate of change) and Grams 2019 (longer slopes associated more strongly with kidney failure); neither defines the tier. | [Slope tier](method-algorithms/slope-quality.md#slope-tier) |
 | Admission proxy for the AKI look-back baseline | The look-back mean of 7 to 365 days and the 1.5-fold criterion follow KDIGO 2012 AKI (ch. 2.4); what counts as an admission (a gap of more than seven days followed by values on consecutive days) is this tool's (decided 2026-11-22, OD-45). | [First value of an admission](method-algorithms/aki.md#first-value-of-an-admission) |
+| Time to event: entry, exit and exclusions | Kaplan–Meier with delayed entry on the age scale follows Thiébaut and Bénichou (Stat Med 2004) and Pencina et al. (Stat Med 2007); death as competing event follows Noordzij et al. (NDT 2013). Entry at the first eligible measurement, exit at the last one, the event at the first crossing, leaving out patients with the endpoint at or before entry and the death vocabulary are this tool's (decided 2026-11-22; details OD-73 to OD-79). | [Time to event](method-algorithms/time-to-event.md#entry-exit-and-status) |
 | Shorter AKI window where too few values remain | The 90 days after an AKI episode follow the duration of acute kidney disease (KDIGO 2024); the fallback to 30 days from the onset and its test by the reliability rule are this tool's (decided 2026-11-22, OD-48). | [Enough values](method-algorithms/aki.md#enough-values) |
 
 ## Open decisions
@@ -165,6 +167,10 @@ leave a gap, the conservative option is implemented.
 OD-70 to OD-72 were added on 2026-11-22 from the code review of that day's
 merges, for rules that were implemented without an owner decision; the
 behaviour is unchanged.
+OD-73 to OD-79 were added on 2026-11-22 with the event type `death` and the
+time-to-event area (decisions `km`, `death` and `taxonomy`, issue #78), for
+the details those decisions leave open; each is implemented with the
+conservative option.
 
 | ID | Open question, and what is implemented | Section |
 | --- | --- | --- |
@@ -187,7 +193,7 @@ behaviour is unchanged.
 | OD-56 | A pooled level that still has fewer than 5 patients with 2 or more model rows is kept in the model with a note; when all levels are pooled the factor fails for lack of variation. The removal of small "not tested" levels runs once, before pooling. | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
 | OD-57 | The "not tested" vocabulary applies to cohort-model factors only; grouping keeps the imported spellings, so `NT` and `not tested` are two groups there. | [Columns](method-algorithms/import-and-values.md#columns) |
 | OD-58 | The UACR series of the log baseline UACR covariate is recognised by name; with several UACR series (for example in mg/g and mg/mmol) the covariate is not offered and the user cannot choose one. | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
-| OD-59 | The dropout report counts a kidney transplant or chronic dialysis as KRT (not dialysis of unknown intent), calls a patient lost after more than 365 days without a model row before the latest lab date of the dataset, and applies the 10 % threshold to the whole unit, not per level. Death is counted once an event type `death` exists. | [Which measurements enter](method-algorithms/cohort-models.md#which-measurements-enter) |
+| OD-59 | The dropout report counts a kidney transplant or chronic dialysis as KRT (not dialysis of unknown intent), calls a patient lost after more than 365 days without a model row before the latest lab date of the dataset, and applies the 10 % threshold to the whole unit, not per level. Death is counted since the event type `death` exists (2026-11-22). | [Which measurements enter](method-algorithms/cohort-models.md#which-measurements-enter) |
 | OD-60 | `n_bounded` and the 20 % warning are defined on fitted values (decision of 2026-11-21), so under `exclude` they are 0 and silent even when most raw values of a series are bounds and leaving them out biases the slope. Should `exclude` warn on the raw share? | [Bounded values in individual fits](method-algorithms/bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22) |
 | OD-61 | A conclusive bound (for example `>60`) after a confirmed G4/G5 event is not recorded as recovery; the decision of 2026-11-22 names only the reset of a candidate. Should it record recovery, with the limit as value? | [Bounds and endpoints](method-algorithms/bounded-measurements.md#bounds-and-endpoints-2026-11-22) |
 | OD-62 | Bounds do not interrupt a 40 % or 57 % decline candidate, although `>x` can prove the decline from the baseline was below the threshold that day; the decision names G4/G5 only. | [Bounds and endpoints](method-algorithms/bounded-measurements.md#bounds-and-endpoints-2026-11-22) |
@@ -200,6 +206,13 @@ behaviour is unchanged.
 | OD-70 | CKiD U25 is published for ages 1 to 25 and the decision `height` set a 30-day height limit under 2 years, but no eGFR is computed under 2 (EKFC from 2, decision of 2026-11-21), so that limit has no case. Should CKiD U25 apply from age 1 with the 30-day limit? | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 | OD-71 | A conclusive bound (`>x` with x at or above 15, for example `>20`) counts as a date that is not low for the flag "single value below 15, unconfirmed"; set during the merge of 2026-11-22 without an owner decision. Should bounds be ignored there? | [Single value below 15](method-algorithms/endpoints-and-projection.md#single-value-below-15-unconfirmed-2026-11-22) |
 | OD-72 | The segment after kidney replacement therapy and both sides of the before/after comparison at an anchor event take bounded values by the column's `boundedValues` setting, as its own fit; set during the merge of 2026-11-22 without an owner decision. | [Kidney replacement therapy in every preset](method-algorithms/clinical-events.md#kidney-replacement-therapy-in-every-preset), [Points and boundaries](method-algorithms/anchor-comparison.md#points-and-boundaries) |
+| OD-73 | A death ends time-to-event follow-up at its date even long after the last eligible measurement; the gap counts as event-free. Alternative: censor at the last measurement. | [Time to event](method-algorithms/time-to-event.md#open-decisions) |
+| OD-74 | Without the KRT endpoint, kidney replacement therapy censors at the last eligible measurement and a later death is not counted; KRT is never a competing event in the Aalen–Johansen estimate. | [Time to event](method-algorithms/time-to-event.md#open-decisions) |
+| OD-75 | The time-to-event export is a workbook of its own, not a last sheet of the model or cohort workbook. | [Time to event](method-algorithms/time-to-event.md#export) |
+| OD-76 | A first crossing on the first eligible date counts as "at or before entry" and excludes the patient; patients without a value of the grouping attribute are left out rather than grouped as "(ungrouped)". | [Time to event](method-algorithms/time-to-event.md#entry-exit-and-status) |
+| OD-77 | Ages on the time-to-event age scale come from the birth anchor, rounded to whole days; an anchor estimated from completed years can be up to a year off and is stated, not corrected. | [Time to event](method-algorithms/time-to-event.md#entry-exit-and-status) |
+| OD-78 | The median at exactly 0.5 takes the midpoint to the next event time (at the last event time, that time), as do its limits; Aalen–Johansen has no interval; the log-rank test drops groups without variance. To be checked against R `survival` (issue #79). | [Estimators](method-algorithms/time-to-event.md#estimators) |
+| OD-79 | Values after a death are left out of endpoint input and time to event but stay in tables, charts and fits, with an import warning; the death vocabulary is `death`, `deceased`, `Tod`, `verstorben`; the time-to-event settings are not saved or recorded in the analysis record. | [Type and intent vocabulary](method-algorithms/clinical-events.md#type-and-intent-vocabulary) |
 
 ### Resolved decisions
 

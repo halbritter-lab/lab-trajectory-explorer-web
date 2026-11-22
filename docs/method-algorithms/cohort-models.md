@@ -271,10 +271,14 @@ pooling) by how follow-up ended. It changes no estimate.
 - **`krt`**: an event `kidney_transplant`, or `dialysis` with intent
   `chronic`, dated on or after the first model row. Acute dialysis, dialysis
   of unknown intent and events before the first model row do not count.
-- **`death`**: an event of the type `death` on or after the first model row.
-  The app has no such event type yet (decision `death` of 2026-11-22 is to be
-  built separately), so the count is empty (`null`) and the interface shows
-  no death column until the type exists.
+- **`death`**: an event of the type `death` on or after the first model row
+  (the type exists since 2026-11-22, issue #78; see
+  [type and intent vocabulary](clinical-events.md#type-and-intent-vocabulary)).
+  Every patient's earliest such event is used. Until the type existed the
+  count was empty (`null`) and the interface showed no death column; since
+  then the column `death` of the sheet `dropout` holds a number (0 without
+  deaths), the table "Dropout by reason" has a Death column, and the note
+  and `r_script` say "reached kidney replacement therapy or died".
 - With both, the earlier date decides; on the same day `krt`.
 - **`loss`**: neither, and the last model row lies more than 365 days
   (`LOSS_TO_FOLLOW_UP_DAYS`) before the data end, the latest lab date of the
@@ -287,7 +291,7 @@ level of each categorical factor, with `krt_or_death_share` = (krt + death)
 / patients. When that share of the whole unit is above 10 %
 (`INFORMATIVE_DROPOUT_SHARE`, strictly greater: 10 % is not), the page shows
 a note ("More than 10 % of the patients in the whole cohort reached kidney
-replacement therapy within follow-up (a rule of this tool). When dropout
+replacement therapy or died within follow-up (a rule of this tool). When dropout
 depends on the course of the parameter, the slope can be biased; the R
 script of the model export outlines a joint-model sensitivity analysis.")
 and `r_script` adds, inside the unit's block, a commented outline of a joint

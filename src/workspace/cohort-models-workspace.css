@@ -615,3 +615,4 @@
 .cm-tte-curve { display: flex; flex-wrap: wrap; gap: 12px; }
 .cm-tte table { border-collapse: collapse; font-size: 13px; }
 .cm-tte th, .cm-tte td { padding: 4px 8px; text-align: left; border-bottom: 1px solid #e4ecee; }
+.cm-area-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }
