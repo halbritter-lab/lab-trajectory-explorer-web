@@ -133,6 +133,21 @@ describe('entry, exit and status per patient', () => {
   })
 })
 
+describe('recorded deaths (code review of wave 3)', () => {
+  it('shows Aalen–Johansen only when an included patient exits by death', () => {
+    const input = (patientId: string, deathDate: Date | null) => ({ patientId, group: null, firstEligibleDate: day('2019-01-01'), lastEligibleDate: day('2021-06-01'),
+      endpoint: { firstDate: day('2021-01-01'), confirmedDate: day('2021-06-01') }, kidneyFailure: null, deathDate, birthAnchor: day('1970-01-01'), ageEstimated: false })
+    const settings: TimeToEventSettings = { endpoint: 'observedCkdG4', compositeWithKrt: false, timeScale: 'time_since_entry', grouping: null }
+    // A death after the endpoint: exit at the endpoint (status 1); no competing death in the analysis.
+    const after = timeToEventAnalysis([input('P1', day('2022-01-01'))], settings)
+    expect(after.rows[0]).toMatchObject({ status: 1 })
+    expect(after.deathRecorded).toBe(false)
+    expect(after.groups[0].cumulativeIncidence).toBeNull()
+    // A death before the endpoint ends follow-up with status 2.
+    expect(timeToEventAnalysis([input('P1', day('2020-06-01'))], settings).deathRecorded).toBe(true)
+  })
+})
+
 describe('definition, export and page', () => {
   it('offers only the endpoints the parameter settings evaluate and states the definition', () => {
     expect(availableTimeToEventEndpoints({ percentDecline: false, observedCkdG5: false, projectedAgeToCkdG5: false })).toEqual(['kidneyFailure'])

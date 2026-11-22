@@ -165,7 +165,10 @@ export function timeToEventRow(input: TimeToEventPatientInput, settings: TimeToE
 export function timeToEventAnalysis(inputs: readonly TimeToEventPatientInput[], settings: TimeToEventSettings): TimeToEventAnalysis {
   const rows = inputs.map(input => timeToEventRow(input, settings))
   const included = rows.filter(row => row.included)
-  const deathRecorded = included.some(row => inputs.find(input => input.patientId === row.patientId)?.deathDate)
+  // Only a death that ends follow-up in the analysis (status 2) makes the
+  // competing-risk estimate meaningful; a death after the endpoint or of a
+  // patient left out does not (code review of wave 3).
+  const deathRecorded = included.some(row => row.status === 2)
   const labels = settings.grouping === null ? ['All patients']
     : [...new Set(included.map(row => row.group))].sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }))
   const groups = labels.map(label => {

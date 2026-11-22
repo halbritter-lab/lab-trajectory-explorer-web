@@ -126,8 +126,12 @@ measurement every entry is 0, so this is ordinary right censoring.
   their number less one; p from the χ² distribution. Unadjusted; no test with
   fewer than two groups, or when fewer than two groups have positive variance
   (shown as "not computed").
-- **Aalen–Johansen** (shown when any patient in the analysis has a recorded
-  death): at each time with d1 endpoints and d2 deaths among n at risk, F1 +=
+- **Aalen–Johansen** (shown when the exit of at least one included patient
+  is a death, status 2; since the code review of wave 3 a death after the
+  endpoint, after kidney replacement therapy that ends follow-up, or of a patient not in the analysis
+  does not count. Example: P1 of the worked example reaching G4 on
+  2021-01-01 and dying in 2022 exits with status 1 and alone would show no
+  Aalen–Johansen curve): at each time with d1 endpoints and d2 deaths among n at risk, F1 +=
   S(t−) d1 / n, F2 += S(t−) d2 / n, S(t) = S(t−) (1 − (d1 + d2) / n). F1 is the
   cumulative incidence of the endpoint with death as the competing event,
   shown beside 1 − KM, which treats the patients who died as if they could

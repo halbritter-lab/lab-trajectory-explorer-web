@@ -68,6 +68,9 @@ interfaces are still evolving before 1.0.
   ("Series without a unit cannot be merged.") and for the name and unit of a
   computed eGFR; a stored merge of that kind is not formed and the Data page
   names why. A source listed twice in stored settings counts once.
+- Time to event: the Aalen–Johansen curve and the `cumulative_incidence`
+  sheet appear only when an included patient exits by death (status 2), not
+  for a death after the endpoint or of a patient left out.
 
 ### Fixed (code review of the 2026-11-22 merges)
 
