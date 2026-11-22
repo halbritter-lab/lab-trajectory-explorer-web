@@ -16,7 +16,7 @@ import { boundExcludesCrossing, observeThresholdCrossing } from '../../src/core/
 import { computeCkdEndpoints } from '../../src/core/domains/nephrology/endpoints/ckdEndpoints'
 import { measurementFitStatus } from '../../src/workspace/measurement-fit-status'
 import { boundedShareLabel } from '../../src/workspace/labels/qualityLabels'
-import { mixedModelRScript } from '../../src/core/mixedModel/rCode'
+import { censoredSensitivityLines, mixedModelRScript } from '../../src/core/mixedModel/rCode'
 
 const date = (value: string) => new Date(`${value}T00:00:00Z`)
 const UACR = { bezeichnung: 'Albumin/Kreatinin-Quotient', einheit: 'mg/g' }
@@ -265,5 +265,13 @@ describe('R export', () => {
     expect(block.length).toBeGreaterThan(5)
     expect(block.every(line => line.startsWith('#'))).toBe(true)
     expect(block.join('\n')).toContain('lmec')
+    // Without a refitted unit the sketch names the whole cohort; otherwise one data step per unit.
+    expect(block.join('\n')).toContain('mm_flags$unit_key == "cohort"')
+    const perUnit = censoredSensitivityLines(['cohort', 'group:a "b"'])
+    expect(perUnit.filter(line => line.includes('d <- mm_flags[mm_flags$unit_key == '))).toEqual([
+      '#   d <- mm_flags[mm_flags$unit_key == "cohort" & (mm_flags$status != "excluded" | mm_flags$reason == "bound_value"), ]',
+      '#   d <- mm_flags[mm_flags$unit_key == "group:a \\"b\\"" & (mm_flags$status != "excluded" | mm_flags$reason == "bound_value"), ]',
+    ])
+    expect(perUnit.filter(line => line.includes('lmec::lmec('))).toHaveLength(2)
   })
 })

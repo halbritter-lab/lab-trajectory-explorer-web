@@ -51,6 +51,7 @@ export function lmerTestLines(config: MixedModelConfig): string[] {
     `  mm_fit_satterthwaite <- ${lme4ModelCall(config).replace('lme4::lmer(', 'lmerTest::lmer(')}`,
     '  # Omnibus F test per model term: all levels of a factor in one test (type III). For a',
     '  # factor with level and slope, the time_since_baseline:<factor> row tests the slope difference.',
+    '  # With time_since_baseline:<factor> in the model, the factor\'s own row tests the difference at baseline (time 0).',
     '  print(anova(mm_fit_satterthwaite, type = "III", ddf = "Satterthwaite"))',
     '  # Contrasts against the reference level: exploratory, unadjusted for multiple comparisons.',
     '  mm_contrasts <- summary(mm_fit_satterthwaite, ddf = "Satterthwaite")$coefficients',
@@ -177,13 +178,29 @@ export function mixedModelRScript(models: readonly { entity: string; result: Mix
     // local() keeps each unit's mm_data in the formula environment of its fit.
     lines.push(`# ${comment(entity)}`, `mm_fits[[${name}]] <- local({`, ...unitLines.map((line) => `  ${line}`), '})')
   }
-  lines.push('', ...CENSORED_SENSITIVITY_LINES, '', 'sessionInfo()')
+  const unitKeys = models.filter(({ result }) => result.status === 'success' && result.metadata.engine === 'webr-lme4' && result.metadata.modelConfig).map(({ identity }) => mixedModelUnitKey(identity))
+  lines.push('', ...censoredSensitivityLines(unitKeys.length ? unitKeys : ['cohort']), '', 'sessionInfo()')
   return lines
 }
 
 /** A commented suggestion for a censored mixed model (decided 2026-11-22,
- * issue #73). Comments only: the script runs without the packages it names. */
-export const CENSORED_SENSITIVITY_LINES: readonly string[] = [
+ * issue #73), with the data step once per exported unit (`unit_key`, as in
+ * `jointModelSuggestionLines`). Comments only: the script runs without the
+ * packages it names. */
+export function censoredSensitivityLines(unitKeys: readonly string[]): string[] {
+  return [
+    ...CENSORED_SENSITIVITY_INTRO,
+    '#   mm_flags <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "model_input_flags", trim_ws = FALSE))',
+    ...unitKeys.flatMap((unitKey) => [
+      `#   # Unit ${rStringLiteral(unitKey)}:`,
+      `#   d <- mm_flags[mm_flags$unit_key == ${rStringLiteral(unitKey)} & (mm_flags$status != "excluded" | mm_flags$reason == "bound_value"), ]`,
+      ...CENSORED_SENSITIVITY_FIT,
+    ]),
+    ...CENSORED_SENSITIVITY_BOTH,
+  ]
+}
+
+const CENSORED_SENSITIVITY_INTRO: readonly string[] = [
   '# Sensitivity analysis (a suggestion; these lines are comments and need no package to run the script):',
   '# the models above leave bounded values (<x, >x) out, as every cohort model of the app does',
   '# (decided 2026-11-22). When many values of a series are bounded, leaving them out or',
@@ -195,8 +212,9 @@ export const CENSORED_SENSITIVITY_LINES: readonly string[] = [
   '# with a random intercept and slope per patient and no covariates; add the factors of the model',
   '# to X as mm_data builds them. Its time is years since each patient\'s first row used here,',
   '# which can differ from time_since_baseline in model_rows.',
-  '#   mm_flags <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "model_input_flags", trim_ws = FALSE))',
-  '#   d <- mm_flags[mm_flags$unit_key == "cohort" & (mm_flags$status != "excluded" | mm_flags$reason == "bound_value"), ]',
+]
+
+const CENSORED_SENSITIVITY_FIT: readonly string[] = [
   '#   d$day <- as.numeric(as.Date(d$date))',
   '#   d$time <- (d$day - ave(d$day, d$patient_id, FUN = min)) / 365.25',
   '#   d <- d[order(d$patient_id, d$time), ]',
@@ -206,6 +224,9 @@ export const CENSORED_SENSITIVITY_LINES: readonly string[] = [
   '#     X = cbind(1, d_left$time), Z = cbind(1, d_left$time),',
   '#     cluster = as.integer(factor(d_left$patient_id, levels = unique(d_left$patient_id))), method = "ML")',
   '#   fit$beta  # intercept and slope per year',
+]
+
+const CENSORED_SENSITIVITY_BOTH: readonly string[] = [
   '#   # Both directions, for example with brms:',
   '#   # d$censoring <- ifelse(d$operator == "<", "left", ifelse(d$operator == ">", "right", "none"))',
   '#   # brms::brm(value | cens(censoring) ~ time + (time | patient_id), data = d)',

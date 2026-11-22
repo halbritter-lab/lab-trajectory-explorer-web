@@ -235,6 +235,11 @@ describe('R reproduction export', () => {
     expect(script).toContain('mm_factor_0_ <- as.character(mm_unit[["factor_0_"]])')
     expect(script).toContain('mm_unit <- mm_rows[mm_rows$unit_key == "group:G1", , drop = FALSE]')
     expect(script).toContain('mm_browser <- mm_coefficients[mm_coefficients$unit_key == "group:G1", , drop = FALSE]')
+    // The censored-model sketch selects each exported unit by its own unit_key, not "cohort".
+    expect(script).toContain('#   d <- mm_flags[mm_flags$unit_key == "group:G1" & (mm_flags$status != "excluded" | mm_flags$reason == "bound_value"), ]')
+    expect(script).not.toContain('mm_flags$unit_key == "cohort"')
+    // The Satterthwaite block says what the factor's own row tests once its slope interaction is in the model.
+    expect(script).toContain("# With time_since_baseline:<factor> in the model, the factor's own row tests the difference at baseline (time 0).")
     expect(sheet('coefficients')[0]).toMatchObject({entity:'G1',unit_key:'group:G1',unit:'ml/min'})
     expect(script).toContain('R 4.5.1 (webR); lme4 1.1-37; Matrix 1.7-3; jsonlite 2.0.0')
     expect(mixedModelRScript([{entity:'G2',result:{...result,metadata:{...result.metadata,runtimeVersion:null,packageVersions:{}}}}]).join('\n')).toContain('R version unknown (webR); package versions unknown')

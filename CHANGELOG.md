@@ -34,6 +34,10 @@ interfaces are still evolving before 1.0.
 - The export note on computed eGFR no longer says "adults only": it names the
   rule from 2 to 17 years (CKiD U25 with a height, otherwise EKFC), the height
   input, no eGFR under 2 and the per-row column `egfr_equation`.
+- The censored-model sketch of `r_script` selects each refitted unit by its
+  own `unit_key` instead of always `cohort`, and the Satterthwaite block notes
+  that with a slope interaction the factor's own row tests the difference at
+  baseline (time 0).
 
 ### Added (release preparation and wording drafts, issues #80 and #84, decided 2026-11-22)
 

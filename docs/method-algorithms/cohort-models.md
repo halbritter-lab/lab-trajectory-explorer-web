@@ -797,7 +797,8 @@ installed, the same call with `lmerTest::lmer`, then
 `anova(fit, type = "III", ddf = "Satterthwaite")` (one omnibus F test per
 model term, so all levels of a factor in one test; for a factor with level
 and slope the `time_since_baseline:<column>` row tests the slope
-difference), then the coefficient table of
+difference, and, as a comment of the script says since 2026-11-22, the
+factor's own row then tests the difference at baseline, time 0), then the coefficient table of
 `summary(fit, ddf = "Satterthwaite")` with the comment "Contrasts against the
 reference level: exploratory, unadjusted for multiple comparisons", and a
 commented line for a Holm adjustment of the contrast p-values (all terms but
@@ -1051,7 +1052,9 @@ extended in R. They add no estimate and change none.
   side and ends with `sessionInfo()`. Before that line, since 2026-11-22
   (issue #73, decision row `bounded`), a block of comments only suggests a
   censored mixed model as a sensitivity analysis: it reads
-  `model_input_flags`, keeps the rows of unit `cohort` that entered, were
+  `model_input_flags` and, once per refitted unit (by its `unit_key`,
+  `cohort` or `group:<value>`, as the joint-model suggestion does; until
+  2026-11-22 always `cohort`), keeps the rows of that unit that entered, were
   aggregated, or have reason `bound_value` alone, sets time to years since each
   patient's first such row, and fits `lmec::lmec` (left censoring, so `>x` rows
   are dropped) with a random intercept and slope and no covariates, or
