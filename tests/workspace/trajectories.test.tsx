@@ -215,7 +215,7 @@ describe('real-data trajectories workspace', () => {
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     const table = screen.getByRole('table')
     expect(within(table).getAllByRole('row')).toHaveLength(51)
-    expect(screen.getByText('Showing 1–50 of 2000 patients')).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: 'Patient table pages' })).getByRole('status')).toHaveTextContent('Showing 1–50 of 2000 patients')
     expect(within(table).getByRole('button', { name: 'Open patient P-0001' }).closest('tr')).toHaveTextContent('1 measurement')
     expect(within(table).getByRole('button', { name: 'Open patient P-0001' }).closest('tr')).not.toHaveTextContent('1 measurements')
     fireEvent.click(within(table).getByRole('checkbox', { name: 'Select visible patients on this page' }))
@@ -231,7 +231,7 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByRole('button', { name: 'Open patient P-0051' })).toHaveFocus()
     sortColumn('Patient', 'Patient ID', false)
     expect(within(screen.getByRole('table')).getByRole('button', { name: 'Open patient P-2000' })).toBeInTheDocument()
-    expect(screen.getByText('Showing 1–50 of 2000 patients')).toBeInTheDocument()
+    expect(within(screen.getByRole('navigation', { name: 'Patient table pages' })).getByRole('status')).toHaveTextContent('Showing 1–50 of 2000 patients')
   }, 20_000)
 
   it('exposes a clinical flag explanation through a focusable disclosure', () => {
