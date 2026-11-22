@@ -39,7 +39,10 @@ therefore ships exactly the pinned versions; changing one is a method decision
 
 Before a release, check that the build contains `webr/`, `r-packages/`,
 `THIRD-PARTY-NOTICES.txt` and `licenses/`, and that a real fit on the deployed
-site requests nothing from another host (smoke checklist). The deployment is
+site requests nothing from another host (smoke checklist). An incomplete
+`webr/` (for example a missing `R.wasm`) shows up only as a first fit that
+fails after 120 seconds with "Mixed-model worker exceeded 120000 ms.", not
+with a message about the app's address. The deployment is
 about 80 MB. If `repo.r-wasm.org` no longer offers a pinned archive, the build
 fails; restore the verified files into `public/r-packages/` (for example from
 the CI cache or an earlier build) or change the pin deliberately.

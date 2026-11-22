@@ -957,9 +957,13 @@ Details of the implementation, chosen where the decision left them open
   fail to load its packages.
 
 Not settled: the source of nloptr 2.2.1.9000 (a development version; the
-binary does not record its revision and CRAN has no such source package), and
-whether the R 4.6.0 and webR 0.6.0 sources should also be mirrored next to
-the app instead of being named in the notices. Upstream may remove a pinned
+binary, built on 2026-05-20, does not record its revision and CRAN has no such
+source package). The notices name the most likely source: commit `5fd8ea7e`
+of 2025-08-13, the head of nloptr's master branch from before the build until
+at least 2026-11-22, which r-universe also builds as
+`nloptr_2.2.1.9000.tar.gz`; the binary does not confirm it. Also not settled:
+whether the R 4.6.0 and webR 0.6.0 sources should be mirrored next to the
+app instead of being named in the notices. Upstream may remove a pinned
 archive from `repo.r-wasm.org` once a newer version is built; the build then
 fails until the files are supplied or the pin is changed.
 

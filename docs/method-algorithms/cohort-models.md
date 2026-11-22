@@ -580,7 +580,9 @@ workspace passes them resolved values only.
   repository before the pin (measured on 2026-11-21 and 2026-11-22), so the
   numbers did not change: the exported model workbook of the demo fit equals
   the one fitted before in every cell apart from `packageVersions`,
-  `wasmAssetSource`, the export identifier, the time and the file name.
+  `wasmAssetSource`, the version line of each fitted unit in `r_script`
+  (`Browser fit of …`, which lists `packageVersions`), the export identifier,
+  the time and the file name.
   Changing a version is a method decision.
 - **Recorded per result.** The R version, the version of every pinned package
   the fit loaded and of webR's support package `webr`, the optimizer name,

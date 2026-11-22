@@ -748,11 +748,17 @@ with JavaScript switched off.
    `runtimeVersion` 4.6.0, `packageVersions` starts with
    `"lme4":"2.0.6","Matrix":"1.7.6","jsonlite":"2.0.0"` and ends with
    `"webr":"0.6.0"`. Compared cell by cell with the same export from a build
-   before K43, only `packageVersions`, `wasmAssetSource`, the export ID, the
-   time and the file name differ.
+   before K43, only `packageVersions`, `wasmAssetSource`, the version line of
+   each fitted unit in `r_script` ("Browser fit of …", which lists
+   `packageVersions`), the export ID, the time and the file name differ.
 4. After one fit, make the app's address unreachable and refit: the refit
    works (R stays loaded in the worker). With the address unreachable before
    the first fit, the fit fails ("Fit failed: Mixed-model worker failed.").
+   A deployment without `webr/R.wasm` does not fail at once: the first fit
+   ends after 120 seconds with "Fit failed: Mixed-model worker exceeded
+   120000 ms." (as when the file was blocked on webR's server before K43). A
+   missing package archive or `PACKAGES` index fails at once with "lme4 or
+   jsonlite is unavailable in this webR package repository. …".
 5. Methods, "Data & eGFR", "Network access and local storage": "… They are
    served with the app from the same address (about 39 MB, measured in
    November 2026); no other server is contacted. …".

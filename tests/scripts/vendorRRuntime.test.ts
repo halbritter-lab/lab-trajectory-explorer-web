@@ -54,5 +54,7 @@ describe('vendor_r_runtime.mjs (K43)', () => {
       if (pkg.sourceSha256) expect(notices).toContain(`r-packages/src/contrib/${pkg.name}_${pkg.version}.tar.gz`)
     }
     expect(notices).toContain(pins.packages.find(pkg => pkg.name === 'nloptr')!.sourceNote)
+    expect(notices).toContain('https://github.com/astamm/nloptr/archive/5fd8ea7e4e93c71beea99fc125ee523e99cdf502.tar.gz')
+    expect(notices).toContain('https://astamm.r-universe.dev/nloptr')
   })
 })

@@ -15,7 +15,9 @@ interfaces are still evolving before 1.0.
   still loads about 39 MB, now from the same address.
 - **Package versions are pinned** (the pinning half of OD-21). They are the
   versions the fit loaded before, so no number moved: the model workbook of
-  the demo fit equals the earlier one in every value cell.
+  the demo fit equals the earlier one in every cell except the recorded
+  versions (`packageVersions` and the version line of each unit in
+  `r_script`), `wasmAssetSource`, the export ID and the time.
 - **Model export:** `wasmAssetSource` is `self-hosted` instead of `cdn`, and
   `packageVersions` also lists the other loaded pinned packages and `webr`.
 - The Content-Security-Policy of the build names no other host. The note
@@ -26,7 +28,8 @@ interfaces are still evolving before 1.0.
   files into `public/` (not in git) and stops on a checksum that differs. The
   deployment grows from about 1.4 MB to about 80 MB and ships
   `THIRD-PARTY-NOTICES.txt`, the licence texts and the packages' source
-  packages.
+  packages (for nloptr 2.2.1.9000, which has no CRAN source package, the
+  notices name the most likely GitHub commit and its r-universe build).
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
