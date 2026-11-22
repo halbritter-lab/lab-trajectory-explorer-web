@@ -1,11 +1,13 @@
 // Contextual editor; optional module adapters own domain-specific configuration.
 import type { FitModel, TimeBalancing } from '../../core/fitPipeline/types'
 import type { WorkspaceParameter } from '../workspace-data'
-import { defaultFitSettings, type WorkspaceFitSettings } from '../workspace-analysis'
+import { presetSettingsKeepingAnchor, type WorkspaceFitSettings } from '../workspace-analysis'
 import { fitPresetById } from '../../core/analysis/registry'
 import { FIT_PRESET_CATEGORY_LABELS } from '../../core/analysis/fitConfig'
 import { presetsForScope } from './analysis'
 import { AnalysisModuleSettings } from './analysis-modules'
+import type { ClinicalEvent } from '../../core/events/events'
+import { AnchorComparisonSettingsGroup } from './AnchorComparisonSettings'
 
 function PresetOptions({ presetId, scope }: { presetId: string; scope: string }) {
   const presets = presetsForScope(scope)
@@ -22,12 +24,14 @@ interface Props {
   scope: string
   onChange: (settings: WorkspaceFitSettings) => void
   onReset: () => void
+  /** The dataset's events, for the anchor choices of the before/after comparison. */
+  events?: readonly ClinicalEvent[]
 }
 
-export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, scope, onChange, onReset }: Props) {
+export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, scope, onChange, onReset, events = [] }: Props) {
   const fitSettings = overrides[scope] ?? sharedSettings
   const activeParameter = parameters.find(parameter => parameter.key === scope)
-  const applyPreset = (id: string) => { if (presetsForScope(scope).some(preset => preset.id === id)) onChange(defaultFitSettings(id)) }
+  const applyPreset = (id: string) => { if (presetsForScope(scope).some(preset => preset.id === id)) onChange(presetSettingsKeepingAnchor(id, fitSettings)) }
   const updateSettings = (patch: Partial<WorkspaceFitSettings>) => onChange({ ...fitSettings, ...patch, presetId: 'custom' })
   return (
     <div className="wt-preset-section pv-quiet-settings">
@@ -91,6 +95,11 @@ export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, s
             </label>
           </div>
           {activeParameter && <AnalysisModuleSettings parameter={activeParameter} settings={fitSettings} onUpdate={updateSettings} />}
+          {/* Not part of the preset: changing it keeps the preset name. */}
+          <AnchorComparisonSettingsGroup settings={fitSettings.anchorComparison} events={events} onChange={anchorComparison => {
+            const { anchorComparison: _previous, ...rest } = fitSettings
+            onChange(anchorComparison ? { ...rest, anchorComparison } : rest)
+          }} />
         </div>
       </details>
 

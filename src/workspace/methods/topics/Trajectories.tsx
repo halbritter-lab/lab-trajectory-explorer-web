@@ -4,7 +4,9 @@ export function Trajectories() { return <>
       <p>
         The overlay is a spaghetti plot for each selected parameter across the patients in the
         shared scope. It can use age, calendar date, or years since each patient's first
-        measurement as the x-axis. <em>Highlight patient</em> emphasises one trajectory; clicking a
+        measurement as the x-axis. <em>Years since event</em> starts each trajectory at the anchor
+        event of the parameter's before/after comparison; patients without that event are counted
+        below the chart and not drawn. <em>Highlight patient</em> emphasises one trajectory; clicking a
         trajectory, or pressing Enter on it, opens the individual patient view. With AKI display on,
         episode diamonds are drawn for every trajectory; AKI windows and episode labels only for the
         highlighted one, to keep the overlay readable.

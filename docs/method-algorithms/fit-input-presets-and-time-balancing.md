@@ -66,7 +66,8 @@ covers N + 1 calendar dates; with N = 0 it still contains the start date.
 The regression x value is always elapsed time in years from the first fitted
 point (see "Ordinary least squares"). Every slope is therefore in value units
 per year. The chart axis control (age, calendar date, time since first
-measurement) changes the drawing only. The `xAxis` value stored in a preset is
+measurement in years or days, years since the anchor event of the
+before/after comparison) changes the drawing only. The `xAxis` value stored in a preset is
 metadata: no fit and no chart reads it, and the mixed-model result identity
 (`mixedModelFitConfigHash`) does not include it. Since 2026-11-21 (owner
 decision) the exported `fit_config` leaves the entry out, and the `about`
@@ -201,7 +202,9 @@ Evidence: [export record tests](../../tests/core/cohort/exportRecords.test.ts),
 The cohort workbook has these sheets, in this order: `measurements`,
 `raw_measurements`, `cohort` (`slopes` in a patient export), `events`,
 `aki_episodes`, `patient_attributes`, `demographics`, `parameters`,
-`settings`, `about`, `columns`, `rolling_windows`, `import_diagnostics`.
+`settings`, `about`, `columns`, `rolling_windows`, `import_diagnostics`,
+`anchor_comparison` (since 2026-11-22, see
+[before/after comparison](anchor-comparison.md#export)).
 Since 2026-11-21:
 
 - **Fixed column lists.** Every sheet is written with its column list, so a
@@ -238,11 +241,13 @@ Since 2026-11-21:
   `fit_config` (the column's fit configuration as JSON: `parameter`, `preset`,
   `censoring`, `exclusions`, `timeBalancing`, `fitModel`, `endpoints`; no
   `xAxis`, see "Fit axis"), the module settings, `analysis_settings`,
-  `patient_ids`, `source_file`, `scope` and `group_by`. `group_by` (appended
-  2026-11-22) is the attribute the Trajectories table was grouped by, the
-  same on every row, and empty text without grouping; it names the attribute
-  whose values the `group` column of `cohort` holds. Example: grouped by
-  `sex`, `group_by` is `sex` and `group` holds `f` or `m`.
+  `patient_ids`, `source_file`, `scope`, `group_by` and `anchor_comparison`.
+  `group_by` (appended 2026-11-22) is the attribute the Trajectories table
+  was grouped by, the same on every row, and empty text without grouping; it
+  names the attribute whose values the `group` column of `cohort` holds.
+  Example: grouped by `sex`, `group_by` is `sex` and `group` holds `f` or
+  `m`. `anchor_comparison` (appended 2026-11-22 after `group_by`) is the
+  before/after setting as JSON, empty when off.
 - **`about`.** One column `note`. Rows are appended, never moved. Since
   2026-11-21 it explains the time axis of the trend, the meaning of `preset`
   and the fixed parameters of segmented OLS (a gap of more than 180 days, at
@@ -283,6 +288,8 @@ Since 2026-11-21:
   different birth-date anchors. The
   `datasetHash` of the model workbook is a different quantity: a hash of the
   prepared model rows.
+  Since 2026-11-22 one more note follows the provenance rows: it describes
+  the `anchor_comparison` sheet.
 - **`columns`.** The sheet after `about` describes the columns of the `cohort` (or
   `slopes`) sheet, one row per column in sheet order: `column`, `meaning`,
   `unit`, `empty_when`. The export fails rather than write a column that has

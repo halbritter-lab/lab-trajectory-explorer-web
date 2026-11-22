@@ -46,7 +46,7 @@ describe('elapsed-time axis in days and calendar ticks (K27)', () => {
     expect(within(chart()).getByText('Years since first measurement of this parameter')).toBeInTheDocument()
     display()
     const axis = screen.getByLabelText('Time axis') as HTMLSelectElement
-    expect([...axis.options].map(option => option.textContent)).toEqual(['Years since first measurement', 'Days since first measurement', 'Calendar date', 'Age'])
+    expect([...axis.options].map(option => option.textContent)).toEqual(['Years since first measurement', 'Days since first measurement', 'Calendar date', 'Age', 'Years since event'])
     expect(axis).toHaveValue('baseline')
     fireEvent.change(axis, { target: { value: 'baselineDays' } })
     expect(within(chart()).getByText('Days since first measurement of this parameter')).toBeInTheDocument()
@@ -359,7 +359,7 @@ describe('Rolling OLS windows (K18)', () => {
     const workbook = (mode: 'rolling' | 'global') => XLSX.read(workspaceWorkbookBytes({ data, parameterKeys: [CREA.key], patientIds: ['R'], patientId: 'R',
       cohortRows: buildCohortRows(rows, ['R'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode }]) }), { type: 'array' })
     const rolling = workbook('rolling')
-    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics'])
+    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
     const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(rolling.Sheets.rolling_windows)
     expect(records).toHaveLength(5)
     expect(Object.keys(records[0])).toEqual(['PatientID', 'Parameter', 'Unit', 'window', 'window_start', 'window_end', 'first_date', 'last_date', 'n', 'slope'])

@@ -113,6 +113,8 @@ describe('about sheet: provenance and personal data', () => {
     expect(about[0]).toBe('Lab Trajectory Explorer export')
     expect(about[9]).toMatch(/^endpoint_percent_change is the total eGFR change/)
     expect(about[16]).toMatch(/^Measurements marked < or > are bounds/)
-    expect(about.slice(-5).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
+    // Appended on 2026-11-22 (issue #64) after the provenance rows.
+    expect(about.at(-1)).toMatch(/^anchor_comparison lists the before\/after comparison/)
+    expect(about.slice(-6, -1).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
   })
 })

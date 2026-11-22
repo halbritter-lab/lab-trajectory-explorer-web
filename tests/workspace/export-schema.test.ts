@@ -36,7 +36,7 @@ function groupedFixture() {
 describe('cohort workbook schema', () => {
   it('pins the sheets and the columns of every sheet', () => {
     const workbook = read(workspaceWorkbookBytes(exportFixture()))
-    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics'])
+    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
     const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day']
     expect(header(workbook, 'measurements')).toEqual(measurement)
     expect(header(workbook, 'raw_measurements')).toEqual(measurement)
@@ -46,7 +46,7 @@ describe('cohort workbook schema', () => {
     expect(header(workbook, 'patient_attributes')).toEqual(['PatientID', 'group'])
     expect(header(workbook, 'demographics')).toEqual(['PatientID', 'baseline_age', 'birth_anchor', 'age_estimated', 'manual_override', 'warnings'])
     expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
-    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by'])
+    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison'])
     expect(header(workbook, 'about')).toEqual(['note'])
     expect(header(workbook, 'columns')).toEqual(['column', 'meaning', 'unit', 'empty_when'])
     expect(header(read(workspaceWorkbookBytes({ ...exportFixture(), patientId: '001-A' })), 'slopes')).toEqual(COHORT_HEADER)
