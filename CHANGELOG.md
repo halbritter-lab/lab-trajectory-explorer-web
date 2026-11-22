@@ -5,6 +5,24 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (creatinine source per patient, issue #65, decided 2026-11-21)
+
+- **The eGFR creatinine source is chosen per patient.** A patient with values
+  in the selected *Creatinine source* uses it as before; a patient without
+  any serum creatinine in mg/dl now uses their own µmol/l series (÷ 88.42)
+  instead of getting no eGFR. Series are still not merged. Values move: demo
+  data, CKD-EPI 2021, 27 of 28 patients have a computed eGFR (26 before;
+  patient 10 gains seven values from 94.3 to 58.0), and the golden fixture
+  `egfr.json` gains the same seven rows for its patient 10; no earlier value
+  changes. A saved workspace is derived again on load with the same stored
+  source, so such patients gain values there too. Patients with mg/dl
+  creatinine under another name only, with several µmol/l series, or under a
+  selected µmol/l source get no fallback (OD-36); the Data page counts them
+  and their empty eGFR cell names the case. The `demographics` sheet gains
+  `egfr_source_parameter` and `egfr_source_unit` at its end, the series each
+  patient's eGFR was computed from, and the `about` sheet a note on them.
+  AKI windows of the computed eGFR column come from that same series.
+
 ### Changed (open points of the persona review, decided 2026-11-22)
 
 - Review of the combined branch (2026-11-22): a before/after side fitted

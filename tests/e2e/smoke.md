@@ -330,6 +330,10 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
 6. Export a cohort of several hundred patients: "Exporting …" appears beside
    the button until the download starts.
 
+Step 4 re-checked 2026-11-22 on branch `wp/65-creatinine-source-per-patient`
+by `tests/e2e/table-screening.e2e.ts` only (patient 5 note, patient 10 with
+values); the Data page sentence and the export columns are covered by unit
+tests, not yet clicked through.
 Verified 2026-11-21 against the production build in Chromium
 (`tests/e2e/table-screening.e2e.ts`, seven checks, and scripted walkthroughs
 with the demo and an 800-patient review dataset): steps 1 to 6. With 800

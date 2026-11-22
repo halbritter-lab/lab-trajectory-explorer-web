@@ -608,7 +608,9 @@ Owner decisions after the simulated-user case studies.
   lines, display). No numeric rule changes: a restored setting gives the same
   result as choosing it again.
 - **Several creatinine series are not merged for eGFR** for now; an explicit
-  choice by the user is tracked in issue #4.
+  choice by the user is tracked in issue #4. (Since 2026-11-21 the series is
+  chosen per patient, still without merging: see
+  [creatinine source per patient](#creatinine-source-per-patient-decided-2026-11-21-issue-65).)
 
 ## Decisions of 2026-11-17 (rapid-decline flag and interval note)
 
@@ -1528,6 +1530,76 @@ maintainer's approval):
   type and which files are requested." and, as a paragraph of its own, "The
   app does not pseudonymise: patient IDs are shown, kept and exported as
   imported."
+
+## Creatinine source per patient (decided 2026-11-21, issue #65)
+
+Owner decision of 2026-11-21: the creatinine source of a derived eGFR is
+chosen per patient. A patient with a row in the selected serum creatinine
+source in mg/dl uses it; a patient without serum creatinine in mg/dl uses
+their own µmol/l series, divided by 88.42. The source used is recorded per
+patient in the export. Series are still not merged (decision of 2026-11-16,
+"Several creatinine series are not merged for eGFR"): every patient's eGFR
+reads exactly one series. Before, one (name, unit) pair served the whole
+dataset, and a patient with creatinine in µmol/l only got no eGFR without a
+visible cause other than "no value in the creatinine source".
+
+Implemented with the option that changes least where the decision left
+room (OD-36):
+
+- **The setting keeps its meaning.** The *Creatinine source* of the Data
+  page (explicit or *Automatic*, resolved and stored on *Apply calculation*
+  as before) is the series every patient who has it uses. The µmol/l
+  fallback applies only when that pair is in mg/dl and only to a patient
+  without any eligible serum creatinine in mg/dl.
+- **No fallback to another mg/dl name.** A patient without the selected
+  pair but with serum creatinine in mg/dl under another name gets no eGFR,
+  as before; the µmol/l series is not used for that patient either, since
+  the patient has mg/dl values.
+- **Several µmol/l series.** The fallback is the patient's µmol/l series
+  under the selected pair's name; with no such series, the patient's only
+  µmol/l series. A patient with several µmol/l series and none under that
+  name gets no eGFR.
+- **A selected µmol/l pair has no fallback.** *Automatic* chooses µmol/l
+  only when the dataset has no mg/dl source; an explicit µmol/l choice is
+  kept for every patient, and mg/dl values of a patient without it are not
+  used.
+- **AKI.** The AKI windows of a computed eGFR column still come from the
+  creatinine series of the patient's eGFR (`sourceSeries`, decided
+  2026-11-05, issue #34), now that patient's own series.
+- **Saved workspaces.** A saved copy holds the imported rows and the
+  settings; the computed rows are derived again on load. Its stored source
+  pair keeps its meaning, so a patient with values in it keeps the same eGFR
+  values; a patient without serum creatinine in mg/dl gains the µmol/l
+  values on load. No settings are rewritten and no notice is shown.
+
+Values that move. Golden fixture `tests/goldens/egfr.json`, `appended`
+(CKD-EPI 2021, `tests/fixtures/test_labs.xlsx`, 11 patients): patient 10,
+whose creatinine is in µmol/l only, gains seven rows (94.3 to 58.0
+mL/min/1.73 m²); the 94 earlier rows are unchanged, and the patients with
+eGFR go from 9 to 10 (patient 5 has neither sex nor age). Example: 82 µmol/l
+÷ 88.42 = 0.927392 mg/dl, male, 60 years: 142 × (0.927392/0.9)^−1.2 ×
+0.9938^60 = 94.3. Demo workbook (`public/test_labs.xlsx`, 28 patients,
+CKD-EPI 2021, *Automatic* = `Kreatinin [mg/dl]`): patients with a computed
+eGFR go from 26 to 27; patient 10 gains its series, patient 5 still has
+none. Patient 2 has both units and keeps its mg/dl values; its µmol/l values
+are listed under "Not used for this eGFR". No other value moves.
+
+Export: the sheet `demographics` gains `egfr_source_parameter` and
+`egfr_source_unit` at its end (empty for a patient without a computed eGFR
+value); `source_parameter` and `source_unit` of `parameters` stay the
+selected source. Display: the Data page names the patients that use their
+µmol/l series and those left without eGFR by the two cases above, and the
+empty eGFR cell of a patient names the case. Methodology page (`Data.tsx`,
+*Units*): "The calculation reads one creatinine source: one test name with
+one unit." had become false and now reads "The calculation reads one
+creatinine series per patient: one test name with one unit. It is the
+selected creatinine source; a patient without any serum creatinine in mg/dl
+uses their own µmol/l series instead when the selected source is in mg/dl."
+This is the smallest factual correction; the wording is the maintainer's
+call.
+
+Details: [source selection](method-algorithms/egfr.md#source-selection) and
+[AKI input series](method-algorithms/aki.md#input-series-and-conversion).
 
 ## Approved requirements
 

@@ -86,7 +86,7 @@ owner decided all of them on the same day (see
 [method decisions](remaining-method-decisions.md)). Those settled since are
 listed under *Resolved decisions* below. Four remain, **OD-11, OD-21, OD-22
 and OD-29: to be changed after release 0.3.0.** Their behaviour is unchanged
-until then. OD-30, added on 2026-11-05 with the R reproduction export, was
+until then. OD-36 is open as well (below). OD-30, added on 2026-11-05 with the R reproduction export, was
 decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
 `u` that abbreviates "und" in creatinine names and was decided the same day.
 OD-31 is not used on `main`; the number is reserved by the deferred MCP
@@ -98,6 +98,9 @@ the owner resolved it on 2026-11-22 and the drafted wording (G1) is applied.
 OD-35 was added on 2026-11-22 with the review of the AKI recovery
 rule and resolved on the second review of the same day, on the owner's
 instruction of 2026-11-22 to resolve the open points.
+OD-36 was added on 2026-11-22 with the per-patient creatinine source of
+issue #65: the cases the owner decision of 2026-11-21 does not name are
+implemented with the option that changes least.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -105,6 +108,7 @@ instruction of 2026-11-22 to resolve the open points.
 | OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit. (The pinning of R package versions, the other half of this entry, was settled on 2026-11-22.) |
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+| OD-36 | [eGFR source selection](method-algorithms/egfr.md#source-selection) | A patient without the selected mg/dl source falls back to µmol/l only without any serum creatinine in mg/dl; mg/dl creatinine under another name, several µmol/l series without one under the selected name, and a selected µmol/l source give no fallback and no eGFR for that patient. |
 
 ### Resolved decisions
 
