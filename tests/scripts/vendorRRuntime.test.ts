@@ -1,7 +1,7 @@
 import { gzipSync } from 'node:zlib'
 import { describe, expect, it } from 'vitest'
 // @ts-expect-error -- plain JavaScript build script without type declarations
-import { packagesIndex, parseDescription, readFromTarGz, sha256, thirdPartyNotices, verifyBinaryPackage, verifyChecksum } from '../../scripts/vendor_r_runtime.mjs'
+import { packagesIndex, parseDescription, readFromTarGz, sha256, thirdPartyNotices, uncoveredLinkingTo, verifyBinaryPackage, verifyChecksum } from '../../scripts/vendor_r_runtime.mjs'
 import pins from '../../src/core/mixedModel/rRuntimePins.json'
 
 function tarGz(files: Record<string, string>): Buffer {
@@ -56,5 +56,19 @@ describe('vendor_r_runtime.mjs (K43)', () => {
     expect(notices).toContain(pins.packages.find(pkg => pkg.name === 'nloptr')!.sourceNote)
     expect(notices).toContain('https://github.com/astamm/nloptr/archive/5fd8ea7e4e93c71beea99fc125ee523e99cdf502.tar.gz')
     expect(notices).toContain('https://astamm.r-universe.dev/nloptr')
+  })
+
+  it('stops when code compiled into a pinned binary (LinkingTo) has no pinned source', () => {
+    const lme4Description = parseDescription('Package: lme4\nLinkingTo: Matrix (>= 1.5-0), Rcpp (>= 1.1.1-1.1), RcppEigen (>=\n        0.3.3.9.4)\n')
+    const descriptions = { lme4: lme4Description, minqa: { LinkingTo: 'Rcpp' }, boot: {} }
+    expect(uncoveredLinkingTo(descriptions, pins)).toEqual([])
+    expect(uncoveredLinkingTo(descriptions, { ...pins, linkedSources: [] })).toEqual(['lme4 links to RcppEigen'])
+  })
+
+  it('names RcppEigen and Eigen, compiled into lme4, with licence and served source', () => {
+    const notices = thirdPartyNotices(pins)
+    expect(notices).toContain('RcppEigen 0.3.4.0.2, compiled into lme4\n  Licence: GPL (>= 2) | file LICENSE\n  Contains: Eigen 3.4.0 (C++ template library, MPL-2.0)\n  Source: r-packages/src/contrib/RcppEigen_0.3.4.0.2.tar.gz')
+    expect(notices).toContain('does not record the RcppEigen version')
+    expect(notices).toContain('licenses/RcppEigen-COPYRIGHTS')
   })
 })

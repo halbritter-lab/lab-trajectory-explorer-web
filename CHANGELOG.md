@@ -26,10 +26,14 @@ interfaces are still evolving before 1.0.
   app.
 - The build runs `scripts/vendor_r_runtime.mjs`, which fetches the pinned
   files into `public/` (not in git) and stops on a checksum that differs. The
-  deployment grows from about 1.4 MB to about 80 MB and ships
+  deployment grows from about 1.4 MB to about 82 MB and ships
   `THIRD-PARTY-NOTICES.txt`, the licence texts and the packages' source
   packages (for nloptr 2.2.1.9000, which has no CRAN source package, the
   notices name the most likely GitHub commit and its r-universe build).
+  The notices also name RcppEigen 0.3.4.0.2 with Eigen 3.4.0 (MPL-2.0),
+  header-only code compiled into lme4, and its source package is served
+  too; the build stops when a pinned package links to a package whose
+  source is not pinned.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 

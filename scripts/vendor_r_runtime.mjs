@@ -4,7 +4,8 @@
 //
 //   public/webr/                                  webR runtime from the installed npm package `webr`
 //   public/r-packages/bin/emscripten/contrib/4.6/ webR binary packages + PACKAGES index
-//   public/r-packages/src/contrib/                the packages' CRAN source packages
+//   public/r-packages/src/contrib/                the packages' CRAN source packages, and those of
+//                                                 header-only packages compiled into them (LinkingTo)
 //   public/THIRD-PARTY-NOTICES.txt, public/licenses/
 //
 // Pins live in src/core/mixedModel/rRuntimePins.json. A file whose SHA-256
@@ -103,6 +104,20 @@ export function verifyBinaryPackage(buffer, pkg) {
   }
 }
 
+/** Package names in a DESCRIPTION dependency field, without version ranges. */
+export function dependencyNames(field) {
+  return (field ?? '').split(',').map(entry => entry.replace(/\(.*$/s, '').trim()).filter(Boolean)
+}
+
+/** LinkingTo entries of the pinned binaries whose source neither a pinned
+ * package nor a linked source covers. Code from such a package is compiled
+ * into the binary, so the notices would leave out part of its source. */
+export function uncoveredLinkingTo(descriptions, pins) {
+  const covered = new Set([...pins.packages, ...(pins.linkedSources ?? [])].map(pkg => pkg.name))
+  return Object.entries(descriptions).flatMap(([name, fields]) =>
+    dependencyNames(fields.LinkingTo).filter(dep => !covered.has(dep)).map(dep => `${name} links to ${dep}`))
+}
+
 async function download(urls, label) {
   const errors = []
   for (const url of urls) {
@@ -163,10 +178,32 @@ export function thirdPartyNotices(pins) {
     if (pkg.name === 'jsonlite') lines.push('  Copyright notice: licenses/jsonlite-LICENSE (with the MIT text in licenses/MIT)')
     lines.push('')
   }
+  const linked = pins.linkedSources ?? []
+  if (linked.length) {
+    lines.push(
+      'Compiled into the packages above (header-only C++ libraries named under',
+      'LinkingTo; not served as binary packages and not loaded at fit time). lme4',
+      'and minqa also compile in headers of Rcpp and Matrix, listed above.',
+      '',
+    )
+    for (const pkg of linked) {
+      lines.push(
+        `${pkg.name} ${pkg.version}, compiled into ${pkg.linkedInto.join(', ')}`,
+        `  Licence: ${pkg.license}`,
+        `  Contains: ${pkg.contains}`,
+        `  Source: r-packages/src/contrib/${pkg.name}_${pkg.version}.tar.gz (as on CRAN: https://cran.r-project.org/package=${pkg.name})`,
+        `  Version: ${pkg.versionNote}`,
+      )
+      if (pkg.name === 'RcppEigen') lines.push('  Per-file copyrights and licences, with the MPL-2.0 text: licenses/RcppEigen-COPYRIGHTS', '  (and licenses/RcppEigen-LICENSE, from the source package).')
+      lines.push('')
+    }
+  }
   lines.push(
     'Licence texts in licenses/: GPL-2, GPL-3, LGPL-3 (copied from R 4.6.0,',
     'share/licenses), MIT, jsonlite-LICENSE, Matrix-LICENCE (from the package',
-    'archives). "GPL (>= 2)" means version 2 of the GNU GPL or any later version.',
+    'archives), RcppEigen-LICENSE and RcppEigen-COPYRIGHTS (from the RcppEigen',
+    'source package; COPYRIGHTS holds the MPL-2.0 text). "GPL (>= 2)" means',
+    'version 2 of the GNU GPL or any later version.',
     '',
   )
   return lines.join('\n')
@@ -214,6 +251,9 @@ export async function vendorRRuntime({ root = ROOT, log = console.log } = {}) {
     const file = `${pkg.name}_${pkg.version}.tgz`
     binaries[pkg.name] = await fetchPinned(join(contribDir, file), [`${pins.binaryRepository}/${file}`], buffer => verifyBinaryPackage(buffer, pkg), file)
   }
+  const descriptions = Object.fromEntries(Object.entries(binaries).map(([name, buffer]) => [name, parseDescription(readFromTarGz(buffer, `${name}/DESCRIPTION`).toString('utf8'))]))
+  const uncovered = uncoveredLinkingTo(descriptions, pins)
+  if (uncovered.length) throw new Error(`Source of code compiled into a pinned package is not pinned (add it to linkedSources): ${uncovered.join('; ')}`)
   const pinnedFiles = new Set(pins.packages.map(pkg => `${pkg.name}_${pkg.version}.tgz`))
   for (const name of readdirSync(contribDir)) if (name.endsWith('.tgz') && !pinnedFiles.has(name)) rmSync(join(contribDir, name))
   const index = packagesIndex(pins.packages)
@@ -226,6 +266,11 @@ export async function vendorRRuntime({ root = ROOT, log = console.log } = {}) {
     const file = `${pkg.name}_${pkg.version}.tar.gz`
     await fetchPinned(join(sourceDir, file), [`${CRAN}/${file}`, `${CRAN}/Archive/${pkg.name}/${file}`], buffer => verifyChecksum(buffer, pkg.sourceSha256, file), file)
   }
+  const linkedArchives = {}
+  for (const pkg of pins.linkedSources ?? []) {
+    const file = `${pkg.name}_${pkg.version}.tar.gz`
+    linkedArchives[pkg.name] = await fetchPinned(join(sourceDir, file), [`${CRAN}/${file}`, `${CRAN}/Archive/${pkg.name}/${file}`], buffer => verifyChecksum(buffer, pkg.sourceSha256, file), file)
+  }
 
   // Notices and licence texts.
   const licenseDir = join(publicDir, 'licenses')
@@ -235,6 +280,10 @@ export async function vendorRRuntime({ root = ROOT, log = console.log } = {}) {
   writeFileSync(join(licenseDir, 'MIT'), MIT_TEXT)
   writeFileSync(join(licenseDir, 'jsonlite-LICENSE'), readFromTarGz(binaries.jsonlite, 'jsonlite/LICENSE'))
   writeFileSync(join(licenseDir, 'Matrix-LICENCE'), readFromTarGz(binaries.Matrix, 'Matrix/LICENCE'))
+  if (linkedArchives.RcppEigen) {
+    writeFileSync(join(licenseDir, 'RcppEigen-LICENSE'), readFromTarGz(linkedArchives.RcppEigen, 'RcppEigen/LICENSE'))
+    writeFileSync(join(licenseDir, 'RcppEigen-COPYRIGHTS'), readFromTarGz(linkedArchives.RcppEigen, 'RcppEigen/inst/COPYRIGHTS'))
+  }
   writeFileSync(join(publicDir, 'THIRD-PARTY-NOTICES.txt'), thirdPartyNotices(pins))
 
   const size = dir => listFiles(dir).reduce((sum, file) => sum + statSync(file).size, 0)

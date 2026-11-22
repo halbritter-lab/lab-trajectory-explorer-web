@@ -53,8 +53,8 @@ files already in place are checked, not downloaded again). Every file is
 checked against the SHA-256 in `src/core/mixedModel/rRuntimePins.json`; a
 difference stops the build. The build therefore needs network access to
 `repo.r-wasm.org` and `cran.r-project.org` unless `public/r-packages/` is
-already filled. The deployed site is about 80 MB, of which 47.7 MB runtime,
-17.4 MB package archives and 13.7 MB package sources. A static host must
+already filled. The deployed site is about 82 MB, of which 47.7 MB runtime,
+17.4 MB package archives and 15.5 MB package sources. A static host must
 serve the `.gz` files below `webr/` as they are, without
 `Content-Encoding: gzip`.
 

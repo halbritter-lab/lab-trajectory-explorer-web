@@ -948,6 +948,13 @@ Details of the implementation, chosen where the decision left them open
   They list each component with version, licence and source; the CRAN source
   package of every pinned package except nloptr is served under
   `r-packages/src/contrib/`.
+- Code compiled into a pinned binary from a package named under `LinkingTo`
+  counts as a component: RcppEigen 0.3.4.0.2, which brings Eigen 3.4.0
+  (MPL-2.0) into lme4, is named in the notices with its licence files, and
+  its CRAN source package is served next to the others. It is not installed
+  or loaded at fit time. The build stops when a pinned binary names a package
+  under `LinkingTo` whose source is not pinned (Rcpp and Matrix, which lme4
+  and minqa also link to, are pinned packages).
 - `packageVersions` keeps its first keys (`lme4`, `Matrix`, `jsonlite`, or
   `nlme`, `jsonlite`) in their order and appends the other loaded pinned
   packages in the order of the pin file, then `webr`.
@@ -961,7 +968,10 @@ binary, built on 2026-05-20, does not record its revision and CRAN has no such
 source package). The notices name the most likely source: commit `5fd8ea7e`
 of 2025-08-13, the head of nloptr's master branch from before the build until
 at least 2026-11-22, which r-universe also builds as
-`nloptr_2.2.1.9000.tar.gz`; the binary does not confirm it. Also not settled:
+`nloptr_2.2.1.9000.tar.gz`; the binary does not confirm it. Likewise the
+RcppEigen version lme4 was compiled with: the lme4 binary (built 2026-10-10)
+does not record it; 0.3.4.0.2 is the only version on CRAN since 2024-08-24
+and the one in webR's repository (built 2026-05-13). Also not settled:
 whether the R 4.6.0 and webR 0.6.0 sources should be mirrored next to the
 app instead of being named in the notices. Upstream may remove a pinned
 archive from `repo.r-wasm.org` once a newer version is built; the build then

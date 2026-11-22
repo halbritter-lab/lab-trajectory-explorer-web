@@ -6,7 +6,7 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
-const pins = JSON.parse(readFileSync(resolve(process.cwd(), 'src/core/mixedModel/rRuntimePins.json'), 'utf8')) as { packages: { name: string, version: string, license: string }[] }
+const pins = JSON.parse(readFileSync(resolve(process.cwd(), 'src/core/mixedModel/rRuntimePins.json'), 'utf8')) as { packages: { name: string, version: string, license: string }[], linkedSources: { name: string, version: string }[] }
 
 test('a real cohort model fit loads R only from the app\'s own address', async ({ page, context, baseURL }) => {
   test.skip(!process.env.CI, 'needs the production build with the vendored R runtime')
@@ -33,4 +33,9 @@ test('a real cohort model fit loads R only from the app\'s own address', async (
   const notices = await page.request.get('THIRD-PARTY-NOTICES.txt')
   expect(notices.ok()).toBe(true)
   for (const pkg of pins.packages) expect(await notices.text()).toContain(`${pkg.name} ${pkg.version}\n  Licence: ${pkg.license}`)
+  for (const pkg of pins.linkedSources) {
+    expect(await notices.text()).toContain(`${pkg.name} ${pkg.version}, compiled into`)
+    expect((await page.request.get(`r-packages/src/contrib/${pkg.name}_${pkg.version}.tar.gz`)).ok()).toBe(true)
+  }
+  expect((await page.request.get('licenses/RcppEigen-COPYRIGHTS')).ok()).toBe(true)
 })

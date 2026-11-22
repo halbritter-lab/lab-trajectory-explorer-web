@@ -736,9 +736,13 @@ with JavaScript switched off.
 
 1. `pnpm build`: the output starts with "R runtime vendored: webR 0.6.0
    (R 4.6.0) …, 13 packages …"; `dist/` holds `webr/`, `r-packages/`,
-   `THIRD-PARTY-NOTICES.txt` and `licenses/` (about 80 MB in all). Change one
+   `THIRD-PARTY-NOTICES.txt` and `licenses/` (about 82 MB in all). Change one
    checksum in `src/core/mixedModel/rRuntimePins.json`: the build stops with
-   "Checksum mismatch for …".
+   "Checksum mismatch for …". `THIRD-PARTY-NOTICES.txt` names RcppEigen
+   0.3.4.0.2 (Eigen 3.4.0, MPL-2.0) as compiled into lme4, and
+   `r-packages/src/contrib/RcppEigen_0.3.4.0.2.tar.gz` and
+   `licenses/RcppEigen-COPYRIGHTS` load. Remove `linkedSources` from the pin
+   file: the build stops with "… lme4 links to RcppEigen".
 2. Serve `dist/` under a subpath (for example `/lab/explorer/`), record every
    request, load the demo, open Cohort models and fit the whole cohort:
    "Fitted", −4.71 [−6.63, −2.78] per year, 73.15 [67.41, 78.88]; all
