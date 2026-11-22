@@ -15,6 +15,9 @@ import { workspaceSpecs, type WorkspaceData } from './workspace-data'
 import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
 import { akiEpisodeExportRows, akiEpisodeRows } from './aki-episodes'
 import { PERI_EVENT_SHEET_HEADER, periEventExportRows } from './peri-event'
+import { egfrFormulaSwitches, fitCrossesFormulaSwitch } from '../core/domains/nephrology/egfr/series'
+import { computedEgfrKey } from './egfr-gaps'
+import { formulaSwitchText } from './egfr-switch'
 import { periEventCreatinineRows, type PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
@@ -82,7 +85,7 @@ const seriesIdentity = (name: string | null, unit: string | null) => JSON.string
  * the imported lab row: filled in `raw_measurements` only, so that a
  * re-import keeps an exact birth date; the resolved date of the analysis is
  * `birth_anchor` in `demographics`. */
-export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics','loinc','patient_birth_date','time_of_day'] as const
+export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics','loinc','patient_birth_date','time_of_day','egfr_equation','egfr_height_cm'] as const
 export const EVENTS_SHEET_HEADER = ['PatientID','type','date','title','description','endDate','intent','warning'] as const
 export const AKI_EPISODES_SHEET_HEADER = ['PatientID','creatinine_parameter','creatinine_unit','stage','onset_date','peak_date','peak_value_mg_dl','baseline_date','baseline_value_mg_dl','criterion','end_date','dialysis_start','ended_by_gap','last_value_date'] as const
 export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings','egfr_source_parameter','egfr_source_unit'] as const
@@ -188,6 +191,9 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       patient_birth_date:raw ? utcDateOrBlank(row.patientBirthDate ?? null) : '',
       // Appended 2026-11-22: the time of day of the lab date, empty when the file gave none.
       time_of_day:exportTimeOfDay(row.labTime),
+      // Appended 2026-11-22 (issue #66): the equation of a computed eGFR value, and the height it used.
+      egfr_equation:!raw && row.egfrFormula ? row.egfrFormula : '',
+      egfr_height_cm:!raw && row.egfrHeightCm !== undefined ? row.egfrHeightCm : null,
     }))
   })
   const attrs = Object.fromEntries(ids.map(id => [patientIdKey(id),data.patientAttributes[patientIdKey(id)] ?? {}]))
@@ -202,10 +208,17 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   for (const row of data.rows) if (row.sourceSeries && !egfrSourceByPatient.has(patientIdKey(row.patientId))) egfrSourceByPatient.set(patientIdKey(row.patientId),row.sourceSeries)
   // Sex, baseline age and the group follow the columns of earlier releases;
   // `group` is always last and empty without grouping (decided 2026-11-21).
+  // A slope of the computed eGFR fitted across a change of its equation (issue #66).
+  const egfrKey = computedEgfrKey(data)
+  const formulaSwitches = egfrFormulaSwitches(data.rows)
   const summaries = cohortExportRecords(prepared,cellIndex => columnSettings(requestedKeys[cellIndex]),conflictKeys).map((record,index) => {
-    const {group,...fields} = cohortSheetRecord(record,prepared[Math.floor(index / selectedParameters.length)].cells[index % selectedParameters.length])
+    const cell = prepared[Math.floor(index / selectedParameters.length)].cells[index % selectedParameters.length]
+    const {group,...fields} = cohortSheetRecord(record,cell)
     const patient = patientById.get(record.PatientID)
-    return cohortSheetRow({...fields,sex:patient?.attributes.sex ?? '',baseline_age:patient?.baselineAge ?? null,group:group ?? ''})
+    const crossed = selectedParameters[index % selectedParameters.length].key === egfrKey && Number.isFinite(cell.slope)
+      ? fitCrossesFormulaSwitch(formulaSwitches.get(patientIdKey(record.PatientID)),cell.firstFittedDate,cell.lastFittedDate) : []
+    return cohortSheetRow({...fields,sex:patient?.attributes.sex ?? '',baseline_age:patient?.baselineAge ?? null,
+      egfr_formula_switch:crossed.map(formulaSwitchText).join('; '),group:group ?? ''})
   })
   const idByKey = new Map(ids.map(id => [patientIdKey(id),id]))
   // Each column's module settings, one export column per configurable field.
@@ -270,7 +283,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:`Fixed parameters that fit_config does not carry: Segmented OLS (slope_mode gap-split) starts a new segment where two consecutive fitted points are more than ${SEGMENT_GAP_DAYS} days apart and fits a segment of at least ${SEGMENT_MIN_POINTS} points; slope, intercept, r2 and the bounds are those of the global OLS fit across all segments. Rolling OLS: see rolling_window_days and rolling_step_days in the result sheet.`},
       {note:`This file contains personal data and details of its origin. The patient IDs are written as imported, not pseudonymised: in column PatientID of every sheet and in settings (patient_ids). The measurement sheets hold dated values, sex and age, and raw_measurements the birth date where the imported lab rows carried one (patient_birth_date); demographics holds birth_anchor, a birth date (estimated from the stated age where age_estimated is true); events and patient_attributes hold the imported texts and attributes. settings names the imported file (source_file). Check these fields before passing the file on.`},
       {note:'patient_birth_date follows loinc and precedes time_of_day in the measurement sheets. In raw_measurements it holds the birth date of the imported lab row, so that loading this file again keeps an exact birth date; where the import had no birth date it is empty, and patient_age_at_lab is then the stated age. In measurements it is empty: the birth date used by the analysis is birth_anchor in demographics.'},
-      {note:'Date holds the calendar day and time_of_day, the last column of the measurement sheets, the time of day of the imported lab date (HH:MM:SS), empty where the file gave none; a time of 00:00 counts as none. Derived values have no time. Where the imported file gave times, they ordered several serum creatinine values of one day in AKI detection. Loading this file again reads time_of_day from raw_measurements, so the AKI episodes are the same as in this export when Recovery between episodes on the Data page has the value aki.recoveryHours of analysis_settings in the settings sheet: loading a file does not read the settings and starts at 48 hours. input_data_id covers the time of day of the rows that have one (until 2026-11-22 the time was in no sheet).'},
+      {note:'egfr_equation, after time_of_day, and egfr_height_cm, the last column of the measurement sheets (both since 2026-11-22), name the equation of each computed eGFR value (ckd-epi-2021, ckd-epi-2009, mdrd-4, ekfc-2021, ckid-u25 or schwartz-bedside) and, for CKiD U25 and bedside Schwartz, the height in cm it used: measured on the creatinine date or interpolated between two heights at most 90 days away, never extrapolated. Both are empty for imported values and in raw_measurements. One computed series can mix equations (by default CKiD U25 with a height, otherwise EKFC, from 2 to 17 years, and the adult formula from 18); egfr_formula_switch in the cohort sheet names each change of equation that a fitted slope spans.'},
+      {note:'Date holds the calendar day and time_of_day, after patient_birth_date in the measurement sheets, the time of day of the imported lab date (HH:MM:SS), empty where the file gave none; a time of 00:00 counts as none. Derived values have no time. Where the imported file gave times, they ordered several serum creatinine values of one day in AKI detection. Loading this file again reads time_of_day from raw_measurements, so the AKI episodes are the same as in this export when Recovery between episodes on the Data page has the value aki.recoveryHours of analysis_settings in the settings sheet: loading a file does not read the settings and starts at 48 hours. input_data_id covers the time of day of the rows that have one (until 2026-11-22 the time was in no sheet).'},
       {note:`app_version: ${APP_VERSION}`},
       {note:`exported_at: ${exportedAt.toISOString()}`},
       {note:`export_id: ${exportId}`},

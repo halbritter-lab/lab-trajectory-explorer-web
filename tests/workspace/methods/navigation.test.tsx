@@ -62,7 +62,7 @@ describe('help topics', () => {
   it('keeps important limitations outside closed calculation details', () => {
     window.history.replaceState(null, '', '/#methods/data')
     render(<Methodology />)
-    const limitation = screen.getByText(/All computed equations are/)
+    const limitation = screen.getByText(/The four equations above are used from 18 years/)
     expect(limitation).toBeVisible()
     expect(limitation.closest('details')).toBeNull()
     fireEvent.click(screen.getByText('Calculation details'))

@@ -162,11 +162,41 @@ it('shows the sex-code calculation note for any adult formula using a diverse ro
     expect(screen.getByText(note)).toBeInTheDocument()
   }
 })
-it('explains why pediatric source rows are excluded from adult eGFR preview', () => {
+it('explains why pediatric source rows are excluded when the under-18 rule is None', () => {
   useAppStore.getState().replaceDataset({ rows: [{ ...row, patientSex: 'm', patientAgeAtLab: 17 }] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  // Default since 2026-11-22 (issue #66): EKFC without a height.
+  expect(screen.getByText('1 computed value in preview')).toBeInTheDocument()
+  expect(screen.getByTestId('egfr-heights')).toHaveTextContent('No height series found, so CKiD U25 and bedside Schwartz are not used.')
+  fireEvent.change(screen.getByLabelText('Under 18 years'), { target: { value: 'off' } })
   expect(screen.getByText('1: Age under 18 — adult eGFR formulas do not apply')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('Under 18 years'), { target: { value: 'schwartz-bedside' } })
+  expect(screen.getByText('1: Height missing — bedside Schwartz needs a height in cm')).toBeInTheDocument()
+})
+it('counts the patients whose eGFR equation changes and applies the under-18 rule (issue #66)', () => {
+  const day = (year: number, month: number) => new Date(Date.UTC(year, month, 1))
+  const rows = [
+    // Patient A: 17 with a height (CKiD U25), then 18 (CKD-EPI 2021).
+    { ...row, patientId: 'A', labDatum: day(2020, 0), patientSex: 'm' as const, patientAgeAtLab: 17, wert: '0,9', wertNum: 0.9 },
+    { ...row, patientId: 'A', labDatum: day(2020, 0), bezeichnung: 'Größe', einheit: 'cm', wert: '176', wertNum: 176 },
+    { ...row, patientId: 'A', labDatum: day(2021, 0), patientSex: 'm' as const, patientAgeAtLab: 18, wert: '0,9', wertNum: 0.9 },
+    // Patient B: an adult only.
+    { ...row, patientId: 'B', labDatum: day(2020, 0), patientSex: 'w' as const, patientAgeAtLab: 50 },
+  ]
+  useAppStore.getState().replaceDataset({ rows })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  expect(screen.getByTestId('egfr-row-formulas')).toHaveTextContent('Equations in this preview: CKiD U25 1 value; CKD-EPI 2021 2 values.')
+  expect(screen.getByTestId('egfr-formula-switches')).toHaveTextContent('1 patient whose eGFR equation changes during follow-up (CKiD U25 → CKD-EPI 2021)')
+  expect(screen.getByTestId('egfr-heights')).toHaveTextContent('Height: 1 measurement day of 1 patient.')
+  fireEvent.change(screen.getByLabelText('Under 18 years'), { target: { value: 'schwartz-bedside' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
+  expect(useAppStore.getState().analysisSettings.egfr).toEqual({ formula: 'ckd-epi-2021', source: ['Kreatinin', 'mg/dl'], paediatric: 'schwartz-bedside' })
+  // The full-age formula ignores the under-18 rule.
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckid-u25-ekfc' } })
+  expect(screen.getByLabelText('Under 18 years')).toBeDisabled()
+  expect(screen.getByTestId('egfr-row-formulas')).toHaveTextContent('CKiD U25 1 value; EKFC 2021 2 values')
 })
 it('shows a bounded set of import diagnostics with access to remaining findings', () => {
   useAppStore.getState().replaceDataset({ rows: [{ ...row, patientSex: 'm', patientAgeAtLab: 50 }] })

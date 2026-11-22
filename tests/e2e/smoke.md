@@ -876,7 +876,7 @@ it does not claim research, clinical or representative-user validation.
    time_since_baseline values …" (checked in Chromium with a real R fit on
    2026-11-21; not automated).
 5a. Demo data, Trajectories, *Export cohort (XLSX)* with and without "Group
-   by": both files have the same 80 columns in `cohort` with `group` last,
+   by": both files have the same 81 columns in `cohort` with `group` last (80 before 2026-11-22),
    `PatientID` in every sheet, a sheet `columns` after `about` (followed by
    `rolling_windows` and `import_diagnostics`), and `app_version`,
    `exported_at`, `export_id` and `input_data_id` in `about`. Import the
@@ -1070,3 +1070,36 @@ root by `tests/e2e/self-hosted-r.e2e.ts` (CI, `pnpm preview`) and under
 Firefox and WebKit, GitHub Pages itself (how it serves the `.gz` and `.tgz`
 files), and the checksum failure inside the build (covered by unit tests of
 the script).
+
+## eGFR for children and adolescents (2026-11-22, issue #66)
+
+1. Import a CSV with a boy (`KID`): Kreatinin mg/dl 0.8, 0.85, 0.9, 0.95 on
+   2020-01-01 to 2023-01-01 at 16 to 19 years, and Größe cm 170 and 175 on
+   the first two dates; and an adult. Data → eGFR formula CKD-EPI 2021:
+   "Under 18 years" reads "CKiD U25 with height, otherwise EKFC"; the preview
+   names "Height: 2 measurement days of 1 patient", "Equations in this
+   preview: CKiD U25 2 values; CKD-EPI 2021 4 values." and "1 patient whose
+   eGFR equation changes during follow-up (CKiD U25 → CKD-EPI 2021)".
+2. "Under 18 years" → "None": "2: Age under 18 — adult eGFR formulas do not
+   apply"; → "Bedside Schwartz": the two values become 87.8 (0.413 × 170 /
+   0.8) and 85.0 (0.413 × 175 / 0.85). Formula "CKiD U25 / EKFC (full age
+   range)": the under-18 setting is disabled, the series is called
+   `eGFR (CKiD U25 / EKFC, computed)`, and the values at 18 and 19 become
+   EKFC 96.3 and 93.6.
+3. Apply CKD-EPI 2021 with the default rule, Trajectories → trend on for the
+   computed eGFR → open KID: a dotted purple line on 2022-01-01 with the
+   legend "Dotted vertical line: the eGFR equation changes (CKiD U25 →
+   CKD-EPI 2021 on 2022-01-01)", and under the slope "Formula change in fit".
+   Cohort export: `egfr_formula_switch` reads "CKiD U25 → CKD-EPI 2021 on
+   2022-01-01" for KID and is empty for the adult; measurements carry
+   `egfr_equation` ckid-u25, ckid-u25, ckd-epi-2021, ckd-epi-2021 and
+   `egfr_height_cm` 170, 175.
+4. A demo-workbook analysis: no value changes (no patient under 18).
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 and 3
+by `tests/e2e/paediatric-egfr.e2e.ts`; step 2 in part by the unit tests
+(`tests/workspace/data-ui.test.tsx` for the reasons and the disabled
+setting, `tests/core/egfr/paediatric.test.ts` for bedside Schwartz; the
+Schwartz and full-age values on this page were not clicked through), step 4
+by `tests/parity/egfr.parity.test.ts`.
+Not verified: narrow-viewport layout of the new select, Firefox and WebKit.

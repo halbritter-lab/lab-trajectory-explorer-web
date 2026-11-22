@@ -19,6 +19,28 @@ interfaces are still evolving before 1.0.
   the source of the two-level rapid-decline flag and the creatinine source
   per patient.
 
+### Changed (eGFR for children and adolescents, decided 2026-11-21/22, issue #66)
+
+- **eGFR is computed from age 2.** Under an adult formula, rows of 2 to 17
+  years now get CKiD U25 (Pierce 2021) where a height is available and EKFC
+  2021 otherwise (setting "Under 18 years", default); bedside Schwartz
+  (Schwartz 2009) is an option for comparison, and "None" keeps the earlier
+  rule. Adults keep their values unless the new full-age formula
+  "CKiD U25 / EKFC" is chosen (CKiD U25 with height up to 25 years, EKFC
+  otherwise). Under 2 years no eGFR, with the reason named. Numeric output
+  changes for minors only: a boy of 17 with 0.9 mg/dl and 176 cm had no value
+  and now has 95.0 (CKiD U25), without a height 82.3 at 1.0 mg/dl (EKFC). The
+  fixture `tests/goldens/egfr.json` moves for EKFC at 17 years (null →
+  82.30714); `tests/goldens/egfr_paediatric.json` adds hand-checked cases.
+- **Height** is read from a lab series named Größe, Körpergröße or height in
+  cm (or LOINC 8302-2, 8306-3, 8308-9): the same day, or interpolated between
+  two heights both at most 90 days away, never extrapolated.
+- **Formula changes** are counted on the Data page, drawn as a dotted line in
+  the patient chart, and a slope fitted across one carries the notice
+  "Formula change in fit" and the new cohort column `egfr_formula_switch`
+  (before `group`). The measurement sheets gain `egfr_equation` and
+  `egfr_height_cm` as last columns. Open decisions OD-65 to OD-69.
+
 ### Changed (OD-11 and OD-21, decided 2026-10-07, implemented 2026-11-22, issue #4)
 
 - **OLS 95 % intervals above 40 degrees of freedom use the exact Student-t

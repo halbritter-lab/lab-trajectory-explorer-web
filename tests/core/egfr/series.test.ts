@@ -79,10 +79,18 @@ describe('appendComputedEgfr', () => {
     expect(appendComputedEgfr(rows, { formula: 'ckd-epi-2021' })).toBe(rows)
   })
 
-  it('drops pediatric rows (age < 18) silently', () => {
+  it('gives no value under 18 with the under-18 rule off (the rule before issue #66)', () => {
     const rows = [row({ patientAgeAtLab: 10 })]
-    const out = appendComputedEgfr(rows, { formula: 'ckd-epi-2021' })
+    const out = appendComputedEgfr(rows, { formula: 'ckd-epi-2021', paediatric: 'off' })
     expect(out.filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))).toHaveLength(0)
+  })
+
+  it('uses EKFC under 18 without a height by default, and records the equation (issue #66)', () => {
+    const out = appendComputedEgfr([row({ patientAgeAtLab: 12, wertNum: 0.6, wert: '0,6' }), row({ patientAgeAtLab: 50, labDatum: new Date('2058-01-01') })], { formula: 'ckd-epi-2021' })
+    const computed = out.filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))
+    // EKFC: Q(12, m) = 54.4067/88.4 = 0.615461; 0.6/0.615461 = 0.974880 < 1: 107.3 × 0.974880^−0.322 = 108.18
+    expect(computed.map((r) => [r.wertNum, r.egfrFormula])).toEqual([[108.2, 'ekfc-2021'], [91.7, 'ckd-epi-2021']])
+    expect(computed[0].bezeichnung).toBe('eGFR (CKD-EPI 2021, computed)')
   })
 
   it('converts a µmol/l source to mg/dl before computing (same eGFR as the mg/dl input)', () => {

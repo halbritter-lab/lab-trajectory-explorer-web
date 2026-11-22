@@ -20,6 +20,12 @@ import { modelPreparationKey } from './workspace-analysis'
 import { currentWorkspaceModels, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import { overlayModules } from '../core/analysis/registry'
 import { ANCHOR_WINDOW_REASON, anchorRuleLabel } from '../core/cohort/anchorComparison'
+import { egfrFormulaSwitches, type EgfrFormulaSwitch } from '../core/domains/nephrology/egfr/series'
+import { computedEgfrKey } from './egfr-gaps'
+import { FORMULA_SWITCH_REASON, formulaSwitchText } from './egfr-switch'
+
+/** Colour of the line that marks a change of the eGFR equation (issue #66). */
+const FORMULA_SWITCH_COLOR = '#6941c6'
 
 /** `baseline` and `baselineDays` are the same elapsed-time axis in years or in
  * days. `event` counts years from the anchor event of the column's
@@ -174,6 +180,8 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       }
     }
     for (const rows of sourceRows.values()) rows.sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
+    // Changes of the eGFR equation, drawn on the computed eGFR only (issue #66).
+    const switches: Map<string, EgfrFormulaSwitch[]> = parameter.key === computedEgfrKey(data) ? egfrFormulaSwitches(data.rows) : new Map()
     const eventsByPatient = new Map<string, ClinicalEvent[]>()
     for (const event of data.events) {
       const bucket = eventsByPatient.get(patientIdKey(event.patientId))
@@ -224,7 +232,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         const start = xValue(band.start), end = xValue(band.end)
         return start === null || end === null || !Number.isFinite(start) || !Number.isFinite(end) ? [] : [{ moduleId: band.moduleId, start, end, title: band.title, legend: band.legend, note: band.note }]
       })
-      return { row, cell, group, points, markers, bands, events, xValue, ageEstimated: patient?.ageEstimated ?? anchor === undefined }
+      const formulaSwitches = (switches.get(patientIdKey(row.patientId)) ?? []).flatMap(change => {
+        const position = xValue(change.date)
+        return position === null || !Number.isFinite(position) ? [] : [{ x: position, title: `Patient ${row.patientId}: eGFR equation ${formulaSwitchText(change)}` }]
+      })
+      return { row, cell, group, points, markers, bands, events, xValue, formulaSwitches, ageEstimated: patient?.ageEstimated ?? anchor === undefined }
     })
   }, [data.rows, data.patients, data.events, cohortRows, parameter, parameterIndex, axis, groupBy, logScale])
   const groups = [...new Set(prepared.map(p => p.group))].sort()
@@ -390,6 +402,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const markerLabels = layoutMarkerLabels(detailSeries.flatMap(series => series.markers.filter(marker => display[marker.moduleId]).map(marker => ({
     x: x(marker.x), y: (marker.value === null ? MARKER_AXIS_Y : y(marker.value)) - 10, label: marker.label, color: OVERLAY_COLORS[marker.moduleId],
   }))), { left: PLOT.left, right: PLOT.right, top: 10 }, display.points ? detailSeries.flatMap(series => series.points.map(point => ({ x: x(point.x), y: y(point.value) }))) : [])
+  const formulaSwitchCount = detailSeries.reduce((sum, series) => sum + series.formulaSwitches.length, 0)
   const intervalEvents = display.events ? detailSeries.flatMap(series => series.events.filter(event => event.endDate !== null)).length : 0
   const rollingLines = visible.some(series => series.cell.mode === 'rolling')
 
@@ -413,6 +426,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       {xTicks.map((v, i) => <text key={v} data-testid="x-tick" x={x(v)} y="265" textAnchor={axis !== 'calendar' ? 'middle' : x(v) < PLOT.left + 36 ? 'start' : x(v) > PLOT.right - 36 ? 'end' : 'middle'}>{axis === 'calendar' ? formatWorkspaceDate(new Date(v)) : xTickLabels[i]}</text>)}
       <text x="345" y="294" textAnchor="middle">{axisLabel}</text>
       {shownOverlays.map(module => <g key={module.id} clipPath={`url(#${clip})`} className={`wt-${module.id}-bands`}>{detailSeries.flatMap(series => series.bands.filter(band => band.moduleId === module.id).map((band, i) => <rect key={`${String(series.row.patientId)}-${i}`} data-testid={`${module.id}-band`} x={x(band.start)} width={Math.max(1, x(band.end) - x(band.start))} y="20" height="230" fill={module.presentation.color} fillOpacity={.1}><title>{band.title}</title></rect>))}</g>)}
+      <g clipPath={`url(#${clip})`}>{detailSeries.flatMap(series => series.formulaSwitches.map((change, i) => <line key={`${String(series.row.patientId)}-switch-${i}`} data-testid="egfr-formula-switch" x1={x(change.x)} x2={x(change.x)} y1={PLOT.top} y2={PLOT.bottom} stroke={FORMULA_SWITCH_COLOR} strokeDasharray="1 3" strokeWidth={2}><title>{change.title}</title></line>))}</g>
       {/* Pointer and focus changes re-render only the two trajectories whose
           emphasis changes: the others are memoised and dimmed as one layer. */}
       <g className="wt-series-layer" opacity={hasHighlight ? density === 0 ? .25 : .4 : undefined}>
@@ -447,6 +461,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     </svg>}
     {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length}{visibleEvents.length < rowEventCount ? ` of ${rowEventCount}` : ''})</summary>{visibleEvents.length < rowEventCount && <p className="wt-muted">{rowEventCount - visibleEvents.length} {rowEventCount - visibleEvents.length === 1 ? 'event belongs to a patient' : 'events belong to patients'} not plotted here (no plotted value of this parameter, or group hidden).</p>}{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId}, {formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
     {display.events && visibleEvents.length > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><line x1="6" x2="6" y1="0" y2="12" stroke={EVENT_COLOR} strokeDasharray="2 3" strokeWidth="1.5" /></svg> Dashed vertical lines: clinical events of {cohortRows.length === 1 ? 'this patient' : 'the plotted patients'}; “Inspect events” lists them.{intervalEvents > 0 && <>{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${EVENT_COLOR}1f`, borderColor: `${EVENT_COLOR}40` }} /> Shaded: an event with an end date, from its start to its end{cohortRows.length > 1 ? ', shown for the highlighted patient' : ''}.</>}</p>}
+    {formulaSwitchCount > 0 && <p className="wt-muted wt-plot-key" data-testid="egfr-switch-legend"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><line x1="6" x2="6" y1="0" y2="12" stroke={FORMULA_SWITCH_COLOR} strokeDasharray="1 3" strokeWidth="2" /></svg> Dotted vertical {formulaSwitchCount === 1 ? 'line' : 'lines'}: the eGFR equation changes ({detailSeries.flatMap(series => series.formulaSwitches.map(change => change.title.replace(/^Patient [^:]*: eGFR equation /, cohortRows.length > 1 ? `patient ${series.row.patientId}, ` : ''))).join('; ')}). {FORMULA_SWITCH_REASON.replace('this slope', 'a slope fitted across it')}</p>}
     {akiSkippedCount > 0 && <p className="wt-muted" data-testid="aki-skipped-note">{countLabel(akiSkippedCount, 'creatinine value')} measured under dialysis {akiSkippedCount === 1 ? 'is' : 'are'} {NOT_USED_FOR_AKI_DETECTION.replace(' (dialysis)', '')}; the point tooltips{cohortRows.length === 1 ? ' and the measurement table' : ''} name {akiSkippedCount === 1 ? 'it' : 'them'}. This is separate from any exclusion from the fit.</p>}
     {logScale && <p className="wt-muted" data-testid="log-axis-note">Logarithmic value axis: equal distances are equal ratios.{showFit && fitModel !== 'none' ? ' The dashed lines are fitted to the natural logarithm of the values and drawn back in the unit of the parameter.' : ''}{nonPositive > 0 ? ` ${countLabel(nonPositive, 'value')} of zero or less ${nonPositive === 1 ? 'is' : 'are'} not drawn and left out of the doubling time.` : ''}{showCohortMixedModelLine ? ' The cohort mixed-model line is not drawn on a logarithmic axis.' : ''}</p>}
     {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : logScale ? rollingLines ? 'Dashed: Rolling OLS window lines of the log values; the doubling time comes from the global OLS slope of the log values.' : `Dashed: individual ${modelLabel} lines of the log values.` : rollingLines ? 'Dashed: Rolling OLS window lines from the prepared analyses; each line names its window.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}

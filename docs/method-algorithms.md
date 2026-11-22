@@ -91,6 +91,7 @@ it; the way the tool applies it is its own.
 | Rule | What is from a source, and what is this tool's | Section |
 | --- | --- | --- |
 | Rapid eGFR decline flag, two levels | The default threshold of 5 mL/min/1.73 m² per year goes back to the KDIGO 2012 CKD guideline; KDIGO 2024 gives no numeric threshold for rapid progression. The threshold is a configurable convention. Applying it to one fitted slope without testing that the decline is sustained, and the two levels "rapid ↓" (whole 95 % interval below −threshold) and "rapid ↓?" (only the slope below it), are this tool's rules (decided 2026-11-21). | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
+| Height for CKiD U25 and bedside Schwartz | The equations (Pierce 2021, Schwartz 2009) need a height; how a creatinine value gets one is this tool's rule: the height of the same day, or a linear interpolation between two heights both at most 90 days away (30 days under 2 years), never extrapolated (owner decision `height`, 2026-11-22; no source sets the gap). | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 | Slope reliability rule | Fewer than three fitted dates or under 365 days of fitted span: a clinical rule of thumb, not a published cut-off. | [Reliability rule](method-algorithms/slope-quality.md#reliability-rule) |
 
 ## Open decisions
@@ -124,7 +125,17 @@ implemented with the option that changes least. OD-38 was added on
 of its decision and resolved the same day: the decision prescribes calendar
 days.
 
-No decision is open at present.
+OD-65 to OD-69 were added on 2026-11-22 with the equations for children and
+adolescents (issue #66): where the decisions `peds-eq`, `height` and `switch`
+leave a gap, the conservative option is implemented.
+
+| ID | Open question | Section |
+| --- | --- | --- |
+| OD-65 | CKiD U25 and the EKFC Q value use age in whole completed years; the published equations use decimal age, so the CKiD U25 constant steps at each birthday (boys: 48.60 at 17, 50.8 at 18). | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
+| OD-66 | Under the full-age formula CKiD U25 is used up to 25 completed years (until the day before the 26th birthday); the decision and the source say "up to 25" and "1 to 25". | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
+| OD-67 | CKiD U25 or EKFC is chosen per creatinine value, so a child with heights on some dates only alternates between equations, each alternation a formula change; per patient would be the alternative. | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
+| OD-68 | A height is interpolated only between two heights both at most 90 days away, and never carried before the first or after the last height, however close. | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
+| OD-69 | The series name of an adult formula is kept when it holds minors' CKiD U25 or EKFC values (the equation is named per value in `egfr_equation`), and a copy saved before 2026-11-22 is read with the default rule for children without a notice. | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 
 ### Resolved decisions
 

@@ -2377,3 +2377,55 @@ Draft:
   full reference list D1 (a) is still open; they can wait for it.
 - No numeric rule changes with Part H, and no Open decision marker is added
   or removed.
+
+## Part I, for approval 2026-11-22: eGFR for children and adolescents (issue #66)
+
+Applied on 2026-11-22 were only the minimal corrections of sentences that the
+change made false: in *Data*, "All computed equations are adult-only in this
+app …" now reads "The four equations above are used from 18 years at the time
+of measurement. Under 18 the setting “Under 18 years” on the Data page
+decides; by default CKiD U25 is used where a height is available and EKFC 2021
+otherwise. No eGFR is computed below 2 years or when the age is missing.";
+the EKFC Q values are "age-specific up to 25 years"; the conditions name
+"an equation applies at that age (from 18 for the adult equations; from 2
+under the setting “Under 18 years”)"; in *Sources*, "no eGFR is computed below
+2 years". The paragraphs below are new and wait for the maintainer.
+
+### Children and adolescents (new, after the list of equations in *Data*)
+
+> **CKiD U25** — creatinine equation for ages 1 to 25 published by Pierce et
+> al. (Kidney International 2021). It multiplies height in metres by a
+> constant that depends on sex and age and divides by creatinine. **Bedside
+> Schwartz** (Schwartz et al., JASN 2009, 0.413 × height in cm ÷ creatinine)
+> is offered only to compare with older studies. KDIGO 2024 names CKiD U25
+> and EKFC as validated equations for children; both avoid a change of
+> equation at 18 years.
+>
+> Under 18 years the setting “Under 18 years” decides: by default CKiD U25 is
+> used where a height is available and EKFC 2021 otherwise; with “Bedside
+> Schwartz” a value without a height is left out; with “None” no eGFR is
+> computed under 18. The formula “CKiD U25 / EKFC (full age range)” applies
+> CKiD U25 with a height up to 25 years and EKFC otherwise, and therefore
+> also changes values of adults. No eGFR is computed below 2 years.
+
+### Height (new, under *Inputs and assumptions*)
+
+> **Height** — read from a lab parameter named Größe, Körpergröße or height
+> in cm, or with LOINC 8302-2. A creatinine value uses the height of the same
+> day, or a height interpolated between the measurements before and after it
+> when both are at most 90 days away. Heights are never extrapolated. These
+> limits are a rule of this tool; no source sets them.
+
+### Change of equation (new, under *Inputs and assumptions*)
+
+> **Change of equation** — one computed series can change its equation, for
+> example from CKiD U25 to CKD-EPI 2021 at 18 years or where heights are
+> missing. Equations do not agree at such a change: Pottel et al. (Kidney
+> International 2019) report a mean jump of 23 mL/min/1.73 m² from CKiD to
+> CKD-EPI at 18 years. The Data page counts the patients concerned, the
+> patient chart marks the date, and a slope fitted across a change carries a
+> notice. The slope itself is not corrected.
+
+Points to check: whether "rule of this tool" should name OD-68 (both
+neighbours within 90 days); whether the methodology page should say that age
+is counted in whole years also for CKiD U25 (OD-65).

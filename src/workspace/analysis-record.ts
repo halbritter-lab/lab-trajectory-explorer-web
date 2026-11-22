@@ -11,7 +11,7 @@
  */
 import { version as APP_VERSION } from '../../package.json'
 import { columnSettingModules, defaultAnalysisSettings, fitPresetById, isRecord, type AnalysisSettings } from '../core/analysis/registry'
-import { EGFR_FORMULA_LABELS } from '../core/domains/nephrology/analytes'
+import { DEFAULT_PAEDIATRIC_RULE, EGFR_FORMULA_LABELS, PAEDIATRIC_RULE_LABELS } from '../core/domains/nephrology/analytes'
 import { DEFAULT_MIXED_MODEL_CONFIG, type MixedModelConfig, type MixedModelFactor } from '../core/mixedModel/config'
 import type { PresetExclusionPolicy } from '../core/mixedModel/cohortDataset'
 import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
@@ -77,6 +77,7 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   // Data: dataset-level analysis settings (store `analysisSettings`), written as JSON to settings.analysis_settings.
   'analysisSettings.egfr.formula': { label: 'eGFR formula', area: 'Data', exportField: `${ANALYSIS_SETTINGS}; parameters.formula`, control: DATA_EGFR },
   'analysisSettings.egfr.source': { label: 'Creatinine source of the eGFR', area: 'Data', exportField: `${ANALYSIS_SETTINGS}; parameters.source_parameter, parameters.source_unit`, control: DATA_EGFR },
+  'analysisSettings.egfr.paediatric': { label: 'eGFR under 18 years', area: 'Data', exportField: `${ANALYSIS_SETTINGS}; measurements.egfr_equation`, control: DATA_EGFR },
   'analysisSettings.aki.recoveryHours': { label: 'Recovery between AKI episodes (hours)', area: 'Data', exportField: ANALYSIS_SETTINGS, control: { page: 'Data', target: 'aki-recovery' } },
   // No control: the columns set their own AKI exclusion window (fit.exclusions.akiExclusionDays).
   'analysisSettings.aki.exclusionDays': { label: 'AKI exclusion window, dataset default (days)', area: 'Data', exportField: ANALYSIS_SETTINGS, control: null },
@@ -226,6 +227,8 @@ const MODEL_TEXT: Record<string, string> = { time_since_baseline: 'Time since fi
 /** A setting value as the record shows it. */
 export function settingValueText(path: string, value: unknown): string {
   const leaf = path.split('.').slice(1).join('.') || path
+  // A copy saved before 2026-11-22 has no rule for children and is read with the default (OD-69).
+  if (path === 'analysisSettings.egfr.paediatric') return PAEDIATRIC_RULE_LABELS[(value ?? DEFAULT_PAEDIATRIC_RULE) as keyof typeof PAEDIATRIC_RULE_LABELS] ?? String(value)
   if (value === undefined) return 'Off'
   if (path === 'analysisSettings.egfr.formula') return value === 'off' ? 'Off' : EGFR_FORMULA_LABELS[value as keyof typeof EGFR_FORMULA_LABELS] ?? String(value)
   if (path === 'periEventSettings') {
@@ -355,7 +358,7 @@ export function analysisVersions(input: Pick<AnalysisRecordInput, 'analysisSetti
   const packages = [...new Set(fitted.flatMap(meta => Object.entries(meta.packageVersions ?? {}).map(([name, version]) => `${name} ${version}`)))].sort()
   return [
     { label: 'Lab Trajectory Explorer', value: APP_VERSION },
-    { label: 'eGFR formula', value: formula === 'off' ? 'Off (no eGFR computed)' : EGFR_FORMULA_LABELS[formula] },
+    { label: 'eGFR formula', value: formula === 'off' ? 'Off (no eGFR computed)' : formula === 'ckid-u25-ekfc' ? EGFR_FORMULA_LABELS[formula] : `${EGFR_FORMULA_LABELS[formula]}; under 18: ${PAEDIATRIC_RULE_LABELS[input.analysisSettings.egfr.paediatric ?? DEFAULT_PAEDIATRIC_RULE]}` },
     { label: 'R (cohort models)', value: runtimes.length ? runtimes.join(', ') : 'No model fitted in this session' },
     { label: 'R packages', value: packages.length ? packages.join('; ') : 'No model fitted in this session' },
   ]

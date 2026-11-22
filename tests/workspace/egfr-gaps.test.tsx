@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrajectoriesWorkspace } from '../../src/workspace/TrajectoriesWorkspace'
-import { computedEgfrKey, EGFR_GAP_TEXT, egfrGapReason, egfrGapReasons, missingEgfrNotes } from '../../src/workspace/egfr-gaps'
+import { computedEgfrKey, EGFR_GAP_TEXT, egfrGapContext, egfrGapReason, egfrGapReasons, missingEgfrNotes } from '../../src/workspace/egfr-gaps'
 import { appendComputedEgfr } from '../../src/core/domains/nephrology/egfr/series'
 import type { WorkspaceData } from '../../src/workspace/workspace-data'
 import type { LabRow, Sex } from '../../src/core/types'
@@ -17,21 +17,23 @@ afterEach(() => vi.restoreAllMocks())
 const lab = (patientId: string, year: number, value: number | null, sex: Sex | null, age: number | null, name = 'Kreatinin', unit = 'mg/dl'): LabRow =>
   ({ patientId, labDatum: new Date(Date.UTC(year, 0, 1)), bezeichnung: name, einheit: unit, wert: String(value), wertNum: value, wertOperator: '=', loinc: null, patientSex: sex, patientAgeAtLab: age })
 
-/** P1 is complete; P2 has no sex; P3 is a child with one value of zero; P4 has creatinine in µmol/l only (its fallback, issue #65); P5 has no creatinine. */
-function data(formula: 'ckd-epi-2021' | 'off' = 'ckd-epi-2021'): WorkspaceData {
+/** P1 is complete; P2 has no sex; P3 is a child with one value of zero; P4 has creatinine in µmol/l only (its fallback, issue #65); P5 has no creatinine.
+ * The under-18 rule is "None" (`off`), as before issue #66, unless `paediatric` says otherwise. */
+function data(formula: 'ckd-epi-2021' | 'off' = 'ckd-epi-2021', paediatric: 'off' | 'ckid-u25-ekfc' | 'schwartz-bedside' = 'off', extra: LabRow[] = []): WorkspaceData {
   const rawRows = [
     ...[2020, 2021, 2022].map((year, i) => lab('P1', year, 1 + i / 10, 'm', 50 + i)),
     ...[2020, 2021, 2022, 2023].map((year, i) => lab('P2', year, 1.2, null, 60 + i)),
     lab('P3', 2020, 0, 'w', 12), lab('P3', 2021, 0.6, 'w', 13),
     lab('P4', 2020, 88, 'm', 40, 'Kreatinin', 'µmol/l'),
+    ...extra,
   ]
-  const rows = formula === 'off' ? rawRows : appendComputedEgfr(rawRows, { formula, source: ['Kreatinin', 'mg/dl'] })
+  const rows = formula === 'off' ? rawRows : appendComputedEgfr(rawRows, { formula, source: ['Kreatinin', 'mg/dl'], paediatric })
   const key = (row: LabRow) => JSON.stringify([row.bezeichnung, row.einheit])
   const rawKeys = new Set(rawRows.map(key))
   const parameters = [...new Map(rows.map(row => [key(row), { key: key(row), label: `${row.bezeichnung} [${row.einheit}]`, bezeichnung: row.bezeichnung!, einheit: row.einheit, derived: !rawKeys.has(key(row)) }])).values()]
   const patients = ['P1', 'P2', 'P3', 'P4', 'P5'].map(id => ({ id, label: id, attributes: {}, baselineAge: 50 }))
   return { rawRows, rows, fileName: 'egfr.csv', parameters, patients, events: [], patientAttributes: {}, analysis: { fitInputs: [] },
-    analysisSettings: { egfr: { formula, source: ['Kreatinin', 'mg/dl'] } }, manualDemographics: {} } as unknown as WorkspaceData
+    analysisSettings: { egfr: { formula, source: ['Kreatinin', 'mg/dl'], paediatric } }, manualDemographics: {} } as unknown as WorkspaceData
 }
 
 describe('egfrGapReason', () => {
@@ -101,6 +103,26 @@ describe('missingEgfrNotes', () => {
     expect(egfrGapReasons({ ...row, labDatum: null, wertNum: null, patientSex: null, patientAgeAtLab: null })).toEqual(['date', 'value', 'sex', 'age'])
     expect(egfrGapReasons({ ...row, wertNum: 0, patientAgeAtLab: 17 })).toEqual(['non_positive', 'under_18'])
     expect(egfrGapReasons({ ...row, patientAgeAtLab: 18 })).toEqual([])
+  })
+  it('follows the under-18 rule (issue #66)', () => {
+    // Default rule: P3 gets EKFC for its value at 13, so it has no note.
+    expect(missingEgfrNotes(data('ckd-epi-2021', 'ckid-u25-ekfc')).has('P3')).toBe(false)
+    // A child under 2 never gets a value.
+    const baby = [lab('P8', 2020, 0.3, 'w', 1)]
+    const input = data('ckd-epi-2021', 'ckid-u25-ekfc', baby)
+    input.patients = [...input.patients, { ...input.patients[0], id: 'P8', label: 'P8' }]
+    expect(missingEgfrNotes(input).get('P8')).toEqual({ label: 'No eGFR: age under 2', text: 'No eGFR for this patient: age under 2 (1 creatinine value).' })
+    // Bedside Schwartz needs a height: none, then one too far away on one side.
+    const child = [lab('P9', 2020, 0.5, 'm', 8), lab('P9', 2021, 0.5, 'm', 9), lab('P9', 2021, 130, null, null, 'Größe', 'cm')]
+    child[2] = { ...child[2], labDatum: new Date(Date.UTC(2021, 0, 2)) }
+    const schwartz = data('ckd-epi-2021', 'schwartz-bedside', child)
+    schwartz.patients = [...schwartz.patients, { ...schwartz.patients[0], id: 'P9', label: 'P9' }]
+    // 2021-01-01 lies before the only height (2021-01-02): never extrapolated, so no value at all.
+    expect(missingEgfrNotes(schwartz).get('P9')).toEqual({ label: 'No eGFR: no height within 90 days before and after', text: 'No eGFR for this patient: no height within 90 days before and after (2 creatinine values). Height is read from a series named Größe, Körpergröße or height in cm, or with LOINC 8302-2.' })
+    const context = egfrGapContext({ formula: 'ckd-epi-2021', paediatric: 'schwartz-bedside' }, [])
+    expect(egfrGapReasons(lab('P9', 2020, 0.5, 'm', 8), context)).toEqual(['no_height'])
+    expect(egfrGapReasons({ ...lab('P9', 2020, 0.5, 'm', 8), labDatum: null }, context)).toEqual(['date'])
+    expect(EGFR_GAP_TEXT.under_2).toBe('Age under 2 — no eGFR formula is used below 2 years')
   })
   it('gives nothing while the derivation is off', () => {
     expect(computedEgfrKey(data('off'))).toBeNull()

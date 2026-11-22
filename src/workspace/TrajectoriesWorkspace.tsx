@@ -33,6 +33,8 @@ import type { SettingControl } from './analysis-record'
 import { ColumnActions } from './trajectory-ui/ColumnActions'
 import { groupKey, groupRows, rowsWithGroupValue } from './trajectory-ui/grouping'
 import { computedEgfrKey, missingEgfrNotes, type MissingEgfrNote } from './egfr-gaps'
+import { formulaSwitchNote } from './egfr-switch'
+import { egfrFormulaSwitches, type EgfrFormulaSwitch } from '../core/domains/nephrology/egfr/series'
 import { compareSlopeCells, hasUncertainSlope, ROW_MARKS, rowMarkLabel, rowMarks, type RowMark } from './trajectory-ui/rowScreening'
 import { attributeSortKey, parseAttributeSort, compareAttributeValues } from './trajectory-ui/attributes'
 
@@ -86,6 +88,7 @@ function CellSummary({
   slopeDecimals = MIN_SLOPE_DECIMALS,
   missing,
   latestOperator,
+  formulaSwitches,
 }: {
   cell: CohortCell
   patientId: PatientId
@@ -112,6 +115,8 @@ function CellSummary({
   /** Operator of the latest dated numeric row: a bound ("<", ">") is shown
    * before the latest value, "latest <15" (display only, 2026-11-22). */
   latestOperator?: WertOperator
+  /** The patient's changes of the eGFR equation, on the computed eGFR column only (issue #66). */
+  formulaSwitches?: readonly EgfrFormulaSwitch[]
 }) {
   const noValuesText = missing?.text ?? 'No numeric measurements with a date'
   const slopeNumber = (value: number, signed = false) => formatFixedDecimals(value, slopeDecimals, signed)
@@ -175,6 +180,8 @@ function CellSummary({
   const qualityLabel = quality && `${qualityText}${quality.caveat ? ', uncertain slope' : ''}`
   const excludedText = `${markedCount} excluded from the fit (${markedLabels.join(', ')})`
   const included = fit && last ? fitInclusionCaveat(cell, events) : null
+  // A slope fitted across a change of the eGFR equation (issue #66).
+  const switched = fit && last ? formulaSwitchNote(cell, formulaSwitches) : null
   // A 95% interval with zero strictly inside: the direction of the change is
   // not established. A note only; the reliability rule and the flags ignore it.
   const zeroInside = fit && last && hasCi && !slopeRange && cell.ciLow < 0 && cell.ciHigh > 0
@@ -210,6 +217,7 @@ function CellSummary({
           <Hint label={last ? 'Measurement details' : missing?.label ?? 'No numeric measurements'} text={!last && missing && !warningIcons ? missing.label : undefined}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : missing?.text ?? 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p>{doubling && <p>{doubling.long}</p>}<p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.{zeroInside ? ` ${zeroInside.title}` : ''}</p>}{rollingText && <p>{rollingText}</p>}</>}</Hint>
           {fit && last && quality && <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'} text={warningIcons ? undefined : qualityText}>{quality.title}</Hint>}
           {included && <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>}
+          {switched && <Hint label={switched.label} icon="warning" tone="caution" text={warningIcons ? undefined : switched.label}>{switched.title}</Hint>}
           {/* Icon mode: a second "i" beside Measurement details would look the same; the sentence is in that hint. */}
           {zeroInside && !warningIcons && <Hint label={zeroInside.label} text={zeroInside.label}>{zeroInside.title}</Hint>}
           {visibleFlags.map(flag => <Hint key={flag.id} label={flag.label} icon={flagIcon(flag.tone)} tone={flag.tone} text={flag.tone === 'aki' ? 'AKI' : !warningIcons ? flag.label : flag.tone === 'rapid-possible' ? '?' : undefined}>{flag.title}</Hint>)}
@@ -221,7 +229,7 @@ function CellSummary({
   }
 
   if (compact && !detailed) {
-    const hasSecondaryDetails = Boolean((fit && last && (cell.rolling || hasCi || quality || doubling)) || included || endpoint || markedCount > 0)
+    const hasSecondaryDetails = Boolean((fit && last && (cell.rolling || hasCi || quality || doubling)) || included || switched || endpoint || markedCount > 0)
     return <div className="wt-cell-summary wt-cell-summary-compact">
       <span className={last ? undefined : 'wt-muted'}>
         {!last
@@ -235,6 +243,7 @@ function CellSummary({
         {doubling && <span data-testid="doubling-time" title={doubling.long}>{doubling.short ? `${doubling.short[0].toUpperCase()}${doubling.short.slice(1)}${doubling.uncertain ? ' (uncertain)' : ''}` : 'No doubling time'}</span>}
         {quality && (warningIcons ? <Hint label={qualityLabel!} icon={quality.caveat ? 'warning' : 'info'} tone={quality.caveat ? 'caution' : 'neutral'}>{quality.title}</Hint> : <span className={quality.caveat ? 'wt-warning' : 'wt-muted'} title={quality.title}>{qualityLabel}</span>)}
         {included && <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>}
+        {switched && <Hint label={switched.label} icon="warning" tone="caution" text={warningIcons ? undefined : switched.label}>{switched.title}</Hint>}
         {zeroInside && !warningIcons && <Hint label={zeroInside.label} text={zeroInside.label}>{zeroInside.title}</Hint>}
         {flags.filter(flag => flag.requiresFit).map(badge)}
       </>}
@@ -249,6 +258,7 @@ function CellSummary({
         {fit && last && hasCi && slopeRange && <p className="wt-muted">{rangeHint}</p>}
         {fit && last && quality && <p>{quality.title}</p>}
         {included && <p>{included.label}. {included.title}</p>}
+        {switched && <p>{switched.label}. {switched.title}</p>}
         {endpoint && <><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></>}
         {markedCount > 0 && <p className="wt-muted">{excludedText}</p>}
       </details>}
@@ -282,6 +292,9 @@ function CellSummary({
       {included && (detailed
         ? <p role="note" className="wt-quality-note wt-warning"><strong>{included.label}</strong>: {included.title}</p>
         : <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>)}
+      {switched && (detailed
+        ? <p role="note" className="wt-quality-note wt-warning" data-testid="formula-switch-note"><strong>{switched.label}</strong>: {switched.title}</p>
+        : <Hint label={switched.label} icon="warning" tone="caution" text={warningIcons ? undefined : switched.label}>{switched.title}</Hint>)}
       {zeroInside && <p role="note" className="wt-quality-note wt-muted"><strong>{zeroInside.label}</strong>: {zeroInside.title}</p>}
       {detailed && noAkiText && <span className="wt-muted">{noAkiText}</span>}
       {cell.anchorComparison && <AnchorComparisonText comparison={cell.anchorComparison} unit={cell.einheit} fitModel={cell.fitModel} slopeNumber={slopeNumber} />}
@@ -481,6 +494,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
   const egfrKey = computedEgfrKey(data)
   const egfrNotes = useMemo(() => missingEgfrNotes(data), [data])
   const missingNote = (key: string, id: PatientId) => key === egfrKey ? egfrNotes.get(patientIdKey(id)) : undefined
+  const egfrSwitches = useMemo(() => egfrFormulaSwitches(data.rows), [data.rows])
+  const switchesFor = (key: string, id: PatientId) => key === egfrKey ? egfrSwitches.get(patientIdKey(id)) : undefined
   const akiEpisodes = useMemo(() => akiEpisodeRows(data.rows, data.events, akiRecoveryHours(data.analysisSettings)), [data.rows, data.events, data.analysisSettings])
   const measurementsFor = (id: PatientId, cell: { bezeichnung: string; einheit: string | null }) => measurementsBySeries.get(JSON.stringify([id, cell.bezeichnung, cell.einheit])) ?? []
   // Root remounts this component only when rawRows identity changes. A derived
@@ -917,7 +932,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
         {!collapsed && section.rows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button></th>{shownAttributes.map(attribute => {
           const value = attributeLabel(attribute, data.patientAttributes[String(row.patientId)]?.[attribute])
           return <td key={`attribute:${attribute}`} className="pv-attribute-column"><span title={value} aria-label={value === undefined ? 'Not recorded' : undefined}>{value ?? '—'}</span></td>
-        })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i]) && parameterKeySet.has(keys[i])} logScale={logColumn[i]} events={display.events ? eventsByPatient.get(patientIdKey(row.patientId)) : undefined} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} slopeDecimals={slopeDecimals[i]} missing={missingNote(keys[i], row.patientId)} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(row.patientId))} timeBalancing={(columnSettings[keys[i]] ?? fitSettings).timeBalancing} latestOperator={measurementsFor(row.patientId, cell).filter(m => m.labDatum && m.wertNum !== null).at(-1)?.wertOperator} /></td>)}</tr>)}
+        })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i]) && parameterKeySet.has(keys[i])} logScale={logColumn[i]} events={display.events ? eventsByPatient.get(patientIdKey(row.patientId)) : undefined} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} slopeDecimals={slopeDecimals[i]} missing={missingNote(keys[i], row.patientId)} formulaSwitches={switchesFor(keys[i], row.patientId)} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(row.patientId))} timeBalancing={(columnSettings[keys[i]] ?? fitSettings).timeBalancing} latestOperator={measurementsFor(row.patientId, cell).filter(m => m.labDatum && m.wertNum !== null).at(-1)?.wertOperator} /></td>)}</tr>)}
       </tbody>
     })}</table></div>}
     {mode === 'table' && visible.length > 0 && pageCount > 1 && <nav className="wt-table-pages wt-table-pages-below" aria-label="Patient table pages, below the table"><button type="button" aria-label="Below the table: previous page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1, 'bottom')}>Previous</button><span>Page {activeTablePage + 1} of {pageCount} · patients {firstShown}–{lastShown} of {pagedRows.length}</span><button type="button" aria-label="Below the table: next page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1, 'bottom')}>Next</button></nav>}
@@ -941,7 +956,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
     }}>Next patient</button><span>{keptOutsideMarks ? '–' : currentIndex + 1} / {visible.length}</span></div>{keptOutsideMarks && <p className="card pv-outside-marks" role="status">Patient {keptOutsideMarks.patientId} does not match “Show only: {markFilters.map(rowMarkLabel).join(' + ')}” and stays open. {visible.length === 0 ? 'No patient matches at present.' : `“Next patient” continues with the ${visible.length === 1 ? 'one matching patient' : `${visible.length} matching patients`}.`} <button type="button" onClick={() => { setMarkFilters([]); setTablePage(0) }}>Show all patients</button></p>}<div className="wt-plot-grid">{parameters.map((parameter, index) => {
       const measurements = measurementsFor(current.patientId, parameter)
       const fitStatus = measurementFitStatus(measurements, current.cells[index])
-      return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} slopeDecimals={slopeDecimals[index]} logScale={logColumn[index]} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed slopeDecimals={slopeDecimals[index]} missing={missingNote(parameter.key, current.patientId)} cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(current.patientId))} excludesAki={(columnSettings[parameter.key] ?? fitSettings).exclusions.excludeAkiWindows} timeBalancing={(columnSettings[parameter.key] ?? fitSettings).timeBalancing} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><PatientMeasurementTable parameter={parameter} measurements={measurements} fitStatus={fitStatus} events={eventsByPatient.get(patientIdKey(current.patientId)) ?? NO_EVENTS} />{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
+      return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} slopeDecimals={slopeDecimals[index]} logScale={logColumn[index]} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed slopeDecimals={slopeDecimals[index]} missing={missingNote(parameter.key, current.patientId)} formulaSwitches={switchesFor(parameter.key, current.patientId)} cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(current.patientId))} excludesAki={(columnSettings[parameter.key] ?? fitSettings).exclusions.excludeAkiWindows} timeBalancing={(columnSettings[parameter.key] ?? fitSettings).timeBalancing} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><PatientMeasurementTable parameter={parameter} measurements={measurements} fitStatus={fitStatus} events={eventsByPatient.get(patientIdKey(current.patientId)) ?? NO_EVENTS} />{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{eventsByDate(data.events.filter(e => e.patientId === current.patientId)).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {eventText(event)}</li>)}</ul> : <p>No events recorded.</p>}</section><section className="card"><h3>AKI episodes for this patient</h3>{akiEpisodes.some(episode => episode.patientId === current.patientId)
       ? <ul>{akiEpisodes.filter(episode => episode.patientId === current.patientId).map((episode, i) => <li key={i}>Stage {akiStageLabel(episode.stage)}, onset {formatWorkspaceDate(episode.onset)}, creatinine peak {formatWorkspaceNumber(episode.peakValue)} mg/dl on {formatWorkspaceDate(episode.peakDate)}; baseline {formatWorkspaceNumber(episode.baselineValue)} mg/dl on {formatWorkspaceDate(episode.baselineDate)} ({akiCriterionLabel(episode.criterion)}; {episode.parameter} [{episode.unit ?? 'no unit'}]); end {akiEpisodeEndLabel(episode)}; dialysis start {akiEpisodeDialysisLabel(episode)}</li>)}</ul>
       : <p>No AKI episode detected. Detection needs serum creatinine values close enough in time: a rise within 48 hours or 7 days.</p>}<p className="wt-muted">Automated KDIGO creatinine screening, not a diagnosis. Display → “AKI windows and episodes” marks them in the charts.</p></section></section>}
