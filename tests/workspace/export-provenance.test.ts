@@ -98,6 +98,8 @@ describe('about sheet: provenance and personal data', () => {
     expect(inputDataId([{ ...a, time_of_day: '06:00:00' }])).not.toBe(inputDataId([a]))
     expect(inputDataId([{ ...a, time_of_day: '06:00:00' }])).not.toBe(inputDataId([{ ...a, time_of_day: '20:00:00' }]))
     expect([inputDataId([{ ...a, time_of_day: '' }, { ...b, time_of_day: '' }]), inputDataId([a, b])]).toEqual(['d2196115', 'd2196115'])
+    // The worked example with the time: the first variant (<1.0) and the variant with 1.0.
+    expect([inputDataId([{ ...a, time_of_day: '06:00:00' }, b]), inputDataId([{ ...a, time_of_day: '06:00:00' }, { ...b, Value: '1.0' }])]).toEqual(['dfa98525', '661a656d'])
     expect(inputDataId([{ PatientID: 7, Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1' }])).toBe(inputDataId([{ PatientID: '7', Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1', patient_sex: '', patient_age_at_lab: null }]))
   })
 

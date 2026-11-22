@@ -277,8 +277,8 @@ Since 2026-11-21:
   pair). Example: patient 7, creatinine in mg/dl, sex `w`, stated age 54, no
   birth date, with `1.2` on 2024-01-15 and `<1.0` on 2024-07-15 gives
   `d2196115` in either row order; with `1.0` instead of `<1.0` it gives
-  `bf80cedd`; with the time `06:00:00` on the row of 2024-01-15 it gives
-  `dfa98525`. The birth date is part of the identifier because a file with
+  `bf80cedd`. With the time `06:00:00` on the row of 2024-01-15 the first
+  example (`<1.0`) gives `dfa98525`, the one with `1.0` gives `661a656d`. The birth date is part of the identifier because a file with
   birth dates and a file with the same ages in whole years resolve to
   different birth-date anchors. The
   `datasetHash` of the model workbook is a different quantity: a hash of the
