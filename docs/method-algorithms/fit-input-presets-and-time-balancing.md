@@ -317,7 +317,10 @@ Since 2026-11-21:
   (empty text when absent), `patient_age_at_lab` (`null` when absent) and
   `patient_birth_date` (empty text when absent), followed by `time_of_day`
   only where the row has a time (since 2026-11-22; a row without a time is
-  reduced as before, so a dataset without times keeps its identifier). The
+  reduced as before, so a dataset without times keeps its identifier), and
+  then by the text `lab_method:` followed by the laboratory or method only
+  where the row has one (issue #68, 2026-11-22; a dataset without that column
+  keeps its identifier). The
   arrays are sorted as text by UTF-16 code units, joined with commas inside
   `[` and `]`, and hashed with 32-bit FNV-1a over the UTF-16 code units
   (offset basis `0x811c9dc5`, prime `0x01000193`), written as eight lower-case

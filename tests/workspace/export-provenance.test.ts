@@ -100,6 +100,9 @@ describe('about sheet: provenance and personal data', () => {
     expect([inputDataId([{ ...a, time_of_day: '' }, { ...b, time_of_day: '' }]), inputDataId([a, b])]).toEqual(['d2196115', 'd2196115'])
     // The worked example with the time: the first variant (<1.0) and the variant with 1.0.
     expect([inputDataId([{ ...a, time_of_day: '06:00:00' }, b]), inputDataId([{ ...a, time_of_day: '06:00:00' }, { ...b, Value: '1.0' }])]).toEqual(['dfa98525', '661a656d'])
+    // The laboratory or method (issue #68) joins likewise: an empty column keeps the identifier.
+    expect([inputDataId([{ ...a, lab_method: '' }, { ...b, lab_method: '' }]), inputDataId([a, b])]).toEqual(['d2196115', 'd2196115'])
+    expect(inputDataId([{ ...a, lab_method: 'Lab A' }, b])).not.toBe('d2196115')
     expect(inputDataId([{ PatientID: 7, Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1' }])).toBe(inputDataId([{ PatientID: '7', Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1', patient_sex: '', patient_age_at_lab: null }]))
   })
 

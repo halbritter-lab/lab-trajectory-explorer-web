@@ -122,6 +122,7 @@ function validSnapshot(value: unknown): value is Snapshot {
     && sex(row.patientSex) && nullableNumber(row.patientAgeAtLab)
     && (row.patientBirthDate === undefined || nullableDate(row.patientBirthDate))
     && optionalNumber(row.sourceRow)
+    && (row.labMethod === undefined || typeof row.labMethod === 'string')
     && (row.patientSexRaw === undefined || nullableText(row.patientSexRaw)))) return false
   if (!Array.isArray(value.events) || !value.events.every(event => record(event) && patientId(event.patientId)
     && validDate(event.date) && nullableDate(event.endDate) && typeof event.title === 'string'
