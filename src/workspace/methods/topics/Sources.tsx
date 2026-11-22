@@ -121,7 +121,7 @@ export function Sources() { return <><h3>Intended Use</h3>
         </li>
         <li>
           <strong>eGFR conventions.</strong> Sex “d” uses the male coefficients. Age is counted in
-          whole completed years, and no eGFR is computed below 18 years. “CKD-EPI 2009 (race-free)”
+          whole completed years, and no eGFR is computed below 2 years. “CKD-EPI 2009 (race-free)”
           is the published 2009 equation without its coefficient for Black race, not a separately
           published equation.
         </li>

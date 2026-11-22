@@ -1,6 +1,6 @@
 import { patientIdKey, type LabRow } from '../core/types'
-import { COMPUTED_EGFR_UNIT, computedEgfrName, normaliseUnit } from '../core/domains/nephrology/analytes'
-import { creatinineSourceOptions, defaultCreatinineSource, isSerumCreatinineSource, patientCreatinineSources, type Source } from '../core/domains/nephrology/egfr/series'
+import { COMPUTED_EGFR_UNIT, computedEgfrName, DEFAULT_PAEDIATRIC_RULE, normaliseUnit } from '../core/domains/nephrology/analytes'
+import { creatinineSourceOptions, defaultCreatinineSource, HEIGHT_MATCH_DAYS, isSerumCreatinineSource, patientCreatinineSources, patientHeights, rowEgfrFormula, type EgfrRule, type HeightPoint, type Source } from '../core/domains/nephrology/egfr/series'
 import { parameterLabel } from './workspace-labels'
 import type { WorkspaceData } from './workspace-data'
 
@@ -8,28 +8,49 @@ import type { WorkspaceData } from './workspace-data'
  * the reasons are checked. One rule for the counts on the Data page (first
  * reason per row) and for the note in a patient's empty eGFR cell (every
  * reason per row, so the note names all that has to be supplied). */
-export type EgfrGapReason = 'date' | 'value' | 'non_positive' | 'sex' | 'age' | 'under_18'
+export type EgfrGapReason = 'date' | 'value' | 'non_positive' | 'sex' | 'age' | 'under_18' | 'under_2' | 'no_height' | 'height_gap'
 
-type GapRow = Pick<LabRow, 'labDatum' | 'wertNum' | 'patientSex' | 'patientAgeAtLab'>
+type GapRow = Pick<LabRow, 'labDatum' | 'wertNum' | 'patientSex' | 'patientAgeAtLab'> & Partial<Pick<LabRow, 'patientId'>>
+
+/** What the age and height conditions depend on: the formula setting and the
+ * patients' measured heights (issue #66). */
+export interface EgfrGapContext {
+  rule: EgfrRule
+  heights: ReadonlyMap<string, readonly HeightPoint[]>
+}
+
+/** The rule before issue #66: adult formulas only, so every row under 18 fails. */
+const ADULT_ONLY: EgfrGapContext = { rule: { formula: 'ckd-epi-2021', paediatric: 'off' }, heights: new Map() }
+
+/** The context of the analysis settings and rows (heights from `rows`). */
+export function egfrGapContext(settings: { formula: string; paediatric?: EgfrRule['paediatric'] }, rows: readonly LabRow[]): EgfrGapContext {
+  const formula = (settings.formula === 'off' ? 'ckd-epi-2021' : settings.formula) as EgfrRule['formula']
+  return { rule: { formula, paediatric: settings.paediatric ?? DEFAULT_PAEDIATRIC_RULE }, heights: patientHeights(rows) }
+}
 
 /** Every condition a source row (with resolved sex and age) fails, in the
  * order they are checked: date, value, sex and age are independent, so a row
- * without sex and age reports both. Empty when the row gives an eGFR. */
-export function egfrGapReasons(row: GapRow): EgfrGapReason[] {
+ * without sex and age reports both. The age condition follows the formula
+ * setting (`rowEgfrFormula`): under 18 with the under-18 rule "None", under 2
+ * otherwise, and, for bedside Schwartz, a missing height. A row without a
+ * date reports no height reason. Without a context the rule before issue #66
+ * applies (no eGFR under 18). Empty when the row gives an eGFR. */
+export function egfrGapReasons(row: GapRow, context: EgfrGapContext = ADULT_ONLY): EgfrGapReason[] {
   const reasons: EgfrGapReason[] = []
   if (!row.labDatum) reasons.push('date')
   if (row.wertNum === null) reasons.push('value')
   else if (!(row.wertNum > 0)) reasons.push('non_positive')
   if (!row.patientSex) reasons.push('sex')
-  if (row.patientAgeAtLab === null) reasons.push('age')
-  else if (row.patientAgeAtLab < 18) reasons.push('under_18')
+  const heights = row.labDatum && row.patientId !== undefined ? context.heights.get(patientIdKey(row.patientId)) : undefined
+  const chosen = rowEgfrFormula(row.patientAgeAtLab, row.labDatum ?? new Date(0), context.rule, heights)
+  if ('gap' in chosen && (row.labDatum || (chosen.gap !== 'no_height' && chosen.gap !== 'height_gap'))) reasons.push(chosen.gap)
   return reasons
 }
 
 /** The first reason that keeps a source row from giving an eGFR; null when
  * nothing does. The Data page counts every row once, under this reason. */
-export function egfrGapReason(row: GapRow): EgfrGapReason | null {
-  return egfrGapReasons(row)[0] ?? null
+export function egfrGapReason(row: GapRow, context?: EgfrGapContext): EgfrGapReason | null {
+  return egfrGapReasons(row, context)[0] ?? null
 }
 
 /** Wording of the counts on the Data page. */
@@ -40,11 +61,17 @@ export const EGFR_GAP_TEXT: Record<EgfrGapReason, string> = {
   sex: 'Sex missing or unresolved',
   age: 'Age missing',
   under_18: 'Age under 18 — adult eGFR formulas do not apply',
+  under_2: 'Age under 2 — no eGFR formula is used below 2 years',
+  no_height: 'Height missing — bedside Schwartz needs a height in cm',
+  height_gap: `No height within ${HEIGHT_MATCH_DAYS} days before and after — bedside Schwartz needs a height`,
 }
 const SHORT: Record<EgfrGapReason, string> = {
   date: 'date missing', value: 'numeric value missing', non_positive: 'creatinine not positive',
-  sex: 'sex missing', age: 'age missing', under_18: 'age under 18',
+  sex: 'sex missing', age: 'age missing', under_18: 'age under 18', under_2: 'age under 2',
+  no_height: 'height missing', height_gap: `no height within ${HEIGHT_MATCH_DAYS} days before and after`,
 }
+/** Where the height comes from, for the notes that name a height reason. */
+export const HEIGHT_SOURCE_TEXT = 'Height is read from a series named Größe, Körpergröße or height in cm, or with LOINC 8302-2.'
 const ORDER = Object.keys(EGFR_GAP_TEXT) as EgfrGapReason[]
 
 export interface MissingEgfrNote {
@@ -75,6 +102,7 @@ export function missingEgfrNotes(data: Pick<WorkspaceData, 'rows' | 'rawRows' | 
   if (!source || !isSerumCreatinineSource(source)) return notes
   // data.rows are the imported rows with resolved sex and age, followed by the computed ones.
   const perPatient = patientCreatinineSources(data.rows, source)
+  const context = egfrGapContext(data.analysisSettings.egfr, data.rows)
   const computed = new Set<string>()
   const reasons = new Map<string, Map<EgfrGapReason, number>>()
   for (const row of data.rows) {
@@ -84,7 +112,7 @@ export function missingEgfrNotes(data: Pick<WorkspaceData, 'rows' | 'rawRows' | 
     if (!own || row.bezeichnung !== own[0] || row.einheit !== own[1]) continue
     const counts = reasons.get(patient) ?? new Map<EgfrGapReason, number>()
     reasons.set(patient, counts)
-    for (const reason of egfrGapReasons(row)) counts.set(reason, (counts.get(reason) ?? 0) + 1)
+    for (const reason of egfrGapReasons(row, context)) counts.set(reason, (counts.get(reason) ?? 0) + 1)
   }
   const labels = (pairs: readonly Source[]) => pairs.map(([name, unit]) => parameterLabel(name, unit)).join(', ')
   const selected = parameterLabel(source[0], source[1])
@@ -119,6 +147,7 @@ export function missingEgfrNotes(data: Pick<WorkspaceData, 'rows' | 'rawRows' | 
       label: `No eGFR: ${found[0] === 'sex' && counts.has('age') ? 'sex and age missing' : SHORT[found[0]]}`,
       text: `No eGFR for this patient: ${found.map(reason => `${SHORT[reason]} (${counts.get(reason)} creatinine ${counts.get(reason) === 1 ? 'value' : 'values'})`).join('; ')}.`
         + (demographics.length ? ` Enter ${demographics.join(' and ')} under Data → “Review and edit patients”.` : '')
+        + (found.some(reason => reason === 'no_height' || reason === 'height_gap') ? ` ${HEIGHT_SOURCE_TEXT}` : '')
         + (resolved.fallback ? ` Creatinine source of this patient: ${parameterLabel(own[0], own[1])}, because the patient has no serum creatinine in mg/dl.` : ''),
     })
   }

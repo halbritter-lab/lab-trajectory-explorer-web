@@ -2,7 +2,7 @@ import { create } from 'zustand'
 import type { LabRow } from '../../core/types'
 import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analysis/registry'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
-import type { FormulaName, Source } from '../../core/domains/nephrology/egfr/series'
+import type { FormulaName, PaediatricRule, Source } from '../../core/domains/nephrology/egfr/series'
 import type { ClinicalEvent, RejectedClinicalEvent } from '../../core/events/events'
 import type { PeriEventSettings } from '../../core/domains/nephrology/aki/periEvent'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormulaKey, type MixedModelConfig } from '../../core/mixedModel/config'
@@ -121,6 +121,7 @@ export interface AppState {
   replaceDataset: (dataset: DatasetReplacement) => void
   setEgfrFormula: (f: FormulaName | 'off') => void
   setEgfrSource: (s: Source | null) => void
+  setEgfrPaediatric: (rule: PaediatricRule) => void
   /** Recovery that separates two AKI episodes (hours, dataset-level). */
   setAkiRecoveryHours: (hours: number) => void
   /** Replace the dataset-level analysis settings as a whole ("Apply settings
@@ -291,6 +292,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   setEgfrSource: (src) => set((s) => ({
     analysisSettings: { ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: src } },
+    pristineDemo: false,
+    ...clearedMixedModelResults(),
+  })),
+  setEgfrPaediatric: (rule) => set((s) => ({
+    analysisSettings: { ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, paediatric: rule } },
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),

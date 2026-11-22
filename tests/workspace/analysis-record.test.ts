@@ -57,6 +57,7 @@ describe('completeness: every setting has an export field or a reason it changes
  * fails and says so. */
 const STRING_ALTERNATIVES: Record<string, unknown> = {
   'analysisSettings.egfr.formula': 'ckd-epi-2009',
+  'analysisSettings.egfr.paediatric': 'schwartz-bedside',
   [`${FIT_PREFIX}.fitModel`]: 'segmented-ols',
   [`${FIT_PREFIX}.timeBalancing`]: 'monthly-median',
   [`${FIT_PREFIX}.censoring.unknownDialysisPolicy`]: 'censor-from-start',

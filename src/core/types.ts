@@ -66,6 +66,14 @@ export interface LabRow {
    * it was computed from, so AKI detection for the derived series uses that
    * series. Absent on imported rows. */
   sourceSeries?: { bezeichnung: string; einheit: string }
+  /** On a computed eGFR row: the equation that produced it (issue #66; one
+   * series can mix equations, e.g. CKiD U25 for a child and CKD-EPI 2021 from
+   * 18). Absent on imported rows and on derived rows of saved copies, which
+   * are derived again on load. */
+  egfrFormula?: 'ckd-epi-2021' | 'ckd-epi-2009' | 'mdrd-4' | 'ekfc-2021' | 'ckid-u25' | 'schwartz-bedside'
+  /** On a computed CKiD U25 or bedside Schwartz row: the height in cm the
+   * value used, measured on the date or interpolated (unrounded). */
+  egfrHeightCm?: number
 }
 
 export type FitReason =

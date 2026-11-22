@@ -71,7 +71,7 @@ describe('workspace workbook', () => {
     expect(akiEpisodeRows(again, [])).toEqual(akiEpisodeRows(rows, []))
     expect(akiEpisodeRows(again, [])).toHaveLength(1)
     const note = records(workbook, 'about').map(row => String(row.note)).find(text => text.startsWith('Date holds the calendar day'))!
-    expect(note).toContain('time_of_day, the last column of the measurement sheets')
+    expect(note).toContain('time_of_day, after patient_birth_date in the measurement sheets')
     expect(note).toContain('Loading this file again reads time_of_day from raw_measurements, so the AKI episodes are the same as in this export when Recovery between episodes on the Data page has the value aki.recoveryHours of analysis_settings')
     expect(note).toContain('input_data_id covers the time of day of the rows that have one')
   })
@@ -81,7 +81,7 @@ describe('workspace workbook', () => {
     const named = [...notes.matchAll(/([a-z_]+)(?:,| is) the last column of the measurement sheets/g)].map(match => match[1])
     expect(named).toEqual([MEASUREMENT_SHEET_HEADER.at(-1)])
     expect(notes).toContain('patient_birth_date follows loinc and precedes time_of_day in the measurement sheets.')
-    expect(MEASUREMENT_SHEET_HEADER.slice(-3)).toEqual(['loinc', 'patient_birth_date', 'time_of_day'])
+    expect(MEASUREMENT_SHEET_HEADER.slice(-5)).toEqual(['loinc', 'patient_birth_date', 'time_of_day', 'egfr_equation', 'egfr_height_cm'])
   })
   // Loading a file does not read analysis_settings: a recovery length other than 48 hours is not restored.
   it('exports the episodes of the set recovery length, which a re-import gives only once the setting is chosen again', () => {
@@ -187,7 +187,7 @@ describe('workspace workbook', () => {
     input.data.rawRows[2].loinc = '30522-7'
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name], { header: 1 })[0]
-    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day'])
+    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day', 'egfr_equation', 'egfr_height_cm'])
     expect(header('raw_measurements')).toEqual(header('measurements'))
     expect(header('parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
     expect(records(workbook, 'raw_measurements').map(row => row.loinc)).toEqual(['1988-5'])
