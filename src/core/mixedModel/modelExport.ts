@@ -87,7 +87,7 @@ export function mixedModelExportSheets(
       outcome,
       outcome_unit: outcomeUnit || 'unspecified outcome unit',
       status: result.status,
-      ...result.metadata,
+      ...withEmptyToleranceColumn(result.metadata),
       // The executable formula names the outcome column `value`; the export
       // names the series instead.
       ...(result.metadata.formula === undefined ? {} : { formula: mixedModelFormulaForOutcome(result.metadata.formula, mixedModelOutcomeLabel(outcome, outcomeUnit)) }),
@@ -193,6 +193,16 @@ const COLUMNS_SINCE_0_3_7 = ['std_error', 'unit_key', 'intercept_sd', 'slope_sd'
  * a new key at the end of an early row would otherwise land before a 0.3.7
  * column that only a later row has. A key a row lacks is `undefined`, which
  * the writer leaves as an empty cell. */
+/** OD-21 (2026-11-22): no fit uses a tolerance, so the metadata carries none.
+ * The 0.3.7 column `tolerance` is kept empty, right after `reml`, for
+ * column-position compatibility. */
+function withEmptyToleranceColumn(metadata: object): Record<string, unknown> {
+  const entries = Object.entries(metadata)
+  const at = entries.findIndex(([key]) => key === 'reml')
+  if (at < 0) return { ...metadata, tolerance: null }
+  return Object.fromEntries([...entries.slice(0, at + 1), ['tolerance', null], ...entries.slice(at + 1)])
+}
+
 function newColumnsLast(rows: readonly object[]): object[] {
   const records = rows as readonly Record<string, unknown>[]
   const keys = [...new Set(records.flatMap((row) => Object.keys(row)))]

@@ -1547,10 +1547,10 @@ Implementation of the two decisions of 2026-10-07 scheduled after 0.3.0
   moves, because the OLS fixtures have at most five points. Details and an
   example with 62 points: [trend estimators](method-algorithms/trend-estimators.md#95--confidence-interval-for-the-slope).
 - **OD-21, the unused `tolerance`.** The constant `1e-6` is removed from the
-  result metadata, from the `models` sheet of the cohort workbook and from
-  the input of `fitConfigHash`. Chosen where the decision left it open: the
-  column is removed, not left empty, so the 0.3.7 columns after it move one
-  position left (names unchanged); every `fitConfigHash` changes (e3861a2b →
+  result metadata and from the input of `fitConfigHash`. Chosen where the decision left it open: the
+  0.3.7 column `tolerance` of the `models` sheet stays at its position and is
+  left empty (kept empty for column-position compatibility; no fit uses a
+  tolerance), so every column keeps its position; every `fitConfigHash` changes (e3861a2b →
   74ba071d in the example of the reference). No fitted number changes. Details:
   [cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models).
 

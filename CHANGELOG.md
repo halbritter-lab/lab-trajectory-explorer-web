@@ -15,10 +15,10 @@ interfaces are still evolving before 1.0.
   projection's confidence gate and the before/after difference interval use
   the same value. Slopes, `slope_se` and R² are unchanged; no stored fixture
   moves (the OLS fixtures have at most five points).
-- **The unused model `tolerance` is removed** (OD-21). The `models` sheet of
-  the cohort workbook no longer has the column `tolerance` (constant 1e-6,
-  used by no fit); the columns after it (`datasetId` onward) move one
-  position left with names unchanged. The constant is no longer part of
+- **The unused model `tolerance` is removed** (OD-21). The constant 1e-6,
+  used by no fit, is no longer part of the result metadata. The `models`
+  sheet of the cohort workbook keeps the column `tolerance` at its position
+  but leaves it empty, for column-position compatibility. The constant is no longer part of
   `fitConfigHash`, so every `fitConfigHash` differs from earlier exports of
   the same model and data. No fitted number changes.
 

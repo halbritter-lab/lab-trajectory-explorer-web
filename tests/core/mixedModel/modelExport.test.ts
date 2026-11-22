@@ -127,8 +127,12 @@ describe('R reproduction export', () => {
     expect(header('factors').slice(0,1)).toEqual(['entity'])
     expect(header('factors').at(-1)).toBe('unit_key')
     expect(header('models').slice(0,2)).toEqual(['entity','series_key'])
-    // OD-21 (2026-11-22): the unused constant `tolerance` is no longer exported.
-    expect(header('models')).not.toContain('tolerance')
+    // OD-21 (2026-11-22): `tolerance` keeps its 0.3.7 position after `reml`, empty.
+    const models = header('models')
+    expect(models[models.indexOf('reml') + 1]).toBe('tolerance')
+    expect(models[models.indexOf('tolerance') + 1]).toBe('datasetId')
+    const firstRow = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.models)[0]
+    expect(firstRow.tolerance).toBeUndefined()
     // unit_key, then the variance components added on 2026-11-21.
     expect(header('models').slice(-5)).toEqual(['unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
   })

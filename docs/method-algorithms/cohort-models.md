@@ -624,6 +624,7 @@ The `models` worksheet has one row per fitted unit:
 | `preset_exclusion_policy`, `excluded_by_preset` | Exclusion policy and count |
 | `reml` | Always true |
 | `optimizer` | Optimizer reported by lme4, or `lme4-default` when it reports none |
+| `tolerance` | Empty: kept empty for column-position compatibility; no fit uses a tolerance (OD-21, since 2026-11-22; before, the unused constant `1e-6`) |
 | `runtimeVersion` | R version of the webR runtime |
 | `packageVersions` | JSON: loaded versions of `lme4` and `Matrix` (or `nlme`) and `jsonlite`, then of every other loaded pinned package and of `webr`, as R's `packageVersion` writes them (for example `"lme4":"2.0.6"`); `Matrix` since 2026-11-05, the others since 2026-11-22 |
 | `browserUserAgent`, `wasmAssetSource` | Browser and runtime source: `self-hosted` since 2026-11-22, `cdn` before |
@@ -764,14 +765,11 @@ extended in R. They add no estimate and change none.
 `1e-6` that no fit used (the only tolerance in a fit is lme4's `1e-4`
 singularity check, see *Singular, lme4*). It was exported as a column of
 `models` between `reml` and `datasetId` and was part of the input of
-`fitConfigHash`. Both are removed:
+`fitConfigHash`. Since then the result metadata carries no tolerance:
 
-- `models` no longer has the column `tolerance`. This is a deliberate
-  exception to "0.3.7 columns keep their positions": every column that
-  followed it (`datasetId`, `datasetHash`, `randomSeed`, `fitConfigHash`,
-  `preset_exclusion_policy` and the later ones) is one position further left;
-  names and values are unchanged, so a reader that selects columns by header
-  is not affected.
+- `models` keeps the column `tolerance` at its 0.3.7 position, after `reml`,
+  and leaves it empty: kept empty for column-position compatibility; no fit
+  uses a tolerance. Every other column keeps its position.
 - `fitConfigHash` is computed from the same configuration without the
   constant, so every value differs from the one an earlier version gave for
   the same model and data. Example: eGFR in `ml/min/1.73m2`, global OLS, the
