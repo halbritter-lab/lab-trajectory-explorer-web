@@ -25,6 +25,36 @@ unit test `tests/workspace/log-axis.test.tsx`. Not checked: Firefox and
 WebKit, real tumour-marker data, the overlay with many log trajectories, and a
 Theil-Sen, Rolling or Segmented column on a log axis in the browser.
 
+## Analysis record (issue #83, 2026-11-22)
+
+Branch `wp/83-analysis-record`. `settings` now ends with `anchor_comparison`,
+`trend`, `settings_source`, `column_settings`.
+
+1. Demo → Trajectories → **Analysis record** (beside the export button; at
+   390 px in the toolbar beside Display, and the first chart stays on the
+   first screen): sections Data, Trajectories:
+   shared settings, one per shown parameter, Trajectories: table, Cohort
+   models, Versions, Apply settings from an export. All defaults: no entry
+   marked "changed".
+2. Switch Trend on for a column and set its method to Theil–Sen: the record
+   marks Trend "On (changed)" and the column's own fit model with the
+   default beside it. **Change** on Fit model opens the parameter's settings
+   with Calculation settings open and the field focused; on Trend it focuses
+   the column's Trend switch; on Recovery between AKI episodes it opens Data
+   with the field focused; on Random effects it opens Cohort models at the
+   model presets.
+3. Export the cohort, reset the method, apply the downloaded file in the
+   record: "Every setting of the file was applied." and the table shows the
+   exported method and interval again. Apply it to another file without one
+   of its parameters: the parameter is named under "Not applied".
+4. Phone width (390 px): the record fills the screen, scrolls inside, Close
+   stays visible, no horizontal scrolling.
+
+Verified 2026-11-22 in Chromium against the dev server by the browser tests
+(`analysis-record.e2e.ts`: steps 2 to 4 in part) and by screenshots at 390 px
+and 1280 px (steps 1, 2 and 4); step 3 with another dataset only by the unit
+tests.
+
 ## Combined branch of the open points (2026-11-22)
 
 Branch `integration/open-items-2026-11-22` (`chore/persona-review-open-details`,

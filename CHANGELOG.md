@@ -103,6 +103,30 @@ interfaces are still evolving before 1.0.
 - More than three parameter columns: there was no limit; the default stays
   the first three parameters.
 
+### Added (issue #83, analysis record)
+
+- **Analysis record.** "Analysis record" beside the export button of
+  Trajectories (on a phone in the toolbar, beside Display) lists every setting that changes an exported number, from
+  Data, Trajectories (shared settings, each shown parameter's own settings
+  and Trend, grouping) and Cohort models, with its current value. Values
+  that differ from their default are marked "changed" with the default
+  beside them; "Change" leads to the control. A Versions section names the
+  app version, the eGFR formula and, after a model fit, the R and package
+  versions. Display choices are not listed.
+- **Apply settings from an export.** The record applies the settings of a
+  cohort or patient workbook of this app to the loaded data and lists what it
+  could not apply (a parameter or creatinine source the data lack, grouping,
+  manual demographic entries). Loading a workbook still applies none of its
+  settings. Rules in the method reference (Fit input → Applying the settings
+  of an export).
+- The `settings` sheet gains `trend`, `settings_source` and
+  `column_settings` at its end, and `about` a note on them after the note on
+  `anchor_comparison`. No result value changed.
+- A test walks the settings the app keeps and fails for a setting with
+  neither an export field nor a stated reason that it changes no number; a
+  round trip on the demo workbook checks that applied settings reproduce the
+  export.
+
 ### Changed (open points of the persona review, decided 2026-11-22)
 
 - Review of the combined branch (2026-11-22): a before/after side fitted

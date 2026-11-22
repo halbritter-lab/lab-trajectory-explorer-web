@@ -64,7 +64,7 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
     <details>
       <summary>Detected AKI episodes ({episodes.length})</summary>
       <p className="muted">Automated screening with the KDIGO creatinine criteria on each serum creatinine parameter; not a diagnosis. Creatinine values are in mg/dl. <a href="#methods/aki">How episodes are detected</a></p>
-      <label className="field aki-recovery-field">Recovery between episodes (hours)
+      <label className="field aki-recovery-field" id="data-aki-recovery">Recovery between episodes (hours)
         <DraftNumberInput min={0} max={MAX_AKI_RECOVERY_HOURS} step={24} value={recoveryHours} aria-describedby="aki-recovery-note"
           normalise={hours => akiRecoveryFieldHours(hours)} onCommit={hours => useAppStore.getState().setAkiRecoveryHours(hours)} />
       </label>

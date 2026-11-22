@@ -22,13 +22,14 @@ import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
 import { akiCriterionLabel, akiEpisodeDialysisLabel, akiEpisodeEndLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes'
 import type { ClinicalEvent } from '../core/events/events'
 import { AKI_MODULE_ID } from '../core/domains/nephrology/aki/akiModule'
-import type { FitConfig } from '../core/analysis/fitConfig'
 import { formatFixedDecimals, MIN_SLOPE_DECIMALS, slopeDisplayDecimals } from '../core/format'
 import { QuietAnalysisSettings } from './trajectory-ui/AnalysisSettings'
 import { ANALYSIS_CATALOG, endpointBadge, type WorkspaceFitSettings } from './workspace-analysis'
 import { parameterKeyLabel } from './saved-settings'
 import { useAppStore } from './state/store'
-import { trajectoryTrendConfig } from './trajectory-ui/analysis'
+import { trajectoryColumnSettings } from './trajectory-ui/analysis'
+import { AnalysisRecordDialog } from './AnalysisRecord'
+import type { SettingControl } from './analysis-record'
 import { ColumnActions } from './trajectory-ui/ColumnActions'
 import { groupKey, groupRows, rowsWithGroupValue } from './trajectory-ui/grouping'
 import { computedEgfrKey, missingEgfrNotes, type MissingEgfrNote } from './egfr-gaps'
@@ -309,7 +310,11 @@ function AnchorComparisonText({ comparison, unit, fitModel, slopeNumber }: { com
   return <p role="note" className="wt-quality-note" data-testid="anchor-comparison"><strong>Before/after {rule} ({formatWorkspaceDate(comparison.anchor.date)})</strong>: {side('before', comparison.before)}; {side('after', comparison.after)}; difference after − before {Number.isFinite(comparison.difference) ? `${slopeNumber(comparison.difference, true)} ${perYear}${hasCi ? ` (95% CI [${slopeNumber(comparison.differenceCiLow)}, ${slopeNumber(comparison.differenceCiHigh)}])` : ''}` : 'not available'}. Measurements on the anchor date count as before.{window}</p>
 }
 
-export function TrajectoriesWorkspace({ data, requestedPatientId, active = true }: { data: WorkspaceData; requestedPatientId?: PatientId | null; active?: boolean }) {
+export function TrajectoriesWorkspace({ data, requestedPatientId, active = true, onNavigate }: {
+  data: WorkspaceData; requestedPatientId?: PatientId | null; active?: boolean
+  /** Go to a control on another page, from the analysis record. */
+  onNavigate?: (control: Exclude<SettingControl, { page: 'Trajectories' }>) => void
+}) {
   const [openTool, setOpenTool] = useState<string | null>(null)
   const closeTool = () => setOpenTool(null)
   const toggleTool = (name: string) => setOpenTool(current => current === name ? null : name)
@@ -482,19 +487,15 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   // update can remove a parameter without discarding unrelated browser choices.
   const keys = useMemo(() => parameterKeys.filter(key => data.parameters.some(p => p.key === key)), [parameterKeys, data.parameters])
   const parameters = useMemo(() => keys.flatMap(key => data.parameters.filter(p => p.key === key)), [keys, data.parameters])
-  const fitConfigs = useMemo(() => {
-    const map: Record<string, FitConfig> = {}
-    for (const p of parameters) {
-      map[p.key] = trajectoryTrendConfig(columnSettings[p.key] ?? fitSettings, p, trendKeys.includes(p.key))
-    }
-    return map
-  }, [parameters, fitSettings, columnSettings, trendKeys])
+  // One derivation for the table and the workbook (issue #83).
+  const columnExport = useMemo(() => trajectoryColumnSettings(trajectoryFitSettings, parameters, trendKeys), [trajectoryFitSettings, parameters, trendKeys])
+  const fitConfigs = columnExport.fitConfigByParameterKey
   useEffect(() => {
     const { paramKey, metric } = parseSortKey(sort)
     if ((metric === 'slope' || metric === 'absSlope') && fitConfigs[paramKey]?.fitModel === 'none') setSort('id')
   }, [sort, fitConfigs])
   // Before/after comparison per column (issue #64): not part of the fit configuration.
-  const anchorComparisons = useMemo(() => Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).anchorComparison])), [parameters, fitSettings, columnSettings])
+  const anchorComparisons = columnExport.anchorComparisonByParameterKey
   const logColumns = useMemo(() => keys.filter(key => logKeys.includes(key)), [keys, logKeys])
   const logColumn = keys.map(key => logKeys.includes(key))
   const specs = useMemo(() => workspaceSpecs(data, keys, fitConfigs, anchorComparisons, logColumns), [data, keys, fitConfigs, anchorComparisons, logColumns])
@@ -731,6 +732,43 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     setQuery(''); setGroup(''); setSelectedOnly(false); setMarkFilters([]); setPatientId(requestedPatientId); setReturnMode('table'); setMode('detail')
   }, [requestedPatientId])
   const closePicker = () => { dialog.current?.close?.(); setDraftKeys(null); pickerButton.current?.focus() }
+  // The analysis record (issue #83) and the controls its entries lead to.
+  const [recordOpen, setRecordOpen] = useState(false)
+  useEffect(() => { if (!active) setRecordOpen(false) }, [active])
+  const recordButton = useRef<HTMLButtonElement>(null)
+  const closeRecord = () => { setRecordOpen(false); recordButton.current?.focus({ preventScroll: true }) }
+  // Beside the export button; on a phone in the toolbar, like the mark filters,
+  // so the first charts stay on the first screen.
+  const recordToggle = <button type="button" ref={recordButton} className={phoneLayout ? 'pv-tool' : 'pv-defaults'} onClick={() => { closeTool(); setRecordOpen(true) }}>Analysis record</button>
+  const changeFromRecord = (control: SettingControl, parameterKey?: string, label?: string) => {
+    if (control.page !== 'Trajectories') { onNavigate?.(control); return }
+    if (control.target === 'analysis') {
+      setSettingsScope(parameterKey ?? ''); setOpenTool('analysis')
+      // Open the calculation settings and move to the setting, once the drawer is shown.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const panel = document.querySelector<HTMLElement>('.pv-analysis-panel[open]')
+        if (!panel || label === 'Analysis preset') return
+        panel.querySelector<HTMLDetailsElement>('details.wt-advanced-settings')?.setAttribute('open', '')
+        const target = [...panel.querySelectorAll<HTMLElement>('select, input')].find(element => element.getAttribute('aria-label') === label)
+        target?.scrollIntoView({ block: 'center' })
+        target?.focus({ preventScroll: true })
+      }))
+    }
+    else if (control.target === 'parameters') { closeTool(); setParameterQuery(''); setDraftKeys([...keys]) }
+    else if (control.target === 'trend') {
+      // The Trend switch is in the column header of the table.
+      if (mode !== 'table') setMode('table')
+      requestAnimationFrame(() => {
+        const header = parameterKey === undefined ? undefined : parameterHeaders.current.get(parameterKey)
+        header?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+        header?.querySelector<HTMLInputElement>('input[aria-label^="Analyse trend:"]')?.focus({ preventScroll: true })
+      })
+    }
+    else {
+      if (mode === 'detail') setMode('table')
+      requestAnimationFrame(() => workspaceElement.current?.querySelector<HTMLSelectElement>('select[aria-label="Group by attribute"]')?.focus())
+    }
+  }
   const pickerOpen = active && draftKeys !== null
   useEffect(() => {
     if (!pickerOpen) return
@@ -792,10 +830,10 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     }}>Overlay</button><button aria-pressed={mode === 'detail'} disabled={!current} onClick={() => {
       if (mode !== 'detail' && current) open(current.patientId)
     }}>Individual patient</button></div></div>
-<div className="pv-exports"><WorkspaceExportActions data={data} parameterKeys={keys} groupBy={groupBy} patientIds={keptOutsideMarks ? [keptOutsideMarks.patientId] : patientIds} cohortRows={keptOutsideMarks ? [keptOutsideMarks] : visible} fitConfigByParameterKey={fitConfigs} anchorComparisonByParameterKey={anchorComparisons} moduleSettingsByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).moduleSettings]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
+<div className="pv-exports"><WorkspaceExportActions data={data} parameterKeys={keys} groupBy={groupBy} patientIds={keptOutsideMarks ? [keptOutsideMarks.patientId] : patientIds} cohortRows={keptOutsideMarks ? [keptOutsideMarks] : visible} fitConfigByParameterKey={fitConfigs} anchorComparisonByParameterKey={anchorComparisons} moduleSettingsByParameterKey={columnExport.moduleSettingsByParameterKey} columnSettingsByParameterKey={columnExport.columnSettingsByParameterKey} {...(mode === 'detail' && current ? { patientId: current.patientId,
         getCharts: () => [...(workspaceElement.current?.querySelectorAll<SVGSVGElement>('.wt-plot-card svg.wt-plot') ?? [])].map(svg => ({
           svg, title: `Patient ${current.patientId}: ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
-        })) } : {})} /><button type="button" className="pv-defaults" onClick={() => { setSettingsScope(''); setOpenTool('analysis') }}>General defaults</button></div></div>
+        })) } : {})} />{!phoneLayout && recordToggle}<button type="button" className="pv-defaults" onClick={() => { setSettingsScope(''); setOpenTool('analysis') }}>General defaults</button></div></div>
       <div className="pv-toolbar">
         <label className="pv-search"><Icon name="search" /><input aria-label="Search patients" value={query} onChange={event => { setQuery(event.target.value); setTablePage(0) }} placeholder="Search patients…" /></label>
         <div className="pv-tool-group">
@@ -810,6 +848,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
           {markOptions.length > 0 && phoneLayout && <ToolPopover name="Show only" icon="filter" badge={markFilters.length} open={active && openTool === 'marks'} onToggle={() => toggleTool('marks')} onClose={closeTool}>
             <div className="pv-mark-filters pv-mark-menu" role="group" aria-label="Show only patients with">{markButtons}</div>
           </ToolPopover>}
+          {phoneLayout && recordToggle}
           <ToolPopover name="Display" icon="view" open={active && openTool === 'view'} onToggle={() => toggleTool('view')} onClose={closeTool}>
                   <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
 
@@ -905,6 +944,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       ? <ul>{akiEpisodes.filter(episode => episode.patientId === current.patientId).map((episode, i) => <li key={i}>Stage {akiStageLabel(episode.stage)}, onset {formatWorkspaceDate(episode.onset)}, creatinine peak {formatWorkspaceNumber(episode.peakValue)} mg/dl on {formatWorkspaceDate(episode.peakDate)}; baseline {formatWorkspaceNumber(episode.baselineValue)} mg/dl on {formatWorkspaceDate(episode.baselineDate)} ({akiCriterionLabel(episode.criterion)}; {episode.parameter} [{episode.unit ?? 'no unit'}]); end {akiEpisodeEndLabel(episode)}; dialysis start {akiEpisodeDialysisLabel(episode)}</li>)}</ul>
       : <p>No AKI episode detected. Detection needs serum creatinine values close enough in time: a rise within 48 hours or 7 days.</p>}<p className="wt-muted">Automated KDIGO creatinine screening, not a diagnosis. Display → “AKI windows and episodes” marks them in the charts.</p></section></section>}
     {active && draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options" role="group" aria-label="Parameter options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} /><span>{p.label}</span></label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}
+    {active && recordOpen && <AnalysisRecordDialog data={data} parameters={parameters} trendKeys={trendKeys} groupBy={groupBy} onClose={closeRecord} onChange={changeFromRecord}
+      onApplyView={(nextKeys, nextTrend) => { if (nextKeys) setParameterKeys(nextKeys); setTrendKeys(nextTrend) }} />}
     <AnalysisDrawer open={active && openTool === 'analysis'} onClose={closeTool} title={settingsScope ? parameters.find(parameter => parameter.key === settingsScope)?.label ?? 'Parameter analysis' : 'General defaults'}>
             <QuietAnalysisSettings parameters={parameters} sharedSettings={fitSettings} overrides={columnSettings}
         scope={settingsScope} onChange={changeSettings} onReset={resetColumnSettings} events={data.events}

@@ -17,6 +17,7 @@ import { akiEpisodeExportRows, akiEpisodeRows } from './aki-episodes'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
 import { dataChecks, importDiagnosticRecords } from './import-diagnostics'
+import type { ColumnSettingsRecord } from './trajectory-ui/analysis'
 
 export interface WorkspaceExportInput {
   data: WorkspaceData
@@ -33,6 +34,10 @@ export interface WorkspaceExportInput {
   groupBy?: string
   /** Each column's before/after setting (issue #64); none for columns without an entry. */
   anchorComparisonByParameterKey?: Record<string, AnchorComparisonSettings | undefined>
+  /** Each column's settings as the app keeps them (issue #83), written to
+   * `settings` as `trend`, `settings_source` and `column_settings` so that
+   * "Apply settings from an export" can restore them; empty without an entry. */
+  columnSettingsByParameterKey?: Record<string, ColumnSettingsRecord>
   /** Written to `about` as `exported_at`; the time of the call when omitted. */
   exportedAt?: Date
   /** Written to `about` as `export_id`; a new random UUID when omitted. */
@@ -135,8 +140,15 @@ function logTrendRows(rows: readonly CohortRow[]) {
   }))
 }
 
+/** The last three columns of `settings` (issue #83); empty text without a record. */
+function columnSettingsColumns(record: ColumnSettingsRecord | undefined) {
+  return { trend: record ? record.trend : '', settings_source: record?.source ?? '', column_settings: record ? JSON.stringify(record.settings) : '' }
+}
+
+export const COLUMN_SETTINGS_NOTE = 'trend, settings_source and column_settings, the last columns of settings, record the settings of each parameter as the app keeps them: trend is true when Trend was on (with Trend off, fit_config has fitModel none and the column has no slope), settings_source is shared for a parameter that used the shared settings and own for one with its own settings, and column_settings holds those settings as JSON (the entries of fit_config with the preset id, the module settings and the before/after setting). Loading this file does not apply them; "Apply settings from an export" in the analysis record (Trajectories) does, together with analysis_settings, and lists what it could not apply.'
+
 /** All sheets share the supplied visible scope; summaries are never fitted again. */
-export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,groupBy = '',anchorComparisonByParameterKey,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
+export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,groupBy = '',anchorComparisonByParameterKey,columnSettingsByParameterKey,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
   const requestedKeys = [...new Set(parameterKeys)]
   const parameters = requestedKeys.map(key => data.parameters.find(parameter => parameter.key === key))
   if (!parameters.length || parameters.some(parameter => !parameter)) throw new Error('No valid parameters selected for export.')
@@ -227,7 +239,9 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       group_by:groupBy,
 
       // Appended 2026-11-22 (issue #64): the before/after setting, empty when the column has none.
-      anchor_comparison:anchorComparisonByParameterKey?.[requestedKeys[index]] ? JSON.stringify(anchorComparisonByParameterKey[requestedKeys[index]]) : ''}))},
+      anchor_comparison:anchorComparisonByParameterKey?.[requestedKeys[index]] ? JSON.stringify(anchorComparisonByParameterKey[requestedKeys[index]]) : '',
+      // Appended 2026-11-22 (issue #83): the settings as the app keeps them, for "Apply settings from an export".
+      ...columnSettingsColumns(columnSettingsByParameterKey?.[requestedKeys[index]])}))},
     {name:'about',rows:[...EXPORT_DISCLAIMER_ROWS,
       // Only this workbook has the column, so the note is not in the shared rows.
       {note:'endpoint_percent_change is the total eGFR change in percent from the first to the latest eligible measurement, with the sign the badge in the app shows: negative when eGFR fell, positive when it rose. It is not a rate per year and not the confirmed 40 % or 57 % decline event. Until 2026-11-16 the column was named endpoint_percent_decline and had the opposite sign.'},
@@ -258,7 +272,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:`anchor_comparison lists the before/after comparison at an anchor event, one row per patient and parameter whose settings switch it on (settings: anchor_comparison). The anchor is the first event of the patient (anchor_rule first) or the first whose title or type equals anchor_value; among events of one date the first in the file. Measurements on the anchor date count as before; those of the exclusion_days days after it are left out of the after slope (n_excluded_window). Both sides use the points of the column\'s own fit (same censoring, exclusions and time balancing, balanced per side) and its estimator; n counts fitted points and n_fitted_dates their distinct dates. ci_low and ci_high of a side are its 95 % interval; for Theil-Sen with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval, as for the slope of the cohort sheet. slope_difference is after minus before; its 95 % interval is the Welch interval from the two OLS standard errors, assuming independent sides, and is empty for Theil-Sen and for a side with two points. A patient without a matching event has a row with empty values. The slope, flags and endpoints of the cohort sheet are those of the whole series.`},
       // Appended 2026-11-22 (issue #65).
       {note:'A computed eGFR reads one serum creatinine series per patient: the creatinine source of the Data page (source_parameter and source_unit in parameters), or, when that source is in mg/dl and the patient has no serum creatinine in mg/dl, the patient\'s series in µmol/l (divided by 88.42). egfr_source_parameter and egfr_source_unit, the last columns of demographics, name the series used for each patient; they are empty for a patient without a computed eGFR value. Series are not merged.'},
-
+      // Appended 2026-11-22 (issue #83), after the note on anchor_comparison.
+      {note:COLUMN_SETTINGS_NOTE},
       // Only with a log_trend sheet (issue #70), so an export without a logarithmic column is unchanged.
       ...(logTrends.length ? [{note:'log_trend lists, for every parameter shown on a logarithmic value axis, the trend fitted to the natural logarithm of the values with the same slope mode, estimator, exclusions and time balancing as the column (monthly or quarterly medians are medians of the log values). Values of zero or less have no logarithm and are left out (n_non_positive); bounds stay out as in every fit. log_slope is per year; doubling_time_years is ln 2 / log_slope: positive is the doubling time, negative the halving time in years. doubling_time_ci_low and doubling_time_ci_high are ln 2 divided by the upper and the lower bound of log_slope, empty when the bounds include zero. The column\'s own slope and every other sheet are unchanged by this setting.'}] : []),
     ]},

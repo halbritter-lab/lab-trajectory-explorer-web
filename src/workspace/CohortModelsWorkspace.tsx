@@ -516,7 +516,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         <p className={preparationNotice && preparationNotice.key === activeParamKey ? 'notice cm-preparation-notice' : 'sr-only'} role="status" aria-label="Preparation change" aria-atomic="true">{preparationNotice && preparationNotice.key === activeParamKey ? preparationNotice.text : ''}</p>
 
         {/* Preset Selector */}
-        <div className="cm-preset-section">
+        <div className="cm-preset-section" id="cohort-model-settings">
           <div className="cm-preset-bar" role="group" aria-label="Model presets">
             <button
               type="button"
@@ -670,7 +670,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </div>
         )}
 
-        <section className="cm-fit-summary" aria-label="Fit summary">
+        <section className="cm-fit-summary" aria-label="Fit summary" id="cohort-model-fit-summary">
         <h2>Fit summary</h2>
         {spec && !noFit && <p className="cm-sample-meta cm-model-sentence">{modelSentence}</p>}
         <label className="mixed-model-config-check">

@@ -12,6 +12,7 @@ import { countLabel } from './workspace-labels'
 import { useWorkspaceStorage } from './workspace-storage'
 import { losesDataOnUnload } from './saved-settings'
 import { getMethodLocation, type HelpWorkspace } from './methods/method-navigation'
+import { CONTROL_ELEMENT_IDS, type SettingControl } from './analysis-record'
 
 type Page = 'Data' | 'Trajectories' | 'Cohort models' | 'Methods'
 const datasetKeys = new WeakMap<LabRow[], number>()
@@ -54,6 +55,19 @@ export function WorkspaceApp() {
       else if (getMethodLocation()) window.history.pushState({ page: next, mode: 'table' }, '', window.location.pathname + window.location.search)
       else window.history.pushState({ page: next, mode: 'table' }, '')
     }
+  }
+
+  /** From the analysis record: show the page of a control, open what hides
+   * it and move the focus to it. */
+  const goToControl = (control: Exclude<SettingControl, { page: 'Trajectories' }>) => {
+    go(control.page)
+    requestAnimationFrame(() => {
+      const element = document.getElementById(CONTROL_ELEMENT_IDS[control.target])
+      if (!element) return
+      for (let parent = element.closest('details'); parent; parent = parent.parentElement?.closest('details') ?? null) parent.open = true
+      element.scrollIntoView({ block: 'start' })
+      element.querySelector<HTMLElement>('select, input, button')?.focus({ preventScroll: true })
+    })
   }
 
   useEffect(() => {
@@ -121,7 +135,7 @@ export function WorkspaceApp() {
         }} />
       </section>
       <section hidden={page !== 'Trajectories'} aria-label="Trajectory workspace">
-        {hasData ? <TrajectoriesWorkspace key={datasetKey(data.rawRows)} data={data} active={page === 'Trajectories'}
+        {hasData ? <TrajectoriesWorkspace key={datasetKey(data.rawRows)} data={data} active={page === 'Trajectories'} onNavigate={goToControl}
           requestedPatientId={requestedPerson?.rows === data.rawRows ? requestedPerson.id : null} />
           : <div className="card"><h1>Compare trajectories</h1><p>Load a file or the demo data first. Then compare patients and multiple parameters in the table, individual view and overlay.</p><button type="button" className="primary" onClick={() => go('Data')}>Load data</button></div>}
       </section>

@@ -250,7 +250,16 @@ Since 2026-11-21:
   names the attribute whose values the `group` column of `cohort` holds.
   Example: grouped by `sex`, `group_by` is `sex` and `group` holds `f` or
   `m`. `anchor_comparison` (appended 2026-11-22 after `group_by`) is the
-  before/after setting as JSON, empty when off.
+  before/after setting as JSON, empty when off. Since 2026-11-22 (issue #83)
+  three columns follow it: `trend` (`true` when Trend was on for the
+  parameter; with Trend off `fit_config` has `fitModel` `none` and the
+  column has no slope), `settings_source` (`shared` for a parameter that used
+  the shared settings, `own` for one with its own settings) and
+  `column_settings` (those settings as the app keeps them, as JSON: preset
+  id, fit model, time balancing, censoring, exclusions, endpoints, module
+  settings and, when on, the before/after setting). They are what "Apply
+  settings from an export" reads (below); a reader of the file finds every
+  value also in the columns before them.
 - **`about`.** One column `note`. Rows are appended, never moved. Since
   2026-11-21 it explains the time axis of the trend, the meaning of `preset`
   and the fixed parameters of segmented OLS (a gap of more than 180 days, at
@@ -291,8 +300,9 @@ Since 2026-11-21:
   different birth-date anchors. The
   `datasetHash` of the model workbook is a different quantity: a hash of the
   prepared model rows.
-  Since 2026-11-22 one more note follows the provenance rows: it describes
-  the `anchor_comparison` sheet.
+  Since 2026-11-22 two more notes follow the provenance rows: the first
+  describes the `anchor_comparison` sheet, the second (issue #83) the
+  columns `trend`, `settings_source` and `column_settings` of `settings`.
 - **`columns`.** The sheet after `about` describes the columns of the `cohort` (or
   `slopes`) sheet, one row per column in sheet order: `column`, `meaning`,
   `unit`, `empty_when`. The export fails rather than write a column that has
@@ -300,6 +310,67 @@ Since 2026-11-21:
 
 Evidence: [workbook schema tests](../../tests/workspace/export-schema.test.ts),
 [settings and provenance tests](../../tests/workspace/export-provenance.test.ts).
+
+### Applying the settings of an export
+
+Since 2026-11-22 (issue #83) the analysis record (Trajectories, beside the
+export button; on a phone in the toolbar) applies the settings of a cohort or patient workbook of this
+app to the loaded dataset (`applyExportedSettings` in
+`src/workspace/exported-settings.ts`). Loading a workbook as data still
+applies none of its settings. The rules:
+
+- **Which file.** A workbook with a `settings` sheet whose rows have
+  `parameter_key` and `fit_config`; any other file is refused with a reason
+  and nothing changes.
+- **Dataset settings.** `analysis_settings` of the first row replaces the
+  dataset settings (eGFR formula and creatinine source, AKI recovery between
+  episodes, the dataset defaults) after the check every stored value passes
+  (`parseAnalysisSettings`). A creatinine source the loaded dataset does not
+  have as an imported parameter (same name and unit) is not applied: the
+  current source stays and the record names it. Automatic (`null`) always
+  applies.
+- **Which parameters.** A row applies when the loaded dataset has its
+  `parameter_key`, or when it is the computed eGFR of the formula just
+  applied (that formula produces it). Other rows are named ("settings of …
+  (parameter not in this dataset)") and change nothing.
+- **Shared and own settings.** The settings of the first applicable row
+  with `settings_source` `shared` become the shared settings; each
+  applicable row with `own` becomes that parameter's own settings, and a
+  parameter listed as `shared` loses own settings it had. Own settings of
+  parameters the file does not list stay as they are. Every value goes through the
+  item-by-item check of the settings saved on this device
+  (`restoreSavedSettings`): a value this version rejects keeps its current
+  value and is named; settings saved under a preset whose definition has
+  changed keep their values as custom settings.
+- **Selection and Trend.** The applicable parameters become the shown
+  parameters, in the order of the file; Trend follows `trend` for them and is
+  unchanged for the others.
+- **Not applied, and named when the file has them:** grouping (`group_by`),
+  manual demographic entries (`manual_override` in `demographics`). The
+  patient selection (`patient_ids`) and the cohort model settings, which the
+  cohort workbook does not carry, are never applied.
+- **Older workbooks.** A workbook without `column_settings` (written before
+  2026-11-22) is read from `fit_config`, the module columns and
+  `anchor_comparison`; each parameter gets its own settings, preset `custom`
+  unless `fit_config` names another preset, and `fitModel` `none` reads as
+  Trend off with the preset's fit model.
+
+Example: an export with the shared settings Theil–Sen, own settings
+(segmented OLS, AKI windows of 14 days) for creatinine and Trend on for
+creatinine only, applied to a dataset without creatinine: the shared
+settings become Theil–Sen, creatinine is named as not in this dataset, and
+the other parameters of the file are shown with Trend off.
+
+Same data, same results: applied to the dataset re-imported from the export
+itself, the settings reproduce every sheet of the export except
+`import_diagnostics` (what the import of each file reported), provided the
+export holds every parameter. `raw_measurements` holds the imported rows of
+the exported parameters only, so a re-import of a narrower export lacks the
+patients without rows of those parameters, and a birth date estimated from
+stated ages uses only the rows the file has.
+
+Evidence: [round trip on the demo workbook](../../tests/workspace/analysis-record-roundtrip.test.ts),
+[completeness and per-setting round trip](../../tests/workspace/analysis-record.test.ts).
 
 ### Rounding
 
