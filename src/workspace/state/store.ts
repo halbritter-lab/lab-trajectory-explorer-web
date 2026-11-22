@@ -18,6 +18,21 @@ import { mergedSeriesKeys, seriesRefKey, type SeriesMerge } from '../../core/ana
 import { seriesMerges } from '../../core/domains/nephrology/seriesMergeModule'
 import { defaultTrajectoryFitSettings, modelPreparationKey, type TrajectoryFitSettings } from '../workspace-analysis'
 import { defaultTrajectoryView, type TrajectoryView } from '../saved-settings'
+import type { TimeToEventEndpoint, TimeToEventScale } from '../../core/domains/nephrology/endpoints/timeToEvent'
+
+/** The choices of the "Time to event" area of Cohort models. Kept for the
+ * session only (not saved with the dataset), but shown in the analysis record
+ * and written to the time-to-event workbook. A null choice stands for the
+ * area's default: the first eGFR parameter, the first available endpoint. */
+export interface TimeToEventChoices {
+  parameterKey: string | null
+  endpoint: TimeToEventEndpoint | null
+  compositeWithKrt: boolean
+  timeScale: TimeToEventScale
+  grouping: string | null
+}
+
+export const DEFAULT_TIME_TO_EVENT_CHOICES: TimeToEventChoices = { parameterKey: null, endpoint: null, compositeWithKrt: false, timeScale: 'age', grouping: null }
 
 export interface Notice {
   kind: 'error' | 'info'
@@ -112,6 +127,7 @@ export interface AppState {
   cohortModelRuntimeLoaded: boolean
   showCohortMixedModelLine: boolean
   projectionSettings: Record<string, AppliedProjectionSettings>
+  timeToEventSettings: TimeToEventChoices
   busy: boolean
   notice: Notice | null
   setNotice: (n: Notice | null) => void
@@ -151,6 +167,7 @@ export interface AppState {
    * stopped run is stored. */
   cancelCohortModels: () => void
   setShowCohortMixedModelLine: (value: boolean) => void
+  setTimeToEventSettings: (choices: Partial<TimeToEventChoices>) => void
   setProjectionSettings: (seriesIndex: number, seriesKey: string, entityKey: string, applied: AppliedProjectionSettings) => void
   reset: () => void
 }
@@ -160,7 +177,7 @@ export interface AppState {
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'pristineDemo' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'importDiagnostics' | 'patientAttributes'
   | 'analysisSettings' | 'periEventSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
-  | 'cohortModelProgress' | 'cohortModelRuntimeLoaded' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
+  | 'cohortModelProgress' | 'cohortModelRuntimeLoaded' | 'showCohortMixedModelLine' | 'projectionSettings' | 'timeToEventSettings' | 'busy' | 'notice'>
 
 const initialState = (): AppData => ({
   rows: [],
@@ -183,6 +200,7 @@ const initialState = (): AppData => ({
   cohortModelRuntimeLoaded: false,
   showCohortMixedModelLine: false,
   projectionSettings: {},
+  timeToEventSettings: DEFAULT_TIME_TO_EVENT_CHOICES,
   busy: false,
   notice: null,
 })
@@ -425,6 +443,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ cohortModelRunning: false, cohortModelProgress: null, cohortModelRuntimeLoaded: false })
   },
   setShowCohortMixedModelLine: (value) => set({ showCohortMixedModelLine: value }),
+  setTimeToEventSettings: (choices) => set((s) => ({ timeToEventSettings: { ...s.timeToEventSettings, ...choices } })),
   setProjectionSettings: (seriesIndex, seriesKey, entityKey, applied) => set((s) => {
     const stored = s.cohortModelResults?.[entityKey]
     if (!stored || stored.result.status !== 'success' || !stored.result.converged || stored.result.singular ||

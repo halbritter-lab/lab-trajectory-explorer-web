@@ -19,7 +19,10 @@ import type { FitConfig } from '../core/analysis/fitConfig'
 import type { ManualDemographics } from '../core/analysis/types'
 import { defaultFitSettings, type TrajectoryFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
 import { defaultTrajectoryView, type TrajectoryView } from './saved-settings'
-import type { StoredMixedModelResult } from './state/store'
+import { DEFAULT_TIME_TO_EVENT_CHOICES, type StoredMixedModelResult, type TimeToEventChoices } from './state/store'
+import { parameterKeyLabel } from './saved-settings'
+import { TIME_SCALE_LABELS } from './time-to-event'
+import { TIME_TO_EVENT_ENDPOINTS } from '../core/domains/nephrology/endpoints/timeToEvent'
 import { anchorRuleLabel } from '../core/cohort/anchorComparison'
 import type { PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 import type { SeriesMerge } from '../core/analysis/seriesMerge'
@@ -28,12 +31,12 @@ import type { SeriesMerge } from '../core/analysis/seriesMerge'
 export type SettingControl =
   | { page: 'Data'; target: 'egfr' | 'aki-recovery' | 'aki-retrospective' | 'demographics' | 'peri-event' | 'series-merge' }
   | { page: 'Trajectories'; target: 'analysis' | 'parameters' | 'trend' | 'log' | 'grouping' }
-  | { page: 'Cohort models'; target: 'model' | 'fit-summary' }
+  | { page: 'Cohort models'; target: 'model' | 'fit-summary' | 'time-to-event' }
 
 /** The element each control of another page is in (see WorkspaceApp). */
 export const CONTROL_ELEMENT_IDS: Record<Exclude<SettingControl, { page: 'Trajectories' }>['target'], string> = {
   egfr: 'data-egfr', 'aki-recovery': 'data-aki-recovery', 'aki-retrospective': 'data-aki-retrospective', demographics: 'data-demographics', 'peri-event': 'data-peri-event', 'series-merge': 'data-series-merge',
-  model: 'cohort-model-settings', 'fit-summary': 'cohort-model-fit-summary',
+  model: 'cohort-model-settings', 'fit-summary': 'cohort-model-fit-summary', 'time-to-event': 'cohort-model-time-to-event',
 }
 
 export type SettingArea = 'Data' | 'Trajectories' | 'Cohort models'
@@ -55,6 +58,8 @@ const DATA_EGFR: SettingControl = { page: 'Data', target: 'egfr' }
 const TRAJECTORY_SETTINGS: SettingControl = { page: 'Trajectories', target: 'analysis' }
 const MODEL_SETTINGS: SettingControl = { page: 'Cohort models', target: 'model' }
 const ANALYSIS_SETTINGS = 'settings.analysis_settings'
+const TIME_TO_EVENT: SettingControl = { page: 'Cohort models', target: 'time-to-event' }
+const TIME_TO_EVENT_WORKBOOK = 'time-to-event workbook: tte_settings, about'
 
 /** Path prefix of the fit settings: the shared settings and each parameter's own settings have this shape. */
 export const FIT_PREFIX = 'fit'
@@ -145,6 +150,12 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   'mixedModelConfig.smallLevelPolicy': { label: 'Small factor levels', area: 'Cohort models', exportField: 'model workbook: models.modelConfig, factor_levels', control: MODEL_SETTINGS },
   presetExclusionPolicy: { label: 'Preset windows in the model', area: 'Cohort models', exportField: 'model workbook: models.preset_exclusion_policy', control: { page: 'Cohort models', target: 'fit-summary' } },
   projectionSettings: { label: 'Projection settings', area: 'Cohort models', exportField: 'model workbook: projections.settings', control: MODEL_SETTINGS },
+  // The Time to event area (issue #78): session only, recorded in its own workbook (wave 3 review).
+  'timeToEventSettings.parameterKey': { label: 'Time to event: parameter', area: 'Cohort models', exportField: TIME_TO_EVENT_WORKBOOK, control: TIME_TO_EVENT },
+  'timeToEventSettings.endpoint': { label: 'Time to event: endpoint', area: 'Cohort models', exportField: TIME_TO_EVENT_WORKBOOK, control: TIME_TO_EVENT },
+  'timeToEventSettings.compositeWithKrt': { label: 'Time to event: or kidney replacement therapy', area: 'Cohort models', exportField: TIME_TO_EVENT_WORKBOOK, control: TIME_TO_EVENT },
+  'timeToEventSettings.timeScale': { label: 'Time to event: time scale', area: 'Cohort models', exportField: TIME_TO_EVENT_WORKBOOK, control: TIME_TO_EVENT },
+  'timeToEventSettings.grouping': { label: 'Time to event: grouping', area: 'Cohort models', exportField: TIME_TO_EVENT_WORKBOOK, control: TIME_TO_EVENT },
   showCohortMixedModelLine: { label: 'Model line in the charts', area: 'Cohort models', noNumericEffect: 'Draws the model line in the Trajectories charts.', control: null },
 }
 
@@ -165,6 +176,8 @@ export const STORE_FIELDS = {
   cohortModelResults: 'state', cohortModelRunning: 'state', cohortModelProgress: 'state', cohortModelRuntimeLoaded: 'state',
   analysisSettings: 'settings', periEventSettings: 'settings', manualDemographics: 'settings', trajectoryFitSettings: 'settings', trajectoryView: 'settings',
   mixedModelConfig: 'settings', presetExclusionPolicy: 'settings', projectionSettings: 'settings', showCohortMixedModelLine: 'settings',
+  // Session only (not saved with the dataset), but listed in the record and written to the time-to-event workbook.
+  timeToEventSettings: 'settings',
 } as const satisfies Record<string, 'data' | 'state' | 'settings'>
 
 /** Paths whose value is one setting although it is an object or a list. */
@@ -245,6 +258,10 @@ export function settingValueText(path: string, value: unknown): string {
   const leaf = path.split('.').slice(1).join('.') || path
   // A copy saved before 2026-11-22 has no rule for children and is read with the default (OD-69).
   if (path === 'analysisSettings.egfr.paediatric') return PAEDIATRIC_RULE_LABELS[(value ?? DEFAULT_PAEDIATRIC_RULE) as keyof typeof PAEDIATRIC_RULE_LABELS] ?? String(value)
+  if (path === 'timeToEventSettings.parameterKey') return value === null || value === undefined ? 'First eGFR parameter' : parameterKeyLabel(String(value))
+  if (path === 'timeToEventSettings.endpoint') return value === null || value === undefined ? 'First available endpoint' : TIME_TO_EVENT_ENDPOINTS.find(item => item.id === value)?.label ?? String(value)
+  if (path === 'timeToEventSettings.timeScale') return TIME_SCALE_LABELS[value as keyof typeof TIME_SCALE_LABELS] ?? String(value)
+  if (path === 'timeToEventSettings.grouping') return value === null || value === undefined ? 'No grouping (whole cohort)' : String(value)
   if (value === undefined) return 'Off'
   if (path === 'analysisSettings.egfr.formula') return value === 'off' ? 'Off' : EGFR_FORMULA_LABELS[value as keyof typeof EGFR_FORMULA_LABELS] ?? String(value)
   if (path === 'periEventSettings') {
@@ -314,6 +331,8 @@ export interface AnalysisRecordInput {
   mixedModelConfig: MixedModelConfig
   presetExclusionPolicy: PresetExclusionPolicy
   cohortModelResults: Record<string, StoredMixedModelResult> | null
+  /** The choices of the Time to event area; the defaults when left out. */
+  timeToEventSettings?: TimeToEventChoices
 }
 
 /** The effective settings in one list, by page, each against its default:
@@ -365,7 +384,13 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
       entry('presetExclusionPolicy', input.presetExclusionPolicy, 'apply'),
     ],
   }
-  return [data, sharedSection, ...parameterSections, grouping, models]
+  const tte = input.timeToEventSettings ?? DEFAULT_TIME_TO_EVENT_CHOICES
+  const timeToEvent: RecordSection = {
+    id: 'time-to-event', title: 'Cohort models: time to event', area: 'Cohort models',
+    note: 'Kept for this session only, not saved with the dataset; recorded in the time-to-event workbook (sheets tte_settings and about), not in the cohort workbook. The endpoint definition comes from the endpoint settings of the parameter under Trajectories.',
+    entries: (Object.keys(DEFAULT_TIME_TO_EVENT_CHOICES) as (keyof TimeToEventChoices)[]).map(key => entry(`timeToEventSettings.${key}`, tte[key], DEFAULT_TIME_TO_EVENT_CHOICES[key])),
+  }
+  return [data, sharedSection, ...parameterSections, grouping, models, timeToEvent]
 }
 
 export interface VersionEntry { label: string; value: string }

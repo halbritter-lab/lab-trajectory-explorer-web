@@ -529,7 +529,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
       <div className="cm-area-tabs" role="tablist" aria-label="Cohort analysis">
         <button type="button" role="tab" id={`${areaId}-slope`} aria-selected={area === 'slope'} aria-controls={`${areaId}-slope-panel`} className={area === 'slope' ? 'active' : ''} onClick={() => setArea('slope')}>Slope models</button>
-        <button type="button" role="tab" id={`${areaId}-tte`} aria-selected={area === 'tte'} aria-controls={`${areaId}-tte-panel`} className={area === 'tte' ? 'active' : ''} onClick={() => setArea('tte')}>Time to event</button>
+        <button type="button" role="tab" id={`${areaId}-tte`} aria-selected={area === 'tte'} aria-controls={`${areaId}-tte-panel`} className={area === 'tte' ? 'active' : ''} data-opens-control="cohort-model-time-to-event" onClick={() => setArea('tte')}>Time to event</button>
       </div>
       {area === 'tte' && <div className="cm-area-panel" role="tabpanel" id={`${areaId}-tte-panel`} aria-labelledby={`${areaId}-tte`}>
         <TimeToEventPanel data={data} onBrowseTrajectories={onBrowseTrajectories} />

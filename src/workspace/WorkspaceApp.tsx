@@ -61,13 +61,20 @@ export function WorkspaceApp() {
    * it and move the focus to it. */
   const goToControl = (control: Exclude<SettingControl, { page: 'Trajectories' }>) => {
     go(control.page)
-    requestAnimationFrame(() => {
-      const element = document.getElementById(CONTROL_ELEMENT_IDS[control.target])
-      if (!element) return
+    const id = CONTROL_ELEMENT_IDS[control.target]
+    const focus = (openTab: boolean) => {
+      const element = document.getElementById(id)
+      if (!element) {
+        // A control behind a tab (the Time to event area): open the tab, then look again.
+        const opener = openTab ? document.querySelector<HTMLElement>(`[data-opens-control="${id}"]`) : null
+        if (opener) { opener.click(); requestAnimationFrame(() => focus(false)) }
+        return
+      }
       for (let parent = element.closest('details'); parent; parent = parent.parentElement?.closest('details') ?? null) parent.open = true
       element.scrollIntoView({ block: 'start' })
       element.querySelector<HTMLElement>('select, input, button')?.focus({ preventScroll: true })
-    })
+    }
+    requestAnimationFrame(() => focus(true))
   }
 
   useEffect(() => {

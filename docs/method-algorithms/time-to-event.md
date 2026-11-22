@@ -24,8 +24,12 @@ NDT 2013;28:2670 (PMID 23975843).
 ### Settings
 
 The settings are those of the area and last for the session; they are not
-saved and are not part of the analysis record (like the grouping of the
-slope models). Every one is written to the export.
+saved with the dataset. Since the code review of wave 3 (2026-11-22) the
+analysis record lists them in a section "Cohort models: time to event"
+(paths `timeToEventSettings.parameterKey`, `.endpoint`, `.compositeWithKrt`,
+`.timeScale`, `.grouping`; export field: the time-to-event workbook, sheets
+`tte_settings` and `about`), each against the default of the table below, with
+a Change button that opens the area. Every one is written to the export.
 
 | Setting | Values | Default |
 | --- | --- | --- |
@@ -156,8 +160,19 @@ first sheet holds one row per patient; the others follow:
 | `km_summary` | Per group: patients, events, censored, of which died, median and its interval in years ("not reached"). |
 | `logrank` | Per group observed, expected and variance; a row `test` with `chi_square`, `df`, `p_value`. |
 | `cumulative_incidence` | Only with recorded deaths: per group and time, the Aalen–Johansen incidence of the endpoint and of death and 1 − KM. |
-| `about` | The research-use note, the endpoint and its definition, the time scale and these rules. |
+| `tte_settings` | One row (since the code review of wave 3, 2026-11-22): `parameter_key`, `parameter`, `unit`, `endpoint`, `composite_with_krt`, `time_scale`, `grouping` (empty without), `endpoint_definition`, `fit_config` (the parameter's configuration under Trajectories as JSON, without `xAxis`, as in the cohort workbook), `analysis_settings` (the dataset settings as JSON: eGFR formula and creatinine source, series merges, AKI), `input_data_id`, `app_version`, `exported_at`. |
+| `about` | The research-use note, the endpoint and its definition, the time scale and these rules; `app_version: …`, `exported_at: …` and `input_data_id: …` as notes of their own, as in the cohort workbook, and the settings of the area in words. |
 | `r_script` | R code that reads `time_to_event` and reproduces the estimates (below). |
+
+`input_data_id` here identifies all imported measurements of the dataset:
+every patient and every parameter, each row reduced as in `raw_measurements`
+of the cohort workbook (patient, date, parameter, unit, value text, sex,
+stated age, imported birth date, and time of day and laboratory where a row
+has one). A cohort workbook of all parameters and all patients of the same
+import carries the same identifier; one of fewer parameters or patients has
+another, since its scope is smaller. Example: the six patients of the worked
+example, all with imported eGFR only, give the identifier of a cohort
+workbook of the eGFR parameter for all six.
 
 The chart downloads as SVG or PNG through the app's chart export, with the
 definition and the time scale in its caption.
@@ -285,7 +300,10 @@ the PNG download (jsdom has no canvas).
   input and the time-to-event analysis but stay in tables, charts and fits,
   with an import warning; the death vocabulary is four words (`death`,
   `deceased`, `Tod`, `verstorben`). The settings of the area are not saved
-  and not part of the analysis record of the cohort workbook.
+  with the dataset (session only). Since the code review of wave 3 they are
+  listed in the analysis record and written, with the parameter's
+  `fit_config`, `analysis_settings` and `input_data_id`, to the time-to-event
+  workbook (`tte_settings`); the cohort workbook does not record them.
 
 ### Not built
 

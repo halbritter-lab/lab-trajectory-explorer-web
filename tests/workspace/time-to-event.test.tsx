@@ -17,6 +17,8 @@ import { availableTimeToEventEndpoints, endpointDefinitionText, numberAtRiskAt, 
 import { workspaceGroupableAttributes } from '../../src/workspace/workspace-model-results'
 import { sheetsToXlsxBytes } from '../../src/io/export'
 import { CohortModelsWorkspace } from '../../src/workspace/CohortModelsWorkspace'
+import { inputDataId, labRowsInputDataId, workspaceWorkbookSheets } from '../../src/workspace/workspace-export'
+import { analysisRecord } from '../../src/workspace/analysis-record'
 
 vi.mock('../../src/workspace/models/CohortModelTable', () => ({ CohortModelTable: () => <div data-testid="cohort-model-table" /> }))
 
@@ -144,7 +146,7 @@ describe('definition, export and page', () => {
     const { inputs } = inputsFor('observedCkdG4', 'cohort')
     const analysis = timeToEventAnalysis(inputs, { endpoint: 'observedCkdG4', compositeWithKrt: false, timeScale: 'age', grouping: 'cohort' })
     const sheets = timeToEventExportSheets(analysis, { parameterLabel: 'eGFR', parameterKey: 'eGFR|x', definition: 'def', workbookName: 'tte.xlsx', appVersion: '0.0.0', exportedAt: new Date('2026-11-22T00:00:00Z') })
-    expect(sheets.map(sheet => sheet.name)).toEqual(['time_to_event', 'km', 'km_summary', 'logrank', 'cumulative_incidence', 'about', 'r_script'])
+    expect(sheets.map(sheet => sheet.name)).toEqual(['time_to_event', 'km', 'km_summary', 'logrank', 'cumulative_incidence', 'tte_settings', 'about', 'r_script'])
     expect(sheets[0].rows[0]).toMatchObject({ patient_id: 'P1', group: 'A', included: 'yes', entry_date: '2019-01-01', exit_date: '2021-01-01', entry_days: 17897, exit_days: 18628, status: 1, outcome: 'endpoint', endpoint_confirmed_date: '2021-06-01', time_scale: 'age', endpoint_definition: 'def' })
     const script = (sheets.at(-1)!.rows as { line: string }[]).map(row => row.line)
     expect(script).toContain('km <- survfit(Surv(entry, exit, status == 1) ~ group, data = tte, conf.type = "log-log")')
@@ -152,6 +154,47 @@ describe('definition, export and page', () => {
     expect(script.some(line => line.startsWith('aj <- survfit(Surv(entry, exit, state)'))).toBe(true)
     const workbook = XLSX.read(sheetsToXlsxBytes(sheets))
     expect(workbook.SheetNames[0]).toBe('time_to_event')
+  })
+
+  it('records the settings behind the workbook: area, parameter fit_config, analysis_settings and input_data_id (wave 3 review)', () => {
+    const { data, spec, inputs } = inputsFor('observedCkdG4', 'cohort')
+    const parameter = data.parameters.find(p => p.bezeichnung === 'eGFR')!
+    const analysis = timeToEventAnalysis(inputs, { endpoint: 'observedCkdG4', compositeWithKrt: true, timeScale: 'time_since_entry', grouping: 'cohort' })
+    const id = labRowsInputDataId(data.rawRows)
+    const sheets = timeToEventExportSheets(analysis, {
+      parameterLabel: parameter.label, parameterKey: parameter.key, parameterName: parameter.bezeichnung, parameterUnit: parameter.einheit, definition: 'def',
+      fitConfig: spec.fitConfig, analysisSettings: data.analysisSettings, inputDataId: id, workbookName: 'tte.xlsx', appVersion: '0.0.0', exportedAt: new Date('2026-11-22T00:00:00Z'),
+    })
+    const [settings] = sheets.find(sheet => sheet.name === 'tte_settings')!.rows as Record<string, unknown>[]
+    expect(settings).toMatchObject({ parameter_key: parameter.key, parameter: 'eGFR', unit: UNIT, endpoint: 'observedCkdG4', composite_with_krt: true, time_scale: 'time_since_entry', grouping: 'cohort', input_data_id: id, app_version: '0.0.0' })
+    expect(JSON.parse(settings.fit_config as string).endpoints.observedCkdG4).toBe(true)
+    expect(JSON.parse(settings.fit_config as string)).not.toHaveProperty('xAxis')
+    expect(JSON.parse(settings.analysis_settings as string)).toEqual(JSON.parse(JSON.stringify(data.analysisSettings)))
+    const about = (sheets.find(sheet => sheet.name === 'about')!.rows as { note: string }[]).map(row => row.note)
+    expect(about).toContain(`input_data_id: ${id}`)
+    expect(about.some(note => note.includes('grouping cohort'))).toBe(true)
+    // The identifier is the one a cohort workbook of all parameters and patients of the same import carries.
+    const cohortRows = buildCohortRows(data.rows, data.patients.map(p => p.id), [spec])
+    const cohort = workspaceWorkbookSheets({ data, parameterKeys: data.parameters.map(p => p.key), patientIds: data.patients.map(p => p.id), cohortRows })
+    expect(inputDataId(cohort.find(sheet => sheet.name === 'raw_measurements')!.rows as Record<string, unknown>[])).toBe(id)
+  })
+
+  it('keeps the area choices in the store for the session and lists them in the analysis record', () => {
+    const data = loadExample()
+    render(<CohortModelsWorkspace data={data} onBrowseTrajectories={() => {}} onBrowseData={() => {}} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Time to event' }))
+    const area = screen.getByRole('region', { name: 'Time to event' })
+    fireEvent.change(within(area).getByLabelText('Time-to-event grouping'), { target: { value: 'cohort' } })
+    fireEvent.change(within(area).getByLabelText('Time scale'), { target: { value: 'time_since_entry' } })
+    const choices = useAppStore.getState().timeToEventSettings
+    expect(choices).toMatchObject({ grouping: 'cohort', timeScale: 'time_since_entry' })
+    const state = useAppStore.getState()
+    const sections = analysisRecord({ analysisSettings: state.analysisSettings, manualDemographics: {}, trajectoryFitSettings: state.trajectoryFitSettings, parameters: [], periEventSettings: null,
+      groupBy: '', mixedModelConfig: state.mixedModelConfig, presetExclusionPolicy: 'apply', cohortModelResults: null, timeToEventSettings: choices })
+    const tte = sections.find(section => section.id === 'time-to-event')!
+    expect(tte.entries.find(entry => entry.path === 'timeToEventSettings.grouping')).toMatchObject({ value: 'cohort', deviates: true, control: { page: 'Cohort models', target: 'time-to-event' } })
+    expect(tte.entries.find(entry => entry.path === 'timeToEventSettings.timeScale')).toMatchObject({ value: 'Years since the first eligible measurement', deviates: true })
+    expect(tte.entries.find(entry => entry.path === 'timeToEventSettings.endpoint')!.exportField).toContain('time-to-event workbook')
   })
 
   it('shows the area beside slope models with the list of patients not in the analysis', () => {

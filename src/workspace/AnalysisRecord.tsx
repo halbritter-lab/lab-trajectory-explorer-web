@@ -40,6 +40,7 @@ export function AnalysisRecordDialog({ data, parameters, trendKeys, logKeys, gro
     parameters: parameters.map(parameter => ({ ...parameter, trend: trendKeys.includes(parameter.key), log: logKeys.includes(parameter.key) })),
     periEventSettings: state.periEventSettings,
     groupBy, mixedModelConfig: state.mixedModelConfig, presetExclusionPolicy: state.presetExclusionPolicy, cohortModelResults: state.cohortModelResults,
+    timeToEventSettings: state.timeToEventSettings,
   })
   const deviations = sections.reduce((sum, section) => sum + section.entries.filter(entry => entry.deviates).length, 0)
   const versions = analysisVersions(state)

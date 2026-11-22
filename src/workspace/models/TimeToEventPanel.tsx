@@ -10,6 +10,7 @@ import { stepValueAt } from '../../core/survival/survival'
 import { availableTimeToEventEndpoints, endpointDefinitionText, numberAtRiskAt, TIME_SCALE_LABELS, timeToEventExportSheets, timeToEventInputs } from '../time-to-event'
 import { workspaceGroupableAttributes } from '../workspace-model-results'
 import { ChartExportActions } from '../WorkspaceExports'
+import { labRowsInputDataId } from '../workspace-export'
 import { downloadBlob, fileStamp, sheetsToXlsxBytes } from '../../io/export'
 import { version as APP_VERSION } from '../../../package.json'
 
@@ -40,17 +41,16 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
   const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
   const parameters = useMemo(() => data.parameters.filter(parameter => isEgfrUnit(parameter.einheit)
     && data.rows.some(row => row.bezeichnung === parameter.bezeichnung && row.einheit === parameter.einheit && row.wertNum !== null)), [data.parameters, data.rows])
-  const [parameterChoice, setParameterChoice] = useState<string | null>(null)
+  // The choices of this area live in the store for the session, so the analysis record lists them.
+  const choices = useAppStore(s => s.timeToEventSettings)
+  const setChoices = useAppStore(s => s.setTimeToEventSettings)
+  const { parameterKey: parameterChoice, endpoint: endpointChoice, compositeWithKrt, timeScale, grouping } = choices
   const parameterKey = parameterChoice !== null && parameters.some(p => p.key === parameterChoice) ? parameterChoice : parameters[0]?.key
   const parameter = parameters.find(p => p.key === parameterKey)
   const spec = useMemo(() => parameterKey ? workspaceModelSpec(data, parameterKey, trajectoryFitSettings) : undefined, [data, parameterKey, trajectoryFitSettings])
   const endpointSettings = spec?.fitConfig?.endpoints
   const available = availableTimeToEventEndpoints(endpointSettings)
-  const [endpointChoice, setEndpointChoice] = useState<TimeToEventEndpoint | null>(null)
   const endpoint = endpointChoice !== null && available.includes(endpointChoice) ? endpointChoice : available.find(id => id !== 'kidneyFailure') ?? 'kidneyFailure'
-  const [compositeWithKrt, setCompositeWithKrt] = useState(false)
-  const [timeScale, setTimeScale] = useState<TimeToEventScale>('age')
-  const [grouping, setGrouping] = useState<string | null>(null)
   const [curveMode, setCurveMode] = useState<CurveMode>('survival')
   const [exportError, setExportError] = useState<string | null>(null)
 
@@ -127,41 +127,45 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
     setExportError(null)
     try {
       const fileName = `lab-trajectory-time-to-event-${fileStamp()}.xlsx`
-      const sheets = timeToEventExportSheets(analysis, { parameterLabel: parameter!.label, parameterKey: parameter!.key, definition, workbookName: fileName, appVersion: APP_VERSION })
+      const sheets = timeToEventExportSheets(analysis, {
+        parameterLabel: parameter!.label, parameterKey: parameter!.key, parameterName: parameter!.bezeichnung, parameterUnit: parameter!.einheit,
+        definition, fitConfig: spec!.fitConfig, analysisSettings: data.analysisSettings, inputDataId: labRowsInputDataId(data.rawRows),
+        workbookName: fileName, appVersion: APP_VERSION,
+      })
       downloadBlob(sheetsToXlsxBytes(sheets), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
     } catch (error) {
       setExportError(`Export failed: ${error instanceof Error ? error.message : String(error)}`)
     }
   }
 
-  return <section className="card cm-tte stack" aria-labelledby={headingId}>
+  return <section className="card cm-tte stack" aria-labelledby={headingId} id="cohort-model-time-to-event">
     <div>
       <h2 id={headingId}>Time to event</h2>
       <p className="muted">Kaplan–Meier estimate of the time to a confirmed eGFR endpoint per group, with the log-rank test between groups. A description of the cohort for research use, not a prognosis. No R is needed. <a href="#methods/cohort/time-to-event">Time to event: method</a></p>
     </div>
     <div className="cm-primary-controls">
       <label>Parameter
-        <select aria-label="Time-to-event parameter" value={parameter.key} onChange={e => setParameterChoice(e.target.value)}>
+        <select aria-label="Time-to-event parameter" value={parameter.key} onChange={e => setChoices({ parameterKey: e.target.value })}>
           {parameters.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
         </select>
       </label>
       <label>Endpoint
-        <select aria-label="Time-to-event endpoint" value={endpoint} onChange={e => setEndpointChoice(e.target.value as TimeToEventEndpoint)}>
+        <select aria-label="Time-to-event endpoint" value={endpoint} onChange={e => setChoices({ endpoint: e.target.value as TimeToEventEndpoint })}>
           {TIME_TO_EVENT_ENDPOINTS.filter(item => available.includes(item.id)).map(item => <option key={item.id} value={item.id}>{item.label}</option>)}
         </select>
       </label>
       <label className="mixed-model-config-check">
-        <input type="checkbox" checked={settings.compositeWithKrt} disabled={endpoint === 'kidneyFailure'} onChange={e => setCompositeWithKrt(e.target.checked)} />
+        <input type="checkbox" checked={settings.compositeWithKrt} disabled={endpoint === 'kidneyFailure'} onChange={e => setChoices({ compositeWithKrt: e.target.checked })} />
         Or kidney replacement therapy, whichever comes first
       </label>
       <label>Time scale
-        <select aria-label="Time scale" value={timeScale} onChange={e => setTimeScale(e.target.value as TimeToEventScale)}>
+        <select aria-label="Time scale" value={timeScale} onChange={e => setChoices({ timeScale: e.target.value as TimeToEventScale })}>
           <option value="age">{TIME_SCALE_LABELS.age}</option>
           <option value="time_since_entry">{TIME_SCALE_LABELS.time_since_entry}</option>
         </select>
       </label>
       <label>Grouping
-        <select aria-label="Time-to-event grouping" value={activeGrouping ?? ''} onChange={e => setGrouping(e.target.value || null)}>
+        <select aria-label="Time-to-event grouping" value={activeGrouping ?? ''} onChange={e => setChoices({ grouping: e.target.value || null })}>
           <option value="">No grouping (whole cohort)</option>
           {groupingOptions.map(name => <option key={name} value={name}>{name}</option>)}
         </select>

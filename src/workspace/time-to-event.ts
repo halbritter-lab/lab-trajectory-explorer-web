@@ -90,7 +90,16 @@ const blank = (value: number | null | undefined) => value === null || value === 
 export interface TimeToEventExportMeta {
   parameterLabel: string
   parameterKey: string
+  /** Name and unit of the parameter's series, as in the cohort workbook's settings sheet. */
+  parameterName?: string
+  parameterUnit?: string | null
   definition: string
+  /** The parameter's fit configuration under Trajectories (fit_config of the cohort workbook, without xAxis). */
+  fitConfig?: unknown
+  /** The dataset-level settings (eGFR formula and creatinine source, series merges, AKI). */
+  analysisSettings?: unknown
+  /** input_data_id of the imported rows of the dataset. */
+  inputDataId?: string
   workbookName: string
   appVersion: string
   exportedAt?: Date
@@ -132,9 +141,21 @@ export function timeToEventExportSheets(analysis: TimeToEventAnalysis, meta: Tim
   ] : [{ group: 'not computed: fewer than two groups', patients: '', observed: '', expected: '', variance: '', chi_square: '', df: '', p_value: '' }]
   const cif = analysis.deathRecorded ? analysis.groups.flatMap(group => (group.cumulativeIncidence ?? []).map(step => ({ group: group.label, time_years: step.time / DAYS_PER_YEAR, time_days: step.time, n_risk: step.nRisk, n_event: step.nEvent, n_death: step.nDeath,
     cumulative_incidence_endpoint: step.endpoint, cumulative_incidence_death: step.death, one_minus_km: 1 - stepValueAt(group.km.steps, s => s.survival, step.time) }))) : []
+  const exportedAt = (meta.exportedAt ?? new Date()).toISOString()
+  const { xAxis: _unused, ...fitConfig } = (meta.fitConfig ?? {}) as Record<string, unknown>
+  const tteSettings = [{
+    parameter_key: meta.parameterKey, parameter: meta.parameterName ?? meta.parameterLabel, unit: meta.parameterUnit ?? '',
+    endpoint: settings.endpoint, composite_with_krt: settings.compositeWithKrt, time_scale: scale, grouping: settings.grouping ?? '',
+    endpoint_definition: meta.definition, fit_config: JSON.stringify(fitConfig), analysis_settings: JSON.stringify(meta.analysisSettings ?? {}),
+    input_data_id: meta.inputDataId ?? '', app_version: meta.appVersion, exported_at: exportedAt,
+  }]
   const about = [
     ...EXPORT_DISCLAIMER_ROWS,
-    { note: `Time to event of ${meta.parameterLabel} (${meta.parameterKey}); app version ${meta.appVersion}; exported ${(meta.exportedAt ?? new Date()).toISOString()}.` },
+    { note: `Time to event of ${meta.parameterLabel} (${meta.parameterKey}); app version ${meta.appVersion}; exported ${exportedAt}.` },
+    { note: `app_version: ${meta.appVersion}` },
+    { note: `exported_at: ${exportedAt}` },
+    { note: `input_data_id: ${meta.inputDataId ?? ''}` },
+    { note: `Settings of this analysis (sheet tte_settings): endpoint ${settings.endpoint}, composite_with_krt ${settings.compositeWithKrt}, time_scale ${scale}, grouping ${settings.grouping === null ? 'none (whole cohort)' : settings.grouping}. They are kept for the session only and not saved with the dataset; the analysis record lists them under Cohort models. fit_config is the configuration of the parameter under Trajectories (its endpoint settings define the endpoint), analysis_settings the dataset settings of the Data page (eGFR formula and creatinine source, merged series, AKI), as in the settings sheet of the cohort workbook. input_data_id identifies all imported measurements of the dataset (every patient and parameter, reduced as the rows of raw_measurements in the cohort workbook): a cohort workbook of all parameters and all patients of the same import has the same identifier.` },
     { note: `Endpoint: ${endpointLabel(settings.endpoint, settings.compositeWithKrt)}. Definition, from the endpoint settings of this parameter under Trajectories: ${meta.definition}.` },
     { note: `Time scale: ${TIME_SCALE_LABELS[scale]}. ${scale === 'age' ? 'entry_days and exit_days are ages in whole days from the birth date or the birth anchor estimated from ages in completed years (age_estimated = yes, up to a year off); patients are at risk from entry (exclusive) to exit (inclusive), Surv(entry, exit, status) in R.' : 'entry_days is 0 and exit_days the days from the first eligible measurement to exit.'} *_years = *_days / 365.25.` },
     { note: 'Entry: the first eligible eGFR measurement (exact, dated, before the first kidney transplant or chronic dialysis start, not after a death, outside dated acute dialysis intervals). Exit: the event date, a death before the endpoint, or the last eligible measurement. status 1 = endpoint, 2 = death (censored in Kaplan–Meier, the competing event in Aalen–Johansen), 0 = censored. Without the KRT endpoint, kidney replacement therapy ends follow-up at the last eligible measurement (censored).' },
@@ -149,6 +170,7 @@ export function timeToEventExportSheets(analysis: TimeToEventAnalysis, meta: Tim
     { name: 'km_summary', rows: summary },
     { name: 'logrank', rows: logRank },
     ...(analysis.deathRecorded ? [{ name: 'cumulative_incidence', rows: cif }] : []),
+    { name: 'tte_settings', rows: tteSettings },
     { name: 'about', rows: about },
     { name: 'r_script', rows: timeToEventRScript(analysis, meta.workbookName).map(line => ({ line })) },
   ]

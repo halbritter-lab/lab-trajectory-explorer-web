@@ -51,6 +51,15 @@ interfaces are still evolving before 1.0.
   native R `survival` on stored cases (`tests/reference/survival.json` and
   the new `time_to_event.json`). Open decisions OD-73 to OD-79.
 
+### Fixed (code review of wave 3)
+
+- Time to event: the workbook is traceable. A new sheet `tte_settings` and
+  notes in `about` record the parameter, endpoint, composite, time scale and
+  grouping, the parameter's `fit_config`, `analysis_settings` (eGFR formula,
+  creatinine source, merged series) and `input_data_id`. The area's choices
+  stay session only but are listed in the analysis record, with a Change
+  button that opens the area (OD-79 updated).
+
 ### Fixed (code review of the 2026-11-22 merges)
 
 - Export notes and the import warning on bounded values describe the current

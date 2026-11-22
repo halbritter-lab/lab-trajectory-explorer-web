@@ -79,6 +79,17 @@ export function inputDataId(rawMeasurementRows: readonly Record<string, unknown>
   return hashString(`[${rows.join(',')}]`)
 }
 
+/** `input_data_id` of imported rows as `raw_measurements` would list them:
+ * the same reduction as there, for a workbook without that sheet (the
+ * time-to-event workbook names the whole imported dataset this way). */
+export function labRowsInputDataId(rows: readonly LabRow[]): string {
+  return inputDataId(rows.filter(row => row.bezeichnung !== null).map(row => ({
+    PatientID:row.patientId,Date:utcDateOrBlank(row.labDatum),Parameter:row.bezeichnung ?? '',Unit:row.einheit ?? '',Value:row.wert ?? '',
+    patient_sex:row.patientSex ?? '',patient_age_at_lab:row.patientAgeAtLab,patient_birth_date:utcDateOrBlank(row.patientBirthDate ?? null),
+    time_of_day:exportTimeOfDay(row.labTime),lab_method:row.labMethod ?? '',
+  })))
+}
+
 const seriesIdentity = (name: string | null, unit: string | null) => JSON.stringify([name,unit])
 
 /** `formula` of a merged series in measurements and parameters (issue #68). */
