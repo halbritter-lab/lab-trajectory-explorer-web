@@ -1,4 +1,6 @@
+import { version as APP_VERSION } from '../../package.json'
 import { cohortExportRecords, cohortSheetRecord, EXPORT_DISCLAIMER_ROWS, type CohortRow } from '../core/cohort/screening'
+import { hashString } from '../core/mixedModel/validation'
 import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
 import { THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
 import { patientMeasurementRecords } from '../core/patient/patientExport'
@@ -6,11 +8,13 @@ import { patientAttributesExportRows } from '../core/attributes/attributes'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
 import { utcDateOrBlank } from '../core/format'
 import { demographicWarningsByPatient } from '../core/demographics/describe'
-import { fileStamp, sheetsToXlsxBytes, svgElementToString } from '../io/export'
+import { fileStamp, sheetsToXlsxBytes, svgElementToString, type WorkbookSheet } from '../io/export'
+import { COHORT_SHEET_HEADER, cohortColumnDirectoryRows, cohortSheetRow } from './cohort-sheet-columns'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
 import { akiEpisodeExportRows, akiEpisodeRows } from './aki-episodes'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
+import { dataChecks, importDiagnosticRecords } from './import-diagnostics'
 
 export interface WorkspaceExportInput {
   data: WorkspaceData
@@ -22,12 +26,54 @@ export interface WorkspaceExportInput {
   /** Each column's own module settings (e.g. its rapid-decline threshold);
    * module defaults for columns without an entry. */
   moduleSettingsByParameterKey?: Record<string, ColumnModuleSettings>
+  /** Written to `about` as `exported_at`; the time of the call when omitted. */
+  exportedAt?: Date
+  /** Written to `about` as `export_id`; a new random UUID when omitted. */
+  exportId?: string
+}
+
+/** Gap above which Segmented OLS starts a new segment, and the points a
+ * segment needs for a fit: the defaults of `summarizeByBezeichnung` and
+ * `buildCohortRows`, which no interface control changes. */
+const SEGMENT_GAP_DAYS = 180
+const SEGMENT_MIN_POINTS = 3
+
+/** Identifier of the imported rows in the export scope: the FNV-1a hash (32
+ * bit, eight hex digits) of the rows of `raw_measurements`, each reduced to
+ * patient ID (as text), date, parameter, unit, value text, sex, stated age
+ * and imported birth date, sorted, as JSON. Events, attributes and manual
+ * demographic entries are not part of it. The same rows give the same identifier whatever
+ * their order, the fit settings and the app version; it is a checksum for
+ * comparing runs, not a cryptographic hash. The time of day of a lab date
+ * (`LabRow.labTime`) is not exported and not part of it: a file with times and
+ * its re-imported export share the identifier although AKI detection can
+ * differ between them. */
+export function inputDataId(rawMeasurementRows: readonly Record<string, unknown>[]): string {
+  const rows = rawMeasurementRows.map(row => JSON.stringify([String(row.PatientID),row.Date,row.Parameter,row.Unit,row.Value,row.patient_sex ?? '',row.patient_age_at_lab ?? null,row.patient_birth_date ?? ''])).sort()
+  return hashString(`[${rows.join(',')}]`)
 }
 
 const seriesIdentity = (name: string | null, unit: string | null) => JSON.stringify([name,unit])
 
+/** Fixed column lists of the sheets, so a sheet without rows still has its
+ * header row and a script finds every column by name. `patient_attributes`
+ * (one column per attribute) and `settings` (one column per module setting)
+ * take their columns from their rows, which are never empty. The patient ID
+ * is `PatientID` in every sheet, written as the import read it: a number for
+ * a numeric ID, otherwise text. `patient_birth_date` is the birth date of
+ * the imported lab row: filled in `raw_measurements` only, so that a
+ * re-import keeps an exact birth date; the resolved date of the analysis is
+ * `birth_anchor` in `demographics`. */
+export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics','loinc','patient_birth_date'] as const
+export const EVENTS_SHEET_HEADER = ['PatientID','type','date','title','description','endDate','intent','warning'] as const
+export const AKI_EPISODES_SHEET_HEADER = ['PatientID','creatinine_parameter','creatinine_unit','stage','onset_date','peak_date','peak_value_mg_dl','baseline_date','baseline_value_mg_dl','criterion'] as const
+export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings'] as const
+export const PARAMETERS_SHEET_HEADER = ['parameter_key','parameter','unit','origin','formula','source_parameter','source_unit','loinc'] as const
+export const ROLLING_WINDOWS_SHEET_HEADER = ['PatientID','Parameter','Unit','window','window_start','window_end','first_date','last_date','n','slope'] as const
+export const IMPORT_DIAGNOSTICS_SHEET_HEADER = ['source','sheet','kind','row','patient_id','date','parameter','value','message'] as const
+
 /** All sheets share the supplied visible scope; summaries are never fitted again. */
-export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey}: WorkspaceExportInput): {name:string;rows:object[]}[] {
+export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
   const requestedKeys = [...new Set(parameterKeys)]
   const parameters = requestedKeys.map(key => data.parameters.find(parameter => parameter.key === key))
   if (!parameters.length || parameters.some(parameter => !parameter)) throw new Error('No valid parameters selected for export.')
@@ -37,6 +83,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const ids = patientId === undefined ? visibleIds : visibleIds.filter(id => id === patientId)
   if (!ids.length) throw new Error('No patients available in the current selection.')
   const idSet = new Set(ids)
+  const exportedKeys = new Set(ids.map(patientIdKey))
+  const loadedKeys = new Set(data.patients.map(patient => patientIdKey(patient.id)))
   const bySeries = new Map(selectedParameters.map(parameter => [seriesIdentity(parameter.bezeichnung,parameter.einheit),parameter]))
   const scopedRows = (rows: LabRow[]) => rows.filter(row => idSet.has(row.patientId) && bySeries.has(seriesIdentity(row.bezeichnung,row.einheit)))
   const prepared = ids.map(id => {
@@ -49,11 +97,14 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const measurementRows = (rows: LabRow[], raw = false) => scopedRows(rows).flatMap(row => {
     const parameter = bySeries.get(seriesIdentity(row.bezeichnung,row.einheit))!
     return patientMeasurementRecords([row],row.patientId).map(record => ({
-      PatientID:record.PatientID,Date:utcDateOrBlank(row.labDatum),Parameter:record.Bezeichnung,Unit:record.Einheit,Value:record.Wert,NumericValue:record.WertNum,Operator:record.Operator,
+      PatientID:record.PatientID,Date:utcDateOrBlank(row.labDatum),Parameter:record.Bezeichnung,Unit:record.Einheit,Value:record.Wert,NumericValue:record.WertNum === '' ? null : record.WertNum,Operator:record.Operator,
       origin:!raw && parameter.derived ? 'derived' : 'imported',
       formula:!raw && parameter.derived ? data.analysisSettings.egfr.formula : '',
       patient_sex:row.patientSex ?? '',patient_age_at_lab:row.patientAgeAtLab,
       demographics:raw ? 'as imported' : 'resolved analysis values',
+      // Appended 2026-11-21; empty for derived values and rows without a code.
+      loinc:row.loinc ?? '',
+      patient_birth_date:raw ? utcDateOrBlank(row.patientBirthDate ?? null) : '',
     }))
   })
   const attrs = Object.fromEntries(ids.map(id => [patientIdKey(id),data.patientAttributes[patientIdKey(id)] ?? {}]))
@@ -62,27 +113,44 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const conflictKeys = new Set(ids.filter(id => warningsFor(id).length > 0).map(patientIdKey))
   const specs = workspaceSpecs(data,requestedKeys,fitConfigByParameterKey)
   const columnSettings = (key: string): ColumnModuleSettings => moduleSettingsByParameterKey?.[key] ?? defaultColumnModuleSettings()
-  const summaries = cohortExportRecords(prepared,cellIndex => columnSettings(requestedKeys[cellIndex]),conflictKeys).map((record,index) =>
-    cohortSheetRecord(record,prepared[Math.floor(index / selectedParameters.length)].cells[index % selectedParameters.length]))
+  const patientById = new Map(data.patients.map(patient => [patient.id,patient]))
+  // Sex, baseline age and the group follow the columns of earlier releases;
+  // `group` is always last and empty without grouping (decided 2026-11-21).
+  const summaries = cohortExportRecords(prepared,cellIndex => columnSettings(requestedKeys[cellIndex]),conflictKeys).map((record,index) => {
+    const {group,...fields} = cohortSheetRecord(record,prepared[Math.floor(index / selectedParameters.length)].cells[index % selectedParameters.length])
+    const patient = patientById.get(record.PatientID)
+    return cohortSheetRow({...fields,sex:patient?.attributes.sex ?? '',baseline_age:patient?.baselineAge ?? null,group:group ?? ''})
+  })
+  const idByKey = new Map(ids.map(id => [patientIdKey(id),id]))
   // Each column's module settings, one export column per configurable field.
   const moduleSettingColumns = (key: string) => Object.fromEntries(columnSettingModules().flatMap(module => (module.columnSettingFields ?? []).flatMap(field => {
     if (!field.exportKey) return []
     const settings = ((columnSettings(key) as Record<string, Record<string, unknown> | undefined>)[module.id] ?? module.defaultSettings) as Record<string, unknown>
     return [[field.exportKey, settings[field.key]]]
   })))
+  // `xAxis` is left out of the exported configuration (decided 2026-11-21):
+  // no fit reads it, and "age" there read as if the trend were fitted on age.
+  const exportedFitConfig = (config: FitConfig | undefined) => {
+    if (!config) return {}
+    const {xAxis: _unused,...exported} = config
+    return exported
+  }
+  const rawMeasurements = measurementRows(data.rawRows,true)
   return [
-    {name:'measurements',rows:measurementRows(data.rows)},
-    {name:'raw_measurements',rows:measurementRows(data.rawRows,true)},
-    {name:patientId === undefined ? 'cohort' : 'slopes',rows:summaries},
-    {name:'events',rows:data.events.filter(event => idSet.has(event.patientId)).map(event => ({...event,date:utcDateOrBlank(event.date),endDate:utcDateOrBlank(event.endDate)}))},
-    {name:'aki_episodes',rows:akiEpisodeExportRows(akiEpisodeRows(data.rows.filter(row => idSet.has(row.patientId)),data.events))},
-    {name:'patient_attributes',rows:patientAttributesExportRows(attrs)},
-    {name:'demographics',rows:ids.map(id => {
-      const patient = data.patients.find(patient => patient.id === id)
-      return {patientId:id,baseline_age:patient?.baselineAge ?? null,birth_anchor:utcDateOrBlank(patient?.birthAnchor ?? null),age_estimated:patient?.ageEstimated ?? null,manual_override:JSON.stringify(data.manualDemographics[patientIdKey(id)] ?? {}),warnings:warningsFor(id).join('; ')}
+    {name:'measurements',header:MEASUREMENT_SHEET_HEADER,rows:measurementRows(data.rows)},
+    {name:'raw_measurements',header:MEASUREMENT_SHEET_HEADER,rows:rawMeasurements},
+    {name:patientId === undefined ? 'cohort' : 'slopes',header:COHORT_SHEET_HEADER,rows:summaries},
+    {name:'events',header:EVENTS_SHEET_HEADER,rows:data.events.filter(event => idSet.has(event.patientId)).map(event => ({PatientID:event.patientId,type:event.type,date:utcDateOrBlank(event.date),title:event.title,description:event.description,endDate:utcDateOrBlank(event.endDate),intent:event.intent,warning:event.warning}))},
+    {name:'aki_episodes',header:AKI_EPISODES_SHEET_HEADER,rows:akiEpisodeExportRows(akiEpisodeRows(data.rows.filter(row => idSet.has(row.patientId)),data.events))},
+    {name:'patient_attributes',rows:patientAttributesExportRows(attrs,key => idByKey.get(key) ?? key)},
+    {name:'demographics',header:DEMOGRAPHICS_SHEET_HEADER,rows:ids.map(id => {
+      const patient = patientById.get(id)
+      return {PatientID:id,baseline_age:patient?.baselineAge ?? null,birth_anchor:utcDateOrBlank(patient?.birthAnchor ?? null),age_estimated:patient?.ageEstimated ?? null,manual_override:JSON.stringify(data.manualDemographics[patientIdKey(id)] ?? {}),warnings:warningsFor(id).join('; ')}
     })},
-    {name:'parameters',rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : ''}))},
-    {name:'settings',rows:specs.map((spec,index) => ({parameter_key:requestedKeys[index],parameter:spec.bezeichnung,unit:spec.einheit ?? '',mode:spec.mode,fit_config:JSON.stringify(spec.fitConfig ?? {}),...moduleSettingColumns(requestedKeys[index]),analysis_settings:JSON.stringify(data.analysisSettings),patient_ids:JSON.stringify(ids),source_file:data.fileName ?? '',scope:patientId === undefined ? 'visible cohort' : 'selected patient'}))},
+    {name:'parameters',header:PARAMETERS_SHEET_HEADER,rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : '',
+      // Appended 2026-11-21: the distinct codes of the parameter's imported rows, whatever patients are selected.
+      loinc:parameter.derived ? '' : [...new Set(data.rawRows.filter(row => row.loinc !== null && seriesIdentity(row.bezeichnung,row.einheit) === seriesIdentity(parameter.bezeichnung,parameter.einheit)).map(row => row.loinc))].join('; ')}))},
+    {name:'settings',rows:specs.map((spec,index) => ({parameter_key:requestedKeys[index],parameter:spec.bezeichnung,unit:spec.einheit ?? '',mode:spec.mode,fit_config:JSON.stringify(exportedFitConfig(spec.fitConfig)),...moduleSettingColumns(requestedKeys[index]),analysis_settings:JSON.stringify(data.analysisSettings),patient_ids:JSON.stringify(ids),source_file:data.fileName ?? '',scope:patientId === undefined ? 'visible cohort' : 'selected patient'}))},
     {name:'about',rows:[...EXPORT_DISCLAIMER_ROWS,
       // Only this workbook has the column, so the note is not in the shared rows.
       {note:'endpoint_percent_change is the total eGFR change in percent from the first to the latest eligible measurement, with the sign the badge in the app shows: negative when eGFR fell, positive when it rose. It is not a rate per year and not the confirmed 40 % or 57 % decline event. Until 2026-11-16 the column was named endpoint_percent_decline and had the opposite sign.'},
@@ -93,7 +161,40 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Slopes and quality information come directly from the displayed summary; export does not refit the data. n counts raw measurements; n_fitted counts the points actually fitted.'},
       {note:`ci_low and ci_high are the 95 % interval of the slope. For a Theil-Sen fit with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval. ${THEIL_SEN_FEW_DATES_COVERAGE}.`},
       {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},
+      {note:'loinc is the LOINC code as imported (measurements, raw_measurements) and the distinct codes of a parameter (parameters). Codes do not separate or join parameters, with one exception: creatinine with a urine code (2161-8, 14683-7) is a parameter of its own, named with the code, and is not used for AKI detection or eGFR.'},
+      {note:'import_diagnostics lists what the import reported for lab values, events and attributes (rejected rows and warnings) and the rows behind the data checks of the Data page (values without a date or a number, implausible serum creatinine). Lines about patients outside this export are left out; all parameters are covered, not only the selected ones. row is the row in the source file (header row = 1); a collective warning has one line per affected row. The sheet is empty when there is nothing to report.'},
+      {note:'rolling_windows lists the fitted windows of every Rolling OLS column, one row per window: window_start and window_end are the bounds of the window (both days included), first_date and last_date the dates of the first and last fitted point inside, n their number, slope the OLS slope of the window per year, unrounded. A fitted point is a measurement; with monthly or quarterly medians as time balancing (see the settings sheet) it is the median of one calendar month or quarter, dated to one of its measurement days, so n counts medians and a measurement outside the window bounds can enter through the median of its period. The sheet is empty when no selected parameter uses Rolling OLS. The reported slope stays the global OLS slope.'},
+      {note:`The columns sheet describes every column of the ${patientId === undefined ? 'cohort' : 'slopes'} sheet: meaning, unit and when the cell is empty. first_eligible_value and last_eligible_value are the measured values at first_eligible_date and last_eligible_date: exact values before the first kidney transplant or chronic dialysis, whatever the fit settings. last_eligible_value can therefore differ from "latest" in the Trajectories table, which is the last dated numeric value of the series.`},
+      {note:'The patient ID is in column PatientID in every sheet (until 2026-11-21: patientId in events, patient_attributes and demographics). group is always the last column of the cohort sheet and empty when the table was not grouped; a number without a value is an empty cell.'},
+      {note:'Time axis of the trend: every slope is fitted on the time in years (365.25 days) since the first fitted measurement of the patient and parameter, whose date is index_date. slope is the change per year and intercept is the fitted value at index_date, not at age 0 or at a calendar origin. The axis chosen for the charts (age, calendar date, time since first measurement) changes the drawing only. fit_config no longer carries the entry xAxis (until 2026-11-21 it did, with "age" for the CKD progression preset); no fit ever read it.'},
+      {note:'preset in fit_config records how the settings were selected: a preset of the app, or custom after any setting was changed by hand. The Theil-Sen preset is written as theil_sen (until 2026-11-21 as custom). The other entries of fit_config, the settings sheet and the columns of the result sheet determine the computation; two files with the same entries and a different preset name were computed the same way.'},
+      {note:`Fixed parameters that fit_config does not carry: Segmented OLS (slope_mode gap-split) starts a new segment where two consecutive fitted points are more than ${SEGMENT_GAP_DAYS} days apart and fits a segment of at least ${SEGMENT_MIN_POINTS} points; slope, intercept, r2 and the bounds are those of the global OLS fit across all segments. Rolling OLS: see rolling_window_days and rolling_step_days in the result sheet.`},
+      {note:`This file contains personal data and details of its origin. The patient IDs are written as imported, not pseudonymised: in column PatientID of every sheet and in settings (patient_ids). The measurement sheets hold dated values, sex and age, and raw_measurements the birth date where the imported lab rows carried one (patient_birth_date); demographics holds birth_anchor, a birth date (estimated from the stated age where age_estimated is true); events and patient_attributes hold the imported texts and attributes. settings names the imported file (source_file). Check these fields before passing the file on.`},
+      {note:'patient_birth_date is the last column of the measurement sheets. In raw_measurements it holds the birth date of the imported lab row, so that loading this file again keeps an exact birth date; where the import had no birth date it is empty, and patient_age_at_lab is then the stated age. In measurements it is empty: the birth date used by the analysis is birth_anchor in demographics.'},
+      {note:'Date holds the calendar day; a time of day of the imported lab date is not written to any sheet. Where the imported file gave times, they ordered several serum creatinine values of one day in AKI detection. A dataset loaded from this file has no times: such values are then compared with values of earlier days only, so AKI episodes, exclusion windows and slopes can differ from this export. input_data_id does not cover the time of day and is the same in both cases.'},
+      {note:`app_version: ${APP_VERSION}`},
+      {note:`exported_at: ${exportedAt.toISOString()}`},
+      {note:`export_id: ${exportId}`},
+      {note:`input_data_id: ${inputDataId(rawMeasurements)}`},
+      {note:'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements: patient, date, parameter, unit, value, sex, stated age and imported birth date; a 32-bit checksum, independent of row order and of the settings): two exports with the same input_data_id were computed from the same imported rows. Events, attributes and manual demographic entries are not part of it.'},
     ]},
+    // Sheets added later follow the earlier ones, so sheet positions stay.
+    {name:'columns',header:['column','meaning','unit','empty_when'],rows:cohortColumnDirectoryRows()},
+    // Added on 2026-11-21, after the sheets above existed: their positions stay as they were.
+    {name:'rolling_windows',header:ROLLING_WINDOWS_SHEET_HEADER,rows:prepared.flatMap(row => row.cells.flatMap(cell => (cell.rolling?.windows ?? []).map((window,index) => ({
+      PatientID:row.patientId,Parameter:cell.bezeichnung,Unit:cell.einheit ?? '',window:index+1,
+      window_start:utcDateOrBlank(window.start),window_end:utcDateOrBlank(window.end),first_date:utcDateOrBlank(window.firstDate),last_date:utcDateOrBlank(window.lastDate),
+      n:window.n,slope:window.slope,
+    }))))},
+    // Appended after the sheets that existed before 2026-11-21, so their positions stay.
+    // Lines about a loaded patient outside the exported scope are left out, like that patient's
+    // measurements. Lines without a patient stay; so do, in a cohort export, lines about IDs
+    // that never became a patient (all rows rejected, attribute rows of unknown patients).
+    {name:'import_diagnostics',header:IMPORT_DIAGNOSTICS_SHEET_HEADER,rows:importDiagnosticRecords(data.importDiagnostics ?? [],dataChecks(data.rawRows)).filter(record => {
+      if (record.patient_id === '') return true
+      const key = patientIdKey(record.patient_id)
+      return exportedKeys.has(key) || (patientId === undefined && !loadedKeys.has(key))
+    })},
   ]
 }
 

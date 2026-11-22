@@ -29,11 +29,16 @@ Every other non-empty value is unrecognised, for example `1`, `2`, `x`,
 `other`, `unknown`, `F.` and `männl.`. Values such as `other` or `unknown` are
 deliberately not mapped to `d`, because `d` selects a coefficient set in the
 eGFR formulas (see the eGFR section). An unrecognised value in a lab row counts
-as no sex for that row. The original text is kept and, when an eGFR formula is
-selected, the Data page quotes the unreadable spellings of creatinine source
-rows whose patient still has no resolved sex. An unrecognised value in the
-`sex` column of the attributes table is treated as absent and produces no
-warning.
+as no sex for that row. The original text is kept. The lab import reports the
+unreadable spellings in one warning, each with its number of rows and patients
+(see [Row acceptance](import-and-values.md#row-acceptance)), whether or not an
+eGFR formula is selected and whatever the patient's resolved sex: a file with
+`x` on two rows of one patient gives 'Unreadable sex value: "x" (2 rows, 1
+patient); read as no sex.', followed by the accepted spellings. In addition,
+when an eGFR formula is selected, the Data page quotes the unreadable
+spellings of creatinine source rows whose patient still has no resolved sex.
+An unrecognised value in the `sex` column of the attributes table is treated
+as absent and produces no warning.
 
 `resolveSex` applies the first rule that yields a sex:
 
@@ -145,10 +150,30 @@ contradiction.
 - **Empty intersection.** The stated ages fit no single birth date. The anchor
   is the median of the midpoints of the individual row intervals; with an even
   number of rows the lower of the two middle values is used, so the anchor is
-  always one row's midpoint. `age_no_common_birth_date` is reported with the
-  gap in days between the latest lower bound and the earliest upper bound, and
-  the ages of all dated rows are recomputed from the anchor. Each row has equal
+  always one row's midpoint. `age_no_common_birth_date` is reported, and the
+  ages of all dated rows are recomputed from the anchor. Each row has equal
   weight, so a parameter measured more often has more influence.
+
+  The message names the lab dates whose stated age the anchor does not
+  reproduce (decided 2026-11-21; every such contradiction stays one conflict,
+  without a severity level). Rows are grouped by lab date and stated age, so
+  several parameters measured on one day count once. The message gives the
+  number of differing lab dates out of all lab dates with a stated age and
+  names the first three in ascending order, each with the stated and the
+  derived age; further ones are counted ("and 1 more"). A derived age reads
+  "none" when the anchor lies after the lab date. The gap in days between the
+  latest lower bound and the earliest upper bound is still computed
+  (`gapDays`) but no longer quoted, because it is not the size of the error:
+  the example below has a gap of 3 days and an age that is off by a year.
+
+  Example: stated ages 54, 54, 54, 55, 55, 55, 56 on 2023-01-10, 2023-04-12,
+  2023-07-11, 2023-10-10, 2024-01-09, 2024-04-09 and 2024-07-09. The median
+  anchor is 1968-07-11. It gives the ages 54, 54, 55, 55, 55, 55, 55, and the
+  message
+  reads: "Patient A1: the age values fit no single birth date — ages derived
+  from the median instead. The stated age differs from the derived age on 2 of
+  7 lab dates: 2023-07-11 (stated 54, derived 55), 2024-07-09 (stated 56,
+  derived 55)."
 
 Two kinds of stated age are not reproduced on dated rows. A negative stated age places the birth date after the lab
 date, so the row receives no age. A stated age within about 100 years of the
@@ -207,7 +232,9 @@ The latest lower bound, 1967-03-11, lies 203 days after the earliest upper
 bound, 1966-08-20, so the intersection is empty. The median of the three
 midpoints is 1967-07-07, which becomes the anchor. The second row's age is
 corrected from 55 to 54 and the warning reads "the age values fit no single
-birth date (203 days apart) — ages derived from the median instead."
+birth date — ages derived from the median instead. The stated age differs from
+the derived age on 1 of 3 lab dates: 2021-08-20 (stated 55, derived 54)." The
+203 days are not quoted.
 
 A common export shape repeats one age on every row. Age 60 on 2015-03-01,
 2019-03-01 and 2023-03-01 has midpoints 1954-08-31, 1958-08-31 and 1962-08-31;
@@ -231,6 +258,7 @@ The workbook export records the resolution:
 | Sheet | Column | Content |
 | --- | --- | --- |
 | `cohort` or `slopes` | `demographics_conflict` | `yes` when the patient has at least one conflict message, otherwise blank |
+| `cohort` or `slopes` | `sex`, `baseline_age` | the patient's resolved sex (`m`, `w`, `d`; blank when unresolved) and the `baseline_age` of the `demographics` sheet, repeated on each of the patient's rows (since 2026-11-21) |
 | `demographics` | `baseline_age` | resolved age at the patient's earliest dated row; blank when unavailable |
 | `demographics` | `birth_anchor` | the birth-date anchor as a calendar date; blank when the patient has none |
 | `demographics` | `age_estimated` | true when a manual age is set, or when the anchor was inferred from stated ages without any explicit birth date; false otherwise |
@@ -238,6 +266,8 @@ The workbook export records the resolution:
 | `demographics` | `warnings` | the texts of the patient's conflict messages |
 | `measurements` | `patient_sex`, `patient_age_at_lab` | resolved values; column `demographics` reads "resolved analysis values" |
 | `raw_measurements` | `patient_sex`, `patient_age_at_lab` | values as imported; column `demographics` reads "as imported" |
+| `raw_measurements` | `patient_birth_date` | the birth date read from the lab row as a calendar date; blank when the row had none or it was unreadable (since 2026-11-21) |
+| `measurements` | `patient_birth_date` | always blank; the resolved date is `birth_anchor` of `demographics` |
 
 The term "age anchor" has two meanings in this document: the birth-date anchor
 of this section is a date from which every row's age is derived, whereas the

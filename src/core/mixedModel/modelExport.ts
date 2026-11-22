@@ -42,6 +42,8 @@ export function mixedModelExportSheets(
   workbookName?: string,
   /** Written to `about` and checked by the R script, so the script cannot refit another export unnoticed. */
   exportId: string = crypto.randomUUID(),
+  /** Written to `about`: the app version that wrote the file (omitted when not given) and the export time. */
+  provenance: { appVersion?: string; exportedAt?: Date } = {},
 ): { name: string; rows: object[] }[] {
   const settings: object[] = []
   const coefficients: object[] = []
@@ -99,6 +101,13 @@ export function mixedModelExportSheets(
         ? { patients: result.nPatients, measurements: result.nMeasurements, converged: result.converged, singular: result.singular }
         : { message: result.message }),
       unit_key: unitKey,
+      // Variance components, unrounded (`VarCorr`, `sigma`); empty for a failed
+      // fit and where R reports none (no slope SD or correlation with a
+      // random intercept alone).
+      intercept_sd: result.status === 'success' ? result.randomEffects?.interceptSd ?? null : null,
+      slope_sd: result.status === 'success' ? result.randomEffects?.slopeSd ?? null : null,
+      intercept_slope_correlation: result.status === 'success' ? result.randomEffects?.interceptSlopeCorrelation ?? null : null,
+      residual_sd: result.status === 'success' ? result.residualSd ?? null : null,
     })
     if (config) mixedModelFactors(config).forEach((factor, index) => {
       factors.push({ entity, ...factor, column: mixedModelFactorColumn(factor, index), unit_key: unitKey })
@@ -159,6 +168,11 @@ export function mixedModelExportSheets(
       { note: 'readxl guesses column types from the first 1000 rows. In model_rows the group column is blank for the whole-cohort rows, which come first, so a plain read_excel can read group as logical and turn later group values into NA. Set col_types or guess_max (for example guess_max = Inf) when reading model_rows yourself; r_script selects units by unit_key and is not affected.' },
       { note: `export_id: ${exportId}` },
       { note: 'unit_key identifies the fitted unit on every sheet: "cohort" for the pooled model, "group:<value>" for a group. entity is a display label and can repeat. Join sheets on unit_key.' },
+      { note: 'models ends with the variance components of each fit, unrounded: intercept_sd and slope_sd are the standard deviations of the patient random intercept and random slope (slope per year), intercept_slope_correlation their correlation, residual_sd the residual standard deviation. They are empty for a failed fit; slope_sd and the correlation are empty for a model with a random intercept only. warnings holds the notes of the input check (patients with one measurement or too few distinct times, duplicate patient/time rows; these rows stay in the fit) followed by the warnings of R.' },
+      { note: 'This file contains personal data and details of the device it was made on. The patient IDs are written as imported, not pseudonymised (patient_id in model_rows, model_input_flags and excluded_patients). model_rows and model_input_flags hold dated measurement values and the factor values of each patient, such as sex, baseline age and attributes. models holds browserUserAgent, the browser and operating system that fitted the model, and r_script names this workbook file. Check these fields before passing the file on.' },
+      ...(provenance.appVersion === undefined ? [] : [{ note: `app_version: ${provenance.appVersion}` }]),
+      { note: `exported_at: ${(provenance.exportedAt ?? new Date()).toISOString()}` },
+      { note: 'app_version is the version of Lab Trajectory Explorer that wrote this file; exported_at is the time of the export in UTC. The models were fitted with the R and package versions in models (runtimeVersion, packageVersions).' },
     ] },
     // Sheets added after 0.3.7 follow the earlier ones, so sheet positions stay.
     { name: 'vcov', rows: covariances },
@@ -168,8 +182,8 @@ export function mixedModelExportSheets(
   ]
 }
 
-/** Columns added to the 0.3.7 sheets. */
-const COLUMNS_SINCE_0_3_7 = ['std_error', 'unit_key']
+/** Columns added to the 0.3.7 sheets, in the order they were added. */
+const COLUMNS_SINCE_0_3_7 = ['std_error', 'unit_key', 'intercept_sd', 'slope_sd', 'intercept_slope_correlation', 'residual_sd']
 
 /** Gives every row of a 0.3.7 sheet the same keys in one order: the 0.3.7
  * columns in the order they first appear across the rows, as the workbook

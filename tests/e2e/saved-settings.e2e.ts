@@ -42,7 +42,7 @@ test('a reload shows the same slopes, badges and settings when the dataset is re
   await analyseWithCkdPreset(page)
   await expect(patientRow(page).locator('.wt-badge-endpoint')).toContainText('-50%')
   const before = await patientRow(page).innerText()
-  expect(before).toContain('OLS: -7.5 ml/min/1.73m2/year')
+  expect(before).toContain('OLS: -7.50 ml/min/1.73m2/year')
 
   await remember(page)
   await page.reload()
@@ -152,7 +152,7 @@ test('the browser does not ask for the unchanged demo data, but asks once they w
   await expect(page.locator('.workspace-dataset')).toContainText('(Demo)')
   // Deriving eGFR changes the dataset's derivation settings: now there is something to lose.
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
-  await page.getByRole('button', { name: /^Apply/ }).click()
+  await page.getByRole('button', { name: 'Apply calculation', exact: true }).click()
   await page.reload()
   expect(dialogs).toEqual(['beforeunload'])
 })

@@ -1,12 +1,12 @@
 export const methodTopics = [
   { id: 'start', label: 'Start here', group: 'Get started', sections: [{ id: 'answers', label: 'Find an answer' }, { id: 'workflow', label: 'Quick guide' }] },
-  { id: 'data', label: 'Data & eGFR', group: 'Get started', sections: [{ id: 'egfr', label: 'eGFR prerequisites' }, { id: 'rounding', label: 'Age & rounding' }, { id: 'demographics', label: 'Demographics' }] },
+  { id: 'data', label: 'Data & eGFR', group: 'Get started', sections: [{ id: 'egfr', label: 'eGFR prerequisites' }, { id: 'network', label: 'Network & storage' }, { id: 'rounding', label: 'Age & rounding' }, { id: 'demographics', label: 'Demographics' }] },
   { id: 'trajectories', label: 'Trajectories', group: 'Get started', sections: [{ id: 'overlay', label: 'Overlay' }, { id: 'events', label: 'Events & display' }, { id: 'screening', label: 'Screening' }] },
   { id: 'fits', label: 'Fits & slopes', group: 'Analysis & interpretation', sections: [{ id: 'choosing', label: 'Model choice' }, { id: 'quality', label: 'Quality flags' }, { id: 'models', label: 'Model assumptions' }, { id: 'pipeline', label: 'Pipeline' }, { id: 'presets', label: 'Presets' }, { id: 'balancing', label: 'Time balancing' }, { id: 'ols', label: 'OLS details' }] },
   { id: 'endpoints', label: 'Endpoints & projection', group: 'Analysis & interpretation', sections: [{ id: 'missing', label: 'Missing results' }, { id: 'observed', label: 'Observed events' }, { id: 'prediction', label: 'Projection algorithm' }] },
   { id: 'aki', label: 'AKI & exclusions', group: 'Analysis & interpretation', sections: [{ id: 'detection', label: 'Detection & limitations' }, { id: 'timing', label: 'Timing & windows' }] },
   { id: 'cohort', label: 'Cohort models', group: 'Analysis & interpretation', sections: [{ id: 'preparation', label: 'Inputs & safeguards' }, { id: 'specification', label: 'Model & projections' }] },
-  { id: 'export', label: 'Export & reproducibility', group: 'Reference', sections: [{ id: 'workbooks', label: 'Workbook contents' }, { id: 'provenance', label: 'Trace a result' }] },
+  { id: 'export', label: 'Export & reproducibility', group: 'Reference', sections: [{ id: 'workbooks', label: 'Workbook contents' }, { id: 'provenance', label: 'Trace a result' }, { id: 'model-workbook', label: 'Cohort-model workbook' }] },
   { id: 'sources', label: 'Limitations & sources', group: 'Reference', sections: [] },
 ] as const
 

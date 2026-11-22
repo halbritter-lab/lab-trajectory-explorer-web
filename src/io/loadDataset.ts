@@ -1,5 +1,5 @@
 import { readWorkbook, readWorkbookSheets } from './readWorkbook'
-import { loadLabRowsWithDiagnostics } from '../core/parse/loader'
+import { loadLabRowsWithDiagnostics, type ImportDiagnosticRow, type LabImportIssue, type LabImportOptions } from '../core/parse/loader'
 import type { LabRow, PatientId } from '../core/types'
 import {
   describeEventRejection,
@@ -15,48 +15,71 @@ import {
   attributeBirthDateFindings,
   describeAttributeRejection,
   describeAttributeWarning,
+  hasPatientAttributeColumns,
   normalizePatientAttributes,
   validatePatientAttributes,
   type PatientAttributesResult,
 } from '../core/attributes/attributes'
 import { dateReadNotes, type DateReadCounts } from '../core/parse/dates'
 import { normaliseHeader } from '../core/parse/headers'
+import { nonSerumCreatinineSeries } from '../core/domains/nephrology/analytes'
+
+/** The table an import finding belongs to. Each table keeps its own findings
+ * until that table is imported again. */
+export type ImportSource = 'labs' | 'events' | 'attributes'
+export const IMPORT_SOURCES = ['labs', 'events', 'attributes'] as const satisfies readonly ImportSource[]
 
 export interface ImportDiagnostic {
+  source: ImportSource
+  /** Sheet name, or the file name for a file without named sheets. */
   sheet: string
   patientId: PatientId | null
   severity: 'rejected' | 'warning'
   reason: string
   /** 'sheet' marks a summary over many rows rather than one patient's row. */
   scope?: 'sheet'
+  /** Source row of a finding about a single row (header row = 1). */
+  row?: number
+  /** The rows a collective finding counts (see `LabImportIssue.rows`). */
+  rows?: ImportDiagnosticRow[]
+  /** Total number of affected rows, set only when `rows` was cut off. */
+  affected?: number
 }
 
-const sheetNote = (sheet: string, reason: string): ImportDiagnostic => ({ sheet, patientId: null, severity: 'warning', scope: 'sheet', reason })
+const at = (row: number | undefined) => (row === undefined ? {} : { row })
+const sheetNote = (source: ImportSource, sheet: string, reason: string): ImportDiagnostic => ({ source, sheet, patientId: null, severity: 'warning', scope: 'sheet', reason })
+
+/** Lab-sheet findings as diagnostics of the `labs` source. */
+export function labDiagnostics(sheet: string, issues: readonly LabImportIssue[]): ImportDiagnostic[] {
+  return issues.map((issue) => ({ source: 'labs', sheet, ...issue }))
+}
 
 /** Diagnostics for an events table: rejected rows, warnings on accepted rows
  * and notes on how dates were read. Shared by workbook and separate uploads. */
 export function eventDiagnostics(
   sheet: string,
   dateReads: DateReadCounts,
-  { valid, rejected }: ClinicalEventValidationResult,
+  { valid, rejected, sourceRows }: ClinicalEventValidationResult,
   notes: readonly string[] = [],
 ): ImportDiagnostic[] {
+  const source = 'events'
   return [
-    ...rejected.map((r): ImportDiagnostic => ({ sheet, patientId: r.event.patientId, severity: 'rejected', reason: describeEventRejection(r) })),
-    ...valid.filter((e) => e.warning).map((e): ImportDiagnostic => ({ sheet, patientId: e.patientId, severity: 'warning', reason: describeEventWarning(e) })),
-    ...notes.map((reason) => sheetNote(sheet, reason)),
-    ...dateReadNotes('event date', dateReads).map((reason) => sheetNote(sheet, reason)),
+    ...rejected.map((r): ImportDiagnostic => ({ source, sheet, patientId: r.event.patientId, severity: 'rejected', reason: describeEventRejection(r), ...at(r.event.sourceRow) })),
+    ...valid.filter((e) => e.warning).map((e): ImportDiagnostic => ({ source, sheet, patientId: e.patientId, severity: 'warning', reason: describeEventWarning(e), ...at(sourceRows.get(e)) })),
+    ...notes.map((reason) => sheetNote(source, sheet, reason)),
+    ...dateReadNotes('event date', dateReads).map((reason) => sheetNote(source, sheet, reason)),
   ]
 }
 
 /** Diagnostics for an attributes table, including unreadable birth dates. */
 export function attributeDiagnostics(sheet: string, { valid, rejected }: PatientAttributesResult): ImportDiagnostic[] {
   const birth = attributeBirthDateFindings(valid)
+  const source = 'attributes'
   return [
-    ...rejected.map((r): ImportDiagnostic => ({ sheet, patientId: r.row.patientId, severity: 'rejected', reason: describeAttributeRejection(r) })),
-    ...valid.filter((r) => r.warning).map((r): ImportDiagnostic => ({ sheet, patientId: r.patientId, severity: 'warning', reason: describeAttributeWarning(r) })),
-    ...birth.warnings.map((w): ImportDiagnostic => ({ sheet, patientId: w.patientId, severity: 'warning', reason: w.reason })),
-    ...dateReadNotes('birth date', birth.dateReads).map((reason) => sheetNote(sheet, reason)),
+    ...rejected.map((r): ImportDiagnostic => ({ source, sheet, patientId: r.row.patientId, severity: 'rejected', reason: describeAttributeRejection(r), ...at(r.row.sourceRow) })),
+    ...valid.filter((r) => r.warning).map((r): ImportDiagnostic => ({ source, sheet, patientId: r.patientId, severity: 'warning', reason: describeAttributeWarning(r), ...at(r.sourceRow) })),
+    ...birth.warnings.map((w): ImportDiagnostic => ({ source, sheet, patientId: w.patientId, severity: 'warning', reason: w.reason, ...at(w.sourceRow) })),
+    ...dateReadNotes('birth date', birth.dateReads).map((reason) => sheetNote(source, sheet, reason)),
   ]
 }
 
@@ -71,7 +94,10 @@ export interface LoadedDataset {
   rejectedEvents: RejectedClinicalEvent[]
 }
 
-const LABS_SHEET_NAMES = new Set(['labs', 'labor', 'labrows', 'labdata'])
+// `raw_measurements` is the sheet of imported values in the app's own workbook
+// export. Its `measurements` sheet comes first there but holds analysis values
+// (derived eGFR, resolved demographics), so it must not be taken as lab data.
+const LABS_SHEET_NAMES = new Set(['labs', 'labor', 'labrows', 'labdata', 'rawmeasurements'])
 const EVENTS_SHEET_NAMES = new Set(['events', 'ereignisse', 'clinicalevents', 'annotations'])
 const ATTRIBUTES_SHEET_NAMES = new Set(['attributes', 'attribute', 'patientattributes'])
 
@@ -80,16 +106,17 @@ const ATTRIBUTES_SHEET_NAMES = new Set(['attributes', 'attribute', 'patientattri
  * sheets (e.g. labs, events, attributes), all three are parsed and validated in
  * one pass.
  */
-export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array): LoadedDataset {
+export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, importOptions: LabImportOptions = {}): LoadedDataset {
+  // Creatinine with a non-serum LOINC code is its own, labelled series (decided 2026-11-21).
+  const options: LabImportOptions = { separateSeries: nonSerumCreatinineSeries, ...importOptions }
   try {
     const wb = readWorkbookSheets(data)
     if (wb.sheetNames.length === 0) {
       return { rows: [], events: [], patientAttributes: {}, sheetNames: [], diagnostics: [], rejectedEvents: [] }
     }
     if (wb.sheetNames.length === 1) {
-      const labs = loadLabRowsWithDiagnostics(wb.getSheet(0))
-      const sheet = wb.sheetNames[0]
-      return { rows: labs.rows, events: [], patientAttributes: {}, sheetNames: wb.sheetNames, diagnostics: labs.issues.map((issue) => ({ sheet, ...issue })), rejectedEvents: [] }
+      const labs = loadLabRowsWithDiagnostics(wb.getSheet(0), options)
+      return { rows: labs.rows, events: [], patientAttributes: {}, sheetNames: wb.sheetNames, diagnostics: labDiagnostics(wb.sheetNames[0], labs.issues), rejectedEvents: [] }
     }
 
     const eventsSheetName = wb.sheetNames.find((s) => EVENTS_SHEET_NAMES.has(normaliseHeader(s)))
@@ -101,9 +128,9 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array): LoadedD
       labsSheetName = wb.sheetNames.find((s) => s !== eventsSheetName && s !== attributesSheetName) ?? wb.sheetNames[0]
     }
 
-    const labs = loadLabRowsWithDiagnostics(wb.getSheet(labsSheetName))
+    const labs = loadLabRowsWithDiagnostics(wb.getSheet(labsSheetName), options)
     const rows = labs.rows
-    const diagnostics: ImportDiagnostic[] = labs.issues.map((issue) => ({ sheet: labsSheetName, ...issue }))
+    const diagnostics: ImportDiagnostic[] = labDiagnostics(labsSheetName, labs.issues)
 
     let events: ClinicalEvent[] = []
     let rejectedEvents: RejectedClinicalEvent[] = []
@@ -121,7 +148,9 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array): LoadedD
     let patientAttributes: Record<string, Record<string, string>> = {}
     if (attributesSheetName && attributesSheetName !== labsSheetName) {
       const rawAttributes = wb.getSheet(attributesSheetName)
-      if (rawAttributes.length > 0) {
+      // An attributes sheet with the ID column only (the app's own export of a
+      // dataset without attributes) is skipped; any other sheet is read strictly.
+      if (rawAttributes.length > 0 && hasPatientAttributeColumns(rawAttributes)) {
         const validation = validatePatientAttributes(normalizePatientAttributes(rawAttributes), rows)
         patientAttributes = validation.byPatient
         diagnostics.push(...attributeDiagnostics(attributesSheetName, validation))
@@ -156,6 +185,18 @@ export async function loadBundledFixture(baseUrl = import.meta.env.BASE_URL): Pr
   return datasetFromArrayBuffer(buf)
 }
 
+/** The demo files are fetched from the app's own address. A request that gets
+ * no response rejects with the browser's own text ("Failed to fetch",
+ * "NetworkError when attempting to fetch resource."), which names neither the
+ * file nor the cause. */
+async function fetchBundled(url: string): Promise<Response> {
+  try {
+    return await fetch(url)
+  } catch {
+    throw new Error('Could not load the demo dataset: the demo file could not be fetched from this app\'s address. Check the connection to the app and try again. Importing your own file does not need a connection.')
+  }
+}
+
 export interface BundledFixtureData {
   rows: LabRow[]
   events: ClinicalEvent[]
@@ -164,7 +205,7 @@ export interface BundledFixtureData {
 
 /** Fetch the bundled demo labs plus demo event markers shipped in public/. */
 export async function loadBundledFixtureData(baseUrl = import.meta.env.BASE_URL): Promise<BundledFixtureData> {
-  const res = await fetch(`${baseUrl}test_labs.xlsx`)
+  const res = await fetchBundled(`${baseUrl}test_labs.xlsx`)
   if (!res.ok) throw new Error(`Could not load the demo dataset (HTTP ${res.status}).`)
   const buf = await res.arrayBuffer()
   const dataset = loadDatasetFromWorkbook(buf)
@@ -178,7 +219,7 @@ export async function loadBundledFixtureData(baseUrl = import.meta.env.BASE_URL)
   }
 
   // Fallback for when test_labs.xlsx is a single-sheet workbook:
-  const eventsRes = await fetch(`${baseUrl}test_events.csv`)
+  const eventsRes = await fetchBundled(`${baseUrl}test_events.csv`)
   const patientAttributes = await loadBundledPatientAttributes(dataset.rows, baseUrl)
   if (!eventsRes.ok) return { rows: dataset.rows, events: [], patientAttributes }
   const normalized = normalizeClinicalEvents(readWorkbook(await eventsRes.arrayBuffer()))
@@ -193,7 +234,7 @@ async function loadBundledPatientAttributes(
   rows: LabRow[],
   baseUrl = import.meta.env.BASE_URL,
 ): Promise<Record<string, Record<string, string>>> {
-  const res = await fetch(`${baseUrl}test_attributes.csv`)
+  const res = await fetchBundled(`${baseUrl}test_attributes.csv`)
   if (!res.ok) return {}
   const normalized = normalizePatientAttributes(readWorkbook(await res.arrayBuffer()))
   const { byPatient, rejected } = validatePatientAttributes(normalized, rows)

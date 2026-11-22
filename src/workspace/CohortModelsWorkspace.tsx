@@ -1,4 +1,4 @@
-import { lazy, Suspense, useId, useMemo, useRef, useState } from 'react'
+import { useId, useMemo, useRef, useState } from 'react'
 import { trajectorySettingsDiscardModels, useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceModelSpec } from './workspace-data'
@@ -7,6 +7,8 @@ import { PresetOptions } from './WorkspaceAnalysisSettings'
 import { STANDARD_PRESETS } from '../core/analysis/fitConfig'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
 import { patientIdKey } from '../core/types'
+import { buildCohortRows } from '../core/cohort/screening'
+import { MIN_SLOPE_DECIMALS, slopeDisplayDecimals } from '../core/format'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
 import {
   DEFAULT_MIXED_MODEL_CONFIG,
@@ -22,11 +24,12 @@ import { entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohort
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
 import { defaultModelParameterKey } from './cohort-model-parameter'
 import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
+// Part of the main bundle on purpose: the page is rendered (hidden) as soon as
+// data are loaded, so a separately fetched chunk failed for everyone who lost
+// the connection or kept a tab open across a deployment.
+import { CohortModelTable } from './models/CohortModelTable'
+import { WEBR_FIRST_FIT_DOWNLOAD, WEBR_PACKAGE_HOST, WEBR_RUNTIME_HOST } from '../core/mixedModel/runtimeHosts'
 import './cohort-models-workspace.css'
-
-const CohortModelTable = lazy(() =>
-  import('./models/CohortModelTable').then(module => ({ default: module.CohortModelTable }))
-)
 
 export type CohortModelPreset = 'unadjusted' | 'stratified' | 'demographic' | 'interaction' | 'custom'
 
@@ -241,6 +244,11 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
     paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])
   const hasSuccessfulModel = Object.keys(currentModels).length > 0
+  // The decimals of this parameter's slope column under Trajectories: from the
+  // patients' own slopes under the same settings. Needed only once a model shows.
+  const slopeDecimals = useMemo(() => spec && hasSuccessfulModel
+    ? slopeDisplayDecimals(buildCohortRows(data.rows, patientIds, [spec]).map(row => row.cells[0].slope))
+    : MIN_SLOPE_DECIMALS, [spec, hasSuccessfulModel, data.rows, patientIds])
   // Every unit the button would submit already has a current, usable fit: the
   // button stays available for a refit but no longer reads as the next step.
   const allEligibleFitted = eligibleEntities.length > 0 && eligibleEntities.every(item => currentModels[entityKey(item.entity)] !== undefined)
@@ -394,6 +402,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const patientsNotInModel = data.patients.map(patient => String(patient.id)).filter(id => !completePatients.has(id))
     .map(patientId => ({ patientId, reason: factorReasons.get(patientId) ?? 'No usable measurement of this parameter after data preparation' }))
   const levelCounts = [...mixedModelFactorLevelCounts(sampleSummary.rows, mixedModelConfig)]
+  // Without a categorical factor no level count is shown, so the number of
+  // patients that count towards the minimum is named for the whole cohort.
+  const qualifyingPatients = qualifyingMixedModelPatients(sampleSummary.rows, mixedModelConfig)
   // The model in words, built from the configuration; the R formula is in the details.
   const factorPhrases = activeFactors.map(factor => {
     const name = factor.key === 'baseline_age' ? 'baseline age' : factor.key === 'sex' ? 'sex' : availableFactors.find(f => f.key === factor.key)?.label ?? factor.key
@@ -648,6 +659,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         {levelCounts.length > 0 && <p className="muted cm-level-counts" aria-label="Patients per level">
           Whole cohort, patients per level (with enough measurement times): {levelCounts.map(([key, levels]) => `${key === 'sex' ? 'Sex' : key}: ${levels.map(item => `${item.level} ${item.patients} (${item.qualifying})`).join(', ')}`).join('; ')}
         </p>}
+        {spec && !noFit && levelCounts.length === 0 && completePatients.size > 0 && <p className="muted cm-level-counts" aria-label="Patients with enough measurement times">
+          Whole cohort, patients with enough measurement times: {qualifyingPatients} of {completePatients.size}.
+        </p>}
         {(noFit || !spec) ? <p className="muted" aria-label="Patients not in the model">{noFit ? 'No patient is in the model: the data preparation of this parameter is No fit.' : 'No patient is in the model: no parameter is selected.'}</p> : patientsNotInModel.length > 0 && <details className="cm-excluded-patients">
           <summary>Patients not in the model ({patientsNotInModel.length})</summary>
           <ul aria-label="Patients not in the model">{patientsNotInModel.map(patient => <li key={patient.patientId}>{patient.patientId}: {patient.reason}</li>)}</ul>
@@ -672,6 +686,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={cancelFit}>Cancel</button>}
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
+        {!runtimeLoaded && <p className="muted cm-runtime-note" data-testid="runtime-download-note">The first fit of a session downloads the R runtime from {WEBR_RUNTIME_HOST} and R packages from {WEBR_PACKAGE_HOST} ({WEBR_FIRST_FIT_DOWNLOAD}). These are downloads only; no measurements are sent. <a href="#methods/data/network">Network access and local storage</a></p>}
         </section>
         <details className="cm-preparation-details">
           <summary>Preparation and fitting details</summary>
@@ -695,12 +710,12 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           modelRowsByEntity={Object.fromEntries(entities.map(item => [item.entity.kind === 'cohort' ? 'cohort' : `group:${item.entity.value}`, item.rows]))}
           isFitting={cohortModelRunning}
           canFit={canFit}
+          slopeDecimals={slopeDecimals}
         />
       )}
 
       {/* Results Table & Projections */}
       {spec && (
-        <Suspense fallback={<div className="card" role="status"><p>Loading results table …</p></div>}>
           <CohortModelTable
             entities={entities}
             entityLabels={entityLabels}
@@ -709,12 +724,12 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             seriesKey={activeParamKey}
             seriesUnit={spec.einheit}
             definesWindows={definesWindows}
+            slopeDecimals={slopeDecimals}
             sourceResponse={{ outcome: spec.bezeichnung, unit: spec.einheit ?? '' }}
             fitConfigHash={fitConfigHash}
             config={mixedModelConfig}
             formula={formulaText}
           />
-        </Suspense>
       )}
     </div>
   )

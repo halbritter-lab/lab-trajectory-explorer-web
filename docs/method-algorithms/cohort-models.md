@@ -316,8 +316,31 @@ with too few distinct times, contributes all of its rows to the model.
 **Rows of one patient at the same model time are all kept**, for example two
 values on one day. `validateMixedModelRows` returns a warning text for each of
 these three situations (duplicate times are counted for qualifying patients
-only), but a passing validation's warnings are not displayed,
-not attached to the fitted result and not exported.
+only). Since 2026-11-21 the warnings of a passing validation are attached to
+the fitted result, before the warnings of R: they are shown in the model's
+details, carried into an applied projection and exported in `models.warnings`
+(and `projections.warnings`). Before, they were used only when the validation
+failed. The texts are, with the counts of the unit:
+
+- "1 patient has fewer than 2 repeated measurements and contributes limited
+  within-patient information." (a patient with a single row);
+- "1 patient has fewer than 3 distinct time_since_baseline values and
+  contributes limited within-patient time information." (at least two rows,
+  but fewer distinct times than the minimum of item 5: 3, or 2 for a random
+  intercept alone);
+- "1 duplicate patient/time row was retained for mixed model fitting." (each
+  row after the first at the same model time of a qualifying patient).
+
+Example: ten patients with three times each, one patient with two times, one
+with a single row, and a second value at one time of a qualifying patient
+give these three warnings, each with the count 1, and all 36 rows enter the
+fit. The warnings change no estimate; whether such patients should stay in
+the fit is a separate question that has not been decided.
+
+Without a categorical factor, the fit summary names the count behind item 5
+for the whole cohort: "Whole cohort, patients with enough measurement times:
+26 of 27." (qualifying patients of the patients with a model row). With a
+categorical factor the per-level line of item 3 takes its place.
 
 **The gate applies per unit.** The whole cohort and each group are checked
 separately with the same thresholds. *Fit* submits only the units that pass.
@@ -536,9 +559,10 @@ workspace passes them resolved values only.
 
 - **Runtime.** webR is the npm dependency `webr` at `^0.6.0`, locked to 0.6.0.
   The worker starts it with default options, so the R runtime is downloaded from
-  webR's default location on first use.
+  webR's default location, `https://webr.r-wasm.org/v0.6.0/`, on first use.
 - **R packages.** `lme4` (or `nlme`) and `jsonlite` are installed from webR's
-  default package repository when the first model is fitted in a session. No
+  default package repository, `https://repo.r-wasm.org`, when the first model
+  is fitted in a session. No
   version is pinned. The same data can give different numbers after a
   repository update.
 - **Recorded per result.** The R version, the package versions actually loaded,
@@ -569,9 +593,11 @@ The `models` worksheet has one row per fitted unit:
 | `browserUserAgent`, `wasmAssetSource` | Browser and runtime source (`cdn`) |
 | `datasetId`, `datasetHash`, `fitConfigHash` | The constant `cohort`, and hashes of the model rows and of the configuration |
 | `randomSeed` | Empty |
-| `warnings` | R warnings and lme4 messages |
+| `warnings` | The warnings of the passed input check (since 2026-11-21; see "Patients who do not qualify stay in the fit"), then R warnings and lme4 messages, joined by "; " |
 | `patients`, `measurements`, `converged`, `singular` | Successful fits |
 | `message` | Failed fits |
+| `unit_key` | `cohort` or `group:<value>` (since 2026-11-15) |
+| `intercept_sd`, `slope_sd`, `intercept_slope_correlation`, `residual_sd` | Variance components of a successful fit (since 2026-11-21), unrounded: standard deviation of the patient random intercept and of the random slope (per year), their correlation, and the residual standard deviation (`VarCorr`, `sigma`). Empty for a failed fit; `slope_sd` and the correlation are empty with a random intercept alone, and any of them where R reports none |
 
 A fit that fails before the worker answers (for example a timeout) has only
 part of this provenance. The other worksheets are, in workbook order,
@@ -600,7 +626,22 @@ with the factors baseline age (numeric, no reference) and sex (categorical),
 `unit_key`, and the baseline-age row has an empty `reference` cell; with a
 successful whole-cohort fit and a failed group fit, `models` ends in
 `singular`, `message`, `unit_key`. On `vcov`, `model_rows` and
-`model_input_flags` `unit_key` follows `entity`.
+`model_input_flags` `unit_key` follows `entity`. The four variance-component
+columns added on 2026-11-21 follow `unit_key` on `models`, so that sheet ends
+in `unit_key`, `intercept_sd`, `slope_sd`, `intercept_slope_correlation`,
+`residual_sd`; `unit_key` stays the last column of the other sheets.
+
+**`about` (rows appended on 2026-11-21).** After the `export_id` and
+`unit_key` rows the sheet explains the variance-component columns and the
+content of `warnings`, lists the personal and device-related fields of the
+file (patient IDs as imported in `model_rows`, `model_input_flags` and
+`excluded_patients`; dated values and factor values; `browserUserAgent` in
+`models`; the workbook name in `r_script`) with a request to check them
+before the file is passed on, and ends with `app_version: <version>` (the app
+that wrote the file; left out when the export function is called without a
+version, as the library package does), `exported_at: <ISO 8601 time in UTC>`
+and one row explaining both. `export_id` keeps its row, which the R script
+reads.
 
 **R reproduction (since 2026-11-05).** These outputs let a fit be rebuilt and
 extended in R. They add no estimate and change none.
@@ -680,7 +721,7 @@ extended in R. They add no estimate and change none.
   and `update(fit, REML = FALSE)` on either fit, run after both, uses that
   unit's row count.
 
-**Precision of returned numbers** (OD-30, decided 2026-11-13). Every number the worker returns from R, including estimates, interval bounds, random-effect standard deviations, the residual standard deviation, standard errors and `vcov`, is serialized by `jsonlite::toJSON` with `digits = NA`, that is 15 significant digits. Before, `toJSON`'s default `digits = 4` rounded all but the standard errors and `vcov`: a slope of 0.00034 per year was stored, shown and exported as 0.0003, and values between 1e-5 and 5e-5 became 0 or −0 (`toJSON(c(0.00034, 3.4e-6, -0.000049))` gave `[0.0003, 3.4e-06, -0]`). Stored results and exports carry the full value, so an R refit now matches the browser estimates to 1e-9. Results fitted and saved before this change keep their four-decimal values until they are refitted.
+**Precision of returned numbers** (OD-30, decided 2026-11-13). Every number the worker returns from R, including estimates, interval bounds, random-effect standard deviations, the residual standard deviation, standard errors and `vcov`, is serialized by `jsonlite::toJSON` with `digits = NA`, that is 15 significant digits. The random-effect standard deviations, their correlation and the residual standard deviation are exported only since 2026-11-21 (`intercept_sd`, `slope_sd`, `intercept_slope_correlation`, `residual_sd` on `models`); until then they were stored at full precision but only shown, with two decimals, in the model's details (for example 0.21, 0.05, 0.18 and 0.31). Before, `toJSON`'s default `digits = 4` rounded all but the standard errors and `vcov`: a slope of 0.00034 per year was stored, shown and exported as 0.0003, and values between 1e-5 and 5e-5 became 0 or −0 (`toJSON(c(0.00034, 3.4e-6, -0.000049))` gave `[0.0003, 3.4e-06, -0]`). Stored results and exports carry the full value, so an R refit now matches the browser estimates to 1e-9. Results fitted and saved before this change keep their four-decimal values until they are refitted.
 
 > **Open decision OD-21.** The exported `tolerance` (1e-6) is not used by any fit — the only tolerance in the fit is the 1e-4 singularity check — and the R packages are not version-pinned, so the export records the versions used but a later session can load different ones. Behaviour is unchanged pending an owner decision.
 
@@ -710,8 +751,9 @@ cohort's categories, and random effects do not enter.
   model rows before complete-case removal; lines are the pooled fit and each
   fitted group.
 - **Trajectory overlay.** Off by default ("Show model line in overlay"). The
-  line is drawn on the axes "Years since first measurement" and "Age", not on
-  the calendar axis. Group lines appear when the overlay is grouped by the
+  line is drawn on the axes "Years since first measurement", "Days since
+  first measurement" (model time × 365.25) and "Age", not on the calendar
+  axis. Group lines appear when the overlay is grouped by the
   attribute the groups were fitted under, for groups that are visible.
 - **Years axis.** The line is placed at its model time. Patient curves on this
   axis start at each patient's first plotted value of the series, which

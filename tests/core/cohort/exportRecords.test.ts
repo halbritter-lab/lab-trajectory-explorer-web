@@ -341,7 +341,8 @@ describe('cohortExportRecords', () => {
 
     it('appends the seven columns after the rolling columns', () => {
       const [rec] = cohortExportRecords(buildCohortRows(yearly, [1], [spec('global')]))
-      expect(Object.keys(rec).slice(-8)).toEqual(['rolling_slope_max', 'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates'])
+      expect(Object.keys(rec).slice(-10)).toEqual(['rolling_slope_max', 'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
+        'first_eligible_value', 'last_eligible_value'])
       expect(rec.n_fitted_dates).toBe(4)
       // Dates, not rows: a second value on the last date leaves the count at four.
       const [repeat] = cohortExportRecords(buildCohortRows([...yearly, row({ labDatum: d('2023-01-01'), wertNum: 45 })], [1], [spec('global')]))
@@ -374,6 +375,29 @@ describe('cohortExportRecords', () => {
       const fitConfig = ckdProgressionConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
       const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...spec('global'), fitConfig, clinicalEvents: [transplant] }]))
       expect(rec).toMatchObject({ index_date: '2020-01-01', last_fitted_date: '2023-02-01', last_eligible_date: '2023-03-01' })
+      // The values at the two eligible dates: 60 on 2020-01-01 and 42 on 2023-03-01, not the 20 after the transplant.
+      expect(rec).toMatchObject({ first_eligible_date: '2020-01-01', first_eligible_value: 60, last_eligible_value: 42 })
+    })
+
+    it('exports the first and last eligible value: exact values only, with any preset and without a fit', () => {
+      // A bound after the last exact value: the table shows "latest 15", the eligible value stays 17.
+      const rows = [34, 27, 21, 17].map((wertNum, i) => row({ labDatum: d(`202${i}-01-01`), wertNum }))
+      const bound = row({ labDatum: d('2024-01-01'), wertNum: 15, wert: '<15', wertOperator: '<' })
+      const leading = row({ labDatum: d('2019-01-01'), wertNum: 90, wert: '>90', wertOperator: '>' })
+      for (const fitConfig of [undefined, generalExplorationConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }), acuteReviewConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })]) {
+        const [rec] = cohortExportRecords(buildCohortRows([leading, ...rows, bound], [1], [{ ...spec('global'), ...(fitConfig ? { fitConfig } : {}) }]))
+        expect(rec).toMatchObject({ first_eligible_date: '2020-01-01', first_eligible_value: 34, last_eligible_date: '2023-01-01', last_eligible_value: 17 })
+      }
+    })
+
+    it('computes the total percent change from the two exported eligible values', () => {
+      const egfr = { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' }
+      const rows = [55, 48, 42, 35, 29, 24].map((wertNum, i) => row({ ...egfr, labDatum: d(`201${i}-06-10`), wertNum }))
+      const after = [72, 68, 64].map((wertNum, i) => row({ ...egfr, labDatum: d(`201${i + 7}-01-01`), wertNum }))
+      const transplant: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', date: d('2016-07-01'), title: 'Kidney transplant', description: null, endDate: null, intent: null, warning: '' }
+      const [rec] = cohortExportRecords(buildCohortRows([...rows, ...after], [1], [{ ...egfr, mode: 'global', fitConfig: ckdProgressionConfig(egfr), clinicalEvents: [transplant] }]))
+      expect(rec).toMatchObject({ first_eligible_value: 55, last_eligible_value: 24, last_eligible_date: '2015-06-10' })
+      expect(rec.endpoint_percent_change as number).toBeCloseTo((24 - 55) / 55 * 100, 10)
     })
 
     it('leaves fit columns blank without a fit but keeps the last eligible date', () => {
@@ -394,7 +418,7 @@ describe('cohortExportRecords', () => {
     it('leaves both eligible dates blank without an eligible row', () => {
       const transplant: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', date: d('2019-01-01'), title: 'Kidney transplant', description: null, endDate: null, intent: null, warning: '' }
       const [rec] = cohortExportRecords(buildCohortRows(yearly, [1], [{ ...spec('global'), clinicalEvents: [transplant] }]))
-      expect(rec).toMatchObject({ first_eligible_date: '', last_eligible_date: '' })
+      expect(rec).toMatchObject({ first_eligible_date: '', last_eligible_date: '', first_eligible_value: '', last_eligible_value: '' })
     })
 
     it('keeps the last eligible date inside a display-fit AKI exclusion window', () => {

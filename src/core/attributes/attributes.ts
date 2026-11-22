@@ -1,9 +1,11 @@
 import type { RawRow } from '../types'
-import { patientIdKey, type LabRow, type PatientId } from '../types'
+import { patientIdKey, sourceRowNumber, type LabRow, type PatientId } from '../types'
 
 export interface RawPatientAttributes {
   patientId: PatientId | null
   attributes: Record<string, string>
+  /** Row of the source file (header row = 1), when read from a file. */
+  sourceRow?: number
 }
 
 export type PatientAttributeWarning = '' | 'unknown_patient'
@@ -13,6 +15,7 @@ export interface PatientAttributeRecord {
   patientId: PatientId
   attributes: Record<string, string>
   warning: PatientAttributeWarning
+  sourceRow?: number
 }
 
 export interface RejectedPatientAttributeRow {
@@ -38,6 +41,18 @@ import {
   normaliseHeader,
   resolveColumns,
 } from '../parse/headers'
+
+/** False when the rows have a patient ID column and no other column. A workbook
+ * import skips such an attributes sheet: the app's own export writes
+ * `patient_attributes` with the ID column only when the dataset has no
+ * attributes. A separately uploaded attributes file is not asked and fails in
+ * `normalizePatientAttributes`. */
+export function hasPatientAttributeColumns(rows: RawRow[]): boolean {
+  const headers = collectHeaders(rows)
+  const resolved = resolveColumns(headers, { patientId: ['patientId', 'PatientID'] })
+  if (resolved.patientId === undefined) return true
+  return headers.size > 1
+}
 
 /** Parse raw workbook rows into per-row patient id + attribute map. Attribute
  * columns are every column other than `patientId`; empty cells are omitted. */
@@ -99,7 +114,8 @@ export function normalizePatientAttributes(rows: RawRow[]): RawPatientAttributes
       const text = parseText(row[rawHeader])
       if (text !== null) attributes[canonicalKey] = text
     }
-    return { patientId: parsePatientId(row[patientIdHeader]), attributes }
+    const sourceRow = sourceRowNumber(row)
+    return { patientId: parsePatientId(row[patientIdHeader]), attributes, ...(sourceRow === undefined ? {} : { sourceRow }) }
   })
 }
 
@@ -132,7 +148,7 @@ export function validatePatientAttributes(
     const warning: PatientAttributeWarning = knownPatientIds.has(record.patientId)
       ? ''
       : 'unknown_patient'
-    valid.push({ patientId: record.patientId, attributes: record.attributes, warning })
+    valid.push({ patientId: record.patientId, attributes: record.attributes, warning, ...(record.sourceRow === undefined ? {} : { sourceRow: record.sourceRow }) })
     byPatient[key] = record.attributes
     for (const name of Object.keys(record.attributes)) attributeNames.add(name)
   }
@@ -140,12 +156,15 @@ export function validatePatientAttributes(
   return { valid, byPatient, rejected, attributeNames: [...attributeNames].sort() }
 }
 
-/** Flatten the byPatient map into export rows: one row per patient, `patientId`
+/** Flatten the byPatient map into export rows: one row per patient, `PatientID`
  * first, then every attribute column (sorted union) with empty cells filled, so
- * all rows share the same columns. Patients are ordered by numeric-aware id. */
+ * all rows share the same columns. Patients are ordered by numeric-aware id.
+ * `idOf` gives the ID as the other sheets write it (a number for a numeric
+ * ID), so the sheets join without a type conversion; the map key is text. */
 export function patientAttributesExportRows(
   byPatient: Record<string, Record<string, string>>,
-): Array<Record<string, string>> {
+  idOf: (key: string) => PatientId = (key) => key,
+): Array<Record<string, PatientId>> {
   const names = new Set<string>()
   for (const attributes of Object.values(byPatient)) {
     for (const name of Object.keys(attributes)) names.add(name)
@@ -155,7 +174,7 @@ export function patientAttributesExportRows(
     a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }),
   )
   return keys.map((key) => {
-    const row: Record<string, string> = { patientId: key }
+    const row: Record<string, PatientId> = { PatientID: idOf(key) }
     for (const name of sortedNames) row[name] = byPatient[key][name] ?? ''
     return row
   })
@@ -192,17 +211,17 @@ export function readAttributeBirthDate(value: string | undefined): ImportDateRes
  * value (the value is kept but ignored for age) and counts for the day-first
  * and Excel-serial notes. */
 export function attributeBirthDateFindings(records: readonly PatientAttributeRecord[]): {
-  warnings: { patientId: PatientId; reason: string }[]
+  warnings: { patientId: PatientId; reason: string; sourceRow?: number }[]
   dateReads: DateReadCounts
 } {
-  const warnings: { patientId: PatientId; reason: string }[] = []
+  const warnings: { patientId: PatientId; reason: string; sourceRow?: number }[] = []
   const dateReads = noDateReads()
   for (const record of records) {
     const value = record.attributes.birthDate
     const parsed = readAttributeBirthDate(value)
     countDateRead(dateReads, parsed)
     if (parsed.kind === 'invalid') {
-      warnings.push({ patientId: record.patientId, reason: `${describeDateProblem('Birth date', value, parsed.problem, 'birth')}; it is ignored.` })
+      warnings.push({ patientId: record.patientId, reason: `${describeDateProblem('Birth date', value, parsed.problem, 'birth')}; it is ignored.`, ...(record.sourceRow === undefined ? {} : { sourceRow: record.sourceRow }) })
     }
   }
   return { warnings, dateReads }

@@ -5,9 +5,30 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3E%3Crect width='16' height='16' rx='3' fill='%23176c68'/%3E%3Cpath d='M3 11 L7 7 L10 9 L14 3' fill='none' stroke='white'/%3E%3C/svg%3E" />
     <title>Lab Trajectory Explorer</title>
+    <!-- The notice inside #root is replaced when the application starts. It
+         is part of the document, so it stays when the script cannot be loaded
+         (opened from a folder, files missing, JavaScript off). It appears
+         after a delay so that it does not flash during a normal start. The
+         styles are inline because the stylesheet fails to load in the same
+         cases. -->
+    <style>
+      .app-not-started { max-width: 44rem; margin: 3rem auto; padding: 0 1.25rem; font: 16px/1.55 system-ui, sans-serif; color: #1d2b27; visibility: hidden; animation: app-not-started 0s 2s forwards; }
+      .app-not-started h1 { font-size: 1.4rem; }
+      .app-not-started li { margin: 0.5rem 0; }
+      @keyframes app-not-started { to { visibility: visible; } }
+    </style>
   </head>
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <div class="app-not-started">
+        <h1>Lab Trajectory Explorer has not started</h1>
+        <p>On a slow connection loading can take a moment. If this text stays, the application could not be loaded:</p>
+        <ul>
+          <li><strong>The address starts with <code>file://</code>.</strong> The page was opened directly from a folder. This browser does not start the application from there. Serve the folder through a web server and open its <code>http://</code> or <code>https://</code> address.</li>
+          <li><strong>The address starts with <code>http://</code> or <code>https://</code>.</strong> The files of the application could not be loaded, or JavaScript is switched off. Check the connection and reload the page.</li>
+        </ul>
+      </div>
+    </div>
     <script type="module" src="/src/workspace/main.tsx"></script>
   </body>
 </html>

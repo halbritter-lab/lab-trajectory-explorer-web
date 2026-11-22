@@ -114,7 +114,9 @@ describe('approved method settings and provenance', () => {
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.cohort)
     expect(rows[0]).toMatchObject({ endpoint_kidney_failure_reached: 'yes', endpoint_prediction_reason: 'kidney_failure_reached' })
-    expect(rows[0]).toMatchObject({ endpoint_projected_age_to_ckd_g5: '', endpoint_prediction_anchor: '', endpoint_prediction_model: '' })
+    expect(rows[0]).toMatchObject({ endpoint_prediction_anchor: '', endpoint_prediction_model: '' })
+    // A number without a value is an empty cell, so the row has no such key.
+    expect(rows[0].endpoint_projected_age_to_ckd_g5).toBeUndefined()
   })
   it('exports event dates, recovery and effective settings in actual workbook bytes', () => {
     const input = exportFixture()

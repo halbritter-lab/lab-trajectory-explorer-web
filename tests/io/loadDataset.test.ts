@@ -83,6 +83,15 @@ describe('datasetFromArrayBuffer', () => {
 })
 
 describe('loadBundledFixtureData', () => {
+  it('names the demo file and the cause when the request gets no response', async () => {
+    const originalFetch = globalThis.fetch
+    // What Chromium rejects with when the network is gone.
+    globalThis.fetch = async () => { throw new TypeError('Failed to fetch') }
+    try {
+      await expect(loadBundledFixtureData('/')).rejects.toThrow(/^Could not load the demo dataset: the demo file could not be fetched from this app's address\./)
+      await expect(loadBundledFixtureData('/')).rejects.not.toThrow(/Failed to fetch/)
+    } finally { globalThis.fetch = originalFetch }
+  })
   it('loads validated dialysis and transplant demo events with the bundled fixture', async () => {
     const labBytes = readFileSync(FIXTURE)
     const eventBytes = readFileSync(EVENTS)
@@ -194,12 +203,25 @@ describe('loadDatasetFromWorkbook', () => {
     expect(dataset.patientAttributes['1']).toEqual({ genotype: 'A' })
     expect(dataset.rejectedEvents.map((item) => [item.event.title, item.reason])).toEqual([['Start', 'invalid_date']])
     expect(dataset.diagnostics).toEqual(expect.arrayContaining([
-      { sheet: 'events', patientId: 1, severity: 'rejected', reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
-      { sheet: 'events', patientId: 999, severity: 'warning', reason: 'Patient 999 has no lab values in this dataset; the event is kept.' },
-      { sheet: 'attributes', patientId: 1, severity: 'rejected', reason: 'Patient 1 already has an attribute row; this later row is not imported.' },
-      { sheet: 'attributes', patientId: 999, severity: 'warning', reason: 'Patient 999 has no lab values in this dataset; the attributes are kept.' },
+      { source: 'events', sheet: 'events', patientId: 1, severity: 'rejected', row: 2, reason: 'Event date "invalid" is not a recognised date (use YYYY-MM-DD, DD.MM.YYYY or DD/MM/YYYY); row not imported.' },
+      { source: 'events', sheet: 'events', patientId: 999, severity: 'warning', row: 3, reason: 'Patient 999 has no lab values in this dataset; the event is kept.' },
+      { source: 'attributes', sheet: 'attributes', patientId: 1, severity: 'rejected', row: 3, reason: 'Patient 1 already has an attribute row; this later row is not imported.' },
+      { source: 'attributes', sheet: 'attributes', patientId: 999, severity: 'warning', row: 4, reason: 'Patient 999 has no lab values in this dataset; the attributes are kept.' },
     ]))
     expect(dataset.diagnostics).toHaveLength(4)
+  })
+
+  it('reads raw_measurements with the export headers, not the measurements sheet before it', () => {
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { PatientID: 1, Date: '2024-01-15', Parameter: 'Creatinine', Unit: 'mg/dl', Value: '1.2' },
+      { PatientID: 1, Date: '2024-01-15', Parameter: 'eGFR (CKD-EPI 2021, computed)', Unit: 'ml/min/1.73m2', Value: '61' },
+    ]), 'measurements')
+    XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
+      { PatientID: 1, Date: '2024-01-15', Parameter: 'Creatinine', Unit: 'mg/dl', Value: '1.2' },
+    ]), 'raw_measurements')
+    const dataset = loadDatasetFromWorkbook(XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)
+    expect(dataset.rows.map((row) => [row.bezeichnung, row.wertNum, row.labDatum?.toISOString().slice(0, 10)])).toEqual([['Creatinine', 1.2, '2024-01-15']])
   })
 
   it('parses multi-sheet workbook containing labs, events, and attributes', () => {

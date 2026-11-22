@@ -4,7 +4,7 @@ import type { SeriesPoint } from '../stats/series'
 import { fitGlobal, fitTheilSen } from '../stats/series'
 import type { SlopeMode } from '../stats/summarize'
 import { scalarFitModelFor, summarizeByBezeichnung, type SeriesSummary } from '../stats/summarize'
-import { buildSlopeLines, type LinePoint } from '../stats/slopeLines'
+import { buildSlopeLines, rollingWindowLine, type LinePoint } from '../stats/slopeLines'
 import type { AnalysisFitInputContribution, CohortFlag, EndpointContext, SeriesOverlay } from '../analysis/types'
 import { moduleCellFlags, moduleEndpoints, moduleExportValues, type CellEndpoints, type ColumnModuleSettings } from '../analysis/registry'
 import { collectSeriesContributions, seriesContextFor, seriesRowsFor } from './seriesContributions'
@@ -12,6 +12,7 @@ import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ClinicalEvent } from '../events/events'
 import { applyExclusionWindows, exclusionReasonsAt, type ExclusionWindow } from '../exclusions/windows'
 import type { FitConfig } from '../analysis/fitConfig'
+import type { TimeBalancing } from '../fitPipeline/types'
 import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 import { CENSORED_VALUE_REASON, isExactMeasurement } from '../measurements/censored'
@@ -66,6 +67,10 @@ export interface CohortCell {
    * exact, before KRT, outside complete acute dialysis intervals; no run-in, fit window or balancing. */
   firstEligibleDate: Date | null
   lastEligibleDate: Date | null
+  /** Measured values at those two dates (owner decision 2026-11-21): the
+   * values the total percent change is computed from. */
+  firstEligibleValue: number | null
+  lastEligibleValue: number | null
   r2: number
   ciLow: number
   ciHigh: number
@@ -98,6 +103,42 @@ export interface RollingSummary {
   nWindows: number
   slopeMin: number
   slopeMax: number
+  /** Time balancing of the column. Not 'raw': the fitted points of a window
+   * are monthly or quarterly medians, `n` counts medians, and `firstDate` and
+   * `lastDate` are the representative dates of medians. A label only; no
+   * number depends on this field. */
+  timeBalancing: TimeBalancing
+  /** The fitted windows in time order, as counted by `nWindows`. */
+  windows: RollingWindow[]
+}
+
+/** One fitted rolling window: its bounds (centre ± half the window length,
+ * both included), the dates of the first and last fitted point inside, their
+ * number and the window's own OLS slope per year. */
+export interface RollingWindow {
+  start: Date
+  end: Date
+  firstDate: Date
+  lastDate: Date
+  n: number
+  slope: number
+  /** Index of this window's line in the cell's `fitLines`; null when the
+   * window has no drawn line (see rollingWindowLine). */
+  lineIndex: number | null
+}
+
+/** The windows of a rolling summary with the index of each one's drawn line.
+ * Lines are built in window order and skip windows without one; when the
+ * counts do not agree, no window claims a line. */
+function rollingWindowsFor(summary: SeriesSummary, stepDays: number, lineCount: number): RollingWindow[] {
+  const rolls = summary.rollingWindows ?? []
+  const drawn = rolls.map((window) => rollingWindowLine(window, stepDays) !== null)
+  const consistent = drawn.filter(Boolean).length === lineCount
+  let next = 0
+  return rolls.map((window, i) => ({
+    start: window.windowStart, end: window.windowEnd, firstDate: window.firstDate, lastDate: window.lastDate,
+    n: window.nInWindow, slope: window.slope, lineIndex: drawn[i] ? (consistent ? next++ : null) : null,
+  }))
 }
 
 export interface CohortRow {
@@ -187,7 +228,7 @@ export function buildCohortRows(
       const eligibleRows = eligible.map(point => point.row)
       const slope = match?.slope ?? Number.NaN
       const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match && match.nFitted > 0
-        ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN }
+        ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN, timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw', windows: rollingWindowsFor(match, spec.stepDays ?? 180, fitLines.length) }
         : undefined
       return {
         bezeichnung: spec.bezeichnung,
@@ -206,6 +247,8 @@ export function buildCohortRows(
         lastFittedDate: match?.lastFittedDate ?? null,
         firstEligibleDate: eligibleRows[0]?.labDatum ?? null,
         lastEligibleDate: eligibleRows.at(-1)?.labDatum ?? null,
+        firstEligibleValue: eligibleRows[0]?.wertNum ?? null,
+        lastEligibleValue: eligibleRows.at(-1)?.wertNum ?? null,
         r2: match?.r2 ?? Number.NaN,
         ciLow: match?.ciLow ?? Number.NaN,
         ciHigh: match?.ciHigh ?? Number.NaN,
@@ -339,8 +382,9 @@ export interface CohortExportRecord {
   // threshold) and the CKD endpoint columns (`endpoint_*`). The rolling
   // columns (`rolling_*`) come last, appended so positional readers keep
   // working; they are filled for slope mode `rolling` only. The fit dates,
-  // `intercept`, `slope_se` and `n_fitted_dates` follow them, appended for the
-  // same reason.
+  // `intercept`, `slope_se` and `n_fitted_dates` follow them, then
+  // `first_eligible_value` and `last_eligible_value`, appended for the same
+  // reason.
   [moduleColumn: string]: string | number | undefined
 }
 
@@ -426,6 +470,8 @@ export function cohortExportRecords(
         intercept: numOrBlank(c.intercept),
         slope_se: numOrBlank(c.slopeSe),
         n_fitted_dates: c.nFittedDates,
+        first_eligible_value: c.firstEligibleValue ?? '',
+        last_eligible_value: c.lastEligibleValue ?? '',
       })
     }
   }
@@ -434,12 +480,15 @@ export function cohortExportRecords(
 
 /** One row of the workbook's cohort sheet: an export record with the sheet's
  * column names and order (`Parameter`, `Unit`, the fitted counts of its cell).
- * The newest columns stay last, rolling then fit dates, so earlier column
- * positions are unchanged. */
+ * The newest columns stay last, rolling, then fit dates, then the eligible
+ * values, so earlier column positions are unchanged. The workbook puts
+ * `group` behind them (see cohort-sheet-columns). */
 export function cohortSheetRecord(record: CohortExportRecord, cell: Pick<CohortCell, 'nFitted' | 'fittedSpanDays'>) {
   const { Bezeichnung, Einheit, rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max,
-    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates, ...fields } = record
+    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates,
+    first_eligible_value, last_eligible_value, ...fields } = record
   return { ...fields, Parameter: Bezeichnung, Unit: Einheit, n_fitted: cell.nFitted, fitted_span_days: cell.fittedSpanDays,
     rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max,
-    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates }
+    index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates,
+    first_eligible_value, last_eligible_value }
 }

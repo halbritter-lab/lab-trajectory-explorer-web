@@ -110,6 +110,14 @@ it('loads an actual workbook with attributes, reports conflicts, and scopes clin
   expect(result.current.analysis.messages.some(m => m.id.startsWith('demographics:'))).toBe(true)
   expect(workspaceSpecs(result.current, result.current.parameters.map(p => p.key))[0].clinicalEventsByPatient).toEqual({})
 })
+it('names the patient-days with creatinine values of unknown order in the import message', async () => {
+  // The one warning in each message is the import's "differing values on the same day".
+  const file = (lines: string[]) => ({ name: 'labs.csv', arrayBuffer: async () => new TextEncoder().encode(['patientId,labDate,testName,unit,value', ...lines].join('\n')).buffer }) as File
+  await importWorkspaceFile(file(['A,2026-09-01,Kreatinin,mg/dl,1.0', 'A,2026-09-01,Kreatinin,mg/dl,1.4', 'A,2026-09-02 06:00,Kreatinin,mg/dl,1.0', 'A,2026-09-02 20:00,Kreatinin,mg/dl,1.1']))
+  expect(useAppStore.getState().notice?.text).toBe('4 lab values, 0 events and 0 attribute rows loaded. 0 rows rejected; 1 warning. 1 patient-day with several serum creatinine values whose order within the day is unknown: see “Demographics and data quality”.')
+  await importWorkspaceFile(file(['A,2026-09-02 06:00,Kreatinin,mg/dl,1.0', 'A,2026-09-02 20:00,Kreatinin,mg/dl,1.1']))
+  expect(useAppStore.getState().notice?.text).toBe('2 lab values, 0 events and 0 attribute rows loaded. 0 rows rejected; 1 warning.')
+})
 it('keeps sheet names in the diagnostics of a multi-sheet workbook without an Excel extension', async () => {
   const wb = XLSX.utils.book_new()
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([
@@ -118,7 +126,7 @@ it('keeps sheet names in the diagnostics of a multi-sheet workbook without an Ex
   ]), 'labs')
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet([{ patientId: 'X-1', cohort: 'A' }]), 'attributes')
   await importWorkspaceFile({ name: 'study.ods', arrayBuffer: async () => XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) } as File)
-  const sheets = useAppStore.getState().notice?.details?.map(d => d.sheet) ?? []
+  const sheets = useAppStore.getState().importDiagnostics.map(d => d.sheet)
   expect(sheets.length).toBeGreaterThan(0)
   expect(sheets).not.toContain('study.ods')
   expect(sheets).toContain('labs')

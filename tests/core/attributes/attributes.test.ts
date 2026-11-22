@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  hasPatientAttributeColumns,
   normalizePatientAttributes,
   patientAttributesExportRows,
   validatePatientAttributes,
@@ -50,6 +51,14 @@ describe('patient attributes - normalize', () => {
     expect(() => normalizePatientAttributes(rows)).toThrow(
       'Patient attributes file has no attribute columns.',
     )
+  })
+
+  it('tells a table with the ID column only from one with attribute columns or without an ID column', () => {
+    expect(hasPatientAttributeColumns([{ PatientID: 1 }, { PatientID: 2 }])).toBe(false)
+    expect(hasPatientAttributeColumns([{ patientId: 1 }])).toBe(false)
+    expect(hasPatientAttributeColumns([{ PatientID: 1 }, { PatientID: 2, genotype: 'UMOD' }])).toBe(true)
+    // No ID column: the strict reader reports the missing column.
+    expect(hasPatientAttributeColumns([{ id: 1 }])).toBe(true)
   })
 
   it('accepts PatientID alias for patientId', () => {
@@ -162,16 +171,21 @@ describe('patient attributes - validate', () => {
 })
 
 describe('patient attributes - export rows', () => {
-  it('builds rows with patientId first, numeric id order, and a sorted column union', () => {
+  it('builds rows with PatientID first, numeric id order, and a sorted column union', () => {
     const rows = patientAttributesExportRows({
       '2': { sex: 'w', genotype: 'MUC1' },
       '10': { genotype: 'UMOD', gout_age: '38' },
     })
 
     expect(rows).toEqual([
-      { patientId: '2', genotype: 'MUC1', gout_age: '', sex: 'w' },
-      { patientId: '10', genotype: 'UMOD', gout_age: '38', sex: '' },
+      { PatientID: '2', genotype: 'MUC1', gout_age: '', sex: 'w' },
+      { PatientID: '10', genotype: 'UMOD', gout_age: '38', sex: '' },
     ])
+  })
+
+  it('writes the ID as the caller maps it, so a numeric ID stays a number', () => {
+    const rows = patientAttributesExportRows({ '7': { genotype: 'MUC1' }, A12: { genotype: 'UMOD' } }, (key) => key === '7' ? 7 : key)
+    expect(rows.map((row) => row.PatientID)).toEqual([7, 'A12'])
   })
 
   it('returns no rows when there are no attributes', () => {

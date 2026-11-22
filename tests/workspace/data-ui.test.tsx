@@ -124,15 +124,19 @@ it('explains why pediatric source rows are excluded from adult eGFR preview', ()
   expect(screen.getByText('1: Age under 18 — adult eGFR formulas do not apply')).toBeInTheDocument()
 })
 it('shows a bounded set of import diagnostics with access to remaining findings', () => {
-  useAppStore.getState().setNotice({ kind: 'info', text: 'Import completed.', details: Array.from({ length: 35 }, (_, i) => ({ sheet: 'labs', patientId: `P-${i + 1}`, severity: 'warning' as const, reason: `Finding ${i + 1}` })) })
+  useAppStore.getState().replaceDataset({ rows: [{ ...row, patientSex: 'm', patientAgeAtLab: 50 }] })
+  useAppStore.getState().setImportDiagnostics('labs', Array.from({ length: 35 }, (_, i) => ({ source: 'labs' as const, sheet: 'labs', patientId: `P-${i + 1}`, severity: 'warning' as const, reason: `Finding ${i + 1}` })))
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.click(screen.getByText('35 import diagnostics — show details'))
-  expect(screen.getAllByRole('listitem')).toHaveLength(20)
+  expect(within(screen.getByRole('group', { name: 'Import diagnostics' })).getAllByRole('listitem')).toHaveLength(20)
   expect(screen.getByText('labs, patient P-20, warning: Finding 20')).toBeInTheDocument()
   expect(screen.queryByText('labs, patient P-21, warning: Finding 21')).not.toBeInTheDocument()
   fireEvent.click(screen.getByRole('button', { name: 'Show 15 remaining diagnostics' }))
-  expect(screen.getAllByRole('listitem')).toHaveLength(35)
+  expect(within(screen.getByRole('group', { name: 'Import diagnostics' })).getAllByRole('listitem')).toHaveLength(35)
   expect(screen.getByText('labs, patient P-35, warning: Finding 35')).toBeInTheDocument()
+  // Another change on the page does not collapse the list again.
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  expect(within(screen.getByRole('group', { name: 'Import diagnostics' })).getAllByRole('listitem')).toHaveLength(35)
 })
 it('lists lab import diagnostics from a German CSV, with summaries not attributed to a patient', async () => {
   render(<DataWorkspace onBrowse={vi.fn()} />)
@@ -142,10 +146,42 @@ it('lists lab import diagnostics from a German CSV, with summaries not attribute
   expect(screen.getByText(/1 row rejected; 2 warnings\./)).toBeInTheDocument()
   const items = screen.getAllByRole('listitem').map(item => item.textContent)
   expect(items).toEqual(expect.arrayContaining([
-    'labs.csv, patient 0012, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
+    'labs.csv, row 3, patient 0012, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
     'labs.csv, warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
-    'labs.csv, warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.',
+    'labs.csv, warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.Show the 1 affected row',
   ]))
+  // The rows behind a collective warning open on demand: source row, patient, date, parameter, value.
+  fireEvent.click(screen.getByText('Show the 1 affected row'))
+  const affected = screen.getByRole('region', { name: 'Show the 1 affected row' })
+  expect(within(affected).getAllByRole('row').map(r => r.textContent)).toEqual(['RowPatientDateParameterValue', '200122024-01-03Kreatinin [mg/dl]<0,3'])
+})
+it('keeps the lab import diagnostics when attributes are replaced afterwards', async () => {
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const file = (name: string, text: string) => ({ name, arrayBuffer: async () => new TextEncoder().encode(text).buffer })
+  fireEvent.change(screen.getByLabelText('Import lab values'), { target: { files: [file('labs.csv', 'patientId;labDate;testName;unit;value\nP-01;2024-01-03;Kreatinin;mg/dl;1,0\nP-01;2021-02-30;Kreatinin;mg/dl;1,2\n;2024-01-04;Kreatinin;mg/dl;1,2\n')] } })
+  await waitFor(() => expect(useAppStore.getState().rows).toHaveLength(1))
+  fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('attr.csv', 'patientId,cohort\nP-01,A\nP-01,B\n')] } })
+  await waitFor(() => expect(useAppStore.getState().patientAttributes['P-01']).toEqual({ cohort: 'A' }))
+  expect(screen.getByText('1 attribute row imported; 1 row rejected.')).toBeInTheDocument()
+  const panel = within(screen.getByRole('group', { name: 'Import diagnostics' }))
+  expect(panel.getAllByRole('listitem').map(item => item.textContent)).toEqual([
+    'labs.csv, row 3, patient P-01, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
+    'labs.csv, row 4, patient without ID, rejected: Patient ID missing; row not imported.',
+    'attr.csv, row 3, patient P-01, rejected: Patient P-01 already has an attribute row; this later row is not imported.',
+  ])
+  expect(panel.getByText('Lab values').closest('summary')).toHaveTextContent('Lab values (labs.csv, 2 rows rejected): 2 import diagnostics — show details')
+  expect(panel.getByText('Attributes').closest('summary')).toHaveTextContent('Attributes (attr.csv, 1 row rejected): 1 import diagnostics — show details')
+  expect(panel.getByRole('button', { name: 'Download import diagnostics (XLSX)' })).toBeInTheDocument()
+})
+it('opens the rows behind the counts of values without a date or a number', () => {
+  useAppStore.getState().replaceDataset({ rows: [{ ...row, sourceRow: 2 }, { ...row, sourceRow: 3, labDatum: null }, { ...row, sourceRow: 4, wert: 'neg', wertNum: null, wertOperator: 'unparseable' }] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  fireEvent.click(screen.getByText('Show the values without a date'))
+  expect(within(screen.getByRole('region', { name: 'Show the values without a date' })).getAllByRole('row').map(r => r.textContent)[1]).toMatch(/^3P-01–/)
+  fireEvent.click(screen.getByText('Show the values without a numeric measurement'))
+  expect(within(screen.getByRole('region', { name: 'Show the values without a numeric measurement' })).getAllByRole('row').map(r => r.textContent)[1]).toMatch(/^4P-01.*neg$/)
+  // No findings were imported, so there is no diagnostics panel.
+  expect(screen.queryByRole('group', { name: 'Import diagnostics' })).not.toBeInTheDocument()
 })
 it('reports readable reasons and birth-date problems for supplementary files', async () => {
   useAppStore.getState().replaceDataset({ rows: [row] })
@@ -153,10 +189,13 @@ it('reports readable reasons and birth-date problems for supplementary files', a
   const file = (text: string) => ({ name: 'extra.csv', arrayBuffer: async () => new TextEncoder().encode(text).buffer })
   fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('patientId,birthDate\nP-01,1980-02-30\n')] } })
   await waitFor(() => expect(useAppStore.getState().patientAttributes['P-01']).toEqual({ birthDate: '1980-02-30' }))
-  expect(screen.getByText('extra.csv, patient P-01, warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
+  expect(screen.getByText('extra.csv, row 2, patient P-01, warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('patientId,type,date,title\nP-01,other,2020-03-01,Visit\nP-01,surgery,2020-04-01,Other\n')] } })
   await waitFor(() => expect(useAppStore.getState().events).toHaveLength(1))
-  expect(screen.getByText('extra.csv, patient P-01, rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other; row not imported.')).toBeInTheDocument()
+  expect(screen.getByText('extra.csv, row 3, patient P-01, rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other; row not imported.')).toBeInTheDocument()
+  // The attribute findings stay beside the event findings (each source keeps its own).
+  expect(screen.getByText('extra.csv, row 2, patient P-01, warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
+  expect(within(screen.getByRole('group', { name: 'Import diagnostics' })).getAllByText(/import diagnostics — show details/)).toHaveLength(2)
 })
 it('lists loaded and rejected events from a separate event upload', async () => {
   useAppStore.getState().replaceDataset({ rows: [row] })
@@ -176,6 +215,15 @@ it('lists loaded and rejected events from a separate event upload', async () => 
   fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('patientId,type,date,title\nP-01,other,2020-05-01,Visit\n')] } })
   await waitFor(() => expect(useAppStore.getState().events[0].title).toBe('Visit'))
   expect(screen.queryByRole('table', { name: 'Rejected events' })).not.toBeInTheDocument()
+})
+it('says before any import that patient IDs are not pseudonymised, and again at the lab template', () => {
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const note = screen.getByTestId('pseudonymisation-note')
+  expect(note).toHaveTextContent('Nothing is pseudonymised: patient IDs appear as imported on screen, in the copy saved on this device, in exports and in export file names, and exports name the imported file. Use pseudonymous IDs.')
+  // Next to the import controls, not inside the collapsed templates section.
+  expect(note.closest('details')).toBeNull()
+  const templates = screen.getByText('Templates and example files').closest('details')!
+  expect(within(templates).getByText(/^Lab template: one row per measurement\./)).toHaveTextContent('patientId is not pseudonymised: it is shown, saved and exported as imported, so enter a pseudonymous ID.')
 })
 it('offers the demo files next to the empty templates', () => {
   render(<DataWorkspace onBrowse={vi.fn()} />)
@@ -216,6 +264,27 @@ it('drops the previous rejected-event list when an events re-import fails', asyn
   expect(screen.queryByRole('table', { name: 'Rejected events' })).not.toBeInTheDocument()
   expect(useAppStore.getState().events).toHaveLength(1)
 })
+it('names the patient-days whose serum creatinine values cannot be ordered within the day', () => {
+  const at = (date: string, value: number, labTime?: number): LabRow => ({ ...row, labDatum: new Date(date), wert: String(value), wertNum: value, ...(labTime === undefined ? {} : { labTime }) })
+  useAppStore.getState().replaceDataset({ rows: [at('2020-01-01', 1, 6 * 3_600_000), at('2020-01-01', 1.4, 20 * 3_600_000), at('2020-01-02', 1)] })
+  const { unmount } = render(<DataWorkspace onBrowse={vi.fn()} />)
+  expect(screen.queryByText(/order within the day is unknown/)).not.toBeInTheDocument()
+  unmount()
+  useAppStore.getState().replaceDataset({ rows: [at('2020-01-01', 1), at('2020-01-01', 1.4), at('2020-01-02', 1), at('2020-01-02', 1.1), { ...at('2020-01-03', 1), patientId: 'P-02' }] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  expect(screen.getByText(/^2 patient-days in 1 patient with several serum creatinine values whose order within the day is unknown \(no time of day, or the same time\): AKI detection compares these values with earlier values only, not with each other\.$/)).toHaveClass('notice', 'amber')
+})
+// Review finding 2026-11-21: the same-day note stood between the >25 notice and its row list.
+it('keeps the row list of the creatinine values above 25 mg/dl directly below its notice', () => {
+  const at = (date: string, value: number): LabRow => ({ ...row, labDatum: new Date(date), wert: String(value), wertNum: value })
+  useAppStore.getState().replaceDataset({ rows: [at('2020-01-01', 1), at('2020-01-01', 88), at('2020-01-02', 1)] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const high = screen.getByText(/^1 serum creatinine value above 25 mg\/dl/)
+  const list = screen.getByText('Show the creatinine values above 25 mg/dl').closest('details')!
+  const sameDay = screen.getByText(/order within the day is unknown/)
+  expect(high.nextElementSibling).toBe(list)
+  expect(list.compareDocumentPosition(sameDay) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+})
 it('warns about creatinine above 25 mg/dl and computed eGFR above 200 without changing values', () => {
   useAppStore.getState().replaceDataset({ rows: [
     { ...row, patientSex: 'm', patientAgeAtLab: 50, wert: '30', wertNum: 30 },
@@ -242,4 +311,62 @@ it('explains that a saved non-serum creatinine source computes no eGFR', () => {
   fireEvent.change(screen.getByLabelText('Creatinine source'), { target: { value: 'null' } })
   expect(screen.queryByText(/is not serum creatinine/)).not.toBeInTheDocument()
   expect(screen.getByText('1 computed value in preview')).toBeInTheDocument()
+})
+it('shows the LOINC codes of each imported parameter', () => {
+  useAppStore.getState().replaceDataset({ rows: [{ ...row, loinc: '2160-0' }, { ...row, loinc: '2160-0' }, { ...row, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', loinc: '62238-1' }, { ...row, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', loinc: '98979-8' }, { ...row, bezeichnung: 'CRP', einheit: 'mg/l' }] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const table = screen.getByRole('table', { name: 'Imported parameters' })
+  expect(within(table).getAllByRole('row').map(r => r.textContent)).toEqual(['ParameterUnitLOINCValuesPatientsPatients with fewer than 3 dated numeric values', 'Kreatininmg/dl2160-0211', 'eGFRml/min/1.73m262238-1, 98979-8211', 'CRPmg/l–111'])
+})
+it('says when the selected eGFR formula or source is not applied, at the selection and beside "Open trajectories"', () => {
+  const base = { ...row, patientSex: 'm' as const, patientAgeAtLab: 50 }
+  useAppStore.getState().replaceDataset({ rows: [base, { ...base, bezeichnung: 'Kreatinin i.S.' }] })
+  const onBrowse = vi.fn()
+  render(<DataWorkspace onBrowse={onBrowse} />)
+  expect(screen.queryByText(/not applied/)).not.toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  expect(screen.getByText('Preview not applied: CKD-EPI 2021 is selected, but the analysis uses Off. Trajectories, cohort models and exports use the applied calculation only.')).toBeInTheDocument()
+  const header = screen.getByText('eGFR preview not applied')
+  expect(header.compareDocumentPosition(screen.getByRole('button', { name: 'Open trajectories →' })) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
+  // The note carries its own button, so the calculation can be applied without scrolling to section 3.
+  fireEvent.click(within(header).getByRole('button', { name: 'Apply' }))
+  expect(useAppStore.getState().analysisSettings.egfr.formula).toBe('ckd-epi-2021')
+  expect(screen.queryByText(/not applied/)).not.toBeInTheDocument()
+  // After applying, another formula or source is a draft again.
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'mdrd-4' } })
+  expect(screen.getByText(/^Preview not applied: MDRD-4 is selected, but the analysis uses CKD-EPI 2021\./)).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  expect(screen.queryByText(/not applied/)).not.toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('Creatinine source'), { target: { value: JSON.stringify(['Kreatinin i.S.', 'mg/dl']) } })
+  expect(screen.getByText(/^Preview not applied: The selected creatinine source is not the one the analysis uses \(CKD-EPI 2021\)\./)).toBeInTheDocument()
+  fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
+  expect(useAppStore.getState().analysisSettings.egfr.source).toEqual(['Kreatinin i.S.', 'mg/dl'])
+  expect(screen.queryByText(/not applied/)).not.toBeInTheDocument()
+})
+it('shows the number and period of dated numeric values per patient', () => {
+  useAppStore.getState().replaceDataset({ rows: [
+    row, { ...row, labDatum: new Date('2022-03-04'), bezeichnung: 'CRP', einheit: 'mg/l' }, { ...row, labDatum: new Date('2021-01-01'), wert: 'neg', wertNum: null, wertOperator: 'unparseable' as const }, { ...row, labDatum: null },
+    { ...row, patientId: 'P-02', labDatum: null },
+  ] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const table = within(screen.getByText('Review and edit patients (2)').closest('details')!).getByRole('table')
+  expect([...table.querySelectorAll('thead th')].map(h => h.textContent)).toEqual(['Patient', 'Sex', 'Age at first measurement', 'Dated numeric values', 'First date', 'Last date', 'Quality', 'Action'])
+  expect(within(table).getAllByRole('row').slice(1).map(r => within(r).getAllByRole('cell').slice(2, 5).map(c => c.textContent))).toEqual([['2', '2020-01-01', '2022-03-04'], ['0', '–', '–']])
+})
+it('states the allowed event types, intent and date forms before an events import', () => {
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const hint = screen.getByText(/^Event template: one row per event\./)
+  expect(hint).toHaveTextContent('type is exactly kidney_transplant, dialysis or other; any other word rejects the row. intent (chronic, acute or unknown) is allowed for dialysis only.')
+  expect(hint).toHaveTextContent('other events, such as the start of a therapy, are shown in charts and change no calculation. “Demo events” is a filled example.')
+})
+it('shows the description of loaded and rejected events', async () => {
+  useAppStore.getState().replaceDataset({ rows: [row] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const csv = 'patientId,type,date,title,description\nP-01,other,2026-03-06,Tolvaptan,Start 2026-03-06 10:00\nP-01,other,2026-04-06,Visit,\nP-01,medication,2026-03-07,Ramipril,5 mg\n'
+  fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [{ name: 'events.csv', arrayBuffer: async () => new TextEncoder().encode(csv).buffer }] } })
+  await waitFor(() => expect(useAppStore.getState().events).toHaveLength(2))
+  const cells = (name: string) => within(screen.getByRole('table', { name })).getAllByRole('row').map(r => within(r).queryAllByRole('cell').map(c => c.textContent))
+  expect(within(screen.getByRole('table', { name: 'Loaded events' })).getAllByRole('columnheader').map(h => h.textContent)).toEqual(['Patient', 'Date', 'Type', 'Title', 'Description', 'Intent', 'End', 'Effect when enabled', 'Warning'])
+  expect(cells('Loaded events').slice(1).map(r => r.slice(3, 5))).toEqual([['Tolvaptan', 'Start 2026-03-06 10:00'], ['Visit', '–']])
+  expect(cells('Rejected events')[1].slice(3, 5)).toEqual(['Ramipril', '5 mg'])
 })

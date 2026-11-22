@@ -26,3 +26,11 @@ export function parameterLabel(bezeichnung: string, einheit: string | null): str
 export function countLabel(count: number, singular: string, plural = `${singular}s`): string {
   return `${count} ${count === 1 ? singular : plural}`
 }
+
+/** What one fitted point of a column is: a measurement, or under time
+ * balancing the median of a calendar month or quarter. Counts of fitted
+ * points must use this noun, or "8 fitted measurements" is said of eight
+ * quarterly medians built from 24 measurements. */
+export function fittedPointNoun(timeBalancing: 'raw' | 'monthly-median' | 'quarterly-median'): string {
+  return timeBalancing === 'monthly-median' ? 'monthly median' : timeBalancing === 'quarterly-median' ? 'quarterly median' : 'fitted measurement'
+}

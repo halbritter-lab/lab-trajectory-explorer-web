@@ -6,10 +6,90 @@ import process from 'node:process'
 
 import { workspaceWorkbookBytes, exportChartSvg, safeExportFilename } from '../../src/workspace/workspace-export'
 import { defaultFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
+import { loadDatasetFromWorkbook } from '../../src/io/loadDataset'
+import { resolveBirthAnchor } from '../../src/core/demographics/resolveAge'
+import { buildCohortRows } from '../../src/core/cohort/screening'
+import { akiEpisodeRows } from '../../src/workspace/aki-episodes'
+import type { WorkspaceData } from '../../src/workspace/workspace-data'
 
 function records(workbook: XLSX.WorkBook, name: string) {return XLSX.utils.sheet_to_json<Record<string,unknown>>(workbook.Sheets[name])}
 
 describe('workspace workbook', () => {
+  it('loads again in the app: imported values from raw_measurements, events and attributes', () => {
+    const input = exportFixture()
+    const bound = input.data.rawRows.find(row => row.einheit === 'mg/L' && row.patientId === '001-A')!
+    Object.assign(bound, { wert: '<10', wertOperator: '<' })
+    const dataset = loadDatasetFromWorkbook(workspaceWorkbookBytes(input))
+    // One imported row of the selected parameters; the derived eGFR row of `measurements` is not read back.
+    expect(dataset.rows).toHaveLength(1)
+    expect(dataset.rows[0]).toMatchObject({ patientId: '001-A', bezeichnung: 'Marker|one', einheit: 'mg/L', wert: '<10', wertNum: 10, wertOperator: '<', patientSex: 'w', patientAgeAtLab: 55 })
+    expect(dataset.rows[0].labDatum?.toISOString().slice(0, 10)).toBe(bound.labDatum!.toISOString().slice(0, 10))
+    expect(dataset.events).toEqual([expect.objectContaining({ patientId: '001-A', type: 'other', title: 'Visit' })])
+    expect(dataset.patientAttributes).toEqual({ '001-A': { group: 'A' } })
+    expect(dataset.diagnostics.filter(d => d.severity === 'rejected')).toEqual([])
+  })
+  // Review finding 2026-11-21: a file without a sex column and without attributes exports
+  // patient_attributes with the ID column only, and that export could not be loaded.
+  it('loads again when the dataset has no attributes: patient_attributes with the ID column only is skipped', () => {
+    const csv = ['patientId,labDate,testName,unit,value', 'P1,2026-01-05,Kreatinin,mg/dl,1.0', 'P1,2026-03-05,Kreatinin,mg/dl,1.1', 'P2,2026-01-07,Kreatinin,mg/dl,0.8', 'P2,2026-04-07,Kreatinin,mg/dl,0.9'].join('\n')
+    const first = loadDatasetFromWorkbook(new TextEncoder().encode(csv))
+    expect(first.patientAttributes).toEqual({})
+    const rows = first.rows
+    const parameter = { key: JSON.stringify(['Kreatinin', 'mg/dl']), label: 'Kreatinin [mg/dl]', bezeichnung: 'Kreatinin', einheit: 'mg/dl', derived: false }
+    const data = { rawRows: rows, rows, fileName: 'plain.csv', parameters: [parameter], patients: ['P1', 'P2'].map(id => ({ id, label: id, attributes: {}, baselineAge: null })), events: [], patientAttributes: first.patientAttributes,
+      analysis: { rows, messages: [], fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
+    const bytes = workspaceWorkbookBytes({ data, parameterKeys: [parameter.key], patientIds: ['P1', 'P2'], cohortRows: buildCohortRows(rows, ['P1', 'P2'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }]) })
+    expect(records(XLSX.read(bytes, { type: 'array' }), 'patient_attributes')).toEqual([{ PatientID: 'P1' }, { PatientID: 'P2' }])
+    const again = loadDatasetFromWorkbook(bytes)
+    expect(again.rows.map(row => [row.patientId, row.labDatum?.toISOString().slice(0, 10), row.wertNum])).toEqual(rows.map(row => [row.patientId, row.labDatum?.toISOString().slice(0, 10), row.wertNum]))
+    expect(again.patientAttributes).toEqual({})
+    expect(again.diagnostics).toEqual([])
+  })
+  it('still rejects an attributes sheet without an ID column in a workbook', () => {
+    const workbook = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([['patientId', 'labDate', 'testName', 'unit', 'value'], ['P1', '2026-01-05', 'Kreatinin', 'mg/dl', 1]]), 'labs')
+    XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([['genotype'], ['UMOD']]), 'attributes')
+    expect(() => loadDatasetFromWorkbook(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)).toThrow('Could not read this file. Patient attributes file missing required column: patientId.')
+  })
+  // Review finding 2026-11-21: the time of day orders creatinine values of one day in AKI
+  // detection but is in no export, and nothing said that a re-import can give other episodes.
+  it('does not carry the time of day: a re-import of a file with times can lose an AKI episode, and about says so', () => {
+    const csv = ['patientId,labDate,testName,unit,value,sex,ageAtLab', 'RISE,2026-09-01 06:00,Kreatinin,mg/dl,1.0,f,60', 'RISE,2026-09-01 20:00,Kreatinin,mg/dl,1.6,f,60', 'RISE,2026-09-04 06:00,Kreatinin,mg/dl,1.2,f,60'].join('\n')
+    const rows = loadDatasetFromWorkbook(new TextEncoder().encode(csv)).rows
+    expect(rows.map(row => row.labTime)).toEqual([6 * 3_600_000, 20 * 3_600_000, 6 * 3_600_000])
+    const parameter = { key: JSON.stringify(['Kreatinin', 'mg/dl']), label: 'Kreatinin [mg/dl]', bezeichnung: 'Kreatinin', einheit: 'mg/dl', derived: false }
+    const data = { rawRows: rows, rows, fileName: 'times.csv', parameters: [parameter], patients: [{ id: 'RISE', label: 'RISE', attributes: { sex: 'w' }, baselineAge: 60 }], events: [], patientAttributes: { RISE: { sex: 'w' } },
+      analysis: { rows, messages: [], fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
+    const bytes = workspaceWorkbookBytes({ data, parameterKeys: [parameter.key], patientIds: ['RISE'], cohortRows: buildCohortRows(rows, ['RISE'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }]) })
+    const workbook = XLSX.read(bytes, { type: 'array' })
+    expect(records(workbook, 'aki_episodes')).toEqual([expect.objectContaining({ PatientID: 'RISE', onset_date: '2026-09-01', peak_value_mg_dl: 1.6 })])
+    expect(records(workbook, 'raw_measurements').map(row => row.Date)).toEqual(['2026-09-01', '2026-09-01', '2026-09-04'])
+    const again = loadDatasetFromWorkbook(bytes).rows
+    expect(again.map(row => row.labTime)).toEqual([undefined, undefined, undefined])
+    expect(akiEpisodeRows(again, [])).toEqual([])
+    const note = records(workbook, 'about').map(row => String(row.note)).find(text => text.startsWith('Date holds the calendar day'))!
+    expect(note).toContain('a time of day of the imported lab date is not written to any sheet')
+    expect(note).toContain('AKI episodes, exclusion windows and slopes can differ from this export')
+    expect(note).toContain('input_data_id does not cover the time of day')
+  })
+  it('writes the imported birth date to raw_measurements, so a re-import keeps the exact birth-date anchor', () => {
+    const input = exportFixture()
+    const birth = new Date('1968-05-06T00:00:00Z')
+    const [withBirth, withoutBirth] = input.data.rawRows.filter(row => row.patientId === '001-A' && row.bezeichnung === 'Marker|one')
+    Object.assign(withBirth, { labDatum: new Date('2024-01-01T00:00:00Z'), patientBirthDate: birth })
+    Object.assign(withoutBirth, { labDatum: new Date('2024-03-01T00:00:00Z'), patientBirthDate: null })
+    const bytes = workspaceWorkbookBytes({ ...input, parameterKeys: ['marker', 'other-unit', 'derived'] })
+    const workbook = XLSX.read(bytes, { type: 'array' })
+    expect(records(workbook, 'raw_measurements').map(row => row.patient_birth_date)).toEqual(['1968-05-06', ''])
+    // The analysis sheet leaves the column empty: the resolved date is birth_anchor in demographics.
+    expect(records(workbook, 'measurements').map(row => row.patient_birth_date)).toEqual(['', '', ''])
+    const dataset = loadDatasetFromWorkbook(bytes)
+    expect(dataset.rows.map(row => row.patientBirthDate?.toISOString().slice(0, 10) ?? null)).toEqual(['1968-05-06', null])
+    expect(dataset.diagnostics).toEqual([])
+    const anchor = (rows: typeof dataset.rows) => resolveBirthAnchor({ patientId: '001-A', rows: rows.map(row => ({ labDatum: row.labDatum, ageAtLab: row.patientAgeAtLab, birthDate: row.patientBirthDate ?? null })), attributeBirthDate: null, manualAge: undefined }).birthAnchor
+    expect(anchor(dataset.rows)).toEqual(birth)
+    expect(anchor(dataset.rows)).toEqual(anchor([withBirth, withoutBirth]))
+  })
   it('exports each column model and rapid-decline threshold with matching flags', () => {
     const input = exportFixture()
     const first = input.data.parameters.find(p => p.key === input.parameterKeys[0])!
@@ -38,10 +118,24 @@ describe('workspace workbook', () => {
     expect(records(workbook, 'aki_episodes')).toEqual([])
     expect(records(workbook, 'about').some(row => String(row.note).startsWith('aki_episodes lists every AKI episode'))).toBe(true)
   })
+  it('appends the LOINC code to measurements, raw_measurements and parameters, after the columns that existed before and before patient_birth_date', () => {
+    const input = exportFixture()
+    input.data.rawRows[0].loinc = '1988-5'
+    input.data.rawRows[2].loinc = '30522-7'
+    const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
+    const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name], { header: 1 })[0]
+    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date'])
+    expect(header('raw_measurements')).toEqual(header('measurements'))
+    expect(header('parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
+    expect(records(workbook, 'raw_measurements').map(row => row.loinc)).toEqual(['1988-5'])
+    expect(records(workbook, 'measurements').map(row => [row.origin, row.loinc ?? ''])).toEqual([['imported', '1988-5'], ['derived', '']])
+    // The parameter lists every code of its imported rows, also those of patients outside the export.
+    expect(XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.parameters, { defval: '' }).map(row => [row.parameter_key, row.loinc])).toEqual([['marker', '1988-5; 30522-7'], ['derived', '']])
+  })
   it('keeps the rolling columns last in the cohort sheet, after the columns that existed before', () => {
     const workbook = XLSX.read(workspaceWorkbookBytes(exportFixture()), { type: 'array' })
     const [header] = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets.cohort, { header: 1 })
-    expect(header.slice(-14)).toEqual(['n_fitted', 'fitted_span_days', 'rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max',
+    expect(header.slice(61, 75)).toEqual(['n_fitted', 'fitted_span_days', 'rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max',
       'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates'])
   })
   it('preserves UTC import dates in a negative-offset timezone', () => {
@@ -88,7 +182,7 @@ describe('workspace workbook', () => {
     ]
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     expect(records(workbook, 'cohort')[0]).toMatchObject({ PatientID: 'P:001', demographics_conflict: 'yes' })
-    expect(records(workbook, 'demographics')[0]).toMatchObject({ patientId: 'P:001', warnings: 'Conflicting recorded sex' })
+    expect(records(workbook, 'demographics')[0]).toMatchObject({ PatientID: 'P:001', warnings: 'Conflicting recorded sex' })
   })
   it('roundtrips the visible scope with actual prepared summaries and derived provenance', () => {
     const input = exportFixture()
@@ -98,7 +192,7 @@ describe('workspace workbook', () => {
     expect(records(workbook,'measurements')).toEqual(expect.arrayContaining([expect.objectContaining({PatientID:'001-A',Parameter:'Marker|one',Unit:'mg/L',NumericValue:10,origin:'imported'}),expect.objectContaining({Parameter:'Derived eGFR',origin:'derived',formula:'ekfc-2021'})]))
     expect(records(workbook,'raw_measurements')).toHaveLength(1)
     expect(records(workbook,'cohort')[0]).toMatchObject({PatientID:'001-A',slope:123.456})
-    expect(records(workbook,'events')).toEqual([expect.objectContaining({patientId:'001-A',title:'Visit'})])
+    expect(records(workbook,'events')).toEqual([expect.objectContaining({PatientID:'001-A',title:'Visit'})])
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('SECRET')
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('hidden')
     expect(records(workbook,'parameters')).toEqual(expect.arrayContaining([expect.objectContaining({formula:'ekfc-2021',source_parameter:'Creatinine',source_unit:'mg/dl'})]))

@@ -631,6 +631,284 @@ on examples from the demo data.
 Details: [rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
 and [labels](method-algorithms/slope-quality.md#labels).
 
+## Decisions of 2026-11-21 (persona review, issue #34)
+
+Owner decision after the persona review of 2026-11-21 (item K26), taken on
+synthetic files with several creatinine values per day; the demo data have no
+such day.
+
+- **The time of day orders the creatinine values of one day in AKI
+  detection.** Where the file gives a time of day, it is kept at import and
+  orders the values within the day; an earlier value of the day can be the
+  baseline of a later one. Both KDIGO windows and the fit-exclusion window
+  keep counting in calendar days. This replaces the earlier behaviour, in
+  which the time was dropped and values of one day stayed in the row order of
+  the file, so that a file with the newest row first reported a fall within a
+  day as an episode and missed a rise.
+- **Without a time of day there is no comparison within the day.** Values of
+  the same day are compared only with values of earlier days, whatever the
+  row order of the file. All values are kept and each is a possible baseline
+  for later days. The alternative, reducing the day to its highest value, was
+  considered and not chosen (the owner confirmed "no comparison within the
+  day" on 2026-11-21). A rise within such a day is therefore not detected on
+  that day.
+- **The Data page names the affected patient-days.**
+- **This changes numbers**: AKI episodes, their exclusion windows and
+  therefore slopes, chips and the `aki_episodes` sheet, for files with
+  several serum creatinine values per patient and day, with or without a time
+  of day. Files with one value per day are unaffected. No golden fixture and
+  no demo value moved, because none contains such a day.
+
+Details chosen during implementation, **not yet confirmed by the owner**:
+
+- The time of day stays internal: a sort key that is not shown in the
+  measurement table or the tooltips and is in no export (the review left
+  this open). Consequence to weigh with it: a cohort workbook exported from
+  a file with times and loaded again has no times, so AKI episodes can
+  differ from the export although `input_data_id` is the same; the `about`
+  sheet, the changelog and the method reference say so. Writing the time as
+  an appended column of `raw_measurements`, reading it at re-import and
+  taking it into `input_data_id` would remove the difference.
+- The rule for days without a time applies per day of a series, not per
+  file: one value without a time makes that day a day without time; the
+  other days keep their time order.
+- Midnight (00:00:00) counts as no time of day, so that a date-only workbook
+  cell, a workbook cell at midnight and text with "00:00" behave alike.
+- Values with the same time of day are not compared with each other.
+- The patient-day count covers serum creatinine only, the one series the
+  rule affects.
+- "The import names the affected patient-days" is implemented as a note
+  under "Demographics and data quality" on the Data page, which stays while
+  the dataset is loaded, and as a sentence with the count in the message
+  shown after an import of lab values. The count is not listed among the
+  import diagnostics and is not part of the warning count, like the other
+  creatinine notes of the Data page.
+
+Details and examples:
+[measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date)
+and [dates at import](method-algorithms/import-and-values.md#dates). The
+methodology page is not changed; its wording is drafted as G1 in the
+[methodology wording drafts](methodology-wording-drafts.md) and tracked as
+OD-34.
+
+## Decisions of 2026-11-21 (persona review, issues #74, #2, #34)
+
+Owner decisions after the simulated-user review of 2026-11-21, taken on
+synthetic examples and the demo data.
+
+- **Implausible lab dates give a warning, not a rejection.** A lab date after
+  the import day or before 1927-05-18 is reported once per affected patient
+  with the date; the row stays in the analysis unchanged. The lower bound is
+  the one that already applies to Excel serial numbers. No value, slope or
+  export column changes. Example with import day 2026-11-21: 3024-05-08,
+  1923-07-18, 0203-06-05 and 2026-12-15 are reported; a mistyped 2003-08-08
+  in a series of 2023 is not. Event dates, event end dates and birth dates
+  are not checked; whether they should be is open.
+  Details: [Dates](method-algorithms/import-and-values.md#dates).
+- **Age conflicts keep one level and name the rows** (issue #2). Stated ages
+  that fit no single birth date stay a "Conflict" whatever the size of the
+  deviation, and the rule without tolerance stays. The message names the lab
+  dates with the stated and the derived age (the number of differing lab
+  dates and the first three) instead of the day count, which measured the gap
+  between birth-date intervals and not the error. No age, eGFR value or
+  export column changes; the text in the `warnings` column of the
+  `demographics` sheet changes with the message.
+  Details: [Age](method-algorithms/demographics.md#age).
+- **The LOINC code marks the material for creatinine only** (issue #34;
+  **changes numeric output** for files that carry such a code). Creatinine
+  with a known non-serum code becomes its own, labelled series and is
+  excluded from AKI detection and eGFR, like a non-serum name. The non-serum
+  codes are 2161-8 and 14683-7 (urine), confirmed by the owner on 2026-11-21;
+  whole-blood creatinine (38483-4, 59826-8) stays eligible like serum. Other
+  series with several codes are only reported, and LOINC is shown and
+  exported (`loinc` appended to `measurements`, `raw_measurements` and
+  `parameters`). This complements the name rule of 2026-11-05 and does not
+  replace it; merging series by LOINC stays undecided (issue #68).
+  What moves: in a file where serum and urine creatinine share one test name,
+  the urine rows leave the creatinine series. Its slope, the AKI episodes
+  detected on it, the AKI exclusion windows of every column that takes its
+  episodes from it, and the computed eGFR (fewer values, other slope) change.
+  Synthetic example: eleven mixed values with five false stage 3 episodes
+  become five serum and six urine values with no episode, and the computed
+  eGFR has five values instead of eleven. (The five episodes had baseline and
+  peak on one day without a time of day; under the same-day rule decided the
+  same day the mixed series would no longer report them, the eleven eGFR
+  values remain.) Files without these two codes on
+  creatinine rows are unaffected: the demo data and the golden fixtures
+  contain neither code, so no fixture moved.
+  Details: [Series identity](method-algorithms/import-and-values.md#columns),
+  [eligible source series](method-algorithms/egfr.md#eligible-source-series)
+  and [AKI input](method-algorithms/aki.md#input-series-and-conversion).
+
+## Decisions of 2026-11-21 (Trajectories table: slope order and decimals)
+
+Owner decisions after the persona review of 2026-11-21, taken on examples
+from the demo data. Neither changes a computed value.
+
+- **A sort by slope places uncertain slopes after the reliable ones.** Under
+  *Slope* and *Absolute slope*: first the slopes that do not meet the
+  reliability rule, then the uncertain ones, then patients without a slope.
+  The status line gives the number of rows moved back, and a switch restores
+  the order by value. Demo data, imported eGFR ascending: patient 12 (−7.35
+  per year over 151 days) moves from rank 9 to rank 25.
+  Assumptions until the owner confirms them: the export keeps following the
+  order of the table, so its row order changes with the new default; the
+  switch is built.
+- **One number of decimals per parameter for slopes.** As many decimals as
+  give the median of the absolute slopes in the loaded dataset two
+  significant digits, at least two; the same for the slope and its interval
+  bounds, in the table, the patient view and on the Cohort models page.
+  Display only; exports keep full precision. Demo data: creatinine in mg/dl
+  takes three decimals (median 0.0948), eGFR stays at two.
+  Assumptions until the owner confirms them: the number is derived from the
+  slopes of the loaded dataset, not fixed per unit; it is limited to four
+  decimals. Implemented without a separate decision: the slope is signed and
+  padded in the patient view as in the table; every row of a model's
+  coefficient table uses the number (before: three decimals for the estimate
+  and two for the bounds), so an eGFR coefficient shows two decimals instead
+  of three. This includes rows that are not slopes: the intercept and factor
+  terms.
+  Open for the owner: the median rule falls back to two decimals once the
+  median absolute slope reaches 0.1, so small slopes of such a column read
+  "+0.01 [0.01, 0.01]" again (demo creatinine under the CKD progression
+  preset or Theil–Sen). Alternatives are a lower quantile than the median or
+  the smallest interval width; nothing is changed until he decides.
+
+Details: [table order, mark filters and displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals).
+
+## Decisions of 2026-11-21 (plots and events, issues #70 and #2)
+
+Owner decisions after the persona review of 2026-11-21 (items K27, K24 part 1
+and K30). They concern display, image exports and one added export sheet.
+**No number changes**: no estimate, flag, endpoint, AKI episode or existing
+export column, and no golden fixture moved.
+
+- **The user chooses the unit of the elapsed-time axis** (K27, option c).
+  "Time axis" offers "Days since first measurement" beside "Years since first
+  measurement". Nothing switches by itself, and the unit holds for the
+  patient charts and the overlay until it is changed. Slopes stay per year.
+  The calendar axis no longer repeats a date: a range under four days gets
+  one label per day. The saved view accepts the new axis value
+  `baselineDays`; a version of the app from before 2026-11-21 does not know
+  it and falls back to years, naming "time axis" as not restored.
+- **A dense overlay is drawn lighter in two steps, with a note** (K24 part 1,
+  option a). From 51 trajectories the measurement points are off and the
+  lines paler, from 201 paler still and thinner. The "Measurement points"
+  switch stays and takes precedence. A median with a percentile band
+  (part 2) was declined: the cohort-model line serves that purpose.
+- **The shaded AKI window stays and is explained** (K30, option a). Legend
+  and tooltip say that its length is the configured number of days after each
+  onset, not the duration of the episode, and whether the column excludes the
+  values from its fit.
+
+Also added without a decision of its own, because the review items asked for
+it: the export sheet `rolling_windows` (K18), one row per fitted Rolling OLS
+window, placed after the sheets that existed before 2026-11-21 so that their
+positions are unchanged. Another sheet added on the same day (`columns`,
+cohort workbook) makes the same claim; **the order of the two is to be fixed
+when both are merged**, and the wording here, in the changelog and in the
+[trend estimators](method-algorithms/trend-estimators.md) then follows it.
+The methodology page (Export) describes the sheet in one new row whose
+wording awaits the maintainer's approval.
+
+Details chosen during implementation, **not yet confirmed by the owner**:
+
+- Years stay the default of the elapsed-time axis, also when every loaded
+  trajectory is short.
+- The cohort-model preview stays in years. In the overlay the mixed-model
+  line is also drawn on the days axis (model time × 365.25).
+- The density note appears from 51 trajectories, not only from 201.
+- The trajectories are counted per chart: those plotted in it, after the
+  group legend and without series that have no numeric value. This is the
+  count that decides the line density. A parameter that 5 of 60 patients have
+  keeps its points while the chart of all 60 hides them; the switch is then
+  shown as off.
+- Points are hidden by the rule only while "Connecting lines" is on.
+  Unticking the lines alone shows the points, so a chart is never left empty
+  by the rule.
+- The switch takes precedence from its first use and for good: that it was
+  used is saved with the view (`pointsChosen`), so the choice holds after a
+  reload. There is no control that returns to the automatic rule; clearing
+  the saved data does.
+- Image exports (SVG, PNG) of a dense overlay show what is on the screen,
+  that is without points, and say so in their context line.
+- "Acute review" gets no extra sentence under the chart; legend and tooltip
+  carry the statement. The wording "this column has no fit, so nothing is
+  excluded" also applies while Trend is not ticked for the column.
+- Showing the actual episode duration as the band, once a recovery rule
+  exists, is not decided.
+
+## Decisions of 2026-11-21 (cohort workbook, persona review)
+
+Owner decisions after the persona review of 2026-11-21 (issue #35). No
+fitted number changes.
+
+- **First and last value in the `cohort` sheet are the eligible ones.**
+  `first_eligible_value` and `last_eligible_value` hold the measured values
+  at `first_eligible_date` and `last_eligible_date`: exact values before the
+  first kidney transplant or chronic dialysis, matching
+  `endpoint_percent_change`, whatever the preset and also without a trend.
+  They can differ from "latest" in the table.
+- **`group` is always the last column, empty without grouping.** The
+  ungrouped export keeps every position; only grouped exports change their
+  layout.
+- **The ID column is `PatientID` in every sheet, with one data type.**
+  `events`, `patient_attributes` and `demographics` take the name of the
+  result sheets. Scripts that read `patientId` there fail on the name.
+- **A sheet `columns` at the end of the file** lists every column of the
+  `cohort` sheet with meaning, unit and when the cell is empty.
+- **The Theil–Sen preset is exported as `theil_sen`.** The export names the
+  preset as the app does; the same values set by hand stay `custom`. Older
+  exports show `custom` for the same choice. Saved settings are read as
+  before.
+- **`xAxis` is left out of the exported `fit_config`,** and the `about` sheet
+  names the actual time axis of the trend. A script that reads `xAxis` no
+  longer finds it.
+
+Implemented on assumptions that still need the owner's confirmation:
+
+- `sex` and `baseline_age` were appended to the `cohort` sheet in the same
+  step.
+- The ID keeps the type the import gave it (a number for a numeric ID,
+  otherwise text) in every sheet; `patient_attributes` no longer writes text
+  for a numeric ID. Whether the ID should always be text is open; a dataset
+  with both kinds of ID still has both cell types.
+- `columns` covers the `cohort` (or `slopes`) sheet only.
+- One `about` sentence says that the preset name only records how the
+  settings were selected.
+- `input_data_id` is defined as a 32-bit checksum of the rows of
+  `raw_measurements` (issue #35, provenance item; no owner decision yet on
+  the definition). It covers the imported birth date of the rows; events,
+  attributes and manual demographic entries are not part of it.
+- `patient_birth_date` was appended to the two measurement sheets, filled in
+  `raw_measurements` only, so that a re-import of the workbook keeps an exact
+  birth date instead of inferring an anchor from whole-year ages. The
+  alternative is to leave the column out and state that birth dates are not
+  restored.
+
+New text that awaits the maintainer's approval: the section "Cohort-model
+workbook" and the two changed table rows on the Methods page "Export &
+reproducibility"; the line "Whole cohort, patients with enough measurement
+times: n of m." in the fit summary of the Cohort models page; the new rows of
+the two `about` sheets and the texts of the `columns` sheet. The note on
+personal fields is to use the same wording as the notice of issue #75 (import
+area) once that exists.
+
+Implemented from issue #35 without a separate decision, export scope only:
+the variance components on the `models` sheet (after `unit_key`, so
+`unit_key` is no longer the last column of that sheet), the warnings of the
+passed input check on the fitted result, and `app_version`/`exported_at` and
+the personal-data note in the `about` sheets of both workbooks.
+
+Still open, unchanged: whether patients who do not qualify stay in a cohort
+model; whether the export records the grouping attribute;
+whether the `cohort` sheet is reordered once; whether the Trajectories table
+shows a bound with its sign ("latest <15").
+
+Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group),
+[workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
+and [fit axis](method-algorithms/fit-input-presets-and-time-balancing.md#fit-axis).
+
 ## Approved requirements
 
 ### Observed events and recovery

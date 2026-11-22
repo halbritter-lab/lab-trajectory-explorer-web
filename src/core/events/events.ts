@@ -1,4 +1,4 @@
-import type { RawRow } from '../types'
+import { sourceRowNumber, type RawRow } from '../types'
 import type { LabRow, PatientId } from '../types'
 
 export type ClinicalEventType = 'kidney_transplant' | 'dialysis' | 'other'
@@ -30,6 +30,8 @@ export interface RawClinicalEvent {
   /** Readable explanation when the date or end date cell could not be read,
    * naming the offending value. */
   dateIssue?: string
+  /** Row of the source file (header row = 1), when read from a file. */
+  sourceRow?: number
 }
 
 export interface ClinicalEvent {
@@ -62,6 +64,9 @@ export interface ClinicalEventEffectInfo {
 export interface ClinicalEventValidationResult {
   valid: ClinicalEvent[]
   rejected: RejectedClinicalEvent[]
+  /** Source row (header row = 1) of each accepted event read from a file.
+   * Kept beside the events, so stored and exported events stay as they are. */
+  sourceRows: Map<ClinicalEvent, number>
 }
 
 import {
@@ -132,6 +137,8 @@ export function normalizeClinicalEventsWithNotes(rows: RawRow[]): {
       intent: parseText(cell(row, columns, 'intent')) ?? '',
     }
     if (dateIssue !== undefined) event.dateIssue = dateIssue
+    const sourceRow = sourceRowNumber(row)
+    if (sourceRow !== undefined) event.sourceRow = sourceRow
     return event
   })
   return { events, dateReads, notes: shadowedColumnNotes(headers, EVENTS_COLUMN_ALIASES) }
@@ -144,6 +151,7 @@ export function validateClinicalEvents(
   const knownPatientIds = new Set(labRows.map((row) => row.patientId))
   const valid: ClinicalEvent[] = []
   const rejected: RejectedClinicalEvent[] = []
+  const sourceRows = new Map<ClinicalEvent, number>()
 
   for (const event of events) {
     const { patientId, date, endDate } = event
@@ -187,7 +195,7 @@ export function validateClinicalEvents(
       continue
     }
 
-    valid.push({
+    const accepted: ClinicalEvent = {
       patientId,
       type,
       date,
@@ -202,10 +210,12 @@ export function validateClinicalEvents(
         intent,
         endDate,
       ),
-    })
+    }
+    valid.push(accepted)
+    if (event.sourceRow !== undefined) sourceRows.set(accepted, event.sourceRow)
   }
 
-  return { valid, rejected }
+  return { valid, rejected, sourceRows }
 }
 
 function parsePatientId(value: unknown): PatientId | null {

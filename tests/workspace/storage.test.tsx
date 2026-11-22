@@ -7,7 +7,7 @@ import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 import { defaultTrajectoryView, losesDataOnUnload } from '../../src/workspace/saved-settings'
 import { defaultFitSettings, defaultTrajectoryFitSettings } from '../../src/workspace/workspace-analysis'
-import { DATASET_TTL_MS, restoredNotice, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_SETTINGS_KEY, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
+import { checkSavedCopy, DATASET_TTL_MS, restoredNotice, savedStatusText, startWorkspaceStorage, setWorkspaceRemember, useWorkspaceStorage, WORKSPACE_SETTINGS_KEY, WORKSPACE_STORAGE_KEY, workspaceIdbStore } from '../../src/workspace/workspace-storage'
 
 // The workspace keeps its copy in its own database; the default database is
 // where earlier versions saved and other apps on the origin may still save.
@@ -63,6 +63,62 @@ describe('workspace local storage', () => {
   })
   const settle = () => act(async () => { await new Promise(resolve => setTimeout(resolve, 30)) })
   const restart = async () => { stop?.(); useAppStore.getState().reset(); stop = await startWorkspaceStorage() }
+  it('saves the import diagnostics of every source with the dataset and restores them', async () => {
+    const labs = [
+      { source: 'labs' as const, sheet: 'input.csv', patientId: null, severity: 'rejected' as const, row: 7, reason: 'Patient ID missing; row not imported.' },
+      { source: 'labs' as const, sheet: 'input.csv', patientId: null, severity: 'warning' as const, scope: 'sheet' as const, reason: '1 duplicate lab row.', rows: [{ row: 3, patientId: 'A', date: '2020-01-01', parameter: 'Marker [u]', value: '60' }] },
+    ]
+    useAppStore.getState().replaceDataset({ rows: [{ ...row, sourceRow: 2 }], fileName: 'input.csv', importDiagnostics: labs })
+    await setWorkspaceRemember(true)
+    // A later attributes import adds its findings and is saved without touching the lab findings.
+    const attributes = [{ source: 'attributes' as const, sheet: 'attr.csv', patientId: 'B', severity: 'rejected' as const, row: 4, reason: 'Patient B already has an attribute row; this later row is not imported.' }]
+    act(() => { useAppStore.getState().setImportDiagnostics('attributes', attributes) })
+    await settle()
+    await waitFor(() => expect(useWorkspaceStorage.getState().status).toBe('saved'))
+    expect((await get(WORKSPACE_STORAGE_KEY)).importDiagnostics).toEqual([...labs, ...attributes])
+    await restart()
+    expect(useAppStore.getState().importDiagnostics).toEqual([...labs, ...attributes])
+    expect(useAppStore.getState().rows[0].sourceRow).toBe(2)
+    expect(useAppStore.getState().notice?.text).toMatch(/^Dataset and analysis settings/)
+  })
+  it('restores a copy saved without import diagnostics, and drops entries it cannot read', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    delete copy.importDiagnostics
+    await set(WORKSPACE_STORAGE_KEY, copy)
+    await restart()
+    expect(useAppStore.getState().rows).toHaveLength(1)
+    expect(useAppStore.getState().importDiagnostics).toEqual([])
+    const valid = { source: 'events', sheet: 'events.csv', patientId: 'A', severity: 'rejected', row: 2, reason: 'Event date is not a valid date; row not imported.' }
+    await set(WORKSPACE_STORAGE_KEY, { ...(await get(WORKSPACE_STORAGE_KEY)), importDiagnostics: [valid, { source: 'elsewhere', reason: 'x' }, 'text', { ...valid, rows: [{ row: 'two' }] }] })
+    await restart()
+    expect(useAppStore.getState().rows).toHaveLength(1)
+    expect(useAppStore.getState().importDiagnostics).toEqual([valid])
+  })
+  // Review finding 2026-11-21: a copy saved by the version before the LOINC rule kept urine
+  // creatinine inside the serum series (AKI detection, eGFR) and the notice said nothing.
+  it('applies the urine LOINC rule to a copy saved by an earlier version and says what that copy lacks', async () => {
+    const crea = (date: string, value: number, loinc: string): LabRow => ({ ...row, labDatum: new Date(date), bezeichnung: 'Kreatinin', einheit: 'mg/dl', wert: String(value), wertNum: value, loinc })
+    useAppStore.getState().replaceDataset({ rows: [crea('2020-01-01', 1, '2160-0'), crea('2020-01-01', 4.4, '2161-8'), crea('2020-06-01', 1.1, '2160-0'), crea('2020-06-01', 5, ' 14683-7 ')], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    // The shape the version before 2026-11-21 wrote: no import findings.
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    delete copy.importDiagnostics
+    await set(WORKSPACE_STORAGE_KEY, copy)
+    await restart()
+    const state = useAppStore.getState()
+    expect(state.rows.map(r => r.bezeichnung)).toEqual(['Kreatinin', 'Kreatinin (urine, LOINC 2161-8)', 'Kreatinin', 'Kreatinin (urine, LOINC 14683-7)'])
+    expect(state.rows.map(r => r.loinc)).toEqual(['2160-0', '2161-8', '2160-0', ' 14683-7 '])
+    expect(state.notice?.text).toContain('This copy was saved by an earlier version: it has no import findings, no source rows and no times of day')
+    expect(state.notice?.text).toContain('2 creatinine values with a urine LOINC code (2161-8, 14683-7) were moved to a parameter of their own, as an import does: not used for AKI detection or eGFR.')
+    // The next data change saves the copy in the current shape: nothing left to report.
+    act(() => useAppStore.getState().setEvents([]))
+    await waitFor(async () => expect((await get(WORKSPACE_STORAGE_KEY)).rows[1].bezeichnung).toBe('Kreatinin (urine, LOINC 2161-8)'))
+    await restart()
+    expect(useAppStore.getState().rows.map(r => r.bezeichnung)).toEqual(['Kreatinin', 'Kreatinin (urine, LOINC 2161-8)', 'Kreatinin', 'Kreatinin (urine, LOINC 14683-7)'])
+    expect(useAppStore.getState().notice?.text).not.toMatch(/earlier version|urine LOINC/)
+  })
   it('saves and restores the Trajectories analysis settings in their own record', async () => {
     const key = JSON.stringify(['Marker', 'u'])
     useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
@@ -155,7 +211,7 @@ describe('workspace local storage', () => {
     expect(useWorkspaceStorage.getState().settingsError).toMatch(/^Could not save the analysis settings on this device\. The dataset copy is unchanged/)
     const controls = render(<WorkspaceStorageControls hasData />)
     expect(screen.getByText(/^Could not save the analysis settings on this device/)).toBeInTheDocument()
-    expect(screen.getByText('Saved on this device')).toBeInTheDocument()
+    expect(screen.getByText(/^Saved on \d{4}-\d\d-\d\d \d\d:\d\d; removed when the app is next opened after /)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Retry saving' })).toBeNull()
     controls.unmount()
     act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), chartSize: 'large' }) })
@@ -260,7 +316,7 @@ describe('workspace local storage', () => {
     expect(text).toMatch(/^Dataset restored from this device\. Its saved analysis settings could not be used \(saved by another version\)/)
     expect(text).not.toMatch(/analysis settings \(presets, trend and display choices\) restored/)
     expect(restoredNotice({ stored: 'restored', notRestored: [], keptAsCustom: ['shared settings'] })).toContain('Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: shared settings.')
-    expect(restoredNotice({ stored: 'restored', notRestored: [], keptAsCustom: ['shared settings'] })).toContain('The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom" and time axis "calendar_time".')
+    expect(restoredNotice({ stored: 'restored', notRestored: [], keptAsCustom: ['shared settings'] })).toMatch(/The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom"\.$/)
   })
   it('keeps the dataset and names stored settings that no longer fit', async () => {
     useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
@@ -316,6 +372,19 @@ describe('workspace local storage', () => {
     expect(await get(WORKSPACE_SETTINGS_KEY)).toBeUndefined()
     expect(useWorkspaceStorage.getState().message).toMatch(/expired/)
   })
+  it('restores the time of day of a measurement and rejects a copy with an unusable one', async () => {
+    useAppStore.getState().replaceDataset({ rows: [{ ...row, labTime: 6 * 3_600_000 }, row] })
+    await setWorkspaceRemember(true)
+    const saved = await get(WORKSPACE_STORAGE_KEY)
+    stop?.()
+    useAppStore.getState().reset()
+    stop = await startWorkspaceStorage()
+    expect(useAppStore.getState().rows.map(r => r.labTime)).toEqual([6 * 3_600_000, undefined])
+    stop?.()
+    await set(WORKSPACE_STORAGE_KEY, { ...saved, rows: [{ ...row, labTime: '06:00' }] })
+    stop = await startWorkspaceStorage()
+    expect(useWorkspaceStorage.getState().message).toMatch(/could not be read .* and was removed/)
+  })
   it('removes a malformed saved copy without replacing the live data', async () => {
     useAppStore.getState().replaceDataset({ rows: [row] })
     await setWorkspaceRemember(true)
@@ -361,6 +430,47 @@ describe('workspace local storage', () => {
     await waitFor(() => expect(useWorkspaceStorage.getState().status).not.toBe('saving'))
     expect((await get(WORKSPACE_STORAGE_KEY)).fileName).toBe('newer.csv')
     expect(useWorkspaceStorage.getState().enabled).toBe(false)
+  })
+  it('stops showing a save and removal time once another tab replaced or removed the copy', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row] })
+    await setWorkspaceRemember(true)
+    const mine = await get(WORKSPACE_STORAGE_KEY)
+    // Unchanged copy: showing or focusing the tab changes nothing and writes nothing.
+    window.dispatchEvent(new Event('focus'))
+    await act(async () => { await checkSavedCopy() })
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', message: null, savedAt: mine.savedAt })
+    expect(await get(WORKSPACE_STORAGE_KEY)).toEqual(mine)
+    // The same when the copy has no settings record of its own (saved by an earlier version).
+    await del(WORKSPACE_SETTINGS_KEY)
+    await act(async () => { await checkSavedCopy() })
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', message: null })
+    // Another tab saved data: new copy and settings record, seven days restarted.
+    const newer = { ...mine, writeToken: 'another-tab', savedAt: mine.savedAt + 3_600_000, fileName: 'newer.csv' }
+    await set(WORKSPACE_STORAGE_KEY, newer)
+    await set(WORKSPACE_SETTINGS_KEY, { version: 1, datasetToken: 'another-tab', trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView() })
+    const controls = render(<WorkspaceStorageControls hasData />)
+    expect(screen.getByText(/^Saved on /)).toBeInTheDocument()
+    // This tab writes nothing; it is only focused again.
+    act(() => { window.dispatchEvent(new Event('focus')) })
+    await waitFor(() => expect(useWorkspaceStorage.getState().enabled).toBe(false))
+    expect(screen.queryByText(/^Saved on /)).toBeNull()
+    expect(screen.getByRole('alert')).toHaveTextContent('The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.')
+    expect(await get(WORKSPACE_STORAGE_KEY)).toEqual(newer)
+    controls.unmount()
+    // A removed copy is noticed the same way.
+    await act(async () => { await setWorkspaceRemember(true) })
+    expect(useWorkspaceStorage.getState().status).toBe('saved')
+    await del(WORKSPACE_STORAGE_KEY); await del(WORKSPACE_SETTINGS_KEY)
+    act(() => { document.dispatchEvent(new Event('visibilitychange')) })
+    await waitFor(() => expect(useWorkspaceStorage.getState().message).toMatch(/another tab/))
+    expect(await get(WORKSPACE_STORAGE_KEY)).toBeUndefined()
+    // After the listeners are removed, nothing is checked any more.
+    await act(async () => { await setWorkspaceRemember(true) })
+    stop?.()
+    await del(WORKSPACE_STORAGE_KEY); await del(WORKSPACE_SETTINGS_KEY)
+    window.dispatchEvent(new Event('focus'))
+    await settle()
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved' })
   })
   it('keeps live data usable and reports a failed save', async () => {
     useAppStore.getState().replaceDataset({ rows: [row] })
@@ -483,5 +593,51 @@ describe('saving only what can be restored', () => {
     expect(useWorkspaceStorage.getState().status).toBe('error')
     expect(useWorkspaceStorage.getState().message).toMatch(/cannot be saved/)
     expect(useAppStore.getState().rows).toHaveLength(1)
+  })
+})
+
+describe('save and expiry time of the saved copy', () => {
+  it('states the save time and the time after which the next start removes the copy', () => {
+    // Local time, to the minute; the copy expires once more than seven days have passed.
+    const savedAt = new Date(2026, 10, 21, 14, 5, 59).getTime()
+    expect(savedStatusText(savedAt)).toBe('Saved on 2026-11-21 14:05; removed when the app is next opened after 2026-11-28 14:05')
+    expect(savedStatusText(new Date(2026, 0, 3, 9, 7).getTime())).toBe('Saved on 2026-01-03 09:07; removed when the app is next opened after 2026-01-10 09:07')
+    expect(savedStatusText(null)).toBe('Saved on this device')
+  })
+  it('takes the save time of the copy into the state, keeps it through a restore and a settings change, and drops it with the copy', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    expect(useWorkspaceStorage.getState().savedAt).toBeNull()
+    await setWorkspaceRemember(true)
+    const copy = await get(WORKSPACE_STORAGE_KEY)
+    expect(useWorkspaceStorage.getState().savedAt).toBe(copy.savedAt)
+    // A copy saved three days ago is restored with its own time, not the time of the restore.
+    const threeDaysAgo = Date.now() - 3 * 24 * 60 * 60 * 1000
+    stop?.(); useAppStore.getState().reset()
+    await set(WORKSPACE_STORAGE_KEY, { ...copy, savedAt: threeDaysAgo })
+    stop = await startWorkspaceStorage()
+    expect(useWorkspaceStorage.getState()).toMatchObject({ enabled: true, status: 'saved', savedAt: threeDaysAgo })
+    act(() => { useAppStore.getState().setTrajectoryView({ ...defaultTrajectoryView(), chartSize: 'large' }) })
+    await act(async () => { await new Promise(resolve => setTimeout(resolve, 30)) })
+    expect(useWorkspaceStorage.getState().savedAt).toBe(threeDaysAgo)
+    render(<WorkspaceStorageControls hasData />)
+    expect(screen.getByText(savedStatusText(threeDaysAgo))).toBeInTheDocument()
+    // A data change writes a new copy and starts the seven days again.
+    act(() => { useAppStore.setState({ rows: [{ ...row, wertNum: 61 }] }) })
+    await waitFor(async () => expect((await get(WORKSPACE_STORAGE_KEY)).savedAt).toBeGreaterThan(threeDaysAgo))
+    await waitFor(async () => expect(useWorkspaceStorage.getState().savedAt).toBe((await get(WORKSPACE_STORAGE_KEY)).savedAt))
+    await act(async () => { await setWorkspaceRemember(false) })
+    expect(useWorkspaceStorage.getState().savedAt).toBeNull()
+    expect(screen.getByText('This session only')).toBeInTheDocument()
+  })
+  it('says in one line when the copy is removed and keeps the list of what is saved in a disclosure', () => {
+    const { container } = render(<WorkspaceStorageControls hasData />)
+    const line = container.querySelector('.workspace-storage > p.muted')!
+    expect(line).toHaveTextContent('Optional. Keeps an unencrypted copy of the dataset in this browser. The copy is removed when the app is next opened more than seven days after the last data change; until then it stays on this device.')
+    const details = screen.getByText('What is saved').closest('details')!
+    expect(details).not.toHaveAttribute('open')
+    expect(details).toHaveTextContent(/Saved: lab values, events, attributes, demographic edits, derivation settings/)
+    expect(details).toHaveTextContent(/Not saved: sorting, grouping and patient selection, and cohort model settings and results\./)
+    expect(details).toHaveTextContent(/changing analysis settings does not extend them/)
+    expect(details).toHaveTextContent(/the browser asks before the page is reloaded or closed/)
   })
 })

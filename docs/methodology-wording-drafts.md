@@ -39,6 +39,10 @@ age are made; the lme4 citation in the R script is not.
 **Part E (E1) was approved by the owner on 2026-11-16 and is applied** (pull
 request #53).
 
+**Part G (G1) was drafted on 2026-11-21 and is not applied.** It follows the
+decision of that day on several creatinine values on one day; the page keeps
+its earlier sentence until the owner approves a wording (OD-34).
+
 **How the page differs from the blocks of Parts C, D and E** (code and page
 win over the draft):
 
@@ -1980,3 +1984,41 @@ Proposed status text under the button while the first fit of a session runs:
 
 A Cancel button and a separate download status are implementation questions
 and not part of this wording draft.
+
+## Part G: draft after the persona review of 2026-11-21 (not applied)
+
+Follows the [decision of 2026-11-21](remaining-method-decisions.md#decisions-of-2026-11-21-persona-review-issue-34)
+on several creatinine values on one day. The page is unchanged; the
+difference is tracked as OD-34 in [method algorithms](method-algorithms.md#open-decisions).
+
+### G1. Several creatinine values on one day (OD-34)
+
+Topic *AKI detection*, block "AKI Timing, Episodes and the Fit-Exclusion
+Window" (`src/workspace/methods/topics/Aki.tsx`), first paragraph.
+
+Current:
+
+> Lab dates are calendar days without a time of day. The 48-hour window
+> therefore covers earlier measurements on the same date or one or two calendar
+> days earlier, and the 7-day window those up to seven calendar days earlier,
+> limits included. A rise from 1.0 to 1.3 mg/dl two days apart is detected;
+> three days apart it is not.
+
+Draft:
+
+> Lab dates are calendar days. The 48-hour window covers earlier measurements
+> one or two calendar days earlier, and the 7-day window those up to seven
+> calendar days earlier, limits included. A rise from 1.0 to 1.3 mg/dl two
+> days apart is detected; three days apart it is not.
+>
+> Several creatinine values on one day are ordered by their time of day when
+> the file gives one for each of them; an earlier value of the day can then be
+> the baseline of a later one. The windows still count calendar days. Without
+> a time of day the order within the day is unknown: these values are compared
+> with values of earlier days only, not with each other, so a rise within
+> that day is not detected on that day. The Data page states how many
+> patient-days this concerns.
+
+Not in the draft, for the owner to add or leave out: midnight counts as no
+time of day; values with the same time are not compared with each other; the
+time of day is not shown or exported.

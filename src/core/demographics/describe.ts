@@ -22,6 +22,9 @@ export function demographicWarningsByPatient(messages: readonly { id: string; te
   return out
 }
 
+/** Lab dates named in an `age_no_common_birth_date` message; the rest is counted. */
+const AGE_MISMATCHES_NAMED = 3
+
 /** One sentence per conflict: what disagreed, and what won. Kept out of the
  * module so the wording can be tested without building a pipeline context. */
 export function describeConflict(conflict: DemographicsConflict): string {
@@ -50,11 +53,19 @@ export function describeConflict(conflict: DemographicsConflict): string {
         `Patient ${conflict.patientId}: the attributes table says "${conflict.fromAttributes}", ` +
         `the lab rows say "${conflict.fromRows}" — the attributes table wins.`
       )
-    case 'age_no_common_birth_date':
-      return (
-        `Patient ${conflict.patientId}: the age values fit no single birth date ` +
-        `(${conflict.gapDays} days apart) — ages derived from the median instead.`
+    case 'age_no_common_birth_date': {
+      const head = `Patient ${conflict.patientId}: the age values fit no single birth date — ages derived from the median instead.`
+      const mismatches = conflict.mismatches ?? []
+      if (mismatches.length === 0) return head
+      const named = mismatches.slice(0, AGE_MISMATCHES_NAMED).map(
+        (m) => `${isoDate(m.labDate)} (stated ${m.stated}, derived ${m.derived ?? 'none'})`,
       )
+      const more = mismatches.length > AGE_MISMATCHES_NAMED ? ` and ${mismatches.length - AGE_MISMATCHES_NAMED} more` : ''
+      return (
+        `${head} The stated age differs from the derived age on ${mismatches.length} of ` +
+        `${conflict.statedDates ?? mismatches.length} lab ${(conflict.statedDates ?? mismatches.length) === 1 ? 'date' : 'dates'}: ${named.join(', ')}${more}.`
+      )
+    }
     case 'age_implausible':
       return (
         `Patient ${conflict.patientId}: ${conflict.rows} stated ${conflict.rows === 1 ? 'age' : 'ages'}, ` +

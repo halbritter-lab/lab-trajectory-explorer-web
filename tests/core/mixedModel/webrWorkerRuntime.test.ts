@@ -166,6 +166,29 @@ describe('webR worker runtime behavior', () => {
     expect(fitCode).toContain('warnings = unname(unique(c(mm_warnings, as.character(mm_lme4_messages))))')
   })
 
+  it('attaches the warnings of the passed input check to the fitted result, before the R warnings', async () => {
+    const { messages, postRequest } = await setupWorker({
+      evalRString: () => Promise.resolve(JSON.stringify({ ...JSON.parse(validFitJson), warnings: ['boundary (singular) fit'] })),
+    })
+    // Ten qualifying patients with three times each, one with two times, one with a single row, and one repeated time.
+    const input = [
+      ...Array.from({ length: 10 }, (_, p) => [0, 1, 2].map((time) => ({ patient_id: `q${p}`, value: 60 - p - time, time_since_baseline: time }))).flat(),
+      { patient_id: 'two', value: 50, time_since_baseline: 0 }, { patient_id: 'two', value: 49, time_since_baseline: 1 },
+      { patient_id: 'one', value: 40, time_since_baseline: 0 },
+      { patient_id: 'q0', value: 58.5, time_since_baseline: 2 },
+    ]
+    postRequest({ ...baseRequest, rows: input })
+    await waitForMessages(messages, 1)
+
+    expect(messages[0].result).toMatchObject({ status: 'success' })
+    expect(messages[0].result.warnings).toEqual([
+      '1 patient has fewer than 2 repeated measurements and contributes limited within-patient information.',
+      '1 patient has fewer than 3 distinct time_since_baseline values and contributes limited within-patient time information.',
+      '1 duplicate patient/time row was retained for mixed model fitting.',
+      'boundary (singular) fit',
+    ])
+  })
+
   it('fits no-covariate requests when rows do not include baseline age', async () => {
     const { messages, postRequest } = await setupWorker()
 

@@ -178,14 +178,27 @@ export function resolveBirthAnchor(input: AgeResolutionInput): AgeResolution {
     return { birthAnchor: intervalMidpoint(intersection), conflicts }
   }
 
+  const birthAnchor = medianDate(intervals.map(intervalMidpoint)) as Date
+  // The lab dates whose stated age the anchor does not reproduce, so the
+  // message can name them. One entry per lab date and stated age.
+  const statedDates = new Map<string, { labDate: Date; stated: number; derived: number | null }>()
+  for (const r of stated) {
+    const key = `${r.labDatum.getTime()}|${r.ageAtLab}`
+    if (!statedDates.has(key)) statedDates.set(key, { labDate: r.labDatum, stated: r.ageAtLab as number, derived: completedYears(birthAnchor, r.labDatum) })
+  }
+  const mismatches = [...statedDates.values()]
+    .filter((entry) => entry.derived !== entry.stated)
+    .sort((a, b) => a.labDate.getTime() - b.labDate.getTime() || a.stated - b.stated)
   return {
-    birthAnchor: medianDate(intervals.map(intervalMidpoint)),
+    birthAnchor,
     conflicts: [
       ...conflicts,
       {
         kind: 'age_no_common_birth_date',
         patientId: input.patientId,
         gapDays: intervalGapDays(intersection),
+        mismatches,
+        statedDates: statedDates.size,
       },
     ],
   }

@@ -16,9 +16,9 @@ function result(terms?: string[]): MixedModelSuccess {
   }
 }
 
-function renderPlot(terms?: string[]) {
+function renderPlot(terms?: string[], slopeDecimals?: number) {
   render(<CohortModelPlotPreview parameterLabel="eGFR" parameterUnit="ml/min" spikeRows={rows} groups={[]} groupColors={new Map()}
-    groupValuesByPatient={new Map()} cohortModelResults={{ cohort: { result: result(terms), identity: {} as never } }} modelRowsByEntity={{ cohort: rows }} canFit />)
+    groupValuesByPatient={new Map()} cohortModelResults={{ cohort: { result: result(terms), identity: {} as never } }} modelRowsByEntity={{ cohort: rows }} canFit slopeDecimals={slopeDecimals} />)
 }
 
 describe('model plot slope chip', () => {
@@ -29,5 +29,9 @@ describe('model plot slope chip', () => {
   it('keeps the plain unit name when the slope is common to all patients', () => {
     renderPlot(['(Intercept)', 'time_since_baseline', 'cohortB'])
     expect(screen.getByText('Whole cohort:')).toBeInTheDocument()
+  })
+  it('writes the slope with the decimals of the parameter, as the results table does', () => {
+    renderPlot(['(Intercept)', 'time_since_baseline'], 3)
+    expect(screen.getByText('Whole cohort:').parentElement).toHaveTextContent('Whole cohort: -4.770 ml/min/yr')
   })
 })

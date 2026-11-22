@@ -84,6 +84,7 @@ const entityColors = new Map([
 function renderTable(opts: {
   runJob?: (options: RunMixedModelWorkerJobOptions) => Promise<MixedModelResult>
   seed?: () => void
+  slopeDecimals?: number
 } = {}) {
   useAppStore.getState().reset()
   opts.seed?.()
@@ -100,6 +101,7 @@ function renderTable(opts: {
       fitConfigHash="fit12345"
       config={DEFAULT_MIXED_MODEL_CONFIG}
       formula={mixedModelFormula(DEFAULT_MIXED_MODEL_CONFIG)}
+      slopeDecimals={opts.slopeDecimals}
       runJob={async (options) => {
         const result = await runJob(options)
         if (result.status !== 'success') return result
@@ -181,6 +183,33 @@ describe('CohortModelTable', () => {
     expect(screen.getByRole('columnheader', { name: 'Change per year' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Group' })).toBeInTheDocument()
     expect(screen.getByTestId('interval-reading')).toHaveTextContent(/do not report it as a p-value/)
+  })
+
+  it('writes slope, interval, coefficients and slope SD with the decimals of the parameter', async () => {
+    const fitted = { ...success(0.0904), randomEffects: { interceptSd: 4.2, slopeSd: 0.01234, interceptSlopeCorrelation: null } }
+    fitted.fixedEffectConfidenceIntervals = { timeSinceBaseline: [0.0496, 0.1312] }
+    fitted.fixedEffectTerms = [{ term: '(Intercept)', estimate: 1.2, confidenceInterval: [1.05, 1.35] }, { term: 'time_since_baseline', estimate: 0.0904, confidenceInterval: [0.0496, 0.1312] }]
+    renderTable({ slopeDecimals: 3, runJob: vi.fn(async () => fitted) })
+    await userEvent.click(screen.getByRole('button', { name: 'Fit selected' }))
+    await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('Fitted'))
+    const cells = within(rowByEntity('cohort')).getAllByRole('cell')
+    // Before: "0.09 ... [0.05, 0.13]" here and "0.090 [0.05, 0.13]" among the coefficients.
+    expect(cells[4]).toHaveTextContent('+0.090 ml/min/1.73m2/yr 95% interval [0.050, 0.131]')
+    // The starting level is not a slope and keeps the general display rounding.
+    expect(cells[5]).toHaveTextContent('60 ml/min/1.73m2 95% interval [1.05, 1.35]')
+    await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
+    const coefficients = within(screen.getByRole('table', { name: 'Fixed effect coefficients' })).getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell').slice(1).map(cell => cell.textContent))
+    expect(coefficients).toEqual([['1.200', '[1.050, 1.350]'], ['0.090', '[0.050, 0.131]']])
+    expect(screen.getByText('Patient slope SD').nextElementSibling).toHaveTextContent(/^0\.012$/)
+  })
+
+  it('writes coefficients and their intervals with two decimals by default', async () => {
+    renderTable()
+    await userEvent.click(screen.getByRole('button', { name: 'Fit selected' }))
+    await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('Fitted'))
+    expect(within(rowByEntity('cohort')).getAllByRole('cell')[4]).toHaveTextContent('-2.00 ml/min/1.73m2/yr 95% interval [-2.50, -1.50]')
+    await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
+    expect(screen.getByRole('table', { name: 'Fixed effect coefficients' })).toHaveTextContent('-2.00[-2.50, -1.50]')
   })
 
   it('keeps the subset fit action secondary under a section heading', () => {
@@ -315,14 +344,15 @@ it('shows a failed model export instead of failing silently', async () => {
 it.each([
   ['runtime-load', 'WEBR_INIT_FAILED', 'runtime-error'],
   ['package-load', 'PACKAGE_UNAVAILABLE', 'unsupported'],
-] as const)('explains how to retry a %s failure after restoring CDN access', async (stage, code, status) => {
+] as const)('names both download hosts and how to retry after a %s failure', async (stage, code, status) => {
   renderTable({runJob:async () => ({
     status, engine: 'webr-lme4', stage, code,
     message: 'Failed to fetch', warnings: [], metadata: {},
   })})
   await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
   await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/internet|connection/i))
-  expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/CDN|package repository/i)
+  // Both hosts by name, so the user can ask for exactly these to be unblocked.
+  expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('downloads the R runtime from webr.r-wasm.org and R packages from repo.r-wasm.org. Check your internet connection and that both hosts can be reached from this network, then retry the fit.')
   expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/retry/i)
 })
 

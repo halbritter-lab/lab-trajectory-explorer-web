@@ -282,7 +282,7 @@ test('large synthetic cohort remains searchable and exports the filtered scope',
   await expect(page.getByRole('button', { name: 'Open patient P-1', exact: true })).toHaveCount(0)
   await testInfo.attach('large-cohort-timing', { body: JSON.stringify({ patients: 200, parameters: 12, measurements: 19200, importBrowseSearchMs: Date.now() - started }), contentType: 'application/json' })
   const pending = page.waitForEvent('download')
-  await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
+  await page.getByRole('button', { name: 'Export 1 of 200 patients (XLSX)' }).click()
   const exported = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
   const measurements = XLSX.utils.sheet_to_json<{ PatientID: string }>(exported.Sheets.measurements)
   expect(measurements).toHaveLength(96)
@@ -343,7 +343,8 @@ test('real workbook: quality, derivation, many parameters, shared scope and actu
   const errors: string[] = []
   page.on('pageerror', error => errors.push(error.message))
   await upload(page)
-  await page.getByText(/import diagnostics — show details/).click()
+  // One list per source table (lab values, events, attributes).
+  for (const summary of await page.getByText(/import diagnostics — show details/).all()) await summary.click()
   await expect(page.getByRole('listitem').filter({ hasText: /Event date "bad-date" is not a recognised date/ })).toBeVisible()
   await expect(page.getByRole('table', { name: 'Rejected events' })).toContainText('Rejected visit')
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
@@ -374,7 +375,7 @@ test('real workbook: quality, derivation, many parameters, shared scope and actu
   await expect(page.locator('.wt-plot-grid svg.wt-plot')).toHaveCount(13)
 
   const workbookDownload = page.waitForEvent('download')
-  await page.getByRole('button', { name: /cohort.*xlsx/i }).click()
+  await page.getByRole('button', { name: 'Export 1 of 3 patients (XLSX)' }).click()
   const downloaded = await workbookDownload
   const bytes = await readFile((await downloaded.path())!)
   const result = XLSX.read(bytes, { type: 'buffer' })

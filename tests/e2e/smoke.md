@@ -1,5 +1,140 @@
 # Manual browser smoke checklist
 
+## Combined branch of the persona review: fixes after its review (2026-11-21)
+
+Branch `integration/persona-review-2026-11-21` (all six branches of the
+review merged). Checked with ad-hoc Playwright scripts against the production
+build in Chromium, with the demo data and the synthetic review files. The
+sections below were written on the single branches; where the combined
+branch differs, they say so.
+
+- Demo, *Export cohort (XLSX)*: 247 kB without and 252 kB with a trend
+  (main: 661 and 665 kB). The sheets end `about`, `columns`,
+  `rolling_windows`, `import_diagnostics`; `rolling_windows` has its header
+  row `PatientID` … `slope` without a Rolling OLS column, and
+  `import_diagnostics` has `source` … `message` also when nothing was
+  reported.
+- Demo, Kreatinin with Rolling OLS, patient 2: "2 windows, local slopes 0.249
+  to 0.251 mg/dl/year"; the window list shows 0.251 and 0.249, and the two
+  window lines say "slope 0.251 mg/dl/year" and "slope 0.249 mg/dl/year".
+- Review file with times of day (rise from 1.0 at 06:00 to 1.6 at 20:00, in
+  both row orders): the AKI marker sits on 1.6, not on the first value of the
+  day. Its cohort export lists 4 episodes and carries the `about` note "Date
+  holds the calendar day; a time of day … is not written to any sheet". That
+  export loaded again: 2 episodes, "7 patient-days … order within the day is
+  unknown", the same `input_data_id`.
+- A copy saved with "Remember on this device" by the build of `main` (review
+  file with urine creatinine marked only by LOINC 2161-8 and with times of
+  day), opened with this build: the notice ends "This copy was saved by an
+  earlier version: it has no import findings, no source rows and no times of
+  day … 6 creatinine values with a urine LOINC code (2161-8, 14683-7) were
+  moved to a parameter of their own …"; `Kreatinin` has LOINC 2160-0 only and
+  40 eGFR values are computed, as after a fresh import.
+- Register file with deliberate errors, Data page: "Show the creatinine
+  values above 25 mg/dl" stands directly below its notice, the same-day note
+  after it.
+- 390 px (automated in `tests/e2e/plot-axes-events.e2e.ts`): dates and counts
+  of the window list and dates and the "AKI detection" cell of the
+  measurement table stay whole; the tables scroll inside their frame.
+- A CSV with `patientId,labDate,testName,unit,value` only (two patients, no
+  sex column, no attributes): "Export cohort (XLSX)" writes
+  `patient_attributes` with the `PatientID` column only, and importing that
+  workbook loads the same patients and values without an error. (Found
+  during these checks as "Patient attributes file has no attribute columns.";
+  fixed and checked again on 2026-11-21.)
+- Not checked in a browser: Firefox and WebKit.
+
+## Import diagnostics, LOINC material rule and Data page notes (2026-11-21)
+
+Branch `feat/import-diagnostics` (issues #74, #2, #34; persona review of
+2026-11-21). Checked with ad-hoc Playwright scripts against the production
+build in Chromium, with the synthetic review files.
+
+- A semicolon CSV with more commas than semicolons in its rows loads (36 and
+  12 lab values, 0 warnings); a `sep=` file and a three-comma file load as
+  before. A wide table (one column per test) is rejected with the sentence
+  "This file seems to have one column per lab test …".
+- Register file with deliberate errors: 41 lab values, 4 rows rejected, 9
+  warnings. Each rejected row names its file row (12, 27, 28, 39); the
+  implausible date 3024-05-08, the same-day values 1.1 and 1.9, the sex code
+  "x" and the IDs "0012" and "12" are each reported and open their rows.
+- "Replace attributes" afterwards: the notice reads "9 attribute rows
+  imported; 1 row rejected", and the panel shows "Lab values (…, 4 rows
+  rejected): 13 import diagnostics" beside "Attributes (…): 3 import
+  diagnostics". After "Remember on this device" and a reload both lists are
+  still there.
+- "Download import diagnostics (XLSX)" gives 28 lines (18 lab findings, 3
+  attribute findings, 7 data-check rows); the cohort workbook ends with the
+  sheet `import_diagnostics` holding the same lines.
+- Review file with urine creatinine marked only by LOINC 2161-8: parameters
+  `Kreatinin` (15 values), `Creatinin (Jaffe)` (3) and `Kreatinin (urine,
+  LOINC 2161-8)` (6); 0 AKI episodes (5 before on `main`; on the combined
+  branch the same-day rule alone already gives 0 for this file, whose serum
+  and urine values share a day without a time); the urine parameter is not
+  offered as eGFR source; 15 computed values (21 before). Demo data: numbers
+  unchanged, the LOINC column shows 62238-1 and 98979-8 for `eGFR`.
+- Demo, CKD-EPI 2021 selected without applying: "Preview not applied" at the
+  selection and "eGFR preview not applied [Apply]" beside "Open trajectories";
+  both disappear after Apply. At 390 px the note wraps above the button
+  without horizontal scrolling.
+- Age-conflict file: "… on 2 of 7 lab dates: 2023-07-11 (stated 54, derived
+  55), 2024-07-09 (stated 56, derived 55)."; no "days apart".
+- Patient table with "Dated numeric values", "First date", "Last date";
+  event tables with "Description"; the event-template sentence under
+  "Templates and example files".
+- Not checked in a browser: Firefox and WebKit; a workbook with more than
+  1000 affected rows per warning (unit test only).
+
+## Trajectories table: order, decimals, filters, paging (2026-11-21)
+
+Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
+
+1. Load the demo, open Trajectories, tick Trend for Kreatinin [mg/dl] and
+   eGFR. Creatinine slopes have three decimals with a labelled interval
+   (patient 8: "+0.010 mg/dl/yr 95% CI [0.007, 0.014]"), eGFR two (patient 8:
+   "-1.23 … 95% CI [-1.50, -0.97]"). The patient view writes the same digits
+   ("OLS: +0.010 mg/dl/year").
+2. Sort eGFR by *Slope: ascending*. Patient 12 (follow-up under a year) stands
+   at rank 25, after patient 14 and before 3, 5 and 10; the status line reads
+   "1 uncertain slope placed after the reliable ones". Unticking *Uncertain
+   slopes last* puts it at rank 9, between 9 and 6. *Export cohort (XLSX)*
+   lists the eGFR rows of `cohort` in the order of the table.
+3. "Show only": the buttons carry counts (demo, eGFR trend: Rapid decline 13,
+   Uncertain slope 1, Endpoint reached 4, AKI 4, Kidney transplant 3,
+   Dialysis 3, Other event 1). *Rapid decline* leaves 13 rows, the export
+   button reads "Export 13 of 28 patients (XLSX)" and "Select all 13
+   matching" is offered without a selection. *Show all* ends it. With Trend
+   on for all four columns and *Uncertain slope* chosen (patients 3, 5, 12),
+   open patient 5 and set the creatinine trend method to *No fit*: patient 5
+   stays open with the note "Patient 5 does not match “Show only: Uncertain
+   slope” and stays open", and *Export patient (XLSX)* downloads
+   a workbook named for patient 5. At 390 px
+   the buttons are in the toolbar menu "Show only" and the first chart is
+   still on the first screen.
+4. Apply CKD-EPI 2021 on the Data page. Under Trajectories the computed eGFR
+   cell of patient 5 reads "No eGFR: sex and age missing" (hint: sex missing
+   and age missing with four creatinine values each, "Enter the sex and the
+   age under Data → “Review and edit patients”"), that of patient 10 "No
+   eGFR: no creatinine in the source".
+5. A dataset of several hundred patients with a grouping attribute: the page
+   controls stand above and below the table; *Next* below the table shows the
+   top of the next page with the focus on the table region; "Per page" offers
+   25, 50 and 100, "Page" jumps. Collapse the largest group: the next rows
+   follow on the same page, the group is one header row with its total on
+   every page, and the status reads "Showing 1–50 of 527 patients (273 more in
+   collapsed groups)".
+6. Export a cohort of several hundred patients: "Exporting …" appears beside
+   the button until the download starts.
+
+Verified 2026-11-21 against the production build in Chromium
+(`tests/e2e/table-screening.e2e.ts`, seven checks, and scripted walkthroughs
+with the demo and an 800-patient review dataset): steps 1 to 6. With 800
+patients and one parameter a page of 100 rows rendered in about 0.3 s. The
+Cohort models decimals were checked with a fixed worker result, not with a
+real R fit. Not built: a table header that stays in view while scrolling
+(the table region scrolls sideways, so a fixed header needs either a region
+that also scrolls vertically or a scripted header).
+
 ## Cohort model presets with the demo, plain punctuation (2026-10-13)
 
 Branch `fix/cohort-demo-subgroups`. Subgroup comparison could not fit any
@@ -422,9 +557,12 @@ it does not claim research, clinical or representative-user validation.
    windows are left out of the projection. The measurements used fall on fewer
    than three distinct dates, so no projection was made." It does not say the
    series has measurements on fewer than three dates.
-4. *Export cohort (XLSX)* in that state: the last seven columns of `cohort` are
+4. *Export cohort (XLSX)* in that state: the last twelve columns of `cohort` are
    `index_date`, `last_fitted_date`, `first_eligible_date`,
-   `last_eligible_date`, `intercept`, `slope_se`, `n_fitted_dates`; the row has
+   `last_eligible_date`, `intercept`, `slope_se`, `n_fitted_dates`,
+   `first_eligible_value`, `last_eligible_value`, `sex`, `baseline_age`,
+   `group` (empty without grouping), and the sheet `about` is followed by
+   `columns`, `rolling_windows` and `import_diagnostics`; the row has
    `first_eligible_date` 2020-01-01, `last_eligible_date` 2021-12-16 and
    `last_fitted_date` 2020-01-01, and `endpoint_input_policy` ends in "AKI
    exclusion windows excluded from decline baseline and projection".
@@ -433,6 +571,23 @@ it does not claim research, clinical or representative-user validation.
    `excluded_patients`, `projections`, `about`, `vcov`, `model_rows`,
    `model_input_flags`, `r_script`; every sheet that names a unit has a
    `unit_key` column (`cohort` or `group:<value>`).
+   `models` ends with `unit_key`, `intercept_sd`, `slope_sd`,
+   `intercept_slope_correlation`, `residual_sd`, and `about` ends with
+   `app_version` and `exported_at`. With the demo data and the parameter
+   Kreatinin the fit summary reads "Whole cohort, patients with enough
+   measurement times: 26 of 27.", and the model's details and
+   `models.warnings` carry "1 patient has fewer than 3 distinct
+   time_since_baseline values …" (checked in Chromium with a real R fit on
+   2026-11-21; not automated).
+5a. Demo data, Trajectories, *Export cohort (XLSX)* with and without "Group
+   by": both files have the same 80 columns in `cohort` with `group` last,
+   `PatientID` in every sheet, a sheet `columns` after `about` (followed by
+   `rolling_windows` and `import_diagnostics`), and `app_version`,
+   `exported_at`, `export_id` and `input_data_id` in `about`. Import the
+   exported file under Data: it loads without a column error (automated in
+   `tests/e2e/cohort-export.e2e.ts`). With a file that has a `birthDate`
+   column, `demographics` of the export of the re-imported file shows the
+   same `birth_anchor` with `age_estimated` false.
 6. Open a saved session whose creatinine source is no longer a serum name. The
    Data page shows the amber notice that no eGFR is computed from it.
 
@@ -488,3 +643,90 @@ Not verified: the leave-page question when closing a tab or window by hand
 (the automated check reloads), other browsers than Chromium, and a copy saved
 by the released version 0.3.7 restored in this version in a real browser
 (`tests/workspace/storage.test.tsx` covers a copy without settings).
+
+## Plot axes, event drawing and the dense overlay (2026-11-21)
+
+1. Import a file with a short series (a hospital stay of some days) and an
+   events file with a dated acute dialysis. Open the patient: the axis reads
+   "Years since first measurement of this parameter" as before. Display →
+   "Time axis" → "Days since first measurement": whole days on the axis, in
+   the patient charts and in the overlay, until the unit is changed back.
+2. "Calendar date" on a series of one or two days: every label a different
+   date. On a longer series: five dates, none cut off at the border.
+3. Switch on "Events": the dialysis is a dashed line at its start and a
+   shaded band to its end date; the legend names both. The points inside
+   carry "not used for AKI detection (dialysis)" in their tooltip, with and
+   without a trend, and "Show measurements" has the column "AKI detection"
+   and the events as set-off rows at their dates. "Events for this patient"
+   is in date order.
+4. Switch on "AKI windows and episodes": no stage label is cut at the left or
+   right border; equal neighbouring labels are merged ("AKI III ×2"). The
+   legend and the tooltip of the shaded window say "this column has no fit",
+   "not excluded from this fit" (Trend ticked, General exploration) or
+   "excluded from this fit" (CKD progression).
+5. Choose "Rolling OLS" and tick Trend: "Show windows (n)" lists the windows,
+   each dashed line names its window on hover, and the patient workbook has
+   the sheet `rolling_windows` after `about` and `columns`.
+6. Load a cohort of more than 50 and of more than 200 patients and open
+   Overlay: no measurement points, paler (and from 201 thinner) lines and a
+   note above the chart; "Measurement points" under Display is unticked and
+   brings the points back, also after a reload with "Remember on this
+   device". Start again without that choice: unticking "Connecting lines"
+   alone shows the points, and a chart of a parameter that fewer than 51 of
+   the patients have keeps its points. Move the pointer across the lines: the chart stays
+   responsive and the line under the pointer is drawn thick on top, with the
+   patient named at the upper right.
+
+Verified 2026-11-21 in Chromium against the production build: steps 1 to 6 by
+`tests/e2e/plot-axes-events.e2e.ts` (all 64 automated checks passed) and by
+scripted walkthroughs with screenshots on the synthetic review files (a
+20-day intensive-care series with dialysis, a rolling-OLS series, an
+800-patient cohort). In the 800-patient overlay, opening took under 0.2 s
+with 3,231 SVG elements (before: 3.6 s, 72,212 elements with two charts) and
+a pointer sweep caused no long task; with the points switched on by hand a
+sweep still causes tasks of 0.1 to 0.2 s (before: 1.0 to 1.7 s).
+
+Not verified: other browsers than Chromium, a phone-width layout of the new
+table rows and the window list, and real research data.
+
+## Start, lost connection, network and storage notices (2026-11-21)
+
+1. Load the page, cut the network, import a CSV: header, navigation and all
+   pages stay; Cohort models shows "Model results". "Load demo data" without a
+   network says "Could not load the demo dataset: the demo file could not be
+   fetched from this app's address. …".
+2. Open `dist/index.html` from a folder in Chrome or Edge: after two seconds
+   the notice "Lab Trajectory Explorer has not started" appears. Over http the
+   notice never shows.
+3. Cohort models, before the first fit: under the fit button "The first fit
+   of a session downloads the R runtime from webr.r-wasm.org and R packages
+   from repo.r-wasm.org (about 33 MB). …"; the link opens Methods, "Data &
+   eGFR", "Network access and local storage". After a finished fit the
+   sentence is gone.
+4. Production build only: the page carries a Content-Security-Policy meta
+   element. Fit a model on the demo data with a real network (first fit), fit
+   again, then "Export models (xlsx)", "Download SVG", "Download PNG" and
+   "Export cohort (XLSX)": all work and the console reports no blocked
+   request. Repeat this after every change to the policy or an update of
+   `webr`; the automated check does not fit a model.
+5. Data: "Nothing is pseudonymised: …" stands above the file input; the lab
+   template text names `patientId`.
+6. Tick "Remember on this device": the status reads "Saved on <date time>;
+   removed when the app is next opened after <date time>", seven days apart,
+   and is the same after a reload. "What is saved" opens the list.
+7. With the copy saved, open the app in a second tab, import another file
+   there, and return to the first tab: its status changes to "The saved copy
+   was changed or removed in another tab. …" and "Remember on this device" is
+   unticked. A reload shows the second tab's dataset.
+
+Verified 2026-11-21 against the production build: steps 1, 2, 5, 6 and 7 and the
+exports of step 4 by `tests/e2e/start-and-offline.e2e.ts` in Chromium; step 3
+and the real fit of step 4 by an ad-hoc Playwright script in Chromium, Firefox
+and WebKit (fit, refit, model workbook, SVG, PNG and cohort workbook; no
+policy violation). Step 2 in Firefox: the app starts from `file://`, so the
+notice does not appear.
+
+Not verified: Safari and Edge themselves, the patient bundle (ZIP) and the
+patient chart exports under the policy (same export functions as the checked
+ones), a deployment that removes files while a tab is open, and the notice
+with JavaScript switched off.

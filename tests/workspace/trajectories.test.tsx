@@ -115,13 +115,13 @@ describe('real-data trajectories workspace', () => {
     enableTrend()
     expect(line).toBeEnabled()
     const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
-    expect(within(row).getByLabelText('OLS: 1 unit-0/year, R² 1')).toBeInTheDocument()
+    expect(within(row).getByLabelText('OLS: +1.00 unit-0/year, R² 1')).toBeInTheDocument()
     // Ticking Trend draws the line in the same step; the eye button hides it again.
     expect(mini().querySelector('[stroke-dasharray]')).toBeInTheDocument()
     fireEvent.click(line)
     expect(mini().querySelector('[stroke-dasharray]')).toBeNull()
     expect(trend).toBeChecked()
-    expect(within(row).getByLabelText('OLS: 1 unit-0/year, R² 1')).toBeInTheDocument()
+    expect(within(row).getByLabelText('OLS: +1.00 unit-0/year, R² 1')).toBeInTheDocument()
     expect(mini().querySelector('[stroke-dasharray]')).toBeNull()
     fireEvent.click(trend)
     expect(line).toBeDisabled()
@@ -320,8 +320,8 @@ describe('real-data trajectories workspace', () => {
     enableTrend('Marker · unit-1')
     preset('theil_sen', 'Marker · unit-0')
     closeSettings()
-    expect(screen.getAllByText(/Theil–Sen: 1 unit-0\/year/)).toHaveLength(2)
-    expect(screen.getAllByText(/OLS: 1 unit-1\/year/)).toHaveLength(2)
+    expect(screen.getAllByText(/Theil–Sen: \+1\.00 unit-0\/year/)).toHaveLength(2)
+    expect(screen.getAllByText(/OLS: \+1\.00 unit-1\/year/)).toHaveLength(2)
 
     fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
     const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
@@ -334,7 +334,7 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByLabelText('Fit model')).toHaveValue('ols')
     fireEvent.change(screen.getByLabelText('Fit model'), { target: { value: 'none' } })
     closeSettings()
-    expect(screen.getAllByText(/Theil–Sen: 1 unit-0\/year/)).toHaveLength(2)
+    expect(screen.getAllByText(/Theil–Sen: \+1\.00 unit-0\/year/)).toHaveLength(2)
     expect(screen.getByRole('checkbox', { name: 'Analyse trend: Marker · unit-1' })).toBeDisabled()
 
     openSettings('Marker · unit-0')
@@ -345,7 +345,7 @@ describe('real-data trajectories workspace', () => {
     preset('general_exploration')
     closeSettings()
     enableTrend()
-    expect(screen.getAllByText(/OLS: 1 unit-0\/year/)).toHaveLength(2)
+    expect(screen.getAllByText(/OLS: \+1\.00 unit-0\/year/)).toHaveLength(2)
   })
 
   it('applies a column preset only to that column and retains it across views and selection changes', () => {
@@ -577,7 +577,7 @@ describe('real-data trajectories workspace', () => {
     data.events = [{ patientId: 'ID-A', type: 'other', date: new Date('2021-06-15T00:00:00Z'), title: 'Aufnahme Station', description: null, endDate: null, intent: null, warning: '' }]
     renderWorkspace(<TrajectoriesWorkspace data={data} requestedPatientId="ID-A" />)
     enableTrend('Marker · unit-0')
-    expect(screen.getByText('OLS: 1 unit-0/year, R² 1')).toBeInTheDocument()
+    expect(screen.getByText('OLS: +1.00 unit-0/year, R² 1')).toBeInTheDocument()
     expect(screen.getByText('3 fitted measurements over 731 days')).toBeInTheDocument()
     expect(screen.getByText('15/06/2021: Aufnahme Station')).toBeInTheDocument()
     openDisplay()
@@ -654,7 +654,7 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByRole('checkbox', { name: 'Analyse trend: eGFR EKFC' })).toBeChecked()
     expect(screen.getByLabelText('Trend method: eGFR EKFC')).toHaveValue('theil-sen')
     expect(screen.getByRole('button', { name: 'Show trend line: eGFR EKFC' })).toHaveAttribute('aria-pressed', 'true')
-    expect(screen.getAllByText(/Theil–Sen: 1 unit-0\/year/)).toHaveLength(2)
+    expect(screen.getAllByText(/Theil–Sen: \+1\.00 unit-0\/year/)).toHaveLength(2)
     result.rerender(<TrajectoriesWorkspace data={{ ...updated, parameters: updated.parameters.slice(1) }} />)
     expect(screen.getByText(/Unavailable selected parameters: eGFR EKFC/)).toBeInTheDocument()
   })
@@ -748,7 +748,7 @@ describe('real-data trajectories workspace', () => {
     const fitCheckbox = screen.getByRole('checkbox', { name: 'Analyse trend: Marker · unit-0' })
     expect(fitCheckbox).toBeInTheDocument()
     fireEvent.click(fitCheckbox)
-    expect(screen.getAllByText(/Theil–Sen: 1 unit-0\/year/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText(/Theil–Sen: \+1\.00 unit-0\/year/).length).toBeGreaterThan(0)
   })
 
   it('supports selecting CKD progression preset and custom pipeline settings', () => {

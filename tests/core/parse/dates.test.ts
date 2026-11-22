@@ -18,6 +18,31 @@ describe('parseImportDate', () => {
     expect(parseImportDate('03/01/2024')).toEqual({ kind: 'date', date: utc(2024, 1, 3), via: 'slash-day-first' })
   })
 
+  it('returns a written time of day beside the calendar day', () => {
+    const time = (value: unknown) => { const parsed = parseImportDate(value); return parsed.kind === 'date' ? parsed.timeOfDay : parsed }
+    const at = (h: number, m = 0, s = 0) => ((h * 60 + m) * 60 + s) * 1000
+    expect(parseImportDate('2024-01-15 08:30')).toEqual({ kind: 'date', date: utc(2024, 1, 15), via: 'iso', timeOfDay: at(8, 30) })
+    expect(time('2024-01-15T23:59:59.000Z')).toBe(at(23, 59, 59))
+    expect(time('15.03.2024 10:30')).toBe(at(10, 30))
+    expect(time('15/03/2024 7:05:09')).toBe(at(7, 5, 9))
+    // The offset is ignored: the clock time is taken as written, like the day.
+    expect(time('2024-01-15 08:30:00+02:00')).toBe(at(8, 30))
+    // Fractions are rounded to whole seconds and never reach the next day.
+    expect(time('2024-01-15 08:30:00,6')).toBe(at(8, 30, 1))
+    expect(time('2024-01-15 23:59:59.9')).toBe(at(23, 59, 59))
+    // No time, midnight and a time that does not exist all mean "no time of day".
+    for (const text of ['2024-01-15', '2024-01-15 00:00', '2024-01-15T00:00:00Z', '2024-01-15 25:00', '2024-01-15 12:60']) {
+      expect(parseImportDate(text)).toEqual({ kind: 'date', date: utc(2024, 1, 15), via: 'iso' })
+    }
+    // Workbook date cells arrive with their clock time on the UTC day; serials carry it as their fraction.
+    expect(parseImportDate(new Date(Date.UTC(2024, 0, 15, 14, 30)))).toEqual({ kind: 'date', date: utc(2024, 1, 15), via: 'date-cell', timeOfDay: at(14, 30) })
+    expect(parseImportDate(utc(2024, 1, 15))).toEqual({ kind: 'date', date: utc(2024, 1, 15), via: 'date-cell' })
+    expect(parseImportDate(45000.75)).toEqual({ kind: 'date', date: utc(2023, 3, 15), via: 'excel-serial', timeOfDay: at(18) })
+    expect(parseImportDate('45000,5')).toEqual({ kind: 'date', date: utc(2023, 3, 15), via: 'excel-serial', timeOfDay: at(12) })
+    expect(parseImportDate(45000)).toEqual({ kind: 'date', date: utc(2023, 3, 15), via: 'excel-serial' })
+    expect(time(45000.99999999)).toBe(at(23, 59, 59))
+  })
+
   it('separates empty, impossible and unrecognised values', () => {
     expect(parseImportDate(null)).toEqual({ kind: 'empty' })
     expect(parseImportDate('  ')).toEqual({ kind: 'empty' })

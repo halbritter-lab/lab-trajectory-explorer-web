@@ -1,6 +1,8 @@
 import { mixedModelCoefficientTerms, mixedModelExportSheets, mixedModelTermLabel } from '../../core/mixedModel/modelExport'
+import { WEBR_PACKAGE_HOST, WEBR_RUNTIME_HOST } from '../../core/mixedModel/runtimeHosts'
 import { mixedModelFactors, mixedModelFormulaForOutcome, mixedModelOutcomeLabel } from '../../core/mixedModel/config'
 import { downloadBlob, fileStamp, sheetsToXlsxBytes } from '../../io/export'
+import { version as APP_VERSION } from '../../../package.json'
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import type { RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import type { MixedModelConfig } from '../../core/mixedModel/config'
@@ -27,6 +29,7 @@ import { buildProjectionSnapshot, type ProjectionResponse, type ProjectionSnapsh
 import { createDefaultProjectionSettings } from '../../core/analysis/projection'
 import { ModelProjectionPanel } from './ModelProjectionPanel'
 import { formatWorkspaceNumber } from '../WorkspacePlot'
+import { formatFixedDecimals, MIN_SLOPE_DECIMALS } from '../../core/format'
 
 const FALLBACK_COLOR = '#55686e'
 
@@ -47,6 +50,9 @@ export interface CohortModelTableProps {
   formula: string
   /** False when the parameter's settings define no event or AKI windows. */
   definesWindows?: boolean
+  /** Decimals for this parameter's slopes (see slopeDisplayDecimals): the same
+   * as its column under Trajectories. */
+  slopeDecimals?: number
   /** Injectable worker seam (tests); forwarded to the store run action. */
   runJob?: (options: RunMixedModelWorkerJobOptions) => Promise<MixedModelResult>
 }
@@ -81,6 +87,7 @@ export function CohortModelTable({
   config,
   formula,
   definesWindows = true,
+  slopeDecimals = MIN_SLOPE_DECIMALS,
   runJob,
 }: CohortModelTableProps) {
   const cohortModelResults = useAppStore((s) => s.cohortModelResults)
@@ -239,7 +246,7 @@ export function CohortModelTable({
     if (exportable.some((model) => current?.[model.key]?.result !== model.result || !mixedModelIdentityEquals(current?.[model.key]?.identity ?? null, model.identity))) return
     try {
       const fileName = `cohort-models-${fileStamp()}.xlsx`
-      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable, fileName)), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable, fileName, undefined, { appVersion: APP_VERSION })), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       setExportError(null)
     } catch (error) {
       setExportError(`Model export failed: ${error instanceof Error ? error.message : String(error)}`)
@@ -318,7 +325,7 @@ export function CohortModelTable({
                       </td>
                       <td>{row.nPatients}</td>
                       <td>{row.nMeasurements}</td>
-                      <td>{success ? <>{formatSlope(success.fixedEffects.timeSinceBaseline, seriesUnit)}<IntervalText value={success.fixedEffectConfidenceIntervals.timeSinceBaseline} /></> : '—'}</td>
+                      <td>{success ? <>{formatSlope(success.fixedEffects.timeSinceBaseline, seriesUnit, slopeDecimals)}<IntervalText value={success.fixedEffectConfidenceIntervals.timeSinceBaseline} decimals={slopeDecimals} /></> : '—'}</td>
                       <td>{success ? <>{formatValue(success.fixedEffects.intercept, seriesUnit)}<IntervalText value={success.fixedEffectTerms?.find(term => term.term === '(Intercept)')?.confidenceInterval ?? null} /></> : '—'}</td>
                       <td className="cohort-model-status" data-testid="cohort-model-status">{statusText(row)}
                         <div>{row.preparation?.presetExclusionPolicy !== 'skip' && !definesWindows ? 'No event or AKI windows defined: nothing excluded' : `Preset windows ${row.preparation?.presetExclusionPolicy === 'skip' ? 'skipped' : 'applied'}: ${row.preparation?.excludedByPreset ?? 0} eligible measurements excluded`}</div>
@@ -340,7 +347,7 @@ export function CohortModelTable({
                     {success && isExpanded && (
                       <tr className="cohort-model-details-row" data-testid="cohort-model-details" data-entity={row.key}>
                         <td className="cohort-model-details-cell" data-testid="cohort-model-details-cell" colSpan={8}>
-                          <ModelDetails result={success} outcome={mixedModelOutcomeLabel(sourceResponse.outcome, sourceResponse.unit)} />
+                          <ModelDetails result={success} outcome={mixedModelOutcomeLabel(sourceResponse.outcome, sourceResponse.unit)} decimals={slopeDecimals} />
                           {(() => {
                             const snapshot = exportable.find((model) => model.key === row.key)?.projection
                             return snapshot ? <ModelProjectionPanel snapshot={snapshot} showWarnings={false}
@@ -374,18 +381,18 @@ function failureStatusText(result: MixedModelFailure): string {
     (result.stage === 'runtime-load' && result.code === 'WEBR_INIT_FAILED') ||
     (result.stage === 'package-load' && result.code === 'PACKAGE_UNAVAILABLE')
   ) {
-    return `${message} First-time WebR setup downloads the R runtime and packages from a CDN/package repository. Check your internet connection and access to those sources, then retry the fit.`
+    return `${message} The first fit of a session downloads the R runtime from ${WEBR_RUNTIME_HOST} and R packages from ${WEBR_PACKAGE_HOST}. Check your internet connection and that both hosts can be reached from this network, then retry the fit.`
   }
   return message
 }
 
-function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome: string }) {
+function ModelDetails({ result, outcome, decimals }: { result: MixedModelSuccess; outcome: string; decimals: number }) {
   const factors = result.metadata.modelConfig ? mixedModelFactors(result.metadata.modelConfig) : []
   return (
     <>
     {factors.length > 0 && <p>Reference starting level and change per year: {factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : `${factor.key} at its included-patient mean`).join('; ')}. Associations are conditional on this model and population.</p>}
     {result.warnings.map((warning, index) => <p role="status" key={index}>{warning}</p>)}
-    <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{coefficient.estimate.toFixed(3)}</td><td>{formatFixedInterval(coefficient.confidenceInterval)}</td></tr>)}</tbody></table>
+    <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{formatFixedDecimals(coefficient.estimate, decimals)}</td><td>{formatFixedInterval(coefficient.confidenceInterval, decimals)}</td></tr>)}</tbody></table>
     <dl className="cohort-model-details">
       <div className="cohort-model-detail-item">
         <dt>Patient intercept SD</dt>
@@ -393,7 +400,7 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
       </div>
       <div className="cohort-model-detail-item">
         <dt>Patient slope SD</dt>
-        <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.randomEffects.slopeSd)}</dd>
+        <dd data-testid="cohort-model-detail-value">{result.randomEffects.slopeSd === null ? 'n/a' : formatFixedDecimals(result.randomEffects.slopeSd, decimals)}</dd>
       </div>
       <div className="cohort-model-detail-item">
         <dt>Intercept-slope correlation</dt>
@@ -429,17 +436,20 @@ function ModelDetails({ result, outcome }: { result: MixedModelSuccess; outcome:
   )
 }
 
-// Slope and intercept use the workspace display rounding, so the table and the
-// preview legend show the same digits for the same estimate. Display only:
-// exports keep the unrounded values.
-/** The 95% interval beside an estimate in the results table; nothing when the fit recorded none. */
-function IntervalText({ value }: { value: [number, number] | null }) {
-  return value === null ? null : <span className="cohort-model-interval" title="95% interval"> <span className="visually-hidden">95% interval </span>{formatOptionalInterval(value)}</span>
+// A slope, its interval and the coefficients carry the decimals of the
+// parameter's slope column (decided 2026-11-21), so the table, the preview
+// legend and the Trajectories table write the same quantity alike. The starting
+// level keeps the workspace display rounding. Display only: exports keep the
+// unrounded values.
+/** The 95% interval beside an estimate in the results table; nothing when the fit recorded none.
+ * With `decimals` both bounds are written with exactly that many. */
+function IntervalText({ value, decimals }: { value: [number, number] | null; decimals?: number }) {
+  return value === null ? null : <span className="cohort-model-interval" title="95% interval"> <span className="visually-hidden">95% interval </span>{decimals === undefined ? formatOptionalInterval(value) : formatFixedInterval(value, decimals)}</span>
 }
 
-function formatSlope(value: number, unit: string | null): string {
+function formatSlope(value: number, unit: string | null, decimals: number): string {
   const unitText = unit ? ` ${unit}` : ''
-  return `${formatWorkspaceNumber(value)}${unitText}/yr`
+  return `${formatFixedDecimals(value, decimals, true)}${unitText}/yr`
 }
 
 function formatValue(value: number, unit: string | null): string {
@@ -454,7 +464,7 @@ function formatOptionalNumber(value: number | null): string {
 function formatOptionalInterval(value: [number, number] | null): string {
   return value === null ? 'n/a' : `[${formatWorkspaceNumber(value[0])}, ${formatWorkspaceNumber(value[1])}]`
 }
-/** The coefficient table keeps fixed decimals so its columns line up. */
-function formatFixedInterval(value: [number, number] | null): string {
-  return value === null ? 'n/a' : `[${value[0].toFixed(2)}, ${value[1].toFixed(2)}]`
+/** Fixed decimals, the same for both bounds as for the estimate beside them. */
+function formatFixedInterval(value: [number, number] | null, decimals: number): string {
+  return value === null ? 'n/a' : `[${formatFixedDecimals(value[0], decimals)}, ${formatFixedDecimals(value[1], decimals)}]`
 }

@@ -3,7 +3,9 @@ import { createStore, del, delMany, get, getMany, keys, promisifyRequest, update
 import { useAppStore } from './state/store'
 import type { AnalysisContext } from '../core/analysis/types'
 import { isRecord as record, parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
-import type { Sex, WertOperator } from '../core/types'
+import type { LabRow, Sex, WertOperator } from '../core/types'
+import { nonSerumCreatinineLoincName } from '../core/domains/nephrology/analytes'
+import { IMPORT_SOURCES, type ImportDiagnostic, type ImportSource } from '../io/loadDataset'
 import { allValues, restoreSavedSettings, SAVED_SETTINGS_VERSION, type RestoredSettings, type SavedSettings } from './saved-settings'
 import {
   CLINICAL_EVENT_TYPES,
@@ -39,6 +41,9 @@ interface Snapshot extends AnalysisContext {
   savedAt: number
   fileName: string | null
   analysisSettings: AnalysisSettings
+  /** Import findings per source table. Absent in copies saved before
+   * 2026-11-21, which restore without them. */
+  importDiagnostics?: ImportDiagnostic[]
 }
 /** `datasetToken` is the write token of the dataset copy the settings belong
  * to. A record for another copy is never applied. */
@@ -54,8 +59,25 @@ interface StorageStatus {
    * status, which keeps describing the dataset copy; cleared by the next
    * successful write. */
   settingsError: string | null
+  /** When the dataset copy on this device was written (its `savedAt`, the
+   * start of the seven days); null while no copy of this tab is saved. */
+  savedAt: number | null
 }
-export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null }))
+export const useWorkspaceStorage = create<StorageStatus>(() => ({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null, savedAt: null }))
+
+/** Local date and time to the minute: "2026-11-21 14:05". */
+function localMinute(time: number): string {
+  const date = new Date(time)
+  const two = (value: number) => String(value).padStart(2, '0')
+  return `${date.getFullYear()}-${two(date.getMonth() + 1)}-${two(date.getDate())} ${two(date.getHours())}:${two(date.getMinutes())}`
+}
+/** The status of a saved copy. Nothing removes the copy while the app is
+ * closed: expiry is checked only when the app starts (startWorkspaceStorage),
+ * so the copy stays on the device until the app is opened after that time. */
+export function savedStatusText(savedAt: number | null): string {
+  if (savedAt === null) return 'Saved on this device'
+  return `Saved on ${localMinute(savedAt)}; removed when the app is next opened after ${localMinute(savedAt + DATASET_TTL_MS)}`
+}
 
 const nullableText = (v: unknown) => v === null || typeof v === 'string'
 const nullableNumber = (v: unknown) => v === null || typeof v === 'number' && Number.isFinite(v)
@@ -68,15 +90,33 @@ const EVENT_TYPES = allValues<ClinicalEventType>()(CLINICAL_EVENT_TYPES)
 const INTENTS = allValues<DialysisIntent | null>()([null, ...DIALYSIS_INTENTS])
 const EVENT_WARNINGS = allValues<ClinicalEventWarning>()(CLINICAL_EVENT_WARNINGS)
 const sex = (v: unknown) => v === null || SEX_CODES.includes(v as Sex)
+const optionalNumber = (v: unknown) => v === undefined || typeof v === 'number' && Number.isFinite(v)
+
+function validImportDiagnostic(value: unknown): value is ImportDiagnostic {
+  return record(value) && IMPORT_SOURCES.includes(value.source as ImportSource) && typeof value.sheet === 'string'
+    && (value.patientId === null || patientId(value.patientId)) && (value.severity === 'rejected' || value.severity === 'warning')
+    && typeof value.reason === 'string' && (value.scope === undefined || value.scope === 'sheet')
+    && optionalNumber(value.row) && optionalNumber(value.affected)
+    && (value.rows === undefined || Array.isArray(value.rows) && value.rows.every(row => record(row)
+      && (row.row === null || typeof row.row === 'number' && Number.isFinite(row.row)) && (row.patientId === null || patientId(row.patientId))
+      && typeof row.date === 'string' && typeof row.parameter === 'string' && typeof row.value === 'string'))
+}
+/** The import findings of a saved copy. Whatever is not a finding in the
+ * current form is left out instead of making the whole copy unreadable, so a
+ * copy saved without findings, or by another version, still restores. */
+export function storedImportDiagnostics(value: unknown): ImportDiagnostic[] {
+  return Array.isArray(value) ? value.filter(validImportDiagnostic) : []
+}
 
 function validSnapshot(value: unknown): value is Snapshot {
   if (!record(value) || value.version !== 1 || typeof value.writeToken !== 'string' || !Number.isFinite(value.savedAt) || !nullableText(value.fileName)) return false
   if (!Array.isArray(value.rows) || !value.rows.length || !value.rows.every(row => record(row) && patientId(row.patientId)
-    && nullableDate(row.labDatum) && nullableText(row.bezeichnung) && nullableText(row.einheit)
+    && nullableDate(row.labDatum) && (row.labTime === undefined || typeof row.labTime === 'number' && Number.isFinite(row.labTime)) && nullableText(row.bezeichnung) && nullableText(row.einheit)
     && nullableText(row.wert) && nullableNumber(row.wertNum) && nullableText(row.loinc)
     && OPERATORS.includes(row.wertOperator as WertOperator)
     && sex(row.patientSex) && nullableNumber(row.patientAgeAtLab)
     && (row.patientBirthDate === undefined || nullableDate(row.patientBirthDate))
+    && optionalNumber(row.sourceRow)
     && (row.patientSexRaw === undefined || nullableText(row.patientSexRaw)))) return false
   if (!Array.isArray(value.events) || !value.events.every(event => record(event) && patientId(event.patientId)
     && validDate(event.date) && nullableDate(event.endDate) && typeof event.title === 'string'
@@ -157,13 +197,39 @@ export async function migrateLegacyStorage(
   return outcome
 }
 
+/**
+ * The series rule of the lab import applied to the rows of a saved copy:
+ * creatinine with a urine LOINC code (2161-8, 14683-7) is a parameter of its
+ * own. A copy saved by a version before 2026-11-21 holds such rows under the
+ * serum name; without this they would stay in AKI detection and eGFR for the
+ * seven days of the copy. Rows saved under the separate name are unchanged
+ * (`nonSerumCreatinineLoincName` returns null for them), so `moved` is 0 for
+ * every copy the current version wrote.
+ */
+export function separateStoredNonSerumCreatinine(rows: LabRow[]): { rows: LabRow[]; moved: number } {
+  let moved = 0
+  const out = rows.map(row => {
+    const name = nonSerumCreatinineLoincName(row.bezeichnung, row.loinc)
+    if (name === null) return row
+    moved++
+    return { ...row, bezeichnung: name }
+  })
+  return moved ? { rows: out, moved } : { rows, moved }
+}
+
+/** What a restored copy lacks or had changed because an earlier version saved it. */
+export function earlierVersionNotice({ withoutImportFindings, movedCreatinine }: { withoutImportFindings: boolean; movedCreatinine: number }): string {
+  return (withoutImportFindings ? ' This copy was saved by an earlier version: it has no import findings, no source rows and no times of day, so several creatinine values of one day are compared with earlier days only. Import the file again to get them.' : '')
+    + (movedCreatinine ? ` ${movedCreatinine} creatinine ${movedCreatinine === 1 ? 'value' : 'values'} with a urine LOINC code (2161-8, 14683-7) ${movedCreatinine === 1 ? 'was' : 'were'} moved to a parameter of ${movedCreatinine === 1 ? 'its' : 'their'} own, as an import does: not used for AKI detection or eGFR.` : '')
+}
+
 /** What a restored copy brought back and what starts from defaults. */
 export function restoredNotice({ stored, notRestored, keptAsCustom }: Pick<RestoredSettings, 'stored' | 'notRestored' | 'keptAsCustom'>): string {
   const notSaved = 'Cohort model settings and results are not saved: fit the models again under Cohort models.'
   if (stored === 'none') return `Dataset restored from this device. No analysis settings were saved with this copy, so presets, trend and display settings start from their defaults. ${notSaved}`
   if (stored === 'discarded') return `Dataset restored from this device. Its saved analysis settings could not be used (saved by another version), so presets, trend and display settings start from their defaults. ${notSaved}`
   return `Dataset and analysis settings (presets, trend and display choices) restored from this device. ${notSaved}`
-    + (keptAsCustom.length ? ` Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: ${keptAsCustom.join('; ')}. The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom" and time axis "calendar_time".` : '')
+    + (keptAsCustom.length ? ` Shown as "Custom configuration" with their saved values, because the preset has changed since they were saved: ${keptAsCustom.join('; ')}. The fits use the saved values, so results do not change; the preset name is no longer shown, and the exported fit configuration gives preset "custom".` : '')
     + (notRestored.length ? ` Not restored, the defaults are used instead: ${notRestored.join('; ')}.` : '')
 }
 
@@ -183,11 +249,42 @@ function enqueue(operation: () => Promise<void>): Promise<void> {
 function reportError(message: string) {
   useWorkspaceStorage.setState({ status: 'error', message })
 }
+function reportConflict() {
+  ++revision
+  useWorkspaceStorage.setState({ enabled: false, status: 'error', message: 'The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.' })
+}
+/**
+ * Compare the copy on the device with this tab's last write. The status
+ * ("Saved on …; removed … after …") is this tab's knowledge; another tab can
+ * replace or remove the copy without this tab writing anything. Called when
+ * the tab is shown or focused again, so the status does not keep naming a
+ * save and removal time of a copy that is no longer on the device. Writes
+ * nothing. The settings record is read first because it is small and carries
+ * the token of the dataset copy it was written with; the dataset record is
+ * read only when that does not settle it.
+ */
+export function checkSavedCopy(): Promise<void> {
+  return enqueue(async () => {
+    const token = lastWriteToken
+    if (token === undefined || claimPending || !useWorkspaceStorage.getState().enabled) return
+    try {
+      const settings: unknown = await get(WORKSPACE_SETTINGS_KEY, workspaceIdbStore())
+      if (record(settings) && settings.datasetToken === token) return
+      const dataset: unknown = await get(WORKSPACE_STORAGE_KEY, workspaceIdbStore())
+      if (record(dataset) && dataset.writeToken === token) return
+    } catch {
+      // An unreadable store is reported by the next save, not here.
+      return
+    }
+    reportConflict()
+  })
+}
 function snapshot(): Snapshot {
   const state = useAppStore.getState()
   return { version: 1, writeToken: crypto.randomUUID(), savedAt: Date.now(), rows: state.rows, fileName: state.fileName,
     events: state.events, patientAttributes: state.patientAttributes,
-    manualDemographics: state.manualDemographics, analysisSettings: state.analysisSettings }
+    manualDemographics: state.manualDemographics, analysisSettings: state.analysisSettings,
+    importDiagnostics: state.importDiagnostics }
 }
 function settingsRecord(datasetToken: string): SettingsRecord {
   const state = useAppStore.getState()
@@ -232,11 +329,10 @@ function save(): Promise<void> {
       await writeCopy(value)
       lastWriteToken = value.writeToken
       claimPending = false
-      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null, settingsError: null })
+      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'saved', message: null, settingsError: null, savedAt: value.savedAt })
     } catch (error) {
       if (error instanceof StorageConflict) {
-        ++revision
-        useWorkspaceStorage.setState({ enabled: false, status: 'error', message: 'The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.' })
+        reportConflict()
       } else if (currentRevision === revision) reportError('Could not save on this device. Keep this tab open or export your data, then retry.')
     }
   })
@@ -290,7 +386,7 @@ export async function setWorkspaceRemember(enabled: boolean): Promise<void> {
       await delMany([WORKSPACE_STORAGE_KEY, WORKSPACE_SETTINGS_KEY], workspaceIdbStore())
       lastWriteToken = undefined
       claimPending = false
-      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null, settingsError: null })
+      if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null, settingsError: null, savedAt: null })
     } catch {
       if (currentRevision === revision) reportError('Could not remove the saved copy. Retry clearing saved data on this device.')
     }
@@ -303,7 +399,7 @@ export async function startWorkspaceStorage(): Promise<() => void> {
   await writes
   lastWriteToken = undefined
   claimPending = false
-  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null })
+  useWorkspaceStorage.setState({ enabled: false, status: 'session', message: null, legacyData: 'none', settingsError: null, savedAt: null })
   const legacy: LegacyStorageOutcome = { formerInterfaceData: false, legacyWorkspaceCopy: null }
   let legacyCleanupFailed = false
   try {
@@ -329,17 +425,19 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       useWorkspaceStorage.setState({ message: legacy.legacyWorkspaceCopy === 'expired' ? EXPIRED_MESSAGE : INVALID_MESSAGE })
     } else if (state === 'usable' && validSnapshot(value)) {
       lastWriteToken = value.writeToken
-      useAppStore.getState().replaceDataset({ rows: value.rows,
+      // The import's series rule for creatinine with a urine LOINC code, for copies saved before it existed.
+      const separated = separateStoredNonSerumCreatinine(value.rows)
+      useAppStore.getState().replaceDataset({ rows: separated.rows,
         events: value.events, patientAttributes: value.patientAttributes,
         manualDemographics: value.manualDemographics, analysisSettings: parseAnalysisSettings(value.analysisSettings)!,
-        fileName: value.fileName })
+        fileName: value.fileName, importDiagnostics: storedImportDiagnostics(value.importDiagnostics) })
       // Parameters include derived ones (computed eGFR), so they come from the analysis.
       const parameterKeys = new Set(useAppStore.getState().analysisResult().rows.filter(r => r.bezeichnung !== null).map(r => JSON.stringify([r.bezeichnung, r.einheit])))
       // Settings written for another dataset copy are never applied.
       const mine = record(storedSettings) && storedSettings.datasetToken === value.writeToken ? storedSettings : undefined
       const restored = restoreSavedSettings(mine, parameterKeys)
-      useAppStore.setState({ trajectoryFitSettings: restored.trajectoryFitSettings, trajectoryView: restored.trajectoryView, notice: { kind: 'info', text: restoredNotice(restored) } })
-      useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null })
+      useAppStore.setState({ trajectoryFitSettings: restored.trajectoryFitSettings, trajectoryView: restored.trajectoryView, notice: { kind: 'info', text: restoredNotice(restored) + earlierVersionNotice({ withoutImportFindings: value.importDiagnostics === undefined, movedCreatinine: separated.moved }) } })
+      useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null, savedAt: value.savedAt })
     }
   } catch {
     reportError('Local storage is unavailable. You can still import and work in this tab.')
@@ -350,9 +448,18 @@ export async function startWorkspaceStorage(): Promise<() => void> {
     // analysis settings alone writes only the settings record.
     if (state.rows !== previous.rows || state.events !== previous.events
       || state.patientAttributes !== previous.patientAttributes || state.manualDemographics !== previous.manualDemographics
-      || state.analysisSettings !== previous.analysisSettings || state.fileName !== previous.fileName) void save()
+      || state.analysisSettings !== previous.analysisSettings || state.fileName !== previous.fileName
+      || state.importDiagnostics !== previous.importDiagnostics) void save()
     else if (state.trajectoryFitSettings !== previous.trajectoryFitSettings || state.trajectoryView !== previous.trajectoryView) saveSettings()
   })
-  unsubscribe = stop
-  return stop
+  const onShown = () => { if (document.visibilityState === 'visible') void checkSavedCopy() }
+  document.addEventListener('visibilitychange', onShown)
+  window.addEventListener('focus', onShown)
+  const stopAll = () => {
+    stop()
+    document.removeEventListener('visibilitychange', onShown)
+    window.removeEventListener('focus', onShown)
+  }
+  unsubscribe = stopAll
+  return stopAll
 }

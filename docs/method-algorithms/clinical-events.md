@@ -151,6 +151,17 @@ and charts, drawn as grey open circles, and count toward `nNumeric` but not
 `nFitted`. The workspace fit models do not split a fit at events: segmented
 OLS splits at measurement gaps only.
 
+Drawing and listing (display only, since 2026-11-21). With "Events" switched
+on, every event is a dashed vertical line at `date`. An event with an
+`endDate`, of any type, is in addition a shaded band from `date` to `endDate`
+in the patient chart, and in the overlay for the highlighted patient; the
+time range of the chart then reaches to the end date. The band is drawn
+whether or not a censoring option uses the interval. The measurement table
+of the patient view carries the patient's events as set-off rows in date
+order, an event before the measurements of its own day, and the card "Events
+for this patient" lists them by date (events of one date in file order).
+Counts, fits and exports are unaffected.
+
 Defaults:
 
 - When a caller passes no censoring configuration, every option is on and the

@@ -198,9 +198,11 @@ Both selections add local OLS fits to the global fit. Their parameters are
 fixed defaults in `summarizeByBezeichnung` and `buildCohortRows`; no interface
 control changes them. For rolling OLS the cohort and slope sheets record the
 window parameters and the local results in the `rolling_*` columns (below).
-For segmented OLS the export records neither: of the fit settings, the
+For segmented OLS the sheets record neither: of the fit settings, the
 `settings` sheet carries only the slope mode (column `mode`), `fit_config` and
-the rapid-decline threshold.
+the rapid-decline threshold. Since 2026-11-21 the `about` sheet names the two
+fixed segmentation parameters (a gap of more than 180 days, at least 3 points
+per fitted segment).
 
 ### Rolling OLS (`rolling-ols`, slope mode `rolling`)
 
@@ -258,9 +260,47 @@ window slopes were computed and discarded and no line was drawn):
   global line is not drawn in this mode.
 - **Window statistics.** The cell shows the number of windows and the smallest
   and largest window slope ("5 windows, local slopes −8 to 0 …/year"), or
-  "No 730-day window with three fitted measurements; no local slopes". A
+  "No 730-day window with three fitted measurements; no local slopes" (under
+  time balancing "… with three monthly medians" or "… with three quarterly
+  medians"). A
   series without any fitted value shows neither. The variance `slopeVar` is
   computed but not shown.
+- **Window list (since 2026-11-21).** The patient view lists the windows
+  under "Show windows (n)": the bounds of each window (centre − 365 days to
+  centre + 365 days, both days included), the dates of the first and last
+  fitted point inside, their number and the window slope per year, written
+  with the [decimals of the column](slope-quality.md#decimals-of-slopes), like
+  the smallest and largest window slope in the line above the list. The
+  rows are the windows counted by the window statistics, in time order, also
+  those without a drawn line. In the patient chart and the overlay each window
+  line carries the same information as a tooltip, and the legend reads
+  "Rolling OLS window lines". The list is an addition to the display; the
+  reported slope and every number derived from it are unchanged.
+- **Windows under time balancing.** The windows are fitted on the points
+  that remain after
+  [time balancing](fit-input-presets-and-time-balancing.md#time-balancing).
+  With `monthly-median` or `quarterly-median` (the CKD progression default)
+  a fitted point is the median of one calendar month or quarter, and:
+  - `n` counts medians, and the minimum of three applies to medians;
+  - a median belongs to a window when its representative date (the date of
+    the lower-middle measurement of its period) lies inside the bounds, and
+    the first and last date of a window are representative dates;
+  - a measurement outside the bounds contributes to a window when the
+    median of its period is dated inside, and a measurement inside the
+    bounds contributes nothing to it when that date lies outside.
+
+  The window list, the tooltip and the cell text then say "monthly medians"
+  or "quarterly medians" instead of "fitted measurements" (column heading
+  "Quarterly medians from"), and the list adds one sentence on the medians.
+  The export sheet has the same columns in every mode; its `about` note
+  states the rule, and the `settings` sheet records the time balancing in
+  `fit_config`.
+  Example: 48 values, three per quarter on the 1st, 2nd and 3rd of October,
+  January, April and July from 2019-10-01, under quarterly medians give 16
+  medians dated on the 2nd. The first window runs from 2019-10-02 to
+  2021-10-01 and holds the 8 medians dated 2019-10-02 to 2021-07-02, built
+  from 24 measurements; the value of 2019-10-01 lies one day before the
+  window start and enters through the median of its quarter.
 - **Overlay counts.** In rolling mode a series counts as fitted when a window
   line is drawn. A series with a global slope but no window is counted among
   the trajectories without an available fit and not among the uncertain fits.
@@ -280,6 +320,25 @@ window slopes were computed and discarded and no line was drawn):
   With fit model "No fit", and for a series without any fitted value, the
   columns are blank.
 
+  Since 2026-11-21 the workbook also has the sheet `rolling_windows`, placed
+  after the sheets that existed before that day (`about` was the last of
+  them), so that their positions are unchanged. It
+  holds one row per fitted window of every selected patient and parameter
+  whose slope mode is `rolling`, and no row otherwise:
+
+  | Column | Content |
+  | --- | --- |
+  | `PatientID`, `Parameter`, `Unit` | The series, as on the `measurements` sheet. |
+  | `window` | Number of the window within the series, from 1, in time order. |
+  | `window_start`, `window_end` | Centre − 365 days and centre + 365 days as `YYYY-MM-DD`; fitted points dated on both days belong to the window. |
+  | `first_date`, `last_date` | Dates of the first and last fitted point inside the window; under time balancing the representative dates of the first and last median. |
+  | `n` | Number of fitted points inside the window (at least 3); under time balancing the number of medians, not of the measurements behind them. |
+  | `slope` | OLS slope of the window per year, unrounded. |
+
+  The smallest and largest `slope` of a series equal its `rolling_slope_min`
+  and `rolling_slope_max`, and the number of its rows equals
+  `rolling_windows`.
+
 Example: one value at the start of every quarter from 2018-01-01 to
 2022-01-01 (17 values), 60 up to 2020-01-01 and falling by 8 per year
 afterwards (43.99 on 2022-01-01). The global OLS slope, which is the reported
@@ -295,6 +354,16 @@ slope, is −4.00 per year. The five windows give:
 
 The cell reports 5 windows with local slopes from −8.00 to 0.00, and the
 export `rolling_windows = 5`, `rolling_slope_min = -8`, `rolling_slope_max = 0`.
+The window list and the `rolling_windows` sheet give for the same series:
+
+| `window` | `window_start` | `window_end` | `first_date` | `last_date` | `n` | `slope` (rounded) |
+| ---: | --- | --- | --- | --- | ---: | ---: |
+| 1 | 2018-01-01 | 2020-01-01 | 2018-01-01 | 2020-01-01 | 9 | 0.00 |
+| 2 | 2018-06-30 | 2020-06-29 | 2018-07-01 | 2020-04-01 | 8 | −0.66 |
+| 3 | 2018-12-27 | 2020-12-26 | 2019-01-01 | 2020-10-01 | 8 | −3.23 |
+| 4 | 2019-06-25 | 2021-06-24 | 2019-07-01 | 2021-04-01 | 8 | −6.18 |
+| 5 | 2019-12-22 | 2021-12-21 | 2020-01-01 | 2021-10-01 | 8 | −8.00 |
+
 The values after 2021-10-01 belong to no window and the stretch after
 2021-03-21 has no line.
 

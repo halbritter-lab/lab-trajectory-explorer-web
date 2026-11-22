@@ -34,8 +34,10 @@ and no projected value is a prognosis.
 Conventions used throughout:
 
 - **Dates are calendar days.** Import keeps the calendar day as written and
-  stores it at midnight UTC; a time of day is dropped. Measurements of one day
-  share one timestamp, and every elapsed-time rule works in whole days.
+  stores it at midnight UTC. Measurements of one day share one timestamp, and
+  every elapsed-time rule works in whole days. A time of day on a lab date is
+  kept beside the date and used for one thing only: it orders the creatinine
+  values of one day in AKI detection.
 - **A year is 365.25 days** wherever elapsed time is converted to years.
 - **A series** is one patient, one parameter name and one unit, compared as
   stored after import. Different names or units are never pooled.
@@ -63,6 +65,7 @@ Contents:
 9. [Rolling and segmented OLS](method-algorithms/trend-estimators.md#rolling-and-segmented-ols)
 10. [Reason codes and the slope reliability rule](method-algorithms/slope-quality.md#reason-codes-and-the-slope-reliability-rule)
 11. [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
+    - [Table order, mark filters and displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals)
 12. [eGFR derivation](method-algorithms/egfr.md#egfr-derivation)
 13. [KDIGO creatinine AKI detection](method-algorithms/aki.md#kdigo-creatinine-aki-detection)
 14. [AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window)
@@ -86,7 +89,9 @@ decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
 OD-31 is not used on `main`; the number is reserved by the deferred MCP
 server work. OD-33 was added on 2026-11-16 because the in-app methodology page lagged
 behind two decisions of that day; the maintainer approved its wording the
-same day.
+same day. OD-34 was added on 2026-11-21 because the methodology page does not
+yet state the rule for several creatinine values on one day decided that day;
+it is open.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -94,6 +99,7 @@ same day.
 | OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+| OD-34 | [Measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date) | The methodology page says that lab dates have no time of day and that the 48-hour window covers earlier measurements on the same date; since 2026-11-21 a time of day orders the values of one day, and values without one are compared with earlier days only. Wording drafted (G1), not approved. |
 
 ### Resolved decisions
 
