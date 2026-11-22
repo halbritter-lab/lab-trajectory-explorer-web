@@ -24,7 +24,7 @@ test('sorts uncertain slopes after the reliable ones, says so, and exports in th
   // Decided 2026-11-21. Patient 12 (-7.35 per year over 151 days) stood at rank 9, between 9 and 6.
   const expected = ['4', '7', '26', '24', '20', '21', '25', '9', '6', '27', '22', '17', '19', '23', '2', '28', '18', '16', '15', '11', '8', '1', '13', '14', '12', '3', '5', '10']
   expect(await tableOrder(page)).toEqual(expected)
-  await expect(page.locator('.pv-scope')).toContainText('1 uncertain slope placed after the reliable ones')
+  await expect(page.locator('.pv-scope')).toContainText('1 uncertain slope placed after the other slopes')
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
   const workbook = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
@@ -35,7 +35,7 @@ test('sorts uncertain slopes after the reliable ones, says so, and exports in th
   expect(Number(cohort[24].slope)).toBeCloseTo(-7.35, 2)
   await page.getByRole('checkbox', { name: 'Uncertain slopes last' }).uncheck()
   expect((await tableOrder(page)).slice(7, 10)).toEqual(['9', '12', '6'])
-  await expect(page.locator('.pv-scope')).toContainText('1 uncertain slope ranked among the reliable ones')
+  await expect(page.locator('.pv-scope')).toContainText('1 uncertain slope ranked among the other slopes')
 })
 
 test('writes small slopes with the decimals of their parameter in table and patient view', async ({ page }) => {

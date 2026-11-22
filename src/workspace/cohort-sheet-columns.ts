@@ -105,6 +105,14 @@ export const COHORT_SHEET_COLUMNS: readonly CohortSheetColumn[] = [
   number('last_eligible_value', 'Measured value at last_eligible_date. It can differ from "latest" in the Trajectories table, which is the last dated numeric value of the series without these restrictions.', VALUE_UNIT, 'the series has no eligible measurement'),
   text('sex', 'Resolved sex of the patient as used in the analysis: m, w or d. The same value in every row of the patient.', 'no sex could be resolved'),
   number('baseline_age', 'Resolved age of the patient at the earliest dated measurement of any parameter (demographics sheet, baseline_age). The same value in every row of the patient; it is not the age at index_date.', 'completed years', 'no age is available'),
+  date('krt_segment_start', 'Start of the separate segment after kidney replacement therapy: the date of the patient\'s first kidney transplant or chronic dialysis start, when the column includes the values from it on (its censoring option is off). The values from that date on are not part of slope; they are fitted on their own, with the same estimator and time balancing, up to the next such event.', 'the column censors from the event, the patient has no such event, or fit_model is none'),
+  number('krt_segment_n_fitted', 'Points the segment fit used, as n_fitted.', 'count', 'as krt_segment_start'),
+  number('krt_segment_n_fitted_dates', 'Distinct calendar dates among those points.', 'count', 'as krt_segment_start'),
+  number('krt_segment_fitted_span_days', 'Whole days between the first and the last point of the segment fit.', 'days', 'as krt_segment_start'),
+  number('krt_segment_slope', 'Slope of the segment per year, unrounded. It describes kidney function after kidney replacement therapy (for example a graft), not native kidney function.', SLOPE_UNIT, 'as krt_segment_start, or the segment gave no slope'),
+  number('krt_segment_ci_low', 'Lower bound of the segment slope, as ci_low.', SLOPE_UNIT, 'as krt_segment_slope, or the bound is undefined'),
+  number('krt_segment_ci_high', 'Upper bound of the segment slope, as ci_high.', SLOPE_UNIT, 'as krt_segment_ci_low'),
+  text('slope_tier', 'Tier of slope: uncertain (a slope with unstable_slope yes), estimable (at least 3 fitted dates over at least 365 days of fitted span) or reliable (in addition at least 4 fitted dates over at least 2 × 365.25 days, that is 731 whole days). Counts n_fitted_dates and fitted_span_days, not n.', 'no slope was estimated, or fit_model is none'),
   text('group', `Value of the attribute the table was grouped by when the file was exported. A patient without a value for the attribute has the text "${GROUP_NOT_RECORDED}", which cannot be told apart from an attribute value of the same text.`, 'the table was not grouped'),
 ]
 

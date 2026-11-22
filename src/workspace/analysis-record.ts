@@ -220,7 +220,7 @@ export interface RecordSection {
 
 const FIT_MODEL_TEXT: Record<string, string> = { ols: 'OLS', 'theil-sen': 'Theil–Sen', 'rolling-ols': 'Rolling OLS', 'segmented-ols': 'Segmented OLS', none: 'None (no fit line)' }
 const TIME_BALANCING_TEXT: Record<string, string> = { raw: 'Raw (unweighted points)', 'monthly-median': 'Monthly median', 'quarterly-median': 'Quarterly median' }
-const DIALYSIS_TEXT: Record<string, string> = { 'flag-only': 'Flag only', 'exclude-dated-interval': 'Exclude dated interval', 'censor-from-start': 'Censor from start' }
+const DIALYSIS_TEXT: Record<string, string> = { 'flag-only': 'Flag only', 'exclude-dated-interval': 'Exclude dated interval', 'censor-from-start': 'Censor from start', 'dated-interval-or-from-start': 'Dated interval, else from start' }
 const MODEL_TEXT: Record<string, string> = { time_since_baseline: 'Time since first measurement', age: 'Age', intercept: 'Own starting level', intercept_slope: 'Own starting level and rate', apply: 'Applied', skip: 'Skipped' }
 
 /** A setting value as the record shows it. */

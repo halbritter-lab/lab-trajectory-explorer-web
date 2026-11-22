@@ -115,12 +115,12 @@ describe('sorting by slope places uncertain slopes after the reliable ones (K02)
     enableTrend()
     expect(screen.queryByRole('checkbox', { name: 'Uncertain slopes last' })).not.toBeInTheDocument()
     sortColumn('Slope')
-    expect(screen.getByText(/1 uncertain slope placed after the reliable ones/)).toBeInTheDocument()
+    expect(screen.getByText(/1 uncertain slope placed after the other slopes/)).toBeInTheDocument()
     const toggle = screen.getByRole('checkbox', { name: 'Uncertain slopes last' })
     expect(toggle).toBeChecked()
     fireEvent.click(toggle)
     expect(order()).toEqual(['R1', 'U', 'R2', 'N'])
-    expect(screen.getByText(/1 uncertain slope ranked among the reliable ones/)).toBeInTheDocument()
+    expect(screen.getByText(/1 uncertain slope ranked among the other slopes/)).toBeInTheDocument()
     // Another metric has no such rule and shows neither the note nor the switch.
     sortColumn('Latest value', false)
     expect(screen.queryByText(/uncertain slope (placed|ranked)/)).not.toBeInTheDocument()
@@ -145,7 +145,7 @@ describe('filters with counts for marks and event types (K01), and select all ma
     // Without a trend only the marks that need no fit: the reached endpoint and the events.
     expect(within(filters).getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(['Endpoint reached: 1 patient', 'Kidney transplant: 1 patient', 'Other event: 1 patient'])
     enableTrend()
-    expect(within(filters).getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(['Rapid decline: 1 patient', 'Uncertain slope: 1 patient', 'Endpoint reached: 1 patient', 'Kidney transplant: 1 patient', 'Other event: 1 patient'])
+    expect(within(filters).getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(['Rapid decline: 1 patient', 'Uncertain slope: 1 patient', 'Reliable slope: 2 patients', 'Endpoint reached: 1 patient', 'Kidney transplant: 1 patient', 'Other event: 1 patient'])
   })
 
   it('offers the possible rapid decline as a mark of its own (issue #72)', () => {

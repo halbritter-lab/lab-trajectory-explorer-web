@@ -890,17 +890,20 @@ describe('real-data trajectories workspace', () => {
       data.events = [{ patientId: 'ID-A', type: 'kidney_transplant', date: new Date('2021-06-01'), endDate: null, title: 'Transplant', description: null, intent: null, warning: '' }]
       return data
     }
-    it('names the values after a transplant that the slope runs across, with the unit and without a second step', () => {
+    // Decision `censor` of 2026-11-22: the default preset no longer fits across a transplant.
+    it('ends the slope at a transplant under the default preset, without a note on values it runs across', () => {
       render(<TrajectoriesWorkspace data={egfrFixture()} />)
       expect(screen.getByText(/Tick “Trend” at a parameter to calculate slopes/)).toBeInTheDocument()
       enableTrend(label)
       expect(screen.getByRole('button', { name: `Show trend line: ${label}` })).toHaveAttribute('aria-pressed', 'true')
       const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
-      expect(within(row).getByRole('button', { name: 'Fit includes 1 value after kidney transplant' })).toHaveTextContent('Fit includes 1 value after kidney transplant')
+      expect(within(row).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
+      expect(within(row).getByText('2 of 3 fitted')).toBeInTheDocument()
+      // 10 on 2020-01-01 and 11 on 2021-01-01: the two-point line, 1 / (366 / 365.25) per year.
       expect(within(row).getByText('+1.00 ml/min/1.73m²/yr')).toBeInTheDocument()
       expect(within(row).getByLabelText('Latest value: 12')).toHaveTextContent('latest 12')
       const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
-      expect(within(other).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
+      expect(within(other).getByText('n=3')).toBeInTheDocument()
     })
     // K04 (2026-11-22): a bound as the latest value keeps its sign in the cell; display only.
     it('shows the sign of a bound when the latest dated value is one, with and without a trend', () => {
@@ -915,24 +918,36 @@ describe('real-data trajectories workspace', () => {
       const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
       expect(within(other).getByLabelText(/^Latest value: \d/)).toBeInTheDocument()
     })
-    it('offers the exclusions without the CKD preset; excluding removes the note and states the fitted count', () => {
+    it('includes the values after the transplant only as a separate segment once the option is unticked', () => {
       render(<TrajectoriesWorkspace data={egfrFixture()} />)
       enableTrend(label)
       openSettings(label)
       calculationSettings()
-      fireEvent.click(screen.getByRole('checkbox', { name: 'Censor after kidney transplant' }))
+      const option = screen.getByRole('checkbox', { name: 'Censor after kidney transplant' })
+      expect(option).toBeChecked()
+      expect(screen.getByText(/Unticked, the values from the first kidney transplant or chronic dialysis start on are fitted as a separate segment/)).toBeInTheDocument()
+      fireEvent.click(option)
       closeSettings()
+      openDisplay()
+      fireEvent.change(screen.getByLabelText('Cell details'), { target: { value: 'full' } })
+      closeDisplay()
       const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
       expect(within(row).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
-      expect(within(row).getByText('2 of 3 fitted')).toBeInTheDocument()
+      expect(within(row).getByText(/2 fitted of 3 measurements/)).toBeInTheDocument()
+      // One value after the transplant: a segment without a slope.
+      expect(within(row).getByTestId('krt-segment')).toHaveTextContent('After kidney transplant (01/06/2021), fitted as a separate segment: no slope (1 fitted, 1 date, over 0 days). Not native kidney function; the slope above uses the values before it.')
       expect(screen.getByText('Custom · this parameter only')).toBeInTheDocument()
     })
-    it('does not offer the kidney options for another parameter under the default preset', () => {
+    // Since 2026-11-22 every preset censors after KRT, for every parameter (OD-51):
+    // the censoring options are shown, the AKI and eGFR options are not.
+    it('shows the censoring, but not the AKI or eGFR options, for another parameter under the default preset', () => {
       render(<TrajectoriesWorkspace data={fixture()} />)
       expect(screen.getAllByText('General exploration').length).toBeGreaterThan(0)
       openSettings('Marker · unit-0')
       calculationSettings()
-      expect(screen.queryByRole('checkbox', { name: 'Censor after kidney transplant' })).not.toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: 'Censor after kidney transplant' })).toBeChecked()
+      expect(screen.queryByRole('checkbox', { name: 'Exclude AKI windows from fit' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('checkbox', { name: 'Observed CKD G5' })).not.toBeInTheDocument()
     })
   })
 

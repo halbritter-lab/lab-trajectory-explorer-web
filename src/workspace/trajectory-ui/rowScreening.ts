@@ -1,4 +1,4 @@
-import { cohortCellFlags, type CohortCell } from '../../core/cohort/screening'
+import { cellSlopeTier, cohortCellFlags, type CohortCell } from '../../core/cohort/screening'
 import type { ColumnModuleSettings } from '../../core/analysis/registry'
 import { CLINICAL_EVENT_TYPES, type ClinicalEvent, type ClinicalEventType } from '../../core/events/events'
 import { isUnstableSlope } from '../../core/stats/slopeQuality'
@@ -27,12 +27,13 @@ export function compareSlopeCells(a: SlopeCell, b: SlopeCell, options: { absolut
 
 /** What a patient row can be filtered by: the marks of its shown cells and the
  * types of its clinical events. */
-export type RowMark = 'rapid' | 'rapid-possible' | 'uncertain' | 'endpoint' | 'aki' | `event:${ClinicalEventType}`
+export type RowMark = 'rapid' | 'rapid-possible' | 'uncertain' | 'reliable' | 'endpoint' | 'aki' | `event:${ClinicalEventType}`
 
 const MARK_LABELS: Record<RowMark, string> = {
   rapid: 'Rapid decline',
   'rapid-possible': 'Possible rapid decline',
   uncertain: 'Uncertain slope',
+  reliable: 'Reliable slope',
   endpoint: 'Endpoint reached',
   aki: 'AKI',
   'event:kidney_transplant': 'Kidney transplant',
@@ -70,6 +71,8 @@ export function rowMarks(
       else if (flag.tone === 'rapid-possible') marks.add('rapid-possible')
     }
     if (column.fit && cell.points.length > 0 && hasUncertainSlope(cell)) marks.add('uncertain')
+    // Slope tier of 2026-11-22: at least four fitted dates over at least two years.
+    if (column.fit && cell.points.length > 0 && cellSlopeTier(cell) === 'reliable') marks.add('reliable')
     if (endpointReached(cell.endpoints)) marks.add('endpoint')
   })
   for (const event of events) if (CLINICAL_EVENT_TYPES.includes(event.type)) marks.add(`event:${event.type}`)

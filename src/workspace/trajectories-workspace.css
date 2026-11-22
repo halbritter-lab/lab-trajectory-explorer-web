@@ -83,6 +83,8 @@
 .wt-badge-rapid { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-weight: 700; }
 /* Possible rapid decline: same colour family, dashed outline and normal weight. */
 .wt-badge-rapid-possible { background: #fff; color: #b91c1c; border: 1px dashed #f87171; font-weight: 500; }
+/* Slope tier "reliable" (2026-11-22): quiet, it qualifies a slope and is no finding. */
+.wt-badge-reliable { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-weight: 500; }
 .wt-badge-aki { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
 .wt-analysis-card[open] { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .wt-preset-section { display: grid; gap: 16px; margin-top: 16px; min-width: 0; }

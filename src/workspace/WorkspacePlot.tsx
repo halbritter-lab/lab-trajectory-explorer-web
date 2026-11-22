@@ -7,6 +7,7 @@ import { formatDisplayDate, formatDisplayNumber, formatFixedDecimals, MIN_SLOPE_
 import type { CohortRow } from '../core/cohort/screening'
 import { patientIdKey, type LabRow, type PatientId, type WertOperator } from '../core/types'
 import { slopeQualityLabel } from './labels/qualityLabels'
+import { cellSlopeTier } from '../core/cohort/screening'
 import type { WorkspaceData, WorkspaceParameter } from './workspace-data'
 import { ChartExportActions } from './WorkspaceExports'
 import type { SparkDomain } from './WorkspaceSparkline'
@@ -128,6 +129,8 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
           {boundedPrefix(p.operator) && <text x={x(p.x) + 5} y={y(p.value) - 5} fill={excluded ? EXCLUDED_COLOR : color}>{p.operator}</text>}</g>
       })}
       {showFit && drawnFitLines(series.cell, scale.log).map((line, i) => { const title = scale.log ? null : windowTitle(i); return <polyline key={i} points={line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} data-fit-quality={uncertainFit ? "uncertain" : "supported"} strokeDasharray={uncertainFit ? "2 4" : "6 4"} strokeWidth="2">{title && <title>{title}</title>}</polyline> })}
+      {/* The separate segment after kidney replacement therapy (2026-11-22): its own line, dash-dot, linear axis only. */}
+      {showFit && !scale.log && series.cell.krtSegment?.line && <polyline data-testid="krt-segment-line" points={series.cell.krtSegment.line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} strokeDasharray="8 3 2 3" strokeWidth="1.5"><title>Separate segment after {series.cell.krtSegment.event.type === 'kidney_transplant' ? 'kidney transplant' : 'chronic dialysis start'}: {formatFixedDecimals(series.cell.krtSegment.fit.slope, slopeDecimals)} {unit}/year; not part of the slope</title></polyline>}
       {series.markers.filter(marker => display[marker.moduleId] ?? false).map((marker, i) => {
         // Off-series markers sit on the time axis, not on a value.
         const markerY = marker.value === null ? MARKER_AXIS_Y : y(marker.value)
@@ -248,6 +251,10 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     : Number.isFinite(cell.slope) && (cell.mode !== 'rolling' || cell.fitLines.length > 0)
   const uncertain = visible.filter(p => (logScale && p.cell.logTrend ? slopeQualityLabel({ ...p.cell.logTrend, fitModel: p.cell.fitModel }) : slopeQualityLabel(p.cell))?.caveat && hasFitLine(p.cell)).length
   const noFit = visible.filter(p => !hasFitLine(p.cell)).length
+  // Slope tiers of the plotted fits (2026-11-22); the uncertain count above keeps the dotted lines.
+  const tierCounts = { reliable: 0, estimable: 0 }
+  for (const p of visible) { const tier = cellSlopeTier(p.cell); if (tier === 'reliable' || tier === 'estimable') tierCounts[tier] += 1 }
+  const segmentLines = visible.filter(p => p.cell.krtSegment?.line).length
   const fitModel = prepared[0]?.cell?.fitModel ?? 'none'
   const modelLabel = { ols: 'OLS', 'theil-sen': 'Theil–Sen', 'rolling-ols': 'Rolling OLS', 'segmented-ols': 'Segmented OLS', none: 'No fit' }[fitModel]
   const withoutValues = prepared.filter(p => !p.cell?.points.length).length
@@ -450,6 +457,8 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {akiSkippedCount > 0 && <p className="wt-muted" data-testid="aki-skipped-note">{countLabel(akiSkippedCount, 'creatinine value')} measured under dialysis {akiSkippedCount === 1 ? 'is' : 'are'} {NOT_USED_FOR_AKI_DETECTION.replace(' (dialysis)', '')}; the point tooltips{cohortRows.length === 1 ? ' and the measurement table' : ''} name {akiSkippedCount === 1 ? 'it' : 'them'}. This is separate from any exclusion from the fit.</p>}
     {logScale && <p className="wt-muted" data-testid="log-axis-note">Logarithmic value axis: equal distances are equal ratios.{showFit && fitModel !== 'none' ? ' The dashed lines are fitted to the natural logarithm of the values and drawn back in the unit of the parameter.' : ''}{nonPositive > 0 ? ` ${countLabel(nonPositive, 'value')} of zero or less ${nonPositive === 1 ? 'is' : 'are'} not drawn and left out of the doubling time.` : ''}{showCohortMixedModelLine ? ' The cohort mixed-model line is not drawn on a logarithmic axis.' : ''}</p>}
     {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : logScale ? rollingLines ? 'Dashed: Rolling OLS window lines of the log values; the doubling time comes from the global OLS slope of the log values.' : `Dashed: individual ${modelLabel} lines of the log values.` : rollingLines ? 'Dashed: Rolling OLS window lines from the prepared analyses; each line names its window.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}
+    {showFit && fitModel !== 'none' && !logScale && <p className="wt-muted" data-testid="slope-tier-legend">Slope tiers: {tierCounts.reliable} reliable (at least 4 fitted dates over at least 2 years), {tierCounts.estimable} estimable (at least 3 dates over at least 1 year), {uncertain} uncertain (dotted).</p>}
+    {showFit && !logScale && segmentLines > 0 && <p className="wt-muted" data-testid="krt-segment-legend">Dash-dot {segmentLines === 1 ? 'line' : 'lines'}: the values after kidney transplant or chronic dialysis start, fitted as a separate segment; not part of the slope of native kidney function.</p>}
     {pooledModelLine && <p className="wt-muted">Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.{axis === 'age' ? ' Age axis: mean baseline age of fitted patients plus elapsed model time.' : ''}</p>}
     {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groupModelLines.map(line => groupLabel(line.group!)).join(', ')}).{axis === 'age' ? ' Age axis: mean baseline age of each group plus elapsed model time.' : ''}</p>}
     {(excludedCount > 0 || windowCount > 0) && <p className="wt-muted wt-plot-key" data-testid="excluded-legend"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> Grey open circles:{excludedCount > 0 && <> {countLabel(excludedCount, 'measurement')} excluded from the fit ({excludedReasons.map(exclusionReasonLabel).join('; ')}). They stay visible but do not enter the slope.</>}{windowCount > 0 && <> {windowText}: left out of the after-anchor slope only; {windowCount === 1 ? 'it still enters' : 'they still enter'} the slope of the whole series.</>}</p>}

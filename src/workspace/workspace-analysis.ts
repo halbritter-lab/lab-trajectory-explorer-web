@@ -123,7 +123,9 @@ export function describeModelPreparation(config: FitConfig, name: string): strin
     c.censorAfterKidneyTransplant ? 'after kidney transplant' : null,
     c.censorAfterChronicDialysis ? 'after chronic dialysis start' : null,
     c.excludeAcuteDialysisPeriods ? 'acute dialysis intervals' : null,
-    c.unknownDialysisPolicy === 'exclude-dated-interval' ? 'dated dialysis of unknown intent' : c.unknownDialysisPolicy === 'censor-from-start' ? 'from dialysis of unknown intent' : null,
+    c.unknownDialysisPolicy === 'exclude-dated-interval' ? 'dated dialysis of unknown intent'
+      : c.unknownDialysisPolicy === 'censor-from-start' ? 'from dialysis of unknown intent'
+        : c.unknownDialysisPolicy === 'dated-interval-or-from-start' ? 'dated dialysis of unknown intent, from its start without an end date' : null,
   ].filter(Boolean)
   return `${name}: ${TIME_BALANCING_TEXT[config.timeBalancing]}; `
     + `event windows ${events.length ? events.join(', ') : 'none'}; `
