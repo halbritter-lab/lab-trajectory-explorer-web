@@ -25,6 +25,8 @@ interfaces are still evolving before 1.0.
 - Import warns about event dates and event end dates after the import day or
   before 1927-05-18, and about birth dates after the import day, as it does
   for lab dates. Warning only; the events and rows are used unchanged.
+- The Trajectories table shows the sign of a bound as the latest value
+  ("latest <15" instead of "latest 15"). Display only.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 

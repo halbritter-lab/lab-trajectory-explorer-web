@@ -911,7 +911,7 @@ the personal-data note in the `about` sheets of both workbooks.
 Still open, unchanged: whether patients who do not qualify stay in a cohort
 model; whether the export records the grouping attribute;
 whether the `cohort` sheet is reordered once; whether the Trajectories table
-shows a bound with its sign ("latest <15").
+shows a bound with its sign ("latest <15"; decided on 2026-11-22: it does).
 
 Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group),
 [workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
@@ -974,6 +974,13 @@ Resolved with a change:
   date is checked against the import day only, without a lower bound, once
   per patient and value in the lab column and once per attribute row.
   Details: [Dates](method-algorithms/import-and-values.md#dates).
+- **The latest value in the Trajectories table keeps the sign of a bound**
+  (K04): "latest <15" instead of "latest 15" when the last dated numeric
+  row of the series is a bound (`<` or `>`). Display only. Detail of the
+  implementation: the sign is written without a space, as in the review
+  ("<15"); a value of another non-exact kind (a range) is shown without a
+  sign, as before. Details:
+  [first and last eligible value](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group).
 
 ## Approved requirements
 

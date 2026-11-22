@@ -880,6 +880,19 @@ describe('real-data trajectories workspace', () => {
       const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
       expect(within(other).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
     })
+    // K04 (2026-11-22): a bound as the latest value keeps its sign in the cell; display only.
+    it('shows the sign of a bound when the latest dated value is one, with and without a trend', () => {
+      const data = egfrFixture()
+      const lastOfA = data.rows.filter(row => row.patientId === 'ID-A' && row.labDatum).sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime()).at(-1)!
+      Object.assign(lastOfA, { wert: '<12', wertOperator: '<' })
+      render(<TrajectoriesWorkspace data={data} />)
+      const row = () => screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
+      expect(within(row()).getByLabelText('Latest value: <12')).toHaveTextContent('<12')
+      enableTrend(label)
+      expect(within(row()).getByLabelText('Latest value: <12')).toHaveTextContent('latest <12')
+      const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
+      expect(within(other).getByLabelText(/^Latest value: \d/)).toBeInTheDocument()
+    })
     it('offers the exclusions without the CKD preset; excluding removes the note and states the fitted count', () => {
       render(<TrajectoriesWorkspace data={egfrFixture()} />)
       enableTrend(label)

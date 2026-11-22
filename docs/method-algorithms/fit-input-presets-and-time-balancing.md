@@ -183,7 +183,8 @@ and 64 give `first_eligible_value = 55`, `last_eligible_value = 24`,
 `last_eligible_date = 2022-06-10` and `endpoint_percent_change =
 (24 − 55) / 55 · 100 = −56.36`, while the table shows "latest 64". Values 34,
 27, 21, 17 and then `<15` give `last_eligible_value = 17`; the table shows
-"latest 15". `sex` and `baseline_age` repeat on every row of the patient.
+"latest <15" (until 2026-11-22 "latest 15": the sign of a bound is shown
+since then, display only; a value written as a range keeps no sign). `sex` and `baseline_age` repeat on every row of the patient.
 
 `group` was the first column of a grouped export until 2026-11-21, which
 moved every other column one position to the right. It is now always present
