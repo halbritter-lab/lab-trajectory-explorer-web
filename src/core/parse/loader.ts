@@ -298,6 +298,8 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[], options: LabImport
       patientBirthDate: birthDate,
     }
     if (sourceRow !== undefined) row.sourceRow = sourceRow
+    const labMethod = toStr(cell(r, columns, 'labMethod'))
+    if (labMethod !== null) row.labMethod = labMethod
     out.push(row)
     if (separate !== null) {
       const key = JSON.stringify([testName, separate.name])

@@ -15,6 +15,7 @@ import { defaultTrajectoryView, projectionOnNotice, restoreSavedSettings, parame
 import { defaultFitSettings, type TrajectoryFitSettings } from './workspace-analysis'
 import { parameterLabel } from './workspace-labels'
 import { eventMatchesRule } from '../core/cohort/anchorComparison'
+import { mergedSeriesKeys, seriesRefKey } from '../core/analysis/seriesMerge'
 import { parsePeriEventSettings, type PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 import type { ClinicalEvent } from '../core/events/events'
 
@@ -165,9 +166,19 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
   const parsed = exported.analysisSettings === undefined ? null : parseAnalysisSettings(exported.analysisSettings)
   if (!parsed) notApplied.push('dataset settings (eGFR formula and source, AKI recovery): not readable in this file')
   else {
+    // Merged series (issue #68): a merge applies only when every one of its
+    // source series is in this dataset; otherwise it is named and left out.
+    const imported = (name: string, unit: string | null) => target.importedParameters.some(([n, u]) => n === name && (u ?? null) === (unit ?? null))
+    const merges = parsed.seriesMerge.merges.filter(merge => {
+      const absent = merge.sources.filter(source => !imported(source.bezeichnung, source.einheit))
+      if (absent.length) notApplied.push(`merged series ${parameterLabel(merge.name, merge.unit)} (${absent.map(source => parameterLabel(source.bezeichnung, source.einheit)).join(', ')} not in this dataset; the merge is left out)`)
+      return absent.length === 0
+    })
+    if (merges.length) applied.push(`merged series ${merges.map(merge => parameterLabel(merge.name, merge.unit)).join(', ')}`)
+    const mergedKeys = mergedSeriesKeys(merges)
     const source = parsed.egfr.source
-    const hasSource = source === null || target.importedParameters.some(([name, unit]) => name === source[0] && unit === source[1])
-    analysisSettings = hasSource ? parsed : { ...parsed, egfr: { ...parsed.egfr, source: target.analysisSettings.egfr.source } }
+    const hasSource = source === null || imported(source[0], source[1]) || mergedKeys.has(seriesRefKey({ bezeichnung: source[0], einheit: source[1] }))
+    analysisSettings = { ...parsed, seriesMerge: { merges }, egfr: hasSource ? parsed.egfr : { ...parsed.egfr, source: target.analysisSettings.egfr.source } }
     applied.push('dataset settings (eGFR formula and source, AKI recovery)')
     if (!hasSource) notApplied.push(`creatinine source ${parameterLabel(source[0], source[1])} of the eGFR (not in this dataset; the current source is kept)`)
   }
@@ -177,6 +188,8 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
   const formula = analysisSettings.egfr.formula
   const available = new Set(target.parameterKeys)
   if (formula !== 'off') available.add(JSON.stringify([computedEgfrName(formula), COMPUTED_EGFR_UNIT]))
+  // So do the merged series of the applied settings.
+  for (const merge of analysisSettings.seriesMerge.merges) available.add(JSON.stringify([merge.name, merge.unit]))
   const present = exported.columns.filter(column => available.has(column.parameterKey))
   for (const column of exported.columns) if (!available.has(column.parameterKey)) notApplied.push(`settings of ${column.label} (parameter not in this dataset)`)
 

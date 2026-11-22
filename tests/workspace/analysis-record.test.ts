@@ -70,6 +70,7 @@ function alternative(path: string, value: unknown): unknown {
   if (typeof value === 'boolean') return !value
   if (typeof value === 'number') return value + 7
   if (path === 'analysisSettings.egfr.source') return ['Creatinine', 'mg/dl']
+  if (path === 'analysisSettings.seriesMerge.merges') return [{ name: 'Merged', unit: 'mg/L', sources: [{ bezeichnung: 'Marker|one', einheit: 'mg/L' }, { bezeichnung: 'Creatinine', einheit: 'mg/dl' }] }]
   throw new Error(`No alternative value for ${path}: add one to STRING_ALTERNATIVES.`)
 }
 function withLeaf<T>(object: T, path: string, value: unknown): T {

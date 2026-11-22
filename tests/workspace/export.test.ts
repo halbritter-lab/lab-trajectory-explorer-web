@@ -81,7 +81,7 @@ describe('workspace workbook', () => {
     const named = [...notes.matchAll(/([a-z_]+)(?:,| is) the last column of the measurement sheets/g)].map(match => match[1])
     expect(named).toEqual([MEASUREMENT_SHEET_HEADER.at(-1)])
     expect(notes).toContain('patient_birth_date follows loinc and precedes time_of_day in the measurement sheets.')
-    expect(MEASUREMENT_SHEET_HEADER.slice(-5)).toEqual(['loinc', 'patient_birth_date', 'time_of_day', 'egfr_equation', 'egfr_height_cm'])
+    expect(MEASUREMENT_SHEET_HEADER.slice(-8)).toEqual(['loinc', 'patient_birth_date', 'time_of_day', 'egfr_equation', 'egfr_height_cm', 'lab_method', 'source_parameter', 'source_unit'])
   })
   // Loading a file does not read analysis_settings: a recovery length other than 48 hours is not restored.
   it('exports the episodes of the set recovery length, which a re-import gives only once the setting is chosen again', () => {
@@ -187,7 +187,7 @@ describe('workspace workbook', () => {
     input.data.rawRows[2].loinc = '30522-7'
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name], { header: 1 })[0]
-    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day', 'egfr_equation', 'egfr_height_cm'])
+    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day', 'egfr_equation', 'egfr_height_cm', 'lab_method', 'source_parameter', 'source_unit'])
     expect(header('raw_measurements')).toEqual(header('measurements'))
     expect(header('parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
     expect(records(workbook, 'raw_measurements').map(row => row.loinc)).toEqual(['1988-5'])
@@ -281,7 +281,7 @@ describe('workspace workbook', () => {
     expect(header.at(-1)).toBe('egfr_male_coefficients_for_sex_d')
     expect(records(workbook,'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_male_coefficients_for_sex_d:true})])
     // The endpoint note of 2026-11-22 (#81/#82) follows it, last.
-    expect(records(workbook,'about').at(-2)?.note).toMatch(/^egfr_male_coefficients_for_sex_d, the last column of demographics, is true/)
+    expect(records(workbook,'about').at(-3)?.note).toMatch(/^egfr_male_coefficients_for_sex_d, the last column of demographics, is true/)
     // Bedside Schwartz has no sex coefficients: values of sex d computed with it do not count (as on the Data page).
     input.data.rows = input.data.rows.map(row => row.sourceSeries ? { ...row, egfrFormula: 'schwartz-bedside' as const, egfrHeightCm: 150 } : row)
     input.data.analysis.rows = input.data.rows

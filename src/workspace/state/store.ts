@@ -14,6 +14,8 @@ import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEnt
 import type { PresetExclusionPolicy } from '../../core/mixedModel/cohortDataset'
 import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import type { ImportDiagnostic, ImportSource } from '../../io/loadDataset'
+import { mergedSeriesKeys, seriesRefKey, type SeriesMerge } from '../../core/analysis/seriesMerge'
+import { seriesMerges } from '../../core/domains/nephrology/seriesMergeModule'
 import { defaultTrajectoryFitSettings, modelPreparationKey, type TrajectoryFitSettings } from '../workspace-analysis'
 import { defaultTrajectoryView, type TrajectoryView } from '../saved-settings'
 
@@ -125,6 +127,10 @@ export interface AppState {
   /** Recovery that separates two AKI episodes (hours, dataset-level). */
   setAkiRecoveryHours: (hours: number) => void
   setAkiRetrospectiveFall: (on: boolean) => void
+  /** Replace the deliberately merged series (issue #68). When the eGFR source
+   * is a merged series that the new list no longer produces, the source
+   * returns to Automatic. */
+  setSeriesMerges: (merges: SeriesMerge[]) => void
   /** Replace the dataset-level analysis settings as a whole ("Apply settings
    * from an export"); an unchanged value changes nothing. */
   applyAnalysisSettings: (settings: AnalysisSettings) => void
@@ -311,6 +317,17 @@ export const useAppStore = create<AppState>((set, get) => ({
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),
+  setSeriesMerges: (merges) => set((s) => {
+    const source = s.analysisSettings.egfr.source
+    const previous = mergedSeriesKeys(seriesMerges(s.analysisSettings))
+    const sourceKey = source ? seriesRefKey({ bezeichnung: source[0], einheit: source[1] }) : null
+    const dropSource = sourceKey !== null && previous.has(sourceKey) && !mergedSeriesKeys(merges).has(sourceKey)
+    return {
+      analysisSettings: { ...s.analysisSettings, seriesMerge: { merges }, ...(dropSource ? { egfr: { ...s.analysisSettings.egfr, source: null } } : {}) },
+      pristineDemo: false,
+      ...clearedMixedModelResults(),
+    }
+  }),
   applyAnalysisSettings: (settings) => set((s) => JSON.stringify(settings) === JSON.stringify(s.analysisSettings) ? s : ({
     analysisSettings: settings,
     pristineDemo: false,
