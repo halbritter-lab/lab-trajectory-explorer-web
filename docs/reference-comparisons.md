@@ -65,7 +65,7 @@ are stale.
 | Theil–Sen | `fitTheilSen` | `mblm::mblm(repeated = FALSE)`, `zyp::zyp.sen` and `confint.zyp`; median of pairwise slopes in R | `tests/reference/theilSen.test.ts` | slope and intercept 1e-9 relative + 1e-9; intervals: listed differences |
 | eGFR | `formulas.ts` (CKD-EPI 2021 and 2009, MDRD-4, EKFC, CKiD U25, bedside Schwartz) | `egfr` 2.0.0 (full precision), `kidney.epi` 1.4.0 (rounded to 0.01 by the package) | `tests/reference/egfr.test.ts` | egfr: 1e-12 relative + 1e-12; kidney.epi: 0.005 + 1e-9 absolute |
 | AKI | `kdigoStage`, `findKdigoAkiEpisodes` | `epocakir::aki_bCr`, `epocakir::aki_SCr` | `tests/reference/aki.test.ts` | stages are integers: exact |
-| Kaplan–Meier, log-rank | none yet (issue #78) | `survival::survfit`, `survdiff`, `coxph` score test | `tests/reference/survival.test.ts` checks the file | see below |
+| Kaplan–Meier, log-rank, median, Aalen–Johansen | `src/core/survival/survival.ts` (issue #78) | `survival::survfit`, `survdiff`, `coxph` score test, `quantile.survfit`, multi-state `survfit` | `tests/reference/timeToEvent.test.ts` (1e-10 relative, 1e-12 absolute) | see below |
 
 ### Mixed models
 
@@ -245,9 +245,18 @@ truncation) in one and in two groups. Schema (also in the file):
   log-rank statistic only without tied event times; survdiff uses the
   hypergeometric variance (two groups: log-rank 3.314, Breslow score 3.123).
 
-The app has no Kaplan–Meier estimator yet, so `survival.test.ts` checks the
-file only: its shape, the risk sets and event counts against the inputs, and
-that `survival` is the product-limit estimate of the stored risk sets (1e-12).
+`survival.test.ts` checks the file itself: its shape, the risk sets and
+event counts against the inputs, and that `survival` is the product-limit
+estimate of the stored risk sets (1e-12). Since 2026-11-22 the app has the
+estimators of issue #78, and `timeToEvent.test.ts` compares them with this
+file (every row of every table; the log-rank test against `survdiff`, and
+under delayed entry against the Breslow score test, which has the same
+variance without tied event times) and with `tests/reference/time_to_event.json`,
+written by `scripts/reference/time_to_event.R` (no jsonlite needed; survival
+3.5-8 in this container): medians and their log-log limits, including a
+curve at exactly 0.5, the delayed-entry log-rank of the exported `r_script`
+and the Aalen–Johansen estimate. All agree within 1e-10 relative. See the
+[time-to-event method reference](method-algorithms/time-to-event.md#r-reproduction).
 
 ## Not covered
 

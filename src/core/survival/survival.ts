@@ -105,11 +105,12 @@ export function kaplanMeier(subjects: readonly SurvivalSubject[]): KaplanMeierRe
     steps.push({ time, nRisk, nEvent, nCensor, nDeath, survival, stdErr: survival > 0 ? survival * Math.sqrt(greenwood) : Number.NaN, lower, upper })
   }
   const eventSteps = steps.filter(step => step.nEvent > 0)
+  const lastTime = steps.at(-1)?.time
   const median: QuantileEstimate = {
-    estimate: curveQuantile(eventSteps, step => step.survival, 0.5),
+    estimate: curveQuantile(eventSteps, step => step.survival, 0.5, lastTime),
     // The lower curve reaches 0.5 first, so it gives the lower limit.
-    lower: curveQuantile(eventSteps, step => step.lower, 0.5),
-    upper: curveQuantile(eventSteps, step => step.upper, 0.5),
+    lower: curveQuantile(eventSteps, step => step.lower, 0.5, lastTime),
+    upper: curveQuantile(eventSteps, step => step.upper, 0.5, lastTime),
   }
   return {
     subjects: subjects.length,
@@ -124,16 +125,21 @@ export function kaplanMeier(subjects: readonly SurvivalSubject[]): KaplanMeierRe
 /**
  * The first event time at which a step curve is at or below `p`. When the
  * curve equals `p` (within 1e-10) at that time, the midpoint between it and
- * the next event time, as R's `quantile.survfit` takes the middle of a flat
- * stretch at exactly `p`; at the last event time the time itself. Null when
- * the curve stays above `p` or is undefined there (NaN).
+ * the next event time, or, after the last event time, the last time of the
+ * curve (`lastTime`, an exit time), as R's `quantile.survfit` takes the
+ * middle of a flat stretch at exactly `p` (checked against R survival 3.5-8,
+ * tests/reference/time_to_event.json). Null when the curve stays above `p` or
+ * is undefined there (NaN).
  */
-export function curveQuantile<T extends { time: number }>(eventSteps: readonly T[], value: (step: T) => number, p: number): number | null {
+export function curveQuantile<T extends { time: number }>(eventSteps: readonly T[], value: (step: T) => number, p: number, lastTime?: number): number | null {
   for (let i = 0; i < eventSteps.length; i++) {
     const v = value(eventSteps[i])
     if (!Number.isFinite(v)) return null
     if (v <= p + QUANTILE_TOLERANCE) {
-      if (Math.abs(v - p) <= QUANTILE_TOLERANCE && i + 1 < eventSteps.length) return (eventSteps[i].time + eventSteps[i + 1].time) / 2
+      if (Math.abs(v - p) <= QUANTILE_TOLERANCE) {
+        const next = i + 1 < eventSteps.length ? eventSteps[i + 1].time : lastTime
+        if (next !== undefined && next > eventSteps[i].time) return (eventSteps[i].time + next) / 2
+      }
       return eventSteps[i].time
     }
   }

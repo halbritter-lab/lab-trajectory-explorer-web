@@ -2,9 +2,8 @@
  * Time-to-event estimators (issue #78). The expected values are computed by
  * hand from the definitions (product limit, Greenwood, log-log interval,
  * log-rank O/E/V, Aalen–Johansen); the arithmetic is written out beside each
- * case. The comparison with R `survival` is pending issue #79 (no R in the
- * build environment); docs/method-algorithms/time-to-event.md lists the R
- * calls the comparison will use.
+ * case. The comparison with native R `survival` is in
+ * tests/reference/timeToEvent.test.ts.
  */
 import { describe, expect, it } from 'vitest'
 import { aalenJohansen, atRisk, chiSquareUpperTail, curveQuantile, kaplanMeier, logRankTest, Z_975, type SurvivalSubject } from '../../../src/core/survival/survival'

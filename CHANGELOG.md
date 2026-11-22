@@ -22,8 +22,9 @@ interfaces are still evolving before 1.0.
   risk, events, censored, median with a Brookmeyer–Crowley log-log interval;
   log-rank test; with deaths an Aalen–Johansen cumulative incidence beside
   1 − KM; the list of patients not in the analysis; an XLSX export with one
-  row per patient and an R script; the curve as SVG or PNG. The comparison
-  with R `survival` is pending (#79). Open decisions OD-73 to OD-79.
+  row per patient and an R script; the curve as SVG or PNG. Compared with
+  native R `survival` on stored cases (`tests/reference/survival.json` and
+  the new `time_to_event.json`). Open decisions OD-73 to OD-79.
 
 ### Fixed (code review of the 2026-11-22 merges)
 

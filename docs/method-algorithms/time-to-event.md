@@ -112,9 +112,9 @@ measurement every entry is 0, so this is ordinary right censoring.
   first event time at which S, the lower limit or the upper limit is at or
   below 0.5 gives the median, its lower and its upper limit. When the curve is
   exactly 0.5 (within 1e-10) at that time, the midpoint between it and the
-  next event time is taken, as R's `quantile.survfit` takes the middle of a
-  flat stretch at 0.5; at the last event time that time itself (OD-78). A
-  curve that stays above 0.5 gives "not reached".
+  next event time is taken, or, after the last event time, the midpoint to
+  the last exit time of the group, as R's `quantile.survfit` does (checked
+  against R; OD-78). A curve that stays above 0.5 gives "not reached".
 - **Log-rank test** on the same risk sets: at each endpoint time t with d
   events among n at risk, n_g in group g: E_g += d n_g / n; V_gh += d (n − d) /
   (n − 1) · (n_g / n) · (δ_gh − n_h / n), nothing when n = 1. χ² = (O − E)'
@@ -177,12 +177,31 @@ yes` and computes `entry = entry_days / 365.25`, `exit = exit_days / 365.25`:
   with `state` the factor of `status` (censored, endpoint, death), the
   Aalen–Johansen estimate of the multi-state `survfit`.
 
-The comparison of the app's numbers with R `survival` on stored cases is
-**pending issue #79** (native R is not installed in the build environment).
-Until then the tests compare with values computed by hand from the
-definitions above (product limit, Greenwood, log-log, log-rank O/E/V,
-Aalen–Johansen), including a case with delayed entry and one with tied
-events.
+**Comparison with R.** `tests/reference/timeToEvent.test.ts` compares the
+estimators with native R `survival` (tolerance 1e-10 relative, 1e-12
+absolute; the formulas are the same, so only floating-point rounding
+differs):
+
+- `tests/reference/survival.json` (survival 3.8-12, issue #79; four cases,
+  one group with ties, two groups, delayed entry in one and two groups):
+  times, number at risk, events, censored, S, the Greenwood standard error of
+  −log S and the log-log limits at every row (R has no limits once S = 0);
+  the log-rank statistic, p, observed and expected events against
+  `survdiff`; with delayed entry, where `survdiff` does not apply, the
+  statistic against the `coxph` Breslow score test, which has the same
+  variance when no event times are tied (the case has none).
+- `tests/reference/time_to_event.json` (survival 3.5-8, written by
+  `scripts/reference/time_to_event.R`; six cases): the median and its limits
+  from `quantile(survfit(…, conf.type = "log-log"))`, including a curve at
+  exactly 0.5 before a later event and one at 0.5 to the end; the log-rank
+  test on delayed-entry risk sets by `logrank_lt` (the function of the
+  exported `r_script`), checked against `survdiff` where every entry is 0; the
+  Aalen–Johansen incidences of the multi-state `survfit` with `id`.
+
+The hand-computed cases of `tests/core/survival/survival.test.ts` stay as
+regression tests. Not compared with R: tied event times under delayed entry
+(where R offers no hypergeometric log-rank), three or more groups, and the
+number-at-risk ticks of the chart.
 
 ### Recomputed examples
 
@@ -217,8 +236,9 @@ born 1970-01-01 unless stated, CKD G4 switched on, 90-day confirmation:
 
 Kaplan–Meier, whole cohort, time since the first measurement: at 365 days 4
 at risk, 2 censored (P3, P6); at 731 days 2 at risk, 1 event, S = 0.5; at 882
-days the death of P2 is censored. The median is 731 days (2.0 years): the
-curve is exactly 0.5 at its last event time. Aalen–Johansen: death
+days the death of P2 is censored. The curve is exactly 0.5 from its last
+event time (731 days) to the last exit (882 days), so the median is the
+midpoint, 806.5 days (2.2 years), as in R. Aalen–Johansen: death
 incidence 0.25 at 365, endpoint incidence 0.75 · 1/2 = 0.375 at 731 (1 − KM:
 0.5), death incidence 0.625 at 882. On the age scale only P1 is at risk at
 18628 days (P3 and P6 left at 18262, P2 enters at 21550), so S falls to 0.
@@ -256,12 +276,11 @@ the PNG download (jsdom has no canvas).
   and are rounded to whole days; an anchor estimated from ages in completed
   years can shift entry and exit by up to a year, which is stated but not
   corrected.
-- **Open decision OD-78.** The median at exactly 0.5 takes the midpoint to the
-  next event time, at the last event time that time; the same rule gives the
-  interval limits. The Aalen–Johansen estimate has no interval. The log-rank
-  test drops groups without variance (a generalised inverse). These details
-  are to be checked against R `survival` when the comparison of issue #79
-  runs.
+- **Open decision OD-78.** The Aalen–Johansen estimate has no interval. The
+  log-rank test drops groups without variance (a generalised inverse); with
+  delayed entry and tied event times its hypergeometric variance has no
+  direct R counterpart (`survdiff` takes no entry times, the `coxph` score
+  tests use other variances). The median rule at exactly 0.5 agrees with R.
 - **Open decision OD-79.** Values dated after a death are left out of endpoint
   input and the time-to-event analysis but stay in tables, charts and fits,
   with an import warning; the death vocabulary is four words (`death`,

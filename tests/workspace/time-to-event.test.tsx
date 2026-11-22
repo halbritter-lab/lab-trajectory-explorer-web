@@ -77,8 +77,8 @@ describe('entry, exit and status per patient', () => {
     expect(byId.P6).toMatchObject({ included: true, exitDays: 365, status: 2, outcome: 'death' })
     const [all] = analysis.groups
     expect(all.km.steps.map(step => [step.time, step.nRisk, step.nEvent, step.nCensor, step.survival])).toEqual([[365, 4, 0, 2, 1], [731, 2, 1, 0, 0.5], [882, 1, 0, 1, 0.5]])
-    // S = 0.5 at the last event time: the median is that time.
-    expect(all.km.median.estimate).toBe(731)
+    // S = 0.5 from the last event time to the last exit: the midpoint (731 + 882) / 2, as R.
+    expect(all.km.median.estimate).toBe(806.5)
     // Aalen–Johansen: F2(365) = 1/4; F1(731) = 0.75 · 1/2 = 0.375; F2(882) = 0.25 + 0.375.
     expect(analysis.deathRecorded).toBe(true)
     expect(all.cumulativeIncidence!.map(step => [step.time, step.endpoint, step.death])).toEqual([[365, 0, 0.25], [731, 0.375, 0.25], [882, 0.375, 0.625]])
