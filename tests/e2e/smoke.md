@@ -876,7 +876,7 @@ it does not claim research, clinical or representative-user validation.
    time_since_baseline values …" (checked in Chromium with a real R fit on
    2026-11-21; not automated).
 5a. Demo data, Trajectories, *Export cohort (XLSX)* with and without "Group
-   by": both files have the same 80 columns in `cohort` with `group` last,
+   by": both files have the same 81 columns in `cohort` with `group` last (80 before 2026-11-22),
    `PatientID` in every sheet, a sheet `columns` after `about` (followed by
    `rolling_windows` and `import_diagnostics`), and `app_version`,
    `exported_at`, `export_id` and `input_data_id` in `about`. Import the

@@ -7,7 +7,7 @@
 import { describe, expect, it } from 'vitest'
 import * as XLSX from 'xlsx'
 import { useAppStore } from '../../src/workspace/state/store'
-import { allSettingLeaves, fitSettingsSample, FIT_PREFIX, mixedModelConfigSample, SETTINGS, settingLeaves, STORE_FIELDS, trajectoryViewSample, analysisRecord } from '../../src/workspace/analysis-record'
+import { allSettingLeaves, fitSettingsSample, FIT_PREFIX, mixedModelConfigSample, SETTINGS, settingLeaves, STORE_FIELDS, trajectoryViewSample, analysisRecord, settingValueText } from '../../src/workspace/analysis-record'
 import { defaultAnalysisSettings, type AnalysisSettings } from '../../src/core/analysis/registry'
 import { defaultFitSettings, type WorkspaceFitSettings } from '../../src/workspace/workspace-analysis'
 import { trajectoryColumnSettings } from '../../src/workspace/trajectory-ui/analysis'
@@ -239,5 +239,13 @@ describe('applying an export: creatinine after selected events and log axes', ()
     expect(applied.logKeys).toEqual(['derived', 'other-unit', 'marker'])
     expect(applied.applied.find(item => item.startsWith('logarithmic'))).toBe('logarithmic value axis of Marker|one [mg/L]')
     expect(applyExportedSettings(readExportedSettings(exportWithPeriEvent(null)), withEvents({ logKeys: ['marker'] })).logKeys).toEqual(['marker'])
+  })
+})
+
+// Issue #66: a copy saved before 2026-11-22 has no rule for children and is read with the default.
+describe('the rule for children in the record', () => {
+  it('shows the default for a missing value, and the label of a stored one', () => {
+    expect(settingValueText('analysisSettings.egfr.paediatric', undefined)).toBe('CKiD U25 with height, otherwise EKFC')
+    expect(settingValueText('analysisSettings.egfr.paediatric', 'off')).toBe('None (no eGFR under 18)')
   })
 })

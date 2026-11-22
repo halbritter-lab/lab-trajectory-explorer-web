@@ -227,6 +227,8 @@ const MODEL_TEXT: Record<string, string> = { time_since_baseline: 'Time since fi
 /** A setting value as the record shows it. */
 export function settingValueText(path: string, value: unknown): string {
   const leaf = path.split('.').slice(1).join('.') || path
+  // A copy saved before 2026-11-22 has no rule for children and is read with the default (OD-69).
+  if (path === 'analysisSettings.egfr.paediatric') return PAEDIATRIC_RULE_LABELS[(value ?? DEFAULT_PAEDIATRIC_RULE) as keyof typeof PAEDIATRIC_RULE_LABELS] ?? String(value)
   if (value === undefined) return 'Off'
   if (path === 'analysisSettings.egfr.formula') return value === 'off' ? 'Off' : EGFR_FORMULA_LABELS[value as keyof typeof EGFR_FORMULA_LABELS] ?? String(value)
   if (path === 'periEventSettings') {
@@ -235,7 +237,6 @@ export function settingValueText(path: string, value: unknown): string {
     return `${rule.kind === 'title' ? 'Title' : 'Type'}: ${rule.value}, window ${windowHours} hours`
   }
   if (path === 'trajectoryView.logKeys') return value ? 'Logarithmic' : 'Linear'
-  if (path === 'analysisSettings.egfr.paediatric') return PAEDIATRIC_RULE_LABELS[value as keyof typeof PAEDIATRIC_RULE_LABELS] ?? String(value)
   if (path === 'analysisSettings.egfr.source') return Array.isArray(value) ? `${value[0]} (${value[1]})` : 'Automatic'
   if (path.endsWith('.presetId')) return value === 'custom' ? 'Custom configuration' : fitPresetById(String(value))?.name ?? String(value)
   if (path.endsWith('.fitModel')) return FIT_MODEL_TEXT[String(value)] ?? String(value)

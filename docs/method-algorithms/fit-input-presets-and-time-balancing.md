@@ -190,7 +190,8 @@ since then, display only; a value written as a range keeps no sign). `sex` and `
 `group` was the first column of a grouped export until 2026-11-21, which
 moved every other column one position to the right. It is now always present
 and always the last column, so a grouped and an ungrouped export have the
-same 80 columns in the same positions; the 75 columns of the ungrouped export
+same 81 columns in the same positions (80 until `egfr_formula_switch` was
+added before `group` on 2026-11-22, issue #66); the 75 columns of the ungrouped export
 of 0.3.7 keep theirs. The file does not record which attribute was used for
 grouping.
 
