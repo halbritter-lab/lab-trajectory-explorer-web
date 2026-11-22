@@ -9,7 +9,7 @@ const d = (s: string) => new Date(s)
 const ep = (date: string, stage = 1): AkiEpisode => ({
   date: d(date), baselineDate: d(date), baselineValue: 1, peakValue: 1.5, peakDate: d(date),
   criterion: 'absolute_0_3_mg_dl_48h', stage,
-  stageValue: 1.5, stageDate: d(date), stageReferenceValue: 1, stageReferenceDate: d(date), endDate: null,
+  stageValue: 1.5, stageDate: d(date), stageReferenceValue: 1, stageReferenceDate: d(date), endDate: null, endedByGap: false, lastValueDate: d(date),
 })
 function row(p: Partial<LabRow>): LabRow {
   return { patientId: 1, labDatum: d('2020-01-01'), bezeichnung: 'Kreatinin', einheit: 'mg/dl',

@@ -1,6 +1,8 @@
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../core/types'
 import type { ClinicalEvent, DialysisIntent } from '../core/events/events'
 import { episodesForSeries, isAkiCreatinineSource } from '../core/domains/nephrology/aki/akiAware'
+import type { AkiEpisode } from '../core/domains/nephrology/aki/kdigo'
+import { AKI_RECOVERY_WINDOW_MS } from '../core/domains/nephrology/constants'
 import { formatDisplayDate, utcDateOrBlank } from '../core/format'
 
 export interface AkiEpisodeRow {
@@ -21,8 +23,9 @@ export interface AkiEpisodeRow {
    * end of the series. */
   endDate: Date | null
   /** The first dialysis of the patient that starts between onset and end,
-   * both days included (on or after the onset when the episode has no end),
-   * with its intent. It does not change the stage (decided 2026-11-21, K29). */
+   * both days included, with its intent (see `dialysisWindowEnd` for an
+   * episode without an end and one ended by a gap). It does not change the
+   * stage (decided 2026-11-21, K29). */
   dialysis: { start: Date; intent: DialysisIntent } | null
 }
 
@@ -44,15 +47,24 @@ export const akiEpisodeDialysisLabel = (episode: Pick<AkiEpisodeRow, 'dialysis'>
 
 const utcDay = (date: Date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
 
-/** The earliest dialysis start between `onset` and `end` (calendar days, both
- * included; no upper bound when `end` is null). On one start date the first
- * event in input order wins. */
-export function dialysisStartInEpisode(onset: Date, end: Date | null, events: readonly ClinicalEvent[]): AkiEpisodeRow['dialysis'] {
+/** Last day on which a dialysis start counts towards an episode: its end
+ * date; for an episode still open at the last value, or one ended by the
+ * first value after a gap of more than seven days, the recovery window of
+ * its last value before the end (two calendar days after it), so that a
+ * dialysis months later, after the values stop, is not attributed to it
+ * (decided 2026-11-22). */
+export function dialysisWindowEnd(episode: Pick<AkiEpisode, 'endDate' | 'endedByGap' | 'lastValueDate'>): Date {
+  return episode.endDate !== null && !episode.endedByGap ? episode.endDate : new Date(episode.lastValueDate.getTime() + AKI_RECOVERY_WINDOW_MS)
+}
+
+/** The earliest dialysis start between `onset` and `end` (calendar days,
+ * both included). On one start date the first event in input order wins. */
+export function dialysisStartInEpisode(onset: Date, end: Date, events: readonly ClinicalEvent[]): AkiEpisodeRow['dialysis'] {
   let first: ClinicalEvent | null = null
   for (const event of events) {
     if (event.type !== 'dialysis' || !Number.isFinite(event.date.getTime())) continue
     const day = utcDay(event.date)
-    if (day < utcDay(onset) || (end !== null && day > utcDay(end))) continue
+    if (day < utcDay(onset) || day > utcDay(end)) continue
     if (first === null || day < utcDay(first.date)) first = event
   }
   return first ? { start: first.date, intent: first.intent ?? 'unknown' } : null
@@ -81,7 +93,7 @@ export function akiEpisodeRows(rows: readonly LabRow[], events: readonly Clinica
       const patientEvents = eventsByPatient.get(patientIdKey(patientId)) ?? []
       for (const episode of episodesForSeries(patientRows, patientId, parameter, unit, patientEvents)) {
         own.push({ patientId, parameter, unit, stage: episode.stage, onset: episode.date, peakDate: episode.peakDate, peakValue: episode.peakValue, baselineDate: episode.baselineDate, baselineValue: episode.baselineValue, criterion: episode.criterion,
-          endDate: episode.endDate, dialysis: dialysisStartInEpisode(episode.date, episode.endDate, patientEvents) })
+          endDate: episode.endDate, dialysis: dialysisStartInEpisode(episode.date, dialysisWindowEnd(episode), patientEvents) })
       }
     }
     // Stable sort: episodes of two series with one onset keep the series order.

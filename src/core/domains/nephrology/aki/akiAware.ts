@@ -99,9 +99,9 @@ export function isUnderDialysis(date: Date, events: readonly ClinicalEvent[]): b
 }
 
 /** Whether a day lies in a dated acute dialysis interval (`date` through
- * `endDate`, both included). Creatinine of such a day is left out of
- * detection and cannot show recovery, so an AKI episode does not end in it
- * (decided 2026-11-22, issue #67). */
+ * `endDate`, both included). Its days do not count towards a gap of more
+ * than seven days, so an AKI episode continues across the interval (decided
+ * 2026-11-22, issue #67). */
 export function isInAcuteDialysisInterval(date: Date, events: readonly ClinicalEvent[]): boolean {
   const day = utcDay(date)
   return events.some((e) => e.type === 'dialysis' && e.intent === 'acute' && validDate(e.date) && validDate(e.endDate)
@@ -170,8 +170,9 @@ export function implausiblyHighCreatinineRows(rows: readonly LabRow[]): LabRow[]
  * from (`LabRow.sourceSeries`); any other analyte uses the same patient's
  * creatinine series with the most exact dated rows. Names and units are never pooled.
  * Creatinine measured under dialysis (see `isUnderDialysis`; `events` are the
- * patient's clinical events) is left out before detection, and no episode ends
- * inside a dated acute dialysis interval (`isInAcuteDialysisInterval`).
+ * patient's clinical events) is left out before detection; no episode ends on
+ * a value whose recovery window holds such a day, and an episode continues
+ * across a dated acute dialysis interval (`isInAcuteDialysisInterval`).
  * Returns [] when no eligible creatinine data exists. */
 export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null, events: readonly ClinicalEvent[] = []): AkiEpisode[] {
   // One pass over the dataset per call; callers pass every patient's rows.
@@ -198,5 +199,5 @@ export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichn
     .filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r) && !isUnderDialysis(r.labDatum, events))
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
     .map((r) => ({ date: r.labDatum!, timeOfDay: r.labTime ?? null, value: normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum! / MGDL_PER_UMOLL : r.wertNum! }))
-  return points.length > 0 ? findKdigoAkiEpisodes(points, { blocksRecovery: (date) => isInAcuteDialysisInterval(date, events) }) : []
+  return points.length > 0 ? findKdigoAkiEpisodes(points, { blocksRecovery: (date) => isUnderDialysis(date, events), bridgesGap: (date) => isInAcuteDialysisInterval(date, events) }) : []
 }

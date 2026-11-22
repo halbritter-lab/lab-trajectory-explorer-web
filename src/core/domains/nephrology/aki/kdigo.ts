@@ -40,16 +40,30 @@ export interface AkiEpisode {
    * recovery holds (see `findKdigoAkiEpisodes`). `null` when no such value
    * exists, so the episode is still open at the end of the series. */
   endDate: Date | null
+  /** True when the episode ended at the first value after a gap of more than
+   * seven days without a candidate end before it: `endDate` is then a value
+   * that was not assessed against any earlier value, not one back below the
+   * criterion. */
+  endedByGap: boolean
+  /** Date of the episode's last value before its end: its last crossing or a
+   * later value that could not end it (`blocksRecovery`); for an episode
+   * still open, its last such value. Bounds the dialysis start of the
+   * episode list when `endDate` is empty or `endedByGap` is true. */
+  lastValueDate: Date
 }
 
 export interface KdigoEpisodeOptions {
   /** Sustained reversal that separates two episodes; default 48 hours
    * (`AKI_RECOVERY_WINDOW_MS`). Dates are calendar days. */
   recoveryMs?: number
-  /** Days on which creatinine cannot show recovery (a dated acute dialysis
-   * interval). A value back below the criterion ends no episode when one of
-   * the days of its recovery window is such a day. */
+  /** Days on which creatinine cannot show recovery (days under dialysis,
+   * whose values are left out of detection). A value back below the
+   * criterion ends no episode when one of the days of its recovery window is
+   * such a day. */
   blocksRecovery?: (date: Date) => boolean
+  /** Days that do not count towards a gap of more than seven days (a dated
+   * acute dialysis interval): an episode continues across them. */
+  bridgesGap?: (date: Date) => boolean
 }
 
 /** KDIGO severity stage of one creatinine value against a reference value
@@ -88,16 +102,19 @@ const MS_PER_DAY = 86_400_000
  * issue #67). `crossings[j]` is the crossing of detection value j or null
  * when value j does not meet the criterion; `hasReference[j]` says whether an
  * earlier value lay in its 7-day window. While an episode is open, the first
- * value that does not cross and whose recovery window (the calendar days after
- * it up to `recoveryMs`) holds no blocked day is its candidate end. A crossing
- * more than `recoveryMs` after that value starts a new episode and ends the
- * previous one there; any other crossing joins the open episode, which keeps
- * the highest peak and the highest stage, and clears the candidate. A value
- * without an earlier value in its 7-day window (after a gap of more than
- * seven days) ends the open episode at the candidate, or at itself without
- * one: detection starts afresh there (decided 2026-11-22). Replaces the merge
- * by shared baseline date of analyses/methods.py:_cluster_aki_episodes. */
-function clusterEpisodes(sorted: readonly SeriesPoint[], crossings: readonly (RawCrossing | null)[], hasReference: readonly boolean[], recoveryMs: number, blocksRecovery: (date: Date) => boolean): AkiEpisode[] {
+ * value that does not cross and whose recovery window (the calendar days
+ * after it up to `recoveryMs`) holds no blocked day is its candidate end. A
+ * crossing more than `recoveryMs` after that value starts a new episode and
+ * ends the previous one there; any other crossing joins the open episode,
+ * which keeps the highest peak and the highest stage, and clears the
+ * candidate. A value without an earlier value in its 7-day window (after a
+ * gap of more than seven days) ends the open episode at the candidate, or at
+ * itself without one: detection starts afresh there (decided 2026-11-22). Days
+ * for which `bridgesGap` holds (a dated acute dialysis interval) do not count
+ * towards such a gap: when seven days or fewer between the two values remain,
+ * the value is treated like any other. Replaces the merge by shared baseline
+ * date of analyses/methods.py:_cluster_aki_episodes. */
+function clusterEpisodes(sorted: readonly SeriesPoint[], crossings: readonly (RawCrossing | null)[], hasReference: readonly boolean[], recoveryMs: number, blocksRecovery: (date: Date) => boolean, bridgesGap: (date: Date) => boolean): AkiEpisode[] {
   const episodes: AkiEpisode[] = []
   let open: AkiEpisode | null = null
   let recovery: Date | null = null
@@ -105,14 +122,27 @@ function clusterEpisodes(sorted: readonly SeriesPoint[], crossings: readonly (Ra
     for (let d = 1; d * MS_PER_DAY <= recoveryMs; d++) if (blocksRecovery(new Date(date.getTime() + d * MS_PER_DAY))) return true
     return false
   }
+  /** Whether at least seven calendar days that count towards a gap lie
+   * strictly between two values, i.e. the values are more than seven such
+   * days apart (stops counting at the seventh). */
+  const gapDays = KDIGO_RELATIVE_WINDOW_MS / MS_PER_DAY
+  const isGap = (from: Date, to: Date) => {
+    let n = 0
+    for (let t = from.getTime() + MS_PER_DAY; t < to.getTime() && n < gapDays; t += MS_PER_DAY) if (!bridgesGap(new Date(t))) n++
+    return n >= gapDays
+  }
   for (let j = 0; j < sorted.length; j++) {
     const c = crossings[j]
     if (c === null) {
-      if (open && !hasReference[j]) {
+      if (open && !hasReference[j] && isGap(sorted[j - 1].date, sorted[j].date)) {
         open.endDate = recovery ?? sorted[j].date
+        open.endedByGap = recovery === null
         open = null
         recovery = null
-      } else if (open && recovery === null && !blocked(sorted[j].date)) recovery = sorted[j].date
+      } else if (open && recovery === null) {
+        if (blocked(sorted[j].date)) open.lastValueDate = sorted[j].date
+        else recovery = sorted[j].date
+      }
       continue
     }
     if (open && (recovery === null || c.date.getTime() - recovery.getTime() <= recoveryMs)) {
@@ -121,9 +151,10 @@ function clusterEpisodes(sorted: readonly SeriesPoint[], crossings: readonly (Ra
         open.stage = c.stage; open.stageValue = c.stageValue; open.stageDate = c.stageDate
         open.stageReferenceValue = c.stageReferenceValue; open.stageReferenceDate = c.stageReferenceDate
       }
+      open.lastValueDate = c.date
     } else {
       if (open) open.endDate = recovery
-      open = { ...c, peakDate: c.date, endDate: null }
+      open = { ...c, peakDate: c.date, endDate: null, endedByGap: false, lastValueDate: c.date }
       episodes.push(open)
     }
     recovery = null
@@ -222,5 +253,5 @@ export function findKdigoAkiEpisodes(points: SeriesPoint[], options: KdigoEpisod
       win7.push(j)
     }
   }
-  return clusterEpisodes(sorted, crossings, hasReference, options.recoveryMs ?? AKI_RECOVERY_WINDOW_MS, options.blocksRecovery ?? (() => false))
+  return clusterEpisodes(sorted, crossings, hasReference, options.recoveryMs ?? AKI_RECOVERY_WINDOW_MS, options.blocksRecovery ?? (() => false), options.bridgesGap ?? (() => false))
 }

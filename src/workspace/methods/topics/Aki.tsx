@@ -115,9 +115,10 @@ export function Aki() { return <>
         until creatinine has been back below the criterion for 48 hours (ADQI 16): a crossing
         starts a new episode only when the first value after the previous crossing that meets no
         criterion lies more than two calendar days before it. The first value after more than
-        seven days without measurements also ends the episode. The onset is the date of the first
-        crossing, the end the date of that value; an episode does not end during an acute dialysis
-        with a recorded end date. Daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give one
+        seven days without measurements also ends the episode; days of an acute dialysis with a
+        recorded end date do not count towards the seven days. The onset is the date of the first
+        crossing, the end the date of that value; a value followed within two calendar days by a
+        day under dialysis, as defined above, does not end the episode. Daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give one
         episode of stage III.
       </p>
       <p>

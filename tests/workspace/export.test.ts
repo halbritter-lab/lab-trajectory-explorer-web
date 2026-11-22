@@ -117,6 +117,10 @@ describe('workspace workbook', () => {
     expect(workbook.SheetNames).toContain('aki_episodes')
     expect(records(workbook, 'aki_episodes')).toEqual([])
     expect(records(workbook, 'about').some(row => String(row.note).startsWith('aki_episodes lists every AKI episode'))).toBe(true)
+    // Review 2026-11-22: the note named only recovery as an end, not the first value after a gap.
+    const note = String(records(workbook, 'about').find(row => String(row.note).startsWith('aki_episodes lists'))?.note)
+    expect(note).toContain('or after more than seven days without creatinine values outside dated acute dialysis intervals')
+    expect(note).toContain('or of the first value after such a gap, which is not compared with any earlier value')
   })
   it('appends the LOINC code to measurements, raw_measurements and parameters, after the columns that existed before and before patient_birth_date', () => {
     const input = exportFixture()

@@ -63,7 +63,22 @@ describe('akiEpisodeRows', () => {
     expect(start('2026-03-10')).toBeNull()
     expect(akiEpisodeDialysisLabel({ dialysis: null })).toBe('none')
   })
-  it('counts every later dialysis start for an episode that is still open', () => {
-    expect(akiEpisodeRows(icu.slice(0, 4), [dialysis('2027-01-01', 'chronic')])[0].dialysis).toEqual({ start: day('2027-01-01'), intent: 'chronic' })
+  it('counts a dialysis start up to two days after the last value of an episode that is still open', () => {
+    // Review 2026-11-22: until this change every later start counted, also one years after the values stop.
+    const open = icu.slice(0, 4)
+    expect(akiEpisodeRows(open, [dialysis('2027-01-01', 'chronic')])[0].dialysis).toBeNull()
+    expect(akiEpisodeRows(open, [dialysis('2026-03-06', 'chronic')])[0].dialysis).toEqual({ start: day('2026-03-06'), intent: 'chronic' })
+    expect(akiEpisodeRows(open, [dialysis('2026-03-07', 'chronic')])[0].dialysis).toBeNull()
+  })
+  it('names the chronic dialysis that follows an episode without recovery', () => {
+    // Review 2026-11-22: 1.2 on 3 January would have ended the episode although chronic HD starts the next day.
+    const chr = [row('C', '2024-01-01', 1.0), row('C', '2024-01-02', 1.6), row('C', '2024-01-03', 1.2)]
+    expect(akiEpisodeRows(chr, [dialysis('2024-01-04', 'chronic')])).toMatchObject([{ endDate: null, dialysis: { start: day('2024-01-04'), intent: 'chronic' } }])
+  })
+  it('bounds the dialysis start of an episode ended by a gap at its last value before the gap', () => {
+    const gap = [row('C', '2024-01-01', 1.0), row('C', '2024-01-02', 1.6), row('C', '2024-03-01', 1.0)]
+    const [episode] = akiEpisodeRows(gap, [dialysis('2024-02-01', 'acute')])
+    expect(episode).toMatchObject({ endDate: day('2024-03-01'), dialysis: null })
+    expect(akiEpisodeRows(gap, [dialysis('2024-01-04', 'acute')])[0].dialysis).toEqual({ start: day('2024-01-04'), intent: 'acute' })
   })
 })

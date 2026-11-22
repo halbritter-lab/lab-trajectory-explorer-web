@@ -25,10 +25,20 @@ with ad-hoc Playwright scripts against the production build in Chromium.
 5. Methods → AKI, "AKI Timing, Episodes and the Fit-Exclusion Window": the
    rule is stated and the sustained daily rise gives "one episode of stage
    III"; Sources: the AKI episodes entry names the 48 hours of ADQI 16.
+6. Review follow-up (2026-11-22): import labs with ICU 1.0, 3.2, 4.0, 4.2,
+   6.5 mg/dl on 1, 2, 14, 15 and 16 January 2024 and CVVHDF acute from 3 to
+   13 January, CHR 1.0, 1.6, 1.2 on 1 to 3 January with chronic HD from
+   4 January, and GAP with a crossing on 2 January 2024 and chronic HD from
+   31 December 2025. Data → episode list: ICU one stage-III episode, "open at
+   the last value", "03/01/2024 (acute)", chip `AKI III` (two episodes and
+   `AKI 2×III` before); CHR "open at the last value", "04/01/2024 (chronic)"
+   (end 03/01/2024 and "none" before); GAP "none" (31/12/2025 (chronic)
+   before). The `about` line of `aki_episodes` names the end after a gap.
 
-Verified 2026-11-22 in Chromium against the production build: steps 1 to 5
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 6
 by scripted walkthroughs with screenshots; a reduced version of steps 1 to 3
-is automated in `tests/e2e/aki-recovery.e2e.ts`. The k26 review file with
+and the ICU and CHR cases of step 6 are automated in
+`tests/e2e/aki-recovery.e2e.ts`. The k26 review file with
 times of day keeps its 4 episodes. Not verified: other browsers than
 Chromium and real research data.
 

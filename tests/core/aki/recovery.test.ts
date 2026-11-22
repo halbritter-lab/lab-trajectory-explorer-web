@@ -64,6 +64,7 @@ describe('AKI episodes end after 48 hours back below the criterion', () => {
     expect(summary([[0, 1.0], [1, 1.6], [20, 1.0], [21, 1.6]])).toEqual([['2024-01-02', 1, '2024-01-21'], ['2024-01-22', 1, null]])
     // A gap of seven days keeps the reference, so the 48-hour rule applies.
     expect(summary([[0, 1.0], [1, 1.6], [8, 1.0], [9, 1.6]])).toEqual([['2024-01-02', 1, null]])
+    expect(run([[0, 1.0], [1, 1.6], [20, 1.0], [21, 1.6]]).map((e) => [e.endedByGap, iso(e.lastValueDate)])).toEqual([[true, '2024-01-02'], [false, '2024-01-22']])
   })
 
   it('keeps the onset and the configured length of the exclusion window for a merged episode', () => {
@@ -89,7 +90,28 @@ describe('AKI episodes do not end in a dated acute dialysis interval', () => {
   })
 
   it('ignores an interval after the recovery and acute dialysis without an end date', () => {
+    // Acute dialysis without an end date removes no value (OD-14), so its days can show recovery.
     expect(episodes([dialysis({ date: day(5), endDate: day(5) })])).toEqual([['2024-01-02', '2024-01-03'], ['2024-01-07', null]])
     expect(episodes([dialysis({ endDate: null })])).toEqual([['2024-01-02', '2024-01-03'], ['2024-01-07', null]])
+  })
+
+  it('does not let a value end the episode when a chronic dialysis starts in its recovery window', () => {
+    // Review 2026-11-22: 1.2 on day 2 is followed by chronic dialysis from day 3, whose values are left out.
+    const chr = [row(0, 1.0), row(1, 1.6), row(2, 1.2)]
+    const chronic = dialysis({ intent: 'chronic', endDate: null })
+    expect(episodesForSeries(chr, 1, 'Kreatinin', 'mg/dl', [chronic]).map((e) => [iso(e.date), iso(e.endDate)])).toEqual([['2024-01-02', null]])
+    expect(episodesForSeries(chr, 1, 'Kreatinin', 'mg/dl', [dialysis({ intent: 'chronic', date: day(5), endDate: null })]).map((e) => iso(e.endDate))).toEqual(['2024-01-03'])
+  })
+
+  it('continues an episode across a dated acute dialysis interval of more than seven days', () => {
+    // Review 2026-11-22: CVVHDF 3 to 13 January removes every value, 4.0 on 14 January has no reference,
+    // and 6.5 on 16 January crosses against it two days later. Until this change two stage-III episodes.
+    const icu = [row(0, 1.0), row(1, 3.2), row(13, 4.0), row(14, 4.2), row(15, 6.5)]
+    const cvvhdf = dialysis({ date: day(2), endDate: day(12) })
+    expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', [cvvhdf]).map((e) => [iso(e.date), e.stage, iso(e.endDate), e.endedByGap])).toEqual([['2024-01-02', 3, null, false]])
+    // Without the interval the same values are a gap of more than seven days: detection starts afresh.
+    expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', []).map((e) => [iso(e.date), iso(e.endDate), e.endedByGap])).toEqual([['2024-01-02', '2024-01-14', true], ['2024-01-16', null, false]])
+    // A short interval inside a longer gap leaves more than seven days without values: the gap still ends the episode.
+    expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', [dialysis({ date: day(2), endDate: day(4) })]).map((e) => iso(e.date))).toEqual(['2024-01-02', '2024-01-16'])
   })
 })

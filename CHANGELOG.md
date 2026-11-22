@@ -14,7 +14,14 @@ interfaces are still evolving before 1.0.
   episode: daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl were four
   episodes (I, II, II, III) and are now one stage-III episode.
 - An episode also ends at the first value after more than seven days without
-  measurements, and does not end during an acute dialysis with an end date.
+  measurements; days of an acute dialysis with an end date do not count
+  towards the seven days, so an episode continues across such an interval
+  of any length. An episode does not end on a value followed within two
+  calendar days by a day under dialysis (an acute dialysis with an end date,
+  or a chronic dialysis up to the next transplant), so an AKI followed by
+  chronic dialysis stays open and lists that dialysis. Whether the recovery
+  length should be a setting, and the end after a gap, are open for the
+  owner (OD-35).
 - **Results change** where crossings without recovery between them were
   separate episodes: episode counts, stages per episode, chips, markers, the
   `aki_episodes` sheet, AKI exclusion windows and with them slopes and
@@ -25,11 +32,14 @@ interfaces are still evolving before 1.0.
   (review item K29): the Data page, the patient view and the sheet
   `aki_episodes` gain the end date (empty while the episode is open) and the
   start date of the first dialysis between onset and end with its intent,
-  appended as `end_date` and `dialysis_start` after `criterion`. The dialysis
-  does not change the stage.
-- Kidney package: `AkiEpisode` has `endDate`; `findKdigoAkiEpisodes` takes
-  an options object with `recoveryMs` and `blocksRecovery`;
-  `isInAcuteDialysisInterval` is new. The recovery length is not an
+  appended as `end_date` and `dialysis_start` after `criterion`. For an open
+  episode, and one ended by the first value after a gap, a dialysis counts
+  up to two calendar days after the episode's last value. The dialysis does
+  not change the stage.
+- Kidney package: `AkiEpisode` has `endDate`, `endedByGap` and
+  `lastValueDate`; `findKdigoAkiEpisodes` takes an options object with
+  `recoveryMs`, `blocksRecovery` and `bridgesGap`;
+  `isInAcuteDialysisInterval` and `dialysisWindowEnd` are new. The recovery length is not an
   interface setting.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
