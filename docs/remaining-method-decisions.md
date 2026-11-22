@@ -970,6 +970,16 @@ Resolved with a change:
   the file order otherwise, and the fit status moves with its row. Details:
   [Dates](method-algorithms/import-and-values.md#dates) and
   [workbook sheets](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
+  The shipped demo workbook (`public/test_labs.xlsx`) stored its lab dates
+  as serials with a time-zone remainder (01:00, 02:00 in summer time), which
+  the new display and export would have shown as measured times in all 467
+  measurement rows and which would have moved the demo's `input_data_id`
+  from `b59dd57d` to `aea1a9a8`. Its date cells are stored at midnight
+  (`scripts/strip_demo_lab_times.mjs`): the calendar days are unchanged, the
+  demo shows and exports no times, and its exports match those of before
+  cell by cell apart from the new columns and notes, `input_data_id`
+  `b59dd57d` included, with no fit, OLS, the CKD progression, Theil-Sen,
+  segmented and acute review settings.
 - **The date warning also covers event dates, event end dates and future
   birth dates** (K10). An accepted event whose `date` or `endDate` lies after
   the import day or before 1927-05-18 gives a warning; a birth date after

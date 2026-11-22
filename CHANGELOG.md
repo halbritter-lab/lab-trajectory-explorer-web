@@ -19,6 +19,11 @@ interfaces are still evolving before 1.0.
   import of the file and none after the re-import of its export).
   `input_data_id` covers the time of the rows that have one; for a dataset
   without times it is unchanged.
+- The demo workbook stores its lab dates at midnight. Its date cells carried
+  a time-zone remainder (01:00, 02:00 in summer time) that would have been
+  shown as a measured time and written to `time_of_day`; the calendar days
+  are unchanged, and so are the demo's values, AKI episodes, fits and
+  `input_data_id` (`b59dd57d` under every preset).
 - The measurement table of the patient view shows the time beside the date
   where the file gave one, and orders the rows of one day by it when every
   row of that day has one (file order otherwise).
