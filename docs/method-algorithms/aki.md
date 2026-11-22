@@ -789,6 +789,19 @@ which episode a given column uses (for a column that is not creatinine and not
 a computed eGFR, that is the patient's creatinine series with the most exact
 dated rows, see above).
 
+A merged serum-creatinine series (issue #68) is not listed (since the code
+review of wave 3, 2026-11-22): its rows copy the values of its source
+series, so it would repeat their episodes. The source series are listed as
+before. The one exception is a merged series chosen as the creatinine source
+of the computed eGFR on the Data page: the eGFR column then excludes the
+episodes detected on the merged series, so those are listed too, beside the
+episodes of its sources. Example: `Kreatinin` (mg/dl) 1.0 on 2022-03-01 and
+1.6 on 2022-03-02, merged into `Creatinine merged` (mg/dl): one stage-1
+episode (onset 2022-03-02, `Kreatinin`); with `Creatinine merged` as the eGFR
+source, two rows, one per series, with the same onset. Episodes of a merged
+series' own column (Trend on the merged series with AKI windows excluded) are
+detected as before but not listed unless it is the eGFR source.
+
 Each row gives patient, stage, onset date (`AkiEpisode.date`), peak date and
 value, baseline date and value, the criterion that detected the episode
 (`absolute_0_3_mg_dl_48h` or `relative_1_5x_7d`), the creatinine series, the

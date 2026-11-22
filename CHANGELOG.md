@@ -59,6 +59,10 @@ interfaces are still evolving before 1.0.
   creatinine source, merged series) and `input_data_id`. The area's choices
   stay session only but are listed in the analysis record, with a Change
   button that opens the area (OD-79 updated).
+- AKI episode list (Data page, patient view, `aki_episodes` sheet): a merged
+  creatinine series no longer repeats the episodes of its source series. It
+  is listed only when it is the creatinine source of the computed eGFR,
+  whose column excludes its episodes.
 
 ### Fixed (code review of the 2026-11-22 merges)
 

@@ -542,7 +542,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
   const missingNote = (key: string, id: PatientId) => key === egfrKey ? egfrNotes.get(patientIdKey(id)) : undefined
   const egfrSwitches = useMemo(() => egfrFormulaSwitches(data.rows), [data.rows])
   const switchesFor = (key: string, id: PatientId) => key === egfrKey ? egfrSwitches.get(patientIdKey(id)) : undefined
-  const akiEpisodes = useMemo(() => akiEpisodeRows(data.rows, data.events, akiRecoveryHours(data.analysisSettings), akiRetrospectiveFall(data.analysisSettings)), [data.rows, data.events, data.analysisSettings])
+  const akiEpisodes = useMemo(() => akiEpisodeRows(data.rows, data.events, akiRecoveryHours(data.analysisSettings), akiRetrospectiveFall(data.analysisSettings), data.analysisSettings.egfr?.source ?? null), [data.rows, data.events, data.analysisSettings])
   const measurementsFor = (id: PatientId, cell: { bezeichnung: string; einheit: string | null }) => measurementsBySeries.get(JSON.stringify([id, cell.bezeichnung, cell.einheit])) ?? []
   // Root remounts this component only when rawRows identity changes. A derived
   // update can remove a parameter without discarding unrelated browser choices.

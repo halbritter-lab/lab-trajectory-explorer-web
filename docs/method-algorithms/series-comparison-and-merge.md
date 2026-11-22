@@ -162,7 +162,9 @@ No source is preferred.
   page's creatinine checks ignore merged rows. A computed eGFR from a merged
   source detects on the merged series it was computed from. Open decision
   OD-82: a rise between values of two methods can form an episode in the
-  merged series that neither source shows.
+  merged series that neither source shows. The episode list (Data page, patient view,
+  `aki_episodes`) leaves a merged series out unless it is the eGFR
+  creatinine source ([episode list](aki.md#episode-list)).
 - **Recognition.** A merged series is recognised by its own name and unit,
   as any series: named without "Kreatinin" or "Creatinin" it is not serum
   creatinine for AKI detection or eGFR; in mL/min/1.73 m² it is eGFR for the

@@ -121,8 +121,17 @@ export function openDialysisStartInEpisode(onset: Date, end: Date | null, events
  * creatinine series can list an episode once per series. A listing only:
  * which episodes a column shows or excludes is decided per column.
  * `recoveryHours` and `retrospectiveFall` are the dataset's AKI module
- * settings. */
-export function akiEpisodeRows(rows: readonly LabRow[], events: readonly ClinicalEvent[], recoveryHours = DEFAULT_AKI_RECOVERY_HOURS, retrospectiveFall = false): AkiEpisodeRow[] {
+ * settings.
+ *
+ * A merged creatinine series (rows with `mergedFrom`, issue #68) copies the
+ * values of its source series, so it would list their episodes a second
+ * time; it is left out, as `largestCreatinineSeries` and the peri-event
+ * analysis leave it out. The exception is a merged series chosen as the
+ * creatinine source of the computed eGFR (`egfrSource`, the Data page
+ * setting): the eGFR column then excludes the episodes detected on the merged
+ * series (`episodesForSeries` follows `sourceSeries`), so they are listed. */
+export function akiEpisodeRows(rows: readonly LabRow[], events: readonly ClinicalEvent[], recoveryHours = DEFAULT_AKI_RECOVERY_HOURS, retrospectiveFall = false,
+  egfrSource: readonly [string, string | null] | null = null): AkiEpisodeRow[] {
   const byPatient = new Map<PatientId, LabRow[]>()
   // Push into buckets: copying a bucket per row is quadratic in a patient's rows.
   for (const row of rows) { const bucket = byPatient.get(row.patientId); if (bucket) bucket.push(row); else byPatient.set(row.patientId, [row]) }
@@ -133,6 +142,7 @@ export function akiEpisodeRows(rows: readonly LabRow[], events: readonly Clinica
     const patientRows = byPatient.get(patientId)!
     const series = new Map<string, [string, string | null]>()
     for (const row of patientRows) {
+      if (row.mergedFrom && !(egfrSource !== null && row.bezeichnung === egfrSource[0] && (row.einheit ?? null) === (egfrSource[1] ?? null))) continue
       if (row.bezeichnung !== null && isAkiCreatinineSource(row.bezeichnung, row.einheit)) series.set(JSON.stringify([row.bezeichnung, row.einheit]), [row.bezeichnung, row.einheit])
     }
     const own: AkiEpisodeRow[] = []

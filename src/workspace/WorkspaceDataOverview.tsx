@@ -45,7 +45,7 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
   }, [data.patients])
   const recoveryHours = akiRecoveryHours(data.analysisSettings)
   const retrospectiveFall = akiRetrospectiveFall(data.analysisSettings)
-  const episodes = useMemo(() => akiEpisodeRows(data.rows, data.events, recoveryHours, retrospectiveFall), [data.rows, data.events, recoveryHours, retrospectiveFall])
+  const episodes = useMemo(() => akiEpisodeRows(data.rows, data.events, recoveryHours, retrospectiveFall, data.analysisSettings.egfr?.source ?? null), [data.rows, data.events, recoveryHours, retrospectiveFall, data.analysisSettings.egfr?.source])
   return <div className="data-event-tables">
     <details>
       <summary>Imported parameters ({parameters.length})</summary>
