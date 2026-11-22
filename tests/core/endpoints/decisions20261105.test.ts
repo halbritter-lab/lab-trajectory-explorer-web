@@ -119,20 +119,26 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
       ...series(crea, [['2020-01-01', 1.0], ['2020-01-03', 2.6], ['2020-01-05', 2.2], ['2020-03-01', 1.0]]),
     ]
     const { cell, record } = cellFor(rows, withProjection(ckdProgressionConfig(egfr)))
-    // Before: baseline (20 + 25 + 55) / 3 = 33.3, no 40 % event.
-    expect(cell.endpoints.declineBaselineValue).toBe(56.5)
+    // Before: baseline (20 + 25 + 55) / 3 = 33.3, no 40 % event. With the 30-day window of 2020-11-05 to
+    // 2026-11-22: (55 + 58) / 2 = 56.5. Since 2026-11-22 (row akiwin) the episode (onset 2020-01-03, last
+    // value 2020-01-05, ended by the gap before 2020-03-01) excludes up to 90 days after 2020-01-07, i.e. to
+    // 2020-04-06, so 55 on 2020-03-01 is left out too and the baseline is (58 + 56) / 2 = 57.
+    expect(record.aki_window).toBe('episode_end_plus_90d')
+    expect(record.n_aki_excluded).toBe(3)
+    expect(cell.endpoints.declineBaselineValue).toBe(57)
     // Total change keeps the AKI rows: 20 on 2020-01-03 to 32, i.e. +60 %.
     expect(cell.endpoints.percentDecline.value).toBeCloseTo(-60, 6)
     // The events read all rows after the baseline period (2020-05-30); none lies in the AKI window.
     expect(cell.endpoints.observedDecline40).toMatchObject({ met: true, firstDate: d('2021-01-01'), firstValue: 33, confirmedDate: d('2021-06-01'), confirmedValue: 32 })
     expect(cell.endpoints.observedDecline57.met).toBe(false)
     expect(record.endpoint_observed_decline_40).toBe('yes')
-    // The projection fits the five rows from 2020-03-01 (before: seven rows, bounds included zero).
-    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-40.83, 2)
-    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiHigh).toBeCloseTo(-6.37, 2)
-    // From 2026-11-05 to 2026-11-22 this gave an age of 62.0; the five dates span
-    // 15 months, short of the KDIGO minimum of three years.
+    // The projection fits the four rows from 2020-05-01 (2020-11-05 to 2026-11-22: the five rows from
+    // 2020-03-01, bounds -40.83 to -6.37, G5 at 62.0 years; before that seven rows, bounds included zero).
+    // Re-derived on the merge of the AKI window (row akiwin) and the KDIGO minimum (row minfu): the four
+    // dates span 13 months, short of three years, so the KDIGO minimum withholds it before the interval is read.
     expect(cell.endpoints.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'kdigo_minimum_follow_up' })
+    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-55.69, 2)
+    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiHigh).toBeCloseTo(1.36, 2)
   })
 })
 

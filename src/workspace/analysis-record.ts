@@ -25,13 +25,13 @@ import type { PeriEventSettings } from '../core/domains/nephrology/aki/periEvent
 
 /** Where a setting is changed in the interface. */
 export type SettingControl =
-  | { page: 'Data'; target: 'egfr' | 'aki-recovery' | 'demographics' | 'peri-event' }
+  | { page: 'Data'; target: 'egfr' | 'aki-recovery' | 'aki-retrospective' | 'demographics' | 'peri-event' }
   | { page: 'Trajectories'; target: 'analysis' | 'parameters' | 'trend' | 'log' | 'grouping' }
   | { page: 'Cohort models'; target: 'model' | 'fit-summary' }
 
 /** The element each control of another page is in (see WorkspaceApp). */
 export const CONTROL_ELEMENT_IDS: Record<Exclude<SettingControl, { page: 'Trajectories' }>['target'], string> = {
-  egfr: 'data-egfr', 'aki-recovery': 'data-aki-recovery', demographics: 'data-demographics', 'peri-event': 'data-peri-event',
+  egfr: 'data-egfr', 'aki-recovery': 'data-aki-recovery', 'aki-retrospective': 'data-aki-retrospective', demographics: 'data-demographics', 'peri-event': 'data-peri-event',
   model: 'cohort-model-settings', 'fit-summary': 'cohort-model-fit-summary',
 }
 
@@ -78,9 +78,11 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   'analysisSettings.egfr.formula': { label: 'eGFR formula', area: 'Data', exportField: `${ANALYSIS_SETTINGS}; parameters.formula`, control: DATA_EGFR },
   'analysisSettings.egfr.source': { label: 'Creatinine source of the eGFR', area: 'Data', exportField: `${ANALYSIS_SETTINGS}; parameters.source_parameter, parameters.source_unit`, control: DATA_EGFR },
   'analysisSettings.egfr.paediatric': { label: 'eGFR under 18 years', area: 'Data', exportField: `${ANALYSIS_SETTINGS}; measurements.egfr_equation`, control: DATA_EGFR },
+  // Decided 2026-11-22 (row akifirst): retrospective detection of an AKI present at the first value of an admission.
+  'analysisSettings.aki.retrospectiveFall': { label: 'Retrospective AKI from a fall during the admission', area: 'Data', exportField: `${ANALYSIS_SETTINGS}; aki_episodes.criterion`, control: { page: 'Data', target: 'aki-retrospective' } },
   'analysisSettings.aki.recoveryHours': { label: 'Recovery between AKI episodes (hours)', area: 'Data', exportField: ANALYSIS_SETTINGS, control: { page: 'Data', target: 'aki-recovery' } },
   // No control: the columns set their own AKI exclusion window (fit.exclusions.akiExclusionDays).
-  'analysisSettings.aki.exclusionDays': { label: 'AKI exclusion window, dataset default (days)', area: 'Data', exportField: ANALYSIS_SETTINGS, control: null },
+  'analysisSettings.aki.exclusionDays': { label: 'Shorter AKI window from onset, dataset default (days)', area: 'Data', exportField: ANALYSIS_SETTINGS, control: null },
   // Written to analysis_settings like every dataset setting, but no computation reads it.
   'analysisSettings.aki.showOverlays': { label: 'AKI overlays, dataset default', area: 'Data', noNumericEffect: 'No computation reads it; the charts have their own overlay switch under Display.', control: null },
   // No control: each column has its own threshold (fit.moduleSettings.rapidEgfrDecline.threshold).
@@ -98,7 +100,9 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   [`${FIT_PREFIX}.censoring.excludeAcuteDialysisPeriods`]: { label: 'Exclude acute dialysis intervals', area: 'Trajectories', exportField: 'settings.fit_config (censoring)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.censoring.unknownDialysisPolicy`]: { label: 'Unknown dialysis', area: 'Trajectories', exportField: 'settings.fit_config (censoring)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.exclusions.excludeAkiWindows`]: { label: 'Exclude AKI windows from fit', area: 'Trajectories', exportField: 'settings.fit_config (exclusions)', control: TRAJECTORY_SETTINGS },
-  [`${FIT_PREFIX}.exclusions.akiExclusionDays`]: { label: 'AKI exclusion window (days)', area: 'Trajectories', exportField: 'settings.fit_config (exclusions)', control: TRAJECTORY_SETTINGS },
+  [`${FIT_PREFIX}.exclusions.akiExclusionDays`]: { label: 'Shorter AKI window from onset (days)', area: 'Trajectories', exportField: 'settings.fit_config (exclusions); cohort.aki_window', control: TRAJECTORY_SETTINGS },
+  // Decided 2026-11-22 (row akiwin): the longer AKI window runs to this many days after the episode end.
+  [`${FIT_PREFIX}.exclusions.akiDaysAfterEnd`]: { label: 'AKI window after episode end (days)', area: 'Trajectories', exportField: 'settings.fit_config (exclusions); cohort.aki_window', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.endpoints.percentDecline`]: { label: 'Percent eGFR decline', area: 'Trajectories', exportField: 'settings.fit_config (endpoints)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.endpoints.observedCkdG4`]: { label: 'Observed CKD G4', area: 'Trajectories', exportField: 'settings.fit_config (endpoints)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.endpoints.observedCkdG5`]: { label: 'Observed CKD G5', area: 'Trajectories', exportField: 'settings.fit_config (endpoints)', control: TRAJECTORY_SETTINGS },
@@ -179,7 +183,8 @@ export function fitSettingsSample(): Required<Omit<WorkspaceFitSettings, 'censor
 } {
   const settings = defaultFitSettings('ckd_progression')
   const endpoints: Required<FitConfig['endpoints']> = { percentDecline: true, observedCkdG4: true, observedCkdG5: true, confirmationDays: 90, projectedAgeToCkdG5: true, observedDecline50: true }
-  return { ...settings, endpoints, anchorComparison: ANCHOR_SAMPLE }
+  const exclusions: Required<FitConfig['exclusions']> = { excludeAkiWindows: true, akiExclusionDays: 30, akiDaysAfterEnd: 90 }
+  return { ...settings, exclusions, endpoints, anchorComparison: ANCHOR_SAMPLE }
 }
 export function trajectoryViewSample(): Required<TrajectoryView> {
   return { ...defaultTrajectoryView(), pointsChosen: true, logKeys: ['p1'], hiddenEndpointBadges: ['projection'] }

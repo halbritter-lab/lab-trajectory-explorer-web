@@ -8,7 +8,7 @@ import { MGDL_PER_UMOLL } from '../../../src/core/domains/nephrology/constants'
 const d = (s: string) => new Date(s)
 const ep = (date: string, stage = 1): AkiEpisode => ({
   date: d(date), baselineDate: d(date), baselineValue: 1, peakValue: 1.5, peakDate: d(date),
-  criterion: 'absolute_0_3_mg_dl_48h', stage,
+  criterion: 'absolute_0_3_mg_dl_48h', baselineSource: 'window', baselineN: 1, stage,
   stageValue: 1.5, stageDate: d(date), stageReferenceValue: 1, stageReferenceDate: d(date), endDate: null, endedByGap: false, lastValueDate: d(date),
 })
 function row(p: Partial<LabRow>): LabRow {

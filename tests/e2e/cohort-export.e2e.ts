@@ -25,9 +25,9 @@ test('the cohort export keeps one layout with and without grouping, is compresse
   expect(plain.workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison', 'peri_event_creatinine'])
   const columns = header(plain.workbook, 'cohort')
   // egfr_formula_switch since 2026-11-22 (issue #66), n_bounded (issue #73), then eight endpoint columns
-  // (50 % decline, unconfirmed single value below 15), eight fits columns (segment after KRT, slope tier); group stays last.
-  expect(columns).toHaveLength(98)
-  expect(columns.slice(-11)).toEqual(['endpoint_decline_50_recovery_value', 'endpoint_g5_single_value_unconfirmed', 'krt_segment_start', 'krt_segment_n_fitted', 'krt_segment_n_fitted_dates', 'krt_segment_fitted_span_days', 'krt_segment_slope', 'krt_segment_ci_low', 'krt_segment_ci_high', 'slope_tier', 'group'])
+  // (50 % decline, unconfirmed single value below 15), eight fits columns (segment after KRT, slope tier), aki_window and n_aki_excluded (row akiwin); group stays last.
+  expect(columns).toHaveLength(100)
+  expect(columns.slice(-13)).toEqual(['endpoint_decline_50_recovery_value', 'endpoint_g5_single_value_unconfirmed', 'krt_segment_start', 'krt_segment_n_fitted', 'krt_segment_n_fitted_dates', 'krt_segment_fitted_span_days', 'krt_segment_slope', 'krt_segment_ci_low', 'krt_segment_ci_high', 'slope_tier', 'aki_window', 'n_aki_excluded', 'group'])
   expect(columns.slice(75, 81)).toEqual(['first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'egfr_formula_switch', 'n_bounded'])
   expect(header(grouped.workbook, 'cohort')).toEqual(columns)
   expect(grouped.workbook.Sheets.cohort.F1.v).toBe('slope')

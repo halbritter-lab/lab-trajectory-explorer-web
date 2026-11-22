@@ -141,19 +141,30 @@ during an AKI (creatinine 1.0 on 2020-01-01, 2.6 on 2020-01-03, onset
 (2021-01-01) and 32 (2021-06-01). Before, the baseline window ran from
 2020-01-03 and its mean was (20 + 25 + 55) / 3 = 33.33; the later rows 58,
 56, 33 and 32 are at most a 4.0 % decline from it (32), so no 40 % decline
-was found. Now the baseline starts at the first row outside the AKI window,
-2020-03-01: (55 + 58) / 2 = 56.5. The decline events read every eligible row
-after 2020-05-30 (56, 33, 32; none lies in the AKI window), so 33 is a 41.6 %
-and 32 a 43.4 % decline, and the 40 % decline is confirmed with first date
-2021-01-01 (33) and confirmation 2021-06-01 (32, 151 days later); the 57 %
-decline is not met. The total change keeps the AKI rows and stays a rise of
-60 % from 20 to 32 (`endpoint_percent_change` 60, badge `+60%`), next to a
-confirmed 40 % decline: the two answer different questions. The projection
-moves as well: before, the seven rows
-gave slope bounds [-35.47, 33.46] and `slope_ci_includes_zero`; the five rows
-from 2020-03-01 give bounds [-40.83, -6.37] and, with a birth date of
-1960-01-01, a projected age of 62.0 (until 2026-11-22; the five rows span 15
-months, so the projection is now withheld as `kdigo_minimum_follow_up`).
+was found. Now the baseline starts at the first row outside the AKI window.
+Since 2026-11-22 the window runs to 90 days after the end of the episode (see
+[AKI fit-exclusion window](aki.md#aki-fit-exclusion-window)): the episode
+(creatinine 2.2 on 2020-01-05 joins it) is ended by the gap before the
+creatinine of 2020-03-01, so its last day is 2020-01-07 (last value plus the
+48-hour recovery window) and the window runs to 2020-04-06. The first row
+outside it is 2020-05-01: (58 + 56) / 2 = 57 (from 2020-11-05 to 2026-11-22,
+with the window of 30 days from the onset, the baseline started at
+2020-03-01: (55 + 58) / 2 = 56.5). The decline events read every eligible row
+after the baseline period, which ends 90 days after 2020-05-01 (2020-07-30):
+33 is a 42.1 % and 32 a 43.9 % decline from 57, and the 40 % decline is
+confirmed with first date 2021-01-01 (33) and confirmation 2021-06-01 (32,
+151 days later); the 57 % decline is not met. The total change keeps the AKI
+rows and stays a rise of 60 % from 20 to 32 (`endpoint_percent_change` 60,
+badge `+60%`), next to a confirmed 40 % decline: the two answer different
+questions. The projection moves as well: before 2026-11-05 the seven rows
+gave slope bounds [-35.47, 33.46] and `slope_ci_includes_zero`; from
+2026-11-05 to 2026-11-22 the five rows from 2020-03-01 gave bounds
+[-40.83, -6.37] and, with a birth date of 1960-01-01, a projected age of
+62.0; since 2026-11-22 the four rows from 2020-05-01 give bounds
+[-55.69, 1.36], and the four rows span 13 months, short of the KDIGO minimum
+of three years, so the projection is withheld as `kdigo_minimum_follow_up`
+(checked before the interval, which also includes zero). The column's `aki_window` is
+`episode_end_plus_90d` and `n_aki_excluded` 3 (20, 25 and 55).
 
 Example 3 (regression, review follow-up of 2026-11-05): eGFR 14.2 and 13 with
 creatinine 4.5 and 4.85 mg/dl on consecutive days, every 14 days for two

@@ -121,6 +121,9 @@ export const COHORT_SHEET_COLUMNS: readonly CohortSheetColumn[] = [
   number('krt_segment_ci_low', 'Lower bound of the segment slope, as ci_low.', SLOPE_UNIT, 'as krt_segment_slope, or the bound is undefined'),
   number('krt_segment_ci_high', 'Upper bound of the segment slope, as ci_high.', SLOPE_UNIT, 'as krt_segment_ci_low'),
   text('slope_tier', 'Tier of slope: uncertain (a slope with unstable_slope yes), estimable (at least 3 fitted dates over at least 365 days of fitted span) or reliable (in addition at least 4 fitted dates over at least 2 × 365.25 days, that is 731 whole days). Counts n_fitted_dates and fitted_span_days, not n.', 'no slope was estimated, or fit_model is none'),
+  // Then the AKI window of the fit (2026-11-22, row akiwin); `group` stays last.
+  text('aki_window', 'AKI exclusion window the fit used (decided 2026-11-22): episode_end_plus_<N>d, from each onset to N days after the end of the episode (for an episode without an observed end, after the recovery window of its last value); onset_plus_<M>d_fallback, M days from each onset, because with the longer windows the fit would keep fewer than 3 fitted dates over 365 days.', 'the column does not exclude AKI windows, or no episode applies to it'),
+  number('n_aki_excluded', 'Exact measurements of the series left out of the fit because they lie in an AKI window (measurements already censored by clinical events not counted). Measurements before an onset stay in the fit.', 'count', 'the column does not exclude AKI windows'),
   text('group', `Value of the attribute the table was grouped by when the file was exported. A patient without a value for the attribute has the text "${GROUP_NOT_RECORDED}", which cannot be told apart from an attribute value of the same text.`, 'the table was not grouped'),
 ]
 

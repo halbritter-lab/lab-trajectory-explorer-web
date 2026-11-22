@@ -1168,7 +1168,8 @@ describe('AKI display in workspace charts', () => {
     preset('ckd_progression', 'Kreatinin [mg/dl]')
     closeSettings()
     enableTrend('Kreatinin [mg/dl]')
-    expect(within(chart).getAllByTestId('excluded-point').map(point => point.getAttribute('data-exclusion'))).toEqual(['aki', 'aki'])
+    // Since 2026-11-22 (row akiwin) the window runs to 90 days after the episode end: 1.2 on 01/10/2020 is excluded too.
+    expect(within(chart).getAllByTestId('excluded-point').map(point => point.getAttribute('data-exclusion'))).toEqual(['aki', 'aki', 'aki'])
   })
 
   it('puts an episode without a same-date measurement on the time axis, not on an unrelated value', () => {
@@ -1202,10 +1203,10 @@ describe('AKI display in workspace charts', () => {
     expect(screen.getByLabelText('AKI windows and episodes')).not.toBeChecked()
     closeDisplay()
     const chart = screen.getByRole('region', { name: 'Chart Kreatinin [mg/dl]' })
-    expect(within(chart).getAllByTestId('excluded-point')).toHaveLength(2)
+    expect(within(chart).getAllByTestId('excluded-point')).toHaveLength(3)
     expect(within(chart).queryAllByTestId('aki-marker')).toHaveLength(0)
     const table = screen.getByRole('table', { name: 'Measurements Kreatinin [mg/dl]', hidden: true })
-    expect(within(table).getAllByText('Excluded: AKI window')).toHaveLength(2)
+    expect(within(table).getAllByText('Excluded: AKI window')).toHaveLength(3)
   })
 
   it('marks episodes for every overlay trajectory but windows and labels only for the highlighted one', () => {

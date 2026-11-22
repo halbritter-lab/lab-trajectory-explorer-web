@@ -3,10 +3,13 @@ import { isExactMeasurement } from '../../../measurements/censored'
 import type { SeriesPoint } from '../../../stats/series'
 import { fitOls } from '../../../stats/ols'
 import { datesToYears } from '../../../stats/time'
-import { findKdigoAkiEpisodes, type AkiEpisode } from './kdigo'
+import { episodeLastDay, findKdigoAkiEpisodes, type AkiEpisode } from './kdigo'
 import { isKdigoCreatinineSeries, normaliseUnit } from '../analytes'
 import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_AKI_RECOVERY_HOURS, IMPLAUSIBLE_CREATININE_ABOVE_MGDL, MGDL_PER_UMOLL } from '../constants'
-import { fixedLengthWindow, type ReasonedExclusionWindow } from '../../../exclusions/windows'
+import { applyExclusionWindows, fixedLengthWindow, type ExclusionWindow, type ReasonedExclusionWindow } from '../../../exclusions/windows'
+import { balanceSeriesPoints } from '../../../stats/timeBalancing'
+import { distinctDateCount } from '../../../stats/time'
+import type { TimeBalancing } from '../../../fitPipeline/types'
 import type { ClinicalEvent } from '../../../events/events'
 
 const MS_PER_DAY = 86_400_000
@@ -37,10 +40,64 @@ export function akiExclusionBands(episodes: AkiEpisode[], exclusionDays: number)
 }
 
 /** One `[onset, onset + exclusionDays]` window per episode, unmerged and in
- * episode order: exactly the ranges fitAkiAware drops. */
+ * episode order: the shorter window of the fit exclusion (the fallback of
+ * `chooseAkiWindows`) and the ranges fitAkiAware drops. */
 export function akiExclusionWindows(episodes: readonly AkiEpisode[], exclusionDays: number): ReasonedExclusionWindow<'aki'>[] {
   return episodes.map((episode) => ({ reason: 'aki' as const, ...fixedLengthWindow(episode.date, exclusionDays) }))
 }
+
+/** One `[onset, last day + daysAfterEnd]` window per episode, unmerged and in
+ * episode order (decided 2026-11-22, row `akiwin`): the last day is the
+ * episode's end date, or for an episode without an observed end the last
+ * day of the recovery window of its last value (`episodeLastDay`). */
+export function akiEpisodeEndWindows(episodes: readonly AkiEpisode[], daysAfterEnd: number, recoveryHours = DEFAULT_AKI_RECOVERY_HOURS): ReasonedExclusionWindow<'aki'>[] {
+  return episodes.map((episode) => akiEndWindow(episode.date, episodeLastDay(episode, recoveryHours * MS_PER_HOUR), daysAfterEnd))
+}
+
+/** `[onset, lastDay + daysAfterEnd]`, never shorter than the onset date. */
+export function akiEndWindow(onset: Date, lastDay: Date, daysAfterEnd: number): ReasonedExclusionWindow<'aki'> {
+  const end = fixedLengthWindow(lastDay, daysAfterEnd).end!
+  return { reason: 'aki' as const, start: onset, end: end.getTime() < onset.getTime() ? onset : end }
+}
+
+/** Which AKI windows a column applies: `episode_end`, onset to the episode's
+ * last day plus the days after the end; `onset_fallback`, the shorter window
+ * of the given days from the onset, because the longer one would leave too
+ * few values for a reliable fit. */
+export type AkiWindowRule = 'episode_end' | 'onset_fallback'
+
+export interface ChosenAkiWindows {
+  rule: AkiWindowRule
+  windows: ReasonedExclusionWindow<'aki'>[]
+  /** Fitted dates and span the longer windows would leave (after censoring,
+   * the windows and time balancing). */
+  longFittedDates: number
+  longFittedSpanDays: number
+}
+
+/** Fitted dates and span a fit must keep for the longer AKI windows: the
+ * reliability rule of `isUnstableSlope` (3 dates, 365 days). */
+export const AKI_LONG_WINDOW_MIN_FITTED_DATES = 3
+export const AKI_LONG_WINDOW_MIN_SPAN_DAYS = 365
+
+/** The AKI windows of one column (decided 2026-11-22, row `akiwin`): the
+ * windows from each onset to `daysAfterEnd` days after the episode's last
+ * day when the fit keeps enough values with them, otherwise the shorter
+ * windows of `onsetDays` days from each onset, for every episode of the
+ * column alike. "Enough values" is the reliability rule of the slope: the
+ * column's exact measurements outside its censoring windows and outside the
+ * longer windows, time balanced as the fit is, still have at least three
+ * distinct dates spanning at least 365 days. `long` and `short` are the two
+ * window sets, aligned with the episodes. */
+export function chooseAkiWindows(points: readonly SeriesPoint[], censoring: readonly ExclusionWindow[], long: ReasonedExclusionWindow<'aki'>[], short: ReasonedExclusionWindow<'aki'>[], timeBalancing: TimeBalancing = 'raw'): ChosenAkiWindows {
+  const uncensored = applyExclusionWindows(points, censoring).kept
+  const kept = balanceSeriesPoints(applyExclusionWindows(uncensored, long).kept, timeBalancing)
+  const dates = distinctDateCount(kept)
+  const span = kept.length < 2 ? 0 : Math.trunc((kept[kept.length - 1].date.getTime() - kept[0].date.getTime()) / MS_PER_DAY)
+  const enough = dates >= AKI_LONG_WINDOW_MIN_FITTED_DATES && span >= AKI_LONG_WINDOW_MIN_SPAN_DAYS
+  return { rule: enough || long.length === 0 ? 'episode_end' : 'onset_fallback', windows: enough || long.length === 0 ? long : short, longFittedDates: dates, longFittedSpanDays: span }
+}
+
 
 export interface AkiAwareFit {
   fit: OlsFit
@@ -192,9 +249,16 @@ export function largestCreatinineSeries(rows: readonly LabRow[]): LabRow[] {
  * a value whose recovery window holds such a day, and an episode continues
  * across a dated acute dialysis interval (`isInAcuteDialysisInterval`).
  * `recoveryHours` is the recovery that separates two episodes (the AKI
- * module setting, 48 by default). Returns [] when no eligible creatinine data
+ * module setting, 48 by default); `detection.retrospectiveFall` the
+ * module's retrospective option. Returns [] when no eligible creatinine data
  * exists. */
-export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null, events: readonly ClinicalEvent[] = [], recoveryHours = DEFAULT_AKI_RECOVERY_HOURS): AkiEpisode[] {
+export interface AkiDetectionOptions {
+  /** Retrospective detection of an AKI present at the first value of an
+   * admission (see `findKdigoAkiEpisodes`; off by default). */
+  retrospectiveFall?: boolean
+}
+
+export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null, events: readonly ClinicalEvent[] = [], recoveryHours = DEFAULT_AKI_RECOVERY_HOURS, detection: AkiDetectionOptions = {}): AkiEpisode[] {
   // One pass over the dataset per call; callers pass every patient's rows.
   const own = rows.filter((r) => r.patientId === patientId)
   const sub = own.filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
@@ -212,5 +276,5 @@ export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichn
     .filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r) && !isUnderDialysis(r.labDatum, events))
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
     .map((r) => ({ date: r.labDatum!, timeOfDay: r.labTime ?? null, value: normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum! / MGDL_PER_UMOLL : r.wertNum! }))
-  return points.length > 0 ? findKdigoAkiEpisodes(points, { recoveryMs: recoveryHours * MS_PER_HOUR, blocksRecovery: (date) => isUnderDialysis(date, events), bridgesGap: (date) => isInAcuteDialysisInterval(date, events) }) : []
+  return points.length > 0 ? findKdigoAkiEpisodes(points, { recoveryMs: recoveryHours * MS_PER_HOUR, retrospectiveFall: detection.retrospectiveFall ?? false, blocksRecovery: (date) => isUnderDialysis(date, events), bridgesGap: (date) => isInAcuteDialysisInterval(date, events) }) : []
 }

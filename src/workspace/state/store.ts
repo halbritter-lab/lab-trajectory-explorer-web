@@ -124,6 +124,7 @@ export interface AppState {
   setEgfrPaediatric: (rule: PaediatricRule) => void
   /** Recovery that separates two AKI episodes (hours, dataset-level). */
   setAkiRecoveryHours: (hours: number) => void
+  setAkiRetrospectiveFall: (on: boolean) => void
   /** Replace the dataset-level analysis settings as a whole ("Apply settings
    * from an export"); an unchanged value changes nothing. */
   applyAnalysisSettings: (settings: AnalysisSettings) => void
@@ -302,6 +303,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   setAkiRecoveryHours: (hours) => set((s) => ({
     analysisSettings: { ...s.analysisSettings, aki: { ...s.analysisSettings.aki, recoveryHours: hours } },
+    pristineDemo: false,
+    ...clearedMixedModelResults(),
+  })),
+  setAkiRetrospectiveFall: (on) => set((s) => ({
+    analysisSettings: { ...s.analysisSettings, aki: { ...s.analysisSettings.aki, retrospectiveFall: on } },
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),

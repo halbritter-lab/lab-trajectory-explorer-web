@@ -11,6 +11,7 @@ import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
 import type { UnknownDialysisPolicy } from '../core/domains/nephrology/fitConfig'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../core/domains/nephrology/analytes'
 import { DEFAULT_BOUNDED_VALUE_POLICY, type BoundedValuePolicy } from '../core/measurements/censored'
+import { DEFAULT_AKI_DAYS_AFTER_END } from '../core/domains/nephrology/constants'
 import { defaultFitSettings, defaultTrajectoryFitSettings, type TrajectoryFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
 import { parameterLabel } from './workspace-labels'
 import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
@@ -84,7 +85,7 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
   if (!oneOf(FIT_MODELS, v.fitModel) || !oneOf(TIME_BALANCING, v.timeBalancing)) return null
   const { censoring: c, exclusions: x, endpoints: e } = v
   if (!record(c) || !bool(c.censorAfterKidneyTransplant) || !bool(c.censorAfterChronicDialysis) || !bool(c.excludeAcuteDialysisPeriods) || !oneOf(DIALYSIS_POLICIES, c.unknownDialysisPolicy)) return null
-  if (!record(x) || !bool(x.excludeAkiWindows) || !days(x.akiExclusionDays)) return null
+  if (!record(x) || !bool(x.excludeAkiWindows) || !days(x.akiExclusionDays) || (x.akiDaysAfterEnd !== undefined && !days(x.akiDaysAfterEnd))) return null
   if (!record(e) || !bool(e.percentDecline) || !bool(e.observedCkdG5) || !bool(e.projectedAgeToCkdG5)) return null
   const { observedCkdG4, confirmationDays, observedDecline50 } = e
   if ((observedCkdG4 !== undefined && !bool(observedCkdG4)) || (confirmationDays !== undefined && !days(confirmationDays))) return null
@@ -100,7 +101,8 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
   return {
     presetId: v.presetId, fitModel: v.fitModel, timeBalancing: v.timeBalancing,
     censoring: { censorAfterKidneyTransplant: c.censorAfterKidneyTransplant, censorAfterChronicDialysis: c.censorAfterChronicDialysis, excludeAcuteDialysisPeriods: c.excludeAcuteDialysisPeriods, unknownDialysisPolicy: c.unknownDialysisPolicy },
-    exclusions: { excludeAkiWindows: x.excludeAkiWindows, akiExclusionDays: x.akiExclusionDays },
+    // Settings saved before 2026-11-22 have no akiDaysAfterEnd: the default (90) applies, so a saved preset stays that preset.
+    exclusions: { excludeAkiWindows: x.excludeAkiWindows, akiExclusionDays: x.akiExclusionDays, akiDaysAfterEnd: x.akiDaysAfterEnd ?? DEFAULT_AKI_DAYS_AFTER_END },
     // Key order is part of the exported fit_config JSON (see nephrology/fitConfig.ts).
     endpoints: { percentDecline: e.percentDecline, ...(observedCkdG4 !== undefined ? { observedCkdG4 } : {}), observedCkdG5: e.observedCkdG5,
       ...(confirmationDays !== undefined ? { confirmationDays } : {}), projectedAgeToCkdG5: e.projectedAgeToCkdG5,

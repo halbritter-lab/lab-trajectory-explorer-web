@@ -59,7 +59,7 @@ describe('Methodology', () => {
     expect(screen.getByText(/birth date on the earliest dated lab row that carries one/)).toBeInTheDocument()
     topic('aki')
     details()
-    expect(screen.getByText(/onset 2 January 2020 excludes 2 January to 1 February 2020/)).toBeInTheDocument()
+    expect(screen.getByText(/onset\s+2 January 2020 and end 3 January 2020 exclude 2 January to 2 April 2020/)).toBeInTheDocument()
     topic('fits')
     details()
     expect(screen.getByText(/Every preset sets the rapid-decline threshold to 5 mL\/min\/1\.73 m² per year/)).toBeInTheDocument()

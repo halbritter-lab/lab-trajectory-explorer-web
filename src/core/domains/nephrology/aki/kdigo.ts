@@ -2,6 +2,9 @@ import type { SeriesPoint } from '../../../stats/series'
 import {
   AKI_RECOVERY_WINDOW_MS,
   KDIGO_ABSOLUTE_RISE_MGDL,
+  AKI_ADMISSION_FOLLOW_UP_DAYS,
+  AKI_LOOKBACK_MAX_DAYS,
+  AKI_LOOKBACK_MIN_DAYS,
   KDIGO_ABSOLUTE_WINDOW_MS,
   KDIGO_RELATIVE_RISE_RATIO,
   KDIGO_RELATIVE_WINDOW_MS,
@@ -22,7 +25,18 @@ export interface AkiEpisode {
   baselineValue: number
   peakValue: number
   peakDate: Date
-  criterion: 'absolute_0_3_mg_dl_48h' | 'relative_1_5x_7d'
+  criterion: AkiCriterion
+  /** Where the recorded baseline comes from (decided 2026-11-22, row
+   * `akifirst`): `window`, the lowest value of the 48-hour or 7-day window;
+   * `lookback_mean`, the mean of the values 7 to 365 days before the first
+   * value of an admission (`baselineDate` is then the latest of them);
+   * `admission_minimum`, the lowest later value of the admission
+   * (retrospective detection, an option; `baselineDate` lies after the
+   * onset). */
+  baselineSource: AkiBaselineSource
+  /** Number of values behind `baselineValue`: the values of the look-back
+   * mean, otherwise 1. */
+  baselineN: number
   /** Highest stage reached by a crossing of the episode, each graded against
    * its reference, the lowest value of the seven days before it (decided
    * 2026-11-16). The reference can be lower than `baselineValue`, the
@@ -53,7 +67,19 @@ export interface AkiEpisode {
   lastValueDate: Date
 }
 
+/** KDIGO criterion that detected a crossing. The last two apply only to the
+ * first value of an admission (see `findKdigoAkiEpisodes`). */
+export type AkiCriterion = 'absolute_0_3_mg_dl_48h' | 'relative_1_5x_7d' | 'relative_1_5x_lookback_mean' | 'retrospective_fall_in_admission'
+export type AkiBaselineSource = 'window' | 'lookback_mean' | 'admission_minimum'
+
 export interface KdigoEpisodeOptions {
+  /** Compare the first value of an admission with the mean of the values 7
+   * to 365 days before it (default true, decided 2026-11-22). */
+  lookbackBaseline?: boolean
+  /** Retrospective detection: without a look-back value, the first value of
+   * an admission is a crossing when a later value of the admission lies at
+   * least 0.3 mg/dl below it or at most 1/1.5 of it (default false). */
+  retrospectiveFall?: boolean
   /** Sustained reversal that separates two episodes; default 48 hours
    * (`AKI_RECOVERY_WINDOW_MS`). Dates are calendar days. */
   recoveryMs?: number
@@ -90,6 +116,8 @@ interface RawCrossing {
   peakValue: number
   peakDate: Date
   criterion: AkiEpisode['criterion']
+  baselineSource: AkiBaselineSource
+  baselineN: number
   stage: number
   stageValue: number
   stageDate: Date
@@ -98,6 +126,29 @@ interface RawCrossing {
 }
 
 const MS_PER_DAY = 86_400_000
+
+/** Whether at least seven calendar days that count towards a gap lie
+ * strictly between two values, i.e. the values are more than seven such
+ * days apart (stops counting at the seventh). Days for which `bridgesGap`
+ * holds do not count. */
+function gapTest(bridgesGap: (date: Date) => boolean): (from: Date, to: Date) => boolean {
+  const gapDays = KDIGO_RELATIVE_WINDOW_MS / MS_PER_DAY
+  return (from, to) => {
+    let n = 0
+    for (let t = from.getTime() + MS_PER_DAY; t < to.getTime() && n < gapDays; t += MS_PER_DAY) if (!bridgesGap(new Date(t))) n++
+    return n >= gapDays
+  }
+}
+
+/** Last day of an episode for its fit-exclusion window and for the dialysis
+ * start of the episode list: its end date when an end was observed; for an
+ * episode still open at the last value, or one ended by the first value
+ * after a gap of more than seven days (`endedByGap`), the recovery window of
+ * its last value (`lastValueDate` plus the recovery length, two calendar days
+ * by default; decided 2026-11-22). */
+export function episodeLastDay(episode: Pick<AkiEpisode, 'endDate' | 'endedByGap' | 'lastValueDate'>, recoveryMs = AKI_RECOVERY_WINDOW_MS): Date {
+  return episode.endDate !== null && !episode.endedByGap ? episode.endDate : new Date(episode.lastValueDate.getTime() + recoveryMs)
+}
 
 /** Group crossings into episodes by recovery (ADQI 16, decided 2026-11-21,
  * issue #67). `crossings[j]` is the crossing of detection value j or null
@@ -125,17 +176,18 @@ function clusterEpisodes(sorted: readonly SeriesPoint[], crossings: readonly (Ra
     for (let d = 1; d * MS_PER_DAY <= recoveryMs; d++) if (blocksRecovery(new Date(date.getTime() + d * MS_PER_DAY))) return true
     return false
   }
-  /** Whether at least seven calendar days that count towards a gap lie
-   * strictly between two values, i.e. the values are more than seven such
-   * days apart (stops counting at the seventh). */
-  const gapDays = KDIGO_RELATIVE_WINDOW_MS / MS_PER_DAY
-  const isGap = (from: Date, to: Date) => {
-    let n = 0
-    for (let t = from.getTime() + MS_PER_DAY; t < to.getTime() && n < gapDays; t += MS_PER_DAY) if (!bridgesGap(new Date(t))) n++
-    return n >= gapDays
-  }
+  const isGap = gapTest(bridgesGap)
   for (let j = 0; j < sorted.length; j++) {
     const c = crossings[j]
+    // A crossing of the first value of an admission (look-back or
+    // retrospective baseline) follows a gap: it ends the open episode as a
+    // value without reference does (step 4) and opens a new one.
+    if (c !== null && open && !hasReference[j] && j > 0 && isGap(sorted[j - 1].date, sorted[j].date)) {
+      open.endDate = recovery ?? sorted[j].date
+      open.endedByGap = recovery === null
+      open = null
+      recovery = null
+    }
     if (c === null) {
       if (open && !hasReference[j] && isGap(sorted[j - 1].date, sorted[j].date)) {
         open.endDate = recovery ?? sorted[j].date
@@ -209,6 +261,52 @@ function detectionOrder(points: SeriesPoint[]): { sorted: SeriesPoint[]; slots: 
   return { sorted, slots: sorted.map(slot) }
 }
 
+/** The baseline of the first value of an admission (decided 2026-11-22, row
+ * `akifirst`). Values `start` to `end - 1` share one date and have no earlier
+ * value in their 7-day window; the caller has checked that they begin an
+ * admission. Each of them is a crossing when it is at least 1.5 times the
+ * mean of the values 7 to 365 calendar days before (both bounds inclusive;
+ * KDIGO 2012 AKI ch. 2.4). Without such a value and with `retrospective`,
+ * it is a crossing when the lowest later value of the admission lies at
+ * least 0.3 mg/dl below it or is at most 1/1.5 of it. The admission runs up
+ * to the last value before the next gap of more than seven days. */
+function admissionBaseline(sorted: readonly SeriesPoint[], times: readonly number[], start: number, end: number, crossings: (RawCrossing | null)[], lookback: boolean, retrospective: boolean, isGap: (from: Date, to: Date) => boolean): void {
+  const t0 = times[start]
+  let sum = 0
+  let n = 0
+  let latest = -1
+  if (lookback) {
+    for (let k = start - 1; k >= 0 && t0 - times[k] <= AKI_LOOKBACK_MAX_DAYS * MS_PER_DAY; k--) {
+      if (t0 - times[k] < AKI_LOOKBACK_MIN_DAYS * MS_PER_DAY) continue
+      sum += sorted[k].value
+      n++
+      if (latest < 0) latest = k
+    }
+  }
+  let reference: { value: number; date: Date; source: AkiBaselineSource; n: number } | null = null
+  if (n > 0) {
+    reference = { value: sum / n, date: sorted[latest].date, source: 'lookback_mean', n }
+  } else if (retrospective) {
+    let low = -1
+    for (let k = end; k < sorted.length && !isGap(sorted[k - 1].date, sorted[k].date); k++) if (low < 0 || sorted[k].value < sorted[low].value) low = k
+    if (low >= 0) reference = { value: sorted[low].value, date: sorted[low].date, source: 'admission_minimum', n: 1 }
+  }
+  if (reference === null) return
+  for (let j = start; j < end; j++) {
+    const vj = sorted[j].value
+    const met = reference.source === 'lookback_mean'
+      ? atLeast(vj / reference.value, KDIGO_RELATIVE_RISE_RATIO)
+      : atLeast(vj - reference.value, KDIGO_ABSOLUTE_RISE_MGDL) || atLeast(vj / reference.value, KDIGO_RELATIVE_RISE_RATIO)
+    if (!met) continue
+    crossings[j] = {
+      date: sorted[j].date, baselineDate: reference.date, baselineValue: reference.value, peakValue: vj, peakDate: sorted[j].date,
+      criterion: reference.source === 'lookback_mean' ? 'relative_1_5x_lookback_mean' : 'retrospective_fall_in_admission',
+      baselineSource: reference.source, baselineN: reference.n,
+      stage: kdigoStage(reference.value, vj), stageValue: vj, stageDate: sorted[j].date, stageReferenceValue: reference.value, stageReferenceDate: reference.date,
+    }
+  }
+}
+
 /** Detect KDIGO AKI episodes on creatinine values already in mg/dl. O(n) via
  * two sliding-window minima (48h absolute, 7d relative). Each crossing is
  * staged against the seven-day minimum. The window and
@@ -220,7 +318,15 @@ function detectionOrder(points: SeriesPoint[]): { sorted: SeriesPoint[]; slots: 
  * time of day (`SeriesPoint.timeOfDay`) orders the values; values whose order
  * is unknown are compared with earlier values only, never with each other
  * (see `detectionOrder`). Crossings without a recovery of `recoveryMs`
- * between them form one episode (see `clusterEpisodes`). */
+ * between them form one episode (see `clusterEpisodes`).
+ *
+ * The first value of an admission has no earlier value in its windows. An
+ * admission (a proxy: the data hold no admission dates) begins at the first
+ * value of the series or the first value after more than seven days without
+ * values (days of a dated acute dialysis interval not counted), provided a
+ * further value follows on one of the next two calendar days. Such a
+ * value is compared with a look-back or retrospective baseline (see
+ * `admissionBaseline`; decided 2026-11-22). */
 export function findKdigoAkiEpisodes(points: SeriesPoint[], options: KdigoEpisodeOptions = {}): AkiEpisode[] {
   const { sorted, slots } = detectionOrder(points)
   if (sorted.length === 0) return []
@@ -230,6 +336,10 @@ export function findKdigoAkiEpisodes(points: SeriesPoint[], options: KdigoEpisod
   const win7 = new MinWindow(values)
   const crossings: (RawCrossing | null)[] = sorted.map(() => null)
   const hasReference: boolean[] = sorted.map(() => false)
+  const bridgesGap = options.bridgesGap ?? (() => false)
+  const lookback = options.lookbackBaseline ?? true
+  const retrospective = options.retrospectiveFall ?? false
+  const isGap = lookback || retrospective ? gapTest(bridgesGap) : null
   for (let start = 0, end = 0; start < sorted.length; start = end) {
     end = start + 1
     while (end < sorted.length && times[end] === times[start] && slots[end] === slots[start]) end++
@@ -249,9 +359,18 @@ export function findKdigoAkiEpisodes(points: SeriesPoint[], options: KdigoEpisod
       // i7 exists whenever i48 does and its value is never higher.
       const staging = i7 >= 0 ? { stage: kdigoStage(values[i7], vj), stageValue: vj, stageDate: sorted[j].date, stageReferenceValue: values[i7], stageReferenceDate: sorted[i7].date } : null
       if (staging && i48 >= 0 && atLeast(vj - values[i48], KDIGO_ABSOLUTE_RISE_MGDL)) {
-        crossings[j] = { date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h', ...staging }
+        crossings[j] = { date: sorted[j].date, baselineDate: sorted[i48].date, baselineValue: values[i48], peakValue: vj, peakDate: sorted[j].date, criterion: 'absolute_0_3_mg_dl_48h', baselineSource: 'window', baselineN: 1, ...staging }
       } else if (staging && atLeast(vj / values[i7], KDIGO_RELATIVE_RISE_RATIO)) {
-        crossings[j] = { date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d', ...staging }
+        crossings[j] = { date: sorted[j].date, baselineDate: sorted[i7].date, baselineValue: values[i7], peakValue: vj, peakDate: sorted[j].date, criterion: 'relative_1_5x_7d', baselineSource: 'window', baselineN: 1, ...staging }
+      }
+    }
+    if (i7 < 0 && isGap !== null && (start === 0 || isGap(sorted[start - 1].date, sorted[start].date))) {
+      // A further value on one of the next two calendar days, as during a
+      // hospital stay; values of the same date do not count.
+      let next = end
+      while (next < sorted.length && times[next] === times[start]) next++
+      if (next < sorted.length && times[next] - times[start] <= AKI_ADMISSION_FOLLOW_UP_DAYS * MS_PER_DAY) {
+        admissionBaseline(sorted, times, start, end, crossings, lookback, retrospective, isGap)
       }
     }
     for (let j = start; j < end; j++) {
@@ -259,5 +378,5 @@ export function findKdigoAkiEpisodes(points: SeriesPoint[], options: KdigoEpisod
       win7.push(j)
     }
   }
-  return clusterEpisodes(sorted, crossings, hasReference, options.recoveryMs ?? AKI_RECOVERY_WINDOW_MS, options.blocksRecovery ?? (() => false), options.bridgesGap ?? (() => false))
+  return clusterEpisodes(sorted, crossings, hasReference, options.recoveryMs ?? AKI_RECOVERY_WINDOW_MS, options.blocksRecovery ?? (() => false), bridgesGap)
 }

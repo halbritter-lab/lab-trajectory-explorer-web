@@ -28,14 +28,17 @@ it.each([false, true])('applies each column AKI window to exclusions, summaries 
     akiFitInput('A:01', parameter, episodesForSeries(rows, 'A:01', parameter.bezeichnung, parameter.einheit), 30),
   ) : [] } }
   const configs = Object.fromEntries(parameters.map((parameter, index) => [parameter.key, toFitConfig({
-    ...defaultFitSettings(), exclusions: { excludeAkiWindows: true, akiExclusionDays: index === 0 ? 0 : 30 },
+    ...defaultFitSettings(), exclusions: { excludeAkiWindows: true, akiExclusionDays: 30, akiDaysAfterEnd: index === 0 ? 0 : 90 },
   }, parameter)]))
   const specs = workspaceSpecs(inputData, parameters.map(p => p.key), configs)
+  // Since 2026-11-22 (row akiwin) each column counts its window from the onset (2020-08-01) to its days after
+  // the episode's last day (2020-08-03: the gap before 2020-08-10 ended the episode, so the recovery window of
+  // its last value). 0 days: the window ends on 2020-08-03; 90 days: on 2020-11-01.
   const [zeroDay, thirtyDay] = buildCohortRows(data.rows, ['A:01'], specs)[0].cells
   expect(zeroDay.excludedIdx).toEqual([4])
-  expect(thirtyDay.excludedIdx).toEqual([4, 5])
+  expect(thirtyDay.excludedIdx).toEqual([4, 5, 6])
   expect(zeroDay.nFitted).toBe(7)
-  expect(thirtyDay.nFitted).toBe(6)
+  expect(thirtyDay.nFitted).toBe(5)
   expect(zeroDay.slope).toBeGreaterThan(thirtyDay.slope)
   expect(zeroDay.fitLines[0].at(-1)!.value).toBeGreaterThan(thirtyDay.fitLines[0].at(-1)!.value)
 })

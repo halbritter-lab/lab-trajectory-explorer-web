@@ -53,7 +53,7 @@ describe('settings round trip on the demo workbook', () => {
     shared: defaultFitSettings('theil_sen'),
     columns: {
       [egfrKey]: { ...defaultFitSettings('ckd_progression'), anchorComparison: { rule: { kind: 'first' }, exclusionDays: 30 } },
-      [creatinine.key]: { ...defaultFitSettings(), presetId: 'custom', fitModel: 'segmented-ols', exclusions: { excludeAkiWindows: true, akiExclusionDays: 14 } },
+      [creatinine.key]: { ...defaultFitSettings(), presetId: 'custom', fitModel: 'segmented-ols', exclusions: { excludeAkiWindows: true, akiExclusionDays: 14, akiDaysAfterEnd: 60 } },
     },
   }
   // Every parameter is exported: raw_measurements holds the imported rows of

@@ -1,3 +1,4 @@
+import { akiDaysAfterEnd } from '../core/domains/nephrology/fitConfig'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
 import { defaultColumnModuleSettings, fitPresetById, fitPresetCatalog, type ColumnModuleSettings } from '../core/analysis/registry'
@@ -134,7 +135,7 @@ export function describeModelPreparation(config: FitConfig, name: string): strin
   ].filter(Boolean)
   return `${name}: ${TIME_BALANCING_TEXT[config.timeBalancing]}; `
     + `event windows ${events.length ? events.join(', ') : 'none'}; `
-    + `AKI windows ${config.exclusions.excludeAkiWindows ? `${config.exclusions.akiExclusionDays} days` : 'none'}.`
+    + `AKI windows ${config.exclusions.excludeAkiWindows ? `onset to ${akiDaysAfterEnd(config.exclusions)} days after the episode end (${config.exclusions.akiExclusionDays} days from onset where too few values would remain)` : 'none'}.`
 }
 
 export { endpointBadge } from './labels/endpointLabels'

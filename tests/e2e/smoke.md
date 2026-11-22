@@ -171,8 +171,9 @@ and 390 px), with the demo data, the review file with times of day, the
   every row; ungrouped it is empty.
 - Demo, patient 6, Display → AKI windows and episodes, Trend not ticked:
   under the Kreatinin and eGFR charts "In this column nothing is excluded for
-  AKI (it has no fit): the shaded band only shows the configured 30 days
-  after each onset."
+  AKI (it has no fit): the shaded band only shows the window from each onset
+  to 90 days after the end of the episode." (until 2026-11-22 "the configured
+  30 days after each onset")
 - Demo, Cohort models, whole cohort: "73.15 ml/min/1,73m² 95% interval
   [67.41, 78.88]". A synthetic file with 7 single-measurement patients:
   "7 patients have a single measurement in this model. … Patients: S13, S14,
@@ -1246,3 +1247,26 @@ by `tests/e2e/endpoint-decisions.e2e.ts`, except the phone width and the box
 position in step 3, which were checked by screenshots of an ad-hoc Playwright
 script. Not verified: the patient view in step 3 (it is given all badges by
 code), Firefox and WebKit.
+
+## AKI look-back baseline and exclusion window (2026-11-22, rows akifirst and akiwin)
+
+1. Import a CSV with creatinine 1.0 and 1.2 mg/dl on 2024-01-01 and
+   2024-01-31 and 2.0 and 1.9 on 2024-04-10 and 2024-04-11: Data page,
+   "Detected AKI episodes (1)", baseline "mean 1.1 of 2 values 7 to 365 days
+   before, latest 31/01/2024", criterion "first value of an admission ≥ 1.5
+   times the mean …". A second patient with 2.0, 1.8 and 1.6 on 1, 2 and
+   4 January 2024 is listed only after ticking *Retrospective detection*
+   (baseline "1.6 on 04/01/2024, lowest later value of the admission").
+2. Demo, eGFR with Trend and the CKD progression preset: the settings show
+   *Window after the episode end (days)* 90 and *Shorter window from onset
+   (days)* 30. The cohort export has `aki_window` and `n_aki_excluded` before
+   `group`: patient 11 `episode_end_plus_90d`, 3, slope −6.511; patient 7
+   `episode_end_plus_90d`, 8; patient 12 `onset_plus_30d_fallback`, 6. Patient
+   12's eGFR cell shows the label "AKI window 30 d".
+3. Patient 11, Display → AKI windows and episodes: the band runs from
+   12/07/2022 to 12/10/2022 (92 days) and the eGFR of 15/08/2022 is a grey
+   open circle.
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 and 2
+by `tests/e2e/aki-admission-window.e2e.ts`; step 3 not verified in the
+browser (the window dates are checked by unit tests).

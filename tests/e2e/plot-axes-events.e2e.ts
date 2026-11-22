@@ -43,7 +43,7 @@ test('shows a short stay in days, the dialysis interval as a band and the values
   expect(Math.abs(bandBox.x - (dayFive.x + dayFive.width / 2))).toBeLessThan(1)
   await expect(chart.locator('circle[data-aki-skipped]')).toHaveCount(3)
   await expect(chart.getByTestId('aki-skipped-note')).toContainText('3 creatinine values measured under dialysis are not used for AKI detection')
-  await expect(chart.getByTestId('aki-band-legend')).toContainText('the configured 30 days after each onset (not the duration of the episode); this column has no fit, so nothing is excluded')
+  await expect(chart.getByTestId('aki-band-legend')).toContainText('the 30 days after each onset (shortened: with the window up to 90 days after the episode end the fit would keep fewer than 3 dates over 365 days); this column has no fit, so nothing is excluded')
   // Stage labels are drawn whole: inside the chart and not on top of each other.
   const plot = (await chart.locator('svg.wt-plot').boundingBox())!
   const labels = await Promise.all((await chart.getByTestId('marker-label').all()).map(async label => (await label.boundingBox())!))

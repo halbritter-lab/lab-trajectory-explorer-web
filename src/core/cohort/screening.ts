@@ -102,6 +102,9 @@ export interface CohortCell {
   /** Module badges known before fitting (e.g. AKI episodes). Badges that
    * depend on the fit and a column setting come from cohortCellFlags. */
   flags: CohortFlag[]
+  /** Export values the modules contributed for this cell (for AKI: the
+   * window rule and the number of excluded measurements). */
+  moduleValues?: Record<string, string | number>
   /** Module chart overlays for this cell (e.g. AKI windows and episodes),
    * drawn whether or not the fit excludes them. */
   overlays: SeriesOverlay[]
@@ -318,6 +321,7 @@ export function buildCohortRows(
         fitLines,
         ...(rolling ? { rolling } : {}),
         flags: contributions.flags,
+        ...(Object.keys(contributions.values).length ? { moduleValues: contributions.values } : {}),
         overlays: contributions.overlays,
         excludedIdx,
         pointExclusionReasons,
@@ -580,7 +584,7 @@ export function cohortExportRecords(
         reason: c.reason ?? '',
         unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, nFittedDates: c.nFittedDates, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
         demographics_conflict: conflictPatientKeys.has(patientIdKey(r.patientId)) ? 'yes' : '',
-        ...moduleExportValues({ flags: cohortCellFlags(c, r.patientId, settings), endpoints: c.endpoints, fitModel: c.fitModel }),
+        ...moduleExportValues({ flags: cohortCellFlags(c, r.patientId, settings), values: c.moduleValues, endpoints: c.endpoints, fitModel: c.fitModel }),
         rolling_window_days: c.rolling?.windowDays ?? '',
         rolling_step_days: c.rolling?.stepDays ?? '',
         rolling_windows: c.rolling?.nWindows ?? '',

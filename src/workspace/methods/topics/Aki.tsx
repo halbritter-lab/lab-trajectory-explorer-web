@@ -57,8 +57,10 @@ export function Aki() { return <>
       <p>
         Detection compares each value with the <strong>lowest creatinine within the lookback window</strong>
         {' '}(48 h for the absolute criterion, 7 days for the relative criterion). The stage always
-        uses the lowest value of the previous 7 days. No earlier baseline is used, so an AKI that is
-        already present at the first measurement, or a rise slower than 7 days, is not detected.
+        uses the lowest value of the previous 7 days. No earlier baseline is used, except that the
+        first value of an admission is compared with the mean of the values 7 to 365 days before
+        it; an AKI already present at the first measurement without such values, or a rise slower
+        than 7 days, is not detected.
       </p>
       <p>
         AKI chips in the patient table summarise detected stages as Roman numerals (e.g.{' '}
@@ -136,9 +138,10 @@ export function Aki() { return <>
       </p>
       <p>
         With AKI exclusion on, each episode removes from the fit all measurements from the onset
-        date through onset + 30 days (default), both ends included, however long the episode lasts:
-        onset 2 January 2020 excludes
-        2 January to 1 February 2020. For an eGFR column, the same windows are also left out of
+        date through 90 days after the end of the episode (default), both ends included: onset
+        2 January 2020 and end 3 January 2020 exclude 2 January to 2 April 2020. Where the fit
+        would then keep fewer than 3 dates over 365 days, each episode removes the onset date
+        through onset + 30 days instead, and the cell says so. For an eGFR column, the same windows are also left out of
         the baseline of the 40% and 57% decline and of the G5 projection. Observed G4 and G5 still
         use every eligible measurement (see <a href="#methods/endpoints/observed">Endpoints</a>).
       </p>

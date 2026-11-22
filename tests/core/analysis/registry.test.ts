@@ -127,7 +127,7 @@ describe('computeAnalysisResult', () => {
 describe('parseAnalysisSettings', () => {
   const savedSettings = {
     egfr: { formula: 'mdrd-4', source: ['Kreatinin', 'mg/dl'] },
-    aki: { showOverlays: true, exclusionDays: 30, recoveryHours: 48 },
+    aki: { showOverlays: true, exclusionDays: 30, recoveryHours: 48, retrospectiveFall: false },
     rapidEgfrDecline: { threshold: 5 },
   }
 
@@ -146,8 +146,15 @@ describe('parseAnalysisSettings', () => {
   it('gives a stored AKI setting without a recovery length the default of 48 hours', () => {
     // Settings saved before 2026-11-22 have no recoveryHours.
     expect(parseAnalysisSettings({ ...savedSettings, aki: { showOverlays: true, exclusionDays: 30 } })).toEqual(savedSettings)
-    expect(parseAnalysisSettings({ ...savedSettings, aki: { showOverlays: true, exclusionDays: 30, recoveryHours: 72 } })?.aki).toEqual({ showOverlays: true, exclusionDays: 30, recoveryHours: 72 })
+    expect(parseAnalysisSettings({ ...savedSettings, aki: { showOverlays: true, exclusionDays: 30, recoveryHours: 72 } })?.aki).toEqual({ showOverlays: true, exclusionDays: 30, recoveryHours: 72, retrospectiveFall: false })
     expect(parseAnalysisSettings({ ...savedSettings, aki: { showOverlays: true, exclusionDays: 30, recoveryHours: -1 } })).toBeNull()
+  })
+
+  it('gives a stored AKI setting without the retrospective option the default off', () => {
+    // Settings saved before 2026-11-22 (row akifirst) have no retrospectiveFall.
+    expect(parseAnalysisSettings({ ...savedSettings, aki: { showOverlays: true, exclusionDays: 30, recoveryHours: 48 } })?.aki.retrospectiveFall).toBe(false)
+    expect(parseAnalysisSettings({ ...savedSettings, aki: { ...savedSettings.aki, retrospectiveFall: true } })?.aki.retrospectiveFall).toBe(true)
+    expect(parseAnalysisSettings({ ...savedSettings, aki: { ...savedSettings.aki, retrospectiveFall: 'yes' } })).toBeNull()
   })
 
   it('rejects an invalid value in a registered module', () => {
