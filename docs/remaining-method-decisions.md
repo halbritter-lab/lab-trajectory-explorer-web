@@ -659,7 +659,8 @@ such day.
   of day. Files with one value per day are unaffected. No golden fixture and
   no demo value moved, because none contains such a day.
 
-Details chosen during implementation, **not yet confirmed by the owner**:
+Details chosen during implementation, **accepted by the owner with the merge
+of PR #76 on 2026-11-22**:
 
 - The time of day stays internal: a sort key that is not shown in the
   measurement table or the tooltips and is in no export (the review left
@@ -668,7 +669,9 @@ Details chosen during implementation, **not yet confirmed by the owner**:
   differ from the export although `input_data_id` is the same; the `about`
   sheet, the changelog and the method reference say so. Writing the time as
   an appended column of `raw_measurements`, reading it at re-import and
-  taking it into `input_data_id` would remove the difference.
+  taking it into `input_data_id` would remove the difference. *Superseded on
+  2026-11-22*: the time is now shown and exported, see
+  [the decisions of 2026-11-22](#decisions-of-2026-11-22-open-points-of-the-persona-review).
 - The rule for days without a time applies per day of a series, not per
   file: one value without a time makes that day a day without time; the
   other days keep their time order.
@@ -751,18 +754,18 @@ from the demo data. Neither changes a computed value.
   The status line gives the number of rows moved back, and a switch restores
   the order by value. Demo data, imported eGFR ascending: patient 12 (−7.35
   per year over 151 days) moves from rank 9 to rank 25.
-  Assumptions until the owner confirms them: the export keeps following the
-  order of the table, so its row order changes with the new default; the
-  switch is built.
+  Details accepted by the owner with the merge of PR #76 on 2026-11-22: the
+  export keeps following the order of the table, so its row order changes
+  with the new default; the switch is built.
 - **One number of decimals per parameter for slopes.** As many decimals as
   give the median of the absolute slopes in the loaded dataset two
   significant digits, at least two; the same for the slope and its interval
   bounds, in the table, the patient view and on the Cohort models page.
   Display only; exports keep full precision. Demo data: creatinine in mg/dl
   takes three decimals (median 0.0948), eGFR stays at two.
-  Assumptions until the owner confirms them: the number is derived from the
-  slopes of the loaded dataset, not fixed per unit; it is limited to four
-  decimals. Implemented without a separate decision: the slope is signed and
+  Details accepted by the owner with the merge of PR #76 on 2026-11-22: the
+  number is derived from the slopes of the loaded dataset, not fixed per
+  unit; it is limited to four decimals. Implemented without a separate decision: the slope is signed and
   padded in the patient view as in the table; every row of a model's
   coefficient table uses the number (before: three decimals for the estimate
   and two for the bounds), so an eGFR coefficient shows two decimals instead
@@ -811,7 +814,8 @@ when both are merged**, and the wording here, in the changelog and in the
 The methodology page (Export) describes the sheet in one new row whose
 wording awaits the maintainer's approval.
 
-Details chosen during implementation, **not yet confirmed by the owner**:
+Details chosen during implementation, **accepted by the owner with the merge
+of PR #76 on 2026-11-22**:
 
 - Years stay the default of the elapsed-time axis, also when every loaded
   trajectory is short.
@@ -833,7 +837,9 @@ Details chosen during implementation, **not yet confirmed by the owner**:
 - Image exports (SVG, PNG) of a dense overlay show what is on the screen,
   that is without points, and say so in their context line.
 - "Acute review" gets no extra sentence under the chart; legend and tooltip
-  carry the statement. The wording "this column has no fit, so nothing is
+  carry the statement. *Superseded on 2026-11-22* by a sentence under the
+  chart, see
+  [the decisions of 2026-11-22](#decisions-of-2026-11-22-open-points-of-the-persona-review). The wording "this column has no fit, so nothing is
   excluded" also applies while Trend is not ticked for the column.
 - Showing the actual episode duration as the band, once a recovery rule
   exists, is not decided.
@@ -865,7 +871,8 @@ fitted number changes.
   names the actual time axis of the trend. A script that reads `xAxis` no
   longer finds it.
 
-Implemented on assumptions that still need the owner's confirmation:
+Implemented on assumptions, **accepted by the owner with the merge of PR #76
+on 2026-11-22**:
 
 - `sex` and `baseline_age` were appended to the `cohort` sheet in the same
   step.
@@ -908,6 +915,26 @@ shows a bound with its sign ("latest <15").
 Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group),
 [workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
 and [fit axis](method-algorithms/fit-input-presets-and-time-balancing.md#fit-axis).
+
+## Decisions of 2026-11-22 (open points of the persona review)
+
+The owner merged PR #76 on 2026-11-22 and decided that everything decided on
+2026-11-21 stands and that the open points of the persona review are
+resolved. The details listed above as chosen during implementation are
+accepted with that merge. No fitted number changes with any entry of this
+section.
+
+Confirmed as implemented, no change:
+
+- Whole-blood creatinine (LOINC 38483-4, 59826-8) stays eligible like serum
+  (K39).
+- The patient ID keeps one consistent type per workbook, a number for a
+  numeric ID, otherwise text; it is not forced to text (K40).
+- The `columns` sheet covers the `cohort` (or `slopes`) sheet only (K37).
+- The preview of the cohort models stays in years whatever the time axis
+  (K27).
+- The density note of the overlay appears from 51 trajectories (K24).
+- The Excel export follows the order of the Trajectories table (K02).
 
 ## Approved requirements
 
