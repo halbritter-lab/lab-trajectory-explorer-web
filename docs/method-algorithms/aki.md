@@ -933,8 +933,12 @@ over 882 days remain, so the longer window applies (`aki_window`
 longer windows, the fit must keep at least **3 distinct fitted dates** over
 at least **365 days** between its first and last fitted point
 (`AKI_LONG_WINDOW_MIN_FITTED_DATES`, `AKI_LONG_WINDOW_MIN_SPAN_DAYS`). The
-test takes the column's exact dated measurements, removes those inside the
-column's clinical-event censoring windows and those inside the longer AKI
+test takes the column's dated measurements with the values they enter its fit
+with (exact values, and bounds `<x`, `>x` as the column's
+[bounded-value setting](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22)
+says: at the limit by default, `<x` at x/2 under half-limit, none under
+exclude; since 2026-11-22, before which only exact values were counted),
+removes those inside the column's clinical-event censoring windows and those inside the longer AKI
 windows, applies the column's time balancing (monthly or quarterly medians)
 and counts the dates and the whole days between the first and last point, as
 the fit does. When the rule is met, or the column has no episode, the longer
@@ -964,6 +968,14 @@ day 401, so the longer window runs to day 491 and leaves days 0 and 398: two
 dates. The shorter window (day 400 to day 430) applies: 2.0, 1.2 and 1.1 of
 day 430 are excluded, `aki_window` `onset_plus_30d_fallback`,
 `n_aki_excluded` 3, label "AKI window 30 d".
+
+Example with bounds (same tests): the series above plus `<1.2` on day 420 and
+`>1.0` on day 800. AKI detection ignores both. Under the default limit (and
+under half-limit) the bound of day 800 is a third fitted date, 800 days after
+day 0, so the longer window applies; it holds 2.0, 1.2, `<1.2`, 1.1 and 1.1
+(days 400 to 470): `aki_window` `episode_end_plus_90d`, `n_aki_excluded` 5.
+Under exclude only days 0 and 398 would remain: the shorter window applies,
+`n_aki_excluded` 3, and the bound of day 420 is not counted.
 
 **Demo data** (CKD progression, quarterly medians, computed CKD-EPI 2021
 eGFR). Every demo episode ends by a gap, so each longer window runs 92 days
@@ -1008,7 +1020,8 @@ settings.
 2026-11-22): `aki_window`, `episode_end_plus_<D>d` or
 `onset_plus_<N>d_fallback` (empty when the column does not exclude AKI
 windows or no episode applies to it), and `n_aki_excluded`, the number of the
-column's exact measurements inside an applied window that clinical-event
+column's fitted measurements (exact values and, unless its bounded-value
+setting is exclude, bounds) inside an applied window that clinical-event
 censoring has not already removed (empty when the column does not exclude AKI
 windows). They are among the grey open circles of the patient chart.
 

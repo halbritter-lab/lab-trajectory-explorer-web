@@ -113,6 +113,10 @@ describe('about sheet: provenance and personal data', () => {
     expect(about[0]).toBe('Lab Trajectory Explorer export')
     expect(about[9]).toMatch(/^endpoint_percent_change is the total eGFR change/)
     expect(about[16]).toMatch(/^Measurements marked < or > are bounds/)
+    // Since 2026-11-22 bounds enter fits by boundedValues; they stay out of endpoints, AKI detection and mixed models.
+    expect(about[16]).toContain('boundedValues')
+    expect(about[16]).toMatch(/Endpoints, AKI detection and cohort mixed models exclude them/)
+    expect(about[16]).not.toMatch(/excluded from fits/)
     // Appended on 2026-11-22: issue #64 after the provenance rows, then the notes of issues #65, #83, #69, of `sexd` and of #81/#82 last.
     expect(about.at(-6)).toMatch(/^anchor_comparison lists the before\/after comparison/)
     expect(about.at(-5)).toMatch(/^A computed eGFR reads one serum creatinine series per patient/)

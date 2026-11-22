@@ -5,6 +5,20 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Fixed (code review of the 2026-11-22 merges)
+
+- Export notes and the import warning on bounded values describe the current
+  rule: bounds enter fits by the column's bounded-value setting (limit by
+  default, half-limit, exclude) and stay out of endpoints (apart from a
+  conclusive bound interrupting an unconfirmed G4 or G5 candidate), AKI
+  detection and mixed models. The log_trend note no longer says bounds stay
+  out of every fit.
+- The choice between the longer AKI window and the 30-day fallback, and
+  `n_aki_excluded`, count bounds as the column's fit does. Numeric change for
+  columns with bounds under limit or half-limit only: a column can now keep
+  the longer window where the fallback applied before, and `n_aki_excluded`
+  counts bounds inside a window.
+
 ### Added (release preparation and wording drafts, issues #80 and #84, decided 2026-11-22)
 
 - Drafts only; no code, number or Methods page text changed. `CITATION.cff`

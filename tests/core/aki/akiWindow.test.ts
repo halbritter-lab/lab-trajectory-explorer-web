@@ -114,6 +114,20 @@ describe('cohort cells (CKD progression)', () => {
     expect(band.kind === 'band' && band.legend).toBe(' Shaded: AKI window, the 30 days after each onset (shortened: with the window up to 90 days after the episode end the fit would keep fewer than 3 dates over 365 days); values inside are excluded from this fit')
   })
 
+  it('counts bounded values as the fit does, by the column\'s bounded-value setting', () => {
+    // As above, plus a bound <1.2 inside the window (day 420) and a bound >1.0 on day 800.
+    const bound = (day: number, operator: '<' | '>', value: number): LabRow => ({ ...row(day, value), wert: `${operator}${value}`, wertOperator: operator })
+    const data = [row(0, 1.0), row(398, 1.1), row(400, 2.0), row(401, 1.2), bound(420, '<', 1.2), row(430, 1.1), row(470, 1.1), bound(800, '>', 1.0)]
+    const config = (boundedValues: 'limit' | 'half-limit' | 'exclude') => ({ ...ckdProgressionConfig(crea), timeBalancing: 'raw' as const, boundedValues })
+    // Limit (default) and half-limit: the bound of day 800 is a third fitted date over 800 days, so the longer window applies,
+    // and the bound of day 420 is one of the five fitted values inside it.
+    for (const policy of ['limit', 'half-limit'] as const) {
+      expect(cohortExportRecords([{ patientId: 1, cells: [cell(config(policy), data)] }])[0], policy).toMatchObject({ aki_window: 'episode_end_plus_90d', n_aki_excluded: 5 })
+    }
+    // Exclude: only days 0 and 398 would remain, so the shorter window applies and the bound inside it is not counted.
+    expect(cohortExportRecords([{ patientId: 1, cells: [cell(config('exclude'), data)] }])[0]).toMatchObject({ aki_window: 'onset_plus_30d_fallback', n_aki_excluded: 3 })
+  })
+
   it('writes no window values and no label for a column that keeps AKI windows', () => {
     const c = cell(generalExplorationConfig(crea))
     expect(c.pointExclusionReasons.every((r) => r.length === 0)).toBe(true)

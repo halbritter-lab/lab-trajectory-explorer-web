@@ -284,8 +284,12 @@ normally.
 
 A row whose operator is not `=` is not an exact measurement. If it carries a
 number it is treated like a bounded value: it stays visible and counts toward
-raw numeric counts, is excluded from fits, endpoints, AKI detection and cohort
-mixed models, and is labelled "censored value (limit, not exact)".
+raw numeric counts, enters fits as the column's bounded-values setting says
+(limit, the default; half-limit; exclude; see
+[bounded values](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22)),
+is excluded from endpoints (except that a conclusive bound interrupts an
+unconfirmed G4 or G5 candidate), AKI detection and cohort mixed models, and is
+labelled "censored value (limit, not exact)" where it is left out.
 
 An eGFR value derived from such a creatinine row inherits its operator and is
 not exact either; see "eGFR derivation".

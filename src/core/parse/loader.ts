@@ -528,7 +528,7 @@ function censoredNotes(rows: readonly LabRow[]): LabImportIssue[] {
   }
   return [...censored.values()].map(({ label, less, greater, rows: affected }) => {
     const parts = [less ? `${less} "<"` : null, greater ? `${greater} ">"` : null].filter(Boolean).join(', ')
-    return collectiveWarning(`${label}: ${plural(less + greater, 'censored value')} (${parts}); retained for display and raw counts, excluded from fits, endpoints and AKI detection.`, affected)
+    return collectiveWarning(`${label}: ${plural(less + greater, 'censored value')} (${parts}); retained for display and raw counts; in fits as the bounded-values setting of the column says (at the limit by default, at half the limit or excluded); excluded from endpoints, AKI detection and mixed models.`, affected)
   })
 }
 

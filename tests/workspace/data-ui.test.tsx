@@ -223,7 +223,7 @@ it('lists lab import diagnostics from a German CSV, with summaries not attribute
   expect(items).toEqual(expect.arrayContaining([
     'labs.csv, row 3, patient 0012, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
     'labs.csv, warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
-    'labs.csv, warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.Show the 1 affected row',
+    'labs.csv, warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts; in fits as the bounded-values setting of the column says (at the limit by default, at half the limit or excluded); excluded from endpoints, AKI detection and mixed models.Show the 1 affected row',
   ]))
   // The rows behind a collective warning open on demand: source row, patient, date, parameter, value.
   fireEvent.click(screen.getByText('Show the 1 affected row'))

@@ -4,7 +4,7 @@ import { formatAkiChip, formatAkiEpisodeSummary } from './summary'
 import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_AKI_RECOVERY_HOURS, MGDL_PER_UMOLL } from '../constants'
 import { akiDaysAfterEnd, excludesAkiWindows } from '../fitConfig'
 import { clinicalEventExclusionWindows } from '../censoring'
-import { isExactMeasurement } from '../../../measurements/censored'
+import { fitValueOf } from '../../../measurements/censored'
 import { COMPUTED_BEZEICHNUNG_SUFFIX, normaliseUnit } from '../analytes'
 import { patientIdKey, type LabRow, type PatientId } from '../../../types'
 import { fixedLengthWindow, windowContains, type ReasonedExclusionWindow } from '../../../exclusions/windows'
@@ -151,15 +151,22 @@ function akiColumnWindows(ctx: SeriesContext, episodes: readonly AkiEpisode[]): 
   if (anchors.length === 0) return { rule: null, windows: [], onsetDays, daysAfterEnd }
   const long = anchors.map(({ onset, lastDay }) => akiEndWindow(onset, lastDay, daysAfterEnd))
   const short = anchors.map(({ onset }) => ({ reason: 'aki' as const, ...fixedLengthWindow(onset, onsetDays) }))
-  const chosen = chooseAkiWindows(exactColumnPoints(ctx), clinicalEventExclusionWindows(ctx.events, ctx.fitConfig?.censoring), long, short, ctx.fitConfig?.timeBalancing ?? 'raw')
+  const chosen = chooseAkiWindows(fittedColumnPoints(ctx), clinicalEventExclusionWindows(ctx.events, ctx.fitConfig?.censoring), long, short, ctx.fitConfig?.timeBalancing ?? 'raw')
   return { rule: chosen.rule, windows: chosen.windows, onsetDays, daysAfterEnd }
 }
 
-/** The column's exact dated numeric measurements (no bounds), oldest first. */
-function exactColumnPoints(ctx: SeriesContext): { date: Date; value: number }[] {
+/** The column's dated measurements with the values they enter its fit with,
+ * oldest first: exact values, and bounds as the column's bounded-value
+ * setting says (`fitValueOf`, as in `summarizeByBezeichnung`), so the window
+ * choice and `n_aki_excluded` count the points the fit counts. */
+function fittedColumnPoints(ctx: SeriesContext): { date: Date; value: number }[] {
+  const policy = ctx.fitConfig?.boundedValues
   return (ctx.patientRows as LabRow[])
-    .filter((r) => r.bezeichnung === ctx.seriesKey.bezeichnung && (r.einheit ?? null) === (ctx.seriesKey.einheit ?? null) && r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
-    .map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
+    .filter((r) => r.bezeichnung === ctx.seriesKey.bezeichnung && (r.einheit ?? null) === (ctx.seriesKey.einheit ?? null) && r.labDatum !== null)
+    .flatMap((r) => {
+      const value = fitValueOf(r, policy)
+      return value === null ? [] : [{ date: r.labDatum!, value }]
+    })
     .sort((a, b) => a.date.getTime() - b.date.getTime())
 }
 
@@ -242,11 +249,12 @@ function akiOverlays(ctx: SeriesContext, episodes: readonly AkiEpisode[], window
 }
 
 /** Export values of a column that excludes AKI windows: the rule and the
- * number of its exact, uncensored measurements inside a window. */
+ * number of its fitted (exact, or bounded as the column's setting says),
+ * uncensored measurements inside a window. */
 function akiValues(ctx: SeriesContext, windows: ColumnAkiWindows): Record<string, string | number> | undefined {
   if (!excludesAkiWindows(ctx)) return undefined
   const censoring = clinicalEventExclusionWindows(ctx.events, ctx.fitConfig?.censoring)
-  const excluded = exactColumnPoints(ctx).filter((p) => !censoring.some((w) => windowContains(w, p.date)) && windows.windows.some((w) => windowContains(w, p.date))).length
+  const excluded = fittedColumnPoints(ctx).filter((p) => !censoring.some((w) => windowContains(w, p.date)) && windows.windows.some((w) => windowContains(w, p.date))).length
   const rule = windows.rule === 'episode_end' ? `episode_end_plus_${windows.daysAfterEnd}d` : windows.rule === 'onset_fallback' ? `onset_plus_${windows.onsetDays}d_fallback` : windows.windows.length ? 'supplied' : ''
   return { aki_window: rule, n_aki_excluded: excluded }
 }
