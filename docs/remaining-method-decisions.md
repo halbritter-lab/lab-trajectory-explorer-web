@@ -690,9 +690,9 @@ of PR #76 on 2026-11-22**:
 Details and examples:
 [measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date)
 and [dates at import](method-algorithms/import-and-values.md#dates). The
-methodology page is not changed; its wording is drafted as G1 in the
-[methodology wording drafts](methodology-wording-drafts.md) and tracked as
-OD-34.
+methodology page was not changed that day; its wording was drafted as G1 in
+the [methodology wording drafts](methodology-wording-drafts.md), tracked as
+OD-34 and applied on 2026-11-22.
 
 ## Decisions of 2026-11-21 (persona review, issues #74, #2, #34)
 
@@ -935,6 +935,16 @@ Confirmed as implemented, no change:
   (K27).
 - The density note of the overlay appears from 51 trajectories (K24).
 - The Excel export follows the order of the Trajectories table (K02).
+
+Resolved with a change:
+
+- **The methodology page states the rule for several creatinine values on
+  one day** (OD-34 resolved). Draft G1 of the
+  [methodology wording drafts](methodology-wording-drafts.md) is applied as
+  written to the block "AKI Timing, Episodes and the Fit-Exclusion Window".
+  The points the draft left out (midnight counts as no time, values with the
+  same time are not compared) stay in the
+  [method reference](method-algorithms/aki.md#measurements-on-the-same-date).
 
 ## Approved requirements
 

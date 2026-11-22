@@ -225,12 +225,12 @@ there is no note; dates whose values are all ordered by time are not counted.
 In the examples above the third to seventh rows are one counted patient-day
 each, the eighth is one (two values at 20:00), the first two are none.
 
-**Open decision OD-34.** The methodology page of the app still reads "Lab
-dates are calendar days without a time of day. The 48-hour window therefore
-covers earlier measurements on the same date or one or two calendar days
-earlier" and does not state the rule of this section. A draft is in the
-[methodology wording drafts](../methodology-wording-drafts.md#part-g-draft-after-the-persona-review-of-2026-11-21-not-applied)
-(G1); the wording is the maintainer's decision.
+The methodology page of the app states the rule of this section (wording G1
+of the
+[methodology wording drafts](../methodology-wording-drafts.md#part-g-draft-after-the-persona-review-of-2026-11-21-applied-2026-11-22),
+applied 2026-11-22, formerly OD-34). Before, it read "Lab dates are calendar
+days without a time of day. The 48-hour window therefore covers earlier
+measurements on the same date or one or two calendar days earlier".
 
 ### Staging
 

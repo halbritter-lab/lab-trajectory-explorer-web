@@ -89,9 +89,9 @@ decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
 OD-31 is not used on `main`; the number is reserved by the deferred MCP
 server work. OD-33 was added on 2026-11-16 because the in-app methodology page lagged
 behind two decisions of that day; the maintainer approved its wording the
-same day. OD-34 was added on 2026-11-21 because the methodology page does not
+same day. OD-34 was added on 2026-11-21 because the methodology page did not
 yet state the rule for several creatinine values on one day decided that day;
-it is open.
+the owner resolved it on 2026-11-22 and the drafted wording (G1) is applied.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -99,7 +99,6 @@ it is open.
 | OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
-| OD-34 | [Measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date) | The methodology page says that lab dates have no time of day and that the 48-hour window covers earlier measurements on the same date; since 2026-11-21 a time of day orders the values of one day, and values without one are compared with earlier days only. Wording drafted (G1), not approved. |
 
 ### Resolved decisions
 
@@ -138,4 +137,5 @@ methodology page. The numbers are not reused.
 | OD-30 | Every number returned from R is serialized at full precision (`digits = NA`); decided 2026-11-13. | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) |
 | OD-32 | A lone `u` in a creatinine name is "und" only between two blood-material words or in "vor u. nach"; next to any other word it stays urine; decided 2026-11-15. | [eGFR derivation](method-algorithms/egfr.md#eligible-source-series) |
 | OD-33 | The methodology page describes AKI staging against the lowest value of the previous 7 days and the "Slope range" label for Theil-Sen bounds on fewer than five dates; wording approved 2026-11-16. | [AKI staging](method-algorithms/aki.md#staging) |
+| OD-34 | The methodology page states the rule for several creatinine values on one day: ordered by the time of day where every value has one, otherwise compared with earlier days only; wording G1 applied 2026-11-22. | [Measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date) |
 

@@ -5,6 +5,13 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (open points of the persona review, decided 2026-11-22)
+
+- The methodology page (AKI detection, "AKI Timing, Episodes and the
+  Fit-Exclusion Window") states the rule for several creatinine values on one
+  day: ordered by the time of day where each has one, otherwise compared with
+  values of earlier days only (OD-34 resolved).
+
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
 - **AKI detection no longer depends on the row order of the file.** A time
@@ -32,7 +39,7 @@ interfaces are still evolving before 1.0.
 - The time of day is a sort key only; it is not shown and not exported. A
   dataset stored in the browser before this change has no times until the
   file is imported again; the notice shown when such a copy is restored says
-  so. The methodology page is not yet updated (OD-34).
+  so. The methodology page was updated on 2026-11-22 (OD-34).
 - Because no export carries the time of day, an exported cohort workbook that
   is loaded again has none: several creatinine values of one day are then
   compared with earlier days only, and AKI episodes, exclusion windows and
