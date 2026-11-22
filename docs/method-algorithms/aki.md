@@ -821,3 +821,211 @@ progression switch is exercised indirectly by the cohort screening test and
 the workspace chart test that selects the preset), and the 2-day marker
 boundary.
 
+
+## Peri-event creatinine (2026-11-22)
+
+Owner decision of 2026-11-21 (issue #69); implemented on 2026-11-22. Code:
+`periEventCreatinine` and `periEventCreatinineRows` in
+`src/core/domains/nephrology/aki/periEvent.ts`; list and export rows in
+`src/workspace/peri-event.ts`. For every selected event, for example a
+contrast administration or a cardiac catheterisation, the analysis reports
+the last serum creatinine value on or before the event (baseline), the
+highest value in a window after it, the absolute and relative rise and
+whether the KDIGO creatinine criterion is met. It is a listing beside
+[AKI detection](#kdigo-creatinine-aki-detection): it changes no episode,
+chip, marker, fit, flag, endpoint or cohort-model input. Automated screening
+for research use, not a diagnosis of contrast-associated AKI. Evidence named
+in the decision: the ACR/NKF consensus of 2020 defines contrast-associated AKI
+as KDIGO AKI within 48 hours after contrast; ESUR uses 48 to 72 hours.
+
+### Setting and event selection
+
+Data page → "Creatinine after selected events". Dataset-level, stored as
+`aki.periEvent` in the analysis settings (`{ rule, windowHours }`; absent
+while no events are selected, the default). It is saved with the dataset copy
+and exported in `analysis_settings` of the `settings` sheet. A stored value
+that cannot be read is dropped (no events selected); the other AKI settings
+stay readable. Changing it does not discard fitted cohort models.
+
+- **Events.** "None", or every event whose **title** or whose **type** equals a
+  chosen value, compared exactly as stored, including case and spaces
+  (`eventMatchesRule`, the matching of the
+  [anchor event](anchor-comparison.md#anchor-event) of the before/after
+  comparison). Unlike the anchor, **every** matching event is analysed, not
+  only the first. The menu offers the titles and types of the loaded events,
+  prefixed "Title:" and "Type:". An event with an end date is evaluated at
+  its start date.
+- **Window**: 48 hours (default) or 72 hours. No other length is accepted.
+
+### Input series and values
+
+- **Series.** Per patient, the eligible serum creatinine series (name and
+  unit) with the most exact dated numeric rows; on a tie the series met first
+  in the rows (`largestCreatinineSeries`, the choice AKI detection makes for a
+  column that is neither creatinine nor computed eGFR; see
+  [Input series and conversion](#input-series-and-conversion)). Eligible
+  means a creatinine name that is not a non-serum material (urine, dialysate,
+  puncture fluid and the other materials of `isNonSerumName`, and creatinine
+  with the urine LOINC codes 2161-8 and 14683-7) with the unit mg/dl or µmol/l.
+  Series are not pooled; the row names the series used.
+- **Values.** Exact dated values above zero. Bounds (`<x`, `>x`), rows
+  without a number and values of zero or less are not used, so the baseline
+  is always above zero and the relative criterion is always defined.
+- **Unit.** µmol/l is divided by **88.42**; every value and rise is in mg/dl.
+- **Dialysis.** Values on a day under dialysis (`isUnderDialysis`, see
+  [Input series and conversion](#input-series-and-conversion): from a chronic
+  dialysis start until the next kidney transplant, and inside a dated acute
+  dialysis interval, both boundary days included) are neither baseline nor
+  peak. The values of the window left out this way are counted
+  (`n_window_values_under_dialysis`).
+
+### Days, baseline, window and criterion
+
+Event dates have no time of day (it is discarded at import, see
+[Dates](clinical-events.md#dates)). The rule therefore works in calendar days
+(UTC), with the event day `A` and `N = window hours / 24` (2 or 3):
+
+| Calendar day `d` of a value | Role |
+| --- | --- |
+| `d ≤ A` (the event day included) | baseline candidate |
+| `A < d ≤ A + N` | window |
+| `d > A + N` | not used |
+
+- **Baseline**: the values of the last calendar day `≤ A` that has a value.
+  With one value it is that value. With several, it is the one with the
+  latest time of day when every value of that day has a time, otherwise
+  (order unknown) the lowest; among values with the same latest time also
+  the lowest. The number of values of the baseline day is reported
+  (`n_baseline_day_values`). There is **no look-back limit**: a value years
+  before the event is the baseline, and its distance is reported
+  (`baseline_days_before_event`).
+- **Peak**: the highest value of the window; on a tie the earliest (date,
+  then time of day, then row order). The number of window values used is
+  reported (`n_window_values`).
+- **Rise**: `absolute = peak − baseline` (mg/dl, can be negative) and
+  `ratio = peak / baseline`.
+- **Criterion** (KDIGO creatinine rise): met when `absolute ≥ 0.3 mg/dl` or
+  `ratio ≥ 1.5`. Both comparisons are inclusive with the KDIGO tolerance of
+  1e-12 (`value + 1e-12 ≥ threshold`), as in
+  [Detection](#detection): 1.1 → 1.4 mg/dl is met, 1.1 → 1.399999 is not;
+  0.4 → 0.6 mg/dl (ratio 1.5, rise 0.2) is met by the ratio, 0.4 → 0.59 is
+  not. The criterion field names which rule fired: `absolute_0_3_mg_dl`,
+  `relative_1_5x` or `both`. Both rules use the same window of 48 or 72
+  hours; the 7-day window of the relative rule in AKI detection does not
+  apply here.
+
+A value on the event day is a baseline candidate, never a window value, also
+where the lab values carry a time of day: a blood draw on the day of a
+procedure is usually its baseline, as for the anchor of the before/after
+comparison. A rise measured later on the event day is therefore not seen, and
+the 48-hour window covers between 48 and 72 hours of elapsed time after an
+event depending on when on day `A` it took place. The Data page states this
+limitation. **Open decision OD-36**: the decision asks for exact hours when
+event and values have times; because the import keeps no time of day on
+events, the calendar-day rule is applied in every case, and an exact-hour rule
+would need event times.
+
+### Status and reasons
+
+Each event gets `met`, `not_met` or `not_evaluable`. Not evaluable has one
+reason, tested in this order:
+
+| Reason | When |
+| --- | --- |
+| `no_creatinine` | The patient has no usable value of an eligible serum creatinine series (also a patient with events but no lab rows, and one with only non-serum creatinine). |
+| `event_under_dialysis` | The event day itself is under dialysis (`isUnderDialysis`). Selecting the type `dialysis` therefore makes a chronic dialysis start and a dated acute dialysis not evaluable. |
+| `no_baseline` | No usable value on or before the event day. |
+| `no_value_in_window` | No usable value in the window. |
+
+Baseline and peak are reported whenever they exist, also for a not-evaluable
+event (for example the peak of an event without baseline); rise, ratio,
+criterion and `criterion_met` are empty for it.
+
+### Several events and dialysis in the window
+
+- **Each event is evaluated on its own**, including events of one patient
+  whose windows overlap and events on the same day (two identical rows).
+  The later of two close events takes as baseline the last value on or before
+  its own day, which can already be raised by the first. Each row counts the
+  other selected events of the patient within `N` calendar days before or
+  after it (`overlapping_events`).
+- **Dialysis start in the window**: the first dialysis event of the patient
+  (any intent; not the event itself) that starts on day `A` to `A + N` is
+  named with its intent, for example `2026-03-02 (acute)`. Start of renal
+  replacement therapy does not make the criterion met (see
+  [Not implemented](#not-implemented)); a dialysis without an end date or of
+  unknown intent leaves the values in, as in AKI detection.
+
+### Where results appear
+
+- **Data page**, "Creatinine after selected events (n)", next to "Detected
+  AKI episodes": the selection, the window, the day-resolution note, a count
+  line ("3 events: criterion met for 2, not met for 0, not evaluable for 1.")
+  and one row per event with patient (opens the patient), event date, title
+  and type, baseline with its date and the days before the event, highest
+  value in the window with its date, rise, ratio ("1.35 ×"), the criterion
+  ("Met: rise ≥ 0.3 mg/dl", "Not met", "Not evaluable: no value in the
+  window"), the creatinine series and notes (overlapping events, dialysis
+  start, values under dialysis left out, a baseline chosen among several
+  values of its day). Rows are ordered by patient, then event date, then
+  the order of the events table.
+- **Workbook** (cohort and patient), last sheet `peri_event_creatinine`,
+  restricted to the exported patients and empty while no events are
+  selected: `PatientID`, `event_date`, `event_type`, `event_title`,
+  `event_rule` (`title:<value>` or `type:<value>`), `window_hours`,
+  `window_end_date` (`A + N`), `creatinine_parameter`, `creatinine_unit`,
+  `baseline_date`, `baseline_value_mg_dl`, `baseline_days_before_event`,
+  `n_baseline_day_values`, `peak_date`, `peak_value_mg_dl`,
+  `n_window_values`, `absolute_rise_mg_dl`, `ratio_to_baseline`,
+  `criterion_met` (`true`, `false`, empty when not evaluable), `criterion`,
+  `status`, `reason`, `dialysis_start_in_window`,
+  `n_window_values_under_dialysis`, `overlapping_events`. Values are
+  unrounded. The `about` sheet ends with a note on the sheet; no earlier
+  sheet, column or note moved.
+
+### Worked example
+
+Serum creatinine `Kreatinin [mg/dl]` of one patient: 0.9 on 2026-03-01, 1.0
+on 03-03, 1.2 on 03-04, 1.35 on 03-05 and 1.6 on 03-06. Events of type
+`other`: "Contrast CT" on 2026-03-03, "Cardiac catheterisation" on 03-04 and
+"Visit" on 2026-02-01. Selection "Type: other".
+
+| Event | Window | Baseline | Peak in window | Rise | Ratio | Result |
+| --- | --- | --- | --- | ---: | ---: | --- |
+| Visit 02-01 | 48 h: 02-02 to 02-03 | none | none | | | not evaluable, `no_baseline` |
+| Contrast CT 03-03 | 48 h: 03-04 to 03-05 | 1.0 on 03-03 (0 days) | 1.35 on 03-05 | 0.35 | 1.35 | met, `absolute_0_3_mg_dl`; 1 overlapping event |
+| Catheterisation 03-04 | 48 h: 03-05 to 03-06 | 1.2 on 03-04 | 1.6 on 03-06 | 0.40 | 1.333 | met, `absolute_0_3_mg_dl`; 1 overlapping event |
+| Contrast CT 03-03 | 72 h: 03-04 to 03-06 | 1.0 on 03-03 | 1.6 on 03-06 | 0.60 | 1.60 | met, `both` |
+| Catheterisation 03-04 | 72 h: 03-05 to 03-07 | 1.2 on 03-04 | 1.6 on 03-06 | 0.40 | 1.333 | met, `absolute_0_3_mg_dl` |
+
+The value of 03-01 is not the baseline of the contrast CT, because a later
+value lies on the event day. The catheterisation takes 1.2 as its baseline,
+the value already raised one day after the contrast CT: each event is
+evaluated on its own, and the overlap is only counted. The same values in
+µmol/l (0.9 → 79.578, 1.0 → 88.42, 1.35 → 119.367 µmol/l) give the same rows.
+Demo workbook: it has no contrast or catheterisation events, and none of its
+events is evaluable. "Title: Study medication" lists patient 11 (2022-05-15):
+baseline 1.08 mg/dl on 2022-04-10, 35 days before, no value in the window,
+not evaluable (`no_value_in_window`). "Type: dialysis" lists four events;
+the chronic starts of patients 9 and 12 and the acute dialysis of patient 7
+are `event_under_dialysis`, the unknown-intent interval of patient 9 is
+`no_value_in_window`. With an events file that adds a contrast
+administration for patient 11 on 2022-07-10 (the browser regression test
+does this): baseline 1.1 on 2022-07-10, peak 1.8 on 2022-07-12 in the
+48-hour window, rise 0.7 mg/dl, ratio 1.64, met by both rules.
+
+### Regression evidence
+
+`tests/core/aki/periEvent.test.ts` (0.3 mg/dl and 1.5-fold boundaries,
+48/72-hour calendar windows at `A + 2` and `A + 3`, event-day value as
+baseline with a time of day, unlimited look-back, baseline among several
+values of a day with and without times, peak tie, µmol/l conversion, series
+choice with non-serum and bounded rows, values of zero or less, no baseline,
+no creatinine, event under dialysis, window values under dialysis and
+dialysis starts, overlapping and same-day events, exact title and type
+matching, patient order, stored settings);
+`tests/workspace/peri-event.test.tsx` (Data page section, window switch,
+count line, models kept, export sheet and the worked example);
+`tests/workspace/export-schema.test.ts` (sheet position and columns);
+`tests/e2e/peri-event.e2e.ts` (the demo in Chromium, desktop and phone
+width).

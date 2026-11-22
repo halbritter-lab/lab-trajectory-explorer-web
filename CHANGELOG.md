@@ -5,6 +5,23 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (peri-event creatinine, decided 2026-11-21, issue #69)
+
+- Data page → "Creatinine after selected events": for every event of a
+  chosen title or type (for example a contrast administration or a cardiac
+  catheterisation), the last serum creatinine value on or before the event
+  day, the highest value in the 48- or 72-hour window after it, the absolute
+  and relative rise, and whether the KDIGO creatinine criterion is met
+  (≥ 0.3 mg/dl or ≥ 1.5 × baseline, inclusive), or why the event is not
+  evaluable (no creatinine, event day under dialysis, no baseline, no value
+  in the window). Event dates have no time of day, so the window counts
+  calendar days and a value on the event day is the baseline; the page says
+  so (OD-36). The cohort and patient workbooks gain the last sheet
+  `peri_event_creatinine`, one row per event, and a closing `about` note;
+  the selection is saved as `aki.periEvent` in the analysis settings.
+  Automated screening for research use. No existing result, sheet, column
+  or note changed.
+
 ### Changed (open points of the persona review, decided 2026-11-22)
 
 - Review of the combined branch (2026-11-22): a before/after side fitted

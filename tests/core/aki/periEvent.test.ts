@@ -104,6 +104,11 @@ describe('peri-event creatinine: dialysis and several events', () => {
       ['Contrast CT', 1.6, null, 'not_evaluable', 0],
     ])
     expect(periEventCreatinine(rows, [event('2026-03-03'), event('2026-03-03')], settings()).map(r => r.overlappingEvents)).toEqual([1, 1])
+    // The worked example of the method reference gives the same rows in µmol/l.
+    const umol = rows.map(r => ({ ...r, einheit: 'µmol/l', wertNum: r.wertNum! * 88.42 }))
+    expect(periEventCreatinine(umol, events, { rule: { kind: 'type', value: 'other' }, windowHours: 48 }).map(r => [r.status, r.criterion])).toEqual(all.map(r => [r.status, r.criterion]))
+    const wide = periEventCreatinine(rows, events, { rule: { kind: 'type', value: 'other' }, windowHours: 72 })
+    expect(wide.map(r => [r.peakValue, r.criterion, r.windowEnd])).toEqual([[1.6, 'both', day('2026-03-06')], [1.6, 'absolute_0_3_mg_dl', day('2026-03-07')], [null, null, day('2026-03-13')]])
   })
 })
 

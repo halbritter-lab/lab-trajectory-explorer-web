@@ -36,9 +36,11 @@ Conventions used throughout:
 - **Dates are calendar days.** Import keeps the calendar day as written and
   stores it at midnight UTC. Measurements of one day share one timestamp, and
   every elapsed-time rule works in whole days. A time of day on a lab date is
-  kept beside the date and used for one thing only: it orders the creatinine
-  values of one day in AKI detection (and, for display, the rows of one day
-  in the measurement table); it is exported as `time_of_day`.
+  kept beside the date and used for ordering only: it orders the creatinine
+  values of one day in AKI detection, chooses the latest of several values
+  of the baseline day in the peri-event creatinine analysis (and, for
+  display, orders the rows of one day in the measurement table); it is
+  exported as `time_of_day`. Event dates carry no time of day.
 - **A year is 365.25 days** wherever elapsed time is converted to years.
 - **A series** is one patient, one parameter name and one unit, compared as
   stored after import. Different names or units are never pooled.
@@ -72,6 +74,7 @@ Contents:
 12. [eGFR derivation](method-algorithms/egfr.md#egfr-derivation)
 13. [KDIGO creatinine AKI detection](method-algorithms/aki.md#kdigo-creatinine-aki-detection)
 14. [AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window)
+    - [Peri-event creatinine](method-algorithms/aki.md#peri-event-creatinine-2026-11-22)
 15. [Clinical events](method-algorithms/clinical-events.md#clinical-events)
 16. [Observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction)
 17. [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models)
@@ -97,7 +100,8 @@ yet state the rule for several creatinine values on one day decided that day;
 the owner resolved it on 2026-11-22 and the drafted wording (G1) is applied.
 OD-35 was added on 2026-11-22 with the review of the AKI recovery
 rule and resolved on the second review of the same day, on the owner's
-instruction of 2026-11-22 to resolve the open points.
+instruction of 2026-11-22 to resolve the open points. OD-36 was added on
+2026-11-22 with the peri-event creatinine analysis (issue #69).
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -105,6 +109,7 @@ instruction of 2026-11-22 to resolve the open points.
 | OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit. (The pinning of R package versions, the other half of this entry, was settled on 2026-11-22.) |
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+| OD-36 | [Peri-event creatinine](method-algorithms/aki.md#days-baseline-window-and-criterion) | The decision of 2026-11-21 asks for exact hours when the event and the values have a time of day. The import keeps no time on events, so the 48- and 72-hour windows are always calendar days after the event day and a value on the event day is always a baseline value, also when the lab values carry times. |
 
 ### Resolved decisions
 
