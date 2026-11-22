@@ -1,5 +1,37 @@
 # Manual browser smoke checklist
 
+## AKI episodes separated by recovery and dialysis start (2026-11-22)
+
+Branch `feat/aki-recovery-episodes` (issue #67, review item K29). Checked
+with ad-hoc Playwright scripts against the production build in Chromium.
+
+1. Import the synthetic intensive-care file (`icu_dense_labs.csv`) and its
+   events (`icu_events.csv`, CVVHDF acute 6 to 10 March with end date, CVVHD
+   acute from 6 June without one). Data → "Detected AKI episodes (6)"
+   (16 on `main` with the same events, 21 on `main` without events and 6 on
+   this branch without them). The table ends with "End" and "Dialysis
+   start": ICU01 stage III, onset 02/03/2026, end 14/03/2026, dialysis start
+   "06/03/2026 (acute)"; ICU03 "open at the last value"; ICU04 stage III,
+   end 09/06/2026, "06/06/2026 (acute)"; the others "none". The ICU01 chip
+   reads `AKI III` (`AKI I, 3×III` on `main`).
+2. Trajectories → open ICU01: "AKI episodes for this patient" ends "; end
+   14/03/2026; dialysis start 06/03/2026 (acute)".
+3. "Export cohort (XLSX)": `aki_episodes` ends with `end_date` and
+   `dialysis_start` (`2026-03-14`, `2026-03-06 (acute)`; empty cells for an
+   open episode or without dialysis); its `about` line explains both.
+4. Demo data: still 8 episodes with the same onsets and stages, now with end
+   dates and "none" as dialysis start. At 390 px the table scrolls inside its
+   frame; the page does not scroll sideways.
+5. Methods → AKI, "AKI Timing, Episodes and the Fit-Exclusion Window": the
+   rule is stated and the sustained daily rise gives "one episode of stage
+   III"; Sources: the AKI episodes entry names the 48 hours of ADQI 16.
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 5
+by scripted walkthroughs with screenshots; a reduced version of steps 1 to 3
+is automated in `tests/e2e/aki-recovery.e2e.ts`. The k26 review file with
+times of day keeps its 4 episodes. Not verified: other browsers than
+Chromium and real research data.
+
 ## Combined branch of the persona review: fixes after its review (2026-11-21)
 
 Branch `integration/persona-review-2026-11-21` (all six branches of the

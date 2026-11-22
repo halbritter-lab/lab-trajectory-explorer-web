@@ -116,7 +116,8 @@ of that day.
   minimum is not a statistical power guarantee. It counts qualifying patients
   and does not remove the others, and it applies to the pooled model and to
   each group separately.
-- **Not changed for now:** AKI episode merging and staging; the rapid-decline
+- **Not changed for now:** AKI episode merging and staging (staging revised
+  on 2026-11-16, merging on 2026-11-22); the rapid-decline
   flag; quarterly calendar-median aggregation (made visible only). Their rules
   as implemented are written out in [method algorithms](method-algorithms.md):
   the AKI rules under *Known limitations* of the AKI section, the missing
@@ -515,7 +516,8 @@ sign-off. Details, boundaries and recomputed examples are in
   lowest positive value of the seven days before it, and an episode reports
   the highest stage of its crossings. This revises the staging part of the
   2026-10-06 decision "Not changed for now: AKI episode merging and staging".
-  Episode merging stays as decided then: detection, the recorded baseline,
+  Episode merging stays as decided then (revised on 2026-11-22, see
+  [below](#decisions-of-2026-11-22-aki-episodes-separated-by-recovery-issue-67)): detection, the recorded baseline,
   the grouping of crossings into episodes, onset dates and exclusion windows
   are unchanged, so 1.0, 2.9 and 3.2 mg/dl on days 0, 5 and 6 remain two
   episodes (now stages II and III, formerly II and I). A stage is never lower
@@ -908,6 +910,95 @@ shows a bound with its sign ("latest <15").
 Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group),
 [workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
 and [fit axis](method-algorithms/fit-input-presets-and-time-balancing.md#fit-axis).
+
+## Decisions of 2026-11-22 (AKI episodes separated by recovery, issue #67)
+
+The owner decided on 2026-11-21 (issue #67) to separate AKI episodes by
+recovery following ADQI 16 (Chawla et al., Nat Rev Nephrol 2017, statement
+1B), and on 2026-11-22 instructed to resolve the open points. This revises
+the merging part of the 2026-10-06 decision "Not changed for now: AKI episode
+merging and staging", which the 2026-11-16 decision had kept. Details,
+boundaries and recomputed examples are in
+[AKI episodes](method-algorithms/aki.md#episodes),
+[episode list](method-algorithms/aki.md#episode-list) and
+[AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window).
+
+- **A new episode starts only after creatinine has been back below the KDIGO
+  criterion for at least 48 hours.** Crossings without such a recovery belong
+  to one episode, which keeps its highest stage. The 48 hours are evaluated on
+  calendar days like the 48-hour criterion and are a parameter of the
+  detector (`AKI_RECOVERY_WINDOW_MS`, option `recoveryMs` of
+  `findKdigoAkiEpisodes`). Daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and
+  3.0 mg/dl are one stage-III episode instead of four (I, II, II, III), and
+  1.0, 2.9 and 3.2 mg/dl on days 0, 5 and 6 one stage-III episode instead of
+  two (II, III).
+- **The episode list gains the episode end and the first dialysis start.**
+  The sheet `aki_episodes` gets `end_date` and then `dialysis_start`, both
+  appended last; the Data page and the patient view show both after the
+  creatinine parameter. A dialysis counts towards an episode when it starts
+  between onset and end, both days included (owner decision on K29,
+  2026-11-21); every intent is shown next to the date; the stage does not
+  change.
+- **Moved values.** Episode counts, stages per episode, onsets of later
+  crossings, AKI exclusion windows and therefore fitted slopes and endpoint
+  inputs can change wherever crossings without recovery between them were
+  separate episodes. No value of the golden fixtures moved: the four cases of
+  `tests/goldens/aki.json` keep their episodes (onsets 2020-01-02, 2020-01-05,
+  2020-01-02 and none; stages 1, 1, 3) and the four cases of
+  `tests/goldens/aki_aware.json` keep their kept indices and slopes. The
+  bundled demo workbook keeps its eight episodes with unchanged onset, peak,
+  baseline, stage and criterion (patient 6: one, 2022-09-08; patient 7:
+  three, 2021-06-03, 2022-01-04, 2022-10-03; patient 11: one, 2022-07-12;
+  patient 12: three, 2021-01-03, 2021-02-17, 2021-04-03), and no slope, fitted
+  count or exclusion of the CKD progression preset moved; the episodes gain
+  the end dates 2022-09-16; 2021-06-12, 2022-01-20, 2022-10-18; 2022-07-20;
+  2021-01-20, 2021-03-10, 2021-04-20 and no dialysis start (the only acute
+  dialysis, patient 7 in August 2020, lies before his episodes). Two unit
+  tests changed their expectation deliberately (the sustained daily rise
+  and the moved-baseline example in `tests/core/aki/kdigo.test.ts`).
+
+Details fixed in the implementation (2026-11-22, the option that changes
+least where there was a choice):
+
+- **"Back below the criterion"** is a value of the detection input that meets
+  neither criterion against its own 48-hour and 7-day minima. The first such
+  value after the episode's last crossing is the candidate end; a crossing
+  more than 48 hours (three calendar days or more) after it starts a new
+  episode, a crossing two calendar days or fewer after it joins the episode
+  and clears the candidate. The days in between need no measurement, but a
+  gap without any value is not a recovery by itself.
+- **A gap of more than seven days ends an episode** at the first value after
+  it (a value without any earlier value in its 7-day window), or at an
+  earlier candidate end. Without this, the strict rule joined crossings
+  months apart into one episode with one 30-day window: the dialysis example
+  of the method reference (episodes in January 2020, April 2020 and July
+  2021) became one episode, and a regression test with stage-III crossings
+  every two weeks for two years lost 98 of its 103 excluded values.
+- **Same day.** Values of one date are processed in the order of the
+  2026-11-21 rule; on a date whose values cannot be ordered they ascend, so a
+  date that contains a crossing continues the episode and none of its values
+  ends it. The 48 hours count calendar days, not hours.
+- **Dialysis.** A value whose next two calendar days include a day of a dated
+  acute dialysis interval is no candidate end, so an episode does not end
+  during such an interval. Acute dialysis without an end date, unknown and
+  chronic dialysis do not block an end (values under chronic dialysis are
+  absent like a gap).
+- **Exclusion window.** It stays `[onset, onset + N days]` for every episode,
+  also for a long one; counting N from the last crossing would have
+  lengthened unchanged episodes as well. A merged episode therefore excludes
+  less than the chain it replaces (2 January to 1 February instead of to
+  5 February in the sustained-rise example).
+- **End date.** The date of the value that ended the episode; empty for an
+  episode still open at the last value. For an open episode every later
+  dialysis start counts; on one start date the first event of the events
+  table is shown; a dialysis without intent is shown as `unknown`.
+- **The recovery length is not an interface setting.** It is a constant and
+  an option of the detector; no control changes it.
+
+The Methods page states the rule in its AKI timing section and in the
+sources overview, and names the dialysis start of the episode list (wording
+applied on the owner's instruction of 2026-11-22, listed in the
+implementing change for the maintainer's review).
 
 ## Approved requirements
 

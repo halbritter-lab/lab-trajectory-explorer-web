@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { PatientId } from '../core/types'
 import { formatDisplayDate, formatDisplayNumber } from '../core/format'
-import { akiCriterionLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes'
+import { akiCriterionLabel, akiEpisodeDialysisLabel, akiEpisodeEndLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes'
 import type { WorkspaceData } from './workspace-data'
 import { countLabel, sexLabel } from './workspace-labels'
 
@@ -60,10 +60,11 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
       <summary>Detected AKI episodes ({episodes.length})</summary>
       <p className="muted">Automated screening with the KDIGO creatinine criteria on each serum creatinine parameter; not a diagnosis. Creatinine values are in mg/dl. <a href="#methods/aki">How episodes are detected</a></p>
       {episodes.length === 0 ? <p>No AKI episode detected.</p> : <div className="table-scroll" role="region" aria-label="Detected AKI episodes, horizontal scrolling" tabIndex={0}>
-        <table aria-label="Detected AKI episodes"><thead><tr><th>Patient</th><th>Stage</th><th>Onset</th><th>Peak</th><th>Peak value</th><th>Baseline</th><th>Criterion</th><th>Creatinine parameter</th></tr></thead>
+        <table aria-label="Detected AKI episodes"><thead><tr><th>Patient</th><th>Stage</th><th>Onset</th><th>Peak</th><th>Peak value</th><th>Baseline</th><th>Criterion</th><th>Creatinine parameter</th><th>End</th><th>Dialysis start</th></tr></thead>
           <tbody>{episodes.map((episode, index) => <tr key={index}>
             <th><button onClick={() => onBrowse(episode.patientId)}>{episode.patientId}</button></th><td>{akiStageLabel(episode.stage)}</td><td>{formatDisplayDate(episode.onset)}</td><td>{formatDisplayDate(episode.peakDate)}</td>
             <td>{formatDisplayNumber(episode.peakValue)}</td><td>{formatDisplayNumber(episode.baselineValue)} on {formatDisplayDate(episode.baselineDate)}</td><td>{akiCriterionLabel(episode.criterion)}</td><td>{episode.parameter} [{episode.unit ?? 'no unit'}]</td>
+            <td>{akiEpisodeEndLabel(episode)}</td><td>{akiEpisodeDialysisLabel(episode)}</td>
           </tr>)}</tbody>
         </table>
       </div>}

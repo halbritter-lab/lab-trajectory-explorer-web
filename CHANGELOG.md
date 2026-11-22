@@ -5,6 +5,33 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (AKI episodes separated by recovery, decided 2026-11-21, issue #67)
+
+- **A new AKI episode starts only after creatinine has been back below the
+  KDIGO criterion for 48 hours** (ADQI 16), counted in calendar days.
+  Crossings without such a recovery form one episode with the highest stage
+  of its crossings. Until now each move of the sliding baseline started a new
+  episode: daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl were four
+  episodes (I, II, II, III) and are now one stage-III episode.
+- An episode also ends at the first value after more than seven days without
+  measurements, and does not end during an acute dialysis with an end date.
+- **Results change** where crossings without recovery between them were
+  separate episodes: episode counts, stages per episode, chips, markers, the
+  `aki_episodes` sheet, AKI exclusion windows and with them slopes and
+  endpoint inputs. The exclusion window stays onset + N days, so a merged
+  episode excludes less than the chain it replaces. No golden fixture value
+  moved; the demo workbook keeps its eight episodes, stages and slopes.
+- **The episode list shows the episode end and the first dialysis start**
+  (review item K29): the Data page, the patient view and the sheet
+  `aki_episodes` gain the end date (empty while the episode is open) and the
+  start date of the first dialysis between onset and end with its intent,
+  appended as `end_date` and `dialysis_start` after `criterion`. The dialysis
+  does not change the stage.
+- Kidney package: `AkiEpisode` has `endDate`; `findKdigoAkiEpisodes` takes
+  an options object with `recoveryMs` and `blocksRecovery`;
+  `isInAcuteDialysisInterval` is new. The recovery length is not an
+  interface setting.
+
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
 - **AKI detection no longer depends on the row order of the file.** A time
