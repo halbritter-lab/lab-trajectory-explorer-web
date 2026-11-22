@@ -5,7 +5,7 @@ export const methodTopics = [
   { id: 'fits', label: 'Fits & slopes', group: 'Analysis & interpretation', sections: [{ id: 'choosing', label: 'Model choice' }, { id: 'quality', label: 'Quality flags' }, { id: 'models', label: 'Model assumptions' }, { id: 'pipeline', label: 'Pipeline' }, { id: 'presets', label: 'Presets' }, { id: 'balancing', label: 'Time balancing' }, { id: 'ols', label: 'OLS details' }] },
   { id: 'endpoints', label: 'Endpoints & projection', group: 'Analysis & interpretation', sections: [{ id: 'missing', label: 'Missing results' }, { id: 'observed', label: 'Observed events' }, { id: 'extrapolation', label: 'Projection algorithm' }] },
   { id: 'aki', label: 'AKI & exclusions', group: 'Analysis & interpretation', sections: [{ id: 'detection', label: 'Detection & limitations' }, { id: 'timing', label: 'Timing & windows' }] },
-  { id: 'cohort', label: 'Cohort models', group: 'Analysis & interpretation', sections: [{ id: 'preparation', label: 'Inputs & safeguards' }, { id: 'specification', label: 'Model & projections' }, { id: 'time-to-event', label: 'Time to event' }] },
+  { id: 'cohort', label: 'Cohort models', group: 'Analysis & interpretation', sections: [{ id: 'preparation', label: 'Inputs & safeguards' }, { id: 'specification', label: 'Model & projections' }] },
   { id: 'export', label: 'Export & reproducibility', group: 'Reference', sections: [{ id: 'workbooks', label: 'Workbook contents' }, { id: 'provenance', label: 'Trace a result' }, { id: 'model-workbook', label: 'Cohort-model workbook' }] },
   { id: 'sources', label: 'Limitations & sources', group: 'Reference', sections: [] },
 ] as const

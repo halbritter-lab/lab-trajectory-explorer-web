@@ -71,6 +71,11 @@ interfaces are still evolving before 1.0.
 - Time to event: the Aalen–Johansen curve and the `cumulative_incidence`
   sheet appear only when an included patient exits by death (status 2), not
   for a death after the endpoint or of a patient left out.
+- Methodology page: the new section "Cohort models › Time to event" is taken
+  out again pending the maintainer's approval (its text is TTE0 of the
+  wording drafts); the area links to the method reference instead. The
+  corrections of sentences that had become false (death among the event
+  types, endpoint input not after a death) stay.
 
 ### Fixed (code review of the 2026-11-22 merges)
 

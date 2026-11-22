@@ -2750,16 +2750,38 @@ Draft:
 Follows the decisions `km`, `death` and `taxonomy` of 2026-11-22 (see
 [method decisions](remaining-method-decisions.md#decisions-of-2026-11-22-decision-artifact-issues-2-4-6585))
 and the [method reference](method-algorithms/time-to-event.md). Applied to
-the page, because they became false or a new area needed a target for its
-link: *Trajectories* names death among the loadable events; *Endpoints* and
-*Fits & slopes* add "not after a recorded death" to the endpoint input; a
-short factual section *Cohort models › Time to event*
-(`#methods/cohort/time-to-event`) lists what the area computes. The
-paragraphs below are drafts for the maintainer; none is applied.
+the page, because the sentences had become false: *Trajectories* names death
+among the loadable events; *Endpoints* and *Fits & slopes* add "not after a
+recorded death" to the endpoint input. The short section *Cohort models ›
+Time to event* (`#methods/cohort/time-to-event`) that the time-to-event
+package had added was taken out again in the code review of wave 3: the
+methodology page is the maintainer's call, so its text is TTE0 below. Until
+it is approved, the area links to the method reference
+([time to event](method-algorithms/time-to-event.md)). The paragraphs below
+are drafts for the maintainer; none is applied.
+
+### TTE0. A new section *Cohort models › Time to event*
+
+Topic *Cohort models*, a new section after *Model & projections* (anchor
+`#methods/cohort/time-to-event`, navigation label "Time to event"); the
+area's link would then point to it again.
+
+> The area Time to event of the Cohort models page estimates, per group, the
+> time to a confirmed eGFR endpoint of the parameter's endpoint settings under
+> Trajectories, or to kidney replacement therapy, alone or as a composite. The
+> event is dated at the first crossing. Kaplan–Meier estimate with the number
+> at risk, events, censored patients and the median with a 95% interval
+> (Brookmeyer–Crowley on the log-log interval); log-rank test between groups.
+> Time scale: age, with entry at the first eligible measurement (delayed
+> entry), or years since that measurement. Exit: the event, a recorded death,
+> or the last eligible measurement. Patients with the endpoint at or before
+> entry are left out and listed. With recorded deaths, an Aalen–Johansen
+> cumulative incidence with death as competing event is shown beside 1 − KM.
+> No R is needed.
 
 ### TTE1. What the estimate says
 
-Topic *Cohort models*, section *Time to event*, replacing its paragraph.
+Topic *Cohort models*, section *Time to event* (TTE0), replacing its paragraph.
 
 > Time to event describes how soon the patients of a group reach a confirmed
 > eGFR endpoint: CKD G4 or G5, a 40, 50 or 57 % decline, or kidney

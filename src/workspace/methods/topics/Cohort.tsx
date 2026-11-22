@@ -62,19 +62,6 @@ export function Cohort() { return <>
         included) and is withheld unless the fit converged, is not singular and matches the
         current data and settings.
       </p>
-</section><section className="methodology-section"><h3 id="methods-time-to-event" tabIndex={-1}>Time to event</h3>
-      <p>
-        The area Time to event of the Cohort models page estimates, per group, the time to a
-        confirmed eGFR endpoint of the parameter&apos;s endpoint settings under Trajectories, or to
-        kidney replacement therapy, alone or as a composite. The event is dated at the first
-        crossing. Kaplan–Meier estimate with the number at risk, events, censored patients and
-        the median with a 95% interval (Brookmeyer–Crowley on the log-log interval); log-rank
-        test between groups. Time scale: age, with entry at the first eligible measurement
-        (delayed entry), or years since that measurement. Exit: the event, a recorded death,
-        or the last eligible measurement. Patients with the endpoint at or before entry are
-        left out and listed. With recorded deaths, an Aalen–Johansen cumulative incidence with
-        death as competing event is shown beside 1 − KM. No R is needed.
-      </p>
 </section><h3>Check model status</h3><ReferenceTable label="Cohort model status"><table><thead><tr><th>Status</th><th>Meaning and what to check</th></tr></thead><tbody>
 <tr><td>Insufficient repeated observations</td><td>Check the included patients and distinct measurement times against the safeguards above.</td></tr>
 <tr><td>Singular fit</td><td>Coefficients can be inspected and exported, but model lines and projections are withheld. Review the random-effect structure.</td></tr>

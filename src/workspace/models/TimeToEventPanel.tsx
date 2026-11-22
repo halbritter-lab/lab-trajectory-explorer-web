@@ -141,7 +141,7 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
   return <section className="card cm-tte stack" aria-labelledby={headingId} id="cohort-model-time-to-event">
     <div>
       <h2 id={headingId}>Time to event</h2>
-      <p className="muted">Kaplan–Meier estimate of the time to a confirmed eGFR endpoint per group, with the log-rank test between groups. A description of the cohort for research use, not a prognosis. No R is needed. <a href="#methods/cohort/time-to-event">Time to event: method</a></p>
+      <p className="muted">Kaplan–Meier estimate of the time to a confirmed eGFR endpoint per group, with the log-rank test between groups. A description of the cohort for research use, not a prognosis. No R is needed. <a href="https://github.com/halbritter-lab/lab-trajectory-explorer-web/blob/main/docs/method-algorithms/time-to-event.md" target="_blank" rel="noopener noreferrer">Time to event: method reference (opens in a new tab)</a></p>
     </div>
     <div className="cm-primary-controls">
       <label>Parameter
