@@ -24,7 +24,9 @@ const COLUMNS_UP_TO_0_3_7 = ['PatientID', 'slope_mode', 'fit_model', 'n', 'span_
   'endpoint_decline_57_confirmed_date', 'endpoint_decline_57_recovery_date', 'endpoint_decline_57_first_value', 'endpoint_decline_57_confirmed_value', 'endpoint_decline_57_recovery_value',
   'endpoint_prediction_age_basis', 'Parameter', 'Unit', 'n_fitted', 'fitted_span_days', 'rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max',
   'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates']
-const COHORT_HEADER = [...COLUMNS_UP_TO_0_3_7, 'first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'egfr_formula_switch', 'n_bounded', 'group']
+// 2026-11-22: egfr_formula_switch (#66), n_bounded (#73), then the confirmed 50 % decline (issue #82) and the unconfirmed single value below 15, before `group`.
+const DECLINE_50 = ['endpoint_observed_decline_50', ...['first_date', 'confirmed_date', 'recovery_date', 'first_value', 'confirmed_value', 'recovery_value'].map(field => `endpoint_decline_50_${field}`)]
+const COHORT_HEADER = [...COLUMNS_UP_TO_0_3_7, 'first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'egfr_formula_switch', 'n_bounded', ...DECLINE_50, 'endpoint_g5_single_value_unconfirmed', 'group']
 
 /** The fixture with its cohort rows grouped by the attribute `group`. */
 function groupedFixture() {

@@ -59,6 +59,9 @@ test('names the AKI exclusion in a withheld G5 projection and exports the eligib
   await showOnlyParameter(page, /^eGFR \[ml\/min\/1\.73m2\]$/)
   await page.getByRole('button', { name: /^Analysis settings:/ }).click()
   await page.getByRole('dialog').getByLabel('Analysis preset').selectOption('ckd_progression')
+  // Off in the preset since 2026-11-22 (issue #81).
+  if (!(await page.getByRole('dialog').getByLabel('Extrapolation to CKD G5').isVisible())) await page.getByRole('dialog').getByText('Calculation settings', { exact: true }).click()
+  await page.getByRole('dialog').getByLabel('Extrapolation to CKD G5').check()
   await page.getByRole('button', { name: 'Close analysis settings' }).click()
   await page.getByRole('checkbox', { name: /^Analyse trend:/ }).check()
 
@@ -72,8 +75,10 @@ test('names the AKI exclusion in a withheld G5 projection and exports the eligib
   await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
   const exported = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
   const header = XLSX.utils.sheet_to_json<string[]>(exported.Sheets.cohort, { header: 1 })[0]
-  expect(header.slice(-13)).toEqual(['index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
-    'first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'egfr_formula_switch', 'n_bounded', 'group'])
+  // 2026-11-22: egfr_formula_switch, n_bounded, then the 50 % decline and the unconfirmed single value below 15 come before group, which stays last.
+  expect(header.slice(-22)).toEqual(['index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
+    'first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'egfr_formula_switch', 'n_bounded', 'endpoint_observed_decline_50', 'endpoint_decline_50_first_date', 'endpoint_decline_50_confirmed_date',
+    'endpoint_decline_50_recovery_date', 'endpoint_decline_50_first_value', 'endpoint_decline_50_confirmed_value', 'endpoint_decline_50_recovery_value', 'endpoint_g5_single_value_unconfirmed', 'group'])
   // The eligible dates ignore the AKI windows; the fit keeps only the first day.
   expect(XLSX.utils.sheet_to_json(exported.Sheets.cohort)[0]).toMatchObject({
     first_eligible_date: '2020-01-01', last_eligible_date: '2021-12-16', index_date: '2020-01-01', last_fitted_date: '2020-01-01',

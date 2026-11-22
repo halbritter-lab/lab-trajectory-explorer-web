@@ -44,11 +44,11 @@ export const ROW_MARKS = Object.keys(MARK_LABELS) as RowMark[]
 export const rowMarkLabel = (mark: RowMark): string => MARK_LABELS[mark]
 
 /** An observed endpoint: kidney failure by event, a confirmed CKD G4 or G5, or
- * a confirmed 40% or 57% decline. Projections and the total change are not
+ * a confirmed 40%, 50% or 57% decline. Projections and the total change are not
  * endpoints reached. */
 function endpointReached(endpoints: CohortCell['endpoints']): boolean {
   return Boolean(endpoints.kidneyFailureReached || endpoints.observedCkdG4?.met || endpoints.observedCkdG5?.met
-    || endpoints.observedDecline40?.met || endpoints.observedDecline57?.met)
+    || endpoints.observedDecline40?.met || endpoints.observedDecline50?.met || endpoints.observedDecline57?.met)
 }
 
 /** The marks one patient row carries in the shown columns. `fit[i]` says whether

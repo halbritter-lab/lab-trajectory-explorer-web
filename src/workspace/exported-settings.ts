@@ -11,7 +11,7 @@ import { readWorkbookSheets } from '../io/readWorkbook'
 import { isRecord, parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
 import { columnSettingModules } from '../core/analysis/registry'
 import { COMPUTED_EGFR_UNIT, computedEgfrName } from '../core/domains/nephrology/analytes'
-import { defaultTrajectoryView, restoreSavedSettings, parameterKeyLabel, SAVED_SETTINGS_VERSION } from './saved-settings'
+import { defaultTrajectoryView, projectionOnNotice, restoreSavedSettings, parameterKeyLabel, SAVED_SETTINGS_VERSION } from './saved-settings'
 import { defaultFitSettings, type TrajectoryFitSettings } from './workspace-analysis'
 import { parameterLabel } from './workspace-labels'
 import { eventMatchesRule } from '../core/cohort/anchorComparison'
@@ -190,6 +190,7 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
     trajectoryView: defaultTrajectoryView(),
   }, available)
   notApplied.push(...restored.notRestored)
+  if (restored.projectionOn.length) applied.push(projectionOnNotice(restored.projectionOn).replace(/\.$/, ''))
   if (restored.keptAsCustom.length) applied.push(`${restored.keptAsCustom.join(', ')}: the preset has changed since the export, so the values are kept as custom settings`)
   const sharedApplied = shared !== undefined && !restored.notRestored.includes('shared analysis settings')
   // Own settings of parameters the file does not list stay as they are.

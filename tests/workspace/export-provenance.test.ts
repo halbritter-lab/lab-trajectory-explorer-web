@@ -113,12 +113,14 @@ describe('about sheet: provenance and personal data', () => {
     expect(about[0]).toBe('Lab Trajectory Explorer export')
     expect(about[9]).toMatch(/^endpoint_percent_change is the total eGFR change/)
     expect(about[16]).toMatch(/^Measurements marked < or > are bounds/)
-    // Appended on 2026-11-22: issue #64 after the provenance rows, then the notes of issues #65, #83, #69 and of `sexd`.
-    expect(about.at(-5)).toMatch(/^anchor_comparison lists the before\/after comparison/)
-    expect(about.at(-4)).toMatch(/^A computed eGFR reads one serum creatinine series per patient/)
-    expect(about.at(-3)).toMatch(/^trend, settings_source and column_settings/)
-    expect(about.at(-2)).toMatch(/^peri_event_creatinine lists the serum creatinine around every event/)
-    expect(about.at(-1)).toMatch(/^egfr_male_coefficients_for_sex_d, the last column of demographics/)
-    expect(about.slice(-10, -5).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
+    // Appended on 2026-11-22: issue #64 after the provenance rows, then the notes of issues #65, #83, #69, of `sexd` and of #81/#82 last.
+    expect(about.at(-6)).toMatch(/^anchor_comparison lists the before\/after comparison/)
+    expect(about.at(-5)).toMatch(/^A computed eGFR reads one serum creatinine series per patient/)
+    expect(about.at(-4)).toMatch(/^trend, settings_source and column_settings/)
+    expect(about.at(-3)).toMatch(/^peri_event_creatinine lists the serum creatinine around every event/)
+    expect(about.at(-2)).toMatch(/^egfr_male_coefficients_for_sex_d, the last column of demographics/)
+    // Appended 2026-11-22: the 50 % decline, the unconfirmed single value below 15 and the extrapolation default.
+    expect(about.at(-1)).toMatch(/^endpoint_observed_decline_50 and the endpoint_decline_50_\* columns/)
+    expect(about.slice(-11, -6).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
   })
 })

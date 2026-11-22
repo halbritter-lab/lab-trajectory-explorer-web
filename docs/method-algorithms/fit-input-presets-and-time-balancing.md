@@ -448,7 +448,8 @@ fixes every setting in the table.
 | Endpoint: percent decline | off | off | on | off |
 | Endpoint: observed CKD G4 | off | off | on | off |
 | Endpoint: observed CKD G5 | off | off | on | off |
-| Endpoint: projected age to CKD G5 | off | off | on | off |
+| Endpoint: projected age to CKD G5 (extrapolation; until 2026-11-22 on under CKD progression) | off | off | off | off |
+| Endpoint: confirmed 50 % decline (since 2026-11-22) | off | off | off | off |
 | Confirmation days | 90 (stored, inactive) | 90 (stored, inactive) | 90 | 90 (stored, inactive) |
 | Rapid-decline threshold (column module setting) | 5 | 5 | 5 | 5 |
 

@@ -62,7 +62,7 @@ export function Endpoints() { return <>
         on the equation. Below the equation&apos;s breakpoint the decline is smaller.</p>
 </section>
 </details><details className="methodology-detail"><summary>Individual endpoint projection algorithm</summary>
-<section className="methodology-section"><h3 id="methods-prediction" tabIndex={-1}>Individual endpoint projection algorithm</h3>
+<section className="methodology-section"><h3 id="methods-extrapolation" tabIndex={-1}>Individual endpoint projection algorithm</h3>
 
       <p>Fit the same endpoint-eligible dated exact numeric measurements, including recovery after
         acute dialysis but excluding transplant and chronic dialysis dates onward, using global OLS
@@ -85,7 +85,8 @@ export function Endpoints() { return <>
         projected age does not mean a stable course.</p>
       <p>Require measurements on at least three different dates (five with Theil–Sen); several
         measurements on one day count as one date. Also require at least 365 days between the
-        first and the latest measurement, a finite declining fit, a future crossing and an age at
+        first and the latest measurement, at least four different dates over at least three years
+        (KDIGO 2012), a finite declining fit, a future crossing and an age at
         the latest measurement. Report a future
         crossing only within 20 years after the latest measurement used, including the
         boundary. The endpoint fit's slope confidence interval must have finite ordered bounds

@@ -1,5 +1,6 @@
 import { fitGlobal } from '../../../stats/series'
 import {
+  boundExcludesCrossing,
   emptyObservedCrossing,
   normalizeConfirmationDays as normalizeDays,
   observeThresholdCrossing,
@@ -12,7 +13,7 @@ import {
   type ProjectedCrossingReason,
   type ThresholdCrossingDefinition,
 } from '../../../endpoints/thresholdEndpoints'
-import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS, MAX_CONFIRMATION_DAYS } from '../constants'
+import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS, KDIGO_PROJECTION_MIN_DATES, KDIGO_PROJECTION_MIN_MONTHS, MAX_CONFIRMATION_DAYS } from '../constants'
 import type { KidneyFailureReached } from './endpointEventPolicy'
 import type { FitModel } from '../../../fitPipeline/types'
 
@@ -24,6 +25,9 @@ export interface CkdEndpointSettings {
   observedCkdG5: boolean
   projectedAgeToCkdG5: boolean
   confirmationDays?: number
+  /** Confirmed 50 % decline beside 40 % and 57 %; evaluated only with
+   * `percentDecline` on (decided 2026-11-22, issue #82). */
+  observedDecline50?: boolean
 }
 
 export type ObservedCkdEvent = ObservedCrossing
@@ -36,6 +40,7 @@ export type CkdProjectionReason =
   | 'insufficient_points'
   | 'theil_sen_insufficient_points'
   | 'span_too_short'
+  | 'kdigo_minimum_follow_up'
   | 'already_below_threshold'
   | 'missing_age'
   | 'kidney_failure_reached'
@@ -65,11 +70,18 @@ export interface CkdEndpoints {
    * in elapsed UTC days 0–90 from the first such value. */
   declineBaselineValue: number | null
   observedDecline40: ObservedCkdEvent
+  observedDecline50: ObservedCkdEvent
   observedDecline57: ObservedCkdEvent
   confirmationDays: number
+  /** A value below 15 that is not confirmed: an eligible date whose values are
+   * all below 15, with no such date directly before or after it, while no G5
+   * is confirmed. Never an observed G5 and no reason to withhold the
+   * projection (decided 2026-11-22, `g5single`). Null when neither observed G5
+   * nor the projection is evaluated. */
+  g5SingleUnconfirmed: boolean | null
   /** Which endpoints were evaluated. A disabled endpoint reports `met: false` /
    * `null`, so exports use this to tell "not met" from "never evaluated". */
-  evaluated: { percentDecline: boolean; observedCkdG4: boolean; observedCkdG5: boolean; projectedAgeToCkdG5: boolean }
+  evaluated: { percentDecline: boolean; observedCkdG4: boolean; observedCkdG5: boolean; projectedAgeToCkdG5: boolean; observedDecline50: boolean }
   projectedAgeToCkdG5: {
     value: number | null
     reason: CkdProjectionReason | null
@@ -128,6 +140,7 @@ const PROJECTION_REASONS: Record<ProjectedCrossingReason, CkdProjectionReason> =
   insufficient_points: 'insufficient_points',
   theil_sen_insufficient_points: 'theil_sen_insufficient_points',
   span_too_short: 'span_too_short',
+  follow_up_below_minimum: 'kdigo_minimum_follow_up',
   no_fit: 'no_fit',
   not_approaching: 'non_declining_fit',
   already_crossed: 'already_below_threshold',
@@ -145,11 +158,31 @@ function emptyEndpoints(): CkdEndpoints {
     observedCkdG5: emptyObservedCrossing(),
     declineBaselineValue: null,
     observedDecline40: emptyObservedCrossing(),
+    observedDecline50: emptyObservedCrossing(),
     observedDecline57: emptyObservedCrossing(),
     confirmationDays: DEFAULT_CONFIRMATION_DAYS,
-    evaluated: { percentDecline: false, observedCkdG4: false, observedCkdG5: false, projectedAgeToCkdG5: false },
+    g5SingleUnconfirmed: null,
+    evaluated: { percentDecline: false, observedCkdG4: false, observedCkdG5: false, projectedAgeToCkdG5: false, observedDecline50: false },
     projectedAgeToCkdG5: { value: null, reason: 'disabled' },
   }
+}
+
+/** Whether some eligible date has only values below `threshold` while the
+ * dates directly before and after it (if any) have a value at or above it.
+ * `notLowDates` (timestamps of conclusive bounds) count as dates that are not
+ * low; on a date with values they make that date not low.
+ * Dates are compared as timestamps (calendar days after import), as in
+ * `observeThresholdCrossing`: a date with any value at or above the threshold
+ * counts as not low. */
+function hasIsolatedLowDate(points: readonly EndpointPoint[], threshold: number, notLowDates: readonly number[] = []): boolean {
+  const lowByTime = new Map<number, boolean>()
+  for (const p of points) {
+    const t = p.date.getTime()
+    lowByTime.set(t, (lowByTime.get(t) ?? true) && p.value < threshold)
+  }
+  for (const t of notLowDates) lowByTime.set(t, false)
+  const lowByDate = [...lowByTime.entries()].sort((a, b) => a[0] - b[0]).map(([, low]) => low)
+  return lowByDate.some((low, i) => low && !lowByDate[i - 1] && !lowByDate[i + 1])
 }
 
 /** The minimum confirmation interval in whole days: the default when the value
@@ -175,6 +208,7 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
     observedCkdG4: input.enabled.observedCkdG4 ?? false,
     observedCkdG5: input.enabled.observedCkdG5,
     projectedAgeToCkdG5: input.enabled.projectedAgeToCkdG5,
+    observedDecline50: input.enabled.percentDecline && (input.enabled.observedDecline50 ?? false),
   }
   const points = validEndpointPoints(input.points)
   const fitPoints = input.fitPoints ? validEndpointPoints(input.fitPoints) : points
@@ -203,13 +237,24 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
         result.recoveryValue = actual(result.recoveryDate, result.recoveryValue)
         return result
       }
+      // One rule for every boundary; 50 % only when it is switched on.
       out.observedDecline40 = observeDecline(40)
+      if (out.evaluated.observedDecline50) out.observedDecline50 = observeDecline(50)
       out.observedDecline57 = observeDecline(57)
     }
   }
   const bounds = input.bounds ?? []
   if (input.enabled.observedCkdG4) out.observedCkdG4 = observeThresholdCrossing(points, definitions.observedCkdG4, bounds)
   if (input.enabled.observedCkdG5) out.observedCkdG5 = observeThresholdCrossing(points, definitions.observedCkdG5, bounds)
+  if (input.enabled.observedCkdG5 || input.enabled.projectedAgeToCkdG5) {
+    const g5Met = input.enabled.observedCkdG5 ? out.observedCkdG5.met : observeThresholdCrossing(points, definitions.observedCkdG5, bounds).met
+    // A conclusive bound (`>x`, x at or above the threshold) is a date that is
+    // not low, as it interrupts a G5 candidate (merge of #73 and #82).
+    const notLowBoundDates = bounds
+      .filter(bound => bound.date instanceof Date && !Number.isNaN(bound.date.getTime()) && boundExcludesCrossing(bound, definitions.observedCkdG5))
+      .map(bound => bound.date.getTime())
+    out.g5SingleUnconfirmed = !g5Met && hasIsolatedLowDate(points, threshold, notLowBoundDates)
+  }
 
   if (input.enabled.projectedAgeToCkdG5) {
     // A confirmed G5 in the data rules out a future G5 crossing whether or not
@@ -227,6 +272,8 @@ export function computeCkdEndpoints(input: ComputeCkdEndpointsInput): CkdEndpoin
       direction: 'below',
       observed: observedG5,
       fitModel: input.fitModel,
+      // KDIGO 2012 CKD p. 66: ≥ 4 measurements over ≥ 3 years (decided 2026-11-22).
+      minimumFollowUp: { dates: KDIGO_PROJECTION_MIN_DATES, months: KDIGO_PROJECTION_MIN_MONTHS },
     })
     let reason = projected.reason === null ? null : PROJECTION_REASONS[projected.reason]
     let value = projected.value

@@ -205,7 +205,7 @@ export function Fits() { return <>
           <strong>CKD progression</strong> — OLS on quarterly medians; values censored from kidney
           transplant and from chronic dialysis start; acute dialysis intervals and dated dialysis
           intervals of unknown intent excluded; a 30-day window after each AKI onset excluded;
-          percent decline, observed G4, observed G5 and projected age to G5 switched on, with a
+          percent decline, observed G4 and observed G5 switched on (projected age to G5 off), with a
           90-day minimum confirmation interval.
         </li>
         <li>

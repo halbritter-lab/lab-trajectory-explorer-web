@@ -1037,10 +1037,13 @@ describe('real-data trajectories workspace', () => {
 
   it('pins the endpoint badge text and title for a projected G5 age', () => {
     const parameter = { key: JSON.stringify(['eGFR', 'mL/min/1.73m²']), label: 'eGFR [mL/min/1.73m²]', bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', derived: false }
-    const rows: LabRow[] = [60, 45, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2020 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 60 + i }))
+    // Four dates over three years, the KDIGO minimum of the extrapolation (2026-11-22).
+    const rows: LabRow[] = [66, 54, 42, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2019 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 59 + i }))
     const data = { rawRows: rows, rows, fileName: 'g5.csv', parameters: [parameter], patients: [{ id: 'P1', label: 'P1', attributes: {}, baselineAge: 60 }], events: [], patientAttributes: {}, analysis: { fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     preset('ckd_progression', data.parameters[0].label)
+    // Off in the preset since 2026-11-22 (issue #81): switched on per parameter.
+    fireEvent.click(screen.getByLabelText('Extrapolation to CKD G5'))
     // Deliberately exact: wording changes to this badge must update this test.
     // No birth date: the age is known in completed years, so no decimal is shown.
     closeSettings()
@@ -1049,8 +1052,8 @@ describe('real-data trajectories workspace', () => {
     fireEvent.change(screen.getByLabelText('Warning display'), { target: { value: 'text' } })
     closeDisplay()
     const badge = document.querySelector('.wt-badge-endpoint')!
-    expect(badge).toHaveTextContent(/^-50%, G5 @ ~63y$/)
-    expect(badge.getAttribute('title')).toBe('Total eGFR change -50.0% from first to latest eligible measurement (not per year). This is not a confirmed 40% decline event: that event is measured from the baseline (mean of the first 90 days, 60.0) and needs a confirming measurement at least 90 days and at most 12 months later. Projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds, AKI exclusion windows and kidney replacement therapy/acute dialysis periods excluded).')
+    expect(badge).toHaveTextContent(/^-55%, G5 @ ~63y$/)
+    expect(badge.getAttribute('title')).toBe('Total eGFR change -54.5% from first to latest eligible measurement (not per year). This is not a confirmed 40% decline event: that event is measured from the baseline (mean of the first 90 days, 66.0) and needs a confirming measurement at least 90 days and at most 12 months later. Conditional extrapolation of the fitted trend, not a prognosis: the fitted line reaches CKD G5 at about 63 years of age (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds, AKI exclusion windows and kidney replacement therapy/acute dialysis periods excluded).')
   })
 
   it('publishes general and parameter settings for cohort models; clearing the dataset withdraws them', () => {
@@ -1070,21 +1073,23 @@ describe('real-data trajectories workspace', () => {
 
   it('shows the projected G5 age in whole years when the birth date is known', () => {
     const parameter = { key: JSON.stringify(['eGFR', 'mL/min/1.73m²']), label: 'eGFR [mL/min/1.73m²]', bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', derived: false }
-    const rows: LabRow[] = [60, 45, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2020 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 60 + i }))
+    // Four dates over three years, the KDIGO minimum of the extrapolation (2026-11-22).
+    const rows: LabRow[] = [66, 54, 42, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2019 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 59 + i }))
     const patient = { id: 'P1', label: 'P1', attributes: {}, baselineAge: 60, birthAnchor: new Date(Date.UTC(1959, 6, 1)), ageEstimated: false }
     const data = { rawRows: rows, rows, fileName: 'g5.csv', parameters: [parameter], patients: [patient], events: [], patientAttributes: {}, analysis: { fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     preset('ckd_progression', data.parameters[0].label)
-    // Born 1959-07-01: 62.5 at the latest measurement, one year before the crossing.
+    fireEvent.click(screen.getByLabelText('Extrapolation to CKD G5'))
+    // Born 1959-07-01: 62.5 at the latest measurement, about 1.25 years before the crossing.
     closeSettings()
     enableTrend(data.parameters[0].label)
     openDisplay()
     fireEvent.change(screen.getByLabelText('Warning display'), { target: { value: 'text' } })
     closeDisplay()
     const badge = document.querySelector('.wt-badge-endpoint')!
-    // 63.5 exactly; whole years since 2026-11-16, the export keeps the unrounded value.
-    expect(badge).toHaveTextContent(/^-50%, G5 @ ~64y$/)
-    expect(badge.getAttribute('title')).toContain('Projected age to CKD G5 about 64 years (the projection has no interval; the export holds the unrounded value); fitted curve')
+    // About 63.76; whole years since 2026-11-16, the export keeps the unrounded value.
+    expect(badge).toHaveTextContent(/^-55%, G5 @ ~64y$/)
+    expect(badge.getAttribute('title')).toContain('Conditional extrapolation of the fitted trend, not a prognosis: the fitted line reaches CKD G5 at about 64 years of age (the projection has no interval; the export holds the unrounded value); fitted curve')
   })
 
   it('reverses a metric sort and keeps patients without a value last', () => {

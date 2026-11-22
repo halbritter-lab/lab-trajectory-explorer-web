@@ -58,3 +58,17 @@ export const DEFAULT_CONFIRMATION_DAYS = 90
  * follow within 12 calendar months (365 or 366 days), so a longer interval
  * could never confirm. */
 export const MAX_CONFIRMATION_DAYS = 365
+/** Confirmation preset of the endpoint settings: 28 days, the ISN trial
+ * definition (Levin 2020; decided 2026-11-22, issue #85). Unverified: the full
+ * text of Levin 2020 was not checked. */
+export const ISN_TRIAL_CONFIRMATION_DAYS = 28
+/** The optional individual G5 extrapolation needs at least four measurements
+ * (distinct dates) over at least three years: KDIGO 2012 CKD, rationale to
+ * Rec 2.1.3, p. 66 (decided 2026-11-22, `minfu`). Three years are counted as
+ * 36 UTC calendar months, inclusive of the anniversary day. */
+export const KDIGO_PROJECTION_MIN_DATES = 4
+export const KDIGO_PROJECTION_MIN_MONTHS = 36
+/** Confirmed eGFR decline boundaries in percent of the baseline: 40 and 57
+ * (since 2026-10-06) and 50 (decided 2026-11-22, issue #82), evaluated by one rule. */
+export const DECLINE_THRESHOLDS = [40, 50, 57] as const
+export type DeclineThreshold = typeof DECLINE_THRESHOLDS[number]

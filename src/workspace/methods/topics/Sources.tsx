@@ -104,8 +104,8 @@ export function Sources() { return <><h3>Intended Use</h3>
           G5 instead.
         </li>
         <li>
-          <strong>G5 projection.</strong> Reported only with measurements on at least three
-          different dates (five with Theil–Sen), at least 365 days of follow-up, a declining fit
+          <strong>G5 projection.</strong> Reported only when switched on, with measurements on at
+          least four different dates (five with Theil–Sen) over at least three years, a declining fit
           whose slope interval lies entirely below zero, and a crossing no more than 20 years after
           the latest measurement used.
         </li>

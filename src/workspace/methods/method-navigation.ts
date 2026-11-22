@@ -3,7 +3,7 @@ export const methodTopics = [
   { id: 'data', label: 'Data & eGFR', group: 'Get started', sections: [{ id: 'egfr', label: 'eGFR prerequisites' }, { id: 'network', label: 'Network & storage' }, { id: 'rounding', label: 'Age & rounding' }, { id: 'demographics', label: 'Demographics' }] },
   { id: 'trajectories', label: 'Trajectories', group: 'Get started', sections: [{ id: 'overlay', label: 'Overlay' }, { id: 'events', label: 'Events & display' }, { id: 'screening', label: 'Screening' }] },
   { id: 'fits', label: 'Fits & slopes', group: 'Analysis & interpretation', sections: [{ id: 'choosing', label: 'Model choice' }, { id: 'quality', label: 'Quality flags' }, { id: 'models', label: 'Model assumptions' }, { id: 'pipeline', label: 'Pipeline' }, { id: 'presets', label: 'Presets' }, { id: 'balancing', label: 'Time balancing' }, { id: 'ols', label: 'OLS details' }] },
-  { id: 'endpoints', label: 'Endpoints & projection', group: 'Analysis & interpretation', sections: [{ id: 'missing', label: 'Missing results' }, { id: 'observed', label: 'Observed events' }, { id: 'prediction', label: 'Projection algorithm' }] },
+  { id: 'endpoints', label: 'Endpoints & projection', group: 'Analysis & interpretation', sections: [{ id: 'missing', label: 'Missing results' }, { id: 'observed', label: 'Observed events' }, { id: 'extrapolation', label: 'Projection algorithm' }] },
   { id: 'aki', label: 'AKI & exclusions', group: 'Analysis & interpretation', sections: [{ id: 'detection', label: 'Detection & limitations' }, { id: 'timing', label: 'Timing & windows' }] },
   { id: 'cohort', label: 'Cohort models', group: 'Analysis & interpretation', sections: [{ id: 'preparation', label: 'Inputs & safeguards' }, { id: 'specification', label: 'Model & projections' }] },
   { id: 'export', label: 'Export & reproducibility', group: 'Reference', sections: [{ id: 'workbooks', label: 'Workbook contents' }, { id: 'provenance', label: 'Trace a result' }, { id: 'model-workbook', label: 'Cohort-model workbook' }] },
@@ -13,12 +13,17 @@ export const methodTopics = [
 export type MethodTopic = typeof methodTopics[number]['id']
 export type HelpWorkspace = 'Data' | 'Trajectories' | 'Cohort models'
 
+/** Former section ids that old links still use, by topic: the endpoint
+ * extrapolation section was `prediction` until 2026-11-22 (issue #81). */
+const SECTION_ALIASES: Partial<Record<string, Record<string, string>>> = { endpoints: { prediction: 'extrapolation' } }
+
 /** Null for ordinary workspace anchors; invalid help routes fall back to the guide. */
 export function getMethodLocation(hash = window.location.hash): { topic: MethodTopic; section: string } | null {
   const match = /^#methods(?:\/([^/]*))?(?:\/([^/]*))?$/.exec(hash)
   if (!match) return hash.startsWith('#methods/') ? { topic: 'start', section: '' } : null
   const topic = methodTopics.find(item => item.id === match[1])
   if (!topic) return { topic: 'start', section: '' }
-  const section = topic.sections.find(item => item.id === match[2])?.id ?? ''
+  const requested = SECTION_ALIASES[topic.id]?.[match[2] ?? ''] ?? match[2]
+  const section = topic.sections.find(item => item.id === requested)?.id ?? ''
   return { topic: topic.id, section }
 }

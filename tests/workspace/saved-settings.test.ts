@@ -44,7 +44,7 @@ describe('restoreSavedSettings', () => {
   })
 
   it('uses the defaults without a complaint for a copy saved before settings were kept', () => {
-    expect(restoreSavedSettings(undefined, keys)).toEqual({ trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [] })
+    expect(restoreSavedSettings(undefined, keys)).toEqual({ trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [], projectionOn: [] })
   })
 
   it('discards settings of another settings version as a whole', () => {

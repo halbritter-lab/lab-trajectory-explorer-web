@@ -102,6 +102,8 @@ it; the way the tool applies it is its own.
 | "Not tested" vocabulary | Keeping "not tested" apart from "no variant" follows Groenwold et al. (CMAJ 2012); the four recognised texts are this tool's list (2026-11-22). | [Columns](method-algorithms/import-and-values.md#columns) |
 | Baseline UACR window | The 90-day window around the model baseline and the nearest-date rule for the optional log baseline UACR covariate are this tool's rules (2026-11-22). | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
 | Dropout report and joint-model suggestion | KRT and death as informative dropout follow Vonesh et al. (Stat Med 2006); the event types counted as KRT, loss after 365 days without a model row before the data end and the suggestion above 10 % KRT or death are this tool's rules (decided 2026-11-22). | [Which measurements enter](method-algorithms/cohort-models.md#which-measurements-enter) |
+| Maximum confirmation window of observed endpoints | The minimum interval of 90 days follows the KDIGO 2024 chronicity criterion (more than 3 months); the 28-day preset is attributed to the ISN trial definition (Levin 2020) and is unverified, because the full text of that paper was not checked. That a confirming value must follow within 12 calendar months of the first low value is this tool's rule (labelled so on 2026-11-22, issue #85). | [Maximum window](method-algorithms/endpoints-and-projection.md#observed-g4g5) |
+| Minimum data of the extrapolation to CKD G5 | Four measurements over three years are from KDIGO 2012 CKD (p. 66, "in most cases"); counting them as distinct dates over 36 calendar months, the 365-day and three-date minimums before it and the 20-year horizon are this tool's (2026-11-22). | [Minimum data](method-algorithms/endpoints-and-projection.md#individual-g5-projection) |
 
 ## Open decisions
 
@@ -134,6 +136,9 @@ implemented with the option that changes least. OD-38 was added on
 of its decision and resolved the same day: the decision prescribes calendar
 days.
 
+OD-40 to OD-44 were added on 2026-11-22 with the endpoint decisions of
+that day (issues #81, #82, #85, #4): each records a gap the decision leaves,
+implemented with the option that changes least.
 OD-55 to OD-59 were added on 2026-11-22 with the cohort-model decisions of that day (`genomin`,
 `genomiss`, `uacr`, `dropout`; issue #4), for the details those decisions
 leave open; each is implemented with the conservative option.
@@ -144,8 +149,13 @@ OD-65 to OD-69 were added on 2026-11-22 with the equations for children and
 adolescents (issue #66): where the decisions `peds-eq`, `height` and `switch`
 leave a gap, the conservative option is implemented.
 
-| ID | Open question | Section |
+| ID | Open question, and what is implemented | Section |
 | --- | --- | --- |
+| OD-40 | The decision `p50` makes the 50 % decline the default decline endpoint of a paediatric preset, but the app has no paediatric preset and the fit presets do not choose the eGFR equation (issue #66 changes that in a separate package). Implemented: no new preset; the 50 % decline is off everywhere and switched on by hand. | [Confirmed 50 % decline](method-algorithms/endpoints-and-projection.md#total-percent-change-and-confirmed-40-57--decline) |
+| OD-41 | "A single value below 15" is read as an isolated low date (the neighbouring eligible dates are not low). Two or more neighbouring low dates that are not confirmed get no label. | [Single value below 15](method-algorithms/endpoints-and-projection.md#single-value-below-15-unconfirmed-2026-11-22) |
+| OD-42 | KDIGO's "≥ 4 measurements over ≥ 3 years" is counted as four distinct dates of the projection fit (outside AKI windows where the column excludes them) and 36 UTC calendar months from the first to the latest of them. | [Minimum data](method-algorithms/endpoints-and-projection.md#individual-g5-projection) |
+| OD-43 | The choice of endpoint badges applies to the Trajectories table only; the patient view shows every badge. | [Endpoint badges](method-algorithms/endpoints-and-projection.md#endpoint-badges-in-the-table-2026-11-22) |
+| OD-44 | The confirmed 50 % decline is a sub-option of "Percent eGFR decline" (it needs its baseline), not an independent endpoint; a stored `observedDecline50` without percent decline is not evaluated. | [Confirmed 50 % decline](method-algorithms/endpoints-and-projection.md#total-percent-change-and-confirmed-40-57--decline) |
 | OD-55 | Owner-defined classes of factor levels (for example truncating and non-truncating variants) need a mapping from levels to classes, which is not built; every small level is pooled into "other (pooled)". | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
 | OD-56 | A pooled level that still has fewer than 5 patients with 2 or more model rows is kept in the model with a note; when all levels are pooled the factor fails for lack of variation. The removal of small "not tested" levels runs once, before pooling. | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
 | OD-57 | The "not tested" vocabulary applies to cohort-model factors only; grouping keeps the imported spellings, so `NT` and `not tested` are two groups there. | [Columns](method-algorithms/import-and-values.md#columns) |

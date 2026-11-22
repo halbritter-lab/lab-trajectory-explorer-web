@@ -8,6 +8,9 @@ import type { LabRow } from '../../../src/core/types'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 import type { ClinicalEvent } from '../../../src/core/events/events'
 import { ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
+import type { FitConfig } from '../../../src/core/analysis/fitConfig'
+// The extrapolation to CKD G5 is off in every preset since 2026-11-22 (issue #81).
+const withProjection = (config: FitConfig): FitConfig => ({ ...config, endpoints: { ...config.endpoints, projectedAgeToCkdG5: true } })
 import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 
 function row(p: Partial<LabRow>): LabRow {
@@ -247,7 +250,7 @@ describe('buildCohortRows cell overlays', () => {
       bezeichnung: 'eGFR',
       einheit: 'ml/min/1,73m²',
       mode: 'global',
-      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+      fitConfig: withProjection(ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' })),
       clinicalEventsByPatient: { 1: [transplant] },
     }
 
@@ -266,7 +269,7 @@ describe('buildCohortRows cell overlays', () => {
     const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
     const rows = [['2020-01-01', 14], ['2020-05-01', 13], ['2021-01-01', 65]].map(([date, value]) => row({ ...parameter, labDatum: d(date as string), wertNum: value as number }))
     const event: ClinicalEvent = { patientId: 1, type: 'dialysis', intent: 'chronic', date: d('2020-08-01'), endDate: null, title: 'Dialysis', description: null, warning: '' }
-    const fitConfig = ckdProgressionConfig(parameter)
+    const fitConfig = withProjection(ckdProgressionConfig(parameter))
     fitConfig.endpoints.observedCkdG5 = false
     const spec = { ...parameter, mode: 'global' as const, fitConfig, clinicalEvents: [event] }
     const disabled = buildCohortRows(rows, [1], [spec])[0].cells[0]
@@ -321,7 +324,7 @@ describe('buildCohortRows cell overlays', () => {
     const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
     const rows = [row({ ...parameter, labDatum: d('2020-01-01'), wertNum: 45 })]
     const event: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', intent: null, date: d('2020-01-01'), endDate: null, title: 'Transplant', description: null, warning: '' }
-    const cohort = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: [event] }])
+    const cohort = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: withProjection(ckdProgressionConfig(parameter)), clinicalEvents: [event] }])
     const cell = cohort[0].cells[0]
     expect(cell.points).toHaveLength(1)
     expect(cell.endpoints.endpointPointCount).toBe(0)
