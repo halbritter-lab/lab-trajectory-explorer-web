@@ -122,10 +122,13 @@ describe('AKI episodes do not end in a dated acute dialysis interval', () => {
     const icu = [row(0, 1.0), row(1, 3.2), row(13, 4.0), row(14, 4.2), row(15, 6.5)]
     const cvvhdf = dialysis({ date: day(2), endDate: day(12) })
     expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', [cvvhdf]).map((e) => [iso(e.date), e.stage, iso(e.endDate), e.endedByGap])).toEqual([['2024-01-02', 3, null, false]])
-    // Without the interval the same values are a gap of more than seven days: detection starts afresh.
-    expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', []).map((e) => [iso(e.date), iso(e.endDate), e.endedByGap])).toEqual([['2024-01-02', '2024-01-14', true], ['2024-01-16', null, false]])
+    // Without the interval the same values are a gap of more than seven days: detection starts afresh. Since
+    // 2026-11-22 (row akifirst) 4.0 on 14 January begins an admission and is compared with the mean of 1.0 and
+    // 3.2 (13 and 12 days before): 4.0 / 2.1 = 1.9, so the second episode starts on 14 January, not 16 January.
+    expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', []).map((e) => [iso(e.date), iso(e.endDate), e.endedByGap])).toEqual([['2024-01-02', '2024-01-14', true], ['2024-01-14', null, false]])
+    expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', [], 48, {}).map((e) => e.baselineSource)).toEqual(['window', 'lookback_mean'])
     // A short interval inside a longer gap leaves more than seven days without values: the gap still ends the episode.
-    expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', [dialysis({ date: day(2), endDate: day(4) })]).map((e) => iso(e.date))).toEqual(['2024-01-02', '2024-01-16'])
+    expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', [dialysis({ date: day(2), endDate: day(4) })]).map((e) => iso(e.date))).toEqual(['2024-01-02', '2024-01-14'])
   })
 
   it('does not end an episode at the first value after a long acute interval, which has no reference', () => {

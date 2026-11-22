@@ -29,7 +29,7 @@ function row(p: Partial<LabRow>): LabRow {
 describe('mixedModelRowsFromCohortInputs', () => {
   it('counts overlapping transplant and AKI exclusions once and can skip both windows', () => {
     const transplant: ClinicalEvent = { patientId: 7, type: 'kidney_transplant', date: d('2020-02-01T00:00:00Z'), title: 'Transplant', description: null, endDate: null, intent: null, warning: '' }
-    const episode: AkiEpisode = { date: d('2020-02-01T00:00:00Z'), baselineDate: d('2020-01-01T00:00:00Z'), baselineValue: 1, peakValue: 2, peakDate: d('2020-02-01T00:00:00Z'), criterion: 'absolute_0_3_mg_dl_48h', stage: 1, stageValue: 2, stageDate: d('2020-02-01T00:00:00Z'), stageReferenceValue: 1, stageReferenceDate: d('2020-01-01T00:00:00Z'), endDate: null, endedByGap: false, lastValueDate: d('2020-02-01T00:00:00Z') }
+    const episode: AkiEpisode = { date: d('2020-02-01T00:00:00Z'), baselineDate: d('2020-01-01T00:00:00Z'), baselineValue: 1, peakValue: 2, peakDate: d('2020-02-01T00:00:00Z'), criterion: 'absolute_0_3_mg_dl_48h', baselineSource: 'window', baselineN: 1, stage: 1, stageValue: 2, stageDate: d('2020-02-01T00:00:00Z'), stageReferenceValue: 1, stageReferenceDate: d('2020-01-01T00:00:00Z'), endDate: null, endedByGap: false, lastValueDate: d('2020-02-01T00:00:00Z') }
     const spec: CohortSeriesSpec = { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', mode: 'aki-aware', clinicalEventsByPatient: { 7: [transplant] }, fitInputs: [akiFitInput(7, { bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2' }, [episode], 45)] }
     const rows = [row({ labDatum: d('2020-01-01T00:00:00Z'), wertNum: 60 }), row({ labDatum: d('2020-02-01T00:00:00Z'), wertNum: 50 }), row({ labDatum: d('2020-03-01T00:00:00Z'), wertNum: 40 })]
     expect(prepareMixedModelCohortRows(rows, [7], spec, 'apply')).toMatchObject({ excludedByPreset: 2, rows: [{ value: 60 }] })
@@ -157,6 +157,8 @@ describe('mixedModelRowsFromCohortInputs', () => {
       peakValue: 2,
       peakDate: d('2020-02-01T00:00:00Z'),
       criterion: 'absolute_0_3_mg_dl_48h',
+      baselineSource: 'window',
+      baselineN: 1,
       stage: 1,
       stageValue: 2,
       stageDate: d('2020-02-01T00:00:00Z'),

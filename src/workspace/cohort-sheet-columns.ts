@@ -105,6 +105,8 @@ export const COHORT_SHEET_COLUMNS: readonly CohortSheetColumn[] = [
   number('last_eligible_value', 'Measured value at last_eligible_date. It can differ from "latest" in the Trajectories table, which is the last dated numeric value of the series without these restrictions.', VALUE_UNIT, 'the series has no eligible measurement'),
   text('sex', 'Resolved sex of the patient as used in the analysis: m, w or d. The same value in every row of the patient.', 'no sex could be resolved'),
   number('baseline_age', 'Resolved age of the patient at the earliest dated measurement of any parameter (demographics sheet, baseline_age). The same value in every row of the patient; it is not the age at index_date.', 'completed years', 'no age is available'),
+  text('aki_window', 'AKI exclusion window the fit used (decided 2026-11-22): episode_end_plus_<N>d, from each onset to N days after the end of the episode (for an episode without an observed end, after the recovery window of its last value); onset_plus_<M>d_fallback, M days from each onset, because with the longer windows the fit would keep fewer than 3 fitted dates over 365 days.', 'the column does not exclude AKI windows, or no episode applies to it'),
+  number('n_aki_excluded', 'Exact measurements of the series left out of the fit because they lie in an AKI window (measurements already censored by clinical events not counted). Measurements before an onset stay in the fit.', 'count', 'the column does not exclude AKI windows'),
   text('group', `Value of the attribute the table was grouped by when the file was exported. A patient without a value for the attribute has the text "${GROUP_NOT_RECORDED}", which cannot be told apart from an attribute value of the same text.`, 'the table was not grouped'),
 ]
 

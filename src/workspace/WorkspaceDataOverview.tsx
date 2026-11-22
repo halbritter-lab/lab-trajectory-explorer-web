@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
 import type { PatientId } from '../core/types'
 import { formatDisplayDate, formatDisplayNumber } from '../core/format'
-import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
-import { akiCriterionLabel, akiEpisodeDialysisLabel, akiEpisodeEndLabel, akiEpisodeRows, akiRecoveryFieldHours, akiStageLabel } from './aki-episodes'
+import { akiRecoveryHours, akiRetrospectiveFall } from '../core/domains/nephrology/aki/akiModule'
+import { akiCriterionLabel, akiEpisodeBaselineLabel, akiEpisodeDialysisLabel, akiEpisodeEndLabel, akiEpisodeRows, akiRecoveryFieldHours, akiStageLabel } from './aki-episodes'
 import type { WorkspaceData } from './workspace-data'
 import { useAppStore } from './state/store'
 import { DraftNumberInput } from './DraftNumberInput'
@@ -44,7 +44,8 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
     })
   }, [data.patients])
   const recoveryHours = akiRecoveryHours(data.analysisSettings)
-  const episodes = useMemo(() => akiEpisodeRows(data.rows, data.events, recoveryHours), [data.rows, data.events, recoveryHours])
+  const retrospectiveFall = akiRetrospectiveFall(data.analysisSettings)
+  const episodes = useMemo(() => akiEpisodeRows(data.rows, data.events, recoveryHours, retrospectiveFall), [data.rows, data.events, recoveryHours, retrospectiveFall])
   return <div className="data-event-tables">
     <details>
       <summary>Imported parameters ({parameters.length})</summary>
@@ -70,11 +71,14 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
           normalise={hours => akiRecoveryFieldHours(hours)} onCommit={hours => useAppStore.getState().setAkiRecoveryHours(hours)} />
       </label>
       <p className="muted" id="aki-recovery-note">A new episode starts only after creatinine was back below the criterion for this long, counted in calendar days (48 hours: the next two days), so the value is rounded down to whole days (multiples of 24, at most {MAX_AKI_RECOVERY_HOURS}). It applies to this list, the AKI windows and markers of every column and the export.</p>
+      <p className="muted" id="aki-admission-note">The first value of an admission (the first value, or the first after more than 7 days without values, followed by another value on one of the next 2 days) has no earlier value in the 48-hour and 7-day windows: it is compared with the mean of the values 7 to 365 days before it and is an episode at 1.5 times that mean or more.</p>
+      <label className="check-field" id="data-aki-retrospective"><input type="checkbox" checked={retrospectiveFall} aria-describedby="aki-retrospective-note" onChange={event => useAppStore.getState().setAkiRetrospectiveFall(event.target.checked)} /> Retrospective detection: without values 7 to 365 days before, a later fall during the admission marks the first value as AKI</label>
+      <p className="muted" id="aki-retrospective-note">Off by default. When on, the first value of an admission without such a value is an episode when a later value of the admission lies at least 0.3 mg/dl below it or at most 1/1.5 of it (KDIGO retrospective detection).</p>
       {episodes.length === 0 ? <p>No AKI episode detected.</p> : <div className="table-scroll" role="region" aria-label="Detected AKI episodes, horizontal scrolling" tabIndex={0}>
         <table aria-label="Detected AKI episodes" className="aki-episodes-table"><thead><tr><th>Patient</th><th>Stage</th><th>Onset</th><th>Peak</th><th>Peak value</th><th>Baseline</th><th>Criterion</th><th>Creatinine parameter</th><th>End</th><th>Dialysis start</th></tr></thead>
           <tbody>{episodes.map((episode, index) => <tr key={index}>
             <th><button onClick={() => onBrowse(episode.patientId)}>{episode.patientId}</button></th><td>{akiStageLabel(episode.stage)}</td><td className="aki-date">{formatDisplayDate(episode.onset)}</td><td className="aki-date">{formatDisplayDate(episode.peakDate)}</td>
-            <td>{formatDisplayNumber(episode.peakValue)}</td><td>{formatDisplayNumber(episode.baselineValue)} on <span className="aki-date">{formatDisplayDate(episode.baselineDate)}</span></td><td>{akiCriterionLabel(episode.criterion)}</td><td>{episode.parameter} [{episode.unit ?? 'no unit'}]</td>
+            <td>{formatDisplayNumber(episode.peakValue)}</td><td>{akiEpisodeBaselineLabel(episode)}</td><td>{akiCriterionLabel(episode.criterion)}</td><td>{episode.parameter} [{episode.unit ?? 'no unit'}]</td>
             <td className="aki-end">{akiEpisodeEndLabel(episode)}</td><td>{akiEpisodeDialysisLabel(episode)}</td>
           </tr>)}</tbody>
         </table>

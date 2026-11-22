@@ -30,6 +30,16 @@ export const AKI_RECOVERY_WINDOW_MS = DEFAULT_AKI_RECOVERY_HOURS * MS_PER_HOUR
  * kidney disease in ADQI 16 (review of the combined branch, 2026-11-22). The
  * detector itself takes any length. */
 export const MAX_AKI_RECOVERY_HOURS = 90 * 24
+/** Look-back baseline of the first value of an admission (decided
+ * 2026-11-22, KDIGO 2012 AKI ch. 2.4): the mean of the creatinine values 7 to
+ * 365 calendar days before it, both bounds inclusive. */
+export const AKI_LOOKBACK_MIN_DAYS = 7
+export const AKI_LOOKBACK_MAX_DAYS = 365
+/** An admission (proxy) begins with a value after more than seven days
+ * without values only when a further value follows on one of this many
+ * later calendar days, as during a hospital stay. A single value after a
+ * gap, or several values of one date only, are not an admission. */
+export const AKI_ADMISSION_FOLLOW_UP_DAYS = 2
 /** Small tolerance for decimal KDIGO comparisons after unit conversion.
  * Applied in the compared quantity's units (mg/dl or a dimensionless ratio). */
 export const KDIGO_THRESHOLD_TOLERANCE = 1e-12
@@ -50,8 +60,14 @@ export const IMPLAUSIBLE_EGFR_ABOVE = 200
 
 /** Default rapid eGFR decline threshold (mL/min/1.73 m² per year). */
 export const DEFAULT_RAPID_EGFR_DECLINE = 5
-/** Default length of the AKI exclusion window after an episode onset (days). */
+/** Length of the shorter AKI exclusion window, counted from the episode
+ * onset (days): the fallback when the longer window would leave too few
+ * values for a reliable fit (decided 2026-11-22, row `akiwin`). */
 export const DEFAULT_AKI_EXCLUSION_DAYS = 30
+/** Days after the last day of an AKI episode up to which its exclusion window
+ * runs by default: acute kidney disease lasts up to 90 days (KDIGO 2024
+ * Fig. 3; decided 2026-11-22, row `akiwin`). */
+export const DEFAULT_AKI_DAYS_AFTER_END = 90
 /** Default minimum interval confirming an observed CKD G4/G5 event (days). */
 export const DEFAULT_CONFIRMATION_DAYS = 90
 /** Largest minimum confirmation interval (days). A confirming value must

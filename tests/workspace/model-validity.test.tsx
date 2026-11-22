@@ -102,7 +102,7 @@ describe('workspace model validity', () => {
     act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: defaultFitSettings('ckd_progression'), columns: {} }))
     view.rerender(<Harness studio />)
     expect(screen.getByText(/Preset windows: applied; 2 eligible measurements excluded/)).toBeInTheDocument()
-    expect(screen.getByTestId('model-preparation')).toHaveTextContent('CKD progression (shared settings): quarterly medians; event windows after kidney transplant, after chronic dialysis start, acute dialysis intervals, dated dialysis of unknown intent; AKI windows 30 days.')
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('CKD progression (shared settings): quarterly medians; event windows after kidney transplant, after chronic dialysis start, acute dialysis intervals, dated dialysis of unknown intent; AKI windows onset to 90 days after the episode end (30 days from onset where too few values would remain).')
 
     fireEvent.click(screen.getByRole('checkbox', { name: /Apply preset event and AKI exclusions/i }))
     expect(screen.getByText(/Preset windows: skipped; 0 eligible measurements excluded/)).toBeInTheDocument()

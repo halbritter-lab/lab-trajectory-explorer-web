@@ -3,7 +3,7 @@ import type { UnknownDialysisPolicy } from '../core/domains/nephrology/fitConfig
 import type { WorkspaceParameter } from './workspace-data'
 import { defaultFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
 import { ConfirmationDaysInput } from './ConfirmationDaysInput'
-import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
+import { CKD_G4_EGFR_THRESHOLD, CKD_G5_EGFR_THRESHOLD, DEFAULT_AKI_DAYS_AFTER_END, DEFAULT_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
 import { RAPID_EGFR_DECLINE_MODULE_ID } from '../core/domains/nephrology/rapidEgfrDeclineModule'
 import { columnSettingModules, fitPresetById, fitPresetCatalog, type ColumnModuleSettings, type RegisteredAnalysisModule } from '../core/analysis/registry'
 import { FIT_PRESET_CATEGORY_LABELS, type FitPresetDefinition } from '../core/analysis/fitConfig'
@@ -196,7 +196,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
           </div>
           <div className="wt-pipeline-group">
             <h2>AKI exclusion windows</h2>
-            <p className="wt-muted">Episodes are detected with the KDIGO creatinine criteria. The length of the window is a rule of this tool.</p>
+            <p className="wt-muted">Episodes are detected with the KDIGO creatinine criteria. The window follows acute kidney disease, which lasts up to 90 days after an AKI (KDIGO 2024); the shorter fallback is a rule of this tool.</p>
             <label>
               <input
                 type="checkbox"
@@ -208,11 +208,23 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
               />
               Exclude AKI windows from fit
             </label>
-            <label>Exclusion window (days)
+            <label>Window after the episode end (days)
               <input
                 type="number"
                 min={0}
-                aria-label="AKI exclusion days"
+                aria-label="AKI window after episode end (days)"
+                disabled={!fitSettings.exclusions.excludeAkiWindows}
+                value={fitSettings.exclusions.akiDaysAfterEnd ?? DEFAULT_AKI_DAYS_AFTER_END}
+                onChange={e => updateSettings({
+                  exclusions: { ...fitSettings.exclusions, akiDaysAfterEnd: Math.max(0, Number(e.target.value) || 0) }
+                })}
+              />
+            </label>
+            <label>Shorter window from onset (days)
+              <input
+                type="number"
+                min={0}
+                aria-label="Shorter AKI window from onset (days)"
                 disabled={!fitSettings.exclusions.excludeAkiWindows}
                 value={fitSettings.exclusions.akiExclusionDays}
                 onChange={e => updateSettings({
@@ -220,6 +232,7 @@ export function WorkspaceAnalysisSettings({ parameters, sharedSettings, override
                 })}
               />
             </label>
+            <p className="wt-muted">Each window runs from the onset of an episode to the given days after its end (for an episode without an observed end, after the recovery window of its last value). Where the fit would then keep fewer than 3 fitted dates over 365 days, the shorter window from onset applies to every episode of the parameter, and the cell is labelled. Values before the onset stay in the fit.</p>
           </div>
           <div className="wt-pipeline-group">
             <h2>eGFR endpoints & thresholds</h2>

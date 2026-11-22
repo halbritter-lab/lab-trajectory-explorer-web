@@ -24,7 +24,7 @@ const COLUMNS_UP_TO_0_3_7 = ['PatientID', 'slope_mode', 'fit_model', 'n', 'span_
   'endpoint_decline_57_confirmed_date', 'endpoint_decline_57_recovery_date', 'endpoint_decline_57_first_value', 'endpoint_decline_57_confirmed_value', 'endpoint_decline_57_recovery_value',
   'endpoint_prediction_age_basis', 'Parameter', 'Unit', 'n_fitted', 'fitted_span_days', 'rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max',
   'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates']
-const COHORT_HEADER = [...COLUMNS_UP_TO_0_3_7, 'first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'group']
+const COHORT_HEADER = [...COLUMNS_UP_TO_0_3_7, 'first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'aki_window', 'n_aki_excluded', 'group']
 
 /** The fixture with its cohort rows grouped by the attribute `group`. */
 function groupedFixture() {
@@ -42,7 +42,7 @@ describe('cohort workbook schema', () => {
     expect(header(workbook, 'raw_measurements')).toEqual(measurement)
     expect(header(workbook, 'cohort')).toEqual(COHORT_HEADER)
     expect(header(workbook, 'events')).toEqual(['PatientID', 'type', 'date', 'title', 'description', 'endDate', 'intent', 'warning'])
-    expect(header(workbook, 'aki_episodes')).toEqual(['PatientID', 'creatinine_parameter', 'creatinine_unit', 'stage', 'onset_date', 'peak_date', 'peak_value_mg_dl', 'baseline_date', 'baseline_value_mg_dl', 'criterion', 'end_date', 'dialysis_start', 'ended_by_gap', 'last_value_date'])
+    expect(header(workbook, 'aki_episodes')).toEqual(['PatientID', 'creatinine_parameter', 'creatinine_unit', 'stage', 'onset_date', 'peak_date', 'peak_value_mg_dl', 'baseline_date', 'baseline_value_mg_dl', 'criterion', 'end_date', 'dialysis_start', 'ended_by_gap', 'last_value_date', 'baseline_source', 'baseline_n'])
     expect(header(workbook, 'patient_attributes')).toEqual(['PatientID', 'group'])
     expect(header(workbook, 'demographics')).toEqual(['PatientID', 'baseline_age', 'birth_anchor', 'age_estimated', 'manual_override', 'warnings', 'egfr_source_parameter', 'egfr_source_unit'])
     expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
@@ -86,7 +86,7 @@ describe('cohort workbook schema', () => {
     expect(records(workbook, 'events')).toEqual([])
     expect(header(workbook, 'events')[0]).toBe('PatientID')
     expect(records(workbook, 'aki_episodes')).toEqual([])
-    expect(header(workbook, 'aki_episodes')).toHaveLength(14)
+    expect(header(workbook, 'aki_episodes')).toHaveLength(16)
     expect(records(workbook, 'raw_measurements')).toEqual([])
     expect(header(workbook, 'raw_measurements')).toHaveLength(15)
   })

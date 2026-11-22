@@ -4,7 +4,7 @@
  * JSON; keep it.
  */
 import type { FitConfig, FitPresetDefinition } from '../../analysis/fitConfig'
-import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS } from './constants'
+import { DEFAULT_AKI_DAYS_AFTER_END, DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_CONFIRMATION_DAYS } from './constants'
 
 export type UnknownDialysisPolicy = 'flag-only' | 'exclude-dated-interval' | 'censor-from-start'
 
@@ -16,10 +16,24 @@ export interface ClinicalEventCensoringConfig {
   unknownDialysisPolicy: UnknownDialysisPolicy
 }
 
-/** Whether the window after each AKI onset is left out of the trend fit. */
+/** Whether the window after each AKI onset is left out of the trend fit
+ * (decided 2026-11-22, row `akiwin`): from the onset to `akiDaysAfterEnd`
+ * days after the end of the episode, or, when the fit would then keep fewer
+ * than three fitted dates over 365 days, the shorter window of
+ * `akiExclusionDays` days from the onset. */
 export interface AkiExclusionConfig {
   excludeAkiWindows: boolean
+  /** Length of the shorter window from the onset (the fallback; 30). */
   akiExclusionDays: number
+  /** Days after the episode end up to which the window runs (90). Absent in
+   * settings saved before 2026-11-22: the default applies. */
+  akiDaysAfterEnd?: number
+}
+
+/** The days after the episode end of a column's AKI windows. */
+export function akiDaysAfterEnd(exclusions: AkiExclusionConfig | undefined): number {
+  const days = exclusions?.akiDaysAfterEnd
+  return typeof days === 'number' && Number.isFinite(days) && days >= 0 ? days : DEFAULT_AKI_DAYS_AFTER_END
 }
 
 /** Which CKD endpoints an eGFR column evaluates. */
@@ -73,7 +87,7 @@ export function noCensoring(): ClinicalEventCensoringConfig {
 
 /** No AKI-window exclusion (default window length kept for when it is enabled). */
 export function noAkiExclusion(): AkiExclusionConfig {
-  return { excludeAkiWindows: false, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS }
+  return { excludeAkiWindows: false, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS, akiDaysAfterEnd: DEFAULT_AKI_DAYS_AFTER_END }
 }
 
 /** No endpoint evaluated (default confirmation interval kept). */
@@ -82,8 +96,9 @@ export function noEndpoints(): CkdEndpointConfig {
 }
 
 /** CKD progression: quarterly medians, censored after transplant and chronic
- * dialysis, acute and dated unknown dialysis intervals and 30-day AKI windows
- * excluded, all CKD endpoints, age axis. */
+ * dialysis, acute and dated unknown dialysis intervals and AKI windows (to 90
+ * days after the episode end, else 30 days from the onset) excluded, all CKD
+ * endpoints, age axis. */
 export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConfig {
   return {
     parameter,
@@ -95,7 +110,7 @@ export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConf
       excludeAcuteDialysisPeriods: true,
       unknownDialysisPolicy: 'exclude-dated-interval',
     },
-    exclusions: { excludeAkiWindows: true, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
+    exclusions: { excludeAkiWindows: true, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS, akiDaysAfterEnd: DEFAULT_AKI_DAYS_AFTER_END },
     timeBalancing: 'quarterly-median',
     fitModel: 'ols',
     endpoints: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, confirmationDays: DEFAULT_CONFIRMATION_DAYS, projectedAgeToCkdG5: true },
@@ -122,9 +137,9 @@ export const NEPHROLOGY_PRESETS: readonly FitPresetDefinition[] = [
     id: 'ckd_progression',
     name: 'CKD progression',
     category: 'Nephrology',
-    description: 'Quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, G4/G5 endpoints on eligible exact eGFR data, OLS trend.',
+    description: 'Quarterly medians, censored after transplant and chronic dialysis, AKI exclusion to 90 days after the episode end (30 days from onset where too few values would remain), G4/G5 endpoints on eligible exact eGFR data, OLS trend.',
     optionLabel: 'CKD progression (quarterly medians, censoring, AKI exclusion)',
-    summary: 'CKD progression: quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, OLS display trend. Endpoints and projection use exact measurements before kidney replacement therapy and outside dated acute dialysis intervals; the decline baseline and the G5 projection also leave out the AKI windows.',
+    summary: 'CKD progression: quarterly medians, censored after transplant and chronic dialysis, AKI exclusion from onset to 90 days after the episode end (30 days from onset where the fit would keep fewer than 3 dates over 365 days), OLS display trend. Endpoints and projection use exact measurements before kidney replacement therapy and outside dated acute dialysis intervals; the decline baseline and the G5 projection also leave out the AKI windows.',
     buildConfig: ckdProgressionConfig,
   },
   {

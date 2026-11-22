@@ -62,6 +62,10 @@ export interface ExclusionWindowContribution {
   /** Set when every window is `[start, start + lengthDays]`, so a column may
    * re-anchor the same windows with another length. */
   lengthDays?: number
+  /** Per window, aligned with `windows`: the date from which a column may
+   * count a window's longer end instead (for AKI the last day of the
+   * episode, decided 2026-11-22). Absent: the window starts. */
+  lastDays?: Date[]
 }
 
 /** Dataset-level inputs modules contribute to fits. */
@@ -163,6 +167,8 @@ export interface SeriesContribution {
   exclusions?: ReasonedExclusionWindow[]
   overlays?: SeriesOverlay[]
   flags?: CohortFlag[]
+  /** Values for the module's export columns, keyed by column. */
+  values?: Record<string, string | number>
 }
 
 /** The fitted cell a module's `cellFlags` hook sees. */
@@ -214,6 +220,8 @@ export interface EndpointContext {
  * endpoint result type. */
 export interface ModuleExportCell<E = unknown> {
   flags: readonly CohortFlag[]
+  /** The `values` of the modules' series contributions. */
+  values?: Readonly<Record<string, string | number>>
   endpoints: E
   fitModel: FitModel
 }

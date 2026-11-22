@@ -21,7 +21,7 @@ describe('akiEpisodeRows', () => {
       PatientID: 'B', creatinine_parameter: 'Kreatinin', creatinine_unit: 'mg/dl', stage: 1,
       onset_date: '2022-03-02', peak_date: '2022-03-02', peak_value_mg_dl: 1.6,
       baseline_date: '2022-03-01', baseline_value_mg_dl: 1, criterion: 'absolute_0_3_mg_dl_48h',
-      end_date: '', dialysis_start: '', ended_by_gap: false, last_value_date: '2022-03-02',
+      end_date: '', dialysis_start: '', ended_by_gap: false, last_value_date: '2022-03-02', baseline_source: 'window', baseline_n: 1,
     })
     expect(episodes[1].peakValue).toBeCloseTo(1.6, 6)
   })

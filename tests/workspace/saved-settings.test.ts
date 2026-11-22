@@ -116,6 +116,19 @@ describe('a saved preset whose definition has changed', () => {
     expect(restored.keptAsCustom).toEqual(['shared settings', 'own settings of eGFR [ml/min/1,73m²]'])
     expect(restored.notRestored).toEqual([])
   })
+  it('gives settings saved before 2026-11-22 the 90 days after the episode end and keeps their preset', () => {
+    // Row akiwin: settings saved before have no akiDaysAfterEnd; they get the default, as the preset now has it.
+    const value = JSON.parse(JSON.stringify(saved())) as Record<string, any>
+    delete value.trajectoryFitSettings.columns[EGFR].exclusions.akiDaysAfterEnd
+    delete value.trajectoryFitSettings.shared.exclusions.akiDaysAfterEnd
+    const restored = restoreSavedSettings(value, keys)
+    expect(restored.trajectoryFitSettings.columns[EGFR]).toEqual(defaultFitSettings('ckd_progression'))
+    expect(restored.trajectoryFitSettings.columns[EGFR].exclusions.akiDaysAfterEnd).toBe(90)
+    expect(restored.keptAsCustom).toEqual([])
+    expect(restored.notRestored).toEqual([])
+    value.trajectoryFitSettings.columns[EGFR].exclusions.akiDaysAfterEnd = -1
+    expect(restoreSavedSettings(value, keys).notRestored).toEqual(['own settings of eGFR [ml/min/1,73m²]'])
+  })
   it('leaves settings that match their preset, and custom settings, alone', () => {
     const value = JSON.parse(JSON.stringify(saved())) as Record<string, any>
     value.trajectoryFitSettings.shared = { ...defaultFitSettings(), presetId: 'custom', timeBalancing: 'monthly-median' }

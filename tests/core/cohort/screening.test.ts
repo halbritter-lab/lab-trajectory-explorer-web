@@ -133,7 +133,10 @@ describe('buildCohortRows cell overlays', () => {
   it('aki-aware mode: excluded points listed, slope below global', () => {
     const g = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }])[0].cells[0]
     const a = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'aki-aware', exclusionDays: 30 }])[0].cells[0]
-    expect(a.excludedIdx).toEqual([4, 5])
+    // Since 2026-11-22 (row akiwin) the window runs from the onset (2020-08-01) to 90 days after the last day of
+    // the episode (2020-08-03, the recovery window of its last value; the gap before 2020-08-10 ended it): to
+    // 2020-11-01, so 1.2 on 2020-10-01 is excluded as well (until then the 30 days to 2020-08-31).
+    expect(a.excludedIdx).toEqual([4, 5, 6])
     expect(a.slope).toBeLessThan(g.slope)
     expect(a.fitLines).toHaveLength(1)
   })
@@ -142,7 +145,7 @@ describe('buildCohortRows cell overlays', () => {
     const fitConfig = generalExplorationConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
     fitConfig.exclusions.excludeAkiWindows = true
     const c = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig }])[0].cells[0]
-    expect(c.excludedIdx).toEqual([4, 5])
+    expect(c.excludedIdx).toEqual([4, 5, 6])
     expect(c.slope).toBeLessThan(g.slope)
     expect(c.fitLines[0][1].value).toBeLessThan(g.fitLines[0][1].value)
   })
@@ -152,7 +155,13 @@ describe('buildCohortRows cell overlays', () => {
     ]
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'aki-aware', exclusionDays: 0, fitInputs }
     const cell = buildCohortRows(spiky, [1], [spec])[0].cells[0]
-    expect(cell.excludedIdx).toEqual([4])
+    // Since 2026-11-22 the spec length is the shorter fallback window; five dates over two years remain with
+    // the longer window, so it applies (until then the length 0 excluded the onset date only: [4]).
+    expect(cell.excludedIdx).toEqual([4, 5, 6])
+    // A prepared input without the last days (older shape) counts the longer window from the onset.
+    const [input] = fitInputs as Array<AnalysisFitInputContribution & { lastDays?: Date[] }>
+    const withoutLastDays = buildCohortRows(spiky, [1], [{ ...spec, fitInputs: [{ ...input, lastDays: undefined }] }])[0].cells[0]
+    expect(withoutLastDays.excludedIdx).toEqual([4, 5, 6])
   })
   it('non-creatinine cell in aki-aware mode gets cross-series bands from creatinine', () => {
     const egfr = spiky.map((r) => ({ ...r, bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²', wertNum: 60 - (r.wertNum! - 1) * 20 }))
@@ -179,8 +188,8 @@ describe('buildCohortRows cell overlays', () => {
     fitConfig.timeBalancing = 'raw'
     const transplant: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', date: d('2021-01-01T00:00:00Z'), title: 'Tx', description: null, endDate: null, intent: null, warning: '' }
     const cell = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig, clinicalEvents: [transplant] }])[0].cells[0]
-    expect(cell.excludedIdx).toEqual([4, 5, 7])
-    expect(cell.pointExclusionReasons).toEqual([[], [], [], [], ['aki'], ['aki'], [], ['post_kidney_transplant']])
+    expect(cell.excludedIdx).toEqual([4, 5, 6, 7])
+    expect(cell.pointExclusionReasons).toEqual([[], [], [], [], ['aki'], ['aki'], ['aki'], ['post_kidney_transplant']])
     // Same aligned contract: non-empty exactly at excludedIdx.
     expect(cell.pointExclusionReasons.flatMap((r, i) => r.length ? [i] : [])).toEqual(cell.excludedIdx)
   })
