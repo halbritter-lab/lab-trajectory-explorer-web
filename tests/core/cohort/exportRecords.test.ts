@@ -4,6 +4,9 @@ import { isRapidEgfrDecline } from '../../../src/core/domains/nephrology/rapidEg
 import type { LabRow } from '../../../src/core/types'
 import { acuteReviewConfig, ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
 import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
+import type { FitConfig } from '../../../src/core/analysis/fitConfig'
+// The extrapolation to CKD G5 is off in every preset since 2026-11-22 (issue #81).
+const withProjection = (config: FitConfig): FitConfig => ({ ...config, endpoints: { ...config.endpoints, projectedAgeToCkdG5: true } })
 import type { ClinicalEvent } from '../../../src/core/events/events'
 import { endpointBadge } from '../../../src/workspace/labels/endpointLabels'
 
@@ -263,9 +266,11 @@ describe('cohortExportRecords', () => {
       bezeichnung: 'eGFR',
       einheit: 'ml/min/1,73m²',
       mode: 'global',
-      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+      fitConfig: withProjection(ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' })),
     }
+    // Four dates over three years: the KDIGO minimum of the extrapolation (2026-11-22).
     const rows = [
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2019-01-01'), wertNum: 75, patientAgeAtLab: 59 }),
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2021-01-01'), wertNum: 45, patientAgeAtLab: 61 }),
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2022-01-01'), wertNum: 30, patientAgeAtLab: 62 }),
@@ -273,7 +278,7 @@ describe('cohortExportRecords', () => {
 
     const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
 
-    expect(rec.endpoint_percent_change).toBeCloseTo(-50)
+    expect(rec.endpoint_percent_change).toBeCloseTo(-60)
     expect(rec.endpoint_observed_ckd_g5).toBe('')
     expect(rec.endpoint_projected_age_to_ckd_g5).toBeCloseTo(63, 1)
     expect(rec.endpoint_prediction_slope_ci_low).toBeLessThan(0)
@@ -283,7 +288,7 @@ describe('cohortExportRecords', () => {
 
   it('exports endpoint-only Theil-Sen confidence bounds and model provenance', () => {
     const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
-    const fitConfig = { ...ckdProgressionConfig(parameter), fitModel: 'theil-sen' as const }
+    const fitConfig = { ...withProjection(ckdProgressionConfig(parameter)), fitModel: 'theil-sen' as const }
     const values = [65, 55, 45, 35, 25]
     const rows = values.map((wertNum, i) => row({ ...parameter, labDatum: d(`${2020 + i}-01-01`), wertNum, patientAgeAtLab: 60 + i }))
     const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...parameter, mode: 'global-robust', fitConfig }]))

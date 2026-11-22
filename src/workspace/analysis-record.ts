@@ -101,7 +101,8 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   [`${FIT_PREFIX}.endpoints.observedCkdG4`]: { label: 'Observed CKD G4', area: 'Trajectories', exportField: 'settings.fit_config (endpoints)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.endpoints.observedCkdG5`]: { label: 'Observed CKD G5', area: 'Trajectories', exportField: 'settings.fit_config (endpoints)', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.endpoints.confirmationDays`]: { label: 'Minimum confirmation interval (days)', area: 'Trajectories', exportField: 'settings.fit_config (endpoints)', control: TRAJECTORY_SETTINGS },
-  [`${FIT_PREFIX}.endpoints.projectedAgeToCkdG5`]: { label: 'Projected age to CKD G5', area: 'Trajectories', exportField: 'settings.fit_config (endpoints)', control: TRAJECTORY_SETTINGS },
+  [`${FIT_PREFIX}.endpoints.projectedAgeToCkdG5`]: { label: 'Extrapolation to CKD G5', area: 'Trajectories', exportField: 'settings.fit_config (endpoints)', control: TRAJECTORY_SETTINGS },
+  [`${FIT_PREFIX}.endpoints.observedDecline50`]: { label: 'Confirmed 50% eGFR decline', area: 'Trajectories', exportField: 'settings.fit_config (endpoints)', control: TRAJECTORY_SETTINGS },
   ...columnModuleDefinitions(),
   [`${FIT_PREFIX}.anchorComparison.rule.kind`]: { label: 'Before/after anchor', area: 'Trajectories', exportField: 'settings.anchor_comparison', control: TRAJECTORY_SETTINGS },
   [`${FIT_PREFIX}.anchorComparison.rule.value`]: { label: 'Before/after anchor value', area: 'Trajectories', exportField: 'settings.anchor_comparison', control: TRAJECTORY_SETTINGS },
@@ -118,6 +119,8 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   'trajectoryView.chartSize': { label: 'Chart size', area: 'Trajectories', noNumericEffect: 'Chart size only.', control: null },
   'trajectoryView.cellDetails': { label: 'Cell details', area: 'Trajectories', noNumericEffect: 'How much a table cell shows.', control: null },
   'trajectoryView.warningIcons': { label: 'Warning display', area: 'Trajectories', noNumericEffect: 'Icons or text for warnings.', control: null },
+  // Issue #82/#2 (2026-11-22): the export keeps every endpoint whichever badges are shown.
+  'trajectoryView.hiddenEndpointBadges': { label: 'Endpoint badges', area: 'Trajectories', noNumericEffect: 'Which endpoint results the table cells show as badges; the export keeps all of them.', control: null },
   'trajectoryView.pointsChosen': { label: 'Measurement points choice', area: 'Trajectories', noNumericEffect: 'Whether charts draw the points.', control: null },
   // A logarithmic axis adds the log_trend sheet (issue #70); the column's own slope is unchanged.
   'trajectoryView.logKeys': { label: 'Logarithmic value axis', area: 'Trajectories', exportField: 'log_trend (one row per patient for each parameter on a logarithmic axis)', control: { page: 'Trajectories', target: 'log' } },
@@ -154,7 +157,7 @@ export const STORE_FIELDS = {
 } as const satisfies Record<string, 'data' | 'state' | 'settings'>
 
 /** Paths whose value is one setting although it is an object or a list. */
-const LEAF_PATHS = new Set(['analysisSettings.egfr.source', 'periEventSettings', 'manualDemographics', 'trajectoryView.display', 'mixedModelConfig.covariates', 'mixedModelConfig.factors', 'projectionSettings', 'trajectoryView.parameterKeys', 'trajectoryView.trendKeys', 'trajectoryView.fitKeys'])
+const LEAF_PATHS = new Set(['trajectoryView.hiddenEndpointBadges', 'analysisSettings.egfr.source', 'periEventSettings', 'manualDemographics', 'trajectoryView.display', 'mixedModelConfig.covariates', 'mixedModelConfig.factors', 'projectionSettings', 'trajectoryView.parameterKeys', 'trajectoryView.trendKeys', 'trajectoryView.fitKeys'])
 
 /** The leaves of a settings value as [path, value], depth first in key order.
  * An empty object counts as a leaf, so a new empty setting is not skipped. */
@@ -171,11 +174,11 @@ export function fitSettingsSample(): Required<Omit<WorkspaceFitSettings, 'censor
   censoring: Required<FitConfig['censoring']>; exclusions: Required<FitConfig['exclusions']>; endpoints: Required<FitConfig['endpoints']>
 } {
   const settings = defaultFitSettings('ckd_progression')
-  const endpoints: Required<FitConfig['endpoints']> = { percentDecline: true, observedCkdG4: true, observedCkdG5: true, confirmationDays: 90, projectedAgeToCkdG5: true }
+  const endpoints: Required<FitConfig['endpoints']> = { percentDecline: true, observedCkdG4: true, observedCkdG5: true, confirmationDays: 90, projectedAgeToCkdG5: true, observedDecline50: true }
   return { ...settings, endpoints, anchorComparison: ANCHOR_SAMPLE }
 }
 export function trajectoryViewSample(): Required<TrajectoryView> {
-  return { ...defaultTrajectoryView(), pointsChosen: true, logKeys: ['p1'] }
+  return { ...defaultTrajectoryView(), pointsChosen: true, logKeys: ['p1'], hiddenEndpointBadges: ['projection'] }
 }
 export function mixedModelConfigSample(): Required<MixedModelConfig> {
   const factor: Required<MixedModelFactor> = { key: 'genotype', kind: 'categorical', effect: 'level', reference: 'A', kindSource: 'user', referenceSource: 'default' }

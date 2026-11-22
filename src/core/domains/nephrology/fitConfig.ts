@@ -37,6 +37,9 @@ export interface CkdEndpointConfig {
   observedCkdG5: boolean
   projectedAgeToCkdG5: boolean
   confirmationDays?: number
+  /** Confirmed 50 % eGFR decline beside 40 % and 57 % (issue #82); absent
+   * means off. Written last, so a fit_config without it is unchanged. */
+  observedDecline50?: boolean
 }
 
 export interface NephrologyFitSections {
@@ -83,7 +86,8 @@ export function noEndpoints(): CkdEndpointConfig {
 
 /** CKD progression: quarterly medians, censored after transplant and chronic
  * dialysis, acute and dated unknown dialysis intervals and 30-day AKI windows
- * excluded, all CKD endpoints, age axis. */
+ * excluded, the observed CKD endpoints, age axis. The individual G5
+ * extrapolation is off (decided 2026-11-22, issue #81); a column switches it on. */
 export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConfig {
   return {
     parameter,
@@ -98,7 +102,7 @@ export function ckdProgressionConfig(parameter: FitConfig['parameter']): FitConf
     exclusions: { excludeAkiWindows: true, akiExclusionDays: DEFAULT_AKI_EXCLUSION_DAYS },
     timeBalancing: 'quarterly-median',
     fitModel: 'ols',
-    endpoints: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, confirmationDays: DEFAULT_CONFIRMATION_DAYS, projectedAgeToCkdG5: true },
+    endpoints: { percentDecline: true, observedCkdG4: true, observedCkdG5: true, confirmationDays: DEFAULT_CONFIRMATION_DAYS, projectedAgeToCkdG5: false },
   }
 }
 
@@ -124,7 +128,7 @@ export const NEPHROLOGY_PRESETS: readonly FitPresetDefinition[] = [
     category: 'Nephrology',
     description: 'Quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, G4/G5 endpoints on eligible exact eGFR data, OLS trend.',
     optionLabel: 'CKD progression (quarterly medians, censoring, AKI exclusion)',
-    summary: 'CKD progression: quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, OLS display trend. Endpoints and projection use exact measurements before kidney replacement therapy and outside dated acute dialysis intervals; the decline baseline and the G5 projection also leave out the AKI windows.',
+    summary: 'CKD progression: quarterly medians, censored after transplant and chronic dialysis, 30-day AKI exclusion, OLS display trend. Endpoints use exact measurements before kidney replacement therapy and outside dated acute dialysis intervals; the decline baseline also leaves out the AKI windows. The extrapolation to CKD G5 is off; switched on, it also leaves them out.',
     buildConfig: ckdProgressionConfig,
   },
   {

@@ -140,6 +140,7 @@ export type ProjectedCrossingReason =
   | 'insufficient_points'
   | 'theil_sen_insufficient_points'
   | 'span_too_short'
+  | 'follow_up_below_minimum'
   | 'no_fit'
   | 'not_approaching'
   | 'already_crossed'
@@ -155,7 +156,9 @@ export interface ProjectedAgeAtCrossing {
  * per year) crosses the threshold, projected from the latest measurement.
  * Withheld when the crossing was already observed, with fewer than three
  * distinct measurement dates (five for Theil–Sen) or under 365 days of follow-up (the span of the slope reliability
- * rule), without a finite fit, when the line
+ * rule), with fewer than `minimumFollowUp.dates` distinct dates or a span
+ * shorter than `minimumFollowUp.months` calendar months when that is given,
+ * without a finite fit, when the line
  * does not move towards the threshold, when it crosses at or before the
  * latest measurement, or without an age at the latest measurement.
  */
@@ -168,6 +171,10 @@ export function projectAgeAtCrossing(input: {
   observed: boolean
   /** Estimator of the fit; Theil–Sen needs more distinct dates. */
   fitModel?: FitModel
+  /** An additional minimum checked after the date and span minimums: at
+   * least `dates` distinct dates and a latest date on or after the first date
+   * plus `months` UTC calendar months (clamped at the month's end). */
+  minimumFollowUp?: { dates: number; months: number }
 }): ProjectedAgeAtCrossing {
   const { points, slopePerYear, intercept, threshold, direction, observed } = input
   if (observed) return { value: null, reason: 'observed' }
@@ -178,6 +185,10 @@ export function projectAgeAtCrossing(input: {
   const latest = points[points.length - 1]
   const spanMs = latest.date.getTime() - first.date.getTime()
   if (spanMs / MS_PER_DAY < MIN_PROJECTION_SPAN_DAYS) return { value: null, reason: 'span_too_short' }
+  const minimum = input.minimumFollowUp
+  if (minimum && (dates < minimum.dates || utcCalendarDay(latest.date) < addUtcMonthsClamped(first.date, minimum.months).getTime())) {
+    return { value: null, reason: 'follow_up_below_minimum' }
+  }
   const spanYears = spanMs / MS_PER_YEAR
   if (!Number.isFinite(slopePerYear) || !Number.isFinite(intercept)) return { value: null, reason: 'no_fit' }
   if (direction === 'below' ? slopePerYear >= 0 : slopePerYear <= 0) return { value: null, reason: 'not_approaching' }

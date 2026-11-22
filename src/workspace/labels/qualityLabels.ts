@@ -1,6 +1,6 @@
 import type { CkdEndpoints } from '../../core/domains/nephrology/endpoints/ckdEndpoints'
 import { isUnstableSlope, type SlopeQualityInput } from '../../core/stats/slopeQuality'
-import { CKD_G5_EGFR_THRESHOLD } from '../../core/domains/nephrology/constants'
+import { CKD_G5_EGFR_THRESHOLD, KDIGO_PROJECTION_MIN_DATES, KDIGO_PROJECTION_MIN_MONTHS } from '../../core/domains/nephrology/constants'
 
 export { isUnstableSlope }
 export type { SlopeQualityInput }
@@ -190,6 +190,14 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
         title: aki
           ? `${akiLead}The measurements used span less than one year, so no projection was made.`
           : 'Less than one year between first and last measurement, so no projection was made.',
+        caveat,
+      }
+    case 'kdigo_minimum_follow_up':
+      return {
+        label: 'G5 < 4 dates/3 yrs',
+        title:
+          (aki ? akiLead : '') +
+          `The extrapolation needs measurements on at least ${KDIGO_PROJECTION_MIN_DATES} distinct dates over at least ${KDIGO_PROJECTION_MIN_MONTHS / 12} years (KDIGO 2012: extrapolating the previous rate of change requires about four measurements over three years), so no extrapolation was made.`,
         caveat,
       }
     // 'disabled' and 'observed_ckd_g5' are not failures: the endpoint is off, or

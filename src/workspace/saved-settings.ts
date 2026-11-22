@@ -15,6 +15,7 @@ import { parameterLabel } from './workspace-labels'
 import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
 import { DEFAULT_WORKSPACE_DISPLAY, type WorkspaceAxis } from './WorkspacePlot'
 import type { SparkSize } from './WorkspaceSparkline'
+import { ENDPOINT_BADGE_IDS, type EndpointBadgeId } from './labels/endpointLabels'
 
 /** Every value a union allows, checked at compile time: adding a code to the
  * union without listing it here fails the build instead of making every saved
@@ -41,6 +42,10 @@ export interface TrajectoryView {
   /** Parameter keys whose charts use a logarithmic y axis, which also gives
    * the doubling or halving time (issue #70). Absent while no column has one. */
   logKeys?: string[]
+  /** Endpoint badges the table cells leave out (`ENDPOINT_BADGES`, decided
+   * 2026-11-22, `badges`). Absent while every badge is shown, the default;
+   * the export keeps every result. */
+  hiddenEndpointBadges?: EndpointBadgeId[]
 }
 
 export function defaultTrajectoryView(): TrajectoryView {
@@ -79,8 +84,9 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
   if (!record(c) || !bool(c.censorAfterKidneyTransplant) || !bool(c.censorAfterChronicDialysis) || !bool(c.excludeAcuteDialysisPeriods) || !oneOf(DIALYSIS_POLICIES, c.unknownDialysisPolicy)) return null
   if (!record(x) || !bool(x.excludeAkiWindows) || !days(x.akiExclusionDays)) return null
   if (!record(e) || !bool(e.percentDecline) || !bool(e.observedCkdG5) || !bool(e.projectedAgeToCkdG5)) return null
-  const { observedCkdG4, confirmationDays } = e
+  const { observedCkdG4, confirmationDays, observedDecline50 } = e
   if ((observedCkdG4 !== undefined && !bool(observedCkdG4)) || (confirmationDays !== undefined && !days(confirmationDays))) return null
+  if (observedDecline50 !== undefined && !bool(observedDecline50)) return null
   const modules = parseColumnModuleSettings(v.moduleSettings)
   if (modules === null) return null
   const anchorComparison = v.anchorComparison === undefined ? undefined : parseAnchorComparison(v.anchorComparison)
@@ -92,7 +98,8 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
     exclusions: { excludeAkiWindows: x.excludeAkiWindows, akiExclusionDays: x.akiExclusionDays },
     // Key order is part of the exported fit_config JSON (see nephrology/fitConfig.ts).
     endpoints: { percentDecline: e.percentDecline, ...(observedCkdG4 !== undefined ? { observedCkdG4 } : {}), observedCkdG5: e.observedCkdG5,
-      ...(confirmationDays !== undefined ? { confirmationDays } : {}), projectedAgeToCkdG5: e.projectedAgeToCkdG5 },
+      ...(confirmationDays !== undefined ? { confirmationDays } : {}), projectedAgeToCkdG5: e.projectedAgeToCkdG5,
+      ...(observedDecline50 !== undefined ? { observedDecline50 } : {}) },
     moduleSettings: modules.settings,
     ...(anchorComparison ? { anchorComparison } : {}),
   }
@@ -120,6 +127,14 @@ export interface RestoredSettings {
   /** Settings saved under a preset whose definition has changed since: their
    * values are kept, under the preset id 'custom'. */
   keptAsCustom: string[]
+  /** Settings restored with the extrapolation to CKD G5 switched on. It is off
+   * by default since 2026-11-22 (issue #81); a stored "on" is kept and named. */
+  projectionOn: string[]
+}
+
+/** Restored or applied settings with the extrapolation to CKD G5 on (issue #81). */
+export function projectionOnNotice(labels: readonly string[]): string {
+  return `The extrapolation to CKD G5 is switched on in ${labels.join('; ')}, as saved: a conditional extrapolation of the fitted trend, not a prognosis. It has been off by default since 2026-11-22 and can be switched off in the endpoint settings of the parameter.`
 }
 
 /** Parameter keys are `JSON.stringify([name, unit])`. */
@@ -146,7 +161,7 @@ const isComputedParameter = (key: string) => parsedKey(key)?.[0].endsWith(COMPUT
  * dataset is dropped and named, unless it is a computed eGFR parameter.
  */
 export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<string>): RestoredSettings {
-  const out: RestoredSettings = { trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [] }
+  const out: RestoredSettings = { trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [], projectionOn: [] }
   if (value === undefined) return out
   if (!record(value) || value.version !== SAVED_SETTINGS_VERSION) { out.stored = 'discarded'; return out }
   out.stored = 'restored'
@@ -164,6 +179,7 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
     const ignored: string[] = []
     const parsed = parseFitSettings(stored, ignored)
     for (const id of ignored) out.notRestored.push(`module settings "${id}" (${label})`)
+    if (parsed?.endpoints.projectedAgeToCkdG5) out.projectionOn.push(label)
     return parsed && underCurrentPreset(parsed, label)
   }
   const fit = value.trajectoryFitSettings
@@ -225,6 +241,12 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
       }
       if (kept.length) out.trajectoryView.logKeys = kept
     } else out.notRestored.push('log axis choices')
+  }
+  if (view.hiddenEndpointBadges !== undefined) {
+    if (Array.isArray(view.hiddenEndpointBadges) && view.hiddenEndpointBadges.every(id => ENDPOINT_BADGE_IDS.includes(id as EndpointBadgeId))) {
+      const hidden = [...new Set(view.hiddenEndpointBadges as EndpointBadgeId[])]
+      if (hidden.length) out.trajectoryView.hiddenEndpointBadges = hidden
+    } else out.notRestored.push('endpoint badge choices')
   }
   return out
 }

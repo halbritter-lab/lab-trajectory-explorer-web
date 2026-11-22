@@ -25,6 +25,7 @@ import { AKI_MODULE_ID } from '../core/domains/nephrology/aki/akiModule'
 import { formatFixedDecimals, MIN_SLOPE_DECIMALS, slopeDisplayDecimals } from '../core/format'
 import { QuietAnalysisSettings } from './trajectory-ui/AnalysisSettings'
 import { ANALYSIS_CATALOG, endpointBadge, type WorkspaceFitSettings } from './workspace-analysis'
+import { ENDPOINT_BADGE_IDS, ENDPOINT_BADGES, type EndpointBadgeId } from './labels/endpointLabels'
 import { parameterKeyLabel } from './saved-settings'
 import { useAppStore } from './state/store'
 import { trajectoryColumnSettings } from './trajectory-ui/analysis'
@@ -86,6 +87,7 @@ function CellSummary({
   slopeDecimals = MIN_SLOPE_DECIMALS,
   missing,
   latestOperator,
+  hiddenEndpointBadges,
 }: {
   cell: CohortCell
   patientId: PatientId
@@ -112,6 +114,8 @@ function CellSummary({
   /** Operator of the latest dated numeric row: a bound ("<", ">") is shown
    * before the latest value, "latest <15" (display only, 2026-11-22). */
   latestOperator?: WertOperator
+  /** Endpoint badges the table leaves out (view setting); the patient view shows all. */
+  hiddenEndpointBadges?: ReadonlySet<string>
 }) {
   const noValuesText = missing?.text ?? 'No numeric measurements with a date'
   const slopeNumber = (value: number, signed = false) => formatFixedDecimals(value, slopeDecimals, signed)
@@ -146,7 +150,7 @@ function CellSummary({
     : !detailed && warningIcons
     ? <Hint key={flag.id} label={flag.label} icon={flagIcon(flag.tone)} tone={flag.tone} text={flag.tone === 'rapid-possible' ? '?' : undefined}>{flag.title}</Hint>
     : <details key={flag.id} className="wt-badge-details"><summary className={`wt-badge wt-badge-${flag.tone}`} title={flag.title}>{flag.label}</summary><p>{flag.title}</p></details>
-  const endpoint = endpointBadge(cell.endpoints, cell.points.length)
+  const endpoint = endpointBadge(cell.endpoints, cell.points.length, hiddenEndpointBadges)
   const markedReasons = cell.pointExclusionReasons.map(reasons => reasons.filter(reason => cell.fitModel !== 'none' || reason === 'censored-value'))
   const markedCount = markedReasons.filter(reasons => reasons.length > 0).length
   const markedLabels = [...new Set(markedReasons.flat())].map(exclusionReasonLabel)
@@ -359,6 +363,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
   const [chartSize, setChartSize] = useState<SparkSize>(savedView.chartSize)
   const [cellDetails, setCellDetails] = useState<'minimal' | 'full' | 'compact'>(savedView.cellDetails)
   const [warningIcons, setWarningIcons] = useState(savedView.warningIcons)
+  // Endpoint badges left out of the table cells (decided 2026-11-22, `badges`); the export keeps all.
+  const [hiddenEndpointBadges, setHiddenEndpointBadges] = useState<EndpointBadgeId[]>(savedView.hiddenEndpointBadges ?? [])
+  const hiddenBadgeSet = useMemo(() => new Set<string>(hiddenEndpointBadges), [hiddenEndpointBadges])
   const [tableWidth, setTableWidth] = useState(0)
   const [attributeTableWidth, setAttributeTableWidth] = useState(0)
   const [highlight, setHighlight] = useState<PatientId | null>(null)
@@ -376,7 +383,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
   // The view reaches the store, and with it the saved settings, only once it
   // differs from what the page mounted with: mounting alone writes nothing, so
   // it cannot replace stored settings with the page's defaults.
-  const view = { parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons, ...(pointsChosen ? { pointsChosen: true as const } : {}), ...(logKeys.length ? { logKeys } : {}) }
+  const view = { parameterKeys, trendKeys, fitKeys, display, axis, scaleMode, chartSize, cellDetails, warningIcons, ...(pointsChosen ? { pointsChosen: true as const } : {}), ...(logKeys.length ? { logKeys } : {}), ...(hiddenEndpointBadges.length ? { hiddenEndpointBadges } : {}) }
   const viewJson = JSON.stringify(view)
   const [mountedViewJson] = useState(viewJson)
   const viewChanged = useRef(false)
@@ -854,7 +861,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
           <ToolPopover name="Display" icon="view" open={active && openTool === 'view'} onToggle={() => toggleTool('view')} onClose={closeTool}>
                   <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
 
-            {mode === 'table' && <div className="pv-table-options"><div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Jump to …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'minimal' | 'full' | 'compact')}><option value="minimal">Minimal</option><option value="compact">Compact</option><option value="full">Full details</option></select></label><label>Warnings<select aria-label="Warning display" value={warningIcons ? 'icons' : 'text'} onChange={event => setWarningIcons(event.target.value === 'icons')}><option value="icons">Icons with tooltips</option><option value="text">Text badges</option></select></label></div><label className="pv-table-events"><input type="checkbox" checked={display.events} onChange={event => setDisplay(previous => ({ ...previous, events: event.target.checked }))} />Events<span className="wt-muted">Dashed lines at event dates, shaded to the end date; the same switch as in the overlay and patient charts.</span></label></div>}
+            {mode === 'table' && <div className="pv-table-options"><div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Jump to …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'minimal' | 'full' | 'compact')}><option value="minimal">Minimal</option><option value="compact">Compact</option><option value="full">Full details</option></select></label><label>Warnings<select aria-label="Warning display" value={warningIcons ? 'icons' : 'text'} onChange={event => setWarningIcons(event.target.value === 'icons')}><option value="icons">Icons with tooltips</option><option value="text">Text badges</option></select></label><details className="pv-endpoint-badges"><summary>Endpoint badges{hiddenEndpointBadges.length ? ` (${ENDPOINT_BADGES.length - hiddenEndpointBadges.length} of ${ENDPOINT_BADGES.length})` : ''}</summary><p className="wt-muted">Which endpoint results the table cells show, if they are evaluated. Display only: the patient view and the export keep every result.</p>{ENDPOINT_BADGES.map(badge => <label key={badge.id}><input type="checkbox" checked={!hiddenBadgeSet.has(badge.id)} onChange={event => setHiddenEndpointBadges(previous => event.target.checked ? previous.filter(id => id !== badge.id) : ENDPOINT_BADGE_IDS.filter(id => id === badge.id || previous.includes(id)))} />{badge.label}</label>)}</details></div><label className="pv-table-events"><input type="checkbox" checked={display.events} onChange={event => setDisplay(previous => ({ ...previous, events: event.target.checked }))} />Events<span className="wt-muted">Dashed lines at event dates, shaded to the end date; the same switch as in the overlay and patient charts.</span></label></div>}
                 {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="baselineDays">Days since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option><option value="event">Years since event</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={key === 'points' && pointsAutoHidden ? false : display[key]} onChange={event => { if (key === 'points') setPointsChosen(true); setDisplay(previous => ({ ...previous, [key]: event.target.checked })) }} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}{OVERLAY_MODULES.map(module => <label key={module.id}><input type="checkbox" checked={display[module.id] ?? false} onChange={event => setDisplay(previous => ({ ...previous, [module.id]: event.target.checked }))} />{module.presentation.toggleLabel}</label>)}</div></section>}
 
           </ToolPopover>
@@ -917,7 +924,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
         {!collapsed && section.rows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button></th>{shownAttributes.map(attribute => {
           const value = attributeLabel(attribute, data.patientAttributes[String(row.patientId)]?.[attribute])
           return <td key={`attribute:${attribute}`} className="pv-attribute-column"><span title={value} aria-label={value === undefined ? 'Not recorded' : undefined}>{value ?? '—'}</span></td>
-        })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i]) && parameterKeySet.has(keys[i])} logScale={logColumn[i]} events={display.events ? eventsByPatient.get(patientIdKey(row.patientId)) : undefined} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} slopeDecimals={slopeDecimals[i]} missing={missingNote(keys[i], row.patientId)} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(row.patientId))} timeBalancing={(columnSettings[keys[i]] ?? fitSettings).timeBalancing} latestOperator={measurementsFor(row.patientId, cell).filter(m => m.labDatum && m.wertNum !== null).at(-1)?.wertOperator} /></td>)}</tr>)}
+        })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i]) && parameterKeySet.has(keys[i])} logScale={logColumn[i]} events={display.events ? eventsByPatient.get(patientIdKey(row.patientId)) : undefined} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} slopeDecimals={slopeDecimals[i]} missing={missingNote(keys[i], row.patientId)} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(row.patientId))} timeBalancing={(columnSettings[keys[i]] ?? fitSettings).timeBalancing} hiddenEndpointBadges={hiddenBadgeSet} latestOperator={measurementsFor(row.patientId, cell).filter(m => m.labDatum && m.wertNum !== null).at(-1)?.wertOperator} /></td>)}</tr>)}
       </tbody>
     })}</table></div>}
     {mode === 'table' && visible.length > 0 && pageCount > 1 && <nav className="wt-table-pages wt-table-pages-below" aria-label="Patient table pages, below the table"><button type="button" aria-label="Below the table: previous page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1, 'bottom')}>Previous</button><span>Page {activeTablePage + 1} of {pageCount} · patients {firstShown}–{lastShown} of {pagedRows.length}</span><button type="button" aria-label="Below the table: next page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1, 'bottom')}>Next</button></nav>}

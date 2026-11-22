@@ -44,10 +44,10 @@ describe('one eGFR rule by unit (OD-20)', () => {
 
 describe('projection follow-up of 365 days (OD-17)', () => {
   it('projects over exactly one calendar year without a leap day and withholds one day less', () => {
+    // 365 days pass the span gate; since 2026-11-22 the KDIGO minimum of four
+    // dates over three years then withholds the extrapolation.
     const year = computeCkdEndpoints({ points: [point('2021-01-01', 60, 60), point('2021-07-01', 55, 60), point('2022-01-01', 50, 61)], ...declining, enabled: projecting })
-    expect(year.projectedAgeToCkdG5.reason).toBeNull()
-    // The line 60 - 10 t reaches 15 at t = 4.5 years; the latest point is 365 days after the first.
-    expect(year.projectedAgeToCkdG5.value).toBeCloseTo(61 + 4.5 - 365 / 365.25, 10)
+    expect(year.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'kdigo_minimum_follow_up' })
     const short = computeCkdEndpoints({ points: [point('2021-01-01', 60, 60), point('2021-07-01', 55, 60), point('2021-12-31', 50, 60)], ...declining, enabled: projecting })
     expect(short.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'span_too_short' })
   })
@@ -95,9 +95,11 @@ describe('minimum confirmation interval of at most 365 days (OD-19)', () => {
 
 describe('projected age from an exact birth date (OD-16)', () => {
   const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
-  const rows: LabRow[] = [60, 45, 30].map((value, i) => ({ patientId: 1, labDatum: new Date(Date.UTC(2020 + i, 0, 1)), ...parameter,
-    wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w' as const, patientAgeAtLab: 60 + i }))
-  const spec: CohortSeriesSpec = { ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter) }
+  // Four dates over three years (KDIGO minimum since 2026-11-22); the extrapolation is switched on.
+  const rows: LabRow[] = [75, 60, 45, 30].map((value, i) => ({ patientId: 1, labDatum: new Date(Date.UTC(2019 + i, 0, 1)), ...parameter,
+    wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w' as const, patientAgeAtLab: 59 + i }))
+  const config = ckdProgressionConfig(parameter)
+  const spec: CohortSeriesSpec = { ...parameter, mode: 'global', fitConfig: { ...config, endpoints: { ...config.endpoints, projectedAgeToCkdG5: true } } }
   const whole = () => buildCohortRows(rows, [1], [spec])[0].cells[0].endpoints.projectedAgeToCkdG5
 
   it('counts from the age in completed years without a birth date and says so', () => {
@@ -117,7 +119,7 @@ describe('projected age from an exact birth date (OD-16)', () => {
     const withheld = computeCkdEndpoints({ points: [point('2020-01-01', 60, 60)], ...declining, enabled: projecting })
     expect(withheld.projectedAgeToCkdG5.ageBasis).toBeUndefined()
     expect(cell(withheld)).toBe('')
-    const base = { points: [point('2020-01-01', 60, 60), point('2021-01-01', 50, 61), point('2022-01-01', 40, 62)], ...declining, enabled: projecting }
+    const base = { points: [point('2020-01-01', 60, 60), point('2021-01-01', 50, 61), point('2022-01-01', 40, 62), point('2023-01-01', 30, 63)], ...declining, enabled: projecting }
     expect(cell(computeCkdEndpoints(base))).toBe('age in completed years')
     expect(cell(computeCkdEndpoints({ ...base, ageBasis: 'birth_date' }))).toBe('birth date')
   })
