@@ -69,7 +69,7 @@ function usePhoneLayout(): boolean {
 }
 /** The rapid-decline mark is a finding, not a warning about the value: its own icon,
  * for both levels ("rapid ↓" and the possible "rapid ↓?"). */
-const flagIcon = (tone: string) => tone === 'aki' ? 'event' : tone === 'rapid' || tone === 'rapid-possible' ? 'decline' : 'endpoint'
+const flagIcon = (tone: string) => tone === 'aki' || tone === 'aki-window' ? 'event' : tone === 'rapid' || tone === 'rapid-possible' ? 'decline' : 'endpoint'
 
 function CellSummary({
   cell,

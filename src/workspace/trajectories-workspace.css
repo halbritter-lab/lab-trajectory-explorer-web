@@ -84,6 +84,7 @@
 /* Possible rapid decline: same colour family, dashed outline and normal weight. */
 .wt-badge-rapid-possible { background: #fff; color: #b91c1c; border: 1px dashed #f87171; font-weight: 500; }
 .wt-badge-aki { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.wt-badge-aki-window { background: #fff; color: #c2410c; border: 1px dashed #fdba74; font-weight: 500; }
 .wt-analysis-card[open] { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .wt-preset-section { display: grid; gap: 16px; margin-top: 16px; min-width: 0; }
 .wt-analysis-selectors { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
