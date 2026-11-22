@@ -95,10 +95,10 @@ It describes what the code does, not what was intended. Where behaviour
 conflicts with other documentation or looks unintended, describe it as it is
 and add an `Open decision OD-n` marker plus a row in the index's list; do not
 quietly fix either side. Removing a marker needs the owner's decision. Read
-the open-decision list before touching the affected code: several entries
-describe behaviour the interface does not make visible, such as the default
-reference level of a model factor being taken from all patients of the
-dataset (OD-29). Resolved
+the open-decision list before touching the affected code: entries often
+describe behaviour the interface does not make visible (OD-29, resolved on
+2026-11-22, was one: the default reference level of a model factor came from
+all patients of the dataset). Resolved
 entries stay listed under "Resolved decisions" in the index; their numbers are
 not reused.
 

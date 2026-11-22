@@ -210,7 +210,7 @@ items under "after 0.3.0" ship with their markers in place.
 | OD-10 | The flag stays without a reliability gate (decision of 2026-10-06). The methodology page describes it as a screening mark on any computed slope, to be read with the reliability note. |
 | OD-12 | Both constants stay: 88.42 for measured creatinine, 88.4 inside the EKFC Q polynomial. The methodology page names both. |
 
-### After 0.3.0, markers remain
+### After 0.3.0, OD-11 and OD-21 implemented on 2026-11-22
 
 | ID | Intended direction |
 | --- | --- |
