@@ -27,6 +27,10 @@ interfaces are still evolving before 1.0.
   for lab dates. Warning only; the events and rows are used unchanged.
 - The Trajectories table shows the sign of a bound as the latest value
   ("latest <15" instead of "latest 15"). Display only.
+- Cohort models: the starting level in the results table and both bounds of
+  its interval have the same number of decimals, that of the coefficient
+  table ("45.50 [44.12, 46.90]" instead of "45.5 [44.12, 46.9]"). Display
+  only.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 

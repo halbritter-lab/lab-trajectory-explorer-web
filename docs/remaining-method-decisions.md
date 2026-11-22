@@ -981,6 +981,17 @@ Resolved with a change:
   ("<15"); a value of another non-exact kind (a range) is shown without a
   sign, as before. Details:
   [first and last eligible value](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group).
+- **The starting level of a cohort model is written with the same decimals
+  as its interval** (K35). In the results table of the Cohort models page the
+  starting level and both bounds of its interval take the number of decimals
+  of the parameter's slope column, as the `(Intercept)` row of the
+  coefficient table already did; the factor terms there already used it for
+  estimate and bounds. Display only. Detail of the implementation: the
+  number is the slope-column number (not a separate one for levels), so the
+  results row and the coefficient row read alike; an eGFR column gives
+  "45.50 [44.12, 46.90]" instead of "45.5 [44.12, 46.9]", a creatinine column
+  with three decimals "1.200 [1.050, 1.350]". Details:
+  [displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals).
 
 ## Approved requirements
 

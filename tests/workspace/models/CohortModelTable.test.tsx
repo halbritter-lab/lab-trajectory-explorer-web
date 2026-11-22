@@ -176,10 +176,11 @@ describe('CohortModelTable', () => {
     const cells = within(rowByEntity('cohort')).getAllByRole('cell')
     expect(cells[4]).toHaveTextContent(`${formatWorkspaceNumber(-9.985)} ml/min/1.73m2/yr`)
     expect(cells[4]).toHaveTextContent('-9.99 ml/min/1.73m2/yr')
-    expect(cells[5]).toHaveTextContent(`${formatWorkspaceNumber(1234.5)} ml/min/1.73m2`)
+    expect(cells[5]).toHaveTextContent('1,234.50 ml/min/1.73m2')
     // The 95% interval stands beside the estimate; the reading note and the technical record follow.
     expect(cells[4]).toHaveTextContent('[-10.49, -9.49]')
-    expect(cells[5]).toHaveTextContent('95% interval [55, 65]')
+    // K35 (2026-11-22): estimate and bounds of the starting level with the same decimals.
+    expect(cells[5]).toHaveTextContent('95% interval [55.00, 65.00]')
     expect(screen.getByRole('columnheader', { name: 'Change per year' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Group' })).toBeInTheDocument()
     expect(screen.getByTestId('interval-reading')).toHaveTextContent(/do not report it as a p-value/)
@@ -195,8 +196,9 @@ describe('CohortModelTable', () => {
     const cells = within(rowByEntity('cohort')).getAllByRole('cell')
     // Before: "0.09 ... [0.05, 0.13]" here and "0.090 [0.05, 0.13]" among the coefficients.
     expect(cells[4]).toHaveTextContent('+0.090 ml/min/1.73m2/yr 95% interval [0.050, 0.131]')
-    // The starting level is not a slope and keeps the general display rounding.
-    expect(cells[5]).toHaveTextContent('60 ml/min/1.73m2 95% interval [1.05, 1.35]')
+    // The starting level and its bounds take the decimals of its coefficient row (2026-11-22;
+    // before, the general display rounding: "60 ml/min/1.73m2 95% interval [1.05, 1.35]").
+    expect(cells[5]).toHaveTextContent('60.000 ml/min/1.73m2 95% interval [1.050, 1.350]')
     await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
     const coefficients = within(screen.getByRole('table', { name: 'Fixed effect coefficients' })).getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell').slice(1).map(cell => cell.textContent))
     expect(coefficients).toEqual([['1.200', '[1.050, 1.350]'], ['0.090', '[0.050, 0.131]']])
