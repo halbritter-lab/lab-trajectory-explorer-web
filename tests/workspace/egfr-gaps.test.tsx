@@ -122,6 +122,12 @@ describe('missingEgfrNotes', () => {
     const context = egfrGapContext({ formula: 'ckd-epi-2021', paediatric: 'schwartz-bedside' }, [])
     expect(egfrGapReasons(lab('P9', 2020, 0.5, 'm', 8), context)).toEqual(['no_height'])
     expect(egfrGapReasons({ ...lab('P9', 2020, 0.5, 'm', 8), labDatum: null }, context)).toEqual(['date'])
+    // Bedside Schwartz has no sex term: no sex reason where it applies or would apply with a height; the default rule still needs sex.
+    expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 8), context)).toEqual(['no_height'])
+    const withHeight = egfrGapContext({ formula: 'ckd-epi-2021', paediatric: 'schwartz-bedside' }, [lab('P9', 2020, 130, null, null, 'Größe', 'cm')])
+    expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 8), withHeight)).toEqual([])
+    expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 30), withHeight)).toEqual(['sex'])
+    expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 8), egfrGapContext({ formula: 'ckd-epi-2021', paediatric: 'ckid-u25-ekfc' }, []))).toEqual(['sex'])
     expect(EGFR_GAP_TEXT.under_2).toBe('Age under 2 — no eGFR formula is used below 2 years')
   })
   it('gives nothing while the derivation is off', () => {

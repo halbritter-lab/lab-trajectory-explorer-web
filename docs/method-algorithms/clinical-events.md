@@ -326,7 +326,9 @@ are unchanged.
   segment with OLS) and time balancing, after the column's other windows
   (AKI windows, dialysis intervals). Bounded values (`<x`, `>x`) enter it as
   the column's `boundedValues` setting says, as in its own fit (merge of
-  issue #73 with this rule, 2026-11-22; under `exclude` they stay out). The segment ends at the next KRT event,
+  issue #73 with this rule, 2026-11-22; under `exclude` they stay out;
+  **Open decision OD-72**: set during that merge, not by an owner decision).
+  The segment ends at the next KRT event,
   whose values are then in no fit whatever its option (**Open decision
   OD-50**). When the first
   KRT event's option is on, it censors and no segment is formed, even if a

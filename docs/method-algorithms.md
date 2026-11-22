@@ -97,7 +97,7 @@ it; the way the tool applies it is its own.
 | Rule | What is from a source, and what is this tool's | Section |
 | --- | --- | --- |
 | Rapid eGFR decline flag, two levels | The default threshold of 5 mL/min/1.73 m² per year goes back to the KDIGO 2012 CKD guideline; KDIGO 2024 gives no numeric threshold for rapid progression. The threshold is a configurable convention. Applying it to one fitted slope without testing that the decline is sustained, and the two levels "rapid ↓" (whole 95 % interval below −threshold) and "rapid ↓?" (only the slope below it), are this tool's rules (decided 2026-11-21). | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
-| Height for CKiD U25 and bedside Schwartz | The equations (Pierce 2021, Schwartz 2009) need a height; how a creatinine value gets one is this tool's rule: the height of the same day, or a linear interpolation between two heights both at most 90 days away (30 days under 2 years), never extrapolated (owner decision `height`, 2026-11-22; no source sets the gap). | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
+| Height for CKiD U25 and bedside Schwartz | The equations (Pierce 2021, Schwartz 2009) need a height; how a creatinine value gets one is this tool's rule: the height of the same day, or a linear interpolation between two heights both at most 90 days away, never extrapolated (owner decision `height`, 2026-11-22; no source sets the gap). The decision's 30 days under 2 years has no case, since no eGFR is computed under 2 (OD-70). | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 | Bounded-value substitution and the 20 % warning | Substituting the limit or half of it for a censored value is a common convention whose bias at high censored fractions is documented (Hornung and Reed 1990; Hughes 1999). The three settings, the default `limit`, counting a median bin as bounded when it holds a bound and the warning at 20 % of the fitted points are this tool's rules (decided 2026-11-21 and 2026-11-22). | [Bounded values in individual fits](method-algorithms/bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22) |
 | Slope reliability rule | Fewer than three fitted dates or under 365 days of fitted span: a clinical rule of thumb, not a published cut-off. | [Reliability rule](method-algorithms/slope-quality.md#reliability-rule) |
 | Minimum per cohort-model factor level | Pre-specified variant classes follow Cornec-Le Gall et al. (JASN 2016); the minimum of 5 patients with 2 or more model rows per level, pooling into "other (pooled)" and removing a small "not tested" level are this tool's rules (decided 2026-11-22). | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
@@ -162,6 +162,9 @@ each is implemented with the option that changes least.
 OD-65 to OD-69 were added on 2026-11-22 with the equations for children and
 adolescents (issue #66): where the decisions `peds-eq`, `height` and `switch`
 leave a gap, the conservative option is implemented.
+OD-70 to OD-72 were added on 2026-11-22 from the code review of that day's
+merges, for rules that were implemented without an owner decision; the
+behaviour is unchanged.
 
 | ID | Open question, and what is implemented | Section |
 | --- | --- | --- |
@@ -194,6 +197,9 @@ leave a gap, the conservative option is implemented.
 | OD-67 | CKiD U25 or EKFC is chosen per creatinine value, so a child with heights on some dates only alternates between equations, each alternation a formula change; per patient would be the alternative. | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 | OD-68 | A height is interpolated only between two heights both at most 90 days away, and never carried before the first or after the last height, however close. | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 | OD-69 | The series name of an adult formula is kept when it holds minors' CKiD U25 or EKFC values (the equation is named per value in `egfr_equation`), and a copy saved before 2026-11-22 is read with the default rule for children without a notice. | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
+| OD-70 | CKiD U25 is published for ages 1 to 25 and the decision `height` set a 30-day height limit under 2 years, but no eGFR is computed under 2 (EKFC from 2, decision of 2026-11-21), so that limit has no case. Should CKiD U25 apply from age 1 with the 30-day limit? | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
+| OD-71 | A conclusive bound (`>x` with x at or above 15, for example `>20`) counts as a date that is not low for the flag "single value below 15, unconfirmed"; set during the merge of 2026-11-22 without an owner decision. Should bounds be ignored there? | [Single value below 15](method-algorithms/endpoints-and-projection.md#single-value-below-15-unconfirmed-2026-11-22) |
+| OD-72 | The segment after kidney replacement therapy and both sides of the before/after comparison at an anchor event take bounded values by the column's `boundedValues` setting, as its own fit; set during the merge of 2026-11-22 without an owner decision. | [Kidney replacement therapy in every preset](method-algorithms/clinical-events.md#kidney-replacement-therapy-in-every-preset), [Points and boundaries](method-algorithms/anchor-comparison.md#points-and-boundaries) |
 
 ### Resolved decisions
 

@@ -346,6 +346,12 @@ confirmed:
   both low dates are isolated, so the flag is `yes`. Without the bound the two
   low dates are neighbours and no flag is set (OD-41). Bounds never interrupt
   a 40 %, 50 % or 57 % decline candidate (OD-62).
+
+  **Open decision OD-71.** That a conclusive bound counts as a date that is
+  not low was set during the merge of 2026-11-22, not by an owner decision:
+  the decision `g5single` speaks of values, and the bound-reset rule names
+  only G4/G5 candidates. Ignoring bounds here would leave the example above
+  unflagged.
 - The flag is set when at least one isolated low date exists and no G5 is
   confirmed by the column's rule. It is evaluated when observed G5 or the
   extrapolation is switched on (with only the extrapolation on, a confirmed

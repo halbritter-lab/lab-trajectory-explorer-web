@@ -53,8 +53,10 @@ dialysis of unknown intent on 2023-03-01, not at the chronic dialysis start on
 Both sides use exactly the points the column's own fit can use: exact
 measurements and, by the column's bounded-value setting (since 2026-11-22,
 issue #73), bounds at their limit or half limit; under `exclude` no bounds
-(see [bounded values](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22)),
-outside every censoring and exclusion window of the
+(see [bounded values](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22);
+**Open decision OD-72**: this rule, like that of the segment after kidney
+replacement therapy, was set during the merge of 2026-11-22, not by an owner
+decision), outside every censoring and exclusion window of the
 column (event censoring, acute and unknown dialysis intervals, AKI windows,
 as configured), and in addition, when the column includes the values after
 kidney replacement therapy (since 2026-11-22), the points of the separate

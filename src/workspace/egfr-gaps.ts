@@ -1,6 +1,6 @@
 import { patientIdKey, type LabRow } from '../core/types'
 import { COMPUTED_EGFR_UNIT, computedEgfrName, DEFAULT_PAEDIATRIC_RULE, normaliseUnit } from '../core/domains/nephrology/analytes'
-import { creatinineSourceOptions, defaultCreatinineSource, HEIGHT_MATCH_DAYS, isSerumCreatinineSource, patientCreatinineSources, patientHeights, rowEgfrFormula, type EgfrRule, type HeightPoint, type Source } from '../core/domains/nephrology/egfr/series'
+import { creatinineSourceOptions, defaultCreatinineSource, equationUsesSex, HEIGHT_MATCH_DAYS, isSerumCreatinineSource, patientCreatinineSources, patientHeights, rowEgfrFormula, type EgfrRule, type HeightPoint, type Source } from '../core/domains/nephrology/egfr/series'
 import { parameterLabel } from './workspace-labels'
 import type { WorkspaceData } from './workspace-data'
 
@@ -30,7 +30,8 @@ export function egfrGapContext(settings: { formula: string; paediatric?: EgfrRul
 
 /** Every condition a source row (with resolved sex and age) fails, in the
  * order they are checked: date, value, sex and age are independent, so a row
- * without sex and age reports both. The age condition follows the formula
+ * without sex and age reports both. Sex is not a reason for a row that bedside
+ * Schwartz applies to or would apply to with a height (no sex term). The age condition follows the formula
  * setting (`rowEgfrFormula`): under 18 with the under-18 rule "None", under 2
  * otherwise, and, for bedside Schwartz, a missing height. A row without a
  * date reports no height reason. Without a context the rule before issue #66
@@ -40,9 +41,12 @@ export function egfrGapReasons(row: GapRow, context: EgfrGapContext = ADULT_ONLY
   if (!row.labDatum) reasons.push('date')
   if (row.wertNum === null) reasons.push('value')
   else if (!(row.wertNum > 0)) reasons.push('non_positive')
-  if (!row.patientSex) reasons.push('sex')
   const heights = row.labDatum && row.patientId !== undefined ? context.heights.get(patientIdKey(row.patientId)) : undefined
   const chosen = rowEgfrFormula(row.patientAgeAtLab, row.labDatum ?? new Date(0), context.rule, heights)
+  // Bedside Schwartz has no sex term: a row it applies to, or would apply to
+  // once a height is supplied, needs no sex.
+  const schwartz = 'gap' in chosen ? chosen.gap === 'no_height' || chosen.gap === 'height_gap' : !equationUsesSex(chosen.formula)
+  if (!row.patientSex && !schwartz) reasons.push('sex')
   if ('gap' in chosen && (row.labDatum || (chosen.gap !== 'no_height' && chosen.gap !== 'height_gap'))) reasons.push(chosen.gap)
   return reasons
 }

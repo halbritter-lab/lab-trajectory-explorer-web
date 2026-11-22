@@ -65,6 +65,24 @@ describe('equation per row', () => {
     expect(rowEgfrFormula(1, on, fullAge, heights)).toEqual({ gap: 'under_2' })
   })
 
+  it('keeps the under-2 cutoff: one height limit of 90 days from age 2, no value under 2 (OD-70)', () => {
+    // Heights 60 days before and after: within 90 days, so a child of 2 gets CKiD U25 from the interpolated 85 cm.
+    const heights = patientHeights([height('2019-11-02', 84), height('2020-03-01', 86)]).get('1')
+    const adult = { formula: 'ckd-epi-2021' as const, paediatric: 'ckid-u25-ekfc' as const }
+    expect(rowEgfrFormula(2, day('2020-01-01'), adult, heights)).toEqual({ formula: 'ckid-u25', heightCm: 85 })
+    // Under 2 there is no eGFR whatever the heights, also with a height of the same day.
+    expect(rowEgfrFormula(1, day('2020-01-01'), adult, heights)).toEqual({ gap: 'under_2' })
+    expect(rowEgfrFormula(1, day('2020-03-01'), adult, heights)).toEqual({ gap: 'under_2' })
+  })
+
+  it('computes bedside Schwartz without a resolved sex, which it does not use, but no other equation', () => {
+    const rows = [height('2020-01-01', 130), crea('2020-01-01', 0.5, 8, { patientSex: null }), crea('2020-01-01', 0.5, 30, { patientSex: null, patientId: 2 })]
+    // 0.413 × 130 / 0.5 = 107.38; the adult of patient 2 needs a sex for CKD-EPI 2021.
+    expect(computed(appendComputedEgfr(rows, { formula: 'ckd-epi-2021', paediatric: 'schwartz-bedside' })).map((r) => [r.patientId, r.wertNum, r.egfrFormula])).toEqual([[1, 107.4, 'schwartz-bedside']])
+    // Under the default rule the child gets CKiD U25, which has a sex term: no value.
+    expect(computed(appendComputedEgfr(rows, { formula: 'ckd-epi-2021' }))).toEqual([])
+  })
+
   it('computes CKiD U25 for a child with a height, then the adult formula, and records the change', () => {
     const rows = [height('2020-01-01', 176), crea('2020-01-01', 0.9, 17), crea('2021-01-01', 0.9, 18), crea('2022-01-01', 0.9, 19)]
     const out = computed(appendComputedEgfr(rows, { formula: 'ckd-epi-2021' }))

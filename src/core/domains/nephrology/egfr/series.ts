@@ -76,10 +76,11 @@ export interface EgfrOptions {
 }
 
 /** Longest distance, in calendar days, between a creatinine value and each
- * height it is interpolated from (issue #66, a rule of this tool): 90 days,
- * 30 days when the patient is under 2 at the creatinine date. */
+ * height it is interpolated from (issue #66, a rule of this tool): 90 days.
+ * The decision also set 30 days under 2 years, but no eGFR is computed under
+ * 2 (`rowEgfrFormula`), so that limit is not implemented (Open decision
+ * OD-70: whether CKiD U25 applies from age 1 with the 30-day limit). */
 export const HEIGHT_MATCH_DAYS = 90
-export const HEIGHT_MATCH_DAYS_UNDER_2 = 30
 
 /** One measured height of a patient: the UTC calendar day and the height in
  * cm (the mean of the exact values of that day). */
@@ -146,7 +147,7 @@ export interface EgfrRule { formula: FormulaName; paediatric: PaediatricRule }
  * 1. no age: none (`age`);
  * 2. adult formula (CKD-EPI 2021/2009, MDRD-4, EKFC 2021), age ≥ 18: that formula;
  * 3. adult formula, under-18 rule `off`: none (`under_18`);
- * 4. age < 2: none (`under_2`);
+ * 4. age < 2: none (`under_2`; CKiD U25 is published from 1 year, OD-70);
  * 5. full-age formula `ckid-u25-ekfc`, age ≥ 26: EKFC 2021;
  * 6. under-18 rule `schwartz-bedside`: bedside Schwartz with a height, else
  *    none (`no_height` or `height_gap`);
@@ -159,9 +160,16 @@ export function rowEgfrFormula(age: number | null, date: Date, rule: EgfrRule, h
   if (!fullAge && rule.paediatric === 'off') return { gap: 'under_18' }
   if (age < MIN_PAEDIATRIC_EGFR_AGE) return { gap: 'under_2' }
   if (fullAge && age > CKID_U25_MAX_AGE) return { formula: 'ekfc-2021' }
-  const height = heightOnDate(heights, date, age < 2 ? HEIGHT_MATCH_DAYS_UNDER_2 : HEIGHT_MATCH_DAYS)
+  // Age is at least 2 here: the 30-day limit for under 2 of the decision has no case (OD-70).
+  const height = heightOnDate(heights, date, HEIGHT_MATCH_DAYS)
   if (!fullAge && rule.paediatric === 'schwartz-bedside') return 'gap' in height ? height : { formula: 'schwartz-bedside', heightCm: height.cm }
   return 'gap' in height ? { formula: 'ekfc-2021' } : { formula: 'ckid-u25', heightCm: height.cm }
+}
+
+/** Whether an equation has a sex term, so that a row needs a resolved sex:
+ * every equation but bedside Schwartz (0.413 × height / Scr). */
+export function equationUsesSex(formula: RowEgfrFormula): boolean {
+  return formula !== 'schwartz-bedside'
 }
 
 /** A change of the equation between two consecutive computed eGFR values of
@@ -294,11 +302,12 @@ export function appendComputedEgfr(rows: LabRow[], opts: EgfrOptions = {}): LabR
     if (r.labDatum === null) continue
     if (r.wertNum === null) continue
     const scr = normaliseUnit(einheit) === 'µmol/l' ? r.wertNum / MGDL_PER_UMOLL : r.wertNum
-    // Sex is required by every equation of this tool, bedside Schwartz included.
-    const sex = normaliseSex(r.patientSex)
-    if (sex === null || !(scr > 0)) continue
+    if (!(scr > 0)) continue
     const chosen = rowEgfrFormula(r.patientAgeAtLab, r.labDatum, rule, heights.get(patientIdKey(r.patientId)))
     if ('gap' in chosen) continue
+    // Sex is required by every equation with a sex term; bedside Schwartz has none.
+    const sex = normaliseSex(r.patientSex)
+    if (sex === null && equationUsesSex(chosen.formula)) continue
     const egfr = ROW_FORMULA_FN[chosen.formula]({ scrMgdl: scr, ageYears: r.patientAgeAtLab!, sex, heightCm: chosen.heightCm ?? Number.NaN })
     if (Number.isNaN(egfr)) continue
     const rounded = Math.round(egfr * 10) / 10

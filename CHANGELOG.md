@@ -18,6 +18,19 @@ interfaces are still evolving before 1.0.
   columns with bounds under limit or half-limit only: a column can now keep
   the longer window where the fallback applied before, and `n_aki_excluded`
   counts bounds inside a window.
+- Bedside Schwartz no longer needs a resolved sex, which its formula does not
+  use: a child of 2 to 17 years without a sex and with a height now gets a
+  value under the rule "Bedside Schwartz", and the Data page no longer counts
+  "Sex missing" for such rows. Every other equation still needs a sex.
+- `egfr_male_coefficients_for_sex_d` is `false` for a patient whose values of
+  sex `d` all come from bedside Schwartz (no sex coefficients), as the Data
+  page's notice already was.
+- The unreachable 30-day height limit under 2 years is removed from the code;
+  no eGFR is computed under 2 as before (Open decision OD-70).
+- Open decisions OD-71 (a conclusive bound as a date that is not low for the
+  single value below 15) and OD-72 (bounds in the segment after kidney
+  replacement therapy and in the before/after comparison) record rules set
+  during the merges without an owner decision; behaviour unchanged.
 
 ### Added (release preparation and wording drafts, issues #80 and #84, decided 2026-11-22)
 

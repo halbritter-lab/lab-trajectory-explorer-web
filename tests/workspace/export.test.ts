@@ -278,6 +278,10 @@ describe('workspace workbook', () => {
     expect(records(workbook,'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_male_coefficients_for_sex_d:true})])
     // The endpoint note of 2026-11-22 (#81/#82) follows it, last.
     expect(records(workbook,'about').at(-2)?.note).toMatch(/^egfr_male_coefficients_for_sex_d, the last column of demographics, is true/)
+    // Bedside Schwartz has no sex coefficients: values of sex d computed with it do not count (as on the Data page).
+    input.data.rows = input.data.rows.map(row => row.sourceSeries ? { ...row, egfrFormula: 'schwartz-bedside' as const, egfrHeightCm: 150 } : row)
+    input.data.analysis.rows = input.data.rows
+    expect(records(XLSX.read(workspaceWorkbookBytes(input),{type:'array'}),'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_male_coefficients_for_sex_d:false})])
     // Without a computed eGFR the cell is empty.
     input.data.rows = input.data.rows.filter(row => !row.sourceSeries)
     input.data.analysis.rows = input.data.rows
