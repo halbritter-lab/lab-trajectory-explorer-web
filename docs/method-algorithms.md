@@ -43,7 +43,10 @@ Conventions used throughout:
   exported as `time_of_day`. Event dates carry no time of day.
 - **A year is 365.25 days** wherever elapsed time is converted to years.
 - **A series** is one patient, one parameter name and one unit, compared as
-  stored after import. Different names or units are never pooled.
+  stored after import. Different names or units are never pooled
+  automatically; a merge chosen by the user adds a separate derived series and
+  keeps its sources (since 2026-11-22; see
+  [series comparison and merge](method-algorithms/series-comparison-and-merge.md#series-comparison-and-deliberate-merge-2026-11-22)).
 - **An exact measurement** is a dated numeric row whose operator is `=`.
   Bounded rows (`<x`, `>x`) are shown and counted as raw rows. They enter a
   column's individual fits and lines as its bounded-value setting says (at the
@@ -60,6 +63,7 @@ conventions, the contents and the decision lists. The split moved text only.
 Contents:
 
 1. [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation)
+    - [Series comparison and deliberate merge](method-algorithms/series-comparison-and-merge.md#series-comparison-and-deliberate-merge-2026-11-22)
 2. [Demographics resolution](method-algorithms/demographics.md#demographics-resolution)
 3. [Bounded measurements](method-algorithms/bounded-measurements.md#bounded-measurements-2026-10-06)
     - [Bounded values in individual fits](method-algorithms/bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22)
@@ -108,6 +112,7 @@ it; the way the tool applies it is its own.
 | Minimum data of the extrapolation to CKD G5 | Four measurements over three years are from KDIGO 2012 CKD (p. 66, "in most cases"); counting them as distinct dates over 36 calendar months, the 365-day and three-date minimums before it and the 20-year horizon are this tool's (2026-11-22). | [Minimum data](method-algorithms/endpoints-and-projection.md#individual-g5-projection) |
 | Slope tier "reliable" | At least 4 fitted dates over at least 2 × 365.25 days: the owner's decision of 2026-11-22, resting on KDIGO 2012 CKD (≥ 4 measurements over ≥ 3 years for extrapolating a rate of change) and Grams 2019 (longer slopes associated more strongly with kidney failure); neither defines the tier. | [Slope tier](method-algorithms/slope-quality.md#slope-tier) |
 | Admission proxy for the AKI look-back baseline | The look-back mean of 7 to 365 days and the 1.5-fold criterion follow KDIGO 2012 AKI (ch. 2.4); what counts as an admission (a gap of more than seven days followed by values on consecutive days) is this tool's (decided 2026-11-22, OD-45). | [First value of an admission](method-algorithms/aki.md#first-value-of-an-admission) |
+| Merged series | That a change of method can shift creatinine (Jaffe against enzymatic) is published; merging only by an explicit mapping, converting only serum creatinine (88.42 µmol/l per mg/dl), keeping every value of a day with two sources and the comparison lines without the column's settings are this tool's rules (decided 2026-11-16, 2026-11-21 and 2026-11-22, OD-80 to OD-84). | [Series comparison and merge](method-algorithms/series-comparison-and-merge.md#series-comparison-and-deliberate-merge-2026-11-22) |
 | Shorter AKI window where too few values remain | The 90 days after an AKI episode follow the duration of acute kidney disease (KDIGO 2024); the fallback to 30 days from the onset and its test by the reliability rule are this tool's (decided 2026-11-22, OD-48). | [Enough values](method-algorithms/aki.md#enough-values) |
 
 ## Open decisions
@@ -165,6 +170,11 @@ leave a gap, the conservative option is implemented.
 OD-70 to OD-72 were added on 2026-11-22 from the code review of that day's
 merges, for rules that were implemented without an owner decision; the
 behaviour is unchanged.
+OD-80 to OD-84 were added on 2026-11-22 with the comparison and deliberate
+merge of series (issue #68): the decisions leave the same-day rule, the
+treatment of absent series, AKI detection across sources, the known unit
+pairs and the comparison lines to the implementation, which took the
+conservative option in each case.
 
 | ID | Open question, and what is implemented | Section |
 | --- | --- | --- |
@@ -200,6 +210,11 @@ behaviour is unchanged.
 | OD-70 | CKiD U25 is published for ages 1 to 25 and the decision `height` set a 30-day height limit under 2 years, but no eGFR is computed under 2 (EKFC from 2, decision of 2026-11-21), so that limit has no case. Should CKiD U25 apply from age 1 with the 30-day limit? | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 | OD-71 | A conclusive bound (`>x` with x at or above 15, for example `>20`) counts as a date that is not low for the flag "single value below 15, unconfirmed"; set during the merge of 2026-11-22 without an owner decision. Should bounds be ignored there? | [Single value below 15](method-algorithms/endpoints-and-projection.md#single-value-below-15-unconfirmed-2026-11-22) |
 | OD-72 | The segment after kidney replacement therapy and both sides of the before/after comparison at an anchor event take bounded values by the column's `boundedValues` setting, as its own fit; set during the merge of 2026-11-22 without an owner decision. | [Kidney replacement therapy in every preset](method-algorithms/clinical-events.md#kidney-replacement-therapy-in-every-preset), [Points and boundaries](method-algorithms/anchor-comparison.md#points-and-boundaries) |
+| OD-80 | Values of two source series on one day are all kept in the merged series; no source is preferred, and time balancing and the same-day rules (medians, AKI comparison with earlier values only) decide. The decision does not say which. | [Values of two sources on one day](method-algorithms/series-comparison-and-merge.md#values-of-two-sources-on-one-day) |
+| OD-81 | "Apply settings from an export" leaves out a merge when any one of its source series is not in the loaded dataset, and names it; a stored merge of a saved copy is formed from the present sources when at least two remain. Should an applied merge also use the present sources? | [Interaction with eGFR, AKI and the analysis record](method-algorithms/series-comparison-and-merge.md#interaction-with-egfr-aki-and-the-analysis-record) |
+| OD-82 | A merged series is recognised by its own name and unit: a merged serum creatinine series detects AKI on itself across its sources, so a rise between two methods can form an episode that neither source shows, and the episode list names it beside the episodes of the sources; named without "Kreatinin"/"Creatinin" it is not creatinine at all. | [Interaction with eGFR, AKI and the analysis record](method-algorithms/series-comparison-and-merge.md#interaction-with-egfr-aki-and-the-analysis-record) |
+| OD-83 | Only serum creatinine converts between units (mg/dl and µmol/l, 88.42); the decision says "units converted where known", and no other pair is listed, so other analytes merge only within one unit. The value text of a converted row is rounded (two decimals below 10, one from 10); the number is not. | [Deliberate merge](method-algorithms/series-comparison-and-merge.md#deliberate-merge) |
+| OD-84 | The comparison lines of the patient view are OLS over all exact values of each series, without the column's time balancing, censoring, exclusion windows or bounded-value setting; they can differ from the column's slope. | [Comparison view](method-algorithms/series-comparison-and-merge.md#comparison-view) |
 
 ### Resolved decisions
 

@@ -201,4 +201,17 @@ describe('worked example of the method reference (demo data)', () => {
     // Patient 10 has µmol/l only: the merged slope is 15.618 µmol/l per year divided by 88.42.
     expect(slope(rows, 10, 'Kreatinin (merged)')).toBeCloseTo(15.6180 / 88.42, 4)
   })
+
+  it('computes the eGFR of patients 2 and 10 from the merged series only when it is chosen', () => {
+    const withSource = (source: [string, string] | null) => computeAnalysisResult({ rows: dataset.rows, manualDemographics: {}, patientAttributes: dataset.patientAttributes, events: dataset.events,
+      settings: { ...settings([creatinineMerge]), egfr: { formula: 'ckd-epi-2021', source, paediatric: 'ckid-u25-ekfc' } } }).rows.filter(r => r.sourceSeries)
+    const before = computeAnalysisResult({ rows: dataset.rows, manualDemographics: {}, patientAttributes: dataset.patientAttributes, events: dataset.events,
+      settings: { ...settings([]), egfr: { formula: 'ckd-epi-2021', source: ['Kreatinin', 'mg/dl'], paediatric: 'ckid-u25-ekfc' } } }).rows.filter(r => r.sourceSeries)
+    // Merging alone changes no computed eGFR value.
+    expect(withSource(['Kreatinin', 'mg/dl'])).toEqual(before)
+    const merged = withSource(['Kreatinin (merged)', 'mg/dl'])
+    expect(merged.filter(r => r.patientId === 2)).toHaveLength(18)
+    expect(before.filter(r => r.patientId === 2)).toHaveLength(14)
+    expect(merged.filter(r => r.patientId === 10).map(r => r.wertNum)).toEqual(before.filter(r => r.patientId === 10).map(r => r.wertNum))
+  })
 })

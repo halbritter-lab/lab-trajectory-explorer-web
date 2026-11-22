@@ -182,6 +182,19 @@ import stores at most one unit spelling per test name, a patient has at most
 one µmol/l pair under the selected name. An explicitly selected pair that is
 not an eligible serum-creatinine source produces no eGFR rows for anyone.
 
+A series merged deliberately on the Data page (issue #68, 2026-11-22; see
+[series comparison and merge](series-comparison-and-merge.md#interaction-with-egfr-aki-and-the-analysis-record))
+changes none of this while it is not the selected pair: its rows are left out
+of the table above, and *Automatic* chooses among the imported pairs only. A
+merged serum-creatinine series is offered as a source and, chosen, is the
+selected pair: a patient with a row in it uses it (with the µmol/l values of
+its sources already converted to mg/dl when its unit is mg/dl); a patient
+without one follows the remaining rows of the table among the imported
+series. Example (demo workbook): with `Kreatinin (merged) [mg/dl]` chosen,
+patient 2's eGFR reads 18 values instead of 14, and patient 10 reads the
+merged copy of its µmol/l series instead of the fallback, with the same
+values.
+
 OD-36, confirmed by the owner on 2026-11-22: the decision names the mg/dl series of a patient first
 and the µmol/l series otherwise; it does not say what happens when the
 patient's mg/dl series is not the selected one, when the patient has several

@@ -2744,3 +2744,39 @@ Draft:
 > Both lengths can be changed in the analysis settings of the parameter; the
 > export records the window used (`aki_window`) and the number of
 > measurements it removed (`n_aki_excluded`).
+
+## Part K: series comparison and deliberate merge (issue #68, 2026-11-22, for approval)
+
+Follows the owner decisions of 2026-11-16, 2026-11-21 and 2026-11-22 on
+issue #68 ([method decisions](remaining-method-decisions.md#decisions-of-2026-11-22-decision-artifact-issues-2-4-6585),
+row `merge`; [method reference](method-algorithms/series-comparison-and-merge.md#series-comparison-and-deliberate-merge-2026-11-22)).
+No sentence of the methodology page became false: "The calculation reads one
+creatinine series per patient" still holds, since a merged series is one
+series. The drafts below are new wording for the maintainer's approval;
+nothing of them is applied.
+
+### K1. Series from different laboratories or methods
+
+Topic *Data*, after the paragraph on units of the eGFR inputs. Draft:
+
+> **Series from different laboratories or methods.** Values of one analyte
+> that arrive under different names or units, for example `Kreatinin` and
+> `Kreatinin enzym.`, or creatinine in mg/dl and in µmol/l, stay separate
+> series. They may not be comparable: Jaffe methods can read creatinine
+> higher than enzymatic methods even after IDMS calibration, so a slope across
+> a change of method can show the method rather than the patient. The patient
+> view compares several series in one chart ("Compare series"). On the Data
+> page, series can be merged deliberately into one derived series ("Merge
+> series"); the app never merges on its own, by name or by LOINC code. The
+> source series stay, each merged value names its source, and units are
+> converted only for serum creatinine (88.42 µmol/l per mg/dl). The eGFR
+> reads a merged creatinine series only when it is chosen as the creatinine
+> source.
+
+### K2. Laboratory or method column
+
+Topic *Data*, import columns. Draft:
+
+> An optional column `Laboratory`, `Labor`, `Method` or `Methode` names the
+> laboratory or method of each value. It is shown in the point tooltips and
+> the measurement table and exported as `lab_method`; no calculation reads it.
