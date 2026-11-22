@@ -70,6 +70,7 @@ Contents:
       and the [time axis "Years since event"](method-algorithms/anchor-comparison.md#time-axis-years-since-event-k16-2026-11-22)
     - [Logarithmic value axis and doubling time](method-algorithms/log-scale-and-doubling-time.md#logarithmic-value-axis-and-doubling-time-2026-11-22)
 10. [Reason codes and the slope reliability rule](method-algorithms/slope-quality.md#reason-codes-and-the-slope-reliability-rule)
+    - [Slope tier](method-algorithms/slope-quality.md#slope-tier)
 11. [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
     - [Table order, mark filters and displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals)
 12. [eGFR derivation](method-algorithms/egfr.md#egfr-derivation)
@@ -77,6 +78,7 @@ Contents:
 14. [AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window)
     - [Peri-event creatinine](method-algorithms/aki.md#peri-event-creatinine-2026-11-22)
 15. [Clinical events](method-algorithms/clinical-events.md#clinical-events)
+    - [Kidney replacement therapy in every preset](method-algorithms/clinical-events.md#kidney-replacement-therapy-in-every-preset)
 16. [Observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction)
 17. [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models)
 18. [Cohort-model projections](method-algorithms/cohort-models.md#cohort-model-projections)
@@ -92,6 +94,7 @@ it; the way the tool applies it is its own.
 | --- | --- | --- |
 | Rapid eGFR decline flag, two levels | The default threshold of 5 mL/min/1.73 m² per year goes back to the KDIGO 2012 CKD guideline; KDIGO 2024 gives no numeric threshold for rapid progression. The threshold is a configurable convention. Applying it to one fitted slope without testing that the decline is sustained, and the two levels "rapid ↓" (whole 95 % interval below −threshold) and "rapid ↓?" (only the slope below it), are this tool's rules (decided 2026-11-21). | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
 | Slope reliability rule | Fewer than three fitted dates or under 365 days of fitted span: a clinical rule of thumb, not a published cut-off. | [Reliability rule](method-algorithms/slope-quality.md#reliability-rule) |
+| Slope tier "reliable" | At least 4 fitted dates over at least 2 × 365.25 days: the owner's decision of 2026-11-22, resting on KDIGO 2012 CKD (≥ 4 measurements over ≥ 3 years for extrapolating a rate of change) and Grams 2019 (longer slopes associated more strongly with kidney failure); neither defines the tier. | [Slope tier](method-algorithms/slope-quality.md#slope-tier) |
 
 ## Open decisions
 
@@ -124,7 +127,18 @@ implemented with the option that changes least. OD-38 was added on
 of its decision and resolved the same day: the decision prescribes calendar
 days.
 
-No decision is open at present.
+Open since 2026-11-22, added with the censoring at kidney replacement therapy
+in every preset, the policy for undated dialysis of unknown intent and the
+slope tier (owner decisions `censor`, `dial` and `minfu`, issue #4). Each was
+implemented with the conservative reading:
+
+| Id | Open decision | Section |
+| --- | --- | --- |
+| OD-50 | With the values after KRT included, only the first KRT event starts a separate segment; a later kidney transplant or chronic dialysis ends it, and its values are in no fit whatever its option. Whether a second segment (for example graft failure, then dialysis) should be fitted is open. | [Kidney replacement therapy in every preset](method-algorithms/clinical-events.md#kidney-replacement-therapy-in-every-preset) |
+| OD-51 | The decision names fits of native kidney function; the presets apply the censoring to every parameter of the column settings (as CKD progression always did), also to parameters that are not kidney function, so the censoring options are shown for every parameter. Whether other parameters should keep their values after KRT by default is open. | [Kidney replacement therapy in every preset](method-algorithms/clinical-events.md#kidney-replacement-therapy-in-every-preset) |
+| OD-52 | The separate segment is an additional result: no rapid-decline flag, tier, endpoint, cohort-model row or log-axis fit of its own, and its line is drawn in the overlay only for the highlighted patient. | [Kidney replacement therapy in every preset](method-algorithms/clinical-events.md#kidney-replacement-therapy-in-every-preset) |
+| OD-53 | Settings saved, or applied from a workbook, under General exploration or Theil–Sen before 2026-11-22 keep their values as custom settings without censoring, so the values after KRT become the separate segment rather than censored; a returning user is told the settings were kept as custom, not that the default changed. CKD progression settings saved before keep the policy `exclude-dated-interval` in the same way. | [Kidney replacement therapy in every preset](method-algorithms/clinical-events.md#kidney-replacement-therapy-in-every-preset) |
+| OD-54 | An undated dialysis of unknown intent under CKD progression censors from its start without limit; the 90-day convention named with the decision (unverified) is not applied, and no later value restores the fit. | [Display-fit censoring and exclusion](method-algorithms/clinical-events.md#display-fit-censoring-and-exclusion) |
 
 ### Resolved decisions
 

@@ -129,8 +129,8 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
           {boundedPrefix(p.operator) && <text x={x(p.x) + 5} y={y(p.value) - 5} fill={excluded ? EXCLUDED_COLOR : color}>{p.operator}</text>}</g>
       })}
       {showFit && drawnFitLines(series.cell, scale.log).map((line, i) => { const title = scale.log ? null : windowTitle(i); return <polyline key={i} points={line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} data-fit-quality={uncertainFit ? "uncertain" : "supported"} strokeDasharray={uncertainFit ? "2 4" : "6 4"} strokeWidth="2">{title && <title>{title}</title>}</polyline> })}
-      {/* The separate segment after kidney replacement therapy (2026-11-22): its own line, dash-dot, linear axis only. */}
-      {showFit && !scale.log && series.cell.krtSegment?.line && <polyline data-testid="krt-segment-line" points={series.cell.krtSegment.line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} strokeDasharray="8 3 2 3" strokeWidth="1.5"><title>Separate segment after {series.cell.krtSegment.event.type === 'kidney_transplant' ? 'kidney transplant' : 'chronic dialysis start'}: {formatFixedDecimals(series.cell.krtSegment.fit.slope, slopeDecimals)} {unit}/year; not part of the slope</title></polyline>}
+      {/* The separate segment after kidney replacement therapy (2026-11-22): its own line, dash-dot, linear axis only, for one patient or the highlighted one. */}
+      {showFit && detail && !scale.log && series.cell.krtSegment?.line && <polyline data-testid="krt-segment-line" points={series.cell.krtSegment.line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} strokeDasharray="8 3 2 3" strokeWidth="1.5"><title>Separate segment after {series.cell.krtSegment.event.type === 'kidney_transplant' ? 'kidney transplant' : 'chronic dialysis start'}: {formatFixedDecimals(series.cell.krtSegment.fit.slope, slopeDecimals)} {unit}/year; not part of the slope</title></polyline>}
       {series.markers.filter(marker => display[marker.moduleId] ?? false).map((marker, i) => {
         // Off-series markers sit on the time axis, not on a value.
         const markerY = marker.value === null ? MARKER_AXIS_Y : y(marker.value)
@@ -254,7 +254,6 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   // Slope tiers of the plotted fits (2026-11-22); the uncertain count above keeps the dotted lines.
   const tierCounts = { reliable: 0, estimable: 0 }
   for (const p of visible) { const tier = cellSlopeTier(p.cell); if (tier === 'reliable' || tier === 'estimable') tierCounts[tier] += 1 }
-  const segmentLines = visible.filter(p => p.cell.krtSegment?.line).length
   const fitModel = prepared[0]?.cell?.fitModel ?? 'none'
   const modelLabel = { ols: 'OLS', 'theil-sen': 'Theil–Sen', 'rolling-ols': 'Rolling OLS', 'segmented-ols': 'Segmented OLS', none: 'No fit' }[fitModel]
   const withoutValues = prepared.filter(p => !p.cell?.points.length).length
@@ -386,6 +385,8 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const shownOverlays = OVERLAY_MODULES.filter(module => display[module.id])
   const markerCount = (moduleId: string) => visible.reduce((sum, series) => sum + series.markers.filter(marker => marker.moduleId === moduleId).length, 0)
   const detailSeries = visible.filter(series => overlayDetail(series.row.patientId))
+  // The separate segment after KRT is drawn where event bands are: one patient, or the highlighted one.
+  const segmentLines = detailSeries.filter(series => series.cell.krtSegment?.line).length
   // What the drawn bands of a module mean in their columns; the module's general text when none is drawn.
   const bandLegends = (module: (typeof OVERLAY_MODULES)[number]) => {
     const legends = [...new Set(detailSeries.flatMap(series => series.bands.filter(band => band.moduleId === module.id).map(band => band.legend ?? module.presentation.bandLegend)))]

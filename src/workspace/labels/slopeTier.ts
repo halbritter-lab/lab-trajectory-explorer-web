@@ -1,5 +1,5 @@
 import { cellSlopeTier, type CohortCell } from '../../core/cohort/screening'
-import { RELIABLE_SLOPE_MIN_DATES } from '../../core/stats/slopeQuality'
+import { RELIABLE_SLOPE_MIN_DATES, RELIABLE_SLOPE_MIN_SPAN_DAYS } from '../../core/stats/slopeQuality'
 import { formatDisplayDate as formatWorkspaceDate } from '../../core/format'
 
 export interface SlopeTierNote {
@@ -23,7 +23,7 @@ export function slopeTierNote(cell: CohortCell): SlopeTierNote | null {
   if (tier === 'estimable') {
     const missing = [
       cell.nFittedDates < RELIABLE_SLOPE_MIN_DATES ? `${cell.nFittedDates} fitted dates` : null,
-      cell.fittedSpanDays < 731 ? `${cell.fittedSpanDays} days of fitted follow-up` : null,
+      cell.fittedSpanDays < RELIABLE_SLOPE_MIN_SPAN_DAYS ? `${cell.fittedSpanDays} days of fitted follow-up` : null,
     ].filter(Boolean).join(' and ')
     return { tier, short: 'estimable', label: 'Estimable slope', title: `Not yet reliable: ${missing}. ${RULE}` }
   }

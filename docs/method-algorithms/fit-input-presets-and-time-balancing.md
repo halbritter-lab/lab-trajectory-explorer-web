@@ -39,7 +39,9 @@ for the line, step 1 is done by `buildCohortRows` before it calls
    or unrecognised. An empty operator cell beside a number is exact.
 2. Censoring windows. Points inside any censoring window of the series are
    removed. These windows come from clinical events under the column's
-   censoring options.
+   censoring options; since 2026-11-22 they include the window `krt_segment`
+   from the first kidney transplant or chronic dialysis on when the column
+   includes those values, which are then fitted as a separate segment.
 3. Fit-exclusion windows. Points inside any fit-exclusion window are removed.
    These are the AKI windows when the column excludes them.
 4. Time balancing. The remaining points are aggregated per calendar month or
@@ -190,11 +192,36 @@ since then, display only; a value written as a range keeps no sign). `sex` and `
 `group` was the first column of a grouped export until 2026-11-21, which
 moved every other column one position to the right. It is now always present
 and always the last column, so a grouped and an ungrouped export have the
-same 80 columns in the same positions; the 75 columns of the ungrouped export
-of 0.3.7 keep theirs. The file does not record which attribute was used for
-grouping.
+same columns in the same positions (80 until 2026-11-22, 88 since, see
+below); the 75 columns of the ungrouped export of 0.3.7 keep theirs. The
+file does not record which attribute was used for grouping.
 
 Evidence: [export record tests](../../tests/core/cohort/exportRecords.test.ts),
+[workbook schema tests](../../tests/workspace/export-schema.test.ts).
+
+### Segment after kidney replacement therapy and slope tier
+
+Since 2026-11-22 eight columns follow `baseline_age`, before `group`, which
+stays last; the earlier positions are unchanged.
+
+| Column | Content | Empty when |
+| --- | --- | --- |
+| `krt_segment_start` | Date of the patient's first kidney transplant or chronic dialysis start, when the column includes the values from it on (its censoring option is off) and fits them as a separate segment (see [clinical events](clinical-events.md#kidney-replacement-therapy-in-every-preset)). | the column censors from that event, the patient has none, or the fit model is `none` |
+| `krt_segment_n_fitted` | Points of the segment fit after the column's other windows and its time balancing. | as `krt_segment_start` |
+| `krt_segment_n_fitted_dates` | Their distinct calendar dates. | as `krt_segment_start` |
+| `krt_segment_fitted_span_days` | Whole days between the first and last of them; 0 with fewer than two. | as `krt_segment_start` |
+| `krt_segment_slope` | Slope of the segment per year, unrounded, with the column's estimator (OLS for rolling and segmented OLS). Kidney function after KRT, for example of a graft; not native kidney function, and not part of `slope`. | as `krt_segment_start`, or the segment gave no slope (fewer than two points, three for Theil–Sen, or one date) |
+| `krt_segment_ci_low`, `krt_segment_ci_high` | Bounds of that slope, as `ci_low` and `ci_high`. | as `krt_segment_slope`, or the bound is undefined (exact two-point line) |
+| `slope_tier` | `uncertain`, `estimable` or `reliable` (see [slope tier](slope-quality.md#slope-tier)). | no slope (fit model `none` included) |
+
+Example: the worked example of the clinical-events section (transplant on
+2021-06-01, three values after it) with "Censor after kidney transplant"
+unticked exports `slope` −5.30, `slope_tier` `reliable`,
+`krt_segment_start` 2021-06-01, `krt_segment_n_fitted` 3,
+`krt_segment_fitted_span_days` 365 and `krt_segment_slope` −4.00; with the
+option ticked (the default) the seven `krt_segment_*` cells are empty.
+
+Evidence: [segment and tier tests](../../tests/core/cohort/krtSegmentAndTier.test.ts),
 [workbook schema tests](../../tests/workspace/export-schema.test.ts).
 
 ### Workbook sheets, column names and empty cells
@@ -432,10 +459,10 @@ fixes every setting in the table.
 | Menu id | `general_exploration` | `theil_sen` | `ckd_progression` | `acute_review` |
 | `preset` recorded in `fit_config` | `general_exploration` | `custom` | `ckd_progression` | `acute_review` |
 | `xAxis` (metadata only) | `calendar_time` | `calendar_time` | `age` | `calendar_time` |
-| Censor after kidney transplant | off | off | on | off |
-| Censor after chronic dialysis | off | off | on | off |
+| Censor after kidney transplant | on (off until 2026-11-22) | on (off until 2026-11-22) | on | on (off until 2026-11-22) |
+| Censor after chronic dialysis | on (off until 2026-11-22) | on (off until 2026-11-22) | on | on (off until 2026-11-22) |
 | Exclude acute dialysis intervals | off | off | on | off |
-| Unknown-intent dialysis policy | `flag-only` | `flag-only` | `exclude-dated-interval` | `flag-only` |
+| Unknown-intent dialysis policy | `flag-only` | `flag-only` | `dated-interval-or-from-start` (`exclude-dated-interval` until 2026-11-22) | `flag-only` |
 | Exclude AKI windows from fit | off | off | on | off |
 | AKI exclusion days | 30 (stored, inactive) | 30 (stored, inactive) | 30 | 30 (stored, inactive) |
 | Time balancing | `raw` | `raw` | `quarterly-median` | `raw` |
@@ -446,6 +473,13 @@ fixes every setting in the table.
 | Endpoint: projected age to CKD G5 | off | off | on | off |
 | Confirmation days | 90 (stored, inactive) | 90 (stored, inactive) | 90 | 90 (stored, inactive) |
 | Rapid-decline threshold (column module setting) | 5 | 5 | 5 | 5 |
+
+Censoring after kidney transplant and chronic dialysis in every preset, and
+the unknown-intent policy of CKD progression, are the owner decisions
+`censor` and `dial` of 2026-11-22 (see
+[clinical events](clinical-events.md#kidney-replacement-therapy-in-every-preset)).
+With an option unticked, the values after the first such event are fitted
+as a separate segment, not across the event.
 
 "Stored, inactive" means the value is kept in the configuration so that it is
 already set when the corresponding option is switched on. Endpoint toggles only
