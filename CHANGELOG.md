@@ -7,6 +7,21 @@ interfaces are still evolving before 1.0.
 
 ### Changed (open points of the persona review, decided 2026-11-22)
 
+- Review of the combined branch (2026-11-22): a before/after side fitted
+  with Theil-Sen on fewer than five dates shows "Theil–Sen bounds […], not a
+  95% interval" instead of "95% CI", and `anchor_comparison` gains
+  `before_n_fitted_dates` and `after_n_fitted_dates` at its end. An AKI
+  episode end after the start of a dialysis without end date names that
+  dialysis on the Data page and in the patient view. *Recovery between
+  episodes* and the anchor exclusion window apply their value on leaving the
+  field or Enter; an emptied field changes nothing; the recovery length is
+  rounded down to whole days and limited to 2160 hours. "Years since event"
+  no longer counts trajectories without an anchor for a parameter without
+  comparison ("1 trajectory without a matching anchor event (not drawn)"
+  otherwise). The `about` note on `patient_birth_date` no longer calls it the
+  last column. The AKI episode list no longer breaks dates on a phone. The
+  Methods section on network access again names what the server sees and
+  says that the app does not pseudonymise. No result value changed.
 - The methodology page (AKI detection, "AKI Timing, Episodes and the
   Fit-Exclusion Window") states the rule for several creatinine values on one
   day: ordered by the time of day where each has one, otherwise compared with
@@ -15,7 +30,8 @@ interfaces are still evolving before 1.0.
   `raw_measurements` gain the last column `time_of_day` (`HH:MM:SS`, empty
   when the file gave none). Loading the app's own workbook again reads it from
   `raw_measurements`, so the AKI episodes are the same after a round trip
-  (before, a rise from 1.0 at 06:00 to 1.6 at 20:00 was an episode after the
+  at the same *Recovery between episodes* (a loaded file starts at 48 hours;
+  the `about` note says so) (before, a rise from 1.0 at 06:00 to 1.6 at 20:00 was an episode after the
   import of the file and none after the re-import of its export).
   `input_data_id` covers the time of the rows that have one; for a dataset
   without times it is unchanged.
@@ -23,7 +39,8 @@ interfaces are still evolving before 1.0.
   a time-zone remainder (01:00, 02:00 in summer time) that would have been
   shown as a measured time and written to `time_of_day`; the calendar days
   are unchanged, and so are the demo's values, AKI episodes, fits and
-  `input_data_id` (`b59dd57d` under every preset).
+  `input_data_id` (`b59dd57d` under every preset). The file is written
+  compressed (58 KB).
 - The measurement table of the patient view shows the time beside the date
   where the file gave one, and orders the rows of one day by it when every
   row of that day has one (file order otherwise).

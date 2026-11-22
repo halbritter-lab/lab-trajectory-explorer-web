@@ -1436,6 +1436,99 @@ fails until the files are supplied or the pin is changed.
 
 Details: [reproducibility](method-algorithms/cohort-models.md#reproducibility).
 
+## Decisions of 2026-11-22 (review of the combined branch of the open points)
+
+Findings of the independent review of the branch that combines the open
+points of 2026-11-22, resolved on the owner's instruction of that day to
+resolve the open points; the option that changes least was taken where
+nothing was decided. **No number of an existing result moved**: no slope,
+interval, episode, onset, stage, end date, flag, endpoint or golden fixture.
+Wording, labels, two appended export columns and the input of two number
+fields changed.
+
+- **Theil-Sen bounds of a before/after side.** As for the column's slope
+  (decided 2026-11-16), Theil-Sen bounds of a side with fewer than five
+  distinct fitted dates are not called a 95 % interval: the patient view
+  writes "Theil–Sen bounds […], not a 95% interval: 3 dates", the sheet
+  `anchor_comparison` gains `before_n_fitted_dates` and
+  `after_n_fitted_dates` at its end, and its `about` note says how to read
+  `ci_low`/`ci_high` of a side. Before, every side was labelled "95% CI";
+  demo patient 13 under Theil-Sen showed "95% CI [-8.07, -7.94]" for the
+  full range of three pairwise slopes. Details:
+  [before/after comparison](method-algorithms/anchor-comparison.md#beforeafter-comparison-at-an-anchor-event-2026-11-22).
+- **An episode end after a dialysis without end date is marked.** An acute
+  or unknown-intent dialysis without an end date blocks no end (unchanged);
+  when one starts between the onset and the end date, the Data page and the
+  patient view add "(after dialysis start 06/06/2026 without end date)" to
+  the end, and the `about` note of `aki_episodes` says that such an end can
+  come from the dialysis. The sheet gains no column. Details:
+  [episode list](method-algorithms/aki.md#episode-list).
+- **Recovery length field.** *Recovery between episodes (hours)* applies its
+  value on leaving the field or Enter (the spin buttons and arrow keys at
+  once), not on every keystroke; an emptied or unreadable field changes
+  nothing. The value is rounded down to whole days (36 becomes 24, which is
+  how 36 already acted) and limited to 2160 hours (90 days, the end of acute
+  kidney disease in ADQI 16; `MAX_AKI_RECOVERY_HOURS`). Before, an emptied
+  field applied 0 hours at once, typing 72 applied 7 first, and a very large
+  value made detection loop once per day of the recovery window. A saved
+  dataset copy with another value is read as before. The field is at most
+  8rem wide. *Exclusion window after the anchor (days)* applies its value in
+  the same way.
+- **Re-import and the recovery length.** Loading the app's own workbook does
+  not read `analysis_settings`, so *Recovery between episodes* starts at
+  48 hours. The `about` note on `time_of_day`, the changelog and the method
+  reference now say that the AKI episodes are those of the export at the
+  same recovery length; before, they said so without the condition, and an
+  export made with 24 hours gave fewer episodes after loading it again.
+  Reading the setting back is not implemented.
+- **The note on `patient_birth_date`** says that the column follows `loinc`
+  and precedes `time_of_day`; it called itself the last column of the
+  measurement sheets although `time_of_day` follows it since 2026-11-22.
+- **Event axis without a comparison** (K16). With the comparison off for a
+  parameter, its chart on "Years since event" no longer counts every
+  trajectory as "additional trajectories without a matching anchor event";
+  only the note on where to switch it on remains. With the comparison on the
+  count reads "1 trajectory without a matching anchor event (not drawn)",
+  singular or plural.
+- **What the server sees, pseudonymisation** (K44, both open details). The
+  Methods section "Network access and local storage" again names what the
+  server sees ("As with loading the app, the server that hosts it sees the IP
+  address, the browser type and which files are requested."); the sentence
+  on both webR hosts had been removed with self-hosting. It also says that
+  the app does not pseudonymise, as the template text and the `about` notes
+  of the exports already do.
+- **AKI episode list on a phone.** Dates and words in the list are no longer
+  broken inside ("02/0 1/20 24"); the frame scrolls sideways and the End
+  column is at least 14rem wide. Display only.
+- **Demo workbook written compressed.** `scripts/strip_demo_lab_times.mjs`
+  writes with compression, as the app's exports do; the file is 58 KB
+  instead of 163 KB, with every cell value unchanged.
+- **Corrections in the method reference.** The example row "the same without
+  the dialysis …" of the AKI episode table names its values and stands under
+  the row it refers to (1.0, 3.2, 4.0, 4.2, 6.5 on days 0, 1, 13, 14, 15);
+  the worked example of the before/after comparison gives
+  `SE_b² + SE_a² = 0.032822` (was 0.032808; ν, t, half-width and interval
+  were already right).
+
+Methods page, new or changed sentences (minimal and factual, awaiting the
+maintainer's approval):
+
+- AKI (`Aki.tsx`, timing section), changed: "The first value after more than
+  seven days without measurements also ends the episode, at the earlier value
+  back below the criterion if there is one; otherwise no end date is given,
+  because that value is compared with no earlier value." (Before: "…also
+  ends the episode; no end date is given then, because …", which did not
+  hold when a value back below the criterion came before the gap.)
+- Fits (`Fits.tsx`, fit pipeline, "Before/after comparison"), added after
+  "… span and 95% interval": "; for Theil–Sen a side with fewer than five
+  dates has Theil–Sen bounds instead, which are not a 95% interval, as for
+  the slope."
+- Data (`Data.tsx`, "Network access and local storage"), added: "As with
+  loading the app, the server that hosts it sees the IP address, the browser
+  type and which files are requested." and, as a paragraph of its own, "The
+  app does not pseudonymise: patient IDs are shown, kept and exported as
+  imported."
+
 ## Approved requirements
 
 ### Observed events and recovery

@@ -75,7 +75,9 @@ with ad-hoc Playwright scripts against the production build in Chromium.
    this branch without them). The table ends with "End" and "Dialysis
    start": ICU01 stage III, onset 02/03/2026, end 14/03/2026, dialysis start
    "06/03/2026 (acute)"; ICU03 "open at the last value"; ICU04 stage III,
-   end 09/06/2026, "06/06/2026 (acute)"; the others "none". The ICU01 chip
+   end "09/06/2026 (after dialysis start 06/06/2026 without end date)" (since
+   the review of the combined branch; 09/06/2026 before), "06/06/2026
+   (acute)"; the others "none". The ICU01 chip
    reads `AKI III` (`AKI I, 3×III` on `main`).
 2. Trajectories → open ICU01: "AKI episodes for this patient" ends "; end
    14/03/2026; dialysis start 06/03/2026 (acute)".
@@ -145,10 +147,10 @@ build.
    fit".
 4. Display → Time axis → "Years since event": the overlay draws patients 13
    and 14 with both jumps at 0 (ticks -2 … 1), says "2 of 28 trajectories; 3
-   without numeric measurements; 23 additional trajectories without a matching
-   anchor event", labels the axis "Years since anchor event (first event of
-   type kidney_transplant)"; the Kreatinin chart (no comparison) draws nothing
-   and says where to switch the comparison on.
+   without numeric measurements; 23 trajectories without a matching anchor
+   event (not drawn)", labels the axis "Years since anchor event (first event
+   of type kidney_transplant)"; the Kreatinin chart (no comparison) draws
+   nothing, counts nothing and says where to switch the comparison on.
 
 Verified 2026-11-22 in Chromium against the production build: steps 1 to 4;
 after the review fixes again step 1 (menu prefixes, also at 390 px) and the
@@ -158,6 +160,44 @@ Not checked: Firefox and WebKit, a narrow screen beyond the anchor menu and
 the patient 14 chart, the mixed-model line on the
 event axis in the browser (unit test only).
 
+
+## Review of the combined branch of the open points (2026-11-22)
+
+Branch `integration/open-items-2026-11-22`, after the independent review of
+the combined branch. Checked with ad-hoc Playwright scripts against the
+production build in Chromium.
+
+1. Import `icu_dense_labs.csv` with `icu_events.csv`. Data → "Detected AKI
+   episodes (6)": ICU04 End "09/06/2026 (after dialysis start 06/06/2026
+   without end date)", the patient view of ICU04 the same after "end". At
+   390 px the list is 1024 px wide inside its frame, dates stay on one line
+   ("02/06/2026"), the page does not scroll sideways; at 1440 px the field
+   *Recovery between episodes (hours)* is 128 px wide.
+2. In that field: empty it and leave it: 48 again, still 6 episodes; type 2
+   then 24: nothing applied until Enter; 36 and leaving: 24; 999999 and
+   Enter: 2160; arrow down: 2136 at once.
+3. Demo → eGFR trend, preset Theil-Sen, before/after at type
+   `kidney_transplant`; empty the exclusion days and leave: 0. Patient 13:
+   "after -8.01 … (3 fitted points over 365 days, Theil–Sen bounds [-8.07,
+   -7.94], not a 95% interval: 3 dates)", before "95% CI" (6 dates). Export:
+   `anchor_comparison` ends with `before_n_fitted_dates` 6 and
+   `after_n_fitted_dates` 3; the `about` notes on `patient_birth_date` ("follows
+   loinc and precedes time_of_day"), on `time_of_day` (same episodes at the
+   same recovery length; loading starts at 48 hours) and on the comparison
+   read as changed; `measurements` ends with `loinc`, `patient_birth_date`,
+   `time_of_day`.
+4. "Years since event": the Kreatinin chart without comparison counts no
+   trajectory; the overlay of eGFR reads "23 trajectories without a matching
+   anchor event (not drawn)".
+5. Methods → Data → "Network access and local storage" names what the server
+   that hosts the app sees and says that the app does not pseudonymise.
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 5
+(step 1 and 2 at 390 and 1440 px). Automated: the episode end label, the
+recovery field (unit test), the Theil-Sen bounds of a side, the event-axis
+count (unit and `tests/e2e/anchor-comparison.e2e.ts`) and the emptied
+recovery field (`tests/e2e/aki-recovery.e2e.ts`). Not checked: other browsers
+than Chromium.
 ## Combined branch of the persona review: fixes after its review (2026-11-21)
 
 Branch `integration/persona-review-2026-11-21` (all six branches of the
