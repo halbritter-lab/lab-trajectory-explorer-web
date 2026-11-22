@@ -937,6 +937,11 @@ Confirmed as implemented, no change:
   (K27).
 - The density note of the overlay appears from 51 trajectories (K24).
 - The Excel export follows the order of the Trajectories table (K02).
+- The age-conflict message carries no day count ("N days apart") anywhere
+  (K13): it names the number of differing lab dates and the first three, on
+  screen, in the `warnings` column of the `demographics` sheet and in the
+  [method reference](method-algorithms/demographics.md#age), as implemented
+  on 2026-11-21. Checked on 2026-11-22; nothing left to remove.
 
 Resolved with a change:
 
