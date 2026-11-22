@@ -41,14 +41,18 @@ export function measurementDisplayOrder(rows: readonly LabRow[]): number[] {
  * last. A serum creatinine table gains the column "AKI detection" when a value
  * was measured under dialysis and is therefore left out of detection.
  * The date shows the time of day where the file gave one, and the rows of one
- * date follow `measurementDisplayOrder`.
+ * date follow `measurementDisplayOrder`. A merged series gains the column
+ * "Source series" and a table with laboratory or method values the column
+ * "Laboratory or method" (issue #68).
  * Display only. `measurements` are in date order, `fitStatus` aligned with them. */
 export function PatientMeasurementTable({ parameter, measurements, fitStatus, events }: {
   parameter: WorkspaceParameter; measurements: readonly LabRow[]; fitStatus: readonly string[]; events: readonly ClinicalEvent[]
 }) {
   const skipped = measurements.map(row => skippedByAkiDetection(parameter, row.labDatum, events))
   const showDetection = skipped.some(Boolean)
-  const columns = showDetection ? 6 : 5
+  const showSource = measurements.some(row => row.mergedFrom)
+  const showLab = measurements.some(row => row.labMethod)
+  const columns = 5 + Number(showDetection) + Number(showSource) + Number(showLab)
   const pending = eventsByDate(events)
   const eventRow = (event: ClinicalEvent, key: string) => <tr key={key} className="wt-event-row" data-testid="event-row"><td>{formatDisplayDate(event.date)}</td><td colSpan={columns - 1}><strong>Event:</strong> {eventText(event)}</td></tr>
   const rows: ReactNode[] = []
@@ -57,8 +61,8 @@ export function PatientMeasurementTable({ parameter, measurements, fitStatus, ev
     while (pending.length && row.labDatum && pending[0].date.getTime() <= row.labDatum.getTime()) rows.push(eventRow(pending.shift()!, `event-${rows.length}`))
     // Undated measurements are last; the remaining events come before them.
     if (!row.labDatum) while (pending.length) rows.push(eventRow(pending.shift()!, `event-${rows.length}`))
-    rows.push(<tr key={i}><td>{row.labDatum ? `${formatDisplayDate(row.labDatum)}${row.labTime === undefined ? '' : ` ${formatDisplayTime(row.labTime)}`}` : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatDisplayNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatDisplayNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td>{showDetection && <td className="wt-aki-detection-cell">{skipped[i] ? NOT_USED_FOR_AKI_DETECTION.charAt(0).toUpperCase() + NOT_USED_FOR_AKI_DETECTION.slice(1) : '–'}</td>}</tr>)
+    rows.push(<tr key={i}><td>{row.labDatum ? `${formatDisplayDate(row.labDatum)}${row.labTime === undefined ? '' : ` ${formatDisplayTime(row.labTime)}`}` : 'Missing date'}</td><td>{measurementText(row)}</td><td>{row.wertNum === null ? 'Non-numeric / missing' : `${boundedPrefix(row.wertOperator)}${formatDisplayNumber(row.wertNum)}`}</td><td>{row.patientAgeAtLab === null ? 'Missing' : formatDisplayNumber(row.patientAgeAtLab)}</td><td>{fitStatus[i]}</td>{showDetection && <td className="wt-aki-detection-cell">{skipped[i] ? NOT_USED_FOR_AKI_DETECTION.charAt(0).toUpperCase() + NOT_USED_FOR_AKI_DETECTION.slice(1) : '–'}</td>}{showSource && <td>{row.mergedFrom ? `${row.mergedFrom.bezeichnung} [${row.mergedFrom.einheit ?? 'no unit'}]` : '–'}</td>}{showLab && <td>{row.labMethod ?? '–'}</td>}</tr>)
   })
   while (pending.length) rows.push(eventRow(pending.shift()!, `event-${rows.length}`))
-  return <div className="wt-table-scroll"><table className="wt-measurements" aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th>{showDetection && <th>AKI detection</th>}</tr></thead><tbody>{rows}</tbody></table></div>
+  return <div className="wt-table-scroll"><table className="wt-measurements" aria-label={`Measurements ${parameter.label}`}><thead><tr><th>Date</th><th>{parameter.derived ? 'Derived value' : 'Original value'}</th><th>Numeric value</th><th>Age</th><th>Fit preparation</th>{showDetection && <th>AKI detection</th>}{showSource && <th>Source series</th>}{showLab && <th>Laboratory or method</th>}</tr></thead><tbody>{rows}</tbody></table></div>
 }

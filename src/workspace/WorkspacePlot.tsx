@@ -24,6 +24,7 @@ import { ANCHOR_WINDOW_REASON, anchorRuleLabel } from '../core/cohort/anchorComp
 import { egfrFormulaSwitches, type EgfrFormulaSwitch } from '../core/domains/nephrology/egfr/series'
 import { computedEgfrKey } from './egfr-gaps'
 import { FORMULA_SWITCH_REASON, formulaSwitchText } from './egfr-switch'
+import { seriesMerges } from '../core/domains/nephrology/seriesMergeModule'
 
 /** Colour of the line that marks a change of the eGFR equation (issue #66). */
 const FORMULA_SWITCH_COLOR = '#6941c6'
@@ -89,7 +90,26 @@ export const drawnFitLines = (cell: CohortRow['cells'][number] | undefined, log:
 const MARKER_AXIS_Y = 244
 const OVERLAY_COLORS: Record<string, string | undefined> = Object.fromEntries(OVERLAY_MODULES.map(module => [module.id, module.presentation.color]))
 
-interface PlotSeriesPoint { date: Date; value: number; x: number; exclusions: string[]; operator: WertOperator; akiSkipped: boolean }
+/** `source` and `sourceIndex`: on a merged series (issue #68), the imported
+ * series the value comes from and its position among the merge's sources
+ * (its marker shape); null and 0 otherwise. `labMethod`: the laboratory or
+ * method column of the value. */
+interface PlotSeriesPoint { date: Date; value: number; x: number; exclusions: string[]; operator: WertOperator; akiSkipped: boolean; source: string | null; sourceIndex: number; labMethod: string | null }
+
+/** Marker shapes by position: circle, square, triangle, diamond, then again.
+ * Merged series mark each source with its own shape (issue #68); the series
+ * comparison of the patient view marks each series with one. */
+export const MARK_SHAPES = ['circle', 'square', 'triangle', 'diamond'] as const
+export type MarkShape = (typeof MARK_SHAPES)[number]
+export const markShape = (index: number): MarkShape => MARK_SHAPES[index % MARK_SHAPES.length]
+/** The SVG path of a marker of radius `r` at (cx, cy); a circle is drawn with `<circle>` instead. */
+export function markPath(shape: Exclude<MarkShape, 'circle'>, cx: number, cy: number, r: number): string {
+  if (shape === 'square') return `M ${cx - r} ${cy - r} h ${2 * r} v ${2 * r} h ${-2 * r} Z`
+  if (shape === 'triangle') return `M ${cx} ${cy - r * 1.2} L ${cx + r * 1.1} ${cy + r * 0.8} L ${cx - r * 1.1} ${cy + r * 0.8} Z`
+  return `M ${cx} ${cy - r * 1.3} L ${cx + r * 1.3} ${cy} L ${cx} ${cy + r * 1.3} L ${cx - r * 1.3} ${cy} Z`
+}
+/** Legend symbol of a shape, as text. */
+export const MARK_SYMBOLS: Record<MarkShape, string> = { circle: '●', square: '■', triangle: '▲', diamond: '◆' }
 interface PlotSeriesData {
   row: CohortRow; cell: CohortRow['cells'][number]; group: string; points: PlotSeriesPoint[]
   markers: { moduleId: string; x: number; value: number | null; label: string; title: string }[]
@@ -134,10 +154,12 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
         const excluded = p.exclusions.length > 0
         // A point in the anchor's exclusion window still enters the column's slope, so it is not called excluded from the fit.
         const fitReasons = p.exclusions.filter(reason => reason !== ANCHOR_WINDOW_REASON)
-        const pointTitle = `${formatWorkspaceDate(p.date)}: ${boundedPrefix(p.operator)}${formatWorkspaceNumber(p.value)} ${parameter.einheit ?? ''}${fitReasons.length ? `, excluded from the fit (${fitReasons.map(exclusionReasonLabel).join('; ')})` : ''}${p.exclusions.includes(ANCHOR_WINDOW_REASON) ? `, ${exclusionReasonLabel(ANCHOR_WINDOW_REASON)}` : ''}${p.akiSkipped ? `, ${NOT_USED_FOR_AKI_DETECTION}` : ''}`
+        const pointTitle = `${formatWorkspaceDate(p.date)}: ${boundedPrefix(p.operator)}${formatWorkspaceNumber(p.value)} ${parameter.einheit ?? ''}${p.source ? `, from ${p.source}` : ''}${p.labMethod ? `, laboratory or method: ${p.labMethod}` : ''}${fitReasons.length ? `, excluded from the fit (${fitReasons.map(exclusionReasonLabel).join('; ')})` : ''}${p.exclusions.includes(ANCHOR_WINDOW_REASON) ? `, ${exclusionReasonLabel(ANCHOR_WINDOW_REASON)}` : ''}${p.akiSkipped ? `, ${NOT_USED_FOR_AKI_DETECTION}` : ''}`
         return <g key={i}>{excluded
           ? <circle data-testid="excluded-point" data-exclusion={p.exclusions.join(' ')} cx={x(p.x)} cy={y(p.value)} r={active ? 4.5 : 3.5} fill="white" stroke={EXCLUDED_COLOR} strokeWidth={1.6} strokeDasharray="2 1.5"><title>{pointTitle}</title></circle>
-          : <circle data-aki-skipped={p.akiSkipped || undefined} cx={x(p.x)} cy={y(p.value)} r={active ? 4 : 3} fill={boundedPrefix(p.operator) ? 'white' : color} stroke={color}><title>{pointTitle}</title></circle>}
+          : p.sourceIndex > 0
+            ? <path data-aki-skipped={p.akiSkipped || undefined} data-source-shape={markShape(p.sourceIndex)} d={markPath(markShape(p.sourceIndex) as Exclude<MarkShape, 'circle'>, x(p.x), y(p.value), active ? 4 : 3)} fill={boundedPrefix(p.operator) ? 'white' : color} stroke={color}><title>{pointTitle}</title></path>
+            : <circle data-aki-skipped={p.akiSkipped || undefined} cx={x(p.x)} cy={y(p.value)} r={active ? 4 : 3} fill={boundedPrefix(p.operator) ? 'white' : color} stroke={color}><title>{pointTitle}</title></circle>}
           {boundedPrefix(p.operator) && <text x={x(p.x) + 5} y={y(p.value) - 5} fill={excluded ? EXCLUDED_COLOR : color}>{p.operator}</text>}</g>
       })}
       {showFit && drawnFitLines(series.cell, scale.log).map((line, i) => { const title = scale.log ? null : windowTitle(i); return <polyline key={i} points={line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} data-fit-quality={uncertainFit ? "uncertain" : "supported"} strokeDasharray={uncertainFit ? "2 4" : "6 4"} strokeWidth="2">{title && <title>{title}</title>}</polyline> })}
@@ -189,6 +211,9 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       }
     }
     for (const rows of sourceRows.values()) rows.sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
+    // A merged series marks each source series with its own shape (issue #68).
+    const mergeSources = seriesMerges(data.analysisSettings).find(merge => merge.name === parameter.bezeichnung && merge.unit === parameter.einheit)?.sources ?? []
+    const sourceIndex = (row: LabRow | undefined) => row?.mergedFrom ? Math.max(0, mergeSources.findIndex(source => source.bezeichnung === row.mergedFrom!.bezeichnung && (source.einheit ?? null) === (row.mergedFrom!.einheit ?? null))) : 0
     // Changes of the eGFR equation, drawn on the computed eGFR only (issue #66).
     const switches: Map<string, EgfrFormulaSwitch[]> = parameter.key === computedEgfrKey(data) ? egfrFormulaSwitches(data.rows) : new Map()
     const eventsByPatient = new Map<string, ClinicalEvent[]>()
@@ -213,11 +238,16 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         : anchor !== undefined ? anchor === null ? null : (date.getTime() - anchor.getTime()) / YEAR
           : age === null || ageDate === undefined ? null : age + (date.getTime() - ageDate) / YEAR
       const group = groupBy ? patient?.attributes[groupBy] || 'Not recorded' : 'All patients'
+      const pointSource = (source: LabRow | undefined) => ({
+        source: source?.mergedFrom ? `${source.mergedFrom.bezeichnung} [${source.mergedFrom.einheit ?? 'no unit'}]` : null,
+        sourceIndex: sourceIndex(source), labMethod: source?.labMethod ?? null,
+      })
       const points = (cell?.points ?? []).flatMap((point, index) => {
         const x = xValue(point.date)
         const exclusions: string[] = [...(cell?.pointExclusionReasons?.[index] ?? []).filter(reason => cell?.fitModel !== 'none' || reason === 'censored-value'),
           ...(cell?.anchorComparison?.windowIdx.includes(index) ? [ANCHOR_WINDOW_REASON] : [])]
-        return x === null || !Number.isFinite(x) || !Number.isFinite(point.value) || (logScale && point.value <= 0) ? [] : [{ ...point, x, exclusions, operator: sourceRows.get(row.patientId)?.[index]?.wertOperator ?? '=' as WertOperator, akiSkipped: skippedByAkiDetection(parameter, point.date, events) }]
+        return x === null || !Number.isFinite(x) || !Number.isFinite(point.value) || (logScale && point.value <= 0) ? [] : [{ ...point, x, exclusions, operator: sourceRows.get(row.patientId)?.[index]?.wertOperator ?? '=' as WertOperator, akiSkipped: skippedByAkiDetection(parameter, point.date, events),
+          ...pointSource(sourceRows.get(row.patientId)?.[index]) }]
       })
       // Module markers (e.g. AKI episodes, which reach every column of the
       // patient) sit on this series' nearest measurement only if one lies within
@@ -245,9 +275,9 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
         const position = xValue(change.date)
         return position === null || !Number.isFinite(position) ? [] : [{ x: position, title: `Patient ${row.patientId}: eGFR equation ${formulaSwitchText(change)}` }]
       })
-      return { row, cell, group, points, markers, bands, events, xValue, formulaSwitches, ageEstimated: patient?.ageEstimated ?? anchor === undefined }
+      return { row, cell, group, points, markers, bands, events, xValue, formulaSwitches, ageEstimated: patient?.ageEstimated ?? anchor === undefined, mergeSources }
     })
-  }, [data.rows, data.patients, data.events, cohortRows, parameter, parameterIndex, axis, groupBy, logScale])
+  }, [data.rows, data.patients, data.events, data.analysisSettings, cohortRows, parameter, parameterIndex, axis, groupBy, logScale])
   const groups = [...new Set(prepared.map(p => p.group))].sort()
   const fullGroups = [...new Set(data.patients.map(patient => groupBy ? patient.attributes[groupBy] || 'Not recorded' : 'All patients'))].sort()
   const groupColor = (group: string) => colors[fullGroups.indexOf(group) % colors.length]
@@ -419,6 +449,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const formulaSwitchCount = detailSeries.reduce((sum, series) => sum + series.formulaSwitches.length, 0)
   const intervalEvents = display.events ? detailSeries.flatMap(series => series.events.filter(event => event.endDate !== null)).length : 0
   const rollingLines = visible.some(series => series.cell.mode === 'rolling')
+  const mergedSources = prepared[0]?.mergeSources ?? []
 
   return <section className="wt-plot-card" aria-label={`Chart ${parameter.label}`}>
     <div className="wt-card-heading"><h3>{parameter.label}</h3><ChartExportActions getSvg={() => svg.current} title={exportTitle} /></div>
@@ -491,6 +522,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurement dates or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
     {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Bounds marked &lt; or &gt; remain visible at their numeric limits. {boundedFitText(visible[0]?.cell.boundedValues)}</p>}
+    {mergedSources.length > 0 && <p className="wt-muted" data-testid="merged-sources-legend">Merged series; marker shape by source series: {mergedSources.map((source, i) => `${MARK_SYMBOLS[markShape(i)]} ${source.bezeichnung} [${source.einheit ?? 'no unit'}]`).join('; ')}. The point tooltips name the source. Values from different laboratories or methods may not be comparable.</p>}
     {!display.points && !display.connect && <p>Measurement points and connecting lines are hidden.</p>}
     {groupBy && <p className="wt-muted">The legend only changes the display; selection and exports remain unchanged.</p>}
   </section>
