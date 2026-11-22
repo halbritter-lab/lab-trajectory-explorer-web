@@ -102,7 +102,7 @@ instruction of 2026-11-22 to resolve the open points.
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
 | OD-11 | [Ordinary least squares](method-algorithms/trend-estimators.md#ordinary-least-squares) | The t critical value is a step function above 40 degrees of freedom, untested against a reference in that range. |
-| OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit, and R packages are not version-pinned. |
+| OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit. (The pinning of R package versions, the other half of this entry, was settled on 2026-11-22.) |
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
 

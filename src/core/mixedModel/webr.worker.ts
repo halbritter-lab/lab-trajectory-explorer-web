@@ -2,6 +2,7 @@ import { WebR } from 'webr'
 import { mixedModelFormula, mixedModelFormulaKey, mixedModelFactors, mixedModelFactorColumn, validateMixedModelConfig, type MixedModelConfig } from './config'
 import { isRecord } from './guards'
 import { lme4ModelCall, mixedModelDataRCode, rStringLiteral } from './rCode'
+import { PINNED_R_PACKAGES, R_PACKAGE_CONTRIB_PATH, R_PACKAGE_REPOSITORY_PATH, WEBR_RUNTIME_PATH, rAssetRoot } from './rRuntime'
 import {
   MIXED_MODEL_TOLERANCE,
   type MixedModelEngine,
@@ -25,6 +26,9 @@ const ENGINE_PACKAGES: Record<WebREngine, 'lme4' | 'nlme'> = {
   'webr-lme4': 'lme4',
   'webr-nlme': 'nlme',
 }
+
+// The R runtime and the packages come from the app's own address (K43).
+const R_ASSET_ROOT = rAssetRoot(import.meta.url, import.meta.env.DEV)
 
 let webRRuntimePromise: Promise<WebR> | null = null
 const loadedPackagePromises = new Map<WebREngine, Promise<void>>()
@@ -132,7 +136,10 @@ async function runRequest(request: MixedModelWorkerRequest): Promise<MixedModelR
 function getWebRRuntime(): Promise<WebR> {
   if (!webRRuntimePromise) {
     webRRuntimePromise = (async () => {
-      const webR = new WebR()
+      const webR = new WebR({
+        baseUrl: new URL(WEBR_RUNTIME_PATH, R_ASSET_ROOT).href,
+        repoUrl: new URL(R_PACKAGE_REPOSITORY_PATH, R_ASSET_ROOT).href,
+      })
       await webR.init()
       return webR
     })().catch((error) => {
@@ -149,7 +156,7 @@ function ensurePackages(webR: WebR, engine: WebREngine): Promise<void> {
 
   const packageName = ENGINE_PACKAGES[engine]
   const promise = (async () => {
-    await webR.installPackages([packageName, 'jsonlite'], { quiet: true })
+    await webR.evalRVoid(installPackagesCode(packageName))
     await webR.evalRVoid(`library(${packageName}); library(jsonlite)`)
   })().catch((error) => {
     loadedPackagePromises.delete(engine)
@@ -157,6 +164,24 @@ function ensurePackages(webR: WebR, engine: WebREngine): Promise<void> {
   })
   loadedPackagePromises.set(engine, promise)
   return promise
+}
+
+/** webR's installer (`webr::install`) with the PACKAGES index the build
+ * serves, instead of `installPackages`, whose repository lookup first asks
+ * for a PACKAGES.rds the build does not have. It installs the package with
+ * its dependencies from that index, by mounting each package archive. */
+function installPackagesCode(packageName: 'lme4' | 'nlme'): string {
+  const contrib = new URL(R_PACKAGE_CONTRIB_PATH, R_ASSET_ROOT).href
+  return `
+    mm_contrib <- ${rStringLiteral(contrib)}
+    mm_index <- tempfile()
+    utils::download.file(paste0(mm_contrib, "/PACKAGES"), mm_index, quiet = TRUE)
+    mm_info <- read.dcf(mm_index, fields = c("Package", "Version", "Depends", "Imports", "LinkingTo"))
+    rownames(mm_info) <- mm_info[, "Package"]
+    mm_info <- cbind(mm_info, Repository = mm_contrib)
+    webr::install(c(${rStringLiteral(packageName)}, "jsonlite"), info = mm_info, quiet = TRUE)
+    rm(mm_contrib, mm_index, mm_info)
+  `
 }
 
 async function bindRows(webR: WebR, rows: readonly MixedModelSpikeRow[], config: MixedModelConfig): Promise<void> {
@@ -334,6 +359,12 @@ function buildFitCode(modelCall: string, extraction: string, config: MixedModelC
       standardErrors = unname(sqrt(diag(mm_vcov))),
       matrix = unname(lapply(seq_len(nrow(mm_vcov)), function(i) as.numeric(mm_vcov[i, ])))
     ), digits = NA, na = "null")
+    # Versions of the loaded pinned packages and of webR's support package.
+    mm_package_versions <- function(first) {
+      mm_pkgs <- unique(c(first, ${PINNED_R_PACKAGES.map(name => rStringLiteral(name)).join(', ')}, "webr"))
+      mm_pkgs <- mm_pkgs[mm_pkgs %in% loadedNamespaces()]
+      as.list(stats::setNames(vapply(mm_pkgs, function(p) as.character(utils::packageVersion(p)), character(1)), mm_pkgs))
+    }
     mm_all_terms <- function(estimates, intervals) {
       if (length(estimates) != ncol(mm_design) || !all(is.finite(estimates))) stop("Missing or non-finite fixed effects; no terms may be dropped.")
       unname(lapply(names(estimates), function(term) list(
@@ -402,11 +433,7 @@ function lme4FitCode(modelCall: string, config: MixedModelConfig): string {
       ),
       residualSd = mm_nullable_number(stats::sigma(mm_fit)),
       optimizer = as.character(mm_optimizer),
-      packageVersions = list(
-        lme4 = as.character(utils::packageVersion("lme4")),
-        Matrix = as.character(utils::packageVersion("Matrix")),
-        jsonlite = as.character(utils::packageVersion("jsonlite"))
-      )
+      packageVersions = mm_package_versions(c("lme4", "Matrix", "jsonlite"))
     )`,
     config,
   )
@@ -482,10 +509,7 @@ function nlmeFitCode(modelCall: string, config: MixedModelConfig): string {
       ),
       residualSd = mm_named_number(mm_stddev, "Residual"),
       optimizer = "nlme-default",
-      packageVersions = list(
-        nlme = as.character(utils::packageVersion("nlme")),
-        jsonlite = as.character(utils::packageVersion("jsonlite"))
-      )
+      packageVersions = mm_package_versions(c("nlme", "jsonlite"))
     )`,
     config,
   )

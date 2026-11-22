@@ -5,13 +5,13 @@ import { CONTENT_SECURITY_POLICY_DIRECTIVES, contentSecurityPolicy } from '../..
 // is checked in a browser (tests/e2e/start-and-offline.e2e.ts and the smoke
 // checklist, which asks for a real webR fit).
 describe('Content-Security-Policy of the build', () => {
-  it('allows the app\'s own address and, beyond it, only the two webR hosts', () => {
+  it('allows the app\'s own address and no other host, since R is served with the app', () => {
     expect(contentSecurityPolicy()).toBe(
-      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval' https://webr.r-wasm.org; worker-src 'self'; "
-      + "connect-src 'self' https://webr.r-wasm.org https://repo.r-wasm.org; img-src 'self' data: blob:; "
+      "default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; worker-src 'self'; "
+      + "connect-src 'self'; img-src 'self' data: blob:; "
       + "style-src 'self' 'unsafe-inline'; object-src 'none'; base-uri 'self'; form-action 'none'")
     const external = Object.values(CONTENT_SECURITY_POLICY_DIRECTIVES).flat().filter(source => source.includes('//'))
-    expect([...new Set(external)].sort()).toEqual(['https://repo.r-wasm.org', 'https://webr.r-wasm.org'])
+    expect(external).toEqual([])
   })
   it('allows no inline or evaluated script', () => {
     expect(CONTENT_SECURITY_POLICY_DIRECTIVES['script-src']).not.toContain("'unsafe-inline'")

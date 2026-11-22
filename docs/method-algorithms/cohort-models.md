@@ -574,17 +574,37 @@ workspace passes them resolved values only.
 
 ### Reproducibility
 
-- **Runtime.** webR is the npm dependency `webr` at `^0.6.0`, locked to 0.6.0.
-  The worker starts it with default options, so the R runtime is downloaded from
-  webR's default location, `https://webr.r-wasm.org/v0.6.0/`, on first use.
-- **R packages.** `lme4` (or `nlme`) and `jsonlite` are installed from webR's
-  default package repository, `https://repo.r-wasm.org`, when the first model
-  is fitted in a session. No
-  version is pinned. The same data can give different numbers after a
-  repository update.
-- **Recorded per result.** The R version, the package versions actually loaded,
-  the optimizer name, the browser user agent, a hash of the model rows and a
-  hash of the fit configuration.
+- **Served with the app** (since 2026-11-22, K43). Every build carries the R
+  runtime and a fixed set of R packages next to `index.html`, and the worker
+  loads both from the app's own address: webR from `webr/`, the packages from
+  `r-packages/bin/emscripten/contrib/4.6/`. No fit makes a request to another
+  host; a fit works where only the app's address can be reached.
+  `scripts/vendor_r_runtime.mjs` puts the files there during `pnpm build` and
+  `pnpm dev` and stops the build when a file's SHA-256 or the installed `webr`
+  version differs from the pins in `src/core/mixedModel/rRuntimePins.json`.
+- **Runtime.** webR 0.6.0 (the npm dependency `webr`, locked to 0.6.0) with
+  R 4.6.0.
+- **R packages.** webR binary builds, taken from
+  `https://repo.r-wasm.org/bin/emscripten/contrib/4.6` when the build runs:
+  lme4 2.0-6, Matrix 1.7-6, jsonlite 2.0.0, MASS 7.3-66, Rcpp 1.1.2,
+  Rdpack 2.6.6, boot 1.3-32, lattice 0.23-1, minqa 1.2.8, nlme 3.1-171,
+  nloptr 2.2.1.9000, rbibutils 2.4.1 and reformulas 0.4.4. That is the
+  dependency closure (Depends and Imports) of `lme4` and `jsonlite`; the
+  packages of R itself come with the runtime. The worker reads the build's
+  `PACKAGES` index and calls webR's installer (`webr::install`) with it,
+  which mounts `lme4` (or `nlme`), `jsonlite` and their dependencies from the
+  served archives. These are the versions the fit loaded from webR's public
+  repository before the pin (measured on 2026-11-21 and 2026-11-22), so the
+  numbers did not change: the exported model workbook of the demo fit equals
+  the one fitted before in every cell apart from `packageVersions`,
+  `wasmAssetSource`, the version line of each fitted unit in `r_script`
+  (`Browser fit of …`, which lists `packageVersions`), the export identifier,
+  the time and the file name.
+  Changing a version is a method decision.
+- **Recorded per result.** The R version, the version of every pinned package
+  the fit loaded and of webR's support package `webr`, the optimizer name,
+  the browser user agent, a hash of the model rows and a hash of the fit
+  configuration.
 - **Timeout.** A fit job is abandoned after 120 seconds, including the
   first-time download and installation, and reported as failed with the status
   `timeout`. The worker is then discarded and the next job reloads the runtime.
@@ -606,8 +626,8 @@ The `models` worksheet has one row per fitted unit:
 | `optimizer` | Optimizer reported by lme4, or `lme4-default` when it reports none |
 | `tolerance` | Constant `1e-6` |
 | `runtimeVersion` | R version of the webR runtime |
-| `packageVersions` | JSON: loaded versions of `lme4` and `Matrix` (or `nlme`) and `jsonlite`; `Matrix` since 2026-11-05 |
-| `browserUserAgent`, `wasmAssetSource` | Browser and runtime source (`cdn`) |
+| `packageVersions` | JSON: loaded versions of `lme4` and `Matrix` (or `nlme`) and `jsonlite`, then of every other loaded pinned package and of `webr`, as R's `packageVersion` writes them (for example `"lme4":"2.0.6"`); `Matrix` since 2026-11-05, the others since 2026-11-22 |
+| `browserUserAgent`, `wasmAssetSource` | Browser and runtime source: `self-hosted` since 2026-11-22, `cdn` before |
 | `datasetId`, `datasetHash`, `fitConfigHash` | The constant `cohort`, and hashes of the model rows and of the configuration |
 | `randomSeed` | Empty |
 | `warnings` | The warnings of the passed input check (since 2026-11-21; see "Patients who do not qualify stay in the fit"), then R warnings and lme4 messages, joined by "; " |
@@ -740,7 +760,7 @@ extended in R. They add no estimate and change none.
 
 **Precision of returned numbers** (OD-30, decided 2026-11-13). Every number the worker returns from R, including estimates, interval bounds, random-effect standard deviations, the residual standard deviation, standard errors and `vcov`, is serialized by `jsonlite::toJSON` with `digits = NA`, that is 15 significant digits. The random-effect standard deviations, their correlation and the residual standard deviation are exported only since 2026-11-21 (`intercept_sd`, `slope_sd`, `intercept_slope_correlation`, `residual_sd` on `models`); until then they were stored at full precision but only shown, with two decimals, in the model's details (for example 0.21, 0.05, 0.18 and 0.31). Before, `toJSON`'s default `digits = 4` rounded all but the standard errors and `vcov`: a slope of 0.00034 per year was stored, shown and exported as 0.0003, and values between 1e-5 and 5e-5 became 0 or −0 (`toJSON(c(0.00034, 3.4e-6, -0.000049))` gave `[0.0003, 3.4e-06, -0]`). Stored results and exports carry the full value, so an R refit now matches the browser estimates to 1e-9. Results fitted and saved before this change keep their four-decimal values until they are refitted.
 
-> **Open decision OD-21.** The exported `tolerance` (1e-6) is not used by any fit — the only tolerance in the fit is the 1e-4 singularity check — and the R packages are not version-pinned, so the export records the versions used but a later session can load different ones. Behaviour is unchanged pending an owner decision.
+> **Open decision OD-21.** The exported `tolerance` (1e-6) is not used by any fit — the only tolerance in the fit is the 1e-4 singularity check. Behaviour is unchanged pending an owner decision. The second half of this entry, R packages without pinned versions, was settled on 2026-11-22: the versions are pinned and served with the app (see *Reproducibility*).
 
 ### Fitted model line
 

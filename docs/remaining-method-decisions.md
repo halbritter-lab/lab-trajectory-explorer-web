@@ -215,7 +215,7 @@ items under "after 0.3.0" ship with their markers in place.
 | ID | Intended direction |
 | --- | --- |
 | OD-11 | Exact t quantiles above 40 degrees of freedom. |
-| OD-21 | Remove the unused `tolerance` export field; pin R package versions. |
+| OD-21 | Remove the unused `tolerance` export field. Pinning the R package versions was done on 2026-11-22. |
 | OD-22 | A control to switch a factor between numeric and categorical. |
 | OD-29 | Choose the default reference level from the fitted data. |
 
@@ -1363,6 +1363,76 @@ sentence on the event axis in Trajectories → Overlay, and one row for
 
 Details: [before/after comparison](method-algorithms/anchor-comparison.md#beforeafter-comparison-at-an-anchor-event-2026-11-22)
 and [time axis "Years since event"](method-algorithms/anchor-comparison.md#time-axis-years-since-event-k16-2026-11-22).
+
+## Decisions of 2026-11-22 (R served with the app, K43, issue #75)
+
+Owner decision of 2026-11-21 on K43 (option b), implemented on 2026-11-22. No
+fitted number changes.
+
+- **Every build serves R itself.** The R runtime (webR 0.6.0 with R 4.6.0)
+  and a fixed set of R packages sit next to the app, also on the public site.
+  A cohort model fit loads them from the app's own address and makes no
+  request to `webr.r-wasm.org`, `repo.r-wasm.org` or any other host. The
+  Content-Security-Policy of the build names no other host any more.
+- **Pinned to the versions loaded before:** lme4 2.0-6, Matrix 1.7-6,
+  jsonlite 2.0.0, MASS 7.3-66, Rcpp 1.1.2, Rdpack 2.6.6, boot 1.3-32,
+  lattice 0.23-1, minqa 1.2.8, nlme 3.1-171, nloptr 2.2.1.9000,
+  rbibutils 2.4.1, reformulas 0.4.4. This settles the pinning half of OD-21;
+  the unused `tolerance` field stays open. A later update is a deliberate
+  step with an entry here.
+- **The export records the provenance:** `wasmAssetSource` is `self-hosted`
+  instead of `cdn`, and `packageVersions` lists every pinned package the fit
+  loaded and `webr`.
+
+Details of the implementation, chosen where the decision left them open
+(the option that changes least):
+
+- The files are not in git. `scripts/vendor_r_runtime.mjs` copies the
+  runtime from the installed npm package `webr` and downloads the package
+  archives from webR's repository and their source packages from CRAN into
+  `public/` during `pnpm build` and `pnpm dev`, checks every file against a
+  SHA-256 pin and stops the build on a difference.
+- Packages are installed with webR's installer `webr::install` and a
+  `PACKAGES` index the script writes for the pinned set, not with
+  `installPackages`: that call first asks the repository for a
+  `PACKAGES.rds`, which only R can write.
+- The whole runtime directory of the npm package is served (47.7 MB),
+  without the REPL, tests and type declarations; the first fit loads 38.7 MB
+  of it and of the packages.
+- `THIRD-PARTY-NOTICES.txt` and `licenses/` are shipped with every build.
+  They list each component with version, licence and source; the CRAN source
+  package of every pinned package except nloptr is served under
+  `r-packages/src/contrib/`.
+- Code compiled into a pinned binary from a package named under `LinkingTo`
+  counts as a component: RcppEigen 0.3.4.0.2, which brings Eigen 3.4.0
+  (MPL-2.0) into lme4, is named in the notices with its licence files, and
+  its CRAN source package is served next to the others. It is not installed
+  or loaded at fit time. The build stops when a pinned binary names a package
+  under `LinkingTo` whose source is not pinned (Rcpp and Matrix, which lme4
+  and minqa also link to, are pinned packages).
+- `packageVersions` keeps its first keys (`lme4`, `Matrix`, `jsonlite`, or
+  `nlme`, `jsonlite`) in their order and appends the other loaded pinned
+  packages in the order of the pin file, then `webr`.
+- The development and preview servers serve the `.gz` files of the runtime
+  unchanged (a plugin in `vite.config.ts`): they would otherwise label them
+  `Content-Encoding: gzip`, the browser would unpack them and the fit would
+  fail to load its packages.
+
+Not settled: the source of nloptr 2.2.1.9000 (a development version; the
+binary, built on 2026-05-20, does not record its revision and CRAN has no such
+source package). The notices name the most likely source: commit `5fd8ea7e`
+of 2025-08-13, the head of nloptr's master branch from before the build until
+at least 2026-11-22, which r-universe also builds as
+`nloptr_2.2.1.9000.tar.gz`; the binary does not confirm it. Likewise the
+RcppEigen version lme4 was compiled with: the lme4 binary (built 2026-10-10)
+does not record it; 0.3.4.0.2 is the only version on CRAN since 2024-08-24
+and the one in webR's repository (built 2026-05-13). Also not settled:
+whether the R 4.6.0 and webR 0.6.0 sources should be mirrored next to the
+app instead of being named in the notices. Upstream may remove a pinned
+archive from `repo.r-wasm.org` once a newer version is built; the build then
+fails until the files are supplied or the pin is changed.
+
+Details: [reproducibility](method-algorithms/cohort-models.md#reproducibility).
 
 ## Approved requirements
 

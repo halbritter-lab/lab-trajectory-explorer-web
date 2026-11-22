@@ -28,6 +28,15 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # R runtime and pinned R packages served with the app (K43). The
+      # package archives are cached by their pins; the script checks every
+      # file's SHA-256 and fails on a difference. pnpm build runs it again.
+      - name: Cache pinned R packages
+        uses: actions/cache@v4
+        with:
+          path: public/r-packages
+          key: r-packages-${{ hashFiles('src/core/mixedModel/rRuntimePins.json') }}
+      - run: pnpm vendor:r
       - run: pnpm test
       - run: pnpm build
       - run: pnpm exec playwright install --with-deps chromium

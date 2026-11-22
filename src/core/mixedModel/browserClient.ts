@@ -158,7 +158,7 @@ export function runMixedModelWorkerJob(options: RunMixedModelWorkerJobOptions): 
       preparation: options.preparation,
       datasetId: options.datasetId ?? 'ad-hoc',
       fitConfigHash: options.fitConfigHash ?? 'unknown',
-      wasmAssetSource: options.wasmAssetSource ?? 'cdn',
+      wasmAssetSource: options.wasmAssetSource ?? 'self-hosted',
     }
     try {
       worker.postMessage(request)
@@ -203,7 +203,7 @@ function failure(
       browserUserAgent: typeof navigator === 'undefined' ? 'unknown' : navigator.userAgent,
       datasetId: options.datasetId ?? 'ad-hoc',
       fitConfigHash: options.fitConfigHash ?? 'unknown',
-      wasmAssetSource: options.wasmAssetSource ?? 'cdn',
+      wasmAssetSource: options.wasmAssetSource ?? 'self-hosted',
     },
   }
 }

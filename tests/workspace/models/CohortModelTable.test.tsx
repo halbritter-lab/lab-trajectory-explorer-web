@@ -365,15 +365,14 @@ it('shows a failed model export instead of failing silently', async () => {
 it.each([
   ['runtime-load', 'WEBR_INIT_FAILED', 'runtime-error'],
   ['package-load', 'PACKAGE_UNAVAILABLE', 'unsupported'],
-] as const)('names both download hosts and how to retry after a %s failure', async (stage, code, status) => {
+] as const)('says where R is loaded from and how to retry after a %s failure', async (stage, code, status) => {
   renderTable({runJob:async () => ({
     status, engine: 'webr-lme4', stage, code,
     message: 'Failed to fetch', warnings: [], metadata: {},
   })})
   await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
-  await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/internet|connection/i))
-  // Both hosts by name, so the user can ask for exactly these to be unblocked.
-  expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('downloads the R runtime from webr.r-wasm.org and R packages from repo.r-wasm.org. Check your internet connection and that both hosts can be reached from this network, then retry the fit.')
+  await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/retry the fit/i))
+  expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('The first fit of a session loads the R runtime and R packages from the address this app is served from. Check that this address can still be reached, then retry the fit.')
   expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/retry/i)
 })
 

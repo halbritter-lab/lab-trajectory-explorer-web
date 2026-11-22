@@ -845,10 +845,11 @@ table rows and the window list, and real research data.
    the notice "Lab Trajectory Explorer has not started" appears. Over http the
    notice never shows.
 3. Cohort models, before the first fit: under the fit button "The first fit
-   of a session downloads the R runtime from webr.r-wasm.org and R packages
-   from repo.r-wasm.org (about 33 MB). …"; the link opens Methods, "Data &
-   eGFR", "Network access and local storage". After a finished fit the
-   sentence is gone.
+   of a session loads the R runtime and R packages, which are served with
+   this app from its own address (about 39 MB). …" (until 2026-11-22: the two
+   r-wasm.org hosts, about 33 MB); the link opens Methods, "Data & eGFR",
+   "Network access and local storage". After a finished fit the sentence is
+   gone.
 4. Production build only: the page carries a Content-Security-Policy meta
    element. Fit a model on the demo data with a real network (first fit), fit
    again, then "Export models (xlsx)", "Download SVG", "Download PNG" and
@@ -876,3 +877,46 @@ Not verified: Safari and Edge themselves, the patient bundle (ZIP) and the
 patient chart exports under the policy (same export functions as the checked
 ones), a deployment that removes files while a tab is open, and the notice
 with JavaScript switched off.
+
+## R served with the app (2026-11-22, K43)
+
+1. `pnpm build`: the output starts with "R runtime vendored: webR 0.6.0
+   (R 4.6.0) …, 13 packages …"; `dist/` holds `webr/`, `r-packages/`,
+   `THIRD-PARTY-NOTICES.txt` and `licenses/` (about 82 MB in all). Change one
+   checksum in `src/core/mixedModel/rRuntimePins.json`: the build stops with
+   "Checksum mismatch for …". `THIRD-PARTY-NOTICES.txt` names RcppEigen
+   0.3.4.0.2 (Eigen 3.4.0, MPL-2.0) as compiled into lme4, and
+   `r-packages/src/contrib/RcppEigen_0.3.4.0.2.tar.gz` and
+   `licenses/RcppEigen-COPYRIGHTS` load. Remove `linkedSources` from the pin
+   file: the build stops with "… lme4 links to RcppEigen".
+2. Serve `dist/` under a subpath (for example `/lab/explorer/`), record every
+   request, load the demo, open Cohort models and fit the whole cohort:
+   "Fitted", −4.71 [−6.63, −2.78] per year, 73.15 [67.41, 78.88]; all
+   requests go to the app's own address (22 R files, 38.7 MB), none to
+   another host, also with every other host blocked.
+3. "Export models (xlsx)": `wasmAssetSource` is `self-hosted`,
+   `runtimeVersion` 4.6.0, `packageVersions` starts with
+   `"lme4":"2.0.6","Matrix":"1.7.6","jsonlite":"2.0.0"` and ends with
+   `"webr":"0.6.0"`. Compared cell by cell with the same export from a build
+   before K43, only `packageVersions`, `wasmAssetSource`, the version line of
+   each fitted unit in `r_script` ("Browser fit of …", which lists
+   `packageVersions`), the export ID, the time and the file name differ.
+4. After one fit, make the app's address unreachable and refit: the refit
+   works (R stays loaded in the worker). With the address unreachable before
+   the first fit, the fit fails ("Fit failed: Mixed-model worker failed.").
+   A deployment without `webr/R.wasm` does not fail at once: the first fit
+   ends after 120 seconds with "Fit failed: Mixed-model worker exceeded
+   120000 ms." (as when the file was blocked on webR's server before K43). A
+   missing package archive or `PACKAGES` index fails at once with "lme4 or
+   jsonlite is unavailable in this webR package repository. …".
+5. Methods, "Data & eGFR", "Network access and local storage": "… They are
+   served with the app from the same address (about 39 MB, measured in
+   November 2026); no other server is contacted. …".
+
+Verified 2026-11-22 against the production build in Chromium: step 2 at the
+root by `tests/e2e/self-hosted-r.e2e.ts` (CI, `pnpm preview`) and under
+`/lab/explorer/` by an ad-hoc Playwright script with a static server, steps
+1 (without the checksum change), 3, 4 and 5 by ad-hoc scripts. Not verified:
+Firefox and WebKit, GitHub Pages itself (how it serves the `.gz` and `.tgz`
+files), and the checksum failure inside the build (covered by unit tests of
+the script).

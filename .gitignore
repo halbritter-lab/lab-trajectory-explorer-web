@@ -6,3 +6,8 @@ test-results/
 .env
 .env.*
 .playwright-mcp/
+# Written by scripts/vendor_r_runtime.mjs (R runtime and R packages, K43)
+/public/webr/
+/public/r-packages/
+/public/licenses/
+/public/THIRD-PARTY-NOTICES.txt

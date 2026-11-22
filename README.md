@@ -48,8 +48,28 @@ On a development machine `pnpm preview` serves the same folder at
 
 There is no offline variant. Import, trajectories and exports work without
 internet access once the page is loaded. The first cohort model fit of a
-session downloads the R runtime from `webr.r-wasm.org` and R packages from
-`repo.r-wasm.org`, so cohort models need access to both hosts.
+session loads the R runtime and R packages (about 39 MB) from the same address
+as the app; no other host is contacted.
+
+### R runtime and R packages
+
+Every build serves webR 0.6.0 (R 4.6.0) and a pinned set of R packages next to
+the app. `pnpm build` and `pnpm dev` first run `scripts/vendor_r_runtime.mjs`
+(also `pnpm vendor:r`), which copies the runtime from the installed npm
+package `webr` and downloads the package archives from
+`repo.r-wasm.org` and their sources from CRAN into `public/` (ignored by git;
+files already in place are checked, not downloaded again). Every file is
+checked against the SHA-256 in `src/core/mixedModel/rRuntimePins.json`; a
+difference stops the build. The build therefore needs network access to
+`repo.r-wasm.org` and `cran.r-project.org` unless `public/r-packages/` is
+already filled. The deployed site is about 82 MB, of which 47.7 MB runtime,
+17.4 MB package archives and 15.5 MB package sources. A static host must
+serve the `.gz` files below `webr/` as they are, without
+`Content-Encoding: gzip`.
+
+`THIRD-PARTY-NOTICES.txt` in the build lists each component with version,
+licence and source; the licence texts are in `licenses/`. The app is MIT
+licensed; R, webR and most of the packages are under the GNU GPL.
 
 ## License
 

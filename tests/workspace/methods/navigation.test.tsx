@@ -55,7 +55,7 @@ describe('help topics', () => {
     expect(screen.getByRole('link', { name: 'Network & storage' })).toHaveAttribute('href', '#methods/data/network')
     const section = heading.closest('section')!
     expect(section).toHaveTextContent('make no network requests beyond loading the app and its bundled demo and template files from the address the app is served from.')
-    expect(section).toHaveTextContent('The first cohort model fit of a session downloads the R runtime from webr.r-wasm.org and R packages from repo.r-wasm.org (about 33 MB, measured in November 2026). These are downloads only; no measurements are sent. As with any download, both servers see the IP address, the browser type and the address of this app.')
+    expect(section).toHaveTextContent('The first cohort model fit of a session loads the R runtime and R packages. They are served with the app from the same address (about 39 MB, measured in November 2026); no other server is contacted. These are downloads only; no measurements are sent.')
     expect(section).toHaveTextContent('“Remember on this device” on the Data page is off by default. When it is on, an unencrypted copy of the dataset is kept in this browser. The copy is removed when the app is next opened more than seven days after the last data change, or at once with “Clear saved data”; until then it stays on the device.')
   })
 
