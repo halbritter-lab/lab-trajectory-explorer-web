@@ -17,6 +17,10 @@ describe('static notice in index.html', () => {
     expect(text).toContain('If this text stays, the application could not be loaded')
     expect(text).toContain('The page was opened directly from a folder. This browser does not start the application from there. Serve the folder through a web server')
     expect(text).toContain('Check the connection and reload the page.')
+    // K44 (2026-11-22): the notice for a page opened from a folder links to the online version.
+    const online = notice.querySelector('li a')!
+    expect(online.getAttribute('href')).toBe('https://halbritter-lab.github.io/lab-trajectory-explorer-web/')
+    expect(online.closest('li')!.textContent).toContain('opened directly from a folder')
   })
   it('needs neither the stylesheet nor a script, and stays hidden for the first two seconds', () => {
     const style = page.querySelector('head style')!.textContent!

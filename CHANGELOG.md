@@ -43,6 +43,11 @@ interfaces are still evolving before 1.0.
 - The header row of the Trajectories table stays in sight while the rows
   scroll: the table scrolls inside a box no taller than the window. On a
   phone the position ("1–25 of 28") is shown between Previous and Next.
+- README: one concrete way to start a local copy (a static file server;
+  opening `index.html` by double-click does not work), and the sentence on
+  data leaving the machine follows the Methods page (downloads of the R
+  runtime only, no measurements sent). The notice of a page opened from a
+  folder links to the online version.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 

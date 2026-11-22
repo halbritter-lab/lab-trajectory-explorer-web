@@ -1031,6 +1031,16 @@ Resolved with a change:
   continues to the pager below the table when the box is at its end; a new
   page starts at its first row inside the box, and the position inside the
   box is restored on the way back from a patient.
+- **README and start notice** (K44, K46). The README names one concrete
+  way to start a local copy (a static file server, `python3 -m http.server
+  --directory dist`) and says that opening `index.html` by double-click does
+  not work; the notice shown when the page is opened from a folder links to
+  the online version. The README sentence "no data leaves the machine" is
+  replaced by the descriptive wording of the Methods section: no network
+  requests beyond loading the app, and the downloads of the R runtime for
+  cohort models are downloads only, no measurements are sent. The host names
+  and the Content-Security-Policy are left as they are (self-hosting of the
+  R runtime is a separate change).
 
 ## Approved requirements
 
