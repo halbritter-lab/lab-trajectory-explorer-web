@@ -103,6 +103,11 @@ export function Data() { return <>
         The first cohort model fit of a session loads the R runtime and R packages. They are
         served with the app from the same address ({R_FIRST_FIT_DOWNLOAD}, measured in November
         2026); no other server is contacted. These are downloads only; no measurements are sent.
+        As with loading the app, the server that hosts it sees the IP address, the browser type
+        and which files are requested.
+      </p>
+      <p>
+        The app does not pseudonymise: patient IDs are shown, kept and exported as imported.
       </p>
       <p>
         “Remember on this device” on the Data page is off by default. When it is on, an

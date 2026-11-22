@@ -373,9 +373,15 @@ windows of the fits and of the endpoints), the episode list and the sheet
 `aki_episodes`, and it is written with the other analysis settings into the
 `analysis_settings` column of the `settings` sheet. It is kept with the
 dataset copy on the device; a copy saved before 2026-11-22 has no value and
-gets 48. A negative or non-numeric entry is stored as 0, a stored value that
-is not a finite number of at least 0 invalidates the stored analysis
-settings, as for `exclusionDays`. Changing it discards fitted cohort models,
+gets 48. The field applies its value on leaving it or on Enter (spin buttons
+and arrow keys at once); an empty or non-numeric entry changes nothing, and
+the value is rounded down to a multiple of 24 and limited to 0 to 2160 hours
+(`MAX_AKI_RECOVERY_HOURS`, 90 days; `akiRecoveryFieldHours`): 36 is stored
+as 24, 100000 as 2160, −5 as 0 (since the review of the combined branch,
+2026-11-22; before, every keystroke was applied, an emptied field as 0). A
+stored value that is not a finite number of at least 0 invalidates the
+stored analysis settings, as for `exclusionDays`; a larger stored value is
+used as stored. Changing it discards fitted cohort models,
 like a change of the eGFR formula.
 
 The hours are counted on calendar days (`findKdigoAkiEpisodes`, option
@@ -431,9 +437,9 @@ Examples (mg/dl, one value per day, days counted from day 0):
 | 1.0, 1.6, 1.0, 1.6 on days 0, 1, 2, 6, acute dialysis days 3 to 4 | one, onset day 1, open: day 2 is no candidate end | one |
 | 1.0, 1.6, 1.2 on days 0, 1, 2, chronic dialysis from day 3 | one, onset day 1, open: day 2 is no candidate end | one (until the review of 2026-11-22: end day 2) |
 | 1.0, 3.2, 4.0, 4.2, 6.5 on days 0, 1, 13, 14, 15, acute dialysis days 2 to 12 | one, onset day 1, stage III, open: day 13 has no reference and the gap lies in the interval, so it continues the episode; day 14 (4.2 against 4.0) is the candidate end and the crossing of day 15 (6.5, 2.5 mg/dl above the 4.0 of day 13 within 48 hours) joins | two (until the review of 2026-11-22 as well: end day 13; onset day 15) |
+| 1.0, 3.2, 4.0, 4.2, 6.5 on days 0, 1, 13, 14, 15 without dialysis, or with acute dialysis on days 2 to 4 only | two: onset day 1, end day 13 (step 4); onset day 15, open | two |
 | 1.0, 3.2, 4.0, 4.1, 4.2, 7.0 on days 0, 1, 13, 14, 15, 16, acute dialysis days 2 to 12 | one, onset day 1, stage III, open: day 14 (4.1 against 4.0) is the candidate end, the crossing of day 16 (7.0, 2.9 mg/dl above the 4.1 of day 14 within 48 hours) lies two days after it | two until the second review of 2026-11-22: day 13 (4.0, no reference) was the candidate end, three days before day 16 |
 | 1.0, 2.0, then 3.0 daily on days 2 to 12, 4.6 on day 14 | two: onset day 1, stage III, end day 9; onset day 14, stage III, open (see [Known limitations](#known-limitations)) | two |
-| the same without the dialysis, or with acute dialysis on days 2 to 4 only | two: onset day 1, end day 13 (step 4); onset day 15, open | two |
 
 The row with days 0, 1, 2 and 5 shows that the rule can also separate
 crossings that the earlier merge by shared baseline date kept together: the
@@ -634,7 +640,15 @@ observed. `ended_by_gap` is `true` for the latter, otherwise `false`;
 `last_value_date` is `AkiEpisode.lastValueDate` for every episode. The Data
 page and the patient view show the date; "not observed: no values for more
 than 7 days after 02/01/2024" (the last value) for an episode ended by a gap;
-or "open at the last value". Until the second review of 2026-11-22 the list
+or "open at the last value". An acute or unknown-intent dialysis without an
+end date blocks no end (see [Episodes](#episodes)), so an end on or after its
+start can come from the dialysis rather than from recovery: when such a
+dialysis starts between the onset and the end date, both days included, the
+Data page and the patient view add it to the date, "09/06/2026 (after
+dialysis start 06/06/2026 without end date)" (`endAfterOpenDialysis`, since
+the review of the combined branch of 2026-11-22; the first such start; the
+`about` note of `aki_episodes` says so, the sheet has no column for it).
+Until the second review of 2026-11-22 the list
 and `end_date` gave the date of the first value after the gap, while the
 dialysis start was counted only up to two days after the last value.
 

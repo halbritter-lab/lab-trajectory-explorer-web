@@ -31,6 +31,33 @@ it('names the serum creatinine series the selected eGFR source leaves out, and c
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
   expect(screen.getByText('Not used for this eGFR: Kreatinin i.S. (mg/dl), 1 value; Kreatinin (µmol/l), 1 value. Only the selected source is read; serum creatinine under another name or unit is not merged with it.')).toBeInTheDocument()
 })
+// Review of the combined branch, 2026-11-22: typing used to apply every keystroke, an emptied field as 0 hours.
+it('applies the recovery length on leaving the field or Enter, as whole days up to 90 days', () => {
+  useAppStore.getState().replaceDataset({ rows: [row] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const field = screen.getByLabelText('Recovery between episodes (hours)') as HTMLInputElement
+  const hours = () => (useAppStore.getState().analysisSettings.aki as { recoveryHours: number }).recoveryHours
+  const type = (value: string) => fireEvent.input(field, { target: { value }, inputType: 'insertText' })
+  expect(field.value).toBe('48')
+  type('')
+  expect(hours()).toBe(48)
+  fireEvent.blur(field)
+  expect([hours(), field.value]).toEqual([48, '48'])
+  type('7')
+  type('72')
+  expect(hours()).toBe(48)
+  fireEvent.keyDown(field, { key: 'Enter' })
+  expect([hours(), field.value]).toEqual([72, '72'])
+  type('36')
+  fireEvent.blur(field)
+  expect([hours(), field.value]).toEqual([24, '24'])
+  type('1000000')
+  fireEvent.blur(field)
+  expect([hours(), field.value]).toEqual([2160, '2160'])
+  // Spin buttons and arrow keys apply at once.
+  fireEvent.change(field, { target: { value: '96' } })
+  expect(hours()).toBe(96)
+})
 it('keeps Apply before the complete keyboard-scrollable computed preview', () => {
   useAppStore.getState().replaceDataset({ rows: Array.from({ length: 118 }, (_, i) => ({ ...row, patientId: `P-${i}`, patientSex: 'm' as const, patientAgeAtLab: 50 })) })
   render(<DataWorkspace onBrowse={vi.fn()} />)
@@ -43,7 +70,8 @@ it('keeps Apply before the complete keyboard-scrollable computed preview', () =>
   expect(apply.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   fireEvent.click(apply)
   expect(useAppStore.getState().analysisResult().rows).toHaveLength(236)
-})
+// Renders all 118 preview rows on purpose; over 5 s in a loaded full run (review of 2026-11-22).
+}, 20_000)
 it('blocks derivation when its output collides with an imported computed series', () => {
   useAppStore.getState().replaceDataset({ rows: [
     { ...row, patientSex: 'm', patientAgeAtLab: 50 },

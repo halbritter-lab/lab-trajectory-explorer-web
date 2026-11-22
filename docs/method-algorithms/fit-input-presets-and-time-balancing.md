@@ -230,7 +230,10 @@ Since 2026-11-21:
   2026-11-22) is the time of day of the lab date as `HH:MM:SS`, in both
   sheets, and empty text where the file gave none and for derived values; the
   re-import reads it from `raw_measurements`, so AKI episodes are the same
-  after a round trip.
+  after a round trip at the same recovery length: a re-import does not read
+  `analysis_settings` and starts at 48 hours, so an export made with another
+  *Recovery between episodes* gives its episodes again only once that value
+  is set again (review of 2026-11-22).
 - **Empty cells.** A number without a value (`slope`, `r2`, `ci_low`,
   `ci_high`, `intercept`, `slope_se`, the `rolling_*` numbers, the numeric
   endpoint columns, `baseline_age`, and `NumericValue` on the measurement

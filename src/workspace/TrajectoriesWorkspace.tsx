@@ -275,7 +275,7 @@ function CellSummary({
         : <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>)}
       {zeroInside && <p role="note" className="wt-quality-note wt-muted"><strong>{zeroInside.label}</strong>: {zeroInside.title}</p>}
       {detailed && noAkiText && <span className="wt-muted">{noAkiText}</span>}
-      {cell.anchorComparison && <AnchorComparisonText comparison={cell.anchorComparison} unit={cell.einheit} slopeNumber={slopeNumber} />}
+      {cell.anchorComparison && <AnchorComparisonText comparison={cell.anchorComparison} unit={cell.einheit} fitModel={cell.fitModel} slopeNumber={slopeNumber} />}
       {flags.filter(flag => flag.requiresFit).map(badge)}
     </>}
     {endpoint && (!detailed && warningIcons ? <Hint label={endpoint.label} icon="endpoint" tone="endpoint">{endpoint.title}</Hint> : <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></details></>)}
@@ -285,12 +285,17 @@ function CellSummary({
 }
 
 /** The before/after comparison of a cell (issue #64), beside its slope. */
-function AnchorComparisonText({ comparison, unit, slopeNumber }: { comparison: NonNullable<CohortCell['anchorComparison']>; unit: string | null; slopeNumber: (value: number, signed?: boolean) => string }) {
+function AnchorComparisonText({ comparison, unit, fitModel, slopeNumber }: { comparison: NonNullable<CohortCell['anchorComparison']>; unit: string | null; fitModel: CohortCell['fitModel']; slopeNumber: (value: number, signed?: boolean) => string }) {
   const rule = anchorRuleLabel(comparison.settings.rule)
   const perYear = `${unit ?? ''}/year`
   if (!comparison.anchor) return <p role="note" className="wt-quality-note wt-muted" data-testid="anchor-comparison">Before/after {rule}: no matching event for this patient.</p>
   if (!comparison.before || !comparison.after) return null
-  const side = (name: string, value: AnchorSide) => `${name} ${Number.isFinite(value.slope) ? `${slopeNumber(value.slope, true)} ${perYear}` : 'no fit'} (${countLabel(value.nFitted, 'fitted point')} over ${value.fittedSpanDays} days${Number.isFinite(value.ciLow) && Number.isFinite(value.ciHigh) ? `, 95% CI [${slopeNumber(value.ciLow)}, ${slopeNumber(value.ciHigh)}]` : ''})`
+  // As for the column's slope: Theil–Sen bounds on fewer than five dates are not a 95% interval.
+  const interval = (value: AnchorSide) => {
+    const range = `[${slopeNumber(value.ciLow)}, ${slopeNumber(value.ciHigh)}]`
+    return fitModel === 'theil-sen' && value.nFittedDates < MIN_THEIL_SEN_PROJECTION_DATES ? `Theil–Sen bounds ${range}, not a 95% interval: ${countLabel(value.nFittedDates, 'date')}` : `95% CI ${range}`
+  }
+  const side = (name: string, value: AnchorSide) => `${name} ${Number.isFinite(value.slope) ? `${slopeNumber(value.slope, true)} ${perYear}` : 'no fit'} (${countLabel(value.nFitted, 'fitted point')} over ${value.fittedSpanDays} days${Number.isFinite(value.ciLow) && Number.isFinite(value.ciHigh) ? `, ${interval(value)}` : ''})`
   const hasCi = Number.isFinite(comparison.differenceCiLow) && Number.isFinite(comparison.differenceCiHigh)
   const window = comparison.settings.exclusionDays > 0 ? ` ${countLabel(comparison.windowIdx.length, 'measurement')} in the ${comparison.settings.exclusionDays}-day window after the anchor left out of the after slope.` : ''
   return <p role="note" className="wt-quality-note" data-testid="anchor-comparison"><strong>Before/after {rule} ({formatWorkspaceDate(comparison.anchor.date)})</strong>: {side('before', comparison.before)}; {side('after', comparison.after)}; difference after − before {Number.isFinite(comparison.difference) ? `${slopeNumber(comparison.difference, true)} ${perYear}${hasCi ? ` (95% CI [${slopeNumber(comparison.differenceCiLow)}, ${slopeNumber(comparison.differenceCiHigh)}])` : ''}` : 'not available'}. Measurements on the anchor date count as before.{window}</p>

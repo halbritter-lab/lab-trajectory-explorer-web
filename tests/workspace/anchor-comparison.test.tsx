@@ -10,7 +10,7 @@ import { useAppStore } from '../../src/workspace/state/store'
 import { workspaceSpecs } from '../../src/workspace/workspace-data'
 import { workspaceWorkbookBytes, ANCHOR_COMPARISON_SHEET_HEADER } from '../../src/workspace/workspace-export'
 import { defaultTrajectoryView, restoreSavedSettings, SAVED_SETTINGS_VERSION } from '../../src/workspace/saved-settings'
-import { defaultFitSettings, defaultTrajectoryFitSettings } from '../../src/workspace/workspace-analysis'
+import { defaultFitSettings, defaultTrajectoryFitSettings, toFitConfig } from '../../src/workspace/workspace-analysis'
 import { measurementFitStatus } from '../../src/workspace/measurement-fit-status'
 import type { AnchorComparisonSettings } from '../../src/core/cohort/anchorComparison'
 
@@ -90,6 +90,24 @@ describe('before/after comparison in the Trajectories page (issue #64)', () => {
     expect(context).not.toContain('excluded from the fit')
   })
 
+  // Review of the combined branch, 2026-11-22: as for the column's slope, below five dates the bounds are not a 95% interval.
+  it('calls the bounds of a Theil-Sen side with fewer than five dates Theil-Sen bounds, in the view and the export', () => {
+    useAppStore.setState({ trajectoryView: { ...defaultTrajectoryView(), parameterKeys: [MARKER.key], trendKeys: [MARKER.key], fitKeys: [MARKER.key] } })
+    useAppStore.getState().setTrajectoryFitSettings({ shared: { ...defaultFitSettings('theil_sen'), anchorComparison: comparison }, columns: {} })
+    render(<TrajectoriesWorkspace data={dataset()} requestedPatientId="P1" />)
+    const note = screen.getByTestId('anchor-comparison')
+    expect(note).toHaveTextContent(/after \+2\.00 u\/year \(3 fitted points over 365 days, Theil–Sen bounds \[[^\]]+\], not a 95% interval: 3 dates\)/)
+    expect(note).toHaveTextContent(/before .* \(4 fitted points over 547 days, Theil–Sen bounds \[[^\]]+\], not a 95% interval: 4 dates\)/)
+    expect(note).not.toHaveTextContent('95% CI')
+    const data = dataset()
+    const anchors = { [MARKER.key]: comparison }
+    const cohortRows = buildCohortRows(data.rows, ['P1'], workspaceSpecs(data, [MARKER.key], { [MARKER.key]: toFitConfig(defaultFitSettings('theil_sen'), { bezeichnung: 'Marker', einheit: 'u' }) }, anchors))
+    const workbook = XLSX.read(workspaceWorkbookBytes({ data, parameterKeys: [MARKER.key], patientIds: ['P1'], cohortRows, anchorComparisonByParameterKey: anchors }), { type: 'array' })
+    const [p1] = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.anchor_comparison)
+    expect(p1).toMatchObject({ fit_model: 'theil-sen', before_n_fitted_dates: 4, after_n_fitted_dates: 3 })
+    expect(XLSX.utils.sheet_to_json<{ note: string }>(workbook.Sheets.about).at(-1)!.note).toContain('for Theil-Sen with n_fitted_dates below 5 they are Theil-Sen bounds, not a 95 % interval')
+  })
+
   it('says when a patient has no matching anchor event', () => {
     withComparison()
     render(<TrajectoriesWorkspace data={dataset()} requestedPatientId="P2" />)
@@ -114,7 +132,7 @@ describe('time axis "Years since event" (K16)', () => {
     fireEvent.change(screen.getByLabelText('Time axis'), { target: { value: 'event' } })
     expect(within(chart()).getByText('Years since anchor event (first event titled “ACE start”)')).toBeInTheDocument()
     expect(chart().querySelector('svg.wt-plot')).toHaveAttribute('data-x-min', String((day('2020-01-01').getTime() - day('2021-07-01').getTime()) / (365.25 * 86_400_000)))
-    expect(within(chart()).getByText(/1 of 2 trajectories; 1 additional trajectories without a matching anchor event/)).toBeInTheDocument()
+    expect(within(chart()).getByText(/1 of 2 trajectories; 1 trajectory without a matching anchor event \(not drawn\)/)).toBeInTheDocument()
     expect(chart().querySelector('svg.wt-plot')!.getAttribute('data-export-context')).toContain('Years since anchor event (first event titled “ACE start”)')
     expect(useAppStore.getState().trajectoryView.axis).toBe('event')
   })
@@ -125,6 +143,8 @@ describe('time axis "Years since event" (K16)', () => {
     display()
     fireEvent.change(screen.getByLabelText('Time axis'), { target: { value: 'event' } })
     expect(within(chart()).getByTestId('event-axis-note')).toHaveTextContent('starts at the anchor event of the before/after comparison')
+    // Review of the combined branch, 2026-11-22: without the comparison no patient is counted as lacking an anchor event.
+    expect(within(chart()).queryByText(/without a matching anchor event/)).not.toBeInTheDocument()
     expect(within(chart()).getByText(/No trajectories can be plotted. Check measurements, anchor events, or visible groups./)).toBeInTheDocument()
   })
 })

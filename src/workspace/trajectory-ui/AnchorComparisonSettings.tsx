@@ -1,5 +1,6 @@
 import type { ClinicalEvent } from '../../core/events/events'
 import type { AnchorComparisonSettings, AnchorRule } from '../../core/cohort/anchorComparison'
+import { DraftNumberInput } from '../DraftNumberInput'
 
 const ruleValue = (rule: AnchorRule) => rule.kind === 'first' ? 'first' : `${rule.kind}:${rule.value}`
 function ruleFromValue(value: string): AnchorRule {
@@ -35,8 +36,8 @@ export function AnchorComparisonSettingsGroup({ settings, events, onChange }: {
       </select>
     </label>
     <label>Exclusion window after the anchor (days)
-      <input type="number" min={0} step={1} aria-label="Anchor exclusion days" disabled={!settings} value={current.exclusionDays}
-        onChange={event => onChange({ ...current, exclusionDays: Math.max(0, Math.trunc(Number(event.target.value)) || 0) })} />
+      <DraftNumberInput min={0} step={1} aria-label="Anchor exclusion days" disabled={!settings} value={current.exclusionDays}
+        normalise={days => Math.max(0, Math.trunc(days))} onCommit={exclusionDays => onChange({ ...current, exclusionDays })} />
     </label>
     <p className="wt-muted">Measurements of the days after the anchor up to this number are left out of the after slope only and drawn as grey open circles; 0 leaves none out. <a href="#methods/fits/pipeline">Fit pipeline</a></p>
   </div>

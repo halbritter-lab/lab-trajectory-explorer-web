@@ -88,7 +88,18 @@ measured in years (365.25 days) from that side's first fitted point; the slope
 does not depend on the origin. Each side reports the fitted points `n`, the
 distinct fitted dates, the span in whole days between its first and last
 fitted point, the first and last fitted date, the slope per year and its 95 %
-interval (OLS: Student t; Theil-Sen: the Sen rank bounds). Without a fit
+interval (OLS: Student t; Theil-Sen: the Sen rank bounds). As for the
+column's slope, Theil-Sen bounds of a side with fewer than five distinct
+fitted dates (`MIN_THEIL_SEN_PROJECTION_DATES`) are not a 95 % interval: with
+one value on each of three dates they are the full range of the three
+pairwise slopes and cover the true slope about 67 % of the time. The patient
+view then writes "Theil–Sen bounds […], not a 95% interval: 3 dates" instead
+of "95% CI", and the export gives the date counts in `before_n_fitted_dates`
+and `after_n_fitted_dates` (review of the combined branch, 2026-11-22; before,
+every side was labelled "95% CI"). Example: demo patient 13, eGFR, preset
+Theil-Sen, anchor type `kidney_transplant`: the after side has three points
+and the bounds [−8.07, −7.94], the full range of −7.94, −8.005 and −8.07.
+Without a fit
 (Trend off or fit model "none") only the anchor is determined.
 
 ### Difference and its interval
@@ -133,7 +144,9 @@ settings switch the comparison on, in table order: `PatientID`, `Parameter`,
 `anchor_value`, `anchor_date`, `anchor_type`, `anchor_title`,
 `exclusion_days`, `n_excluded_window`, then for `before_` and `after_`: `n`,
 `first_date`, `last_date`, `span_days`, `slope`, `ci_low`, `ci_high`, then
-`slope_difference`, `difference_ci_low`, `difference_ci_high`, `slope_unit`.
+`slope_difference`, `difference_ci_low`, `difference_ci_high`, `slope_unit`,
+then `before_n_fitted_dates` and `after_n_fitted_dates` (appended after the
+review of the combined branch, 2026-11-22).
 A patient without an anchor has a row with empty values; `n_excluded_window`
 is empty without a fit. The `settings` sheet ends with `anchor_comparison`,
 the setting as JSON (empty when off), and the `about` sheet ends with a note
@@ -150,8 +163,8 @@ window 0 days. The anchor is the kidney transplant on 2022-07-01.
 | before | 2020-01-10 55, 2020-07-10 48, 2021-01-10 42, 2021-07-10 35, 2022-01-10 29, 2022-06-10 24 | 6 | 882 | −12.828 | [−13.320, −12.337] | 0.1771 |
 | after | 2022-08-10 72, 2023-02-10 68, 2023-08-10 64 | 3 | 365 | −8.005 | [−8.488, −7.523] | 0.0380 |
 
-Difference +4.823 per year. `ν = 0.032808² / (0.031379²/4 + 0.001443²/1) = 4.34`,
-truncated to 4, `t = 2.776`, half-width `2.776 · √0.032808 = 0.503`: interval
+Difference +4.823 per year. `ν = 0.032822² / (0.031379²/4 + 0.001443²/1) = 4.34`,
+truncated to 4, `t = 2.776`, half-width `2.776 · √0.032822 = 0.503`: interval
 [4.320, 5.326]. The column's own OLS slope over all nine values is +4.372 per
 year (the jump at the transplant), and it is the one the table, the
 reliability rule and the flags use. With a window of 60 days the value of
@@ -191,10 +204,13 @@ no number and no export column changes.
   365.25 days; values before the anchor are negative, a value on the anchor
   date is 0.
 - A trajectory without an anchor (no matching event, or the comparison is
-  off for the parameter) is not drawn and is counted under the chart as
-  "additional trajectories without a matching anchor event". When the
-  parameter has no comparison, a note under the chart says where to switch
-  it on.
+  off for the parameter) is not drawn. With the comparison on, the line
+  above the chart counts the patients without a matching event, "1 trajectory
+  without a matching anchor event (not drawn)". When the parameter has no
+  comparison, nothing is counted and a note under the chart says where to
+  switch it on (since the review of the combined branch, 2026-11-22; before,
+  every trajectory of such a parameter was counted as "additional
+  trajectories without a matching anchor event").
 - The axis label names the rule, for example "Years since anchor event
   (first event of type kidney_transplant)", and the same text is in the
   context line of an exported image.

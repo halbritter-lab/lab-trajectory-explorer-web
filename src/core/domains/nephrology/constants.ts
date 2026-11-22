@@ -26,6 +26,10 @@ export const KDIGO_RELATIVE_WINDOW_MS = 7 * MS_PER_DAY
  * 2026-11-22) chooses another length. */
 export const DEFAULT_AKI_RECOVERY_HOURS = 48
 export const AKI_RECOVERY_WINDOW_MS = DEFAULT_AKI_RECOVERY_HOURS * MS_PER_HOUR
+/** Longest recovery the Data page field accepts: 90 days, the end of acute
+ * kidney disease in ADQI 16 (review of the combined branch, 2026-11-22). The
+ * detector itself takes any length. */
+export const MAX_AKI_RECOVERY_HOURS = 90 * 24
 /** Small tolerance for decimal KDIGO comparisons after unit conversion.
  * Applied in the compared quantity's units (mg/dl or a dimensionless ratio). */
 export const KDIGO_THRESHOLD_TOLERANCE = 1e-12

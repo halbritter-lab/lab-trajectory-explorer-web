@@ -43,9 +43,16 @@ test('lists one episode for a sustained rise and the dialysis that starts during
   // The recovery length is a setting of the dataset (OD-35 resolved).
   const recovery = page.getByLabel('Recovery between episodes (hours)')
   await expect(recovery).toHaveValue('48')
+  // An emptied field changes nothing (review of the combined branch, 2026-11-22).
+  await recovery.fill('')
+  await recovery.blur()
+  await expect(recovery).toHaveValue('48')
+  await expect(page.locator('summary', { hasText: 'Detected AKI episodes (6)' })).toBeVisible()
   await recovery.fill('24')
+  await recovery.press('Enter')
   await expect(page.locator('summary', { hasText: 'Detected AKI episodes (7)' })).toBeVisible()
   await recovery.fill('48')
+  await recovery.press('Enter')
   await expect(page.locator('summary', { hasText: 'Detected AKI episodes (6)' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Trajectories', exact: true }).first().click()

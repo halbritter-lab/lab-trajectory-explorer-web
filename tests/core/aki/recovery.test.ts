@@ -58,6 +58,11 @@ describe('AKI episodes end after 48 hours back below the criterion', () => {
     expect(summary(values, { recoveryMs: 48 * HOUR })).toEqual([['2024-01-02', 1, null]])
   })
 
+  // Review of the combined branch, 2026-11-22: the gap ends the episode at an earlier candidate end.
+  it('ends an episode at the value back below the criterion before a gap, with an end date', () => {
+    expect(run([[0, 1.0], [1, 1.6], [2, 1.0], [20, 1.6]]).map((e) => [iso(e.date), iso(e.endDate), e.endedByGap])).toEqual([['2024-01-02', '2024-01-03', false]])
+  })
+
   it('ends an open episode at the first value after a gap of more than seven days', () => {
     // Day 20 has no earlier value within seven days: detection starts afresh, the episode ends there
     // and the crossing on day 21 starts a new one although it follows one day later.

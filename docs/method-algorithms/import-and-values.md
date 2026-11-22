@@ -138,7 +138,9 @@ Sheet names are compared after header normalisation (see Columns).
   sheet named `raw_measurements` reads that column, so several serum
   creatinine values of one day keep their order
   ([Measurements on the same date](aki.md#measurements-on-the-same-date))
-  and the AKI episodes are those of the export. Example: 1.0 mg/dl at 06:00
+  and the AKI episodes are those of the export at the same recovery length
+  (the re-import reads no settings; *Recovery between episodes* starts at
+  48 hours, see [AKI](aki.md#episodes)). Example: 1.0 mg/dl at 06:00
   and 1.6 mg/dl at 20:00 on 1 September and 1.2 mg/dl on 4 September give a
   stage I episode (onset 2026-09-01, peak 1.6) after the import of the file
   and after the re-import of its export. The column is read as `HH:MM` or

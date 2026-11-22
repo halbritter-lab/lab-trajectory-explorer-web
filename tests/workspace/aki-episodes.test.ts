@@ -55,6 +55,19 @@ describe('akiEpisodeRows', () => {
     expect(akiEpisodeExportRows(rows)[0].dialysis_start).toBe('2026-03-05 (acute)')
     expect(akiEpisodeDialysisLabel(rows[0])).toBe('05/03/2026 (acute)')
   })
+  // Review of the combined branch, 2026-11-22: such a dialysis blocks no end, so the end can be the dialysis' doing.
+  it('names a dialysis without end date that starts before the end, beside the end', () => {
+    const [ongoing] = akiEpisodeRows(icu, [dialysis('2026-03-06', 'acute')])
+    expect(ongoing).toMatchObject({ endDate: day('2026-03-09'), endAfterOpenDialysis: day('2026-03-06') })
+    expect(akiEpisodeEndLabel(ongoing)).toBe('09/03/2026 (after dialysis start 06/03/2026 without end date)')
+    expect(akiEpisodeRows(icu, [dialysis('2026-03-06', null)])[0].endAfterOpenDialysis).toEqual(day('2026-03-06'))
+    // With an end date, after the end, or chronic: nothing is added.
+    expect(akiEpisodeRows(icu, [dialysis('2026-03-05', 'acute', '2026-03-08')])[0].endAfterOpenDialysis).toBeNull()
+    expect(akiEpisodeRows(icu, [dialysis('2026-03-10', 'acute')])[0].endAfterOpenDialysis).toBeNull()
+    expect(akiEpisodeEndLabel(akiEpisodeRows(icu, [])[0])).toBe('09/03/2026')
+    const [open] = akiEpisodeRows(icu.slice(0, 4), [dialysis('2026-03-03', 'acute')])
+    expect(open.endAfterOpenDialysis).toBeNull()
+  })
   it('counts a dialysis start on the onset or the end date, not one before or after the episode', () => {
     const start = (date: string, intent: ClinicalEvent['intent'] = 'unknown') => akiEpisodeRows(icu, [dialysis(date, intent)])[0].dialysis
     expect(start('2026-03-02')).toEqual({ start: day('2026-03-02'), intent: 'unknown' })

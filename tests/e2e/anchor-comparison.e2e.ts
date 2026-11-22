@@ -33,6 +33,7 @@ test('compares the slopes at the transplant, exports them and aligns the overlay
   // A 60-day window: the value of 2022-08-10 leaves the after slope and is drawn grey.
   await page.getByRole('button', { name: `Analysis settings: ${EGFR}`, exact: true }).click()
   await page.getByLabel('Anchor exclusion days').fill('60')
+  await page.getByLabel('Anchor exclusion days').press('Enter')
   await page.getByRole('button', { name: 'Close analysis settings' }).click()
   await page.getByRole('button', { name: 'Open patient 13', exact: true }).click()
   await expect(page.getByTestId('anchor-comparison')).toContainText('difference after − before +4.76')
@@ -47,7 +48,8 @@ test('compares the slopes at the transplant, exports them and aligns the overlay
   await page.keyboard.press('Escape')
   const overlay = page.getByRole('region', { name: `Chart ${EGFR}` })
   await expect(overlay.getByText('Years since anchor event (first event of type kidney_transplant)', { exact: true })).toBeVisible()
-  await expect(overlay).toContainText('2 of 28 trajectories; 3 without numeric measurements; 23 additional trajectories without a matching anchor event')
+  await expect(overlay).toContainText('2 of 28 trajectories; 3 without numeric measurements; 23 trajectories without a matching anchor event (not drawn)')
   expect(await overlay.getByTestId('x-tick').allTextContents()).toEqual(['-2', '-1', '0', '1'])
   await expect(page.getByRole('region', { name: 'Chart Kreatinin [mg/dl]' }).getByTestId('event-axis-note')).toBeVisible()
+  await expect(page.getByRole('region', { name: 'Chart Kreatinin [mg/dl]' })).not.toContainText('without a matching anchor event')
 })

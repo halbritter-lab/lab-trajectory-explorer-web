@@ -164,7 +164,8 @@ export function Fits() { return <>
           <strong>Before/after comparison</strong> — optional, per parameter: the slope before and
           after one anchor event per patient (the first event, or the first with a chosen title or
           type) and the difference after minus before, each with number of fitted points, span and
-          95% interval. Measurements on the anchor date count as before. An exclusion window of a
+          95% interval; for Theil–Sen a side with fewer than five dates has Theil–Sen bounds instead,
+          which are not a 95% interval, as for the slope. Measurements on the anchor date count as before. An exclusion window of a
           set number of days after the anchor (default 0) leaves those measurements out of the
           after slope only. Both sides use the same exclusions, time balancing and fit model as the
           parameter's slope; that slope, its quality note, the flags and the endpoints remain those

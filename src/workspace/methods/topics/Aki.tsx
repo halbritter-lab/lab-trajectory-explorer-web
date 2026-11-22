@@ -124,8 +124,9 @@ export function Aki() { return <>
         default of the setting "Recovery between episodes" on the Data page): a crossing starts a
         new episode only when the first value after the previous crossing that meets no criterion
         against an earlier value lies more than two calendar days before it. The first value
-        after more than seven days without measurements also ends the episode; no end date is
-        given then, because that value is compared with no earlier value. Days of an acute
+        after more than seven days without measurements also ends the episode, at the earlier
+        value back below the criterion if there is one; otherwise no end date is given, because
+        that value is compared with no earlier value. Days of an acute
         dialysis with a recorded end date do not count towards the seven days. The onset is the
         date of the first crossing, the end the date of that value; a value followed within two
         calendar days by a day under dialysis, as defined above, does not end the episode. An end
