@@ -112,14 +112,18 @@ export function Aki() { return <>
       </p>
       <p>
         Each measurement that meets a criterion is a crossing. Crossings belong to one episode
-        until creatinine has been back below the criterion for 48 hours (ADQI 16): a crossing
-        starts a new episode only when the first value after the previous crossing that meets no
-        criterion lies more than two calendar days before it. The first value after more than
-        seven days without measurements also ends the episode; days of an acute dialysis with a
-        recorded end date do not count towards the seven days. The onset is the date of the first
-        crossing, the end the date of that value; a value followed within two calendar days by a
-        day under dialysis, as defined above, does not end the episode. Daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give one
-        episode of stage III.
+        until creatinine has been back below the criterion for 48 hours (ADQI 16; 48 hours is the
+        default of the setting "Recovery between episodes" on the Data page): a crossing starts a
+        new episode only when the first value after the previous crossing that meets no criterion
+        against an earlier value lies more than two calendar days before it. The first value
+        after more than seven days without measurements also ends the episode; no end date is
+        given then, because that value is compared with no earlier value. Days of an acute
+        dialysis with a recorded end date do not count towards the seven days. The onset is the
+        date of the first crossing, the end the date of that value; a value followed within two
+        calendar days by a day under dialysis, as defined above, does not end the episode. An end
+        means that a value no longer meets the criterion against the lowest value of the 48 hours
+        or 7 days before it, not that creatinine has returned to its level before the episode.
+        Daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give one episode of stage III.
       </p>
       <p>
         With AKI exclusion on, each episode removes from the fit all measurements from the onset

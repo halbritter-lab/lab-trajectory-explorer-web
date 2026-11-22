@@ -96,6 +96,9 @@ export interface SeriesContext {
   events: readonly ClinicalEvent[]
   /** Dataset-level fit inputs for exactly this patient and series. */
   fitInputs: readonly AnalysisFitInputContribution[]
+  /** Dataset-level module settings (the analysis settings, by module id),
+   * when the caller knows them; modules fall back to their defaults. */
+  analysisSettings?: Readonly<Record<string, unknown>>
   /** Memo shared by every cell of one cohort build, for per-patient work. */
   cache: Map<string, unknown>
 }

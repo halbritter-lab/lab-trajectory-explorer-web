@@ -21,7 +21,7 @@ describe('akiEpisodeRows', () => {
       PatientID: 'B', creatinine_parameter: 'Kreatinin', creatinine_unit: 'mg/dl', stage: 1,
       onset_date: '2022-03-02', peak_date: '2022-03-02', peak_value_mg_dl: 1.6,
       baseline_date: '2022-03-01', baseline_value_mg_dl: 1, criterion: 'absolute_0_3_mg_dl_48h',
-      end_date: '', dialysis_start: '',
+      end_date: '', dialysis_start: '', ended_by_gap: false, last_value_date: '2022-03-02',
     })
     expect(episodes[1].peakValue).toBeCloseTo(1.6, 6)
   })
@@ -75,10 +75,22 @@ describe('akiEpisodeRows', () => {
     const chr = [row('C', '2024-01-01', 1.0), row('C', '2024-01-02', 1.6), row('C', '2024-01-03', 1.2)]
     expect(akiEpisodeRows(chr, [dialysis('2024-01-04', 'chronic')])).toMatchObject([{ endDate: null, dialysis: { start: day('2024-01-04'), intent: 'chronic' } }])
   })
+  it('uses the recovery length it is given', () => {
+    const twice = [row('C', '2024-01-01', 1.0), row('C', '2024-01-02', 1.6), row('C', '2024-01-03', 1.0), row('C', '2024-01-05', 1.6)]
+    expect(akiEpisodeRows(twice, []).map(e => akiEpisodeEndLabel(e))).toEqual(['open at the last value'])
+    expect(akiEpisodeRows(twice, [], 24).map(e => akiEpisodeEndLabel(e))).toEqual(['03/01/2024', 'open at the last value'])
+    // The dialysis start of an open episode counts up to the recovery length after its last value.
+    expect(akiEpisodeRows(twice.slice(0, 2), [dialysis('2024-01-04', 'acute')], 24)[0].dialysis).toBeNull()
+    expect(akiEpisodeRows(twice.slice(0, 2), [dialysis('2024-01-04', 'acute')])[0].dialysis).toEqual({ start: day('2024-01-04'), intent: 'acute' })
+  })
   it('bounds the dialysis start of an episode ended by a gap at its last value before the gap', () => {
     const gap = [row('C', '2024-01-01', 1.0), row('C', '2024-01-02', 1.6), row('C', '2024-03-01', 1.0)]
     const [episode] = akiEpisodeRows(gap, [dialysis('2024-02-01', 'acute')])
-    expect(episode).toMatchObject({ endDate: day('2024-03-01'), dialysis: null })
+    // Review 2026-11-22: the list showed 01/03/2024, the first value after the gap, as the end while the
+    // dialysis column stopped at 4 January. No end was observed; the list names the last value instead.
+    expect(episode).toMatchObject({ endDate: null, endedByGap: true, lastValueDate: day('2024-01-02'), dialysis: null })
+    expect(akiEpisodeEndLabel(episode)).toBe('not observed: no values for more than 7 days after 02/01/2024')
+    expect(akiEpisodeExportRows([episode])[0]).toMatchObject({ end_date: '', dialysis_start: '', ended_by_gap: true, last_value_date: '2024-01-02' })
     expect(akiEpisodeRows(gap, [dialysis('2024-01-04', 'acute')])[0].dialysis).toEqual({ start: day('2024-01-04'), intent: 'acute' })
   })
 })

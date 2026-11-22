@@ -16,6 +16,7 @@ import { SPARK_SIZES, sparkWidth, WorkspaceSparkline, type SparkDomain, type Spa
 import { exclusionReasonLabel, fittedPointNoun, sexLabel } from './workspace-labels'
 import { measurementFitStatus } from './measurement-fit-status'
 import { fitInclusionCaveat } from './labels/fitInclusion'
+import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
 import { akiCriterionLabel, akiEpisodeDialysisLabel, akiEpisodeEndLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes'
 import type { ClinicalEvent } from '../core/events/events'
 import { AKI_MODULE_ID } from '../core/domains/nephrology/aki/akiModule'
@@ -440,7 +441,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const egfrKey = computedEgfrKey(data)
   const egfrNotes = useMemo(() => missingEgfrNotes(data), [data])
   const missingNote = (key: string, id: PatientId) => key === egfrKey ? egfrNotes.get(patientIdKey(id)) : undefined
-  const akiEpisodes = useMemo(() => akiEpisodeRows(data.rows, data.events), [data.rows, data.events])
+  const akiEpisodes = useMemo(() => akiEpisodeRows(data.rows, data.events, akiRecoveryHours(data.analysisSettings)), [data.rows, data.events, data.analysisSettings])
   const measurementsFor = (id: PatientId, cell: { bezeichnung: string; einheit: string | null }) => measurementsBySeries.get(JSON.stringify([id, cell.bezeichnung, cell.einheit])) ?? []
   // Root remounts this component only when rawRows identity changes. A derived
   // update can remove a parameter without discarding unrelated browser choices.

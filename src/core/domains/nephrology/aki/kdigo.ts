@@ -46,7 +46,8 @@ export interface AkiEpisode {
    * criterion. */
   endedByGap: boolean
   /** Date of the episode's last value before its end: its last crossing or a
-   * later value that could not end it (`blocksRecovery`); for an episode
+   * later value that could not end it (`blocksRecovery`, or no earlier value
+   * in its 7-day window after a gap bridged by `bridgesGap`); for an episode
    * still open, its last such value. Bounds the dialysis start of the
    * episode list when `endDate` is empty or `endedByGap` is true. */
   lastValueDate: Date
@@ -102,8 +103,9 @@ const MS_PER_DAY = 86_400_000
  * issue #67). `crossings[j]` is the crossing of detection value j or null
  * when value j does not meet the criterion; `hasReference[j]` says whether an
  * earlier value lay in its 7-day window. While an episode is open, the first
- * value that does not cross and whose recovery window (the calendar days
- * after it up to `recoveryMs`) holds no blocked day is its candidate end. A
+ * value that does not cross, has an earlier value in its 7-day window and
+ * whose recovery window (the calendar days after it up to `recoveryMs`)
+ * holds no blocked day is its candidate end. A
  * crossing more than `recoveryMs` after that value starts a new episode and
  * ends the previous one there; any other crossing joins the open episode,
  * which keeps the highest peak and the highest stage, and clears the
@@ -112,8 +114,9 @@ const MS_PER_DAY = 86_400_000
  * itself without one: detection starts afresh there (decided 2026-11-22). Days
  * for which `bridgesGap` holds (a dated acute dialysis interval) do not count
  * towards such a gap: when seven days or fewer between the two values remain,
- * the value is treated like any other. Replaces the merge by shared baseline
- * date of analyses/methods.py:_cluster_aki_episodes. */
+ * the value continues the open episode without being a candidate end.
+ * Replaces the merge by shared baseline date of
+ * analyses/methods.py:_cluster_aki_episodes. */
 function clusterEpisodes(sorted: readonly SeriesPoint[], crossings: readonly (RawCrossing | null)[], hasReference: readonly boolean[], recoveryMs: number, blocksRecovery: (date: Date) => boolean, bridgesGap: (date: Date) => boolean): AkiEpisode[] {
   const episodes: AkiEpisode[] = []
   let open: AkiEpisode | null = null
@@ -140,7 +143,10 @@ function clusterEpisodes(sorted: readonly SeriesPoint[], crossings: readonly (Ra
         open = null
         recovery = null
       } else if (open && recovery === null) {
-        if (blocked(sorted[j].date)) open.lastValueDate = sorted[j].date
+        // A value without an earlier value in its 7-day window (after a gap
+        // bridged by dialysis) is compared with nothing, so it shows no
+        // reversal and continues the episode (review of 2026-11-22).
+        if (!hasReference[j] || blocked(sorted[j].date)) open.lastValueDate = sorted[j].date
         else recovery = sorted[j].date
       }
       continue

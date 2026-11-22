@@ -16,11 +16,13 @@ with ad-hoc Playwright scripts against the production build in Chromium.
    reads `AKI III` (`AKI I, 3×III` on `main`).
 2. Trajectories → open ICU01: "AKI episodes for this patient" ends "; end
    14/03/2026; dialysis start 06/03/2026 (acute)".
-3. "Export cohort (XLSX)": `aki_episodes` ends with `end_date` and
-   `dialysis_start` (`2026-03-14`, `2026-03-06 (acute)`; empty cells for an
+3. "Export cohort (XLSX)": `aki_episodes` has `end_date` and
+   `dialysis_start` after `criterion` (`2026-03-14`, `2026-03-06 (acute)`; empty cells for an
    open episode or without dialysis); its `about` line explains both.
-4. Demo data: still 8 episodes with the same onsets and stages, now with end
-   dates and "none" as dialysis start. At 390 px the table scrolls inside its
+4. Demo data: still 8 episodes with the same onsets and stages, all ended by
+   a gap: End "not observed: no values for more than 7 days after" the onset
+   date (end dates 16/09/2022 and so on until the second review), and "none"
+   as dialysis start. At 390 px the table scrolls inside its
    frame; the page does not scroll sideways.
 5. Methods → AKI, "AKI Timing, Episodes and the Fit-Exclusion Window": the
    rule is stated and the sustained daily rise gives "one episode of stage
@@ -34,9 +36,21 @@ with ad-hoc Playwright scripts against the production build in Chromium.
    `AKI 2×III` before); CHR "open at the last value", "04/01/2024 (chronic)"
    (end 03/01/2024 and "none" before); GAP "none" (31/12/2025 (chronic)
    before). The `about` line of `aki_episodes` names the end after a gap.
+7. Second review (2026-11-22): import the review files `r2-rv67/labs.csv`
+   and `events.csv`. Data → "Detected AKI episodes (4)": POSTDX one stage-III
+   episode, onset 02/01/2024, End "not observed: no values for more than
+   7 days after 17/01/2024", "03/01/2024 (acute)" (two episodes, end
+   14/01/2024, before); PLAT ends 10/01/2024 (plateau) and its second
+   episode "not observed: … after 15/01/2024", dialysis "none" (the HD of
+   20/01/2024 lies after the last value). *Recovery between episodes
+   (hours)* shows 48; 24 gives 5 episodes (POSTDX split at 15/01/2024), 48
+   gives 4 again. The cohort export has `ended_by_gap` and
+   `last_value_date` after `dialysis_start` and `"recoveryHours":48` in
+   `analysis_settings`. At 390 px the page does not scroll sideways.
 
-Verified 2026-11-22 in Chromium against the production build: steps 1 to 6
-by scripted walkthroughs with screenshots; a reduced version of steps 1 to 3
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 7
+by scripted walkthroughs with screenshots (steps 1, 4 and 7 again after the
+second review); a reduced version of steps 1 to 3
 and the ICU and CHR cases of step 6 are automated in
 `tests/e2e/aki-recovery.e2e.ts`. The k26 review file with
 times of day keeps its 4 episodes. Not verified: other browsers than

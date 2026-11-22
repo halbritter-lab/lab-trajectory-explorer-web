@@ -92,7 +92,8 @@ behind two decisions of that day; the maintainer approved its wording the
 same day. OD-34 was added on 2026-11-21 because the methodology page does not
 yet state the rule for several creatinine values on one day decided that day;
 it is open. OD-35 was added on 2026-11-22 with the review of the AKI recovery
-rule: two details fixed in the implementation await the owner's confirmation.
+rule and resolved on the second review of the same day, on the owner's
+instruction of 2026-11-22 to resolve the open points.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -101,7 +102,6 @@ rule: two details fixed in the implementation await the owner's confirmation.
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
 | OD-34 | [Measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date) | The methodology page says that lab dates have no time of day and that the 48-hour window covers earlier measurements on the same date; since 2026-11-21 a time of day orders the values of one day, and values without one are compared with earlier days only. Wording drafted (G1), not approved. |
-| OD-35 | [Episodes](method-algorithms/aki.md#episodes) | Issue #67 asked for the 48 hours of recovery as a setting; they are a constant and a detector option (`recoveryMs`) without a control, a saved setting or an export field. A gap of more than seven days without creatinine values outside dated acute dialysis intervals ends an AKI episode at the first value after it (step 4), so the next crossing can open a new episode less than 48 hours later; without step 4, crossings months or years apart (for example before a chronic dialysis and after the transplant that ends it) would form one episode with one exclusion window. Both fixed on 2026-11-22, not confirmed by the owner. |
 
 ### Resolved decisions
 
@@ -140,4 +140,5 @@ methodology page. The numbers are not reused.
 | OD-30 | Every number returned from R is serialized at full precision (`digits = NA`); decided 2026-11-13. | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) |
 | OD-32 | A lone `u` in a creatinine name is "und" only between two blood-material words or in "vor u. nach"; next to any other word it stays urine; decided 2026-11-15. | [eGFR derivation](method-algorithms/egfr.md#eligible-source-series) |
 | OD-33 | The methodology page describes AKI staging against the lowest value of the previous 7 days and the "Slope range" label for Theil-Sen bounds on fewer than five dates; wording approved 2026-11-16. | [AKI staging](method-algorithms/aki.md#staging) |
+| OD-35 | The recovery that separates two AKI episodes is a dataset-level setting (*Recovery between episodes (hours)*, default 48, `recoveryHours` in the exported analysis settings); a gap of more than seven days without creatinine values outside dated acute dialysis intervals still ends an episode (step 4), which the episode list then gives without an end date; decided 2026-11-22. | [Episodes](method-algorithms/aki.md#recovery-length) |
 

@@ -978,8 +978,8 @@ least where there was a choice):
   the review of 2026-11-22): an ICU course with CVVHDF from 3 to 13 January
   and creatinine of 3.2 on 2 January, 4.0 on 14 January and 6.5 on 16 January
   had given two stage-III episodes and is one. This rule lets a new episode
-  start less than 48 hours after the previous one ended and is open for the
-  owner's confirmation (OD-35).
+  start less than 48 hours after the previous one ended; it was open for the
+  owner's confirmation (OD-35) and is kept (see the second review below).
 - **Same day.** Values of one date are processed in the order of the
   2026-11-21 rule; on a date whose values cannot be ordered they ascend, so a
   date that contains a crossing continues the episode and none of its values
@@ -1008,7 +1008,8 @@ least where there was a choice):
   `unknown`.
 - **The recovery length is not an interface setting.** It is a constant and
   an option of the detector; no control changes it. Issue #67 asked for a
-  setting, so this is open for the owner's decision (OD-35).
+  setting, so this is open for the owner's decision (OD-35). Superseded by
+  the second review below: it is a setting.
 - **Moved values of the review follow-up.** No golden value and no value of
   the bundled demo workbook moved: its eight episodes keep onset, stage, peak,
   end date and the empty dialysis start listed above. One unit test changed
@@ -1044,6 +1045,81 @@ review). New or changed sentences:
   criterion for 48 hours. ADQI 16 proposes the 48 hours and calls them
   arbitrary; applying them to calendar days, and ending an episode after
   more than seven days without measurements, are this tool's rules."
+
+### Second review of 2026-11-22
+
+Applied on the owner's instruction of 2026-11-22 to resolve the open points;
+OD-35 is resolved.
+
+- **A value without a reference does not end an episode.** After a gap that
+  a dated acute dialysis interval bridges, the first value has no earlier
+  value in its 7-day window. It was the candidate end, although it is
+  compared with nothing; it now continues the episode as its last value, and
+  the next value compared with it can end the episode. 1.0 and 3.2 mg/dl on
+  1 and 2 January, CVVHDF from 3 to 13 January, then 4.0, 4.1, 4.2 and
+  7.0 mg/dl on 14 to 17 January: one stage-III episode, open (4.1 on
+  15 January is the candidate end and 7.0 joins two days later); before, the
+  episode ended on 14 January at 4.0 mg/dl and 7.0 opened a second stage-III
+  episode.
+- **An episode ended by a gap has no end date in the list.** The first value
+  after a gap of more than seven days shows no recovery, so `end_date` is
+  empty for such an episode and the Data page and the patient view show
+  "not observed: no values for more than 7 days after" the date of its last
+  value. Two columns are appended to `aki_episodes`: `ended_by_gap`
+  (`true`/`false`) and `last_value_date`. The dialysis start of such an
+  episode still counts up to the recovery length after `last_value_date`, so
+  the shown end and the dialysis window agree. Before, the list showed the
+  first value after the gap, possibly weeks later, as the end, while a
+  dialysis between the two dates was not listed.
+- **The recovery length is a setting.** *Recovery between episodes (hours)*
+  under "Detected AKI episodes" on the Data page, default 48, counted on
+  calendar days (only multiples of 24 matter). It is one value per dataset
+  (`recoveryHours` of the AKI module settings), not a column setting,
+  because the episode list does not belong to a column; it decides the
+  episodes of every column, the list and the export, is kept with the dataset
+  copy (a copy saved earlier gets 48) and is exported in `analysis_settings`
+  of the `settings` sheet. A change discards fitted cohort models.
+- **Step 4 is kept.** A gap of more than seven days without values outside
+  dated acute dialysis intervals ends an episode, so a new one can start
+  less than the recovery length later; the episode list gives the former no
+  end date (above).
+- **Known limitation documented.** An episode end compares a value with the
+  lowest value of the 48 hours and 7 days before it, not with the creatinine
+  before the episode: on a plateau the reference catches up. 1.0 and
+  2.0 mg/dl on days 0 and 1 and 3.0 daily on days 2 to 12 end the episode on
+  day 9, and 4.6 on day 14 opens a second stage-III episode. Unchanged
+  behaviour, now in the method reference and a regression test.
+- **Moved values.** No golden value moved, and no episode count, onset,
+  stage, peak, baseline, exclusion window, slope or dialysis start of the
+  bundled demo workbook. All eight demo episodes end by a gap; their
+  `end_date` moved from 2022-09-16 (patient 6, onset 2022-09-08);
+  2021-06-12, 2022-01-20, 2022-10-18 (patient 7, onsets 2021-06-03,
+  2022-01-04, 2022-10-03); 2022-07-20 (patient 11, onset 2022-07-12);
+  2021-01-20, 2021-03-10, 2021-04-20 (patient 12, onsets 2021-01-03,
+  2021-02-17, 2021-04-03) to empty, with `ended_by_gap` `true` and
+  `last_value_date` equal to the onset date in each case. Unit tests changed
+  their expectation deliberately: the episode list of the gap example
+  (`tests/workspace/aki-episodes.test.ts`), the sheet header and the
+  `about` note (`tests/workspace/export-schema.test.ts`,
+  `tests/workspace/export.test.ts`), and the AKI settings in the registry
+  tests, which now carry `recoveryHours`.
+
+Methods page (`Aki.tsx`, timing section), changed sentences:
+
+- "Crossings belong to one episode until creatinine has been back below the
+  criterion for 48 hours (ADQI 16; 48 hours is the default of the setting
+  "Recovery between episodes" on the Data page): a crossing starts a new
+  episode only when the first value after the previous crossing that meets
+  no criterion against an earlier value lies more than two calendar days
+  before it."
+- "The first value after more than seven days without measurements also
+  ends the episode; no end date is given then, because that value is
+  compared with no earlier value."
+- "Days of an acute dialysis with a recorded end date do not count towards
+  the seven days." (split from the previous sentence, wording unchanged)
+- Added: "An end means that a value no longer meets the criterion against
+  the lowest value of the 48 hours or 7 days before it, not that creatinine
+  has returned to its level before the episode."
 
 ## Approved requirements
 

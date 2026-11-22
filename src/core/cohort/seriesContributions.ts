@@ -31,6 +31,7 @@ export function seriesContextFor(
     exclusionDays: spec.exclusionDays,
     events: spec.clinicalEventsByPatient?.[patientIdKey(patientId)] ?? spec.clinicalEvents ?? [],
     fitInputs: fitInputsForSeries(spec.fitInputs ?? [], patientId, seriesKey),
+    ...(spec.analysisSettings ? { analysisSettings: spec.analysisSettings } : {}),
     cache,
   }
 }

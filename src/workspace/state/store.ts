@@ -115,6 +115,8 @@ export interface AppState {
   replaceDataset: (dataset: DatasetReplacement) => void
   setEgfrFormula: (f: FormulaName | 'off') => void
   setEgfrSource: (s: Source | null) => void
+  /** Recovery that separates two AKI episodes (hours, dataset-level). */
+  setAkiRecoveryHours: (hours: number) => void
   setManualDemographics: (patientId: LabRow['patientId'], demo: ManualDemographics) => void
   setEvents: (events: ClinicalEvent[]) => void
   setPatientAttributes: (byPatient: Record<string, Record<string, string>>) => void
@@ -274,6 +276,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   setEgfrSource: (src) => set((s) => ({
     analysisSettings: { ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, source: src } },
+    pristineDemo: false,
+    ...clearedMixedModelResults(),
+  })),
+  setAkiRecoveryHours: (hours) => set((s) => ({
+    analysisSettings: { ...s.analysisSettings, aki: { ...s.analysisSettings.aki, recoveryHours: hours } },
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),

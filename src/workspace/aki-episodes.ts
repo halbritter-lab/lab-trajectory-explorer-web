@@ -2,7 +2,7 @@ import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '..
 import type { ClinicalEvent, DialysisIntent } from '../core/events/events'
 import { episodesForSeries, isAkiCreatinineSource } from '../core/domains/nephrology/aki/akiAware'
 import type { AkiEpisode } from '../core/domains/nephrology/aki/kdigo'
-import { AKI_RECOVERY_WINDOW_MS } from '../core/domains/nephrology/constants'
+import { DEFAULT_AKI_RECOVERY_HOURS } from '../core/domains/nephrology/constants'
 import { formatDisplayDate, utcDateOrBlank } from '../core/format'
 
 export interface AkiEpisodeRow {
@@ -20,8 +20,14 @@ export interface AkiEpisodeRow {
   criterion: string
   /** Date of the first value back below the criterion that ended the
    * episode (`AkiEpisode.endDate`); null while the episode is open at the
-   * end of the series. */
+   * end of the series and when a gap of more than seven days ended it
+   * (`endedByGap`): the first value after the gap shows no recovery. */
   endDate: Date | null
+  /** The episode ended at the first value after a gap of more than seven
+   * days without a value back below the criterion before it. */
+  endedByGap: boolean
+  /** `AkiEpisode.lastValueDate`: the episode's last value before its end. */
+  lastValueDate: Date
   /** The first dialysis of the patient that starts between onset and end,
    * both days included, with its intent (see `dialysisWindowEnd` for an
    * episode without an end and one ended by a gap). It does not change the
@@ -38,9 +44,12 @@ const CRITERIA: Record<string, string> = {
 }
 export const akiCriterionLabel = (criterion: string) => CRITERIA[criterion] ?? criterion
 
-/** Episode end as listed: the date, or a note that the episode is still open. */
-export const akiEpisodeEndLabel = (episode: Pick<AkiEpisodeRow, 'endDate'>) =>
-  episode.endDate ? formatDisplayDate(episode.endDate) : 'open at the last value'
+/** Episode end as listed: the date, a note that no end was observed before
+ * a gap, or a note that the episode is still open. */
+export const akiEpisodeEndLabel = (episode: Pick<AkiEpisodeRow, 'endDate' | 'endedByGap' | 'lastValueDate'>) =>
+  episode.endDate ? formatDisplayDate(episode.endDate)
+    : episode.endedByGap ? `not observed: no values for more than 7 days after ${formatDisplayDate(episode.lastValueDate)}`
+      : 'open at the last value'
 /** Dialysis start as listed: date and intent, or "none". */
 export const akiEpisodeDialysisLabel = (episode: Pick<AkiEpisodeRow, 'dialysis'>) =>
   episode.dialysis ? `${formatDisplayDate(episode.dialysis.start)} (${episode.dialysis.intent})` : 'none'
@@ -50,11 +59,11 @@ const utcDay = (date: Date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(
 /** Last day on which a dialysis start counts towards an episode: its end
  * date; for an episode still open at the last value, or one ended by the
  * first value after a gap of more than seven days, the recovery window of
- * its last value before the end (two calendar days after it), so that a
- * dialysis months later, after the values stop, is not attributed to it
- * (decided 2026-11-22). */
-export function dialysisWindowEnd(episode: Pick<AkiEpisode, 'endDate' | 'endedByGap' | 'lastValueDate'>): Date {
-  return episode.endDate !== null && !episode.endedByGap ? episode.endDate : new Date(episode.lastValueDate.getTime() + AKI_RECOVERY_WINDOW_MS)
+ * its last value before the end (the recovery length after it, two calendar
+ * days by default), so that a dialysis months later, after the values stop,
+ * is not attributed to it (decided 2026-11-22). */
+export function dialysisWindowEnd(episode: Pick<AkiEpisode, 'endDate' | 'endedByGap' | 'lastValueDate'>, recoveryHours = DEFAULT_AKI_RECOVERY_HOURS): Date {
+  return episode.endDate !== null && !episode.endedByGap ? episode.endDate : new Date(episode.lastValueDate.getTime() + recoveryHours * 3_600_000)
 }
 
 /** The earliest dialysis start between `onset` and `end` (calendar days,
@@ -74,8 +83,9 @@ export function dialysisStartInEpisode(onset: Date, end: Date, events: readonly 
  * series detects on itself with the detector the fits and charts use
  * (`episodesForSeries`); series are not pooled, so a patient with two
  * creatinine series can list an episode once per series. A listing only:
- * which episodes a column shows or excludes is decided per column. */
-export function akiEpisodeRows(rows: readonly LabRow[], events: readonly ClinicalEvent[]): AkiEpisodeRow[] {
+ * which episodes a column shows or excludes is decided per column.
+ * `recoveryHours` is the dataset's AKI module setting. */
+export function akiEpisodeRows(rows: readonly LabRow[], events: readonly ClinicalEvent[], recoveryHours = DEFAULT_AKI_RECOVERY_HOURS): AkiEpisodeRow[] {
   const byPatient = new Map<PatientId, LabRow[]>()
   // Push into buckets: copying a bucket per row is quadratic in a patient's rows.
   for (const row of rows) { const bucket = byPatient.get(row.patientId); if (bucket) bucket.push(row); else byPatient.set(row.patientId, [row]) }
@@ -91,9 +101,10 @@ export function akiEpisodeRows(rows: readonly LabRow[], events: readonly Clinica
     const own: AkiEpisodeRow[] = []
     for (const [parameter, unit] of series.values()) {
       const patientEvents = eventsByPatient.get(patientIdKey(patientId)) ?? []
-      for (const episode of episodesForSeries(patientRows, patientId, parameter, unit, patientEvents)) {
+      for (const episode of episodesForSeries(patientRows, patientId, parameter, unit, patientEvents, recoveryHours)) {
         own.push({ patientId, parameter, unit, stage: episode.stage, onset: episode.date, peakDate: episode.peakDate, peakValue: episode.peakValue, baselineDate: episode.baselineDate, baselineValue: episode.baselineValue, criterion: episode.criterion,
-          endDate: episode.endDate, dialysis: dialysisStartInEpisode(episode.date, dialysisWindowEnd(episode), patientEvents) })
+          endDate: episode.endedByGap ? null : episode.endDate, endedByGap: episode.endedByGap, lastValueDate: episode.lastValueDate,
+          dialysis: dialysisStartInEpisode(episode.date, dialysisWindowEnd(episode, recoveryHours), patientEvents) })
       }
     }
     // Stable sort: episodes of two series with one onset keep the series order.
@@ -117,5 +128,7 @@ export function akiEpisodeExportRows(episodes: readonly AkiEpisodeRow[]) {
     criterion: episode.criterion,
     end_date: utcDateOrBlank(episode.endDate),
     dialysis_start: episode.dialysis ? `${utcDateOrBlank(episode.dialysis.start)} (${episode.dialysis.intent})` : '',
+    ended_by_gap: episode.endedByGap,
+    last_value_date: utcDateOrBlank(episode.lastValueDate),
   }))
 }

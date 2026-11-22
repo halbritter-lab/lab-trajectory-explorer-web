@@ -38,6 +38,8 @@ export interface CohortSeriesSpec {
   exactBirthDateByPatient?: Record<string, Date>
   fitConfig?: FitConfig
   fitInputs?: AnalysisFitInputContribution[]
+  /** Dataset-level module settings (see `SeriesContext.analysisSettings`). */
+  analysisSettings?: Readonly<Record<string, unknown>>
 }
 
 export interface CohortCell {

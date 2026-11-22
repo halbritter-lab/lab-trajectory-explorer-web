@@ -67,6 +67,14 @@ describe('AKI episodes end after 48 hours back below the criterion', () => {
     expect(run([[0, 1.0], [1, 1.6], [20, 1.0], [21, 1.6]]).map((e) => [e.endedByGap, iso(e.lastValueDate)])).toEqual([[true, '2024-01-02'], [false, '2024-01-22']])
   })
 
+  it('ends an episode on a plateau once the reference has caught up, not on a return to the earlier baseline', () => {
+    // Review 2026-11-22: 3.0 from day 2 to day 12 is three times the baseline 1.0. On day 9 the 1.0 and
+    // 2.0 of days 0 and 1 have left the 7-day window, the 7-day minimum is 3.0 and 3.0 meets no criterion:
+    // the episode ends there. 4.6 on day 14 crosses against 3.0 and opens a new stage-III episode.
+    const plateau: [number, number][] = [[0, 1.0], [1, 2.0], ...Array.from({ length: 11 }, (_, i): [number, number] => [2 + i, 3.0]), [14, 4.6]]
+    expect(summary(plateau)).toEqual([['2024-01-02', 3, '2024-01-10'], ['2024-01-15', 3, null]])
+  })
+
   it('keeps the onset and the configured length of the exclusion window for a merged episode', () => {
     const [episode] = run([[0, 1.0], [1, 1.4], [2, 1.8], [3, 2.2], [4, 2.6], [5, 3.0]])
     expect(akiExclusionWindows([episode], 30).map((w) => [iso(w.start), iso(w.end)])).toEqual([['2024-01-02', '2024-02-01']])
@@ -113,5 +121,16 @@ describe('AKI episodes do not end in a dated acute dialysis interval', () => {
     expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', []).map((e) => [iso(e.date), iso(e.endDate), e.endedByGap])).toEqual([['2024-01-02', '2024-01-14', true], ['2024-01-16', null, false]])
     // A short interval inside a longer gap leaves more than seven days without values: the gap still ends the episode.
     expect(episodesForSeries(icu, 1, 'Kreatinin', 'mg/dl', [dialysis({ date: day(2), endDate: day(4) })]).map((e) => iso(e.date))).toEqual(['2024-01-02', '2024-01-16'])
+  })
+
+  it('does not end an episode at the first value after a long acute interval, which has no reference', () => {
+    // Review 2026-11-22: 4.0 on 14 January follows CVVHDF from 3 to 13 January and is compared with no
+    // earlier value. Until this change it was the candidate end, so 7.0 three days later opened a second
+    // stage-III episode. Now 4.1 on 15 January (against 4.0) is the candidate end and 7.0 joins.
+    const cvvhdf = dialysis({ date: day(2), endDate: day(12) })
+    const postdx = [row(0, 1.0), row(1, 3.2), row(13, 4.0), row(14, 4.1), row(15, 4.2), row(16, 7.0)]
+    expect(episodesForSeries(postdx, 1, 'Kreatinin', 'mg/dl', [cvvhdf]).map((e) => [iso(e.date), e.stage, iso(e.endDate), iso(e.lastValueDate)])).toEqual([['2024-01-02', 3, null, '2024-01-17']])
+    // A single value after the interval leaves the episode open at it.
+    expect(episodesForSeries(postdx.slice(0, 3), 1, 'Kreatinin', 'mg/dl', [cvvhdf]).map((e) => [iso(e.endDate), e.endedByGap, iso(e.lastValueDate)])).toEqual([[null, false, '2024-01-14']])
   })
 })

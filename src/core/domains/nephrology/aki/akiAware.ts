@@ -5,11 +5,12 @@ import { fitOls } from '../../../stats/ols'
 import { datesToYears } from '../../../stats/time'
 import { findKdigoAkiEpisodes, type AkiEpisode } from './kdigo'
 import { isKdigoCreatinineSeries, normaliseUnit } from '../analytes'
-import { DEFAULT_AKI_EXCLUSION_DAYS, IMPLAUSIBLE_CREATININE_ABOVE_MGDL, MGDL_PER_UMOLL } from '../constants'
+import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_AKI_RECOVERY_HOURS, IMPLAUSIBLE_CREATININE_ABOVE_MGDL, MGDL_PER_UMOLL } from '../constants'
 import { fixedLengthWindow, type ReasonedExclusionWindow } from '../../../exclusions/windows'
 import type { ClinicalEvent } from '../../../events/events'
 
 const MS_PER_DAY = 86_400_000
+const MS_PER_HOUR = 3_600_000
 
 export interface DateBand {
   start: Date
@@ -173,8 +174,10 @@ export function implausiblyHighCreatinineRows(rows: readonly LabRow[]): LabRow[]
  * patient's clinical events) is left out before detection; no episode ends on
  * a value whose recovery window holds such a day, and an episode continues
  * across a dated acute dialysis interval (`isInAcuteDialysisInterval`).
- * Returns [] when no eligible creatinine data exists. */
-export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null, events: readonly ClinicalEvent[] = []): AkiEpisode[] {
+ * `recoveryHours` is the recovery that separates two episodes (the AKI
+ * module setting, 48 by default). Returns [] when no eligible creatinine data
+ * exists. */
+export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null, events: readonly ClinicalEvent[] = [], recoveryHours = DEFAULT_AKI_RECOVERY_HOURS): AkiEpisode[] {
   // One pass over the dataset per call; callers pass every patient's rows.
   const own = rows.filter((r) => r.patientId === patientId)
   const sub = own.filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
@@ -199,5 +202,5 @@ export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichn
     .filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r) && !isUnderDialysis(r.labDatum, events))
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
     .map((r) => ({ date: r.labDatum!, timeOfDay: r.labTime ?? null, value: normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum! / MGDL_PER_UMOLL : r.wertNum! }))
-  return points.length > 0 ? findKdigoAkiEpisodes(points, { blocksRecovery: (date) => isUnderDialysis(date, events), bridgesGap: (date) => isInAcuteDialysisInterval(date, events) }) : []
+  return points.length > 0 ? findKdigoAkiEpisodes(points, { recoveryMs: recoveryHours * MS_PER_HOUR, blocksRecovery: (date) => isUnderDialysis(date, events), bridgesGap: (date) => isInAcuteDialysisInterval(date, events) }) : []
 }

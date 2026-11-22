@@ -1,8 +1,10 @@
 import { useMemo } from 'react'
 import type { PatientId } from '../core/types'
 import { formatDisplayDate, formatDisplayNumber } from '../core/format'
+import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
 import { akiCriterionLabel, akiEpisodeDialysisLabel, akiEpisodeEndLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes'
 import type { WorkspaceData } from './workspace-data'
+import { useAppStore } from './state/store'
 import { countLabel, sexLabel } from './workspace-labels'
 
 /** Levels listed per attribute before the rest is summarised as a count. */
@@ -38,7 +40,8 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
       return { name, levels: [...levels].sort(([a], [b]) => a.localeCompare(b, undefined, { numeric: true })), missing }
     })
   }, [data.patients])
-  const episodes = useMemo(() => akiEpisodeRows(data.rows, data.events), [data.rows, data.events])
+  const recoveryHours = akiRecoveryHours(data.analysisSettings)
+  const episodes = useMemo(() => akiEpisodeRows(data.rows, data.events, recoveryHours), [data.rows, data.events, recoveryHours])
   return <div className="data-event-tables">
     <details>
       <summary>Imported parameters ({parameters.length})</summary>
@@ -59,6 +62,11 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
     <details>
       <summary>Detected AKI episodes ({episodes.length})</summary>
       <p className="muted">Automated screening with the KDIGO creatinine criteria on each serum creatinine parameter; not a diagnosis. Creatinine values are in mg/dl. <a href="#methods/aki">How episodes are detected</a></p>
+      <label className="field">Recovery between episodes (hours)
+        <input type="number" min={0} step={24} value={recoveryHours} aria-describedby="aki-recovery-note"
+          onChange={e => useAppStore.getState().setAkiRecoveryHours(Math.max(0, Number(e.target.value) || 0))} />
+      </label>
+      <p className="muted" id="aki-recovery-note">A new episode starts only after creatinine was back below the criterion for this long, counted in calendar days (48 hours: the next two days). It applies to this list, the AKI windows and markers of every column and the export.</p>
       {episodes.length === 0 ? <p>No AKI episode detected.</p> : <div className="table-scroll" role="region" aria-label="Detected AKI episodes, horizontal scrolling" tabIndex={0}>
         <table aria-label="Detected AKI episodes"><thead><tr><th>Patient</th><th>Stage</th><th>Onset</th><th>Peak</th><th>Peak value</th><th>Baseline</th><th>Criterion</th><th>Creatinine parameter</th><th>End</th><th>Dialysis start</th></tr></thead>
           <tbody>{episodes.map((episode, index) => <tr key={index}>
