@@ -1,3 +1,4 @@
+import { seriesMerges } from '../core/domains/nephrology/seriesMergeModule'
 import { useId, useMemo, useRef, useState } from 'react'
 import { trajectorySettingsDiscardModels, useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
@@ -73,6 +74,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const runCohortModels = useAppStore(s => s.runCohortModels)
 
 
+  // Merged series (issue #68) are derived but not computed.
+  const mergedKeys = new Set(seriesMerges(data.analysisSettings).map(merge => JSON.stringify([merge.name, merge.unit])))
   const eligibleParameters = useMemo(() => {
     return (data.parameters ?? []).filter(p =>
       (data.rows ?? []).some(r => r.bezeichnung === p.bezeichnung && r.einheit === p.einheit && r.wertNum !== null && Number.isFinite(r.wertNum))
@@ -531,7 +534,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               onChange={e => setSelectedParamKey(e.target.value)}
             >
               {eligibleParameters.map(p => (
-                <option key={p.key} value={p.key}>{p.label}{p.derived && !/computed/i.test(p.label) ? ' (derived)' : ''}</option>
+                <option key={p.key} value={p.key}>{p.label}{p.derived && !/computed/i.test(p.label) ? mergedKeys.has(p.key) ? ' (merged)' : ' (computed)' : ''}</option>
               ))}
             </select>
           </label>

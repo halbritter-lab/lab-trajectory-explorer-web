@@ -6,7 +6,7 @@ import { comparePatientIds, patientIdKey, type LabRow, type PatientId, type Wert
 import { boundedShareLabel, slopeQualityLabel, THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
 import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
 import { workspaceSpecs, type WorkspaceData, type WorkspaceParameter } from './workspace-data'
-import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../core/domains/nephrology/analytes'
+import { seriesMerges } from '../core/domains/nephrology/seriesMergeModule'
 import { WorkspaceExportActions } from './WorkspaceExports'
 import { SeriesComparison } from './SeriesComparison'
 import { DEFAULT_WORKSPACE_DISPLAY, drawnFitLines, OVERLAY_MODULES, WorkspacePlot, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from './WorkspacePlot'
@@ -483,14 +483,19 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
   const parameterHeaders = useRef(new Map<string, HTMLTableCellElement>())
   const tablePosition = useRef({ left: 0, top: 0, restore: false })
   const knownParameters = useRef(new Map(data.parameters.map(parameter => [parameter.key, parameter])))
+  /** Keys of every merged series seen in this session (issue #68), so a removed one is still known as merged. */
+  const knownMerged = useRef(new Set<string>())
   const [parameterNotice, setParameterNotice] = useState('')
   useEffect(() => {
     const replacements = new Map<string, string>()
-    // A computed eGFR column follows a change of the formula; a merged series (issue #68) is derived too but never replaces or is replaced.
-    const computedEgfr = (parameter: WorkspaceParameter | undefined) => !!parameter?.derived && parameter.bezeichnung.endsWith(COMPUTED_BEZEICHNUNG_SUFFIX)
-    const nextDerived = data.parameters.filter(computedEgfr)
+    // A computed column follows a change of the eGFR formula; a merged series
+    // (issue #68) is derived too but never replaces another column or is replaced.
+    for (const merge of seriesMerges(data.analysisSettings)) knownMerged.current.add(JSON.stringify([merge.name, merge.unit]))
+    const computed = (parameter: WorkspaceParameter | undefined) => !!parameter?.derived && !knownMerged.current.has(parameter.key)
+    const nextDerived = data.parameters.filter(parameter => parameter.derived)
+    const nextComputed = data.parameters.filter(computed)
     for (const key of parameterKeys) {
-      if (!data.parameters.some(parameter => parameter.key === key) && computedEgfr(knownParameters.current.get(key)) && nextDerived.length === 1) replacements.set(key, nextDerived[0].key)
+      if (!data.parameters.some(parameter => parameter.key === key) && computed(knownParameters.current.get(key)) && nextComputed.length === 1) replacements.set(key, nextComputed[0].key)
     }
     if (replacements.size) {
       setParameterKeys(previous => [...new Set(previous.map(key => replacements.get(key) ?? key))])
@@ -506,7 +511,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
         return next
       })
       setSettingsScope(previous => replacements.get(previous) ?? previous)
-      setParameterNotice(`The selected eGFR derivation was updated to ${nextDerived[0].label}.`)
+      setParameterNotice(`The selected eGFR derivation was updated to ${nextComputed[0].label}.`)
     } else {
       const added = nextDerived.filter(parameter => !knownParameters.current.has(parameter.key))
       if (added.length) {
@@ -515,7 +520,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
       }
     }
     for (const parameter of data.parameters) knownParameters.current.set(parameter.key, parameter)
-  }, [data.parameters, parameterKeys])
+  }, [data.parameters, data.analysisSettings, parameterKeys])
   const unavailable = parameterKeys.filter(key => !data.parameters.some(parameter => parameter.key === key)).map(key => knownParameters.current.get(key)?.label ?? parameterKeyLabel(key))
   const measurementsBySeries = useMemo(() => {
     const map = new Map<string, LabRow[]>()
