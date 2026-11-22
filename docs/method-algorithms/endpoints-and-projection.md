@@ -438,10 +438,11 @@ the endpoint fit's slope is already negative and lies inside its own interval,
 this means both bounds are strictly below zero. An interval touching or
 straddling zero withholds the crossing. For OLS the
 bounds are the two-sided 95 % Student-t interval `b ± t(0.975, n-2) * SE(b)`
-with `SE(b) = sqrt(SSR / (n-2) / Sxx)`; the t quantile comes from a table for
-1 to 40 degrees of freedom and from a stepwise table above that (the values
-for 40, 50, 60, 80 and 100 degrees of freedom up to 50, 60, 80, 100 and 120,
-then 1.959963985). For Theil-Sen the bounds are the 95 % rank bounds of the
+with `SE(b) = sqrt(SSR / (n-2) / Sxx)`; the t quantile comes from a table of exact
+values for 1 to 40 degrees of freedom and is computed exactly above that
+(since 2026-11-22, OD-11; before, a stepwise table and 1.959963985 above 120
+degrees of freedom; see "95 % confidence interval for the slope" in
+[trend estimators](trend-estimators.md#95--confidence-interval-for-the-slope)). For Theil-Sen the bounds are the 95 % rank bounds of the
 "Theil-Sen" section. These are slope bounds, not prediction intervals. The
 level is not configurable.
 

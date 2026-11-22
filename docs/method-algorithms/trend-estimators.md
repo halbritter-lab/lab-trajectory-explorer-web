@@ -80,25 +80,51 @@ prediction interval for individual measurements. They are shown next to the
 slope, exported as `ci_low` and `ci_high` (and `SE` as `slope_se`), and the
 endpoint-only fit uses the same calculation.
 
-The critical value is read from a table in `tCritical95`, not computed:
+`tCritical95` truncates `df` to a whole number (at least 1) and then
+(OD-11, decided 2026-10-07, implemented 2026-11-22):
 
-| df | Value used | Exact value at the largest df of the row | Largest deviation in the row |
+- **df 1 to 40:** reads the value from a table of the exact quantiles with 9
+  decimals (for example 12.706204736 at df 1, 4.30265273 at df 2,
+  2.02107539 at df 40). Each entry agrees with the exact quantile to within
+  6 × 10⁻¹⁰; the table stays so that these values are unchanged bit for bit.
+- **df above 40:** computes the exact quantile `qt(0.975, df)`. The upper
+  tail `P(T > t) = ½ · I_{df/(df+t²)}(df/2, ½)` is evaluated with the
+  regularized incomplete beta function (continued fraction, Lanczos
+  log-gamma) and inverted by bisection to the resolution of a double
+  (`studentTQuantile` in `src/core/stats/studentT.ts`). Each value is
+  computed once per df and kept. Examples: 2.019541 at df 41, 2.000298 at
+  df 60, 1.979930 at df 120, 1.979764 at df 121, 1.971896 at df 200,
+  1.962339 at df 1000; it approaches the normal value 1.959964 as df grows.
+
+Before 2026-11-22 the value above df 40 came from a step function: the value
+of the lower breakpoint (40, 50, 60, 80, 100) up to the next breakpoint, and
+the normal value 1.959963985 above df 120. The change moves every interval
+with more than 42 fitted points and no interval with fewer:
+
+| df | Value before | Exact value now | Change of the half-width |
 | --- | --- | --- | --- |
-| 1 to 40 | exact value per df (9 decimals) | same | none |
-| 41 to 50 | 2.02107539 (df 40) | 2.008559 (df 50) | +0.62 % |
-| 51 to 60 | 2.008559112 (df 50) | 2.000298 (df 60) | +0.41 % |
-| 61 to 80 | 2.000297822 (df 60) | 1.990063 (df 80) | +0.51 % |
-| 81 to 100 | 1.990063421 (df 80) | 1.983972 (df 100) | +0.31 % |
-| 101 to 120 | 1.983971519 (df 100) | 1.979930 (df 120) | +0.20 % |
-| above 120 | 1.959963985 (normal) | 1.979764 at df 121, the smallest df of the row | −1.00 % at df 121 |
+| 1 to 40 | table | same table | none |
+| 41 | 2.02107539 | 2.019541 | −0.08 % |
+| 50 | 2.02107539 | 2.008559 | −0.62 % (largest narrowing) |
+| 60 | 2.008559112 | 2.000298 | −0.41 % |
+| 80 | 2.000297822 | 1.990063 | −0.51 % |
+| 100 | 1.990063421 | 1.983972 | −0.31 % |
+| 120 | 1.983971519 | 1.979930 | −0.20 % |
+| 121 | 1.959963985 | 1.979764 | +1.01 % (largest widening) |
+| 200 | 1.959963985 | 1.971896 | +0.61 % |
+| 500 | 1.959963985 | 1.964720 | +0.24 % |
 
-Up to 42 points (df 40) the value is exact. From 43 to 122 points the value of
-the lower breakpoint is used, so the interval is slightly wider than the exact
-one, by at most 0.62 %. From 123 points on the normal value is used, so the
-interval is slightly narrower than the exact one: by 1.00 % at df 121, 0.61 %
-at df 200 and 0.24 % at df 500.
+The slope, intercept, R² and `slope_se` do not change; only `ci_low` and
+`ci_high` do, and with them the confidence gate of the projection and the
+interval of a before/after difference (which uses the same function). The
+stored OLS fixtures have at most five points, so none of them moves.
 
-> **Open decision OD-11.** OLS t critical values above 40 degrees of freedom come from a step function that is wider than exact up to df 120 and narrower than exact (normal value) above; this range is not covered by a reference test, because the stored OLS fixtures have at most five points. Behaviour is unchanged pending an owner decision.
+**Example above df 40.** 62 monthly points, `x_i = i / 12` years for
+i = 0 … 61, `y_i = 60 − 2 x_i − 0.5` for even i and `+ 0.5` for odd i. Then
+df = 60, slope = −1.990632, SE = 0.043267 and t = 2.000298, so the
+half-width is 0.086548 and the 95 % CI is [−2.077180, −1.904084]. Before
+2026-11-22 t was 2.008559, the half-width 0.086905 and the CI
+[−2.077538, −1.903727].
 
 ### Worked example
 
@@ -121,8 +147,10 @@ Regression evidence: [OLS tests](../../tests/core/stats/ols.test.ts),
 [OLS fixture tests](../../tests/parity/ols.parity.test.ts),
 [series tests](../../tests/core/stats/series.test.ts) for the two-point case and
 [time tests](../../tests/core/stats/time.test.ts) for the 365.25-day year and the
-origin. No dedicated regression test covers critical values above df 40, the
-flat-series R², or same-date rows in the global fit.
+origin, and [Student-t tests](../../tests/core/stats/studentT.test.ts) for the
+critical values against R's `qt` (df 1 to 1000) and the 62-point example. No
+dedicated regression test covers the flat-series R² or same-date rows in the
+global fit.
 
 
 ## Theil-Sen (2026-09-23)

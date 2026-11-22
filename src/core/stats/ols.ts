@@ -1,4 +1,5 @@
 import type { OlsFit } from '../types'
+import { studentTQuantile } from './studentT'
 
 const NAN = Number.NaN
 
@@ -6,11 +7,12 @@ function nanFit(reason: OlsFit['reason']): OlsFit {
   return { slope: NAN, intercept: NAN, r2: NAN, ciLow: NAN, ciHigh: NAN, reason }
 }
 
+/** Exact critical values above 40 degrees of freedom, computed once per df. */
+const EXACT_ABOVE_40 = new Map<number, number>()
+
 /**
- * Ordinary least-squares slope of `values` against `xYears`.
- * Mirrors analyses/methods.py:_fit_ols_impl: n<3 -> n_below_threshold,
- * zero x-variance -> identical_timestamps, else slope/intercept/r2 with a
- * Student-t 95% CI on the slope.
+ * Two-sided 95 % critical value of Student's t (the 97.5th percentile) for
+ * `df` degrees of freedom, truncated to a whole number and at least 1.
  */
 export function tCritical95(df: number): number {
   const table: Record<number, number> = {
@@ -55,15 +57,26 @@ export function tCritical95(df: number): number {
     39: 2.02269092,
     40: 2.02107539,
   }
-  if (df <= 40) return table[Math.max(1, Math.trunc(df))]
-  if (df <= 50) return 2.02107539
-  if (df <= 60) return 2.008559112
-  if (df <= 80) return 2.000297822
-  if (df <= 100) return 1.990063421
-  if (df <= 120) return 1.983971519
-  return 1.959963985
+  const whole = Math.max(1, Math.trunc(df))
+  if (whole <= 40) return table[whole]
+  // Exact Student-t quantile above 40 degrees of freedom (OD-11, implemented
+  // 2026-11-22); before, a step function between breakpoints and the normal
+  // value above 120 was used. The table above stays so that every value up
+  // to 40 degrees of freedom is unchanged bit for bit.
+  let value = EXACT_ABOVE_40.get(whole)
+  if (value === undefined) {
+    value = studentTQuantile(0.975, whole)
+    EXACT_ABOVE_40.set(whole, value)
+  }
+  return value
 }
 
+/**
+ * Ordinary least-squares slope of `values` against `xYears`.
+ * Mirrors analyses/methods.py:_fit_ols_impl: n<3 -> n_below_threshold,
+ * zero x-variance -> identical_timestamps, else slope/intercept/r2 with a
+ * Student-t 95% CI on the slope.
+ */
 export function fitOls(xYears: number[], values: number[]): OlsFit {
   const n = xYears.length
   if (n < 3) return nanFit('n_below_threshold')

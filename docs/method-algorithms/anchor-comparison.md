@@ -114,8 +114,9 @@ the two OLS standard errors `SE_b` and `SE_a` and the fitted counts `n_b`,
     half-width = t(0.975, ν) · √(SE_b² + SE_a²)
     ν = (SE_b² + SE_a²)² / (SE_b⁴ / (n_b − 2) + SE_a⁴ / (n_a − 2))   (Welch–Satterthwaite)
 
-`ν` is truncated to a whole number and `t` comes from the same table as the
-OLS interval (`tCritical95`). Assumption: the two slope estimates are
+`ν` is truncated to a whole number and `t` comes from the same function as the
+OLS interval (`tCritical95`: a table up to 40 degrees of freedom, the exact
+quantile above, since 2026-11-22). Assumption: the two slope estimates are
 independent. They are fitted on disjoint points, but residuals of one patient
 that are correlated over time, or a shared baseline level, are not modelled,
 so the interval can be too narrow. With both standard errors 0 the interval is

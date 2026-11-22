@@ -501,10 +501,11 @@ removed; every remaining sentence is the earlier wording.
 - **Not compared with the code**, taken from the reference only: that every
   preset resets the rapid-decline threshold to 5 (B3); that centring is done
   per fitted unit, and the extent of the model line (B7).
-- **B2 and OD-11.** The t value is exact up to 42 points. From 43 to 122
-  points a stepped table makes the interval up to 0.62 % wider than exact, and
-  from 123 points the normal value 1.96 makes it up to 1.00 % narrower. The
-  draft says only "Student's t"; OD-11 is scheduled after 0.3.0.
+- **B2 and OD-11.** Since 2026-11-22 the t value is the exact Student-t
+  quantile for every number of points (OD-11 implemented), so the draft's
+  "Student's t" is accurate as it stands. Before, from 43 to 122 points a
+  stepped table made the interval up to 0.62 % wider than exact, and from 123
+  points the normal value 1.96 made it up to 1.00 % narrower.
 - **B7 and OD-22, OD-29.** Automatic numeric or categorical typing and the
   dataset-wide default reference level are not mentioned.
 - **B5.** A bounded creatinine row (`<x`, `>x`) produces a displayed eGFR bound
