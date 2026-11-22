@@ -34,7 +34,7 @@ export interface PatientAttributesResult {
   attributeNames: string[]
 }
 
-import { countDateRead, describeDateProblem, noDateReads, parseImportDate, type DateReadCounts, type ImportDateResult } from '../parse/dates'
+import { countDateRead, describeDateProblem, futureBirthDateWarning, noDateReads, parseImportDate, type DateReadCounts, type ImportDateResult } from '../parse/dates'
 import {
   collectHeaders,
   describeFoundColumns,
@@ -210,7 +210,7 @@ export function readAttributeBirthDate(value: string | undefined): ImportDateRes
 /** Birth-date findings for accepted attribute rows: one warning per unreadable
  * value (the value is kept but ignored for age) and counts for the day-first
  * and Excel-serial notes. */
-export function attributeBirthDateFindings(records: readonly PatientAttributeRecord[]): {
+export function attributeBirthDateFindings(records: readonly PatientAttributeRecord[], today: Date = new Date()): {
   warnings: { patientId: PatientId; reason: string; sourceRow?: number }[]
   dateReads: DateReadCounts
 } {
@@ -223,6 +223,9 @@ export function attributeBirthDateFindings(records: readonly PatientAttributeRec
     if (parsed.kind === 'invalid') {
       warnings.push({ patientId: record.patientId, reason: `${describeDateProblem('Birth date', value, parsed.problem, 'birth')}; it is ignored.`, ...(record.sourceRow === undefined ? {} : { sourceRow: record.sourceRow }) })
     }
+    // A birth date after the import day is reported and kept (2026-11-22).
+    const future = parsed.kind === 'date' ? futureBirthDateWarning(parsed.date, today) : null
+    if (future !== null) warnings.push({ patientId: record.patientId, reason: future, ...(record.sourceRow === undefined ? {} : { sourceRow: record.sourceRow }) })
   }
   return { warnings, dateReads }
 }

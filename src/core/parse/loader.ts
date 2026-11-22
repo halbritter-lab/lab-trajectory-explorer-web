@@ -1,7 +1,7 @@
 import { patientIdKey, sourceRowNumber, type LabRow, type PatientId, type WertOperator } from '../types'
 import type { RawRow } from '../types'
 import { parseWert } from './wert'
-import { countDateRead, dateReadNotes, describeDateProblem, EARLIEST_PLAUSIBLE_MEASUREMENT_DATE, noDateReads, parseImportDate } from './dates'
+import { countDateRead, dateReadNotes, describeDateProblem, EARLIEST_PLAUSIBLE_MEASUREMENT_DATE, futureBirthDateWarning, noDateReads, parseImportDate } from './dates'
 import { planUnitHarmonisation } from './units'
 import { isUnrecognisedSex, normaliseSex } from '../demographics/sex'
 export { REQUIRED_COLUMNS } from './headers'
@@ -263,6 +263,8 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[], options: LabImport
       if (parsedBirth.kind === 'date') {
         birthDate = parsedBirth.date
         if (firstSeen) countDateRead(birthDateReads, parsedBirth)
+        const future = firstSeen ? futureBirthDateWarning(parsedBirth.date, options.today ?? new Date()) : null
+        if (future !== null) birthWarnings.set(key, { patientId, severity: 'warning', reason: future, ...at })
       }
       if (parsedBirth.kind === 'invalid' && firstSeen) {
         birthWarnings.set(key, { patientId, severity: 'warning', reason: `${describeDateProblem('Birth date', rawBirth, parsedBirth.problem, 'birth')}; it is ignored.`, ...at })

@@ -22,6 +22,9 @@ interfaces are still evolving before 1.0.
 - The measurement table of the patient view shows the time beside the date
   where the file gave one, and orders the rows of one day by it when every
   row of that day has one (file order otherwise).
+- Import warns about event dates and event end dates after the import day or
+  before 1927-05-18, and about birth dates after the import day, as it does
+  for lab dates. Warning only; the events and rows are used unchanged.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 

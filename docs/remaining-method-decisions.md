@@ -706,7 +706,8 @@ synthetic examples and the demo data.
   export column changes. Example with import day 2026-11-21: 3024-05-08,
   1923-07-18, 0203-06-05 and 2026-12-15 are reported; a mistyped 2003-08-08
   in a series of 2023 is not. Event dates, event end dates and birth dates
-  are not checked; whether they should be is open.
+  are not checked; whether they should be is open (decided on 2026-11-22:
+  they are, see below).
   Details: [Dates](method-algorithms/import-and-values.md#dates).
 - **Age conflicts keep one level and name the rows** (issue #2). Stated ages
   that fit no single birth date stay a "Conflict" whatever the size of the
@@ -963,6 +964,16 @@ Resolved with a change:
   the file order otherwise, and the fit status moves with its row. Details:
   [Dates](method-algorithms/import-and-values.md#dates) and
   [workbook sheets](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
+- **The date warning also covers event dates, event end dates and future
+  birth dates** (K10). An accepted event whose `date` or `endDate` lies after
+  the import day or before 1927-05-18 gives a warning; a birth date after
+  the import day gives one, from the lab column and from the attributes. A
+  warning only: no event, row or age changes. Details of the implementation:
+  one warning per event row (lab dates: one per patient), naming both dates
+  when both are implausible; rejected event rows are not checked; a birth
+  date is checked against the import day only, without a lower bound, once
+  per patient and value in the lab column and once per attribute row.
+  Details: [Dates](method-algorithms/import-and-values.md#dates).
 
 ## Approved requirements
 

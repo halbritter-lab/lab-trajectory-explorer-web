@@ -500,8 +500,23 @@ with its reason, counts further dates and lists the rows. With import day
 1923-07-18 (before 1927-05-18), 2026-12-15 (after the import day 2026-11-21);
 the rows are used unchanged." A date such as 2003-08-08 in a series of 2023 is
 inside the range and is not reported. The warning is issued at import only: a
-restored dataset is not checked again. Event dates, event end dates and birth
-dates are not checked.
+restored dataset is not checked again.
+
+**Event dates and birth dates (decided 2026-11-22).** The same bounds apply to
+the `date` and the `endDate` of every accepted event, in an events sheet of a
+workbook and in a separately uploaded events file. There is one warning per
+event row, naming the row and each implausible date with its reason; the
+event is used unchanged. With import day 2026-11-21, a dialysis from
+2026-11-01 to 2026-12-15 gets "Implausible end date 2026-12-15 (after the
+import day 2026-11-21); the event is used unchanged.", and an event on
+3024-05-08 "Implausible event date 3024-05-08 (after the import day
+2026-11-21); …". Rejected event rows are not checked again. A **birth date
+after the import day** gives a warning, from the lab column (once per patient
+and value, at the first row with it) and from the `birthDate` attribute (per
+attribute row): "Birth date 2030-02-01 is after the import day 2026-11-21; it
+is used unchanged." A birth date equal to the import day gives none, and no
+lower bound applies to birth dates. Before 2026-11-22, event dates, event end
+dates and birth dates were not checked.
 
 **Time of day and time zone.** A date may be followed by a time: `T` or spaces,
 `h:mm` or `hh:mm`, optional seconds and fraction, and an optional `Z`,

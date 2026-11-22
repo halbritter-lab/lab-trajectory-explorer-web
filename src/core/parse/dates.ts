@@ -40,6 +40,26 @@ const DAY_MS = 86_400_000
  * import warns about lab dates before it, whatever their form (decided
  * 2026-11-21); only serial numbers below it are rejected. */
 export const EARLIEST_PLAUSIBLE_MEASUREMENT_DATE = new Date(Date.UTC(1899, 11, 30) + SERIAL_RANGE.measurement.min * DAY_MS)
+
+/** The local calendar day of `now` as midnight UTC: the import day of the
+ * date plausibility warnings. */
+export const importDayOf = (now: Date): Date => new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()))
+
+/** Why a lab or event date is implausible (decided 2026-11-21 for lab dates,
+ * extended to event dates and end dates on 2026-11-22), or null: "after the
+ * import day YYYY-MM-DD" or "before 1927-05-18". A warning only. */
+export function implausibleMeasurementDate(date: Date, now: Date): string | null {
+  const importDay = importDayOf(now)
+  if (date.getTime() > importDay.getTime()) return `after the import day ${importDay.toISOString().slice(0, 10)}`
+  if (date.getTime() < EARLIEST_PLAUSIBLE_MEASUREMENT_DATE.getTime()) return `before ${EARLIEST_PLAUSIBLE_MEASUREMENT_DATE.toISOString().slice(0, 10)}`
+  return null
+}
+
+/** Warning text for a birth date after the import day (2026-11-22), or null. */
+export function futureBirthDateWarning(date: Date, now: Date): string | null {
+  const importDay = importDayOf(now)
+  return date.getTime() > importDay.getTime() ? `Birth date ${date.toISOString().slice(0, 10)} is after the import day ${importDay.toISOString().slice(0, 10)}; it is used unchanged.` : null
+}
 // Optional time of day, with optional seconds, fraction and zone. Only the
 // written calendar day counts as the date; the written clock time (hours,
 // minutes, seconds, fraction) is kept beside it and the zone is ignored.

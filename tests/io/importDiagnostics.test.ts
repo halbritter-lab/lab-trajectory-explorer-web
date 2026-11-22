@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import * as XLSX from 'xlsx'
 import { loadDatasetFromWorkbook, type ImportDiagnostic } from '../../src/io/loadDataset'
 import { AFFECTED_ROWS_LIMIT } from '../../src/core/parse/loader'
 
@@ -82,6 +83,42 @@ describe('implausible lab dates (decided 2026-11-21)', () => {
     const { diagnostics } = load(['2030', '2031', '2032', '2033', '2034'].map((year) => `A;${year}-01-01;Kreatinin;mg/dl;1,0;w`))
     expect(find(diagnostics, /implausible lab date/)[0].reason).toBe(
       '5 lab rows with an implausible lab date: 2030-01-01 (after the import day 2026-11-21), 2031-01-01 (after the import day 2026-11-21), 2032-01-01 (after the import day 2026-11-21) and 2 more dates; the rows are used unchanged.')
+  })
+})
+
+describe('implausible event dates and future birth dates (decided 2026-11-22)', () => {
+  const workbook = (sheets: Record<string, unknown[][]>) => {
+    const wb = XLSX.utils.book_new()
+    for (const [name, rows] of Object.entries(sheets)) XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(rows), name)
+    return XLSX.write(wb, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer
+  }
+  it('warns about event dates and end dates after the import day or before 1927-05-18 and keeps the events', () => {
+    const { events, diagnostics } = loadDatasetFromWorkbook(workbook({
+      labs: [['patientId', 'labDate', 'testName', 'unit', 'value'], ['A', '2024-01-15', 'Kreatinin', 'mg/dl', 1]],
+      events: [['patientId', 'type', 'date', 'title', 'endDate', 'intent'],
+        ['A', 'other', '3024-05-08', 'Typo', '', ''],
+        ['A', 'dialysis', '2026-11-01', 'HD', '2026-12-15', 'acute'],
+        ['A', 'other', '1923-07-18', 'Old', '', ''],
+        ['A', 'other', '2026-11-21', 'Today', '', ''],
+        ['A', 'other', '1927-05-18', 'Earliest', '', '']],
+    }), { today: TODAY })
+    expect(events).toHaveLength(5)
+    expect(find(diagnostics, /^Implausible/).map((d) => [d.source, d.patientId, d.severity, d.row, d.reason])).toEqual([
+      ['events', 'A', 'warning', 2, 'Implausible event date 3024-05-08 (after the import day 2026-11-21); the event is used unchanged.'],
+      ['events', 'A', 'warning', 3, 'Implausible end date 2026-12-15 (after the import day 2026-11-21); the event is used unchanged.'],
+      ['events', 'A', 'warning', 4, 'Implausible event date 1923-07-18 (before 1927-05-18); the event is used unchanged.'],
+    ])
+  })
+  it('warns about a birth date after the import day, in lab rows once per patient and value, and in attributes', () => {
+    const { rows, diagnostics } = loadDatasetFromWorkbook(workbook({
+      labs: [['patientId', 'labDate', 'testName', 'unit', 'value', 'birthDate'], ['A', '2024-01-15', 'Kreatinin', 'mg/dl', 1, '2030-02-01'], ['A', '2024-02-15', 'Kreatinin', 'mg/dl', 1, '2030-02-01'], ['B', '2024-01-15', 'Kreatinin', 'mg/dl', 1, '2026-11-21']],
+      attributes: [['patientId', 'birthDate'], ['A', '2027-01-01'], ['B', '1960-01-01']],
+    }), { today: TODAY })
+    expect(rows[0].patientBirthDate).toEqual(new Date(Date.UTC(2030, 1, 1)))
+    expect(find(diagnostics, /^Birth date .* after the import day/).map((d) => [d.source, d.patientId, d.row, d.reason])).toEqual([
+      ['labs', 'A', 2, 'Birth date 2030-02-01 is after the import day 2026-11-21; it is used unchanged.'],
+      ['attributes', 'A', 2, 'Birth date 2027-01-01 is after the import day 2026-11-21; it is used unchanged.'],
+    ])
   })
 })
 
