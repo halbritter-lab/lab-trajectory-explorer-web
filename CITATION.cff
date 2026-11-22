@@ -1,0 +1,41 @@
+# DRAFT (issue #80, prepared 2026-11-22). Not a release record.
+#
+# - Authors and their order are the owner's decision (decision `release` of
+#   2026-11-22). The first entry is taken from the `author` field of
+#   package.json and must be confirmed; the second entry is a placeholder.
+#   Add ORCID iDs and affiliations where wanted.
+# - `version` is a placeholder. Set it, and add `date-released`, only when
+#   the release is accepted and published (docs/release-process.md).
+# - A DOI (for example from a Zenodo archive of the GitHub release) can be
+#   added under `identifiers` once it exists.
+cff-version: 1.2.0
+message: >-
+  DRAFT, not yet valid for citation: authors, version and release date are
+  still to be confirmed by the owner. If you use this software, please cite
+  it using the metadata in this file.
+type: software
+title: Lab Trajectory Explorer
+abstract: >-
+  Browser application for research on longitudinal laboratory values, with
+  a focus on kidney function: import of laboratory exports, derived eGFR,
+  per-patient trend estimation, KDIGO creatinine AKI screening, observed and
+  projected kidney endpoints, and cohort mixed models in R (webR). Research
+  use only; not a medical device and not for clinical decision-making.
+authors:
+  - given-names: Jan-Paul
+    family-names: Lerch
+    # TODO (confirm): from package.json `author`; spelling, position,
+    # affiliation and ORCID to be confirmed by the owner.
+  - name: "TODO: further authors and their order (owner's decision)"
+version: 0.4.0-draft
+license: MIT
+repository-code: "https://github.com/halbritter-lab/lab-trajectory-explorer-web"
+url: "https://halbritter-lab.github.io/lab-trajectory-explorer-web/"
+keywords:
+  - laboratory trajectories
+  - eGFR
+  - chronic kidney disease
+  - acute kidney injury
+  - longitudinal data
+  - mixed models
+  - research software

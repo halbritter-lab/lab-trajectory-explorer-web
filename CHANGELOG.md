@@ -5,6 +5,20 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (release preparation and wording drafts, issues #80 and #84, decided 2026-11-22)
+
+- Drafts only; no code, number or Methods page text changed. `CITATION.cff`
+  (authors, order, version and date marked for the owner's confirmation),
+  `docs/release-notes-draft.md` (method changes since v0.3.7 that move
+  numbers, by area, with decision dates), `docs/licence-analysis.md` (the
+  served R runtime and packages: obligations, what is in place, what is
+  missing; not legal advice) and a README section "How to cite".
+- Methodology wording drafts, Part H, for the maintainer's approval: removing
+  the statement on the external OLS comparison (#84) and describing the
+  logarithmic axis with doubling time, creatinine after selected events,
+  the source of the two-level rapid-decline flag and the creatinine source
+  per patient.
+
 ### Changed (OD-11 and OD-21, decided 2026-10-07, implemented 2026-11-22, issue #4)
 
 - **OLS 95 % intervals above 40 degrees of freedom use the exact Student-t

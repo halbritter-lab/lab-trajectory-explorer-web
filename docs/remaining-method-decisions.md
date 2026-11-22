@@ -1864,13 +1864,13 @@ Sources, as cited below (DOI or PMID checked in Crossref or PubMed on
 
 | Artifact id | Issue | Decision |
 | --- | --- | --- |
-| `sources` | #84 | Remove the statement on the external OLS comparison from Methods › Sources until #79 provides inspectable comparisons (wording for the maintainer's approval). |
+| `sources` | #84 | Remove the statement on the external OLS comparison from Methods › Sources until #79 provides inspectable comparisons (wording for the maintainer's approval). *Drafted 2026-11-22* as H1 of the [wording drafts](methodology-wording-drafts.md#h1-remove-the-external-ols-comparison-issue-84), which also covers the same claim in `Fits.tsx`; the page is unchanged until the maintainer approves. |
 | `taxonomy` | #2, #78 | Keep the four pages; Cohort models gains two areas, "Slope models" and "Time to event"; AKI stays on the Data page. |
 | `i18n` | #71 | Build the language switch after the method packages and before the release. |
 | `merge` | #68 | Comparing and merging series is the next package. |
 | `rref` | #79, #34 | Install native R in the container and generate the reference fixtures (lme4, lm, Theil–Sen, `egfr` or `kidney.epi`, `epocakir`, `survival`). |
 | `mcp` | #36 | Rebuild the MCP server on `main` after the release. |
-| `release` | #80 | Claude drafts `CITATION.cff`, the release notes since 0.3.7 and a licence analysis of the shipped R runtime; authors and their order stay the owner's. |
+| `release` | #80 | Claude drafts `CITATION.cff`, the release notes since 0.3.7 and a licence analysis of the shipped R runtime; authors and their order stay the owner's. *Drafted 2026-11-22*: `CITATION.cff` (author entries and version marked to confirm), [release notes draft](release-notes-draft.md), [licence analysis](licence-analysis.md) (not legal advice; open points include the missing nloptr source). Nothing tagged or released. |
 
 Already decided before and therefore not asked again: the two-level rapid
 flag (#72, 2026-11-21), calendar days for the peri-event windows (#69,
