@@ -1366,6 +1366,44 @@ sentence on the event axis in Trajectories → Overlay, and one row for
 Details: [before/after comparison](method-algorithms/anchor-comparison.md#beforeafter-comparison-at-an-anchor-event-2026-11-22)
 and [time axis "Years since event"](method-algorithms/anchor-comparison.md#time-axis-years-since-event-k16-2026-11-22).
 
+## Decisions of 2026-11-22 (logarithmic axis, doubling time and table-chart events, issue #70)
+
+Owner decision of 2026-11-21 on issue #70 (all display extensions chosen),
+implemented on 2026-11-22. **A numeric result for a new option only**: no
+existing slope, interval, flag, endpoint, export column or golden fixture
+moved. With the logarithmic axis off (the default) every number and every
+sheet is as before; with it on the workbook gains the sheet `log_trend` and
+one note at the end of `about`.
+
+- **Logarithmic y axis per column** with the **doubling or halving time**
+  from a slope on log values.
+- **Event lines in the table charts**, events with an end date as a band.
+- **More than three columns**: no limit existed; the default stays three.
+
+Details chosen where the decision left them open (the option that changes
+least), **not yet confirmed by the owner**:
+
+- Natural logarithm for the fit, base 10 for the axis; T = ln 2 / k in years,
+  positive doubling, negative halving; no cut-off for a slope near zero.
+- The fit on log values is the column's own pipeline (mode, estimator,
+  windows, time balancing as medians of the log values); values of zero or
+  less are left out as absent and counted; bounds stay out as in every fit.
+- Interval of T from the slope bounds, [ln 2 / k_high, ln 2 / k_low], only
+  when the bounds exclude zero; the reliability rule applies to the counts of
+  the log fit.
+- The setting is a per-column view choice (`logKeys`), not part of the fit
+  configuration; the export records it through the presence of `log_trend`
+  rows only. The cohort mixed-model line is hidden on a logarithmic axis.
+- Table-chart events follow the existing "Events" switch (off by default),
+  now also offered in the table's Display menu; events outside the fixed time
+  range of a table chart are not drawn.
+
+The methodology page has no text on the logarithmic axis yet; a sentence for
+Fits → Fit pipeline awaits the maintainer.
+
+Details: [logarithmic value axis and doubling time](method-algorithms/log-scale-and-doubling-time.md#logarithmic-value-axis-and-doubling-time-2026-11-22)
+and [clinical events](method-algorithms/clinical-events.md#display-fit-censoring-and-exclusion).
+
 ## Decisions of 2026-11-22 (R served with the app, K43, issue #75)
 
 Owner decision of 2026-11-21 on K43 (option b), implemented on 2026-11-22. No

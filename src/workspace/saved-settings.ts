@@ -38,6 +38,9 @@ export interface TrajectoryView {
   /** "Measurement points" was switched by the user: the switch then decides,
    * also in a dense overlay. Absent while the switch is untouched. */
   pointsChosen?: true
+  /** Parameter keys whose charts use a logarithmic y axis, which also gives
+   * the doubling or halving time (issue #70). Absent while no column has one. */
+  logKeys?: string[]
 }
 
 export function defaultTrajectoryView(): TrajectoryView {
@@ -213,6 +216,16 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
   else out.notRestored.push('warning display')
   if (view.pointsChosen === true) out.trajectoryView.pointsChosen = true
   else if (view.pointsChosen !== undefined) out.notRestored.push('measurement points choice')
+  if (view.logKeys !== undefined) {
+    if (Array.isArray(view.logKeys) && view.logKeys.every(k => typeof k === 'string')) {
+      const kept: string[] = []
+      for (const key of new Set(view.logKeys as string[])) {
+        if (keeps(key)) kept.push(key)
+        else out.notRestored.push(`log axis of ${parameterKeyLabel(key)} (parameter not in this dataset)`)
+      }
+      if (kept.length) out.trajectoryView.logKeys = kept
+    } else out.notRestored.push('log axis choices')
+  }
   return out
 }
 
