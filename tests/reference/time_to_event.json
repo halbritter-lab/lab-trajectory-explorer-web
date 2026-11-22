@@ -1,0 +1,144 @@
+{
+  "about": "Median (survfit quantile, conf.type log-log), log-rank on delayed-entry risk sets (logrank_lt, the function of the app's r_script; survdiff where all entries are 0) and Aalen-Johansen (multi-state survfit) for issue #78. Research use only.",
+  "generatedBy": "scripts/reference/time_to_event.R",
+  "environment": {
+    "R": "4.6.0",
+    "survival": "3.5.8"
+  },
+  "cases": [
+    {
+      "name": "right_censored_two_groups",
+      "input": {
+        "entry": [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        "exit": [1, 3, 4, 6, 7, 9, 2, 2, 5, 8, 10, 11],
+        "status": [1, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 0],
+        "group": ["A", "A", "A", "A", "A", "A", "B", "B", "B", "B", "B", "B"]
+      },
+      "medians": [
+        {
+          "group": "A",
+          "median": 6,
+          "lower": 1,
+          "upper": null
+        },
+        {
+          "group": "B",
+          "median": 7.5,
+          "lower": 2,
+          "upper": null
+        }
+      ],
+      "logRank": {
+        "observed": [4, 4],
+        "expected": [3.2265512265512268, 4.7734487734487736],
+        "chisq": 0.36030698632808433,
+        "df": 1,
+        "p": 0.54833579258259191
+      },
+      "survdiffChisq": 0.36030698632808478
+    },
+    {
+      "name": "delayed_entry_two_groups",
+      "input": {
+        "entry": [0, 2, 3, 1, 5, 0, 1, 4, 2, 6],
+        "exit": [4, 5, 6, 3, 8, 7, 9, 6, 5, 10],
+        "status": [1, 0, 1, 1, 1, 1, 0, 1, 1, 0],
+        "group": ["A", "A", "A", "A", "A", "B", "B", "B", "B", "B"]
+      },
+      "medians": [
+        {
+          "group": "A",
+          "median": 4,
+          "lower": 3,
+          "upper": null
+        },
+        {
+          "group": "B",
+          "median": 6.5,
+          "lower": 5,
+          "upper": null
+        }
+      ],
+      "logRank": {
+        "observed": [4, 3],
+        "expected": [2.7166666666666668, 4.2833333333333332],
+        "chisq": 1.1038912679203126,
+        "df": 1,
+        "p": 0.2934137169011794
+      }
+    },
+    {
+      "name": "median_flat_at_half",
+      "input": {
+        "entry": [0, 0, 0, 0, 0, 0],
+        "exit": [1, 2, 3, 4, 5, 6],
+        "status": [1, 0, 1, 0, 1, 0],
+        "group": ["all", "all", "all", "all", "all", "all"]
+      },
+      "medians": [
+        {
+          "group": "all",
+          "median": 5,
+          "lower": 1,
+          "upper": null
+        }
+      ]
+    },
+    {
+      "name": "median_exactly_half_then_event",
+      "input": {
+        "entry": [0, 0, 0, 0],
+        "exit": [1, 2, 3, 4],
+        "status": [1, 1, 0, 1],
+        "group": ["all", "all", "all", "all"]
+      },
+      "medians": [
+        {
+          "group": "all",
+          "median": 3,
+          "lower": 1,
+          "upper": null
+        }
+      ]
+    },
+    {
+      "name": "median_exactly_half_to_the_end",
+      "input": {
+        "entry": [0, 0, 0, 0],
+        "exit": [1, 2, 3, 4],
+        "status": [1, 1, 0, 0],
+        "group": ["all", "all", "all", "all"]
+      },
+      "medians": [
+        {
+          "group": "all",
+          "median": 3,
+          "lower": 1,
+          "upper": null
+        }
+      ]
+    },
+    {
+      "name": "competing_death",
+      "input": {
+        "entry": [0, 0, 0, 0, 0],
+        "exit": [1, 2, 3, 4, 5],
+        "status": [1, 2, 1, 0, 2],
+        "group": ["all", "all", "all", "all", "all"]
+      },
+      "medians": [
+        {
+          "group": "all",
+          "median": null,
+          "lower": 1,
+          "upper": null
+        }
+      ],
+      "aalenJohansen": {
+        "time": [1, 2, 3, 4, 5],
+        "endpoint": [0.20000000000000001, 0.20000000000000001, 0.40000000000000002, 0.40000000000000002, 0.40000000000000002],
+        "death": [0, 0.20000000000000001, 0.20000000000000001, 0.20000000000000001, 0.60000000000000009]
+      }
+    }
+  ]
+}

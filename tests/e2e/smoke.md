@@ -27,6 +27,24 @@ Branch `wp/series-2611`. Automated in `tests/e2e/series-merge.e2e.ts`.
 Verified 2026-11-22 in Chromium against the production build: steps 1 to 4
 by the browser test; step 5 by unit tests only.
 
+## Time to event and death (2026-11-22, issue #78)
+
+1. Demo → Cohort models → tab "Time to event": the endpoint offers only what
+   the eGFR settings under Trajectories evaluate, plus kidney replacement
+   therapy; the read-only definition and the button to Trajectories show.
+2. Kidney replacement therapy, whole cohort: 25 patients, 4 events, 3 listed
+   under "Patients not in the analysis"; group by genotype: a log-rank line.
+3. Export time to event (XLSX): `time_to_event` first, `r_script` last;
+   Download SVG/PNG of the curve.
+4. An events file with a `death` (or `Tod`) row: the curve choice
+   "Cumulative incidence" appears; a lab value after the death gives the
+   import warning.
+5. Phone width (390 px): no horizontal page scroll.
+
+Verified 2026-11-22 in Chromium against the production build: steps 2, 3
+(XLSX and PNG) and 5 by `tests/e2e/time-to-event.e2e.ts`; step 4 by the unit
+tests only (`tests/workspace/time-to-event.test.tsx`).
+
 ## Kidney replacement therapy in every preset, undated unknown-intent dialysis, slope tier (2026-11-22, issue #4)
 
 Branch `wp/fits-2611`. Partly automated in `tests/e2e/table-screening.e2e.ts`

@@ -2745,6 +2745,82 @@ Draft:
 > export records the window used (`aki_window`) and the number of
 > measurements it removed (`n_aki_excluded`).
 
+## Part TTE: time to event and death (issue #78, 2026-11-22, for approval)
+
+Follows the decisions `km`, `death` and `taxonomy` of 2026-11-22 (see
+[method decisions](remaining-method-decisions.md#decisions-of-2026-11-22-decision-artifact-issues-2-4-6585))
+and the [method reference](method-algorithms/time-to-event.md). Applied to
+the page, because they became false or a new area needed a target for its
+link: *Trajectories* names death among the loadable events; *Endpoints* and
+*Fits & slopes* add "not after a recorded death" to the endpoint input; a
+short factual section *Cohort models › Time to event*
+(`#methods/cohort/time-to-event`) lists what the area computes. The
+paragraphs below are drafts for the maintainer; none is applied.
+
+### TTE1. What the estimate says
+
+Topic *Cohort models*, section *Time to event*, replacing its paragraph.
+
+> Time to event describes how soon the patients of a group reach a confirmed
+> eGFR endpoint: CKD G4 or G5, a 40, 50 or 57 % decline, or kidney
+> replacement therapy, alone or together with it. The endpoint is defined
+> once, in the endpoint settings of the parameter under Trajectories; this
+> area shows that definition and uses the same per-patient results as the
+> Trajectories table. The event is dated at the first crossing of the
+> threshold, not at the confirming value. The Kaplan–Meier curve is the
+> estimated share of patients still free of the endpoint; the median is the
+> time at which it reaches one half, with a 95 % interval, or "not reached".
+> The log-rank test compares the groups without adjustment for other
+> differences between them. These are descriptions of the cohort for
+> research, not a prognosis for a patient.
+
+### TTE2. Age as the time scale
+
+Same section, after TTE1.
+
+> By default time is the patient's age. A patient counts from the age of the
+> first eligible measurement on, not from birth, because nothing before it was
+> observed (delayed entry, or left truncation): counting the years before as
+> event-free would make the endpoint look rarer than it is. Patients who had
+> already reached the endpoint at that first measurement are left out and
+> listed. Time since the first eligible measurement is the alternative; it
+> mixes patients first seen at very different stages of the disease.
+
+### TTE3. Death
+
+Same section, after TTE2, and in *Data & eGFR* where the events sheet is
+described.
+
+> A death can be recorded in the events sheet (type `death`, also `deceased`,
+> `Tod` or `verstorben`). It ends follow-up. In the Kaplan–Meier estimate a
+> patient who died is censored, as if the endpoint could still have occurred
+> later; this overstates the risk of the endpoint when many patients die
+> first. With recorded deaths the page also shows the Aalen–Johansen
+> cumulative incidence, which counts death as a competing event, beside
+> 1 − Kaplan–Meier (Noordzij et al., NDT 2013). Lab values dated after a
+> death are taken as data errors: the import warns, and endpoints leave them
+> out.
+
+### TTE4. Projections conditional on survival (decision `death`)
+
+Topic *Endpoints & projection*, section *Projection algorithm*, after the
+sentence that calls the extrapolation conditional; and topic *Cohort
+models*, section *Model & projections*, after the definition of a
+projection.
+
+> Every projection assumes that the patient lives to the projected age;
+> death before it is not taken into account.
+
+### TTE5. Export
+
+Topic *Export & reproducibility*, a new row after the cohort-model workbook.
+
+> The time-to-event workbook (Cohort models › Time to event) holds one row
+> per patient with entry, exit, status, group and the endpoint definition,
+> then the Kaplan–Meier steps, the medians, the log-rank test, with deaths the
+> Aalen–Johansen estimate, and an R script that reproduces them with the
+> package survival.
+
 ## Part K: Sources after the reference comparisons (issue #79, for approval 2026-11-22)
 
 Drafted on 2026-11-22 with the stored reference cases of decision `rref`

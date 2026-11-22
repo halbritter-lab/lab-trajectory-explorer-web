@@ -46,10 +46,10 @@ inferred from the title or description.
 
 | Field | Tokens | Matching | Empty cell |
 | --- | --- | --- | --- |
-| `type` | `kidney_transplant`, `dialysis`, `other` | Case-insensitive after trimming; stored in lower case. No synonyms: `transplant`, `kidney transplant` and `Dialyse` are rejected. | Row rejected (`missing_required`). |
+| `type` | `kidney_transplant`, `dialysis`, `other`, `death` | Case-insensitive after trimming; stored in lower case. `death` also accepts `deceased`, `Tod` and `verstorben` (stored as `death`; since 2026-11-22, issue #78, a deliberately short list of the English and German words). No other synonyms: `transplant`, `kidney transplant`, `Dialyse`, `died` and `Exitus` are rejected. | Row rejected (`missing_required`). |
 | `intent` | `acute`, `chronic`, `unknown` | Case-insensitive after trimming; stored in lower case (decided 2026-10-07, formerly OD-7): `Chronic` is `chronic`. No synonyms: `permanent` is rejected. | Dialysis: stored as `unknown`. Other types: stored as no intent. |
 
-A non-empty intent on a `kidney_transplant` or `other` event rejects the row,
+A non-empty intent on a `kidney_transplant`, `other` or `death` event rejects the row,
 even when the value is a valid token. A `kidney_transplant` event stores no
 intent. Whether a dialysis event counts as kidney replacement therapy depends
 only on `intent = chronic`; the title is not read.
@@ -75,7 +75,7 @@ Range rules:
 
 - `endDate` earlier than `date` rejects the row. `endDate` equal to `date` is
   accepted and describes a one-day interval.
-- A `kidney_transplant` event with any `endDate` rejects the row.
+- A `kidney_transplant` or `death` event with any `endDate` rejects the row.
 - `dialysis` and `other` events may carry an `endDate`. It is used for acute
   and unknown-intent dialysis only; see below for chronic dialysis.
 
@@ -88,10 +88,10 @@ that names the offending value.
 | Order | Reason | Condition |
 | --- | --- | --- |
 | 1 | `missing_required` | `patientId`, `type`, `date` or `title` is empty. |
-| 2 | `invalid_type` | `type` is not one of the three tokens. |
+| 2 | `invalid_type` | `type` is not one of the four tokens or a death synonym. The message lists them ("Event type "surgery" is not one of kidney_transplant, dialysis, other, death (death also as deceased, tod, verstorben); row not imported."). |
 | 3 | `invalid_date` | `date` or `endDate` is present but not a readable date. |
 | 4 | `invalid_intent` | Dialysis with an intent outside the vocabulary, or any intent on a non-dialysis event. |
-| 5 | `invalid_date_range` | `endDate` before `date`, or a kidney transplant with an `endDate`. |
+| 5 | `invalid_date_range` | `endDate` before `date`, or a kidney transplant or death with an `endDate`. |
 
 The reason `unsupported_legacy_schema` is declared and has a message, but no
 row receives it: the legacy schema stops the whole import as described above.
@@ -105,6 +105,8 @@ An accepted event carries at most one warning, the first that applies:
 | 1 | `unknown_patient` | No lab row has this `patientId`. | The event is kept and listed. It affects no fit and no endpoint, because both are evaluated per patient series. |
 | 2 | `unknown_dialysis_intent` | Dialysis with intent `unknown` or empty. | Display fit: per the unknown-dialysis policy. Endpoints: no effect. |
 | 3 | `unresolved_dialysis_interval` | Acute dialysis without `endDate`. | No interval is excluded anywhere. |
+| 4 | `values_after_death` | Death, and the patient has a lab value (any series) dated after the death day. | Likely a data error. The values stay in tables, charts and fits; endpoint input and the time-to-event analysis leave them out (OD-79). |
+| 5 | `repeated_death` | A death of a patient who has an earlier accepted death (set after the other warnings, only on an event without one). | Kept and listed; only the earliest death is used anywhere. |
 
 Because only one warning is stored, an acute dialysis without end date for a
 patient without labs shows `unknown_patient` only. For analysis, events are
@@ -141,6 +143,7 @@ Each event yields at most one exclusion window:
 | `dialysis`, `unknown`, with `endDate` | `unknownDialysisPolicy = dated-interval-or-from-start` (CKD progression since 2026-11-22) | `date` through `endDate`. | `unknown_dialysis_interval` |
 | `dialysis`, `unknown`, without `endDate` | `unknownDialysisPolicy = dated-interval-or-from-start` | From `date` on, open-ended. | `unknown_dialysis_open` ("after dialysis start of unknown intent without end date") |
 | `other` | - | Nothing; display only. | - |
+| `death` | - | Nothing; display only in fits. The event table shows "display only in fits; ends follow-up for endpoints and time to event". Endpoint input stops after the death day (see the endpoint filter below) and the time-to-event analysis ends follow-up at it. | - |
 | First `kidney_transplant` or `chronic` dialysis of the patient | its option off (the values after it included) | From `date` on, open-ended: the values are fitted as a separate segment instead (see [below](#kidney-replacement-therapy-in-every-preset)). | `krt_segment` ("after kidney replacement therapy, fitted as a separate segment") |
 | A later `kidney_transplant` or `chronic` dialysis, while the first one is included | its option off | From `date` on, open-ended: it ends the separate segment (OD-50). | `post_kidney_transplant` or `post_chronic_dialysis` |
 
@@ -288,6 +291,7 @@ Display-fit censoring and endpoint filtering are separate policies:
 | Acute dialysis without `endDate` | Not removed. | Not removed. |
 | Unknown-intent dialysis | Per policy: not removed, dated interval removed, removed from `date` on, or (CKD progression) the dated interval and, without an end date, everything from `date` on. | Never removed; never kidney failure reached. |
 | AKI windows, time balancing | Applied when configured. | Never applied. |
+| Death | Not removed (display only, OD-79). | Values dated after the earliest death removed (since 2026-11-22). |
 | Bounds (`<x`, `>x`) | Excluded. | Excluded. |
 
 Example: a dialysis with unknown intent from 2020-02-01 to 2020-02-10 under

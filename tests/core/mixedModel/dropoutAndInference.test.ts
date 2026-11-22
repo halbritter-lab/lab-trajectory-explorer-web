@@ -33,13 +33,14 @@ describe('dropout by reason', () => {
     // Everyone's last row is 2022-01-01 (p3: 2021-01-01); the data end at 2024-06-30
     // is more than 365 days later, so all others are lost to follow-up.
     const dropout = mixedModelDropout(data, config, events, end)
-    expect(dropout.deathRecorded).toBe(false)
+    // The event type `death` exists since 2026-11-22 (issue #78): counted, 0 here.
+    expect(dropout.deathRecorded).toBe(true)
     expect(dropout.patients.find(p => p.patientId === 'p1')).toEqual({ patientId: 'p1', levels: { genotype: 'A' }, baselineDate: '2020-01-01', lastModelDate: '2022-01-01', reason: 'krt', eventDate: '2022-06-01', yearsToEnd: 2.4147843943 })
     expect(dropout.patients.find(p => p.patientId === 'p3')).toMatchObject({ reason: 'loss', eventDate: '', yearsToEnd: 1.0020533881 })
     expect(dropout.counts).toEqual([
-      { factor: '', level: 'all', patients: 10, krt: 2, death: null, loss: 8, inFollowUp: 0, krtOrDeathShare: 0.2 },
-      { factor: 'genotype', level: 'A', patients: 5, krt: 2, death: null, loss: 3, inFollowUp: 0, krtOrDeathShare: 0.4 },
-      { factor: 'genotype', level: 'B', patients: 5, krt: 0, death: null, loss: 5, inFollowUp: 0, krtOrDeathShare: 0 },
+      { factor: '', level: 'all', patients: 10, krt: 2, death: 0, loss: 8, inFollowUp: 0, krtOrDeathShare: 0.2 },
+      { factor: 'genotype', level: 'A', patients: 5, krt: 2, death: 0, loss: 3, inFollowUp: 0, krtOrDeathShare: 0.4 },
+      { factor: 'genotype', level: 'B', patients: 5, krt: 0, death: 0, loss: 5, inFollowUp: 0, krtOrDeathShare: 0 },
     ])
     expect(dropout.informative).toBe(true)
     expect(dropout.dataEnd).toBe('2024-06-30')
@@ -75,7 +76,7 @@ describe('R script: lmerTest and the joint-model suggestion', () => {
     const informative = mixedModelDropout(rows(10), config, [event('p1', 'kidney_transplant', '2022-06-01'), event('p2', 'kidney_transplant', '2022-06-01')], new Date('2022-06-01T00:00:00Z'))
     const lines = jointModelSuggestionLines(config, informative, 'cohort')
     expect(lines.every(line => line.startsWith('#'))).toBe(true)
-    expect(lines[0]).toBe('# Dropout: 2 of 10 patients (20.0 %) reached kidney replacement therapy within')
+    expect(lines[0]).toBe('# Dropout: 2 of 10 patients (20.0 %) reached kidney replacement therapy or died within')
     expect(lines).toContain('#   mm_lme <- nlme::lme(value ~ time_since_baseline + factor_0_, random = ~ time_since_baseline | patient_id, data = mm_data, method = "REML")')
     expect(lines).toContain('#   mm_joint <- JMbayes2::jm(mm_cox, mm_lme, time_var = "time_since_baseline", id_var = "patient_id")')
     const notInformative = mixedModelDropout(rows(10), config, [event('p1', 'kidney_transplant', '2022-06-01')], new Date('2022-06-01T00:00:00Z'))
@@ -109,7 +110,7 @@ describe('R script: lmerTest and the joint-model suggestion', () => {
     expect(sheets.map(sheet => sheet.name).slice(-3)).toEqual(['factor_levels', 'dropout', 'dropout_patients'])
     const sheet = (name: string) => sheets.find(item => item.name === name)!.rows as Record<string, unknown>[]
     expect(sheet('factor_levels')[1]).toEqual({ entity: 'Whole cohort', unit_key: 'cohort', factor: 'genotype', column: 'factor_0_', level: 'C', model_level: 'other (pooled)', patients: 2, patients_with_2_or_more_measurements: 2, action: 'pooled' })
-    expect(sheet('dropout')[0]).toEqual({ entity: 'Whole cohort', unit_key: 'cohort', factor: '', level: 'all', patients: 10, krt: 1, death: null, loss: 0, in_follow_up: 9, krt_or_death_share: 0.1, data_end: '2022-06-01' })
+    expect(sheet('dropout')[0]).toEqual({ entity: 'Whole cohort', unit_key: 'cohort', factor: '', level: 'all', patients: 10, krt: 1, death: 0, loss: 0, in_follow_up: 9, krt_or_death_share: 0.1, data_end: '2022-06-01' })
     expect(sheet('dropout_patients')[0]).toEqual({ entity: 'Whole cohort', unit_key: 'cohort', patient_id: 'p1', baseline_date: '2020-01-01', last_model_date: '2022-01-01', reason: 'krt', event_date: '2022-06-01', years_to_end: 2.4147843943, level_genotype: 'A' })
     const models = sheet('models')[0]
     expect(Object.keys(models).slice(-2)).toEqual(['app_version', 'egfr_formula'])

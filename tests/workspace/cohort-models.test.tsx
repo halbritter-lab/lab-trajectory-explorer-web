@@ -680,9 +680,9 @@ describe('CohortModelsWorkspace', () => {
         { patientId: 'P-1', type: 'dialysis', date: new Date(Date.UTC(2022, 5, 1)), title: 'HD', description: null, endDate: null, intent: 'chronic', warning: '' },
       ]
       studio(data)
-      expect(screen.getByRole('note', { name: 'Dropout warning' })).toHaveTextContent('More than 10 % of the patients in the whole cohort reached kidney replacement therapy within follow-up (a rule of this tool).')
+      expect(screen.getByRole('note', { name: 'Dropout warning' })).toHaveTextContent('More than 10 % of the patients in the whole cohort reached kidney replacement therapy or died within follow-up (a rule of this tool).')
       const table = screen.getByRole('table', { name: 'Dropout by reason' })
-      expect(within(table).getAllByRole('row')[1]).toHaveTextContent('Whole cohortAll12201016.7 %')
+      expect(within(table).getAllByRole('row')[1]).toHaveTextContent('Whole cohortAll122001016.7 %')
     })
 
     it('offers log baseline UACR, labelled a possible mediator, only as an added covariate', () => {

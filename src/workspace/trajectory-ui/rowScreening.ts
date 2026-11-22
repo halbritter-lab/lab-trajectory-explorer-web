@@ -39,6 +39,7 @@ const MARK_LABELS: Record<RowMark, string> = {
   'event:kidney_transplant': 'Kidney transplant',
   'event:dialysis': 'Dialysis',
   'event:other': 'Other event',
+  'event:death': 'Death',
 }
 /** Display order: marks of the cells first, then event types. */
 export const ROW_MARKS = Object.keys(MARK_LABELS) as RowMark[]

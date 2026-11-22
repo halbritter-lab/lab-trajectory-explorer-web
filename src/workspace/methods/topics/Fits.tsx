@@ -147,7 +147,7 @@ export function Fits() { return <>
           percent change from the first to latest eligible measurement,
           independent observed G4 (&lt;30) and G5 (&lt;15), and projected age to G5.
           Endpoints use dated exact numeric eGFR measurements before the first kidney transplant
-          or chronic dialysis start and outside complete dated acute dialysis intervals,
+          or chronic dialysis start, not after a recorded death and outside complete dated acute dialysis intervals,
           independently of time balancing. AKI exclusion applies to the decline baseline and the
           G5 projection only; see <a href="#methods/endpoints">Endpoints</a>. Kidney replacement therapy
           is reported separately as kidney failure reached with its type and date, independently

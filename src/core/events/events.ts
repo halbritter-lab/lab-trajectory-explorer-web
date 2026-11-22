@@ -1,16 +1,18 @@
 import { sourceRowNumber, type RawRow } from '../types'
 import type { LabRow, PatientId } from '../types'
 
-export type ClinicalEventType = 'kidney_transplant' | 'dialysis' | 'other'
+export type ClinicalEventType = 'kidney_transplant' | 'dialysis' | 'other' | 'death'
 export type DialysisIntent = 'acute' | 'chronic' | 'unknown'
 export type ClinicalEventWarning =
   | ''
   | 'unknown_patient'
   | 'unknown_dialysis_intent'
   | 'unresolved_dialysis_interval'
-export const CLINICAL_EVENT_TYPES = ['kidney_transplant', 'dialysis', 'other'] as const satisfies readonly ClinicalEventType[]
+  | 'values_after_death'
+  | 'repeated_death'
+export const CLINICAL_EVENT_TYPES = ['kidney_transplant', 'dialysis', 'other', 'death'] as const satisfies readonly ClinicalEventType[]
 export const DIALYSIS_INTENTS = ['acute', 'chronic', 'unknown'] as const satisfies readonly DialysisIntent[]
-export const CLINICAL_EVENT_WARNINGS = ['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval'] as const satisfies readonly ClinicalEventWarning[]
+export const CLINICAL_EVENT_WARNINGS = ['', 'unknown_patient', 'unknown_dialysis_intent', 'unresolved_dialysis_interval', 'values_after_death', 'repeated_death'] as const satisfies readonly ClinicalEventWarning[]
 export type RejectedClinicalEventReason =
   | 'missing_required'
   | 'invalid_type'
@@ -82,6 +84,18 @@ import {
 import { countDateRead, describeDateProblem, noDateReads, parseImportDate, type DateReadCounts } from '../parse/dates'
 
 const clinicalEventTypes = new Set<string>(CLINICAL_EVENT_TYPES)
+/** The type `death` also accepts these words, matched like the type tokens
+ * (trimmed, any case); every other type has no synonym (decided 2026-11-22,
+ * issue #78: a conservative list of the English and German words). */
+export const DEATH_TYPE_SYNONYMS = ['death', 'deceased', 'tod', 'verstorben'] as const
+const deathTypeSynonyms = new Set<string>(DEATH_TYPE_SYNONYMS)
+
+/** The stored type token of an imported type cell, or null when it is none. */
+function normalizeEventType(type: string): ClinicalEventType | null {
+  const lower = type.trim().toLowerCase()
+  if (deathTypeSynonyms.has(lower)) return 'death'
+  return clinicalEventTypes.has(lower) ? lower as ClinicalEventType : null
+}
 const dialysisIntents = new Set<string>(DIALYSIS_INTENTS)
 
 export function normalizeClinicalEvents(rows: RawRow[]): RawClinicalEvent[] {
@@ -149,13 +163,20 @@ export function validateClinicalEvents(
   labRows: LabRow[],
 ): ClinicalEventValidationResult {
   const knownPatientIds = new Set(labRows.map((row) => row.patientId))
+  // The latest lab date per patient, for the warning on values after a death.
+  const lastLabDay = new Map<PatientId, number>()
+  for (const row of labRows) {
+    if (!(row.labDatum instanceof Date) || !Number.isFinite(row.labDatum.getTime())) continue
+    const day = utcDay(row.labDatum)
+    if (day > (lastLabDay.get(row.patientId) ?? Number.NEGATIVE_INFINITY)) lastLabDay.set(row.patientId, day)
+  }
   const valid: ClinicalEvent[] = []
   const rejected: RejectedClinicalEvent[] = []
   const sourceRows = new Map<ClinicalEvent, number>()
 
   for (const event of events) {
     const { patientId, date, endDate } = event
-    const normalizedType = event.type.toLowerCase()
+    const normalizedType = normalizeEventType(event.type)
     if (
       patientId === null ||
       event.type === '' ||
@@ -165,7 +186,7 @@ export function validateClinicalEvents(
       rejected.push({ event, reason: 'missing_required' })
       continue
     }
-    if (!clinicalEventTypes.has(normalizedType)) {
+    if (normalizedType === null) {
       rejected.push({ event, reason: 'invalid_type' })
       continue
     }
@@ -174,7 +195,7 @@ export function validateClinicalEvents(
       continue
     }
 
-    const type = normalizedType as ClinicalEventType
+    const type = normalizedType
     const intent = normalizeIntent(event.intent)
     if (type === 'dialysis') {
       if (!dialysisIntents.has(intent)) {
@@ -190,7 +211,7 @@ export function validateClinicalEvents(
       rejected.push({ event, reason: 'invalid_date_range' })
       continue
     }
-    if (type === 'kidney_transplant' && endDate !== null) {
+    if ((type === 'kidney_transplant' || type === 'death') && endDate !== null) {
       rejected.push({ event, reason: 'invalid_date_range' })
       continue
     }
@@ -209,13 +230,27 @@ export function validateClinicalEvents(
         type,
         intent,
         endDate,
+        type === 'death' && (lastLabDay.get(patientId) ?? Number.NEGATIVE_INFINITY) > utcDay(date),
       ),
     }
     valid.push(accepted)
     if (event.sourceRow !== undefined) sourceRows.set(accepted, event.sourceRow)
   }
 
+  // A second death of one patient keeps the event and says that only the
+  // earliest is used (the first warning, unknown_patient, still wins).
+  const deaths = valid.filter(event => event.type === 'death').sort((a, b) => a.date.getTime() - b.date.getTime())
+  const seenDeath = new Set<PatientId>()
+  for (const event of deaths) {
+    if (seenDeath.has(event.patientId) && event.warning === '') event.warning = 'repeated_death'
+    seenDeath.add(event.patientId)
+  }
+
   return { valid, rejected, sourceRows }
+}
+
+function utcDay(date: Date): number {
+  return Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), date.getUTCDate())
 }
 
 function parsePatientId(value: unknown): PatientId | null {
@@ -253,8 +288,10 @@ function warningForEvent(
   type: ClinicalEventType,
   intent: string,
   endDate: Date | null,
+  valuesAfterDeath = false,
 ): ClinicalEventWarning {
   if (!knownPatientIds.has(patientId)) return 'unknown_patient'
+  if (valuesAfterDeath) return 'values_after_death'
   if (type === 'dialysis' && intent === 'unknown') return 'unknown_dialysis_intent'
   if (type === 'dialysis' && intent === 'acute' && endDate === null) {
     return 'unresolved_dialysis_interval'
@@ -279,7 +316,7 @@ export function describeEventRejection({ event, reason }: RejectedClinicalEvent)
       return `Required ${missing.length === 1 ? 'value' : 'values'} missing (${missing.join(', ')}); row not imported.`
     }
     case 'invalid_type':
-      return `Event type "${event.type}" is not one of ${[...clinicalEventTypes].join(', ')}; row not imported.`
+      return `Event type "${event.type}" is not one of ${[...clinicalEventTypes].join(', ')} (death also as ${DEATH_TYPE_SYNONYMS.filter(word => word !== 'death').join(', ')}); row not imported.`
     case 'invalid_intent':
       return event.type.toLowerCase() === 'dialysis'
         ? `Dialysis intent "${event.intent}" is not one of ${[...dialysisIntents].join(', ')}; row not imported.`
@@ -287,8 +324,10 @@ export function describeEventRejection({ event, reason }: RejectedClinicalEvent)
     case 'invalid_date':
       return `${event.dateIssue ?? 'Event date is not a valid date'}; row not imported.`
     case 'invalid_date_range':
-      return event.type.toLowerCase() === 'kidney_transplant'
+      return normalizeEventType(event.type) === 'kidney_transplant'
         ? `A kidney transplant cannot have an end date (${formatDate(event.endDate!)}); row not imported.`
+        : normalizeEventType(event.type) === 'death'
+        ? `A death cannot have an end date (${formatDate(event.endDate!)}); row not imported.`
         : `End date ${formatDate(event.endDate!)} is before the event date ${formatDate(event.date!)}; row not imported.`
     case 'unsupported_legacy_schema':
       return 'Legacy annotation schema is no longer supported; use patientId, type, date, title.'
@@ -306,5 +345,9 @@ export function describeEventWarning(event: ClinicalEvent): string {
       return 'Dialysis intent is missing or "unknown"; the event is kept with unknown intent.'
     case 'unresolved_dialysis_interval':
       return 'Acute dialysis without an end date; no interval is excluded from fits.'
+    case 'values_after_death':
+      return `Patient ${event.patientId} has lab values dated after this death (${formatDate(event.date)}), which suggests a data error; they are shown, but endpoints and the time-to-event analysis leave them out.`
+    case 'repeated_death':
+      return `Patient ${event.patientId} has an earlier death event; only the earliest is used.`
   }
 }

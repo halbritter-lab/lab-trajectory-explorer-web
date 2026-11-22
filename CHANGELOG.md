@@ -30,6 +30,27 @@ interfaces are still evolving before 1.0.
   "Apply settings from an export" leaves out and names a merge whose series
   are not in the dataset (OD-81).
 
+### Added (time to event and death, issue #78)
+
+- Event type `death` with a date, also written `deceased`, `Tod` or
+  `verstorben` (any case); a death has no end date. The import warns on lab
+  values after a death and on a second death of a patient. Numeric change
+  for data with deaths only: endpoint input leaves out values dated after the
+  death (`endpoint_input_policy` names it for every column), and the dropout
+  report of the cohort models counts death (the `death` column of the sheet
+  `dropout` is 0 instead of empty without deaths).
+- Cohort models has two areas, "Slope models" and "Time to event". Time to
+  event: Kaplan–Meier per group to a confirmed endpoint of the parameter's
+  settings (G4, G5, 40/50/57 % decline) or kidney replacement therapy, alone
+  or as a composite, dated at the first crossing; age with delayed entry at
+  the first eligible measurement (default) or years since it; number at
+  risk, events, censored, median with a Brookmeyer–Crowley log-log interval;
+  log-rank test; with deaths an Aalen–Johansen cumulative incidence beside
+  1 − KM; the list of patients not in the analysis; an XLSX export with one
+  row per patient and an R script; the curve as SVG or PNG. Compared with
+  native R `survival` on stored cases (`tests/reference/survival.json` and
+  the new `time_to_event.json`). Open decisions OD-73 to OD-79.
+
 ### Fixed (code review of the 2026-11-22 merges)
 
 - Export notes and the import warning on bounded values describe the current
