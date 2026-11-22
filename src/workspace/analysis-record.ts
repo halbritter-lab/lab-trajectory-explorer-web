@@ -129,6 +129,8 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   'mixedModelConfig.covariates': { label: 'Model covariates', area: 'Cohort models', exportField: 'model workbook: models.modelConfig', control: MODEL_SETTINGS },
   'mixedModelConfig.randomEffects': { label: 'Random effects', area: 'Cohort models', exportField: 'model workbook: models.modelConfig', control: MODEL_SETTINGS },
   'mixedModelConfig.factors': { label: 'Model factors', area: 'Cohort models', exportField: 'model workbook: models.modelConfig, factors', control: MODEL_SETTINGS },
+  // Decision `genomin` (2026-11-22): small categorical levels pooled into "other (pooled)" or kept.
+  'mixedModelConfig.smallLevelPolicy': { label: 'Small factor levels', area: 'Cohort models', exportField: 'model workbook: models.modelConfig, factor_levels', control: MODEL_SETTINGS },
   presetExclusionPolicy: { label: 'Preset windows in the model', area: 'Cohort models', exportField: 'model workbook: models.preset_exclusion_policy', control: { page: 'Cohort models', target: 'fit-summary' } },
   projectionSettings: { label: 'Projection settings', area: 'Cohort models', exportField: 'model workbook: projections.settings', control: MODEL_SETTINGS },
   showCohortMixedModelLine: { label: 'Model line in the charts', area: 'Cohort models', noNumericEffect: 'Draws the model line in the Trajectories charts.', control: null },
@@ -178,8 +180,9 @@ export function trajectoryViewSample(): Required<TrajectoryView> {
   return { ...defaultTrajectoryView(), pointsChosen: true, logKeys: ['p1'] }
 }
 export function mixedModelConfigSample(): Required<MixedModelConfig> {
-  const factor: Required<MixedModelFactor> = { key: 'genotype', kind: 'categorical', effect: 'level', reference: 'A', kindSource: 'user', referenceSource: 'default' }
-  return { ...DEFAULT_MIXED_MODEL_CONFIG, factors: [factor] }
+  // A key walk, not a valid model: `series` belongs to the UACR covariate only.
+  const factor: Required<MixedModelFactor> = { key: 'genotype', kind: 'categorical', effect: 'level', reference: 'A', kindSource: 'user', referenceSource: 'default', series: { name: 'UACR', unit: 'mg/g' } }
+  return { ...DEFAULT_MIXED_MODEL_CONFIG, factors: [factor], smallLevelPolicy: 'keep' }
 }
 
 /** The leaves of every store field marked 'settings', from full samples. */
@@ -221,7 +224,7 @@ export interface RecordSection {
 const FIT_MODEL_TEXT: Record<string, string> = { ols: 'OLS', 'theil-sen': 'Theil–Sen', 'rolling-ols': 'Rolling OLS', 'segmented-ols': 'Segmented OLS', none: 'None (no fit line)' }
 const TIME_BALANCING_TEXT: Record<string, string> = { raw: 'Raw (unweighted points)', 'monthly-median': 'Monthly median', 'quarterly-median': 'Quarterly median' }
 const DIALYSIS_TEXT: Record<string, string> = { 'flag-only': 'Flag only', 'exclude-dated-interval': 'Exclude dated interval', 'censor-from-start': 'Censor from start' }
-const MODEL_TEXT: Record<string, string> = { time_since_baseline: 'Time since first measurement', age: 'Age', intercept: 'Own starting level', intercept_slope: 'Own starting level and rate', apply: 'Applied', skip: 'Skipped' }
+const MODEL_TEXT: Record<string, string> = { time_since_baseline: 'Time since first measurement', age: 'Age', intercept: 'Own starting level', intercept_slope: 'Own starting level and rate', apply: 'Applied', skip: 'Skipped', pool: 'Pooled into "other (pooled)"', keep: 'Kept as they are' }
 
 /** A setting value as the record shows it. */
 export function settingValueText(path: string, value: unknown): string {
@@ -339,6 +342,7 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
     note: 'Recorded with each fitted model in the model workbook, not in the cohort workbook.',
     entries: [
       ...(['timeAxis', 'randomEffects', 'factors'] as const).map(key => entry(`mixedModelConfig.${key}`, key === 'factors' ? model.factors ?? model.covariates.map(c => ({ key: c, kind: 'numeric', effect: 'level' })) : model[key], key === 'factors' ? [] : DEFAULT_MIXED_MODEL_CONFIG[key])),
+      entry('mixedModelConfig.smallLevelPolicy', model.smallLevelPolicy ?? 'pool', 'pool'),
       entry('presetExclusionPolicy', input.presetExclusionPolicy, 'apply'),
     ],
   }

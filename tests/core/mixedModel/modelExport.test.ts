@@ -121,7 +121,8 @@ describe('R reproduction export', () => {
   })
 
   it('keeps the sheet and column positions of 0.3.7 and appends what is new', () => {
-    expect(sheets.map(sheet => sheet.name)).toEqual(['models','coefficients','factors','centering','excluded_patients','about','vcov','model_rows','model_input_flags','r_script'])
+    // factor_levels, dropout and dropout_patients added on 2026-11-22, after every earlier sheet.
+    expect(sheets.map(sheet => sheet.name)).toEqual(['models','coefficients','factors','centering','excluded_patients','about','vcov','model_rows','model_input_flags','r_script','factor_levels','dropout','dropout_patients'])
     const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name],{header:1})[0]
     expect(header('coefficients')).toEqual(['entity','outcome','unit','term','label','estimate','ci_lower','ci_upper','std_error','unit_key'])
     expect(header('factors').slice(0,1)).toEqual(['entity'])
@@ -134,8 +135,8 @@ describe('R reproduction export', () => {
     expect(models[models.indexOf('tolerance') + 1]).toBe('datasetId')
     const firstRow = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.models)[0]
     expect(firstRow.tolerance).toBeUndefined()
-    // unit_key, then the variance components added on 2026-11-21.
-    expect(header('models').slice(-5)).toEqual(['unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
+    // unit_key, then the variance components added on 2026-11-21, then the versions of 2026-11-22 (#83).
+    expect(header('models').slice(-7)).toEqual(['unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd','app_version','egfr_formula'])
   })
 
   // Persona review 2026-11-21 (K33): the details show two decimals, the export every digit.
@@ -154,7 +155,7 @@ describe('R reproduction export', () => {
     for (const column of ['intercept_sd','slope_sd','intercept_slope_correlation','residual_sd']) expect(column in models[1],column).toBe(false)
     expect(models[2]).toMatchObject({intercept_sd:0.4,residual_sd:0.3})
     expect('slope_sd' in models[2] || 'intercept_slope_correlation' in models[2]).toBe(false)
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.models,{header:1})[0].slice(-6)).toEqual(['message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.models,{header:1})[0].slice(-8)).toEqual(['message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd','app_version','egfr_formula'])
     // Every other sheet is as before.
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.coefficients,{header:1})[0].at(-1)).toBe('unit_key')
   })
@@ -171,7 +172,10 @@ describe('R reproduction export', () => {
     const about = (list: ReturnType<typeof mixedModelExportSheets>) => (list.find(sheet => sheet.name === 'about')!.rows as {note:string}[]).map(row => row.note)
     const notes = about(mixedModelExportSheets([{entity:'G1',result,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'},rows,inputFlags}],'models.xlsx','fixed-id',{appVersion:'9.9.9',exportedAt:new Date('2026-11-21T13:14:15.000Z')}))
     expect(notes).toContain('export_id: fixed-id')
-    expect(notes.slice(-3,-1)).toEqual(['app_version: 9.9.9','exported_at: 2026-11-21T13:14:15.000Z'])
+    const versionAt = notes.indexOf('app_version: 9.9.9')
+    expect(notes.slice(versionAt, versionAt + 2)).toEqual(['app_version: 9.9.9','exported_at: 2026-11-21T13:14:15.000Z'])
+    // The notes of 2026-11-22 follow the provenance rows.
+    expect(notes[versionAt + 3]).toMatch(/^models ends with app_version/)
     expect(notes.indexOf('export_id: fixed-id')).toBe(about(sheets).findIndex(note => note.startsWith('export_id: ')))
     const personal = notes.find(note => note.startsWith('This file contains personal data'))!
     for (const field of ['not pseudonymised','patient_id','model_rows','model_input_flags','excluded_patients','browserUserAgent','r_script','Check these fields before passing the file on']) expect(personal,field).toContain(field)
@@ -197,7 +201,7 @@ describe('R reproduction export', () => {
     ])
     // kind_source and reference_source added on 2026-11-22 (OD-22, OD-29), after unit_key.
     expect(header(mixed,'factors')).toEqual(['entity','key','kind','effect','column','reference','unit_key','kind_source','reference_source'])
-    expect(header(mixed,'models').slice(-7)).toEqual(['singular','message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
+    expect(header(mixed,'models').slice(-9)).toEqual(['singular','message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd','app_version','egfr_formula'])
     expect(XLSX.utils.sheet_to_json(XLSX.read(sheetsToXlsxBytes(mixed),{type:'array'}).Sheets.factors)[0]).toEqual({entity:'Whole cohort',key:'baseline_age',kind:'numeric',effect:'level_slope',column:'baseline_age_centered',unit_key:'cohort',kind_source:'automatic'})
     // A unit without projection targets (fewer columns) before one with a target.
     const base = {status:'success', converged:true, singular:false, metadata:{}, warnings:[], fixedEffects:{intercept:80,timeSinceBaseline:5}, fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as unknown as MixedModelSuccess

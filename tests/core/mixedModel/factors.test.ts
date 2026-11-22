@@ -14,7 +14,8 @@ const lab = (id: number, sex: LabRow['patientSex'] = null): LabRow => ({
   patientId: id, patientSex: sex, patientAgeAtLab: 40, labDatum: new Date('2024-01-01'),
   bezeichnung: 'eGFR', einheit: 'ml/min/1.73m2', wert: '60', wertNum: 60, wertOperator: '=', loinc: null,
 })
-const config: MixedModelConfig = { ...DEFAULT_MIXED_MODEL_CONFIG, factors: [
+// Small levels are kept here: these tests are about values, not the minimum per level.
+const config: MixedModelConfig = { ...DEFAULT_MIXED_MODEL_CONFIG, smallLevelPolicy: 'keep', factors: [
   { key: 'genotype', kind: 'categorical', effect: 'level_slope', reference: 'A' },
   { key: 'baseline_age', kind: 'numeric', effect: 'level_slope' },
 ] }

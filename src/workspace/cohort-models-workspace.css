@@ -598,3 +598,10 @@
 .cohort-model-reading { max-width: 80ch; margin-top: 12px; }
 
 .cm-studio-footer { gap: 8px; }
+/* Decisions of 2026-11-22: reference and dropout warnings, the minimum per level, dropout table. */
+.cm-reference-warning, .cm-dropout-warning { margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.cm-level-minimum { margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.cm-dropout { margin: 8px 0 0; font-size: 13px; }
+.cm-dropout-table-wrap { max-width: 100%; overflow-x: auto; }
+.cm-dropout table { border-collapse: collapse; }
+.cm-dropout th, .cm-dropout td { padding: 2px 8px; text-align: left; white-space: nowrap; }

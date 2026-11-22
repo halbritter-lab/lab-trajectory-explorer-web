@@ -29,6 +29,7 @@ import { createDefaultProjectionSettings } from '../../core/analysis/projection'
 import { ModelProjectionPanel } from './ModelProjectionPanel'
 import { formatWorkspaceNumber } from '../WorkspacePlot'
 import { formatFixedDecimals, MIN_SLOPE_DECIMALS } from '../../core/format'
+import type { MixedModelDropout } from '../../core/mixedModel/dropout'
 
 const FALLBACK_COLOR = '#55686e'
 
@@ -52,6 +53,8 @@ export interface CohortModelTableProps {
   /** Decimals for this parameter's slopes (see slopeDisplayDecimals): the same
    * as its column under Trajectories. */
   slopeDecimals?: number
+  /** Dropout of each unit's patients by reason, keyed by entityKey (export). */
+  dropoutByEntity?: Map<string, MixedModelDropout>
   /** Injectable worker seam (tests); forwarded to the store run action. */
   runJob?: (options: RunMixedModelWorkerJobOptions) => Promise<MixedModelResult>
 }
@@ -90,6 +93,7 @@ export function CohortModelTable({
   definesWindows = true,
   slopeDecimals = MIN_SLOPE_DECIMALS,
   runJob,
+  dropoutByEntity,
 }: CohortModelTableProps) {
   const cohortModelResults = useAppStore((s) => s.cohortModelResults)
   const running = useAppStore((s) => s.cohortModelRunning)
@@ -238,7 +242,7 @@ export function CohortModelTable({
       try { projection = buildProjectionSnapshot(stored.result,stored.identity,sourceResponse,row.rows,applied.settings) }
       catch (error) { projectionError = error instanceof Error ? error.message : 'Projection settings or source fit are invalid.' }
     }
-    return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError, rows: row.rows, inputFlags: row.inputFlags}]
+    return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError, rows: row.rows, inputFlags: row.inputFlags, dropout: dropoutByEntity?.get(row.key)}]
   })
   const hasDirtyEditor = exportable.some((model) => dirtyEditors.has(model.key))
   const initializing = exportable.some((model) => model.result.status === 'success' && model.result.converged && !model.result.singular && !model.projection)
@@ -248,7 +252,7 @@ export function CohortModelTable({
     if (exportable.some((model) => current?.[model.key]?.result !== model.result || !mixedModelIdentityEquals(current?.[model.key]?.identity ?? null, model.identity))) return
     try {
       const fileName = `cohort-models-${fileStamp()}.xlsx`
-      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable, fileName, undefined, { appVersion: APP_VERSION })), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable, fileName, undefined, { appVersion: APP_VERSION, egfrFormula: useAppStore.getState().analysisSettings.egfr.formula })), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       setExportError(null)
     } catch (error) {
       setExportError(`Model export failed: ${error instanceof Error ? error.message : String(error)}`)
@@ -370,7 +374,7 @@ export function CohortModelTable({
               })}
             </tbody>
           </table>
-        <p className="mixed-model-message cohort-model-reading" data-testid="interval-reading"><strong>How to read the intervals:</strong> an estimate with a 95% interval that excludes 0 is unlikely to be explained by chance alone under this model. The intervals are approximate and tend to be too narrow with few patients, and nothing is adjusted for comparing several groups or factors. Report the estimate with its interval; do not report it as a p-value. For tests, the exported R script names the lmerTest package.</p>
+        <p className="mixed-model-message cohort-model-reading" data-testid="interval-reading"><strong>How to read the intervals:</strong> an estimate with a 95% interval that excludes 0 is unlikely to be explained by chance alone under this model. The intervals are approximate and tend to be too narrow with few patients, and nothing is adjusted for comparing several groups or factors. Report the estimate with its interval; do not report it as a p-value. The intervals are Wald intervals (estimate ± 1.96 standard errors); they ignore the uncertainty of the variance components. For tests, the exported R script runs lmerTest where it is installed: an F test per factor with Satterthwaite degrees of freedom, and contrasts that are exploratory and unadjusted.</p>
         </div>
       )}
     </section>

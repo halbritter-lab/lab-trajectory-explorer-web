@@ -1,10 +1,11 @@
 import { EXPORT_DISCLAIMER_ROWS } from '../cohort/screening'
-import { mixedModelFactorColumn, mixedModelFactors, mixedModelFormulaForOutcome, mixedModelOutcomeLabel, type MixedModelConfig } from './config'
+import { LOG_BASELINE_UACR_KEY, mixedModelFactorColumn, mixedModelFactors, mixedModelFormulaForOutcome, mixedModelOutcomeLabel, type MixedModelConfig } from './config'
 import type { MixedModelResultIdentity } from './resultIdentity'
 import { mixedModelIdentityEquals } from './resultIdentity'
 import type { ProjectionSnapshot, ProjectionResponse } from '../projection/projectionSnapshot'
 import type { MixedModelInputFlag, MixedModelResult, MixedModelSpikeRow, MixedModelSuccess } from './types'
 import { mixedModelRScript, mixedModelUnitKey } from './rCode'
+import { INFORMATIVE_DROPOUT_SHARE, LOSS_TO_FOLLOW_UP_DAYS, type MixedModelDropout } from './dropout'
 
 export function mixedModelTermLabel(term: string, config?: MixedModelConfig): string {
   const factors = config ? mixedModelFactors(config) : []
@@ -15,7 +16,7 @@ export function mixedModelTermLabel(term: string, config?: MixedModelConfig): st
   const columns = factors.map((factor,index) => ({factor,column:mixedModelFactorColumn(factor,index)})).sort((a,b) => b.column.length - a.column.length)
   for (const {factor,column} of columns) {
     if (part === column || (factor.kind === 'categorical' && part.startsWith(column))) {
-      const label = factor.key === 'baseline_age' ? 'Baseline age' : factor.key
+      const label = factor.key === 'baseline_age' ? 'Baseline age' : factor.key === LOG_BASELINE_UACR_KEY ? 'Log baseline UACR' : factor.key
       const contrast = factor.kind === 'numeric' ? `${label} (centered)` : `${label}: ${part.slice(column.length)} (reference ${factor.reference})`
       return `${interaction ? 'Slope \u00d7 ' : ''}${contrast}`
     }
@@ -37,13 +38,15 @@ export function mixedModelExportSheets(
     entity: string; result: MixedModelResult; identity: Pick<MixedModelResultIdentity, 'seriesKey' | 'groupValue'>; sourceResponse?: ProjectionResponse; projection?: ProjectionSnapshot
     /** The rows the worker received for this result, and how the series' measurements reached them. */
     rows?: readonly MixedModelSpikeRow[]; inputFlags?: readonly MixedModelInputFlag[]
+    /** Dropout of the unit's patients by reason (decision `dropout`, 2026-11-22). */
+    dropout?: MixedModelDropout
   }[],
   /** Name of the downloaded workbook, so the R script reads the file as saved. */
   workbookName?: string,
   /** Written to `about` and checked by the R script, so the script cannot refit another export unnoticed. */
   exportId: string = crypto.randomUUID(),
   /** Written to `about`: the app version that wrote the file (omitted when not given) and the export time. */
-  provenance: { appVersion?: string; exportedAt?: Date } = {},
+  provenance: { appVersion?: string; exportedAt?: Date; egfrFormula?: string } = {},
 ): { name: string; rows: object[] }[] {
   const settings: object[] = []
   const coefficients: object[] = []
@@ -54,7 +57,10 @@ export function mixedModelExportSheets(
   const modelRows: object[] = []
   const inputFlags: object[] = []
   const projections: object[] = []
-  for (const { entity, result, identity, sourceResponse, projection, rows, inputFlags: flags } of models) {
+  const levelRows: object[] = []
+  const dropoutRows: object[] = []
+  const dropoutPatientRows: object[] = []
+  for (const { entity, result, identity, sourceResponse, projection, rows, inputFlags: flags, dropout } of models) {
     if (projection && (projection.sourceResult !== result || result.status !== 'success' || !result.converged || result.singular || !mixedModelIdentityEquals(projection.sourceIdentity, identity as MixedModelResultIdentity))) {
       throw new Error('Projection snapshot must match the current source result and identity.')
     }
@@ -108,15 +114,33 @@ export function mixedModelExportSheets(
       slope_sd: result.status === 'success' ? result.randomEffects?.slopeSd ?? null : null,
       intercept_slope_correlation: result.status === 'success' ? result.randomEffects?.interceptSlopeCorrelation ?? null : null,
       residual_sd: result.status === 'success' ? result.residualSd ?? null : null,
+      // Issue #83 (2026-11-22): the app version and the dataset's eGFR formula. The R and
+      // package versions of the fit are runtimeVersion and packageVersions above.
+      app_version: provenance.appVersion ?? null,
+      egfr_formula: provenance.egfrFormula ?? null,
     })
     if (config) mixedModelFactors(config).forEach((factor, index) => {
-      const { kindSource, referenceSource, ...rest } = factor
+      const { kindSource, referenceSource, series, ...rest } = factor
       factors.push({ entity, ...rest, column: mixedModelFactorColumn(factor, index), unit_key: unitKey,
         // Whether the type was the automatic one (OD-22) and the reference the
         // default, the first level among this unit's model rows (OD-29).
         kind_source: kindSource ?? 'automatic',
-        reference_source: factor.kind !== 'categorical' ? undefined : referenceSource === 'default' ? 'default_first_level_in_model' : 'user' })
+        reference_source: factor.kind !== 'categorical' ? undefined : referenceSource === 'default' ? 'default_first_level_in_model' : 'user',
+        // The UACR series of the covariate log_baseline_uacr (decision `uacr`, 2026-11-22).
+        ...(series ? { source_series: `${series.name}|${series.unit ?? ''}` } : {}) })
     })
+    for (const level of preparation?.levelPooling ?? []) {
+      levelRows.push({ entity, unit_key: unitKey, factor: level.factor, column: level.column, level: level.level, model_level: level.modelLevel,
+        patients: level.patients, patients_with_2_or_more_measurements: level.patientsWithRepeated, action: level.action })
+    }
+    for (const count of dropout?.counts ?? []) {
+      dropoutRows.push({ entity, unit_key: unitKey, factor: count.factor, level: count.level, patients: count.patients, krt: count.krt, death: count.death,
+        loss: count.loss, in_follow_up: count.inFollowUp, krt_or_death_share: count.krtOrDeathShare, data_end: dropout!.dataEnd })
+    }
+    for (const patient of dropout?.patients ?? []) {
+      dropoutPatientRows.push({ entity, unit_key: unitKey, patient_id: patient.patientId, baseline_date: patient.baselineDate, last_model_date: patient.lastModelDate,
+        reason: patient.reason, event_date: patient.eventDate, years_to_end: patient.yearsToEnd, ...Object.fromEntries(Object.entries(patient.levels).map(([key, level]) => [`level_${key}`, level])) })
+    }
     for (const [column, mean] of Object.entries(preparation?.centers ?? {})) {
       centers.push({ entity, column, patient_weighted_mean: mean, unit_key: unitKey })
     }
@@ -178,17 +202,33 @@ export function mixedModelExportSheets(
       ...(provenance.appVersion === undefined ? [] : [{ note: `app_version: ${provenance.appVersion}` }]),
       { note: `exported_at: ${(provenance.exportedAt ?? new Date()).toISOString()}` },
       { note: 'app_version is the version of Lab Trajectory Explorer that wrote this file; exported_at is the time of the export in UTC. The models were fitted with the R and package versions in models (runtimeVersion, packageVersions).' },
+      // Appended 2026-11-22 (issue #4 and #83), after the rows above.
+      { note: 'models ends with app_version, the version of the app that wrote the file, and egfr_formula, the eGFR formula of the dataset settings at the export (off when no eGFR is computed); it applies to the model only when the outcome is the computed eGFR. The R and package versions of each fit are runtimeVersion and packageVersions.' },
+      { note: `factor_levels lists, per unit, every level of each categorical factor with its patients and the patients with 2 or more model rows. A level needs 5 such patients (a rule of this tool). Below that, a level is pooled into "other (pooled)" (action pooled; model_level is the level it entered the model with), a "not tested" level is removed with its patients (excluded_not_tested), or, with small levels kept, it enters as it is (kept_below_minimum). Attribute values "not tested", "nicht getestet", "n.t." and "NT" (any case) enter as the level "not tested", never merged with another level; a blank cell is missing.` },
+      { note: `dropout counts, per unit and per level of each categorical factor, how follow-up ended: krt (kidney transplant or chronic dialysis start on or after the first model row), death (an event of type death; empty when the app records no such type), loss (neither, and the last model row more than ${LOSS_TO_FOLLOW_UP_DAYS} days before data_end, the latest lab date of the dataset) and in_follow_up. krt_or_death_share is (krt + death) / patients; above ${Math.round(INFORMATIVE_DROPOUT_SHARE * 100)} % for a unit, r_script suggests a joint-model sensitivity analysis. dropout_patients has one row per patient: years_to_end runs from the first model row to the event, or to the last model row without one. Rules of this tool.` },
+      { note: 'Intervals in coefficients are Wald intervals (estimate ± 1.96 standard errors). r_script adds lmerTest with Satterthwaite degrees of freedom where it is installed: an omnibus F test per factor and t tests of the contrasts, which are exploratory and unadjusted.' },
     ] },
     // Sheets added after 0.3.7 follow the earlier ones, so sheet positions stay.
     { name: 'vcov', rows: covariances },
     { name: 'model_rows', rows: modelRows },
     { name: 'model_input_flags', rows: inputFlags },
     { name: 'r_script', rows: mixedModelRScript(models, workbookName, exportId).map((line) => ({ line })) },
+    // Added 2026-11-22 (decisions `genomin` and `dropout`), after every earlier sheet.
+    { name: 'factor_levels', rows: levelRows },
+    { name: 'dropout', rows: dropoutRows },
+    { name: 'dropout_patients', rows: uniformColumns(dropoutPatientRows) },
   ]
 }
 
 /** Columns added to the 0.3.7 sheets, in the order they were added. */
-const COLUMNS_SINCE_0_3_7 = ['std_error', 'unit_key', 'intercept_sd', 'slope_sd', 'intercept_slope_correlation', 'residual_sd', 'kind_source', 'reference_source']
+const COLUMNS_SINCE_0_3_7 = ['std_error', 'unit_key', 'intercept_sd', 'slope_sd', 'intercept_slope_correlation', 'residual_sd', 'kind_source', 'reference_source', 'app_version', 'egfr_formula', 'source_series']
+
+/** Every row with the keys of all rows, in order of first appearance. */
+function uniformColumns(rows: readonly object[]): object[] {
+  const records = rows as readonly Record<string, unknown>[]
+  const keys = [...new Set(records.flatMap((row) => Object.keys(row)))]
+  return records.map((row) => Object.fromEntries(keys.map((key) => [key, row[key]])))
+}
 
 /** Gives every row of a 0.3.7 sheet the same keys in one order: the 0.3.7
  * columns in the order they first appear across the rows, as the workbook
@@ -222,6 +262,7 @@ function coefficientUnit(term: string, outcomeUnit: string, config?: MixedModelC
   const factors = config ? mixedModelFactors(config) : []
   const numericFactor = factors.find((factor, index) => factor.kind === 'numeric' && mixedModelFactorColumn(factor, index) === part)
   if (numericFactor?.key === 'baseline_age') return `${base} per year of baseline age`
+  if (numericFactor?.key === LOG_BASELINE_UACR_KEY) return `${base} per unit of ln(baseline UACR)`
   if (numericFactor) return `${base} per unit of ${numericFactor.key}`
   return base
 }
