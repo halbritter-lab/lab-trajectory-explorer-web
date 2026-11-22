@@ -17,7 +17,7 @@ afterEach(() => vi.restoreAllMocks())
 const lab = (patientId: string, year: number, value: number | null, sex: Sex | null, age: number | null, name = 'Kreatinin', unit = 'mg/dl'): LabRow =>
   ({ patientId, labDatum: new Date(Date.UTC(year, 0, 1)), bezeichnung: name, einheit: unit, wert: String(value), wertNum: value, wertOperator: '=', loinc: null, patientSex: sex, patientAgeAtLab: age })
 
-/** P1 is complete; P2 has no sex; P3 is a child with one value of zero; P4 has creatinine in µmol/l only. */
+/** P1 is complete; P2 has no sex; P3 is a child with one value of zero; P4 has creatinine in µmol/l only (its fallback, issue #65); P5 has no creatinine. */
 function data(formula: 'ckd-epi-2021' | 'off' = 'ckd-epi-2021'): WorkspaceData {
   const rawRows = [
     ...[2020, 2021, 2022].map((year, i) => lab('P1', year, 1 + i / 10, 'm', 50 + i)),
@@ -29,7 +29,7 @@ function data(formula: 'ckd-epi-2021' | 'off' = 'ckd-epi-2021'): WorkspaceData {
   const key = (row: LabRow) => JSON.stringify([row.bezeichnung, row.einheit])
   const rawKeys = new Set(rawRows.map(key))
   const parameters = [...new Map(rows.map(row => [key(row), { key: key(row), label: `${row.bezeichnung} [${row.einheit}]`, bezeichnung: row.bezeichnung!, einheit: row.einheit, derived: !rawKeys.has(key(row)) }])).values()]
-  const patients = ['P1', 'P2', 'P3', 'P4'].map(id => ({ id, label: id, attributes: {}, baselineAge: 50 }))
+  const patients = ['P1', 'P2', 'P3', 'P4', 'P5'].map(id => ({ id, label: id, attributes: {}, baselineAge: 50 }))
   return { rawRows, rows, fileName: 'egfr.csv', parameters, patients, events: [], patientAttributes: {}, analysis: { fitInputs: [] },
     analysisSettings: { egfr: { formula, source: ['Kreatinin', 'mg/dl'] } }, manualDemographics: {} } as unknown as WorkspaceData
 }
@@ -53,10 +53,34 @@ describe('egfrGapReason', () => {
 describe('missingEgfrNotes', () => {
   it('names the reason for every patient without a computed value, and nobody else', () => {
     const notes = missingEgfrNotes(data())
-    expect([...notes.keys()]).toEqual(['P2', 'P3', 'P4'])
+    expect([...notes.keys()]).toEqual(['P2', 'P3', 'P5'])
     expect(notes.get('P2')).toEqual({ label: 'No eGFR: sex missing', text: 'No eGFR for this patient: sex missing (4 creatinine values). Enter the sex under Data → “Review and edit patients”.' })
     expect(notes.get('P3')).toEqual({ label: 'No eGFR: creatinine not positive', text: 'No eGFR for this patient: creatinine not positive (1 creatinine value); age under 18 (2 creatinine values).' })
-    expect(notes.get('P4')!.text).toBe('No eGFR for this patient: no value in the creatinine source Kreatinin [mg/dl]. Values under another name or unit are not used.')
+    expect(notes.get('P5')).toEqual({ label: 'No eGFR: no serum creatinine', text: 'No eGFR for this patient: no serum creatinine value in mg/dl or µmol/l.' })
+  })
+  it('counts the reasons on the µmol/l fallback of a patient without mg/dl (issue #65)', () => {
+    const input = data()
+    const rawRows = input.rawRows.map(row => row.patientId === 'P4' ? { ...row, patientSex: null } : row)
+    input.rawRows = rawRows
+    input.rows = appendComputedEgfr(rawRows, { formula: 'ckd-epi-2021', source: ['Kreatinin', 'mg/dl'] })
+    expect(missingEgfrNotes(input).get('P4')).toEqual({ label: 'No eGFR: sex missing', text: 'No eGFR for this patient: sex missing (1 creatinine value). Enter the sex under Data → “Review and edit patients”. Creatinine source of this patient: Kreatinin [µmol/l], because the patient has no serum creatinine in mg/dl.' })
+  })
+  it('names the cases without a fallback (issue #65, OD-36)', () => {
+    const extra = [
+      lab('P6', 2020, 1, 'm', 50, 'Kreatinin HP', 'mg/dl'), lab('P6', 2020, 90, 'm', 50, 'Kreatinin', 'µmol/l'),
+      lab('P7', 2020, 90, 'm', 50, 'Kreatinin A', 'µmol/l'), lab('P7', 2020, 91, 'm', 50, 'Kreatinin B', 'µmol/l'),
+    ]
+    const input = data()
+    input.rawRows = [...input.rawRows, ...extra]
+    input.rows = appendComputedEgfr(input.rawRows, { formula: 'ckd-epi-2021', source: ['Kreatinin', 'mg/dl'] })
+    input.patients = [...input.patients, ...['P6', 'P7'].map(id => ({ ...input.patients[0], id, label: id }))]
+    const notes = missingEgfrNotes(input)
+    expect(notes.get('P6')).toEqual({ label: 'No eGFR: creatinine under another name', text: 'No eGFR for this patient: no value in the creatinine source Kreatinin [mg/dl]. Serum creatinine in mg/dl under another name (Kreatinin HP [mg/dl]) is not used, and µmol/l values are used only for patients without any serum creatinine in mg/dl.' })
+    expect(notes.get('P7')).toEqual({ label: 'No eGFR: several µmol/l series', text: 'No eGFR for this patient: no serum creatinine in mg/dl and several series in µmol/l (Kreatinin A [µmol/l], Kreatinin B [µmol/l]), none under the name of the creatinine source Kreatinin [mg/dl]. Series are not merged, so none is used.' })
+    // A source in µmol/l has no fallback: P1 keeps its mg/dl values unused.
+    input.analysisSettings = { egfr: { formula: 'ckd-epi-2021', source: ['Kreatinin', 'µmol/l'] } } as WorkspaceData['analysisSettings']
+    input.rows = appendComputedEgfr(input.rawRows, { formula: 'ckd-epi-2021', source: ['Kreatinin', 'µmol/l'] })
+    expect(missingEgfrNotes(input).get('P1')).toEqual({ label: 'No eGFR: no creatinine in the source', text: 'No eGFR for this patient: no value in the creatinine source Kreatinin [µmol/l]. Kreatinin [mg/dl] is not used: only a source in mg/dl falls back to a patient\'s µmol/l series.' })
   })
   it('names both demographics when sex and age are missing on different rows', () => {
     const input = data()
@@ -99,9 +123,10 @@ describe('the empty cell of the computed eGFR names the reason (K06)', () => {
     fireEvent.focus(hint)
     expect(screen.getByRole('tooltip')).toHaveTextContent('No eGFR for this patient: sex missing (4 creatinine values). Enter the sex under Data → “Review and edit patients”.')
     fireEvent.blur(hint)
-    expect(within(cell('P4', EGFR)).getByRole('button', { name: 'No eGFR: no creatinine in the source' })).toBeInTheDocument()
-    // P1 has values; P4's empty creatinine cell in mg/dl is an imported parameter and keeps the general text.
+    expect(within(cell('P5', EGFR)).getByRole('button', { name: 'No eGFR: no serum creatinine' })).toBeInTheDocument()
+    // P1 and P4 (µmol/l fallback) have values; P4's empty creatinine cell in mg/dl is an imported parameter and keeps the general text.
     expect(within(cell('P1', EGFR)).queryByRole('button', { name: /^No eGFR/ })).not.toBeInTheDocument()
+    expect(within(cell('P4', EGFR)).queryByRole('button', { name: /^No eGFR/ })).not.toBeInTheDocument()
     expect(within(cell('P4', 'Kreatinin [mg/dl]')).getByRole('button', { name: 'No numeric measurements' })).toBeInTheDocument()
   })
 

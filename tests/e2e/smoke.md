@@ -314,8 +314,12 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
 4. Apply CKD-EPI 2021 on the Data page. Under Trajectories the computed eGFR
    cell of patient 5 reads "No eGFR: sex and age missing" (hint: sex missing
    and age missing with four creatinine values each, "Enter the sex and the
-   age under Data → “Review and edit patients”"), that of patient 10 "No
-   eGFR: no creatinine in the source".
+   age under Data → “Review and edit patients”"); patient 10 (creatinine in
+   µmol/l only) has computed values from its µmol/l series (issue #65), and
+   the Data page reads "Patients without serum creatinine in mg/dl use their
+   µmol/l series: Kreatinin (µmol/l) for 1 patient." In the cohort export,
+   `demographics` names `Kreatinin`/`µmol/l` in `egfr_source_parameter` and
+   `egfr_source_unit` for patient 10 and `Kreatinin`/`mg/dl` for patient 2.
 5. A dataset of several hundred patients with a grouping attribute: the page
    controls stand above and below the table; *Next* below the table shows the
    top of the next page with the focus on the table region; "Per page" offers

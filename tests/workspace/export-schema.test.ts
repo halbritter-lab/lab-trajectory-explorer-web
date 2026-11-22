@@ -44,7 +44,7 @@ describe('cohort workbook schema', () => {
     expect(header(workbook, 'events')).toEqual(['PatientID', 'type', 'date', 'title', 'description', 'endDate', 'intent', 'warning'])
     expect(header(workbook, 'aki_episodes')).toEqual(['PatientID', 'creatinine_parameter', 'creatinine_unit', 'stage', 'onset_date', 'peak_date', 'peak_value_mg_dl', 'baseline_date', 'baseline_value_mg_dl', 'criterion', 'end_date', 'dialysis_start', 'ended_by_gap', 'last_value_date'])
     expect(header(workbook, 'patient_attributes')).toEqual(['PatientID', 'group'])
-    expect(header(workbook, 'demographics')).toEqual(['PatientID', 'baseline_age', 'birth_anchor', 'age_estimated', 'manual_override', 'warnings'])
+    expect(header(workbook, 'demographics')).toEqual(['PatientID', 'baseline_age', 'birth_anchor', 'age_estimated', 'manual_override', 'warnings', 'egfr_source_parameter', 'egfr_source_unit'])
     expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
     expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison'])
     expect(header(workbook, 'about')).toEqual(['note'])

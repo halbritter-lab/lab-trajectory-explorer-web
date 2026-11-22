@@ -29,7 +29,24 @@ it('names the serum creatinine series the selected eGFR source leaves out, and c
   expect(screen.getByText(/1 value recorded as a bound \(< or >\)/)).toBeInTheDocument()
   expect(screen.queryByText(/Not used for this eGFR/)).not.toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
-  expect(screen.getByText('Not used for this eGFR: Kreatinin i.S. (mg/dl), 1 value; Kreatinin (µmol/l), 1 value. Only the selected source is read; serum creatinine under another name or unit is not merged with it.')).toBeInTheDocument()
+  expect(screen.getByText('Not used for this eGFR: Kreatinin i.S. (mg/dl), 1 value; Kreatinin (µmol/l), 1 value. Each patient\'s eGFR reads one series: the selected source, or, for a patient without serum creatinine in mg/dl, that patient\'s µmol/l series. Series are not merged.')).toBeInTheDocument()
+  expect(screen.queryByText(/use their µmol\/l series/)).not.toBeInTheDocument()
+})
+// Issue #65: a patient without serum creatinine in mg/dl falls back to their µmol/l series.
+it('names the µmol/l fallback per patient and the patients it cannot serve', () => {
+  const base = { ...row, patientSex: 'm' as const, patientAgeAtLab: 50 }
+  useAppStore.getState().replaceDataset({ rows: [base,
+    { ...base, patientId: 2, einheit: 'µmol/l', wert: '88', wertNum: 88 },
+    { ...base, patientId: 3, bezeichnung: 'Kreatinin HP' }, { ...base, patientId: 3, einheit: 'µmol/l', wert: '90', wertNum: 90 },
+    { ...base, patientId: 4, bezeichnung: 'Kreatinin A', einheit: 'µmol/l', wert: '90', wertNum: 90 }, { ...base, patientId: 4, bezeichnung: 'Kreatinin B', einheit: 'µmol/l', wert: '90', wertNum: 90 }] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  fireEvent.change(screen.getByLabelText('Creatinine source'), { target: { value: JSON.stringify(['Kreatinin', 'mg/dl']) } })
+  expect(screen.getByText('Patients without serum creatinine in mg/dl use their µmol/l series: Kreatinin (µmol/l) for 1 patient.')).toBeInTheDocument()
+  expect(screen.getByText('2 computed values in preview')).toBeInTheDocument()
+  expect(screen.getByText(/^Not used for this eGFR: Kreatinin HP \(mg\/dl\), 1 value; Kreatinin \(µmol\/l\), 1 value; Kreatinin A \(µmol\/l\), 1 value; Kreatinin B \(µmol\/l\), 1 value\./)).toBeInTheDocument()
+  expect(screen.getByText('1 patient without the selected source has serum creatinine in mg/dl under another name only: no eGFR, and no µmol/l fallback.')).toBeInTheDocument()
+  expect(screen.getByText('1 patient without serum creatinine in mg/dl has several µmol/l series, none under the name of the selected source: no eGFR.')).toBeInTheDocument()
 })
 // Review of the combined branch, 2026-11-22: typing used to apply every keystroke, an emptied field as 0 hours.
 it('applies the recovery length on leaving the field or Enter, as whole days up to 90 days', () => {
