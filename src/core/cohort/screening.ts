@@ -17,6 +17,7 @@ import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 import { CENSORED_VALUE_REASON, isExactMeasurement } from '../measurements/censored'
 import { filterEndpointPointsForEvents } from '../domains/nephrology/endpoints/endpointEventPolicy'
+import { doublingTime, expLines, logTransformedRows, type LogTrend } from './logTrend'
 import { compareAtAnchor, type AnchorComparison, type AnchorComparisonSettings } from './anchorComparison'
 
 
@@ -44,6 +45,10 @@ export interface CohortSeriesSpec {
   /** Before/after comparison at an anchor event (issue #64); none when omitted.
    * Not part of the fit configuration: it changes no number of the column. */
   anchorComparison?: AnchorComparisonSettings
+  /** Also fit the series on ln(value) for the column's logarithmic y axis
+   * (issue #70); none when omitted. An additional result: it changes no number
+   * of the column. */
+  logTrend?: boolean
 }
 
 export interface CohortCell {
@@ -105,6 +110,9 @@ export interface CohortCell {
    * event and the slopes on either side. An additional result; `slope`,
    * flags and endpoints stay those of the whole series. */
   anchorComparison?: AnchorComparison
+  /** Present when the spec asks for the log axis: the trend of ln(value) and
+   * the doubling or halving time derived from it. */
+  logTrend?: LogTrend
 }
 
 export interface RollingSummary {
@@ -194,7 +202,8 @@ export function buildCohortRows(
       const fitEventDates = spec.eventDatesByPatient?.[pid] ?? spec.eventDates ?? windows.censoring.map((window) => window.start)
       const displayName = (name: string | null) => name ?? '(unnamed)'
       const displayUnit = (unit: string | null) => unit ?? '(no unit)'
-      const summaries = summarizeByBezeichnung(prows, pid, spec.mode, {
+      // The same fit run for the column and, on log values, for its log axis.
+      const summarize = (patientRows: LabRow[]) => summarizeByBezeichnung(patientRows, pid, spec.mode, {
         gapDays: spec.gapDays,
         windowDays: spec.windowDays,
         stepDays: spec.stepDays,
@@ -207,8 +216,8 @@ export function buildCohortRows(
           displayName(series.bezeichnung) === spec.bezeichnung && displayUnit(series.einheit) === displayUnit(spec.einheit ?? null)
             ? windows
             : undefined,
-      })
-      const match = summaries.find((s) => s.bezeichnung === spec.bezeichnung && s.einheit === (spec.einheit ?? '(no unit)'))
+      }).find((s) => s.bezeichnung === spec.bezeichnung && s.einheit === (spec.einheit ?? '(no unit)'))
+      const match = summarize(prows)
       const allWindows = [...windows.censoring, ...windows.exclusions]
       const excluded = new Set(applyExclusionWindows(points, allWindows).excludedIdx)
       const excludedIdx = points.flatMap((_, i) => excluded.has(i) || !isExactMeasurement(seriesRows[i]) ? [i] : [])
@@ -219,10 +228,10 @@ export function buildCohortRows(
       const eligible = eventEligiblePoints(cellEvents(spec, pid), seriesRows)
       const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel, windows.exclusions, eligible))
       const exactPoints = points.filter((_, i) => isExactMeasurement(seriesRows[i]))
-      const fitLines = exactPoints.length < 2
+      const slopeLines = (linePoints: SeriesPoint[]) => linePoints.length < 2
         ? []
         : buildSlopeLines(
-            exactPoints,
+            linePoints,
             {
               mode: spec.mode,
               gapDays: spec.gapDays ?? 180,
@@ -235,6 +244,9 @@ export function buildCohortRows(
               exclusionWindows: windows,
             },
           )
+      const fitLines = slopeLines(exactPoints)
+      // Log axis of the column (issue #70): the same fit on ln(value), an additional result.
+      const logTrend = spec.logTrend ? logTrendFor(prows, seriesRows, summarize, slopeLines) : undefined
       const eligibleRows = eligible.map(point => point.row)
       // The same points the column's fit can use: exact and outside every window.
       const anchorComparison = spec.anchorComparison
@@ -278,6 +290,7 @@ export function buildCohortRows(
         pointExclusionReasons,
         endpoints,
         ...(anchorComparison ? { anchorComparison } : {}),
+        ...(logTrend ? { logTrend } : {}),
       }
     })
     const groupValue = attributeName
@@ -288,6 +301,41 @@ export function buildCohortRows(
 }
 
 const MS_PER_YEAR = 365.25 * 86_400_000
+
+/** The column's fit run again on ln(value) of its series: same mode, estimator,
+ * windows and time balancing. Values of zero or less are left out. */
+function logTrendFor(
+  patientRows: LabRow[],
+  seriesRows: LabRow[],
+  summarize: (rows: LabRow[]) => SeriesSummary | undefined,
+  slopeLines: (points: SeriesPoint[]) => LinePoint[][],
+): LogTrend {
+  const series = new Set(seriesRows)
+  const { rows, nNonPositive } = logTransformedRows(patientRows, (row) => series.has(row))
+  const match = summarize(rows)
+  const logPoints = seriesRows.filter((row) => isExactMeasurement(row) && row.wertNum! > 0).map((row) => ({ date: row.labDatum!, value: Math.log(row.wertNum!) }))
+  const slope = match?.slope ?? Number.NaN
+  const ciLow = match?.ciLow ?? Number.NaN
+  const ciHigh = match?.ciHigh ?? Number.NaN
+  const doubling = doublingTime(slope, ciLow, ciHigh)
+  return {
+    slope, ciLow, ciHigh,
+    slopeSe: match?.slopeSe ?? Number.NaN,
+    r2: match?.r2 ?? Number.NaN,
+    intercept: match?.intercept ?? Number.NaN,
+    nFitted: match?.nFitted ?? match?.nNumeric ?? 0,
+    nFittedDates: match?.nFittedDates ?? 0,
+    fittedSpanDays: match?.fittedSpanDays ?? 0,
+    firstFittedDate: match?.firstFittedDate ?? null,
+    lastFittedDate: match?.lastFittedDate ?? null,
+    reason: match ? match.reason : 'no_numeric_values',
+    nNonPositive,
+    doublingTimeYears: doubling.years,
+    doublingCiLow: doubling.ciLow,
+    doublingCiHigh: doubling.ciHigh,
+    fitLines: expLines(slopeLines(logPoints)),
+  }
+}
 
 /** Rows carrying an age, oldest first; computed once per series for ageAtDate. */
 function ageAnchorsFor(rows: LabRow[]): LabRow[] {

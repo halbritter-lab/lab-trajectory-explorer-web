@@ -77,14 +77,17 @@ export function workspaceModelSpec(data: WorkspaceData, parameterKey: string, se
 }
 
 /** `anchorComparisonByParameterKey`: the before/after setting of each column
- * that has one switched on (see WorkspaceFitSettings.anchorComparison). */
-export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>, anchorComparisonByParameterKey?: Record<string, AnchorComparisonSettings | undefined>): CohortSeriesSpec[] {
+ * that has one switched on (see WorkspaceFitSettings.anchorComparison).
+ * `logTrendKeys`: the columns shown on a logarithmic y axis, which also get
+ * the trend of ln(value) and the doubling time (issue #70). */
+export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>, anchorComparisonByParameterKey?: Record<string, AnchorComparisonSettings | undefined>, logTrendKeys?: readonly string[]): CohortSeriesSpec[] {
   const parameters = new Map(data.parameters.map(p => [p.key, p]))
   const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), exactBirthDateByPatient: exactBirthDateByPatient(data.patients), fitInputs: data.analysis?.fitInputs ?? Object.create(null), analysisSettings: data.analysisSettings }
   return parameterKeys.flatMap(key => {
     const parameter = parameters.get(key)
     const anchorComparison = anchorComparisonByParameterKey?.[key]
-    return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], anchorComparison ? { ...context, anchorComparison } : context)] : []
+    const logTrend = logTrendKeys?.includes(key) ?? false
+    return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], { ...context, ...(anchorComparison ? { anchorComparison } : {}), ...(logTrend ? { logTrend } : {}) })] : []
   })
 }
 
