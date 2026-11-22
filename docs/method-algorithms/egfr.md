@@ -179,7 +179,7 @@ import stores at most one unit spelling per test name, a patient has at most
 one µmol/l pair under the selected name. An explicitly selected pair that is
 not an eligible serum-creatinine source produces no eGFR rows for anyone.
 
-Open decision OD-36: the decision names the mg/dl series of a patient first
+OD-36, confirmed by the owner on 2026-11-22: the decision names the mg/dl series of a patient first
 and the µmol/l series otherwise; it does not say what happens when the
 patient's mg/dl series is not the selected one, when the patient has several
 µmol/l series, or when the selected pair is itself in µmol/l. The

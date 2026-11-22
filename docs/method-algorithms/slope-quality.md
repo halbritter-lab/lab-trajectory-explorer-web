@@ -169,7 +169,7 @@ are not Theil–Sen bounds on fewer than five distinct fitted dates
 (`hasSlopeInterval`, the same rule that labels those bounds "Slope range",
 decided 2026-11-16). Without one the level is "possible": the conservative
 reading, chosen during implementation because the decision of 2026-11-21
-does not cover the case. **Open decision OD-37.** Under the reliability gate
+does not cover the case. OD-37, confirmed by the owner on 2026-11-22. Under the reliability gate
 this concerns in practice a Theil–Sen fit on three or four fitted dates; an
 OLS fit from three or more dates always has finite bounds.
 

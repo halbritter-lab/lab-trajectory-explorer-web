@@ -1792,6 +1792,119 @@ analysis.
 
 Details: [peri-event creatinine](method-algorithms/aki.md#peri-event-creatinine-2026-11-22).
 
+## Decisions of 2026-11-22 (decision artifact, issues #2, #4, #65–#85)
+
+Owner decisions of 2026-11-22, taken in the decision artifact "Lab Trajectory
+Explorer – Offene Entscheidungen" (claude.ai artifact EKyV7DAF43QeJvxDCKiEsL,
+collection `answers`). The owner chose 18 answers himself and then accepted
+the recommended option for the remaining 23 ("Empfehlung angenommen"); two
+accepted answers were adjusted the same day after a full-text check of the
+KDIGO guidelines (marked *adjusted*). Each entry names the question id in the
+artifact, the issue and the source the recommendation rests on. Entries
+marked *to implement* change no code yet; each needs its own method-reference
+section, changelog line and fixture update when it is built.
+
+Sources, as cited below (DOI or PMID checked in Crossref or PubMed on
+2026-11-22; KDIGO texts read in full, printed page numbers):
+
+- **KDIGO 2024**: KDIGO 2024 Clinical Practice Guideline for the Evaluation
+  and Management of CKD. Kidney Int 2024;105(4S):S117–S314,
+  doi:10.1016/j.kint.2023.10.018.
+- **KDIGO 2012 CKD**: Kidney Int Suppl 2013;3:1–150.
+- **KDIGO 2012 AKI**: Kidney Int Suppl 2012;2:1–138.
+- **Levin 2020**: Levin A et al., Kidney Int 2020;98:849–859,
+  doi:10.1016/j.kint.2020.07.013, PMID 32998816 (abstract only; the full
+  text was not reachable).
+
+### Confirmations of choices made during implementation
+
+| Artifact id | Issue | Decision | Basis |
+| --- | --- | --- | --- |
+| `od36` | #65, OD-36 | Keep: no µmol/l fallback when mg/dl creatinine exists under another name, when several µmol/l series exist without one under the selected name, or when the selected source is in µmol/l; the patients stay counted and named. OD-36 resolved. | Owner; his note of 2026-11-21 that merging series from different laboratories is risky |
+| `od37` | #72, OD-37 | A slope below the threshold without a 95 % interval is "rapid ↓?". OD-37 resolved. | Owner |
+| `od21` | #4, OD-21 | The `tolerance` column stays, empty, at its 0.3.7 position. | Owner; release review of 2026-11-15 (column positions) |
+| `od29` | #4, OD-29 | Default reference per fitted unit stays; **to implement**: a visible warning when the whole cohort and a group use different default references. | Owner |
+| `cmpersist` | #4, OD-22 | Cohort-model settings stay session-only. | Owner |
+| `log` | #70 | The details of the log axis are confirmed: medians of log values under time balancing, values ≤ 0 left out and counted, no cut-off near zero, table-chart events follow the off-by-default "Events" switch, "Trend" text hidden on phones. | Owner |
+| `peri` | #69 | The peri-event details are confirmed: no look-back limit for the baseline (its distance is exported), lowest value of an unordered baseline day, largest usable serum series per patient, a dialysis start in the window is named but does not meet the criterion. | Owner |
+| `versions` | #83 | **To implement**: app, formula and R package versions also in the cohort workbook, as new last columns. | Owner |
+| `applyscope` | #83 | Grouping, patient selection and manual demographics from an export are named, not applied. | Owner |
+
+### Method and clinical decisions
+
+| Artifact id | Issue | Decision (**to implement** unless stated) | Basis |
+| --- | --- | --- | --- |
+| `proj` | #81 | The individual endpoint projection is off by default and can be switched on per parameter; it is worded "conditional extrapolation of the fitted trend, not a prognosis". | KDIGO 2024 Rec 2.2.1 (1A), S156, S199: an externally validated risk equation for the absolute risk of kidney failure in CKD G3–G5; no statement endorses extrapolating an individual slope; S200: eGFR slopes did not improve the KFRE. Janmaat CJ et al., NDT 2019;34:561, doi:10.1093/ndt/gfy128 (non-linear trajectories). |
+| `minfu` | #4 | *Adjusted.* The reliability rule (3 fitted dates, 365 days) stays as "estimable"; a new tier "reliable" needs ≥ 2 years and ≥ 4 fitted dates; the optional projection needs ≥ 4 measurements over ≥ 3 years. | KDIGO 2012 CKD, rationale to Rec 2.1.3, p. 66: extrapolating the previous rate of change "required substantial information (≥4 measurements over ≥3 years in most cases)". Grams ME et al., JASN 2019;30:1746, PMID 31292199 (3-year slopes associated most strongly with ESKD). |
+| `kfre` | #4 | KFRE is named as the validated alternative, not computed. | KDIGO 2024 Rec 2.2.1 and PP 2.2.4 (S202: equations for G3–G5 may not be valid in G1–G2); Tangri N et al., JAMA 2011;305:1553, PMID 21482743. |
+| `mmg5` | #4 | No per-patient G5 age from the mixed model for now; revisit after #81 is built. | Owner |
+| `confirm` | #85 | Offer a preset "28 days (ISN trial definition)" beside the 90-day default, and label the 12-month maximum as a rule of this tool. The 28-day rule is **unverified** in the full text of Levin 2020 and is labelled so until checked. | KDIGO 2024 PP 1.1.3.1, S149/S172 (chronicity > 90 days); Levin 2020 abstract ("sustained" decline, no duration). |
+| `km` | #78 | Accept the proposal of #78, with the age axis and delayed entry (left truncation) at the first eligible measurement as the default time scale; time since the first eligible measurement stays selectable. | Thiébaut ACM, Bénichou J, Stat Med 2004;23:3803, PMID 15580597; Pencina MJ et al., Stat Med 2007;26:1343, PMID 16955538. |
+| `death` | #4, #78 | Introduce the event type `death` with a date; with death dates, report an Aalen–Johansen cumulative incidence beside 1 − KM; projections are stated as conditional on survival. This replaces "death not modelled" in the #78 proposal. | Noordzij M et al., NDT 2013;28:2670, PMID 23975843; Fine JP, Gray RJ, JASA 1999;94:496, doi:10.1080/01621459.1999.10474144. |
+| `p50` | #82 | Add a confirmed 50 % eGFR decline by the same rule as 40 % and 57 %; it is the default decline endpoint of a paediatric preset. | Holle J et al., PLoS One 2020;15:e0240446, PMID 33108385 (4C composite); ESCAPE Trial Group, NEJM 2009;361:1639, PMID 19846849; EMA/CHMP/500825/2016. |
+| `badges` | #82, #2 | The user chooses which endpoints appear as badges; the export keeps all. | Owner |
+| `bounded` | #73 | Endpoints and projection, AKI detection and cohort mixed models keep excluding bounded values; a bound may reset a G4/G5 candidate when it is logically conclusive (for example `>60`) but never establishes a crossing or a decline; the R export gains a censored mixed model as a sensitivity analysis. The fit default "limit" of 2026-11-21 stays. | Hornung RW, Reed LD, Appl Occup Environ Hyg 1990;5:46, doi:10.1080/1047322X.1990.10389587; Hughes JP, Biometrics 1999;55:625, PMID 11318225. KDIGO 2024 says nothing on truncated reports such as `>60` (checked, Table 11, S184). |
+| `peds-eq` | #66 | *Adjusted.* With height: CKiD U25 up to 25 years, then EKFC; without height: EKFC; bedside Schwartz only as an option for comparison with older studies. This extends the decision of 2026-11-21. | KDIGO 2024 PP 1.2.4.3, S154/S190 (validated equations; CKiD U25 2021, EKFC and CKD-EPI40 named; CKiD U25 and EKFC avoid a change at the transition to adulthood); Table 14, S189; Pierce CB et al., Kidney Int 2021;99:948, PMID 33301749; Pottel H et al., Kidney Int 2019;95:1234, PMID 30922665; Schwartz GJ et al., JASN 2009;20:629, PMID 19158356. |
+| `height` | #66 | Height is imported as a measurement series, interpolated linearly between measured heights and never extrapolated; a creatinine value needs a height within 90 days (30 days under 2 years); otherwise the reason is named. The gap limits are a rule of this tool. | No source sets the gap (literature check of 2026-11-22). |
+| `switch` | #66 | The eGFR preview counts patients whose formula changes during follow-up, the plot marks the change, and a slope fitted across it carries a notice. | Pottel 2019 (mean jump of 23 mL/min/1.73 m² from CKiD to CKD-EPI). |
+| `censor` | #4 | In every preset, values after kidney transplantation or the start of maintenance dialysis are shown but excluded from fits of native kidney function; inclusion only as an explicit option, then segmented at transplantation. | Levin 2020 (KRT is a kidney-failure endpoint); KDIGO 2024 S176 (non–steady-state conditions as a source of eGFR error). |
+| `dial` | #4 | Under CKD progression, dialysis of unknown intent without an end date excludes values from the dialysis start from fits, with a warning; the endpoint rule of 2026-10-08 (no exclusion of endpoint input, never KRT) is unchanged. | Owner; registry convention of 90 days for maintenance dialysis (unverified). |
+| `akifirst` | #4 | AKI at the first value of an admission: the baseline is the mean of outpatient creatinine 7–365 days before the admission; a retrospective in-admission fall is an option; no MDRD-75 back-calculation. | KDIGO 2012 AKI chapter 2.4, pp. 29–31 (prior values up to one year acceptable; MDRD at eGFR 75 only "provided there is no evidence of CKD"; lowest in-hospital creatinine for retrospective diagnosis); Siew ED et al., CJASN 2012;7:712, PMID 22422536; Pickering JW, Endre ZH, CJASN 2010;5:1165, PMID 20498242. |
+| `akiwin` | #4 | The AKI exclusion window runs from onset to the end of the episode + 90 days where enough values remain, otherwise onset + 30 days with a label; values before onset are kept. | KDIGO 2024 Figure 3, S139 (AKD ≤ 3 months); KDIGO 2012 AKI Table 11, p. 33; Chawla LS et al., Nat Rev Nephrol 2017;13:241, doi:10.1038/nrneph.2017.2. |
+| `g5single` | #4 | A single value below 15 is never an observed G5 and does not withhold the projection; it is labelled "single value <15, unconfirmed (possible AKI)". | KDIGO 2024 PP 1.1.3.2, S149/S172: chronicity is not assumed from a single abnormal eGFR. |
+| `genomin` | #4 | A factor level needs ≥ 5 patients with ≥ 2 measurements each; smaller levels are pooled into owner-defined classes or "other", and the counts are shown. The threshold is a rule of this tool. | Cornec-Le Gall E et al., JASN 2016;27:942, PMID 26150605 (pre-specified variant classes). |
+| `genomiss` | #4 | "Not tested" is its own level or excluded and is never merged with "no variant"; the import vocabulary is fixed for it. | Groenwold RHH et al., CMAJ 2012;184:1265, PMID 22371511. |
+| `uacr` | #4 | Log baseline UACR is an optional covariate, off by default, labelled "possible mediator". | Causal reasoning: albuminuria can lie on the path from genotype to decline. |
+| `inference` | #4 | The app keeps Wald intervals with a notice; the R script uses lmerTest (Satterthwaite) with an omnibus F test per factor; contrasts are "exploratory, unadjusted", Holm optional. | Luke SG, Behav Res Methods 2017;49:1494, doi:10.3758/s13428-016-0809-y; Kuznetsova A et al., JSS 2017;82(13), doi:10.18637/jss.v082.i13. |
+| `dropout` | #4 | Dropout is reported per factor level and reason; above about 10 % KRT or death within follow-up the R script recommends a joint-model sensitivity analysis. The threshold is a rule of this tool. | Vonesh EF et al., Stat Med 2006;25:143, PMID 16025541; Stat Med 2019;38:4218, PMID 31338848. |
+| `sexd` | #4 | The export marks per patient that sex `d` used the male coefficients. | Owner |
+| `pheno` | #4 | Phenopackets/GPSEA later. | Owner |
+
+### Wording, product and planning
+
+| Artifact id | Issue | Decision |
+| --- | --- | --- |
+| `sources` | #84 | Remove the statement on the external OLS comparison from Methods › Sources until #79 provides inspectable comparisons (wording for the maintainer's approval). |
+| `taxonomy` | #2, #78 | Keep the four pages; Cohort models gains two areas, "Slope models" and "Time to event"; AKI stays on the Data page. |
+| `i18n` | #71 | Build the language switch after the method packages and before the release. |
+| `merge` | #68 | Comparing and merging series is the next package. |
+| `rref` | #79, #34 | Install native R in the container and generate the reference fixtures (lme4, lm, Theil–Sen, `egfr` or `kidney.epi`, `epocakir`, `survival`). |
+| `mcp` | #36 | Rebuild the MCP server on `main` after the release. |
+| `release` | #80 | Claude drafts `CITATION.cff`, the release notes since 0.3.7 and a licence analysis of the shipped R runtime; authors and their order stay the owner's. |
+
+Already decided before and therefore not asked again: the two-level rapid
+flag (#72, 2026-11-21), calendar days for the peri-event windows (#69,
+2026-11-21; OD-38 resolved), the creatinine-doubling endpoint and an
+equation-switch warning as deferred features (#4, 2026-11-13), the reference
+list D1(a) waiting for the owner's EKFC check (2026-11-16), method wording as
+drafts for approval, the deferral of the hidden-page recomputation (#2) and of
+domain decoupling (#23).
+
+### Answers of 2026-11-21 not carried into an issue
+
+The decision artifact of 2026-11-21 ("Offene Entscheidungen LTE",
+claude.ai artifact JT5r5QHDrzYkkizSCv3ShV) holds four answers that reached
+neither an issue nor this file. They are recorded here and added to the
+issue that owns the area:
+
+- **q41 "weight"**: give densely measured phases (hospital stays) less weight
+  in fits. Time balancing (monthly or quarterly medians) already covers part
+  of it. Issue #70.
+- **q41 "types"**: an event-type column with colour; only chosen event types
+  split a series. Issue #70.
+- **q15 "gap7"**: rises within 7 days form one AKI episode. This conflicts with
+  the decision of 2026-11-21 on issue #67 (episodes separated by 48 hours of
+  recovery), which is implemented. **Open: the owner confirms which rule
+  holds.**
+- **q32 "settings"**: settings are always saved, lab values only after
+  consent. Implemented is the opt-in of 2026-11-16 ("Remember on this device"
+  for both). **Open: the owner confirms whether settings should be saved
+  without opt-in.** Issue #2.
+
+A fifth, q3 (main number is the slope over all values; part slopes in an
+export sheet of their own), is implemented for Rolling OLS (`rolling_windows`,
+OD-2) but not for Segmented OLS. Issue #70.
+
 ## Approved requirements
 
 ### Observed events and recovery
