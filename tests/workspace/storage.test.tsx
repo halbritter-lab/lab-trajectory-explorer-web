@@ -81,6 +81,21 @@ describe('workspace local storage', () => {
     expect(useAppStore.getState().rows[0].sourceRow).toBe(2)
     expect(useAppStore.getState().notice?.text).toMatch(/^Dataset and analysis settings/)
   })
+  it('saves the peri-event creatinine selection with the dataset and restores it; an unreadable one restores as none', async () => {
+    useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
+    await setWorkspaceRemember(true)
+    const selection = { rule: { kind: 'title' as const, value: 'Contrast CT' }, windowHours: 72 as const }
+    act(() => { useAppStore.getState().setPeriEventSettings(selection) })
+    await settle()
+    await waitFor(() => expect(useWorkspaceStorage.getState().status).toBe('saved'))
+    expect((await get(WORKSPACE_STORAGE_KEY)).periEventSettings).toEqual(selection)
+    await restart()
+    expect(useAppStore.getState().periEventSettings).toEqual(selection)
+    await set(WORKSPACE_STORAGE_KEY, { ...(await get(WORKSPACE_STORAGE_KEY)), periEventSettings: { rule: selection.rule, windowHours: 24 } })
+    await restart()
+    expect(useAppStore.getState().rows).toHaveLength(1)
+    expect(useAppStore.getState().periEventSettings).toBeNull()
+  })
   it('restores a copy saved without import diagnostics, and drops entries it cannot read', async () => {
     useAppStore.getState().replaceDataset({ rows: [row], fileName: 'input.csv' })
     await setWorkspaceRemember(true)

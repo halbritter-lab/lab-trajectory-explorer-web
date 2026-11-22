@@ -50,5 +50,5 @@ test('lists the creatinine after the selected events, states the day resolution 
     [13, '2022-06-10', 72, 3.05, '', '', '', 'not_evaluable', 'no_value_in_window'],
   ])
   const settings = XLSX.utils.sheet_to_json<Record<string, string>>(workbook.Sheets.settings)
-  expect(JSON.parse(settings[0].analysis_settings).aki.periEvent).toEqual({ rule: { kind: 'title', value: 'Contrast CT' }, windowHours: 72 })
+  expect(JSON.parse(settings[0].peri_event_creatinine)).toEqual({ rule: { kind: 'title', value: 'Contrast CT' }, windowHours: 72 })
 })

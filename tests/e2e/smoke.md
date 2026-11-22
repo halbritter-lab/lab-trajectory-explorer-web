@@ -15,8 +15,8 @@
 3. Window → 72 hours: the summary line and rows update; "Type: dialysis"
    after adding a dialysis event shows "event day under dialysis".
 4. Export cohort (XLSX): the last sheet is `peri_event_creatinine`, one row
-   per event; `analysis_settings` holds `aki.periEvent`. With "None" the
-   sheet is empty.
+   per event; the last column `peri_event_creatinine` of `settings` holds
+   the selection. With "None" the sheet and the column are empty.
 5. At 390 px the page does not scroll sideways; the table scrolls inside its
    region and dates do not break.
 

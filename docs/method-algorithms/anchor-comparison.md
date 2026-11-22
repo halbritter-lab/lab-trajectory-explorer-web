@@ -148,9 +148,12 @@ settings switch the comparison on, in table order: `PatientID`, `Parameter`,
 then `before_n_fitted_dates` and `after_n_fitted_dates` (appended after the
 review of the combined branch, 2026-11-22).
 A patient without an anchor has a row with empty values; `n_excluded_window`
-is empty without a fit. The `settings` sheet ends with `anchor_comparison`,
-the setting as JSON (empty when off), and the `about` sheet ends with a note
-on the sheet. No existing sheet, column or note moved.
+is empty without a fit. The `settings` sheet gains `anchor_comparison`,
+the setting as JSON (empty when off), and the `about` sheet a note on the
+sheet; both were last until the
+[peri-event creatinine](aki.md#peri-event-creatinine-2026-11-22) sheet,
+column and note followed them (2026-11-22). No existing sheet, column or
+note moved.
 
 ### Worked example (demo workbook)
 

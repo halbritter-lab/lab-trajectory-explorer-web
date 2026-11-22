@@ -1,7 +1,5 @@
 import { describe, expect, it } from 'vitest'
 import { parsePeriEventSettings, periEventCreatinine, periEventCreatinineRows, type PeriEventSettings } from '../../../src/core/domains/nephrology/aki/periEvent'
-import { parseAnalysisSettings } from '../../../src/core/analysis/registry'
-import { akiPeriEventSettings } from '../../../src/core/domains/nephrology/aki/akiModule'
 import type { ClinicalEvent } from '../../../src/core/events/events'
 import type { LabRow, WertOperator } from '../../../src/core/types'
 
@@ -119,14 +117,12 @@ describe('peri-event creatinine: event selection, order and settings', () => {
     expect(periEventCreatinineRows(rows, events, settings()).map(r => [r.patientId, r.reason])).toEqual([[2, 'no_value_in_window'], [10, 'no_value_in_window'], ['X', 'no_creatinine']])
     expect(periEventCreatinineRows(rows, events, { rule: { kind: 'type', value: 'dialysis' }, windowHours: 48 })).toEqual([])
   })
-  it('reads only valid stored settings and keeps the AKI settings readable without them', () => {
+  it('reads only valid stored settings', () => {
     expect(parsePeriEventSettings({ rule: { kind: 'type', value: 'other' }, windowHours: 72 })).toEqual({ rule: { kind: 'type', value: 'other' }, windowHours: 72 })
     expect(parsePeriEventSettings({ rule: { kind: 'first' }, windowHours: 48 })).toBeNull()
     expect(parsePeriEventSettings({ rule: { kind: 'title', value: 'A' }, windowHours: 24 })).toBeNull()
-    const base = { showOverlays: false, exclusionDays: 30, recoveryHours: 48 }
-    expect(parseAnalysisSettings({ aki: { ...base, periEvent: { rule: { kind: 'title', value: 'A' }, windowHours: 72 } } })?.aki.periEvent).toEqual({ rule: { kind: 'title', value: 'A' }, windowHours: 72 })
-    const dropped = parseAnalysisSettings({ aki: { ...base, periEvent: { windowHours: 12 } } })
-    expect(dropped?.aki).toEqual(base)
-    expect(akiPeriEventSettings(dropped ?? undefined)).toBeNull()
+    expect(parsePeriEventSettings({ rule: { kind: 'type', value: 3 }, windowHours: 48 })).toBeNull()
+    expect(parsePeriEventSettings(null)).toBeNull()
+    expect(parsePeriEventSettings(undefined)).toBeNull()
   })
 })

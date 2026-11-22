@@ -1,7 +1,6 @@
 import { useMemo } from 'react'
 import type { PatientId } from '../core/types'
 import { formatDisplayDate, formatDisplayNumber } from '../core/format'
-import { akiPeriEventSettings } from '../core/domains/nephrology/aki/akiModule'
 import { DEFAULT_PERI_EVENT_WINDOW_HOURS, PERI_EVENT_WINDOW_HOURS, periEventCreatinineRows, type PeriEventWindowHours } from '../core/domains/nephrology/aki/periEvent'
 import { periEventNotes, periEventRuleFromValue, periEventRuleValue, periEventStatusLabel } from './peri-event'
 import type { WorkspaceData } from './workspace-data'
@@ -16,11 +15,8 @@ const ValueOnDate = ({ value, date }: { value: number | null; date: Date | null 
  * with baseline, highest value in the window, rise and the KDIGO criterion.
  * Dataset-level, beside the detected AKI episodes. */
 export function WorkspacePeriEventCreatinine({ data, onBrowse }: { data: WorkspaceData; onBrowse: (patientId?: PatientId) => void }) {
-  const settings = akiPeriEventSettings(data.analysisSettings)
-  const results = useMemo(() => settings ? periEventCreatinineRows(data.rows, data.events, settings) : [],
-    // The settings object is rebuilt from analysisSettings, which is the stable dependency.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [data.rows, data.events, data.analysisSettings])
+  const settings = useAppStore(s => s.periEventSettings)
+  const results = useMemo(() => settings ? periEventCreatinineRows(data.rows, data.events, settings) : [], [data.rows, data.events, settings])
   const sorted = (values: string[]) => [...new Set(values)].sort((a, b) => a.localeCompare(b))
   const titles = sorted([...data.events.map(event => event.title), ...(settings?.rule.kind === 'title' ? [settings.rule.value] : [])])
   const types = sorted([...data.events.map(event => event.type), ...(settings?.rule.kind === 'type' ? [settings.rule.value] : [])])

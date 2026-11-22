@@ -46,7 +46,7 @@ describe('cohort workbook schema', () => {
     expect(header(workbook, 'patient_attributes')).toEqual(['PatientID', 'group'])
     expect(header(workbook, 'demographics')).toEqual(['PatientID', 'baseline_age', 'birth_anchor', 'age_estimated', 'manual_override', 'warnings'])
     expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
-    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison'])
+    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison', 'peri_event_creatinine'])
     expect(header(workbook, 'about')).toEqual(['note'])
     expect(header(workbook, 'peri_event_creatinine')).toEqual(['PatientID', 'event_date', 'event_type', 'event_title', 'event_rule', 'window_hours', 'window_end_date',
       'creatinine_parameter', 'creatinine_unit', 'baseline_date', 'baseline_value_mg_dl', 'baseline_days_before_event', 'n_baseline_day_values',
@@ -68,7 +68,7 @@ describe('cohort workbook schema', () => {
     // K40 (2026-11-22): settings records the grouping attribute, empty without grouping,
     // after scope and before anchor_comparison (issue #64, appended the same day).
     expect(header(grouped, 'settings')).toEqual(header(plain, 'settings'))
-    expect(header(grouped, 'settings').slice(-3)).toEqual(['scope', 'group_by', 'anchor_comparison'])
+    expect(header(grouped, 'settings').slice(-4)).toEqual(['scope', 'group_by', 'anchor_comparison', 'peri_event_creatinine'])
     expect(records(grouped, 'settings').length).toBeGreaterThan(0)
     expect(records(grouped, 'settings').every(row => row.group_by === 'group')).toBe(true)
     expect(records(plain, 'settings').every(row => row.group_by === '')).toBe(true)

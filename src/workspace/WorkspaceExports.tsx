@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { downloadBlob, svgStringToPngBlob, zipBytes } from '../io/export'
 import { exportChartSvg, safeExportFilename, workspaceWorkbookBytes, type WorkspaceExportInput } from './workspace-export'
+import { useAppStore } from './state/store'
 import './exports-workspace.css'
 
 /** Lets the browser draw the "Exporting …" status before the workbook is
@@ -12,7 +13,10 @@ const afterPaint = () => new Promise<void>(resolve => {
   requestAnimationFrame(() => setTimeout(() => { clearTimeout(timeout); resolve() }, 0))
 })
 
-export function WorkspaceExportActions(props: WorkspaceExportInput & { getCharts?: () => Array<{ title: string; svg: SVGSVGElement }> }) {
+export function WorkspaceExportActions(input: WorkspaceExportInput & { getCharts?: () => Array<{ title: string; svg: SVGSVGElement }> }) {
+  // The Data page's peri-event selection lives in the store beside the dataset, not in the analysis settings.
+  const periEventSettings = useAppStore(s => s.periEventSettings)
+  const props = { ...input, periEventSettings: input.periEventSettings ?? periEventSettings }
   const [error,setError] = useState<string | null>(null)
   const [busy,setBusy] = useState(false)
   const empty = props.parameterKeys.length === 0 || props.patientIds.length === 0 || (props.patientId !== undefined && !props.patientIds.includes(props.patientId))

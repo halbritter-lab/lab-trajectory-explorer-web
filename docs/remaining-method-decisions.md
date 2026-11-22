@@ -1535,8 +1535,9 @@ Owner decision of 2026-11-21 on issue #69, implemented on 2026-11-22. **A new
 result only**: no existing episode, slope, flag, endpoint, export column or
 golden fixture moved. While no events are selected (the default) every
 number and every existing sheet is as before; the cohort and patient
-workbooks gain the empty last sheet `peri_event_creatinine` and one note at
-the end of `about`.
+workbooks gain the empty last sheet `peri_event_creatinine`, the empty last
+column `peri_event_creatinine` of `settings` and one note at the end of
+`about`.
 
 - **Peri-event creatinine** for selected events (for example contrast
   administration, cardiac catheterisation): per event the last value before
@@ -1557,10 +1558,11 @@ Details of the implementation, chosen where the decision left them open,
 
 - Events are selected by exact title or exact type, with the matching of the
   anchor event of the before/after comparison; every matching event is
-  analysed, not only the first. The setting is dataset-level
-  (`aki.periEvent` in the analysis settings), on the Data page beside the
-  detected AKI episodes, saved with the dataset copy, and does not discard
-  cohort models.
+  analysed, not only the first. The setting is dataset-level, on the Data
+  page beside the detected AKI episodes, kept apart from the analysis
+  settings (it recomputes no fit and does not discard cohort models), saved
+  with the dataset copy and exported in the last column
+  `peri_event_creatinine` of the `settings` sheet.
 - Series: per patient the eligible serum creatinine series with the most
   exact dated rows (the AKI choice for a column that is not creatinine);
   non-serum material excluded as in `analytes.ts`; µmol/l divided by 88.42;

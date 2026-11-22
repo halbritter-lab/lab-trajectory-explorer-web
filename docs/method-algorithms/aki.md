@@ -840,12 +840,14 @@ as KDIGO AKI within 48 hours after contrast; ESUR uses 48 to 72 hours.
 
 ### Setting and event selection
 
-Data page → "Creatinine after selected events". Dataset-level, stored as
-`aki.periEvent` in the analysis settings (`{ rule, windowHours }`; absent
-while no events are selected, the default). It is saved with the dataset copy
-and exported in `analysis_settings` of the `settings` sheet. A stored value
-that cannot be read is dropped (no events selected); the other AKI settings
-stay readable. Changing it does not discard fitted cohort models.
+Data page → "Creatinine after selected events". Dataset-level, held beside
+the dataset (`periEventSettings`, `{ rule, windowHours }`; none while no
+events are selected, the default; a new dataset starts without one). It is
+not part of the analysis settings, so changing it recomputes no analysis or
+fit and keeps fitted cohort models. It is saved with the dataset copy of
+"Remember on this device" (a stored value that cannot be read restores as no
+selection; the dataset is kept) and exported as JSON in the last column
+`peri_event_creatinine` of the `settings` sheet, empty without a selection.
 
 - **Events.** "None", or every event whose **title** or whose **type** equals a
   chosen value, compared exactly as stored, including case and spaces
@@ -860,8 +862,9 @@ stay readable. Changing it does not discard fitted cohort models.
 ### Input series and values
 
 - **Series.** Per patient, the eligible serum creatinine series (name and
-  unit) with the most exact dated numeric rows; on a tie the series met first
-  in the rows (`largestCreatinineSeries`, the choice AKI detection makes for a
+  unit) with the most exact dated numeric rows, counted before values of
+  zero or less and values under dialysis are left out; on a tie the series
+  met first in the rows (`largestCreatinineSeries`, the choice AKI detection makes for a
   column that is neither creatinine nor computed eGFR; see
   [Input series and conversion](#input-series-and-conversion)). Eligible
   means a creatinine name that is not a non-serum material (urine, dialysate,
@@ -932,7 +935,7 @@ reason, tested in this order:
 
 | Reason | When |
 | --- | --- |
-| `no_creatinine` | The patient has no usable value of an eligible serum creatinine series (also a patient with events but no lab rows, and one with only non-serum creatinine). |
+| `no_creatinine` | The chosen series has no exact value above zero: the patient has no eligible serum creatinine series (also a patient with events but no lab rows, and one with only non-serum creatinine), or its values are all zero or less. Values under dialysis count here: when every value is under dialysis, the reason is one of the later ones. |
 | `event_under_dialysis` | The event day itself is under dialysis (`isUnderDialysis`). Selecting the type `dialysis` therefore makes a chronic dialysis start and a dated acute dialysis not evaluable. |
 | `no_baseline` | No usable value on or before the event day. |
 | `no_value_in_window` | No usable value in the window. |
@@ -980,8 +983,10 @@ criterion and `criterion_met` are empty for it.
   `criterion_met` (`true`, `false`, empty when not evaluable), `criterion`,
   `status`, `reason`, `dialysis_start_in_window`,
   `n_window_values_under_dialysis`, `overlapping_events`. Values are
-  unrounded. The `about` sheet ends with a note on the sheet; no earlier
-  sheet, column or note moved.
+  unrounded. The `settings` sheet ends with the column
+  `peri_event_creatinine` (the selection as JSON, empty without one), and
+  the `about` sheet ends with a note on the sheet; no earlier sheet, column
+  or note moved.
 
 ### Worked example
 

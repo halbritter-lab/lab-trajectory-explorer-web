@@ -18,7 +18,9 @@ interfaces are still evolving before 1.0.
   calendar days and a value on the event day is the baseline; the page says
   so (OD-36). The cohort and patient workbooks gain the last sheet
   `peri_event_creatinine`, one row per event, and a closing `about` note;
-  the selection is saved as `aki.periEvent` in the analysis settings.
+  the selection is saved with the dataset copy and exported in the last
+  column `peri_event_creatinine` of `settings`; it changes no fit and keeps
+  cohort models.
   Automated screening for research use. No existing result, sheet, column
   or note changed.
 

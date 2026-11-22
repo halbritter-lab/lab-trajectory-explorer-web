@@ -33,7 +33,7 @@ describe('creatinine after selected events on the Data page (issue #69)', () => 
     const select = screen.getByLabelText('Events for the creatinine analysis') as HTMLSelectElement
     expect([...select.options].map(option => option.textContent)).toEqual(['None', 'Title: Cardiac catheterisation', 'Title: Contrast CT', 'Title: Visit', 'Type: other'])
     fireEvent.change(select, { target: { value: 'title:Contrast CT' } })
-    expect(useAppStore.getState().analysisSettings.aki.periEvent).toEqual({ rule: { kind: 'title', value: 'Contrast CT' }, windowHours: 48 })
+    expect(useAppStore.getState().periEventSettings).toEqual({ rule: { kind: 'title', value: 'Contrast CT' }, windowHours: 48 })
     const table = screen.getByRole('table', { name: 'Creatinine after selected events' })
     const cells = () => within(table).getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell').map(cell => cell.textContent))
     expect(cells()).toEqual([['03/03/2026 Contrast CT (other)', '1 on 03/03/2026', '1.35 on 05/03/2026', '0.35', '1.35 ×', 'Met: rise ≥ 0.3 mg/dl', 'Kreatinin [mg/dl]', '–']])
@@ -47,16 +47,23 @@ describe('creatinine after selected events on the Data page (issue #69)', () => 
       ['04/03/2026 Cardiac catheterisation (other)', 'Met: rise ≥ 0.3 mg/dl', '1 other selected event within 3 days'],
     ])
     fireEvent.change(select, { target: { value: '' } })
-    expect(useAppStore.getState().analysisSettings.aki.periEvent).toBeUndefined()
+    expect(useAppStore.getState().periEventSettings).toBeNull()
     expect(screen.getByText('No events selected.')).toBeInTheDocument()
   })
 
-  it('does not discard fitted cohort models when the selection changes', () => {
+  it('recomputes no analysis and keeps fitted cohort models when the selection changes', () => {
     useAppStore.getState().replaceDataset({ rows, events })
     const results = { cohort: {} } as never
     useAppStore.setState({ cohortModelResults: results })
+    const { analysisSettings } = useAppStore.getState()
+    const analysis = useAppStore.getState().analysisResult()
     useAppStore.getState().setPeriEventSettings({ rule: { kind: 'title', value: 'Contrast CT' }, windowHours: 72 })
     expect(useAppStore.getState().cohortModelResults).toBe(results)
+    expect(useAppStore.getState().analysisSettings).toBe(analysisSettings)
+    expect(useAppStore.getState().analysisResult()).toBe(analysis)
+    // A new dataset starts without a selection.
+    useAppStore.getState().replaceDataset({ rows, events })
+    expect(useAppStore.getState().periEventSettings).toBeNull()
   })
 })
 
@@ -65,11 +72,13 @@ describe('peri_event_creatinine sheet', () => {
     const empty = read(workspaceWorkbookBytes(exportFixture()))
     expect(empty.SheetNames.at(-1)).toBe('peri_event_creatinine')
     expect(utils.sheet_to_json(empty.Sheets.peri_event_creatinine)).toEqual([])
-    const input = exportFixture()
-    input.data.analysisSettings = { ...input.data.analysisSettings, aki: { ...input.data.analysisSettings.aki, periEvent: { rule: { kind: 'type', value: 'other' }, windowHours: 48 } } }
-    const sheet = utils.sheet_to_json<Record<string, unknown>>(read(workspaceWorkbookBytes({ ...input, patientIds: ['001-A'] })).Sheets.peri_event_creatinine)
+    expect(utils.sheet_to_json<Record<string, unknown>>(empty.Sheets.settings).every(row => (row.peri_event_creatinine ?? '') === '')).toBe(true)
+    const selection = { rule: { kind: 'type', value: 'other' }, windowHours: 48 } as const
+    const workbook = read(workspaceWorkbookBytes({ ...exportFixture(), patientIds: ['001-A'], periEventSettings: selection }))
+    const sheet = utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.peri_event_creatinine)
     expect(sheet.map(row => [row.PatientID, row.event_title, row.event_rule, row.window_hours, row.status])).toEqual([['001-A', 'Visit', 'type:other', 48, sheet[0].status]])
     expect(JSON.stringify(sheet)).not.toContain('SECRET')
+    expect(JSON.parse(String(utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.settings)[0].peri_event_creatinine))).toEqual(selection)
   })
 
   it('writes the worked example with its values, criterion and notes', () => {

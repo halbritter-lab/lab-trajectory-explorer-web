@@ -54,6 +54,8 @@ export interface DatasetReplacement {
   patientAttributes?: Record<string, Record<string, string>>
   manualDemographics?: Record<string, ManualDemographics>
   analysisSettings?: AnalysisSettings
+  /** The peri-event creatinine selection of a restored copy; none otherwise. */
+  periEventSettings?: PeriEventSettings | null
   notice?: Notice | null
   /** Import findings of the lab values, events and attributes of this dataset. */
   importDiagnostics?: ImportDiagnostic[]
@@ -81,6 +83,9 @@ export interface AppState {
    * attribute names (e.g. "genotype") carry no special meaning to the app. */
   patientAttributes: Record<string, Record<string, string>>
   analysisSettings: AnalysisSettings
+  /** Events and window of the peri-event creatinine analysis on the Data page
+   * (issue #69); null while no events are selected. Saved with the dataset copy. */
+  periEventSettings: PeriEventSettings | null
   mixedModelConfig: MixedModelConfig
   presetExclusionPolicy: PresetExclusionPolicy
   /** The analysis settings currently chosen under Trajectories. Trajectories
@@ -119,7 +124,8 @@ export interface AppState {
   /** Recovery that separates two AKI episodes (hours, dataset-level). */
   setAkiRecoveryHours: (hours: number) => void
   /** Events and window of the peri-event creatinine analysis (dataset-level);
-   * null selects no events. Changes no fit, so cohort models are kept. */
+   * null selects no events. Kept apart from `analysisSettings`, so a change
+   * recomputes no analysis or fit and keeps the cohort models. */
   setPeriEventSettings: (settings: PeriEventSettings | null) => void
   setManualDemographics: (patientId: LabRow['patientId'], demo: ManualDemographics) => void
   setEvents: (events: ClinicalEvent[]) => void
@@ -142,7 +148,7 @@ export interface AppState {
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'pristineDemo' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'importDiagnostics' | 'patientAttributes'
-  | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
+  | 'analysisSettings' | 'periEventSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
   | 'cohortModelProgress' | 'cohortModelRuntimeLoaded' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
 
 const initialState = (): AppData => ({
@@ -155,6 +161,7 @@ const initialState = (): AppData => ({
   importDiagnostics: [],
   patientAttributes: {},
   analysisSettings: defaultAnalysisSettings(),
+  periEventSettings: null,
   mixedModelConfig: DEFAULT_MIXED_MODEL_CONFIG,
   presetExclusionPolicy: 'apply',
   trajectoryFitSettings: defaultTrajectoryFitSettings(),
@@ -269,6 +276,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       patientAttributes: dataset.patientAttributes ?? {},
       manualDemographics: dataset.manualDemographics ?? {},
       analysisSettings: dataset.analysisSettings ?? initial.analysisSettings,
+      periEventSettings: dataset.periEventSettings ?? null,
       notice: dataset.notice ?? null,
       pristineDemo: dataset.pristineDemo ?? false,
     })
@@ -288,10 +296,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),
-  setPeriEventSettings: (settings) => set((s) => {
-    const { periEvent: _previous, ...aki } = s.analysisSettings.aki
-    return { analysisSettings: { ...s.analysisSettings, aki: settings ? { ...aki, periEvent: settings } : aki }, pristineDemo: false }
-  }),
+  setPeriEventSettings: (settings) => set({ periEventSettings: settings, pristineDemo: false }),
   setManualDemographics: (patientId, demo) => set((s) => ({
     manualDemographics: { ...s.manualDemographics, [patientId]: demo },
     pristineDemo: false,
