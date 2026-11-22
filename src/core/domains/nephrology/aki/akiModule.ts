@@ -1,6 +1,7 @@
 import { akiExclusionBands, akiExclusionWindows, episodesForSeries, isAkiCreatinineSource } from './akiAware'
 import type { AkiEpisode } from './kdigo'
 import { formatAkiChip, formatAkiEpisodeSummary } from './summary'
+import { parsePeriEventSettings, type PeriEventSettings } from './periEvent'
 import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_AKI_RECOVERY_HOURS, MGDL_PER_UMOLL } from '../constants'
 import { excludesAkiWindows } from '../fitConfig'
 import { COMPUTED_BEZEICHNUNG_SUFFIX, normaliseUnit } from '../analytes'
@@ -31,6 +32,15 @@ export interface AkiModuleSettings {
    * days (48 by default, decided 2026-11-22, issue #67). Dataset-level: it
    * decides the episodes of every column, the episode list and its export. */
   recoveryHours: number
+  /** Events selected for the peri-event creatinine analysis and its window
+   * (issue #69, decided 2026-11-21). Dataset-level; absent while no events
+   * are selected. It changes no episode, fit or flag. */
+  periEvent?: PeriEventSettings
+}
+
+/** The dataset's peri-event creatinine setting; null while none is chosen. */
+export function akiPeriEventSettings(analysisSettings: Readonly<Record<string, unknown>> | undefined): PeriEventSettings | null {
+  return parsePeriEventSettings((analysisSettings?.aki as Partial<AkiModuleSettings> | undefined)?.periEvent)
 }
 
 /** The recovery length of a series context: the dataset's AKI module
@@ -209,15 +219,17 @@ export const akiModule = {
   description: 'KDIGO acute kidney injury episodes detected on serum creatinine (mg/dl or µmol/l converted to mg/dl), outside dialysis.',
   defaultSettings: { showOverlays: false, exclusionDays: DEFAULT_AKI_EXCLUSION_DAYS, recoveryHours: DEFAULT_AKI_RECOVERY_HOURS } as AkiModuleSettings,
   /** A stored value without `recoveryHours` (saved before 2026-11-22) gets
-   * the default of 48 hours. */
+   * the default of 48 hours. A peri-event setting that cannot be read is
+   * dropped (no events selected) rather than making the settings unreadable. */
   parseSettings: (value: unknown): AkiModuleSettings | null => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
     const settings = value as Record<string, unknown>
     const length = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0
-    return typeof settings.showOverlays === 'boolean' && length(settings.exclusionDays)
-      && (settings.recoveryHours === undefined || length(settings.recoveryHours))
-      ? { ...(value as AkiModuleSettings), recoveryHours: (settings.recoveryHours as number | undefined) ?? DEFAULT_AKI_RECOVERY_HOURS }
-      : null
+    if (!(typeof settings.showOverlays === 'boolean' && length(settings.exclusionDays)
+      && (settings.recoveryHours === undefined || length(settings.recoveryHours)))) return null
+    const { periEvent: _stored, ...rest } = value as AkiModuleSettings
+    const periEvent = parsePeriEventSettings(settings.periEvent)
+    return { ...rest, recoveryHours: (settings.recoveryHours as number | undefined) ?? DEFAULT_AKI_RECOVERY_HOURS, ...(periEvent ? { periEvent } : {}) }
   },
   exclusionReasonLabels: { [AKI_EXCLUSION_REASON]: 'AKI window' },
   overlayPresentation: {

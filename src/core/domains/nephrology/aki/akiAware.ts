@@ -166,6 +166,23 @@ export function implausiblyHighCreatinineRows(rows: readonly LabRow[]): LabRow[]
     && (normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum / MGDL_PER_UMOLL : r.wertNum) > IMPLAUSIBLE_CREATININE_ABOVE_MGDL)
 }
 
+/** The rows of the eligible serum creatinine series (name and unit) with the
+ * most rows among `rows`, which are one patient's exact dated numeric rows;
+ * on a tie the series met first in `rows`. Bounds and undated rows are not
+ * passed in, so they cannot win the choice. [] without such a series. Used
+ * by AKI detection for a column that is neither creatinine nor computed eGFR
+ * and by the peri-event creatinine analysis. */
+export function largestCreatinineSeries(rows: readonly LabRow[]): LabRow[] {
+  const groups = new Map<string, LabRow[]>()
+  for (const r of rows) {
+    if (r.bezeichnung === null || !isAkiCreatinineSource(r.bezeichnung, r.einheit)) continue
+    const k = `${r.bezeichnung}|${r.einheit ?? ''}`
+    if (!groups.has(k)) groups.set(k, [])
+    groups.get(k)!.push(r)
+  }
+  return [...groups.values()].sort((a, b) => b.length - a.length)[0] ?? []
+}
+
 /** Episodes for aki-aware fits: an eligible serum creatinine series detects on itself;
  * a derived series (computed eGFR) uses the creatinine series it was computed
  * from (`LabRow.sourceSeries`); any other analyte uses the same patient's
@@ -189,14 +206,7 @@ export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichn
   } else if ((derivedFrom = own.find((r) => sameSeries(r) && r.sourceSeries)?.sourceSeries)) {
     source = sub.filter((r) => r.bezeichnung === derivedFrom!.bezeichnung && r.einheit === derivedFrom!.einheit)
   } else {
-    const groups = new Map<string, LabRow[]>()
-    for (const r of sub) {
-      if (r.bezeichnung === null || !isAkiCreatinineSource(r.bezeichnung, r.einheit)) continue
-      const k = `${r.bezeichnung}|${r.einheit ?? ''}`
-      if (!groups.has(k)) groups.set(k, [])
-      groups.get(k)!.push(r)
-    }
-    source = [...groups.values()].sort((a, b) => b.length - a.length)[0] ?? []
+    source = largestCreatinineSeries(sub)
   }
   const points: SeriesPoint[] = source
     .filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r) && !isUnderDialysis(r.labDatum, events))

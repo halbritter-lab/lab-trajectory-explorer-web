@@ -4,6 +4,7 @@ import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analy
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
 import type { FormulaName, Source } from '../../core/domains/nephrology/egfr/series'
 import type { ClinicalEvent, RejectedClinicalEvent } from '../../core/events/events'
+import type { PeriEventSettings } from '../../core/domains/nephrology/aki/periEvent'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormulaKey, type MixedModelConfig } from '../../core/mixedModel/config'
 import type { MixedModelResult } from '../../core/mixedModel/types'
 import { mixedModelIdentityEquals, type MixedModelResultIdentity } from '../../core/mixedModel/resultIdentity'
@@ -117,6 +118,9 @@ export interface AppState {
   setEgfrSource: (s: Source | null) => void
   /** Recovery that separates two AKI episodes (hours, dataset-level). */
   setAkiRecoveryHours: (hours: number) => void
+  /** Events and window of the peri-event creatinine analysis (dataset-level);
+   * null selects no events. Changes no fit, so cohort models are kept. */
+  setPeriEventSettings: (settings: PeriEventSettings | null) => void
   setManualDemographics: (patientId: LabRow['patientId'], demo: ManualDemographics) => void
   setEvents: (events: ClinicalEvent[]) => void
   setPatientAttributes: (byPatient: Record<string, Record<string, string>>) => void
@@ -284,6 +288,10 @@ export const useAppStore = create<AppState>((set, get) => ({
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),
+  setPeriEventSettings: (settings) => set((s) => {
+    const { periEvent: _previous, ...aki } = s.analysisSettings.aki
+    return { analysisSettings: { ...s.analysisSettings, aki: settings ? { ...aki, periEvent: settings } : aki }, pristineDemo: false }
+  }),
   setManualDemographics: (patientId, demo) => set((s) => ({
     manualDemographics: { ...s.manualDemographics, [patientId]: demo },
     pristineDemo: false,
