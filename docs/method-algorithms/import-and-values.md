@@ -190,6 +190,19 @@ The lab sheet accepts these headers (`LAB_COLUMN_ALIASES`):
 | birth date | `birthDate`, `PatientGeburtsdatum`, `Geburtsdatum`, `PatientBirthDate` (= `patient_birth_date`) | no |
 | pre-parsed number | `valueNum`, `Wert_num` | no |
 | pre-parsed operator | `valueOperator`, `Wert_operator` | no |
+| laboratory or method (issue #68, 2026-11-22) | `labMethod` (= `lab_method`, the column of the workbook export), `Laboratory`, `Labor`, `Method`, `Methode` | no |
+
+The laboratory or method column is read as text, trimmed; an empty cell gives
+no value. It is carried with the row, shown in the point tooltips, the
+measurement table of the patient view and the series comparison, and written
+to `lab_method` in both measurement sheets of the export; no rule reads it, so
+it neither separates nor joins series (series of different laboratories are
+compared and merged only by the steps in
+[series comparison and merge](series-comparison-and-merge.md#series-comparison-and-deliberate-merge-2026-11-22)).
+`Lab` alone is not accepted. A sheet with both a laboratory and a method
+column (`Labor` and `Methode`) is read from the one listed first, with the
+shadowed-column warning below: 'Columns "Labor" and "Methode" hold the same
+field; "Labor" is used and "Methode" is ignored.'
 
 A lab sheet with data rows that lacks a required column is rejected as a whole;
 the error names the missing columns and lists the columns found. `Geschlecht`

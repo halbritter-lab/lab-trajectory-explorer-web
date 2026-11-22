@@ -6,6 +6,7 @@ import { comparePatientIds, patientIdKey, type LabRow, type PatientId, type Wert
 import { boundedShareLabel, slopeQualityLabel, THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
 import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
 import { workspaceSpecs, type WorkspaceData, type WorkspaceParameter } from './workspace-data'
+import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../core/domains/nephrology/analytes'
 import { WorkspaceExportActions } from './WorkspaceExports'
 import { SeriesComparison } from './SeriesComparison'
 import { DEFAULT_WORKSPACE_DISPLAY, drawnFitLines, OVERLAY_MODULES, WorkspacePlot, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from './WorkspacePlot'
@@ -485,9 +486,11 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
   const [parameterNotice, setParameterNotice] = useState('')
   useEffect(() => {
     const replacements = new Map<string, string>()
-    const nextDerived = data.parameters.filter(parameter => parameter.derived)
+    // A computed eGFR column follows a change of the formula; a merged series (issue #68) is derived too but never replaces or is replaced.
+    const computedEgfr = (parameter: WorkspaceParameter | undefined) => !!parameter?.derived && parameter.bezeichnung.endsWith(COMPUTED_BEZEICHNUNG_SUFFIX)
+    const nextDerived = data.parameters.filter(computedEgfr)
     for (const key of parameterKeys) {
-      if (!data.parameters.some(parameter => parameter.key === key) && knownParameters.current.get(key)?.derived && nextDerived.length === 1) replacements.set(key, nextDerived[0].key)
+      if (!data.parameters.some(parameter => parameter.key === key) && computedEgfr(knownParameters.current.get(key)) && nextDerived.length === 1) replacements.set(key, nextDerived[0].key)
     }
     if (replacements.size) {
       setParameterKeys(previous => [...new Set(previous.map(key => replacements.get(key) ?? key))])

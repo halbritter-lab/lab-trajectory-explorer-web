@@ -12,6 +12,8 @@ import { countLabel, parameterLabel } from './workspace-labels'
 const PLOT = { left: 65, right: 630, top: 20, bottom: 240 }
 const COLORS = ['#176c68', '#a15a2c', '#487ca9', '#8560a4', '#8c7427', '#b14c73', '#3d797f']
 const YEAR_MS = 365.25 * 86_400_000
+/** A converted value with up to three decimals (0.905 mg/dl for 80 µmol/l). */
+const convertedNumber = (value: number) => value.toLocaleString('en-GB', { maximumFractionDigits: 3 })
 
 export interface ComparisonPoint { date: Date; value: number; original: number; operator: LabRow['wertOperator']; source: string | null; labMethod: string | null }
 export interface ComparisonSeries {
@@ -112,7 +114,7 @@ export function SeriesComparison({ rows, patientId }: { rows: readonly LabRow[];
             {fit && <line data-testid="comparison-line" x1={x(ends[0])} x2={x(ends[1])} y1={y(fit.intercept + fit.slope * (ends[0] - fit.origin) / YEAR_MS)} y2={y(fit.intercept + fit.slope * (ends[1] - fit.origin) / YEAR_MS)} stroke={color} strokeWidth={2} strokeDasharray={i % 2 ? '2 3' : '6 4'}><title>{label}: comparison line {formatFixedDecimals(fit.slope, 3, true)} {unitText}/year</title></line>}
             {s.points.map((p, k) => {
               const open = p.operator !== '='
-              const title = `${label}, ${formatDisplayDate(p.date)}: ${open ? `${p.operator} ` : ''}${formatDisplayNumber(p.value)} ${unitText}${s.factor !== 1 ? ` (${formatDisplayNumber(p.original)} ${s.ref.einheit ?? ''} as measured)` : ''}${p.source ? `, from ${p.source}` : ''}${p.labMethod ? `, laboratory or method: ${p.labMethod}` : ''}${open ? ', a bound: not in the comparison line' : ''}`
+              const title = `${label}, ${formatDisplayDate(p.date)}: ${open ? `${p.operator} ` : ''}${s.factor === 1 ? formatDisplayNumber(p.value) : convertedNumber(p.value)} ${unitText}${s.factor !== 1 ? ` (${formatDisplayNumber(p.original)} ${s.ref.einheit ?? ''} as measured)` : ''}${p.source ? `, from ${p.source}` : ''}${p.labMethod ? `, laboratory or method: ${p.labMethod}` : ''}${open ? ', a bound: not in the comparison line' : ''}`
               return shape === 'circle'
                 ? <circle key={k} cx={x(p.date.getTime())} cy={y(p.value)} r={3.5} fill={open ? 'white' : color} stroke={color}><title>{title}</title></circle>
                 : <path key={k} d={markPath(shape, x(p.date.getTime()), y(p.value), 3.5)} fill={open ? 'white' : color} stroke={color}><title>{title}</title></path>

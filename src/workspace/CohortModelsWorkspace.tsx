@@ -531,7 +531,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               onChange={e => setSelectedParamKey(e.target.value)}
             >
               {eligibleParameters.map(p => (
-                <option key={p.key} value={p.key}>{p.label}{p.derived && !/computed/i.test(p.label) ? ' (computed)' : ''}</option>
+                <option key={p.key} value={p.key}>{p.label}{p.derived && !/computed/i.test(p.label) ? ' (derived)' : ''}</option>
               ))}
             </select>
           </label>
