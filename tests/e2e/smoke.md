@@ -1,5 +1,19 @@
 # Manual browser smoke checklist
 
+## Combined branch of the open points (2026-11-22)
+
+Branch `integration/open-items-2026-11-22` (`chore/persona-review-open-details`,
+`feat/aki-recovery-episodes`, `feat/before-after-anchor`,
+`feat/self-hosted-webr`, in this order). In the cohort workbook `settings`
+ends with `scope`, `group_by`, `anchor_comparison`; `aki_episodes` ends with
+`criterion`, `end_date`, `dialysis_start`, `ended_by_gap`,
+`last_value_date`; the measurement sheets end with `time_of_day`.
+
+Verified 2026-11-22 only by the automated checks (unit tests, build with the
+R runtime fetched by `scripts/vendor_r_runtime.mjs`, documentation links and
+the browser suite in Chromium); the manual steps of the four sections below
+were not repeated on the combined branch.
+
 ## Open points of the persona review (2026-11-22)
 
 Verified 2026-11-22 on branch `chore/persona-review-open-details` with
