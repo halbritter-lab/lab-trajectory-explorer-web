@@ -12,7 +12,8 @@ import { demographicWarningsByPatient } from '../core/demographics/describe'
 import { normaliseSex } from '../core/demographics/sex'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString, type WorkbookSheet } from '../io/export'
 import { COHORT_SHEET_HEADER, cohortColumnDirectoryRows, cohortSheetRow } from './cohort-sheet-columns'
-import { workspaceSpecs, type WorkspaceData } from './workspace-data'
+import { workspaceSpecs, type WorkspaceData, type WorkspaceParameter } from './workspace-data'
+import { seriesMerges } from '../core/domains/nephrology/seriesMergeModule'
 import { akiRecoveryHours, akiRetrospectiveFall } from '../core/domains/nephrology/aki/akiModule'
 import { akiEpisodeExportRows, akiEpisodeRows } from './aki-episodes'
 import { PERI_EVENT_SHEET_HEADER, periEventExportRows } from './peri-event'
@@ -67,15 +68,23 @@ const SEGMENT_MIN_POINTS = 3
  * their order, the fit settings and the app version; it is a checksum for
  * comparing runs, not a cryptographic hash. Since 2026-11-22 the time of day
  * (`time_of_day`) is part of a row that has one; a row without a time is
- * reduced as before, so a dataset without times keeps its identifier. */
+ * reduced as before, so a dataset without times keeps its identifier. The
+ * laboratory or method (`lab_method`, issue #68) joins in the same way. */
 export function inputDataId(rawMeasurementRows: readonly Record<string, unknown>[]): string {
   const rows = rawMeasurementRows.map(row => JSON.stringify([String(row.PatientID),row.Date,row.Parameter,row.Unit,row.Value,row.patient_sex ?? '',row.patient_age_at_lab ?? null,row.patient_birth_date ?? '',
     // The time of day joins only where a row has one, so rows without a time keep their identifier.
-    ...(row.time_of_day ? [row.time_of_day] : [])])).sort()
+    ...(row.time_of_day ? [row.time_of_day] : []),
+    // Issue #68: the laboratory or method joins likewise, only where a row has one.
+    ...(row.lab_method ? [`lab_method:${row.lab_method}`] : [])])).sort()
   return hashString(`[${rows.join(',')}]`)
 }
 
 const seriesIdentity = (name: string | null, unit: string | null) => JSON.stringify([name,unit])
+
+/** `formula` of a merged series in measurements and parameters (issue #68). */
+export const SERIES_MERGE_FORMULA = 'series_merge'
+
+export const SERIES_MERGE_NOTE = 'lab_method, source_parameter and source_unit (since 2026-11-22) follow egfr_height_cm; source_unit is the last column of the measurement sheets. lab_method is the laboratory or method of the value as imported (column Laboratory, Labor, Method, Methode or lab_method), empty where the file had none; no calculation reads it. source_parameter and source_unit name, for a derived value in measurements, the series it comes from: for a merged series (origin derived, formula series_merge) the imported series the value was copied from, for a computed eGFR the creatinine series; both are empty for imported values and in raw_measurements. A merged series is formed only by an explicit mapping on the Data page (seriesMerge.merges in analysis_settings of the settings sheet), never automatically: every value of each source series is copied, converted to the merged unit only for serum creatinine between mg/dl and µmol/l (88.42 µmol/l per mg/dl; NumericValue unrounded, Value rounded); values of two sources on one day are all kept. The source series stay unchanged beside it, and in parameters source_parameter and source_unit list the source series of a merged series, separated by "; ". Values of one analyte from different laboratories or methods may not be comparable.'
 
 /** Fixed column lists of the sheets, so a sheet without rows still has its
  * header row and a script finds every column by name. `patient_attributes`
@@ -86,7 +95,7 @@ const seriesIdentity = (name: string | null, unit: string | null) => JSON.string
  * the imported lab row: filled in `raw_measurements` only, so that a
  * re-import keeps an exact birth date; the resolved date of the analysis is
  * `birth_anchor` in `demographics`. */
-export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics','loinc','patient_birth_date','time_of_day','egfr_equation','egfr_height_cm'] as const
+export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics','loinc','patient_birth_date','time_of_day','egfr_equation','egfr_height_cm','lab_method','source_parameter','source_unit'] as const
 export const EVENTS_SHEET_HEADER = ['PatientID','type','date','title','description','endDate','intent','warning'] as const
 export const AKI_EPISODES_SHEET_HEADER = ['PatientID','creatinine_parameter','creatinine_unit','stage','onset_date','peak_date','peak_value_mg_dl','baseline_date','baseline_value_mg_dl','criterion','end_date','dialysis_start','ended_by_gap','last_value_date','baseline_source','baseline_n'] as const
 export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings','egfr_source_parameter','egfr_source_unit','egfr_male_coefficients_for_sex_d'] as const
@@ -179,12 +188,16 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     if (cells.some(cell => !cell)) throw new Error('The displayed summary does not contain all selected parameters.')
     return {...row,cells:cells.filter(cell => cell !== undefined)}
   })
+  // Issue #68: a derived parameter is a computed eGFR or a deliberately merged series.
+  const merges = new Map(seriesMerges(data.analysisSettings).map(merge => [seriesIdentity(merge.name,merge.unit),merge]))
+  const mergeOf = (parameter: WorkspaceParameter) => merges.get(seriesIdentity(parameter.bezeichnung,parameter.einheit))
+  const derivedFormula = (parameter: WorkspaceParameter) => mergeOf(parameter) ? SERIES_MERGE_FORMULA : data.analysisSettings.egfr.formula
   const measurementRows = (rows: LabRow[], raw = false) => scopedRows(rows).flatMap(row => {
     const parameter = bySeries.get(seriesIdentity(row.bezeichnung,row.einheit))!
     return patientMeasurementRecords([row],row.patientId).map(record => ({
       PatientID:record.PatientID,Date:utcDateOrBlank(row.labDatum),Parameter:record.Bezeichnung,Unit:record.Einheit,Value:record.Wert,NumericValue:record.WertNum === '' ? null : record.WertNum,Operator:record.Operator,
       origin:!raw && parameter.derived ? 'derived' : 'imported',
-      formula:!raw && parameter.derived ? data.analysisSettings.egfr.formula : '',
+      formula:!raw && parameter.derived ? derivedFormula(parameter) : '',
       patient_sex:row.patientSex ?? '',patient_age_at_lab:row.patientAgeAtLab,
       demographics:raw ? 'as imported' : 'resolved analysis values',
       // Appended 2026-11-21; empty for derived values and rows without a code.
@@ -195,6 +208,10 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       // Appended 2026-11-22 (issue #66): the equation of a computed eGFR value, and the height it used.
       egfr_equation:!raw && row.egfrFormula ? row.egfrFormula : '',
       egfr_height_cm:!raw && row.egfrHeightCm !== undefined ? row.egfrHeightCm : null,
+      // Appended 2026-11-22 (issue #68): the laboratory or method as imported, and the series a derived value comes from.
+      lab_method:row.labMethod ?? '',
+      source_parameter:raw ? '' : row.mergedFrom?.bezeichnung ?? row.sourceSeries?.bezeichnung ?? '',
+      source_unit:raw ? '' : row.mergedFrom ? row.mergedFrom.einheit ?? '' : row.sourceSeries?.einheit ?? '',
     }))
   })
   const attrs = Object.fromEntries(ids.map(id => [patientIdKey(id),data.patientAttributes[patientIdKey(id)] ?? {}]))
@@ -260,7 +277,10 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
         // Appended 2026-11-22 (decision `sexd`): true when a computed eGFR value of the patient used the male coefficients for sex d.
         egfr_male_coefficients_for_sex_d:egfrSexDByPatient.get(patientIdKey(id)) ?? null}
     })},
-    {name:'parameters',header:PARAMETERS_SHEET_HEADER,rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : '',
+    {name:'parameters',header:PARAMETERS_SHEET_HEADER,rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? derivedFormula(parameter) : '',
+      // A merged series names its source series, separated by "; " (issue #68).
+      source_parameter:!parameter.derived ? '' : mergeOf(parameter)?.sources.map(source => source.bezeichnung).join('; ') ?? data.analysisSettings.egfr.source?.[0] ?? '',
+      source_unit:!parameter.derived ? '' : mergeOf(parameter)?.sources.map(source => source.einheit ?? '').join('; ') ?? data.analysisSettings.egfr.source?.[1] ?? '',
       // Appended 2026-11-21: the distinct codes of the parameter's imported rows, whatever patients are selected.
       loinc:parameter.derived ? '' : [...new Set(data.rawRows.filter(row => row.loinc !== null && seriesIdentity(row.bezeichnung,row.einheit) === seriesIdentity(parameter.bezeichnung,parameter.einheit)).map(row => row.loinc))].join('; ')}))},
     {name:'settings',rows:specs.map((spec,index) => ({parameter_key:requestedKeys[index],parameter:spec.bezeichnung,unit:spec.einheit ?? '',mode:spec.mode,fit_config:JSON.stringify(exportedFitConfig(spec.fitConfig)),...moduleSettingColumns(requestedKeys[index]),analysis_settings:JSON.stringify(data.analysisSettings),patient_ids:JSON.stringify(ids),source_file:data.fileName ?? '',scope:patientId === undefined ? 'visible cohort' : 'selected patient',
@@ -293,17 +313,17 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:`Fixed parameters that fit_config does not carry: Segmented OLS (slope_mode gap-split) starts a new segment where two consecutive fitted points are more than ${SEGMENT_GAP_DAYS} days apart and fits a segment of at least ${SEGMENT_MIN_POINTS} points; slope, intercept, r2 and the bounds are those of the global OLS fit across all segments. Rolling OLS: see rolling_window_days and rolling_step_days in the result sheet.`},
       {note:`This file contains personal data and details of its origin. The patient IDs are written as imported, not pseudonymised: in column PatientID of every sheet and in settings (patient_ids). The measurement sheets hold dated values, sex and age, and raw_measurements the birth date where the imported lab rows carried one (patient_birth_date); demographics holds birth_anchor, a birth date (estimated from the stated age where age_estimated is true); events and patient_attributes hold the imported texts and attributes. settings names the imported file (source_file). Check these fields before passing the file on.`},
       {note:'patient_birth_date follows loinc and precedes time_of_day in the measurement sheets. In raw_measurements it holds the birth date of the imported lab row, so that loading this file again keeps an exact birth date; where the import had no birth date it is empty, and patient_age_at_lab is then the stated age. In measurements it is empty: the birth date used by the analysis is birth_anchor in demographics.'},
-      {note:'egfr_equation, after time_of_day, and egfr_height_cm, the last column of the measurement sheets (both since 2026-11-22), name the equation of each computed eGFR value (ckd-epi-2021, ckd-epi-2009, mdrd-4, ekfc-2021, ckid-u25 or schwartz-bedside) and, for CKiD U25 and bedside Schwartz, the height in cm it used: measured on the creatinine date or interpolated between two heights at most 90 days away, never extrapolated. Both are empty for imported values and in raw_measurements. One computed series can mix equations (by default CKiD U25 with a height, otherwise EKFC, from 2 to 17 years, and the adult formula from 18); egfr_formula_switch in the cohort sheet names each change of equation that a fitted slope spans.'},
+      {note:'egfr_equation, after time_of_day, and egfr_height_cm, after egfr_equation (both since 2026-11-22), name the equation of each computed eGFR value (ckd-epi-2021, ckd-epi-2009, mdrd-4, ekfc-2021, ckid-u25 or schwartz-bedside) and, for CKiD U25 and bedside Schwartz, the height in cm it used: measured on the creatinine date or interpolated between two heights at most 90 days away, never extrapolated. Both are empty for imported values and in raw_measurements. One computed series can mix equations (by default CKiD U25 with a height, otherwise EKFC, from 2 to 17 years, and the adult formula from 18); egfr_formula_switch in the cohort sheet names each change of equation that a fitted slope spans.'},
       {note:'Date holds the calendar day and time_of_day, after patient_birth_date in the measurement sheets, the time of day of the imported lab date (HH:MM:SS), empty where the file gave none; a time of 00:00 counts as none. Derived values have no time. Where the imported file gave times, they ordered several serum creatinine values of one day in AKI detection. Loading this file again reads time_of_day from raw_measurements, so the AKI episodes are the same as in this export when Recovery between episodes on the Data page has the value aki.recoveryHours of analysis_settings in the settings sheet: loading a file does not read the settings and starts at 48 hours. input_data_id covers the time of day of the rows that have one (until 2026-11-22 the time was in no sheet).'},
       {note:`app_version: ${APP_VERSION}`},
       {note:`exported_at: ${exportedAt.toISOString()}`},
       {note:`export_id: ${exportId}`},
       {note:`input_data_id: ${inputDataId(rawMeasurements)}`},
-      {note:'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements: patient, date, parameter, unit, value, sex, stated age, imported birth date and time of day; a 32-bit checksum, independent of row order and of the settings): two exports with the same input_data_id were computed from the same imported rows. Events, attributes and manual demographic entries are not part of it.'},
+      {note:'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements: patient, date, parameter, unit, value, sex, stated age, imported birth date, time of day and, since 2026-11-22, laboratory or method where a row has one; a 32-bit checksum, independent of row order and of the settings): two exports with the same input_data_id were computed from the same imported rows. Events, attributes and manual demographic entries are not part of it.'},
       // Appended 2026-11-22 (issue #64), so the earlier notes keep their positions.
       {note:`anchor_comparison lists the before/after comparison at an anchor event, one row per patient and parameter whose settings switch it on (settings: anchor_comparison). The anchor is the first event of the patient (anchor_rule first) or the first whose title or type equals anchor_value; among events of one date the first in the file. Measurements on the anchor date count as before; those of the exclusion_days days after it are left out of the after slope (n_excluded_window). Both sides use the points of the column\'s own fit (same censoring, exclusions and time balancing, balanced per side) and its estimator; n counts fitted points and n_fitted_dates their distinct dates. ci_low and ci_high of a side are its 95 % interval; for Theil-Sen with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval, as for the slope of the cohort sheet. slope_difference is after minus before; its 95 % interval is the Welch interval from the two OLS standard errors, assuming independent sides, and is empty for Theil-Sen and for a side with two points. A patient without a matching event has a row with empty values. The slope, flags and endpoints of the cohort sheet are those of the whole series.`},
       // Appended 2026-11-22 (issue #65).
-      {note:'A computed eGFR reads one serum creatinine series per patient: the creatinine source of the Data page (source_parameter and source_unit in parameters), or, when that source is in mg/dl and the patient has no serum creatinine in mg/dl, the patient\'s series in µmol/l (divided by 88.42). egfr_source_parameter and egfr_source_unit, the last columns of demographics, name the series used for each patient; they are empty for a patient without a computed eGFR value. Series are not merged.'},
+      {note:'A computed eGFR reads one serum creatinine series per patient: the creatinine source of the Data page (source_parameter and source_unit in parameters), or, when that source is in mg/dl and the patient has no serum creatinine in mg/dl, the patient\'s series in µmol/l (divided by 88.42). egfr_source_parameter and egfr_source_unit, the last columns of demographics, name the series used for each patient; they are empty for a patient without a computed eGFR value. Series are not merged by this rule; a series merged deliberately on the Data page is the source only when it is chosen as the creatinine source.'},
       // Appended 2026-11-22 (issue #83), after the note on anchor_comparison.
       {note:COLUMN_SETTINGS_NOTE},
       // Appended 2026-11-22 (issue #69), so the earlier notes keep their positions.
@@ -314,6 +334,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'egfr_male_coefficients_for_sex_d, the last column of demographics, is true for a patient whose computed eGFR values include one with sex d from an equation with a sex term: the eGFR equations have coefficients for male and female sex only, and sex d uses the male ones. Bedside Schwartz has no sex term, so its values never make it true. It is false for a patient with computed eGFR values otherwise, and empty without a computed eGFR value.'},
       // Appended 2026-11-22 (issues #81, #82, `g5single`), last.
       {note:'endpoint_observed_decline_50 and the endpoint_decline_50_* columns, before group, are the confirmed 50 % eGFR decline: the baseline, candidate, confirmation and recovery rules of the 40 % and 57 % declines with the boundary 50 %; they are filled only where the column switches the 50 % decline on (endpoints.observedDecline50 in fit_config). endpoint_g5_single_value_unconfirmed, the column before group, is yes when no CKD G5 is confirmed and an eligible measurement date has only values below 15 while the eligible dates directly before and after it do not (a conclusive bound >x with x at or above 15 counts as a date that is not below 15): a single value below 15, unconfirmed (possible AKI). It is never an observed G5 and does not withhold the extrapolation to CKD G5. That extrapolation is off by default since 2026-11-22 (endpoints.projectedAgeToCkdG5 in fit_config says whether it was on); while it is off, its columns are empty. Switched on, it needs eligible measurements on at least four distinct dates over at least three calendar years (reason kdigo_minimum_follow_up otherwise).'},
+      // Appended 2026-11-22 (issue #68), last.
+      {note:SERIES_MERGE_NOTE},
     ]},
     // Sheets added later follow the earlier ones, so sheet positions stay.
     {name:'columns',header:['column','meaning','unit','empty_when'],rows:cohortColumnDirectoryRows()},

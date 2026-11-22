@@ -31,11 +31,15 @@ const OP_FLIP: Record<string, WertOperator> = { '<': '>', '>': '<', '=': '=' }
 export type Source = [string, string]
 
 /** Distinct serum-creatinine (Bezeichnung, Einheit) pairs eligible as an eGFR
- * source, mg/dl-first then by name. Mirrors creatinine_source_options. */
-export function creatinineSourceOptions(rows: LabRow[]): Source[] {
+ * source, mg/dl-first then by name. Mirrors creatinine_source_options. A
+ * deliberately merged creatinine series (issue #68) is listed when `rows`
+ * hold its rows, so it can be chosen; `defaultCreatinineSource` never picks
+ * it (see `importedCreatinineSourceOptions`). Computed eGFR rows are never
+ * sources. */
+export function creatinineSourceOptions(rows: readonly LabRow[]): Source[] {
   const seen = new Map<string, Source>()
   for (const r of rows) {
-    if (r.bezeichnung == null || r.einheit == null) continue
+    if (r.bezeichnung == null || r.einheit == null || r.sourceSeries) continue
     const key = `${r.bezeichnung}|${r.einheit}`
     if (seen.has(key)) continue
     if (isSerumCreatinineSeries(r.bezeichnung, r.einheit)) {
@@ -43,6 +47,13 @@ export function creatinineSourceOptions(rows: LabRow[]): Source[] {
     }
   }
   return [...seen.values()].sort(bySourceOrder)
+}
+
+/** `creatinineSourceOptions` of the imported series only: merged series are
+ * left out, so the automatic source and the per-patient rule of issue #65
+ * stay as they were unless a merged series is chosen explicitly. */
+export function importedCreatinineSourceOptions(rows: readonly LabRow[]): Source[] {
+  return creatinineSourceOptions(rows.filter((r) => !r.mergedFrom))
 }
 
 /** mg/dl before µmol/l, then by lower-cased name. */
@@ -96,7 +107,7 @@ const utcDay = (date: Date) => Math.floor(date.getTime() / MS_PER_DAY)
 export function patientHeights(rows: readonly LabRow[]): Map<string, HeightPoint[]> {
   const byPatient = new Map<string, Map<number, number[]>>()
   for (const r of rows) {
-    if (r.sourceSeries || r.labDatum === null || r.wertNum === null || !(r.wertNum > 0) || !isExactMeasurement(r)) continue
+    if (r.sourceSeries || r.mergedFrom || r.labDatum === null || r.wertNum === null || !(r.wertNum > 0) || !isExactMeasurement(r)) continue
     if (!isHeightSeries(r.bezeichnung, r.einheit, r.loinc)) continue
     const key = patientIdKey(r.patientId)
     const days = byPatient.get(key) ?? new Map<number, number[]>()
@@ -241,12 +252,16 @@ const sameSource = (a: Source, b: Source) => a[0] === b[0] && a[1] === b[1]
  * a patient without any eligible serum creatinine in mg/dl uses their µmol/l
  * series instead: the one under the selected pair's name, else the only one;
  * with several and none under that name, none (`several_umoll`). One series
- * per patient; series are never merged. An ineligible `selected` pair gives
- * no patient a source. */
+ * per patient; series are never merged by this rule. An ineligible
+ * `selected` pair gives no patient a source. A deliberately merged series
+ * (rows with `mergedFrom`, issue #68) takes part only as the selected pair:
+ * otherwise its rows are ignored, so merging changes no patient's source,
+ * gap or fallback unless the merged series is chosen as the source. */
 export function patientCreatinineSources(rows: readonly LabRow[], selected: Source): Map<string, PatientCreatinineSource> {
   const byPatient = new Map<string, Map<string, Source>>()
   for (const r of rows) {
     if (r.bezeichnung == null || r.einheit == null || r.sourceSeries) continue
+    if (r.mergedFrom && !(r.bezeichnung === selected[0] && r.einheit === selected[1])) continue
     if (!isSerumCreatinineSeries(r.bezeichnung, r.einheit)) continue
     const key = patientIdKey(r.patientId)
     const pairs = byPatient.get(key) ?? new Map<string, Source>()
@@ -285,7 +300,7 @@ export function appendComputedEgfr(rows: LabRow[], opts: EgfrOptions = {}): LabR
   if (!anySex && !anyAge) return rows
 
   let source = opts.source ?? null
-  if (source == null) source = defaultCreatinineSource(creatinineSourceOptions(rows))
+  if (source == null) source = defaultCreatinineSource(importedCreatinineSourceOptions(rows))
   if (source == null) return rows
   if (!isSerumCreatinineSource(source)) return rows
   const perPatient = patientCreatinineSources(rows, source)

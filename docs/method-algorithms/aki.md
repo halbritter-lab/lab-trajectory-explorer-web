@@ -44,7 +44,13 @@ Before, a computed eGFR column was treated like any other analyte. For any other
 patient's eligible creatinine pair with the most exact dated rows is used;
 ties retain the first encountered pair. Bounds do not win source selection by
 inflating the row count. The choice is made per patient. Rows with different
-names or units are never pooled into one detection series.
+names or units are never pooled into one detection series, except in a
+series merged deliberately by the user (issue #68, 2026-11-22): a merged
+serum-creatinine series detects on its own rows, which hold the values of
+all its sources; merged rows never take part in the choice of the largest
+series for other columns, in the peri-event analysis or in the Data page's
+creatinine checks (OD-82; see
+[series comparison and merge](series-comparison-and-merge.md#interaction-with-egfr-aki-and-the-analysis-record)).
 
 A µmol/l value is converted to mg/dl by dividing by **88.42 µmol/l per
 mg/dl** before any comparison. Thus 97.262 and 123.788 µmol/l correspond to

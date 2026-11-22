@@ -174,7 +174,7 @@ export function nonPositiveCreatinineCount(rows: readonly LabRow[]): number {
 
 /** The rows `nonPositiveCreatinineCount` counts, in input order. */
 export function nonPositiveCreatinineRows(rows: readonly LabRow[]): LabRow[] {
-  return rows.filter((r) => r.bezeichnung !== null && r.labDatum !== null && r.wertNum !== null && r.wertNum <= 0
+  return rows.filter((r) => r.bezeichnung !== null && !r.mergedFrom && r.labDatum !== null && r.wertNum !== null && r.wertNum <= 0
     && isExactMeasurement(r) && isAkiCreatinineSource(r.bezeichnung, r.einheit))
 }
 
@@ -188,7 +188,7 @@ export function nonPositiveCreatinineRows(rows: readonly LabRow[]): LabRow[] {
 export function sameDayUnorderedCreatinine(rows: readonly LabRow[]): { patientDays: number; patients: number } {
   const slots = new Map<string, { untimed: number; times: Map<number, number> }>()
   for (const r of rows) {
-    if (r.bezeichnung === null || r.labDatum === null || r.wertNum === null || r.wertNum <= 0
+    if (r.bezeichnung === null || r.mergedFrom || r.labDatum === null || r.wertNum === null || r.wertNum <= 0
       || !isExactMeasurement(r) || !isAkiCreatinineSource(r.bezeichnung, r.einheit)) continue
     const key = JSON.stringify([patientIdKey(r.patientId), r.labDatum.getTime(), r.bezeichnung, r.einheit ?? null])
     let slot = slots.get(key)
@@ -218,7 +218,7 @@ export function implausiblyHighCreatinineCount(rows: readonly LabRow[]): number 
 
 /** The rows `implausiblyHighCreatinineCount` counts, in input order. */
 export function implausiblyHighCreatinineRows(rows: readonly LabRow[]): LabRow[] {
-  return rows.filter((r) => r.bezeichnung !== null && r.labDatum !== null && r.wertNum !== null
+  return rows.filter((r) => r.bezeichnung !== null && !r.mergedFrom && r.labDatum !== null && r.wertNum !== null
     && isExactMeasurement(r) && isAkiCreatinineSource(r.bezeichnung, r.einheit)
     && (normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum / MGDL_PER_UMOLL : r.wertNum) > IMPLAUSIBLE_CREATININE_ABOVE_MGDL)
 }
@@ -232,7 +232,8 @@ export function implausiblyHighCreatinineRows(rows: readonly LabRow[]): LabRow[]
 export function largestCreatinineSeries(rows: readonly LabRow[]): LabRow[] {
   const groups = new Map<string, LabRow[]>()
   for (const r of rows) {
-    if (r.bezeichnung === null || !isAkiCreatinineSource(r.bezeichnung, r.einheit)) continue
+    // A merged series (issue #68) is never the shared creatinine source of other columns.
+    if (r.bezeichnung === null || r.mergedFrom || !isAkiCreatinineSource(r.bezeichnung, r.einheit)) continue
     const k = `${r.bezeichnung}|${r.einheit ?? ''}`
     if (!groups.has(k)) groups.set(k, [])
     groups.get(k)!.push(r)

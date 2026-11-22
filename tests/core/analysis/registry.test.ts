@@ -31,6 +31,7 @@ describe('computeAnalysisResult', () => {
         egfr: { formula: 'off', source: null },
         aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
         rapidEgfrDecline: { threshold: 5 },
+        seriesMerge: { merges: [] },
       },
       modules: [],
     })
@@ -50,6 +51,7 @@ describe('computeAnalysisResult', () => {
           egfr: { formula: 'off', source: null },
           aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
           rapidEgfrDecline: { threshold: 5 },
+          seriesMerge: { merges: [] },
         },
         apply: () => ({
           messages: [],
@@ -67,6 +69,7 @@ describe('computeAnalysisResult', () => {
         egfr: { formula: 'off', source: null },
         aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
         rapidEgfrDecline: { threshold: 5 },
+        seriesMerge: { merges: [] },
       },
       modules,
     })
@@ -88,6 +91,7 @@ describe('computeAnalysisResult', () => {
           egfr: { formula: 'off', source: null },
           aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
           rapidEgfrDecline: { threshold: 5 },
+          seriesMerge: { merges: [] },
         },
         apply: (ctx) => ({ rows: [...ctx.rows, computed] }),
       },
@@ -98,6 +102,7 @@ describe('computeAnalysisResult', () => {
           egfr: { formula: 'off', source: null },
           aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
           rapidEgfrDecline: { threshold: 5 },
+          seriesMerge: { merges: [] },
         },
         apply: (ctx) => {
           seenRows.push(ctx.rows.length)
@@ -115,6 +120,7 @@ describe('computeAnalysisResult', () => {
         egfr: { formula: 'off', source: null },
         aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
         rapidEgfrDecline: { threshold: 5 },
+        seriesMerge: { merges: [] },
       },
       modules,
     })
@@ -129,6 +135,7 @@ describe('parseAnalysisSettings', () => {
     egfr: { formula: 'mdrd-4', source: ['Kreatinin', 'mg/dl'] },
     aki: { showOverlays: true, exclusionDays: 30, recoveryHours: 48, retrospectiveFall: false },
     rapidEgfrDecline: { threshold: 5 },
+    seriesMerge: { merges: [] },
   }
 
   it('accepts the current saved workspace shape without changing valid values', () => {
@@ -140,6 +147,7 @@ describe('parseAnalysisSettings', () => {
     expect(parseAnalysisSettings(olderSettings)).toEqual({
       ...olderSettings,
       rapidEgfrDecline: { threshold: 5 },
+      seriesMerge: { merges: [] },
     })
   })
 

@@ -143,6 +143,9 @@ export const LAB_COLUMN_ALIASES = {
   birthDate: ['birthDate', 'PatientGeburtsdatum', 'Geburtsdatum', 'PatientBirthDate'],
   valueNum: ['valueNum', 'Wert_num'],
   valueOperator: ['valueOperator', 'Wert_operator'],
+  // Issue #68: the laboratory or method of a measurement, carried through and
+  // shown per point. `lab_method` is the column the app's own export writes.
+  labMethod: ['labMethod', 'Laboratory', 'Labor', 'Method', 'Methode'],
 } as const satisfies Record<string, readonly string[]>
 
 export type LabColumnKey = keyof typeof LAB_COLUMN_ALIASES

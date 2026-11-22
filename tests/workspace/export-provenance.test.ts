@@ -100,6 +100,9 @@ describe('about sheet: provenance and personal data', () => {
     expect([inputDataId([{ ...a, time_of_day: '' }, { ...b, time_of_day: '' }]), inputDataId([a, b])]).toEqual(['d2196115', 'd2196115'])
     // The worked example with the time: the first variant (<1.0) and the variant with 1.0.
     expect([inputDataId([{ ...a, time_of_day: '06:00:00' }, b]), inputDataId([{ ...a, time_of_day: '06:00:00' }, { ...b, Value: '1.0' }])]).toEqual(['dfa98525', '661a656d'])
+    // The laboratory or method (issue #68) joins likewise: an empty column keeps the identifier.
+    expect([inputDataId([{ ...a, lab_method: '' }, { ...b, lab_method: '' }]), inputDataId([a, b])]).toEqual(['d2196115', 'd2196115'])
+    expect(inputDataId([{ ...a, lab_method: 'Lab A' }, b])).not.toBe('d2196115')
     expect(inputDataId([{ PatientID: 7, Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1' }])).toBe(inputDataId([{ PatientID: '7', Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1', patient_sex: '', patient_age_at_lab: null }]))
   })
 
@@ -118,13 +121,15 @@ describe('about sheet: provenance and personal data', () => {
     expect(about[16]).toMatch(/Endpoints, AKI detection and cohort mixed models exclude them/)
     expect(about[16]).not.toMatch(/excluded from fits/)
     // Appended on 2026-11-22: issue #64 after the provenance rows, then the notes of issues #65, #83, #69, of `sexd` and of #81/#82 last.
-    expect(about.at(-6)).toMatch(/^anchor_comparison lists the before\/after comparison/)
-    expect(about.at(-5)).toMatch(/^A computed eGFR reads one serum creatinine series per patient/)
-    expect(about.at(-4)).toMatch(/^trend, settings_source and column_settings/)
-    expect(about.at(-3)).toMatch(/^peri_event_creatinine lists the serum creatinine around every event/)
-    expect(about.at(-2)).toMatch(/^egfr_male_coefficients_for_sex_d, the last column of demographics/)
+    expect(about.at(-7)).toMatch(/^anchor_comparison lists the before\/after comparison/)
+    expect(about.at(-6)).toMatch(/^A computed eGFR reads one serum creatinine series per patient/)
+    expect(about.at(-5)).toMatch(/^trend, settings_source and column_settings/)
+    expect(about.at(-4)).toMatch(/^peri_event_creatinine lists the serum creatinine around every event/)
+    expect(about.at(-3)).toMatch(/^egfr_male_coefficients_for_sex_d, the last column of demographics/)
     // Appended 2026-11-22: the 50 % decline, the unconfirmed single value below 15 and the extrapolation default.
-    expect(about.at(-1)).toMatch(/^endpoint_observed_decline_50 and the endpoint_decline_50_\* columns/)
-    expect(about.slice(-11, -6).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
+    expect(about.at(-2)).toMatch(/^endpoint_observed_decline_50 and the endpoint_decline_50_\* columns/)
+    // Appended 2026-11-22 (issue #68): laboratory or method, source series and merged series, last.
+    expect(about.at(-1)).toMatch(/^lab_method, source_parameter and source_unit/)
+    expect(about.slice(-12, -7).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
   })
 })

@@ -5,6 +5,31 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (series comparison and deliberate merge, decided 2026-11-16, 2026-11-21 and 2026-11-22, issue #68)
+
+- Patient view: "Compare series" draws several series of the patient in one
+  chart, in the unit of the first series (serum creatinine converted between
+  mg/dl and µmol/l with 88.42), each with its own colour, marker shape and OLS
+  comparison line, and a table of slopes and laboratories. Display only.
+- Data page: "Merge series" merges ticked imported series, or the series of a
+  chosen LOINC code, into one derived series by an explicit mapping; never
+  automatically. The source series stay; each merged value names its source
+  (marker shape and tooltip in the charts, column in the measurement table).
+  Values of two sources on one day are all kept (OD-80). A merged creatinine
+  series can be chosen as the eGFR source; until it is, the eGFR, the AKI
+  episodes and every existing number are unchanged (numeric output changes
+  only for datasets with a merge: the merged series is a new parameter, and
+  its slopes, endpoints and AKI episodes are its own; OD-82).
+- Import: an optional laboratory or method column (`Laboratory`, `Labor`,
+  `Method`, `Methode`, `lab_method`), shown per point and exported.
+- Export: `lab_method`, `source_parameter` and `source_unit` are the new last
+  columns of `measurements` and `raw_measurements`; merged parameters have
+  `formula` `series_merge` in `measurements` and `parameters`; the mapping is
+  `seriesMerge.merges` in `analysis_settings`, with an entry in the analysis
+  record. `input_data_id` includes `lab_method` only for rows that have one.
+  "Apply settings from an export" leaves out and names a merge whose series
+  are not in the dataset (OD-81).
+
 ### Fixed (code review of the 2026-11-22 merges)
 
 - Export notes and the import warning on bounded values describe the current

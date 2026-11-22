@@ -22,16 +22,17 @@ import { defaultTrajectoryView, type TrajectoryView } from './saved-settings'
 import type { StoredMixedModelResult } from './state/store'
 import { anchorRuleLabel } from '../core/cohort/anchorComparison'
 import type { PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
+import type { SeriesMerge } from '../core/analysis/seriesMerge'
 
 /** Where a setting is changed in the interface. */
 export type SettingControl =
-  | { page: 'Data'; target: 'egfr' | 'aki-recovery' | 'aki-retrospective' | 'demographics' | 'peri-event' }
+  | { page: 'Data'; target: 'egfr' | 'aki-recovery' | 'aki-retrospective' | 'demographics' | 'peri-event' | 'series-merge' }
   | { page: 'Trajectories'; target: 'analysis' | 'parameters' | 'trend' | 'log' | 'grouping' }
   | { page: 'Cohort models'; target: 'model' | 'fit-summary' }
 
 /** The element each control of another page is in (see WorkspaceApp). */
 export const CONTROL_ELEMENT_IDS: Record<Exclude<SettingControl, { page: 'Trajectories' }>['target'], string> = {
-  egfr: 'data-egfr', 'aki-recovery': 'data-aki-recovery', 'aki-retrospective': 'data-aki-retrospective', demographics: 'data-demographics', 'peri-event': 'data-peri-event',
+  egfr: 'data-egfr', 'aki-recovery': 'data-aki-recovery', 'aki-retrospective': 'data-aki-retrospective', demographics: 'data-demographics', 'peri-event': 'data-peri-event', 'series-merge': 'data-series-merge',
   model: 'cohort-model-settings', 'fit-summary': 'cohort-model-fit-summary',
 }
 
@@ -87,6 +88,8 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   'analysisSettings.aki.showOverlays': { label: 'AKI overlays, dataset default', area: 'Data', noNumericEffect: 'No computation reads it; the charts have their own overlay switch under Display.', control: null },
   // No control: each column has its own threshold (fit.moduleSettings.rapidEgfrDecline.threshold).
   'analysisSettings.rapidEgfrDecline.threshold': { label: 'Rapid decline threshold, dataset default', area: 'Data', exportField: ANALYSIS_SETTINGS, control: null },
+  // Issue #68 (2026-11-22): deliberately merged series; the mapping changes every number of the merged series.
+  'analysisSettings.seriesMerge.merges': { label: 'Merged series', area: 'Data', exportField: `${ANALYSIS_SETTINGS}; measurements.source_parameter, measurements.source_unit; parameters.formula, parameters.source_parameter`, control: { page: 'Data', target: 'series-merge' } },
   // Manual demographic entries are data, but they change ages, sex and with them eGFR and endpoints.
   manualDemographics: { label: 'Manual demographic entries', area: 'Data', exportField: 'demographics.manual_override', control: { page: 'Data', target: 'demographics' } },
 
@@ -165,7 +168,7 @@ export const STORE_FIELDS = {
 } as const satisfies Record<string, 'data' | 'state' | 'settings'>
 
 /** Paths whose value is one setting although it is an object or a list. */
-const LEAF_PATHS = new Set(['trajectoryView.hiddenEndpointBadges', 'analysisSettings.egfr.source', 'periEventSettings', 'manualDemographics', 'trajectoryView.display', 'mixedModelConfig.covariates', 'mixedModelConfig.factors', 'projectionSettings', 'trajectoryView.parameterKeys', 'trajectoryView.trendKeys', 'trajectoryView.fitKeys'])
+const LEAF_PATHS = new Set(['trajectoryView.hiddenEndpointBadges', 'analysisSettings.egfr.source', 'analysisSettings.seriesMerge.merges', 'periEventSettings', 'manualDemographics', 'trajectoryView.display', 'mixedModelConfig.covariates', 'mixedModelConfig.factors', 'projectionSettings', 'trajectoryView.parameterKeys', 'trajectoryView.trendKeys', 'trajectoryView.fitKeys'])
 
 /** The leaves of a settings value as [path, value], depth first in key order.
  * An empty object counts as a leaf, so a new empty setting is not skipped. */
@@ -250,6 +253,8 @@ export function settingValueText(path: string, value: unknown): string {
     return `${rule.kind === 'title' ? 'Title' : 'Type'}: ${rule.value}, window ${windowHours} hours`
   }
   if (path === 'trajectoryView.logKeys') return value ? 'Logarithmic' : 'Linear'
+  if (path === 'analysisSettings.seriesMerge.merges') return Array.isArray(value) && value.length
+    ? (value as SeriesMerge[]).map(merge => `${merge.name} (${merge.unit}) from ${merge.sources.map(source => `${source.bezeichnung} (${source.einheit ?? 'no unit'})`).join(' + ')}`).join('; ') : 'None'
   if (path === 'analysisSettings.egfr.source') return Array.isArray(value) ? `${value[0]} (${value[1]})` : 'Automatic'
   if (path.endsWith('.presetId')) return value === 'custom' ? 'Custom configuration' : fitPresetById(String(value))?.name ?? String(value)
   if (path.endsWith('.fitModel')) return FIT_MODEL_TEXT[String(value)] ?? String(value)

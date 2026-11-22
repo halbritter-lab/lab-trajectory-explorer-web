@@ -66,6 +66,17 @@ export interface LabRow {
    * it was computed from, so AKI detection for the derived series uses that
    * series. Absent on imported rows. */
   sourceSeries?: { bezeichnung: string; einheit: string }
+  /** On a row of a deliberately merged series (issue #68): the imported
+   * series (name, unit) the row was copied from. Absent on imported rows
+   * and on computed eGFR rows. Kept apart from `sourceSeries`, which marks
+   * computed eGFR, so the eGFR source rule and AKI detection never take a
+   * merged row for a computed one. */
+  mergedFrom?: { bezeichnung: string; einheit: string | null }
+  /** The laboratory or method of the measurement, from the optional import
+   * column (`Laboratory`, `Labor`, `Method`, `Methode`, `labMethod`; issue
+   * #68), as written. Shown per point and exported; no computation reads
+   * it. Absent when the file has no such column or the cell is empty. */
+  labMethod?: string
   /** On a computed eGFR row: the equation that produced it (issue #66; one
    * series can mix equations, e.g. CKiD U25 for a child and CKD-EPI 2021 from
    * 18). Absent on imported rows and on derived rows of saved copies, which

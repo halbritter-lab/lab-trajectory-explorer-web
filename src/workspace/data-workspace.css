@@ -51,3 +51,9 @@
 .data-heading-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 10px 14px; }
 .data-unapplied { display: inline-flex; align-items: center; gap: 8px; padding: 4px 6px 4px 12px; border: 1px solid var(--border); border-radius: 8px; background: #fdf6e7; color: #7a4b00; font-size: 13px; }
 .data-event-tables .peri-event-table { min-width: 72rem; }
+/* Data page, "Merge series" (issue #68). */
+.series-merge-list { padding-left: 1.2em; }
+.series-merge-list li { margin-bottom: 6px; overflow-wrap: anywhere; }
+.series-merge-form { border: 1px solid #dce5e9; border-radius: 8px; padding: 12px; min-width: 0; }
+.series-merge-options { display: flex; flex-direction: column; gap: 4px; margin: 8px 0; max-height: 18rem; overflow-y: auto; }
+.series-merge-options label { overflow-wrap: anywhere; }

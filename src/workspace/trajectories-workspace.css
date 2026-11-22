@@ -143,3 +143,7 @@
 .wt-measurements td, .wt-measurements th { overflow-wrap: normal; }
 .wt-measurements td:first-child { white-space: nowrap; }
 .wt-measurements .wt-aki-detection-cell { min-width: 9.5rem; }
+/* Patient view, "Compare series" (issue #68). */
+.wt-series-comparison { margin-top: 20px; }
+.wt-comparison-options { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 12px; }
+.wt-comparison-options label { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; overflow-wrap: anywhere; }

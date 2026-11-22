@@ -6,7 +6,9 @@ import { comparePatientIds, patientIdKey, type LabRow, type PatientId, type Wert
 import { boundedShareLabel, slopeQualityLabel, THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
 import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
 import { workspaceSpecs, type WorkspaceData, type WorkspaceParameter } from './workspace-data'
+import { seriesMerges } from '../core/domains/nephrology/seriesMergeModule'
 import { WorkspaceExportActions } from './WorkspaceExports'
+import { SeriesComparison } from './SeriesComparison'
 import { DEFAULT_WORKSPACE_DISPLAY, drawnFitLines, OVERLAY_MODULES, WorkspacePlot, formatWorkspaceDate, formatWorkspaceNumber, type WorkspaceAxis, type WorkspaceDisplay } from './WorkspacePlot'
 import { PatientMeasurementTable, eventText, eventsByDate } from './PatientMeasurementTable'
 import { RollingWindowList } from './RollingWindowList'
@@ -481,12 +483,19 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
   const parameterHeaders = useRef(new Map<string, HTMLTableCellElement>())
   const tablePosition = useRef({ left: 0, top: 0, restore: false })
   const knownParameters = useRef(new Map(data.parameters.map(parameter => [parameter.key, parameter])))
+  /** Keys of every merged series seen in this session (issue #68), so a removed one is still known as merged. */
+  const knownMerged = useRef(new Set<string>())
   const [parameterNotice, setParameterNotice] = useState('')
   useEffect(() => {
     const replacements = new Map<string, string>()
+    // A computed column follows a change of the eGFR formula; a merged series
+    // (issue #68) is derived too but never replaces another column or is replaced.
+    for (const merge of seriesMerges(data.analysisSettings)) knownMerged.current.add(JSON.stringify([merge.name, merge.unit]))
+    const computed = (parameter: WorkspaceParameter | undefined) => !!parameter?.derived && !knownMerged.current.has(parameter.key)
     const nextDerived = data.parameters.filter(parameter => parameter.derived)
+    const nextComputed = data.parameters.filter(computed)
     for (const key of parameterKeys) {
-      if (!data.parameters.some(parameter => parameter.key === key) && knownParameters.current.get(key)?.derived && nextDerived.length === 1) replacements.set(key, nextDerived[0].key)
+      if (!data.parameters.some(parameter => parameter.key === key) && computed(knownParameters.current.get(key)) && nextComputed.length === 1) replacements.set(key, nextComputed[0].key)
     }
     if (replacements.size) {
       setParameterKeys(previous => [...new Set(previous.map(key => replacements.get(key) ?? key))])
@@ -502,7 +511,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
         return next
       })
       setSettingsScope(previous => replacements.get(previous) ?? previous)
-      setParameterNotice(`The selected eGFR derivation was updated to ${nextDerived[0].label}.`)
+      setParameterNotice(`The selected eGFR derivation was updated to ${nextComputed[0].label}.`)
     } else {
       const added = nextDerived.filter(parameter => !knownParameters.current.has(parameter.key))
       if (added.length) {
@@ -511,7 +520,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
       }
     }
     for (const parameter of data.parameters) knownParameters.current.set(parameter.key, parameter)
-  }, [data.parameters, parameterKeys])
+  }, [data.parameters, data.analysisSettings, parameterKeys])
   const unavailable = parameterKeys.filter(key => !data.parameters.some(parameter => parameter.key === key)).map(key => knownParameters.current.get(key)?.label ?? parameterKeyLabel(key))
   const measurementsBySeries = useMemo(() => {
     const map = new Map<string, LabRow[]>()
@@ -994,7 +1003,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
       const measurements = measurementsFor(current.patientId, parameter)
       const fitStatus = measurementFitStatus(measurements, current.cells[index])
       return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} slopeDecimals={slopeDecimals[index]} logScale={logColumn[index]} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed slopeDecimals={slopeDecimals[index]} missing={missingNote(parameter.key, current.patientId)} formulaSwitches={switchesFor(parameter.key, current.patientId)} cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(current.patientId))} excludesAki={(columnSettings[parameter.key] ?? fitSettings).exclusions.excludeAkiWindows} timeBalancing={(columnSettings[parameter.key] ?? fitSettings).timeBalancing} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><PatientMeasurementTable parameter={parameter} measurements={measurements} fitStatus={fitStatus} events={eventsByPatient.get(patientIdKey(current.patientId)) ?? NO_EVENTS} />{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
-    })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{eventsByDate(data.events.filter(e => e.patientId === current.patientId)).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {eventText(event)}</li>)}</ul> : <p>No events recorded.</p>}</section><section className="card"><h3>AKI episodes for this patient</h3>{akiEpisodes.some(episode => episode.patientId === current.patientId)
+    })}</div><SeriesComparison rows={data.rows} patientId={current.patientId} /><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{eventsByDate(data.events.filter(e => e.patientId === current.patientId)).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {eventText(event)}</li>)}</ul> : <p>No events recorded.</p>}</section><section className="card"><h3>AKI episodes for this patient</h3>{akiEpisodes.some(episode => episode.patientId === current.patientId)
       ? <ul>{akiEpisodes.filter(episode => episode.patientId === current.patientId).map((episode, i) => <li key={i}>Stage {akiStageLabel(episode.stage)}, onset {formatWorkspaceDate(episode.onset)}, creatinine peak {formatWorkspaceNumber(episode.peakValue)} mg/dl on {formatWorkspaceDate(episode.peakDate)}; baseline {akiEpisodeBaselineLabel(episode)} mg/dl ({akiCriterionLabel(episode.criterion)}; {episode.parameter} [{episode.unit ?? 'no unit'}]); end {akiEpisodeEndLabel(episode)}; dialysis start {akiEpisodeDialysisLabel(episode)}</li>)}</ul>
       : <p>No AKI episode detected. Detection needs serum creatinine values close enough in time: a rise within 48 hours or 7 days.</p>}<p className="wt-muted">Automated KDIGO creatinine screening, not a diagnosis. Display → “AKI windows and episodes” marks them in the charts.</p></section></section>}
     {active && draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options" role="group" aria-label="Parameter options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} /><span>{p.label}</span></label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}

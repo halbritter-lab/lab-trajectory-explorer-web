@@ -1,5 +1,32 @@
 # Manual browser smoke checklist
 
+## Series comparison and deliberate merge (2026-11-22, issue #68)
+
+Branch `wp/series-2611`. Automated in `tests/e2e/series-merge.e2e.ts`.
+
+1. Load the demo. Data → *4. Merge series*: choose LOINC 2160-0. Both
+   creatinine series are ticked, nothing is merged yet; *Merge selected
+   series* lists `Kreatinin (merged) [mg/dl]` with 234 values unchanged and
+   11 values ÷ 88.42. *Creatinine source* offers it with "– merged series"
+   and stays *Automatic*.
+2. Trajectories, parameter `Kreatinin (merged) [mg/dl]`, patient 2: the chart
+   legend names ● Kreatinin [mg/dl] and ■ Kreatinin [µmol/l]; four squares;
+   the tooltip of a square names its source.
+3. *Compare series*: tick `Kreatinin [mg/dl]`, then `Kreatinin [µmol/l]`;
+   eGFR is greyed out; two lines, the µmol/l values about 0.25 mg/dl lower;
+   the table gives +0.250 mg/dl per year for the mg/dl series. At 390 px no
+   horizontal page scroll.
+4. Export: `lab_method`, `source_parameter`, `source_unit` end
+   `measurements`; the merged µmol/l value of 2023-01-10 is `1,24`,
+   `formula` `series_merge`; `analysis_settings` holds the merge.
+5. Not automated: *Remove* the merge with the merged series as eGFR source
+   (the source returns to *Automatic*); a file with a `Labor` column (tooltip,
+   measurement table, `lab_method`); *Apply settings from an export* on a
+   dataset without µmol/l creatinine (the merge is named and left out).
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 4
+by the browser test; step 5 by unit tests only.
+
 ## Kidney replacement therapy in every preset, undated unknown-intent dialysis, slope tier (2026-11-22, issue #4)
 
 Branch `wp/fits-2611`. Partly automated in `tests/e2e/table-screening.e2e.ts`

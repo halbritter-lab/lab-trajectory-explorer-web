@@ -5,6 +5,7 @@
  */
 import { demographicsModule } from './demographicsModule'
 import { egfrModule } from '../domains/nephrology/egfr/egfrModule'
+import { seriesMergeModule } from '../domains/nephrology/seriesMergeModule'
 import { clinicalEventsModule } from '../domains/nephrology/clinicalEventsModule'
 import { akiModule } from '../domains/nephrology/aki/akiModule'
 import { rapidEgfrDeclineModule } from '../domains/nephrology/rapidEgfrDeclineModule'
@@ -30,6 +31,7 @@ import type { LabRow } from '../types'
  * flags and export columns appear in this order. */
 export const analysisModules = [
   demographicsModule,
+  seriesMergeModule,
   egfrModule,
   clinicalEventsModule,
   akiModule,
