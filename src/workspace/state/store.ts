@@ -117,6 +117,9 @@ export interface AppState {
   setEgfrSource: (s: Source | null) => void
   /** Recovery that separates two AKI episodes (hours, dataset-level). */
   setAkiRecoveryHours: (hours: number) => void
+  /** Replace the dataset-level analysis settings as a whole ("Apply settings
+   * from an export"); an unchanged value changes nothing. */
+  applyAnalysisSettings: (settings: AnalysisSettings) => void
   setManualDemographics: (patientId: LabRow['patientId'], demo: ManualDemographics) => void
   setEvents: (events: ClinicalEvent[]) => void
   setPatientAttributes: (byPatient: Record<string, Record<string, string>>) => void
@@ -281,6 +284,11 @@ export const useAppStore = create<AppState>((set, get) => ({
   })),
   setAkiRecoveryHours: (hours) => set((s) => ({
     analysisSettings: { ...s.analysisSettings, aki: { ...s.analysisSettings.aki, recoveryHours: hours } },
+    pristineDemo: false,
+    ...clearedMixedModelResults(),
+  })),
+  applyAnalysisSettings: (settings) => set((s) => JSON.stringify(settings) === JSON.stringify(s.analysisSettings) ? s : ({
+    analysisSettings: settings,
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),

@@ -556,7 +556,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
         {/* Covariates & Factor Chips (Shown if custom or active factors exist) */}
         {(preset === 'custom' || activeFactors.length > 0) && (
-          <div className="cm-factors-container">
+          <div className="cm-factors-container" id="cohort-model-settings">
             <div className="cm-factors-header">
               <strong>Active covariates ({activeFactors.length})</strong>
               <div className="cm-random-effects-toggle">
@@ -643,7 +643,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </div>
         )}
 
-        <section className="cm-fit-summary" aria-label="Fit summary">
+        <section className="cm-fit-summary" aria-label="Fit summary" id="cohort-model-fit-summary">
         <h2>Fit summary</h2>
         {spec && !noFit && <p className="cm-sample-meta cm-model-sentence">{modelSentence}</p>}
         <label className="mixed-model-config-check">

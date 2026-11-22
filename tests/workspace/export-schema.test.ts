@@ -46,7 +46,7 @@ describe('cohort workbook schema', () => {
     expect(header(workbook, 'patient_attributes')).toEqual(['PatientID', 'group'])
     expect(header(workbook, 'demographics')).toEqual(['PatientID', 'baseline_age', 'birth_anchor', 'age_estimated', 'manual_override', 'warnings'])
     expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
-    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison'])
+    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison', 'trend', 'settings_source', 'column_settings'])
     expect(header(workbook, 'about')).toEqual(['note'])
     expect(header(workbook, 'columns')).toEqual(['column', 'meaning', 'unit', 'empty_when'])
     expect(header(read(workspaceWorkbookBytes({ ...exportFixture(), patientId: '001-A' })), 'slopes')).toEqual(COHORT_HEADER)
@@ -62,9 +62,10 @@ describe('cohort workbook schema', () => {
     // Column F is `slope` either way; a leading group column used to move it to G.
     expect(grouped.Sheets.cohort.F1.v).toBe('slope')
     // K40 (2026-11-22): settings records the grouping attribute, empty without grouping,
-    // after scope and before anchor_comparison (issue #64, appended the same day).
+    // after scope and before anchor_comparison (issue #64, appended the same day), which
+    // the settings of the analysis record follow (issue #83).
     expect(header(grouped, 'settings')).toEqual(header(plain, 'settings'))
-    expect(header(grouped, 'settings').slice(-3)).toEqual(['scope', 'group_by', 'anchor_comparison'])
+    expect(header(grouped, 'settings').slice(-6)).toEqual(['scope', 'group_by', 'anchor_comparison', 'trend', 'settings_source', 'column_settings'])
     expect(records(grouped, 'settings').length).toBeGreaterThan(0)
     expect(records(grouped, 'settings').every(row => row.group_by === 'group')).toBe(true)
     expect(records(plain, 'settings').every(row => row.group_by === '')).toBe(true)
