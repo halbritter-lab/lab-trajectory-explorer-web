@@ -5,7 +5,9 @@
 Branch `wp/83-analysis-record`. `settings` now ends with `anchor_comparison`,
 `trend`, `settings_source`, `column_settings`.
 
-1. Demo → Trajectories → **Analysis record**: sections Data, Trajectories:
+1. Demo → Trajectories → **Analysis record** (beside the export button; at
+   390 px in the toolbar beside Display, and the first chart stays on the
+   first screen): sections Data, Trajectories:
    shared settings, one per shown parameter, Trajectories: table, Cohort
    models, Versions, Apply settings from an export. All defaults: no entry
    marked "changed".

@@ -8,7 +8,7 @@ interfaces are still evolving before 1.0.
 ### Added (issue #83, analysis record)
 
 - **Analysis record.** "Analysis record" beside the export button of
-  Trajectories lists every setting that changes an exported number, from
+  Trajectories (on a phone in the toolbar, beside Display) lists every setting that changes an exported number, from
   Data, Trajectories (shared settings, each shown parameter's own settings
   and Trend, grouping) and Cohort models, with its current value. Values
   that differ from their default are marked "changed" with the default

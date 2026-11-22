@@ -717,6 +717,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
   useEffect(() => { if (!active) setRecordOpen(false) }, [active])
   const recordButton = useRef<HTMLButtonElement>(null)
   const closeRecord = () => { setRecordOpen(false); recordButton.current?.focus({ preventScroll: true }) }
+  // Beside the export button; on a phone in the toolbar, like the mark filters,
+  // so the first charts stay on the first screen.
+  const recordToggle = <button type="button" ref={recordButton} className={phoneLayout ? 'pv-tool' : 'pv-defaults'} onClick={() => { closeTool(); setRecordOpen(true) }}>Analysis record</button>
   const changeFromRecord = (control: SettingControl, parameterKey?: string, label?: string) => {
     if (control.page !== 'Trajectories') { onNavigate?.(control); return }
     if (control.target === 'analysis') {
@@ -809,7 +812,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
 <div className="pv-exports"><WorkspaceExportActions data={data} parameterKeys={keys} groupBy={groupBy} patientIds={keptOutsideMarks ? [keptOutsideMarks.patientId] : patientIds} cohortRows={keptOutsideMarks ? [keptOutsideMarks] : visible} fitConfigByParameterKey={fitConfigs} anchorComparisonByParameterKey={anchorComparisons} moduleSettingsByParameterKey={columnExport.moduleSettingsByParameterKey} columnSettingsByParameterKey={columnExport.columnSettingsByParameterKey} {...(mode === 'detail' && current ? { patientId: current.patientId,
         getCharts: () => [...(workspaceElement.current?.querySelectorAll<SVGSVGElement>('.wt-plot-card svg.wt-plot') ?? [])].map(svg => ({
           svg, title: `Patient ${current.patientId}: ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
-        })) } : {})} /><button type="button" ref={recordButton} className="pv-defaults" onClick={() => { closeTool(); setRecordOpen(true) }}>Analysis record</button><button type="button" className="pv-defaults" onClick={() => { setSettingsScope(''); setOpenTool('analysis') }}>General defaults</button></div></div>
+        })) } : {})} />{!phoneLayout && recordToggle}<button type="button" className="pv-defaults" onClick={() => { setSettingsScope(''); setOpenTool('analysis') }}>General defaults</button></div></div>
       <div className="pv-toolbar">
         <label className="pv-search"><Icon name="search" /><input aria-label="Search patients" value={query} onChange={event => { setQuery(event.target.value); setTablePage(0) }} placeholder="Search patients…" /></label>
         <div className="pv-tool-group">
@@ -824,6 +827,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
           {markOptions.length > 0 && phoneLayout && <ToolPopover name="Show only" icon="filter" badge={markFilters.length} open={active && openTool === 'marks'} onToggle={() => toggleTool('marks')} onClose={closeTool}>
             <div className="pv-mark-filters pv-mark-menu" role="group" aria-label="Show only patients with">{markButtons}</div>
           </ToolPopover>}
+          {phoneLayout && recordToggle}
           <ToolPopover name="Display" icon="view" open={active && openTool === 'view'} onToggle={() => toggleTool('view')} onClose={closeTool}>
                   <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
 

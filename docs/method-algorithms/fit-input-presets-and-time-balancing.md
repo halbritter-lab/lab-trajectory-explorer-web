@@ -314,7 +314,7 @@ Evidence: [workbook schema tests](../../tests/workspace/export-schema.test.ts),
 ### Applying the settings of an export
 
 Since 2026-11-22 (issue #83) the analysis record (Trajectories, beside the
-export button) applies the settings of a cohort or patient workbook of this
+export button; on a phone in the toolbar) applies the settings of a cohort or patient workbook of this
 app to the loaded dataset (`applyExportedSettings` in
 `src/workspace/exported-settings.ts`). Loading a workbook as data still
 applies none of its settings. The rules:
