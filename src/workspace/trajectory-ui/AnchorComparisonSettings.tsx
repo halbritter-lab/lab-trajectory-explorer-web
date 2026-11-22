@@ -30,8 +30,8 @@ export function AnchorComparisonSettingsGroup({ settings, events, onChange }: {
     <label>Anchor event
       <select aria-label="Anchor event" disabled={!settings} value={ruleValue(current.rule)} onChange={event => onChange({ ...current, rule: ruleFromValue(event.target.value) })}>
         <option value="first">First event of the patient</option>
-        {titles.length > 0 && <optgroup label="First event with the title">{titles.map(title => <option key={title} value={`title:${title}`}>{title}</option>)}</optgroup>}
-        {types.length > 0 && <optgroup label="First event of the type">{types.map(type => <option key={type} value={`type:${type}`}>{type}</option>)}</optgroup>}
+        {titles.length > 0 && <optgroup label="First event with the title">{titles.map(title => <option key={title} value={`title:${title}`}>Title: {title}</option>)}</optgroup>}
+        {types.length > 0 && <optgroup label="First event of the type">{types.map(type => <option key={type} value={`type:${type}`}>Type: {type}</option>)}</optgroup>}
       </select>
     </label>
     <label>Exclusion window after the anchor (days)

@@ -51,7 +51,7 @@ describe('before/after comparison in the Trajectories page (issue #64)', () => {
     const group = screen.getByTestId('anchor-comparison-settings')
     const anchor = within(group).getByLabelText('Anchor event') as HTMLSelectElement
     expect(anchor).toBeDisabled()
-    expect([...anchor.options].map(option => option.textContent)).toEqual(['First event of the patient', 'ACE start', 'other'])
+    expect([...anchor.options].map(option => option.textContent)).toEqual(['First event of the patient', 'Title: ACE start', 'Type: other'])
     fireEvent.click(within(group).getByLabelText('Compare slopes before and after an anchor event'))
     expect(useAppStore.getState().trajectoryFitSettings.shared.anchorComparison).toEqual({ rule: { kind: 'first' }, exclusionDays: 0 })
     fireEvent.change(anchor, { target: { value: 'title:ACE start' } })
@@ -80,7 +80,14 @@ describe('before/after comparison in the Trajectories page (issue #64)', () => {
     expect(excluded).toHaveLength(1)
     expect(excluded[0]).toHaveAttribute('data-exclusion', 'anchor-exclusion-window')
     expect(excluded[0].querySelector('title')).toHaveTextContent('exclusion window after the anchor event, after-anchor slope only')
-    expect(within(chart()).getByText(/left out of the after-anchor slope only and still enter the slope of the whole series/)).toBeInTheDocument()
+    expect(excluded[0].querySelector('title')!.textContent).not.toContain('excluded from the fit')
+    // Legend and export context count it apart from the fit exclusions: it is not excluded from the fit.
+    const legend = within(chart()).getByTestId('excluded-legend')
+    expect(legend).toHaveTextContent('Grey open circles: 1 measurement in the exclusion window after the anchor event: left out of the after-anchor slope only; it still enters the slope of the whole series.')
+    expect(legend).not.toHaveTextContent('excluded from the fit')
+    const context = chart().querySelector('svg.wt-plot')!.getAttribute('data-export-context')!
+    expect(context).toContain('; 1 measurement in the exclusion window after the anchor event (grey open circles; after-anchor slope only, still in the slope of the whole series)')
+    expect(context).not.toContain('excluded from the fit')
   })
 
   it('says when a patient has no matching anchor event', () => {
@@ -157,5 +164,9 @@ describe('export and saved settings', () => {
     expect(restoreSavedSettings({ version: SAVED_SETTINGS_VERSION, trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView() }, new Set()).trajectoryFitSettings.shared.anchorComparison).toBeUndefined()
     const broken = restoreSavedSettings({ version: SAVED_SETTINGS_VERSION, trajectoryFitSettings: { shared: { ...shared, anchorComparison: { rule: { kind: 'title' }, exclusionDays: 3 } }, columns: {} }, trajectoryView: defaultTrajectoryView() }, new Set())
     expect(broken.notRestored).toContain('shared analysis settings')
+    // Whole days only: a fraction would act as the next lower whole number while the note named the fraction.
+    const fraction = restoreSavedSettings({ version: SAVED_SETTINGS_VERSION, trajectoryFitSettings: { shared: { ...shared, anchorComparison: { ...comparison, exclusionDays: 2.5 } }, columns: {} }, trajectoryView: defaultTrajectoryView() }, new Set())
+    expect(fraction.notRestored).toContain('shared analysis settings')
+    expect(fraction.trajectoryFitSettings.shared.anchorComparison).toBeUndefined()
   })
 })

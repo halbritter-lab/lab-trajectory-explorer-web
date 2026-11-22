@@ -14,7 +14,9 @@ interfaces are still evolving before 1.0.
   details show the slope before and after the anchor and the difference
   after − before, each with fitted points, span and 95 % interval.
   Measurements on the anchor date count as before; points in the window are
-  left out of the after slope only and drawn as grey open circles. Both sides
+  left out of the after slope only and drawn as grey open circles, counted in
+  the legend and the exported chart context apart from the measurements
+  excluded from the fit, since they stay in the column's slope. Both sides
   use the column's exclusions, time balancing and estimator. The interval of
   the difference is the Welch interval from the two OLS standard errors
   (assumes independent sides; none for Theil-Sen or a two-point side).

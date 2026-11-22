@@ -97,7 +97,9 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
 
 /** A stored before/after setting (issue #64), or null when it does not fit. */
 function parseAnchorComparison(v: unknown): AnchorComparisonSettings | null {
-  if (!record(v) || !days(v.exclusionDays) || !record(v.rule)) return null
+  // Whole days only, as the setting offers them: a fraction would be compared
+  // with calendar days and act as the next lower whole number.
+  if (!record(v) || !days(v.exclusionDays) || !Number.isInteger(v.exclusionDays) || !record(v.rule)) return null
   const { kind, value } = v.rule
   if (kind === 'first') return { rule: { kind }, exclusionDays: v.exclusionDays }
   if ((kind === 'title' || kind === 'type') && typeof value === 'string') return { rule: { kind, value }, exclusionDays: v.exclusionDays }

@@ -953,7 +953,8 @@ Details of the implementation, chosen where the decisions left them open
 - The exclusion window covers the calendar days anchor + 1 to anchor + N,
   both included. Its points are left out of the after slope only; the
   column's slope keeps them, and the chart legend and measurement table say
-  so.
+  so; legend, tooltip and exported chart context count them apart from the
+  measurements excluded from the fit.
 - Title and type are matched exactly as stored. Among events of one date the
   first in the file is the anchor; an event with an end date anchors at its
   start. All loaded events of the patient are candidates.

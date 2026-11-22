@@ -22,8 +22,11 @@ comparison", in the shared settings and in a parameter's own settings
 
 - the **anchor rule**: "First event of the patient", the first event whose
   title equals a chosen value, or the first event whose type equals a chosen
-  value. The menu offers the titles and types of the loaded events.
+  value. The menu offers the titles and types of the loaded events, each
+  prefixed "Title:" or "Type:", so a title and a type of the same spelling
+  stay apart.
 - the **exclusion window after the anchor** in whole days, default 0.
+  A saved value that is not a whole number of days is unreadable.
 
 The setting is not part of the fit configuration: it is not in `fit_config`,
 does not change the preset name (a preset stays e.g. `general_exploration`
@@ -64,7 +67,10 @@ day resolution, and a blood draw on the day of a procedure is usually its
 baseline. With `W = 0` the window is empty. Points in the window are drawn as
 grey open circles (reason "exclusion window after the anchor event,
 after-anchor slope only"), and the measurement table names them; they still
-enter the column's slope. Under censoring the anchor date itself can be
+enter the column's slope. The chart legend, the point tooltip and the context
+line of an exported chart therefore count them apart from the measurements
+excluded from the fit (for example "1 measurement in the exclusion window
+after the anchor event") and do not call them excluded from the fit. Under censoring the anchor date itself can be
 censored (for example the transplant date under "Censor after kidney
 transplant", which is inclusive); it then belongs to neither side.
 

@@ -39,6 +39,7 @@ test('compares the slopes at the transplant, exports them and aligns the overlay
   await expect(page.getByTestId('anchor-comparison')).toContainText('1 measurement in the 60-day window after the anchor left out of the after slope.')
   const chart = page.getByRole('region', { name: `Chart ${EGFR}` })
   await expect(chart.locator('[data-testid="excluded-point"][data-exclusion="anchor-exclusion-window"]')).toHaveCount(1)
+  await expect(chart.getByTestId('excluded-legend')).toHaveText('Grey open circles: 1 measurement in the exclusion window after the anchor event: left out of the after-anchor slope only; it still enters the slope of the whole series.')
 
   await page.getByRole('button', { name: 'Overlay', exact: true }).click()
   await page.getByRole('button', { name: 'Display', exact: true }).click()
