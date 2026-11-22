@@ -394,7 +394,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const personButtons = useRef(new Map<PatientId, HTMLButtonElement>())
   const originatingPerson = useRef<PatientId | null>(null)
   const parameterHeaders = useRef(new Map<string, HTMLTableCellElement>())
-  const tablePosition = useRef({ left: 0, top: 0, restore: false })
+  // `inner` is the vertical position inside the table box, which scrolls on its own since the header row sticks (2026-11-22).
+  const tablePosition = useRef({ left: 0, top: 0, inner: 0, restore: false })
   const knownParameters = useRef(new Map(data.parameters.map(parameter => [parameter.key, parameter])))
   const [parameterNotice, setParameterNotice] = useState('')
   useEffect(() => {
@@ -585,6 +586,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     const scroller = tableScroller.current, jump = pageJump.current
     pageJump.current = false
     if (!jump || !scroller) return
+    // A new page starts at its first row, also inside the table box.
+    scroller.scrollTop = 0
     // Only when the top of the table is out of sight: a change from the bar above it moves nothing.
     const top = scroller.getBoundingClientRect().top
     if ((top < 0 || top > window.innerHeight) && typeof scroller.scrollIntoView === 'function') scroller.scrollIntoView({ block: 'start' })
@@ -626,7 +629,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const currentIndex = visible.findIndex(row => row.patientId === current?.patientId)
   const open = (id: PatientId) => {
     if (mode === 'table') {
-      tablePosition.current = { left: tableScroller.current?.scrollLeft ?? 0, top: document.scrollingElement?.scrollTop ?? document.documentElement.scrollTop, restore: true }
+      tablePosition.current = { left: tableScroller.current?.scrollLeft ?? 0, top: document.scrollingElement?.scrollTop ?? document.documentElement.scrollTop, inner: tableScroller.current?.scrollTop ?? 0, restore: true }
       originatingPerson.current = id
     }
     const nextReturn = mode !== 'detail' ? mode : returnMode
@@ -648,6 +651,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       if (originatingPerson.current !== null) personButtons.current.get(originatingPerson.current)?.focus({ preventScroll: true })
       const page = document.scrollingElement ?? document.documentElement
       page.scrollTop = tablePosition.current.top
+      tableScroller.current.scrollTop = tablePosition.current.inner
       tablePosition.current.restore = false
     }
   }, [mode])
@@ -779,7 +783,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{groupBy && mode === 'table' && <span className="pv-group-summary"> · {groupedRows.length} {groupedRows.length === 1 ? 'group' : 'groups'} · sorted within groups</span>}{parameterKeySet.size > 0 ? <span> · Trend analysis: {parameterKeySet.size}</span> : parameters.some(p => (columnSettings[p.key] ?? fitSettings).fitModel !== 'none') && <span> · Tick “Trend” at a parameter to calculate slopes</span>}{uncertainSorted > 0 && <span className="pv-uncertain-note"> · {uncertainSorted} uncertain {uncertainSorted === 1 ? 'slope' : 'slopes'} {uncertainLast ? 'placed after the reliable ones' : 'ranked among the reliable ones'}</span>}</div>
         {uncertainSorted > 0 && <label className="pv-uncertain-toggle" title="Uncertain: fewer than three fitted measurement dates or less than one year of follow-up. Patients without a slope stay last."><input type="checkbox" checked={uncertainLast} onChange={event => { setUncertainLast(event.target.checked); setTablePage(0) }} />Uncertain slopes last</label>}
         {mode === 'table' && pagedRows.length > TABLE_PAGE_SIZES[0] && <nav className="wt-table-pages" aria-label="Patient table pages">
-          {pageCount > 1 && <><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {firstShown}–{lastShown} of {pagedRows.length} {pagedRows.length === 1 ? 'patient' : 'patients'}{collapsedRowCount > 0 ? ` (${collapsedRowCount} more in collapsed groups)` : ''}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1)}>Next</button>
+          {pageCount > 1 && <><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1)}>Previous</button><span role="status"><span className="wt-page-long">Showing </span>{firstShown}–{lastShown} of {pagedRows.length}<span className="wt-page-long"> {pagedRows.length === 1 ? 'patient' : 'patients'}{collapsedRowCount > 0 ? ` (${collapsedRowCount} more in collapsed groups)` : ''}</span></span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1)}>Next</button>
             <label className="wt-page-option">Page<select aria-label="Go to page" value={activeTablePage} onChange={event => changePage(Number(event.target.value))}>{Array.from({ length: pageCount }, (_, page) => <option key={page} value={page}>{page + 1}</option>)}</select>of {pageCount}</label></>}
           <label className="wt-page-option">Per page<select aria-label="Patients per page" value={pageSize} onChange={event => { pageJump.current = 'scroll'; setPageSize(Number(event.target.value) as (typeof TABLE_PAGE_SIZES)[number]); setTablePage(0) }}>{TABLE_PAGE_SIZES.map(size => <option key={size} value={size}>{size}</option>)}</select></label>
         </nav>}</div>

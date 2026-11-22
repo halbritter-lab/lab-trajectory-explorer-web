@@ -40,6 +40,9 @@ interfaces are still evolving before 1.0.
   too few measurement times, duplicate times) are shown in plain words with
   the patient IDs concerned (up to five, then "and N more"). The exported
   text in `models.warnings` and `projections.warnings` is unchanged.
+- The header row of the Trajectories table stays in sight while the rows
+  scroll: the table scrolls inside a box no taller than the window. On a
+  phone the position ("1–25 of 28") is shown between Previous and Next.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 

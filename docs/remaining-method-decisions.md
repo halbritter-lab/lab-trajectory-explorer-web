@@ -1022,6 +1022,15 @@ Resolved with a change:
   duplicate warning names each patient once although it counts rows;
   warnings from R are shown as recorded. Details:
   [minimum data and validity gates](method-algorithms/cohort-models.md#minimum-data-and-validity-gates).
+- **The header row of the Trajectories table stays in sight** (K21). The
+  table box scrolls in both directions and is at most as tall as the window,
+  so the header row sticks to its top while the checkbox and ID columns stick
+  to its left edge. On a phone the position ("1–25 of 28") stands between
+  Previous and Next. Display only. Details of the implementation: the rows
+  scroll inside the box once it reaches the top of the window, and the page
+  continues to the pager below the table when the box is at its end; a new
+  page starts at its first row inside the box, and the position inside the
+  box is restored on the way back from a patient.
 
 ## Approved requirements
 
