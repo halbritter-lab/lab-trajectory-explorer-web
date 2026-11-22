@@ -46,7 +46,7 @@ describe('elapsed-time axis in days and calendar ticks (K27)', () => {
     expect(within(chart()).getByText('Years since first measurement of this parameter')).toBeInTheDocument()
     display()
     const axis = screen.getByLabelText('Time axis') as HTMLSelectElement
-    expect([...axis.options].map(option => option.textContent)).toEqual(['Years since first measurement', 'Days since first measurement', 'Calendar date', 'Age'])
+    expect([...axis.options].map(option => option.textContent)).toEqual(['Years since first measurement', 'Days since first measurement', 'Calendar date', 'Age', 'Years since event'])
     expect(axis).toHaveValue('baseline')
     fireEvent.change(axis, { target: { value: 'baselineDays' } })
     expect(within(chart()).getByText('Days since first measurement of this parameter')).toBeInTheDocument()
@@ -150,6 +150,21 @@ describe('AKI window legend and tooltip (K30)', () => {
     expect(tooltip()).toContain('Values inside are excluded from this fit.')
     choosePreset('acute_review')
     expect(legend()).toContain('this column has no fit, so nothing is excluded')
+  })
+  // K30 (2026-11-22): a column that does not exclude AKI windows says so in a sentence under the chart.
+  it('adds one sentence under the chart where the column does not exclude the window', () => {
+    render(<TrajectoriesWorkspace data={dataset(spike)} requestedPatientId="P1" />)
+    display()
+    fireEvent.click(screen.getByLabelText('AKI windows and episodes'))
+    fireEvent.click(screen.getByRole('button', { name: 'Display' }))
+    const note = () => within(chart()).queryAllByTestId('aki-band-note').map(element => element.textContent)
+    expect(note()).toEqual(['In this column nothing is excluded for AKI (it has no fit): the shaded band only shows the configured 30 days after each onset.'])
+    fireEvent.click(screen.getByRole('checkbox', { name: `Analyse trend: ${CREA.label}` }))
+    expect(note()).toEqual(['In this column nothing is excluded for AKI: the shaded band only shows the configured 30 days after each onset.'])
+    choosePreset('ckd_progression')
+    expect(note()).toEqual([])
+    choosePreset('acute_review')
+    expect(note()).toEqual(['In this column nothing is excluded for AKI (it has no fit): the shaded band only shows the configured 30 days after each onset.'])
   })
 })
 
@@ -344,7 +359,7 @@ describe('Rolling OLS windows (K18)', () => {
     const workbook = (mode: 'rolling' | 'global') => XLSX.read(workspaceWorkbookBytes({ data, parameterKeys: [CREA.key], patientIds: ['R'], patientId: 'R',
       cohortRows: buildCohortRows(rows, ['R'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode }]) }), { type: 'array' })
     const rolling = workbook('rolling')
-    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics'])
+    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
     const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(rolling.Sheets.rolling_windows)
     expect(records).toHaveLength(5)
     expect(Object.keys(records[0])).toEqual(['PatientID', 'Parameter', 'Unit', 'window', 'window_start', 'window_end', 'first_date', 'last_date', 'n', 'slope'])

@@ -36,6 +36,13 @@
 @media (max-width: 700px) { .data-import-grid { grid-template-columns: 1fr; } .data-workspace .card { padding: 16px; } }
 .data-event-tables table { min-width: 640px; }
 .data-event-tables .table-scroll { max-height: min(24rem, 50vh); overflow: auto; }
+/* AKI episode list: words and dates stay whole, so on a phone the frame scrolls
+   sideways instead of breaking "02/01/2024" inside the number. */
+.data-event-tables .aki-episodes-table { min-width: 64rem; }
+.aki-episodes-table td, .aki-episodes-table th { overflow-wrap: normal; }
+.aki-episodes-table .aki-date { white-space: nowrap; }
+.aki-episodes-table .aki-end { min-width: 14rem; }
+.data-event-tables .aki-recovery-field input[type="number"] { width: 8rem; max-width: 100%; justify-self: start; }
 .data-diagnostics-sources { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 0 24px; align-items: start; }
 .data-workspace details.data-diagnostics-source { margin: 4px 0; min-width: 0; }
 .data-workspace details.data-affected-rows { margin: 6px 0; font-size: 13px; }

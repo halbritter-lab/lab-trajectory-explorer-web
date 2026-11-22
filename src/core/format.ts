@@ -12,6 +12,20 @@ export const formatDisplayNumber = (value: number): string =>
 export const utcDateOrBlank = (date: Date | null | undefined): string =>
   date && Number.isFinite(date.getTime()) ? date.toISOString().slice(0, 10) : ''
 
+/** `HH:MM:SS` of a time of day in milliseconds after midnight
+ * (`LabRow.labTime`), for exports; blank without a time. */
+export const exportTimeOfDay = (ms: number | undefined): string => {
+  if (ms === undefined || !Number.isFinite(ms)) return ''
+  const seconds = Math.floor(ms / 1000)
+  return [Math.floor(seconds / 3600), Math.floor(seconds / 60) % 60, seconds % 60].map(n => String(n).padStart(2, '0')).join(':')
+}
+
+/** `HH:MM` of a time of day, with `:SS` only when the seconds are not zero. */
+export const formatDisplayTime = (ms: number): string => {
+  const text = exportTimeOfDay(ms)
+  return text.endsWith(':00') ? text.slice(0, 5) : text
+}
+
 /** Day/month/year of the UTC calendar date. */
 export const formatDisplayDate = (date: Date): string => date.toLocaleDateString('en-GB', { timeZone: 'UTC' })
 

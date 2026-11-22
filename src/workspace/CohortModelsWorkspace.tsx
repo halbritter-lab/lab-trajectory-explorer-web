@@ -2,7 +2,7 @@ import { useId, useMemo, useRef, useState } from 'react'
 import { trajectorySettingsDiscardModels, useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceModelSpec } from './workspace-data'
-import { ANALYSIS_CATALOG, describeModelPreparation, defaultFitSettings, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
+import { ANALYSIS_CATALOG, describeModelPreparation, modelPreparationKey, presetSettingsKeepingAnchor, modelPreparationSource } from './workspace-analysis'
 import { PresetOptions } from './WorkspaceAnalysisSettings'
 import { STANDARD_PRESETS } from '../core/analysis/fitConfig'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
@@ -28,7 +28,7 @@ import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormu
 // data are loaded, so a separately fetched chunk failed for everyone who lost
 // the connection or kept a tab open across a deployment.
 import { CohortModelTable } from './models/CohortModelTable'
-import { WEBR_FIRST_FIT_DOWNLOAD, WEBR_PACKAGE_HOST, WEBR_RUNTIME_HOST } from '../core/mixedModel/runtimeHosts'
+import { R_FIRST_FIT_DOWNLOAD } from '../core/mixedModel/rRuntime'
 import './cohort-models-workspace.css'
 
 export type CohortModelPreset = 'unadjusted' | 'stratified' | 'demographic' | 'interaction' | 'custom'
@@ -159,8 +159,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   function changeDataPreparation(presetId: string) {
     const state = useAppStore.getState()
     const current = state.trajectoryFitSettings
-    const nextSettings = defaultFitSettings(presetId)
     const ownTarget = Boolean(activeParamKey && (current.columns[activeParamKey] || !STANDARD_PRESETS.some(preset => preset.id === presetId)))
+    const nextSettings = presetSettingsKeepingAnchor(presetId, activeParamKey && ownTarget ? current.columns[activeParamKey] ?? current.shared : current.shared)
     const next = activeParamKey && ownTarget
       ? { ...current, columns: { ...current.columns, [activeParamKey]: nextSettings } }
       : { ...current, shared: nextSettings }
@@ -686,7 +686,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={cancelFit}>Cancel</button>}
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
-        {!runtimeLoaded && <p className="muted cm-runtime-note" data-testid="runtime-download-note">The first fit of a session downloads the R runtime from {WEBR_RUNTIME_HOST} and R packages from {WEBR_PACKAGE_HOST} ({WEBR_FIRST_FIT_DOWNLOAD}). These are downloads only; no measurements are sent. <a href="#methods/data/network">Network access and local storage</a></p>}
+        {!runtimeLoaded && <p className="muted cm-runtime-note" data-testid="runtime-download-note">The first fit of a session loads the R runtime and R packages, which are served with this app from its own address ({R_FIRST_FIT_DOWNLOAD}). These are downloads only; no measurements are sent. <a href="#methods/data/network">Network access and local storage</a></p>}
         </section>
         <details className="cm-preparation-details">
           <summary>Preparation and fitting details</summary>

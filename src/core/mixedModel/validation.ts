@@ -14,6 +14,17 @@ export type MixedModelValidationCode =
   | 'INVALID_FACTOR_VALUES'
   | 'RANK_DEFICIENT_FACTOR'
 
+/** One input warning of a passed check, for the interface: `text` is the
+ * warning as it is stored with the fit and exported (`models.warnings`,
+ * `projections.warnings`; unchanged so that scripts can match it), `plain`
+ * says what it means, and `patientIds` are the patients concerned, in the
+ * order of the rows (2026-11-22). */
+export interface MixedModelWarningDetail {
+  text: string
+  plain: string
+  patientIds: string[]
+}
+
 export type MixedModelValidationResult =
   | {
       ok: true
@@ -33,6 +44,26 @@ export const MIN_QUALIFYING_PATIENTS = 10
 export function validateMixedModelRows(
   rows: readonly MixedModelSpikeRow[],
   config: MixedModelConfig = DEFAULT_MIXED_MODEL_CONFIG,
+): MixedModelValidationResult {
+  return checkMixedModelRows(rows, config, [])
+}
+
+/** The input warnings of a passed check with their meaning and patients, for
+ * the interface; empty when the check fails. Same rule as
+ * `validateMixedModelRows`, whose `warnings` are the `text` of these. */
+export function mixedModelWarningDetails(
+  rows: readonly MixedModelSpikeRow[],
+  config: MixedModelConfig = DEFAULT_MIXED_MODEL_CONFIG,
+): MixedModelWarningDetail[] {
+  const details: MixedModelWarningDetail[] = []
+  return checkMixedModelRows(rows, config, details).ok ? details : []
+}
+
+/** The check; the warnings of a passed check are also pushed to `warningDetails`. */
+function checkMixedModelRows(
+  rows: readonly MixedModelSpikeRow[],
+  config: MixedModelConfig,
+  warningDetails: MixedModelWarningDetail[],
 ): MixedModelValidationResult {
   if (rows.length === 0) {
     return failure('EMPTY_DATASET', 'Mixed model fitting requires at least one measurement row.')
@@ -101,17 +132,17 @@ export function validateMixedModelRows(
   // statistical power or model-adequacy guarantee.
   const minimumDistinctTimes = minimumDistinctTimesFor(config)
   let qualifyingPatientCount = 0
-  let singleMeasurementPatientCount = 0
-  let noTimeVariationPatientCount = 0
+  const singleMeasurementPatients: string[] = []
+  const noTimeVariationPatients: string[] = []
   const modelablePatientIds = new Set<string>()
   for (const [patientId, rowsForPatient] of patientRows) {
     if (rowsForPatient.length < 2) {
-      singleMeasurementPatientCount += 1
+      singleMeasurementPatients.push(patientId)
       continue
     }
     const distinctTimes = new Set(rowsForPatient.map((row) => row.time_since_baseline))
     if (distinctTimes.size < minimumDistinctTimes) {
-      noTimeVariationPatientCount += 1
+      noTimeVariationPatients.push(patientId)
       continue
     }
     qualifyingPatientCount += 1
@@ -129,34 +160,52 @@ export function validateMixedModelRows(
 
   const patientTimeKeys = new Set<string>()
   let duplicatePatientTimeRowCount = 0
+  const duplicatePatients = new Set<string>()
   for (const row of rows) {
     if (!modelablePatientIds.has(row.patient_id)) continue
     const patientTimeKey = `${row.patient_id}\u0000${row.time_since_baseline}`
     if (patientTimeKeys.has(patientTimeKey)) {
       duplicatePatientTimeRowCount += 1
+      duplicatePatients.add(row.patient_id)
       continue
     }
     patientTimeKeys.add(patientTimeKey)
   }
 
-  const warnings: string[] = []
+  const singleMeasurementPatientCount = singleMeasurementPatients.length
   if (singleMeasurementPatientCount > 0) {
-    warnings.push(
-      `${singleMeasurementPatientCount} patient${singleMeasurementPatientCount === 1 ? ' has' : 's have'} fewer than 2 repeated measurements and contribute${singleMeasurementPatientCount === 1 ? 's' : ''} limited within-patient information.`,
-    )
+    const one = singleMeasurementPatientCount === 1
+    warningDetails.push({
+      text: `${singleMeasurementPatientCount} patient${one ? ' has' : 's have'} fewer than 2 repeated measurements and contribute${one ? 's' : ''} limited within-patient information.`,
+      plain: `${one ? '1 patient has' : `${singleMeasurementPatientCount} patients have`} a single measurement in this model. ${one ? 'It counts' : 'They count'} towards the starting level but ${one ? 'says' : 'say'} nothing about the change over time within the patient.`,
+      patientIds: singleMeasurementPatients,
+    })
   }
+  const noTimeVariationPatientCount = noTimeVariationPatients.length
   if (noTimeVariationPatientCount > 0) {
-    warnings.push(
-      `${noTimeVariationPatientCount} patient${noTimeVariationPatientCount === 1 ? ' has' : 's have'} fewer than ${minimumDistinctTimes} distinct time_since_baseline values and contribute${noTimeVariationPatientCount === 1 ? 's' : ''} limited within-patient time information.`,
-    )
+    const one = noTimeVariationPatientCount === 1
+    warningDetails.push({
+      text: `${noTimeVariationPatientCount} patient${one ? ' has' : 's have'} fewer than ${minimumDistinctTimes} distinct time_since_baseline values and contribute${one ? 's' : ''} limited within-patient time information.`,
+      plain: `${one ? '1 patient has' : `${noTimeVariationPatientCount} patients have`} measurements at fewer than ${minimumDistinctTimes} different times since the first measurement, so ${one ? 'it says' : 'they say'} little about the change over time within the patient.`,
+      patientIds: noTimeVariationPatients,
+    })
   }
   if (duplicatePatientTimeRowCount > 0) {
-    warnings.push(
-      `${duplicatePatientTimeRowCount} duplicate patient/time row${duplicatePatientTimeRowCount === 1 ? ' was' : 's were'} retained for mixed model fitting.`,
-    )
+    const one = duplicatePatientTimeRowCount === 1
+    warningDetails.push({
+      text: `${duplicatePatientTimeRowCount} duplicate patient/time row${one ? ' was' : 's were'} retained for mixed model fitting.`,
+      plain: `${one ? '1 measurement has' : `${duplicatePatientTimeRowCount} measurements have`} the same time as another measurement of the same patient; ${one ? 'it is' : 'all of them are'} kept in the model.`,
+      patientIds: [...duplicatePatients],
+    })
   }
 
-  return { ok: true, warnings }
+  return { ok: true, warnings: warningDetails.map((detail) => detail.text) }
+}
+
+/** Patient IDs for a warning: up to five, then "and N more" (2026-11-22). */
+export function patientIdList(ids: readonly string[], shown = 5): string {
+  const head = ids.slice(0, shown).join(', ')
+  return ids.length > shown ? `${head} and ${ids.length - shown} more` : head
 }
 
 /** Why the factor's time interaction makes the fixed-effect design

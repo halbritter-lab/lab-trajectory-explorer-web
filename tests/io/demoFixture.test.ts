@@ -17,6 +17,19 @@ import { defaultFitSettings } from '../../src/workspace/workspace-analysis'
 import { computeAnalysisResult, defaultAnalysisSettings } from '../../src/core/analysis/registry'
 
 describe('shipped demo workbook', () => {
+  // Review of the combined branch, 2026-11-22: a rewrite without compression grew the file from 61 to 163 KB.
+  it('stores its sheets compressed', () => {
+    const buf = readFileSync(resolve(__dirname, '../../public/test_labs.xlsx'))
+    const methods = new Map<string, number>()
+    for (let at = buf.indexOf(0x50); at >= 0 && at + 30 <= buf.length; at = buf.indexOf(0x50, at + 1)) {
+      if (buf.readUInt32LE(at) !== 0x04034b50) continue
+      const name = buf.subarray(at + 30, at + 30 + buf.readUInt16LE(at + 26)).toString('latin1')
+      methods.set(name, buf.readUInt16LE(at + 8))
+    }
+    const sheets = [...methods].filter(([name]) => name.startsWith('xl/worksheets/'))
+    expect(sheets.length).toBeGreaterThan(0)
+    expect(sheets.filter(([, method]) => method !== 8)).toEqual([])
+  })
   it('carries demographics that resolve without conflict', () => {
     const file = resolve(__dirname, '../../public/test_labs.xlsx')
     const buf = readFileSync(file)
@@ -27,6 +40,16 @@ describe('shipped demo workbook', () => {
     expect(conflicts).toEqual([])
     // The guarantee, exercised on the file we actually ship.
     expect(resolved).toBe(rows)
+  })
+
+  it('stores lab dates without a time of day', () => {
+    // The demo has no measured times; a serial with a time-zone remainder
+    // (01:00 or 02:00) would show as a time and enter input_data_id.
+    const file = resolve(__dirname, '../../public/test_labs.xlsx')
+    const buf = readFileSync(file)
+    const { rows } = loadDatasetFromWorkbook(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength))
+    expect(rows.length).toBeGreaterThan(100)
+    expect(rows.filter(r => r.labTime !== undefined)).toEqual([])
   })
 
   it('loads as a complete 3-sheet workbook with labs, events, and attributes', () => {

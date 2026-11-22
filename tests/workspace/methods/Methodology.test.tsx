@@ -64,6 +64,36 @@ describe('Methodology', () => {
     details()
     expect(screen.getByText(/Every preset sets the rapid-decline threshold to 5 mL\/min\/1\.73 m² per year/)).toBeInTheDocument()
   })
+  // Review of the combined branch, 2026-11-22: a gap after a value back below the criterion keeps that end.
+  it('says that a gap ends an episode at an earlier value back below the criterion', () => {
+    topic('aki')
+    render(<Methodology />)
+    details()
+    expect(screen.getByText(/also ends the episode, at the earlier\s+value back below the criterion if there is one; otherwise no end date is given/)).toBeInTheDocument()
+  })
+  it('says that Theil-Sen bounds of a before/after side on fewer than five dates are not a 95% interval', () => {
+    topic('fits')
+    render(<Methodology />)
+    details()
+    expect(screen.getByText(/for Theil–Sen a side with fewer than five dates has Theil–Sen bounds instead,\s+which are not a 95% interval/)).toBeInTheDocument()
+  })
+  // K44 (owner decision 2026-11-21): the section names what the server sees and gives no assurance.
+  it('says what the server that hosts the app sees and that patient IDs are not pseudonymised', () => {
+    topic('data')
+    render(<Methodology />)
+    expect(screen.getByText(/As with loading the app, the server that hosts it sees the IP address, the browser type\s+and which files are requested\./)).toBeInTheDocument()
+    expect(screen.getByText('The app does not pseudonymise: patient IDs are shown, kept and exported as imported.')).toBeInTheDocument()
+  })
+  // Draft G1, applied 2026-11-22 (OD-34 resolved by the owner).
+  it('states how several creatinine values on one day are ordered in AKI detection', () => {
+    topic('aki')
+    render(<Methodology />)
+    details()
+    expect(screen.getByText(/^Lab dates are calendar days\. The 48-hour window covers earlier measurements one or two calendar days earlier/)).toBeInTheDocument()
+    expect(screen.getByText(/Several creatinine values on one day are ordered by their time of day when the file gives one for each of them/)).toBeInTheDocument()
+    expect(screen.getByText(/so a rise within that day is not detected on that day\. The Data page states how many patient-days this concerns\./)).toBeInTheDocument()
+    expect(screen.queryByText(/calendar days without a time of day/)).not.toBeInTheDocument()
+  })
   // Parts C, D and E1 of the wording drafts, approved by the owner on 2026-11-16.
   it('states the rules changed since the clinical review as the code applies them', () => {
     render(<Methodology />)

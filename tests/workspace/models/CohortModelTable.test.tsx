@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { CohortModelTable } from '../../../src/workspace/models/CohortModelTable'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula } from '../../../src/core/mixedModel/config'
 import { buildMixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
-import { hashMixedModelInput } from '../../../src/core/mixedModel/validation'
+import { hashMixedModelInput, validateMixedModelRows } from '../../../src/core/mixedModel/validation'
 import { useAppStore } from '../../../src/workspace/state/store'
 import { formatWorkspaceNumber } from '../../../src/workspace/WorkspacePlot'
 import type { RunMixedModelWorkerJobOptions } from '../../../src/core/mixedModel/browserClient'
@@ -85,13 +85,14 @@ function renderTable(opts: {
   runJob?: (options: RunMixedModelWorkerJobOptions) => Promise<MixedModelResult>
   seed?: () => void
   slopeDecimals?: number
+  entities?: CohortModelEntityRows[]
 } = {}) {
   useAppStore.getState().reset()
   opts.seed?.()
   const runJob = opts.runJob ?? vi.fn(async () => success(-2))
   render(
     <CohortModelTable
-      entities={entities}
+      entities={opts.entities ?? entities}
       entityLabels={entityLabels}
       entityColors={entityColors}
       seriesIndex={0}
@@ -176,10 +177,11 @@ describe('CohortModelTable', () => {
     const cells = within(rowByEntity('cohort')).getAllByRole('cell')
     expect(cells[4]).toHaveTextContent(`${formatWorkspaceNumber(-9.985)} ml/min/1.73m2/yr`)
     expect(cells[4]).toHaveTextContent('-9.99 ml/min/1.73m2/yr')
-    expect(cells[5]).toHaveTextContent(`${formatWorkspaceNumber(1234.5)} ml/min/1.73m2`)
+    expect(cells[5]).toHaveTextContent('1,234.50 ml/min/1.73m2')
     // The 95% interval stands beside the estimate; the reading note and the technical record follow.
     expect(cells[4]).toHaveTextContent('[-10.49, -9.49]')
-    expect(cells[5]).toHaveTextContent('95% interval [55, 65]')
+    // K35 (2026-11-22): estimate and bounds of the starting level with the same decimals.
+    expect(cells[5]).toHaveTextContent('95% interval [55.00, 65.00]')
     expect(screen.getByRole('columnheader', { name: 'Change per year' })).toBeInTheDocument()
     expect(screen.getByRole('columnheader', { name: 'Group' })).toBeInTheDocument()
     expect(screen.getByTestId('interval-reading')).toHaveTextContent(/do not report it as a p-value/)
@@ -195,12 +197,31 @@ describe('CohortModelTable', () => {
     const cells = within(rowByEntity('cohort')).getAllByRole('cell')
     // Before: "0.09 ... [0.05, 0.13]" here and "0.090 [0.05, 0.13]" among the coefficients.
     expect(cells[4]).toHaveTextContent('+0.090 ml/min/1.73m2/yr 95% interval [0.050, 0.131]')
-    // The starting level is not a slope and keeps the general display rounding.
-    expect(cells[5]).toHaveTextContent('60 ml/min/1.73m2 95% interval [1.05, 1.35]')
+    // The starting level and its bounds take the decimals of its coefficient row (2026-11-22;
+    // before, the general display rounding: "60 ml/min/1.73m2 95% interval [1.05, 1.35]").
+    expect(cells[5]).toHaveTextContent('60.000 ml/min/1.73m2 95% interval [1.050, 1.350]')
     await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
     const coefficients = within(screen.getByRole('table', { name: 'Fixed effect coefficients' })).getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell').slice(1).map(cell => cell.textContent))
     expect(coefficients).toEqual([['1.200', '[1.050, 1.350]'], ['0.090', '[0.050, 0.131]']])
     expect(screen.getByText('Patient slope SD').nextElementSibling).toHaveTextContent(/^0\.012$/)
+  })
+
+  // K34 (2026-11-22): the input warning in plain words with the patients concerned; the stored
+  // (exported) text stays as it was, and a warning from R is shown as recorded.
+  it('explains an input warning of the model check and names up to five patients', async () => {
+    const singles: MixedModelSpikeRow[] = Array.from({ length: 7 }, (_, index) => ({ patient_id: `s${index}`, value: 50, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: 0 }))
+    const rows = [...cohortRows, ...singles]
+    const recorded = validateMixedModelRows(rows, DEFAULT_MIXED_MODEL_CONFIG)
+    expect(recorded).toEqual({ ok: true, warnings: ['7 patients have fewer than 2 repeated measurements and contribute limited within-patient information.'] })
+    const runJob = vi.fn(async () => ({ ...success(-2), warnings: [...(recorded.ok ? recorded.warnings : []), 'Model failed to converge with max|grad| = 0.002'] }))
+    renderTable({ runJob, entities: [{ entity: { kind: 'cohort' }, rows }] })
+    await userEvent.click(screen.getByRole('button', { name: 'Fit selected' }))
+    await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('Fitted'))
+    await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
+    expect(screen.getByText('7 patients have a single measurement in this model. They count towards the starting level but say nothing about the change over time within the patient. Patients: s0, s1, s2, s3, s4 and 2 more.')).toBeInTheDocument()
+    expect(screen.getByText('Model failed to converge with max|grad| = 0.002')).toBeInTheDocument()
+    expect(screen.queryByText(/fewer than 2 repeated measurements/)).not.toBeInTheDocument()
+    expect(useAppStore.getState().cohortModelResults?.cohort.result.warnings[0]).toBe(recorded.ok ? recorded.warnings[0] : '')
   })
 
   it('writes coefficients and their intervals with two decimals by default', async () => {
@@ -344,15 +365,14 @@ it('shows a failed model export instead of failing silently', async () => {
 it.each([
   ['runtime-load', 'WEBR_INIT_FAILED', 'runtime-error'],
   ['package-load', 'PACKAGE_UNAVAILABLE', 'unsupported'],
-] as const)('names both download hosts and how to retry after a %s failure', async (stage, code, status) => {
+] as const)('says where R is loaded from and how to retry after a %s failure', async (stage, code, status) => {
   renderTable({runJob:async () => ({
     status, engine: 'webr-lme4', stage, code,
     message: 'Failed to fetch', warnings: [], metadata: {},
   })})
   await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
-  await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/internet|connection/i))
-  // Both hosts by name, so the user can ask for exactly these to be unblocked.
-  expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('downloads the R runtime from webr.r-wasm.org and R packages from repo.r-wasm.org. Check your internet connection and that both hosts can be reached from this network, then retry the fit.')
+  await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/retry the fit/i))
+  expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('The first fit of a session loads the R runtime and R packages from the address this app is served from. Check that this address can still be reached, then retry the fit.')
   expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent(/retry/i)
 })
 

@@ -26,6 +26,27 @@ Creating or pushing a tag alone does not publish. Draft releases and prereleases
 do not update the public website. Publishing a regular GitHub Release is the
 explicit publication action and requires user acceptance of the release scope.
 
+## R runtime and R packages
+
+Every build serves the R runtime and the pinned R packages itself (K43,
+2026-11-22). `pnpm build` runs `scripts/vendor_r_runtime.mjs` first; CI and
+the Pages deployment also run it as a separate step (`pnpm vendor:r`) with the
+package archives cached by the hash of `src/core/mixedModel/rRuntimePins.json`.
+The script stops the build when a downloaded file's SHA-256, a package's
+DESCRIPTION or the installed `webr` version differs from the pins. A release
+therefore ships exactly the pinned versions; changing one is a method decision
+(docs/remaining-method-decisions.md) with new checksums in the pin file.
+
+Before a release, check that the build contains `webr/`, `r-packages/`,
+`THIRD-PARTY-NOTICES.txt` and `licenses/`, and that a real fit on the deployed
+site requests nothing from another host (smoke checklist). An incomplete
+`webr/` (for example a missing `R.wasm`) shows up only as a first fit that
+fails after 120 seconds with "Mixed-model worker exceeded 120000 ms.", not
+with a message about the app's address. The deployment is
+about 82 MB. If `repo.r-wasm.org` no longer offers a pinned archive, the build
+fails; restore the verified files into `public/r-packages/` (for example from
+the CI cache or an earlier build) or change the pin deliberately.
+
 ## Versioning
 
 The release-preparation package version is 0.3.0; named tags/releases v0.1.0

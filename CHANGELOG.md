@@ -5,6 +5,185 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (open points of the persona review, decided 2026-11-22)
+
+- Review of the combined branch (2026-11-22): a before/after side fitted
+  with Theil-Sen on fewer than five dates shows "Theil–Sen bounds […], not a
+  95% interval" instead of "95% CI", and `anchor_comparison` gains
+  `before_n_fitted_dates` and `after_n_fitted_dates` at its end. An AKI
+  episode end after the start of a dialysis without end date names that
+  dialysis on the Data page and in the patient view. *Recovery between
+  episodes* and the anchor exclusion window apply their value on leaving the
+  field or Enter; an emptied field changes nothing; the recovery length is
+  rounded down to whole days and limited to 2160 hours. "Years since event"
+  no longer counts trajectories without an anchor for a parameter without
+  comparison ("1 trajectory without a matching anchor event (not drawn)"
+  otherwise). The `about` note on `patient_birth_date` no longer calls it the
+  last column. The AKI episode list no longer breaks dates on a phone. The
+  Methods section on network access again names what the server sees and
+  says that the app does not pseudonymise. No result value changed.
+- The methodology page (AKI detection, "AKI Timing, Episodes and the
+  Fit-Exclusion Window") states the rule for several creatinine values on one
+  day: ordered by the time of day where each has one, otherwise compared with
+  values of earlier days only (OD-34 resolved).
+- **The time of day is exported and read again.** `measurements` and
+  `raw_measurements` gain the last column `time_of_day` (`HH:MM:SS`, empty
+  when the file gave none). Loading the app's own workbook again reads it from
+  `raw_measurements`, so the AKI episodes are the same after a round trip
+  at the same *Recovery between episodes* (a loaded file starts at 48 hours;
+  the `about` note says so) (before, a rise from 1.0 at 06:00 to 1.6 at 20:00 was an episode after the
+  import of the file and none after the re-import of its export).
+  `input_data_id` covers the time of the rows that have one; for a dataset
+  without times it is unchanged.
+- The demo workbook stores its lab dates at midnight. Its date cells carried
+  a time-zone remainder (01:00, 02:00 in summer time) that would have been
+  shown as a measured time and written to `time_of_day`; the calendar days
+  are unchanged, and so are the demo's values, AKI episodes, fits and
+  `input_data_id` (`b59dd57d` under every preset). The file is written
+  compressed (58 KB).
+- The measurement table of the patient view shows the time beside the date
+  where the file gave one, and orders the rows of one day by it when every
+  row of that day has one (file order otherwise).
+- Import warns about event dates and event end dates after the import day or
+  before 1927-05-18, and about birth dates after the import day, as it does
+  for lab dates. Warning only; the events and rows are used unchanged.
+- The Trajectories table shows the sign of a bound as the latest value
+  ("latest <15" instead of "latest 15"). Display only.
+- Cohort models: the starting level in the results table and both bounds of
+  its interval have the same number of decimals, that of the coefficient
+  table ("45.50 [44.12, 46.90]" instead of "45.5 [44.12, 46.9]"). Display
+  only.
+- The `settings` sheet of the cohort workbook gains `group_by`, the
+  attribute the table was grouped by (empty without grouping), after `scope`
+  and before `anchor_comparison` of the before/after comparison.
+- A chart column that does not exclude AKI windows from its fit ("Acute
+  review", for example) says under the chart that nothing is excluded there
+  and that the shaded band shows the configured window length.
+- Cohort models: the warnings of the model input check (single measurement,
+  too few measurement times, duplicate times) are shown in plain words with
+  the patient IDs concerned (up to five, then "and N more"). The exported
+  text in `models.warnings` and `projections.warnings` is unchanged.
+- On a phone the page position ("1–25 of 28") is shown between Previous and
+  Next of the Trajectories table. A sticky header row for that table was
+  left out: it needs the rows to scroll inside a box of their own, which
+  hides part of the table below the window and, at its end, the header row.
+- README: one concrete way to start a local copy (a static file server;
+  opening `index.html` by double-click does not work), and the sentence on
+  data leaving the machine follows the Methods page (downloads of the R
+  runtime only, no measurements sent). The notice of a page opened from a
+  folder links to the online version.
+- An events or attributes file whose rows are all rejected ("No usable
+  events …") still lists its rejected rows in the import diagnostics, under
+  "<file name> (rejected upload)"; the loaded events or attributes stay as
+  before, with their findings, also when the rejected file has the same name.
+
+### Changed (AKI episodes separated by recovery, decided 2026-11-21, issue #67)
+
+- **A new AKI episode starts only after creatinine has been back below the
+  KDIGO criterion for 48 hours** (ADQI 16), counted in calendar days.
+  Crossings without such a recovery form one episode with the highest stage
+  of its crossings. Until now each move of the sliding baseline started a new
+  episode: daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl were four
+  episodes (I, II, II, III) and are now one stage-III episode.
+- An episode also ends at the first value after more than seven days without
+  measurements; days of an acute dialysis with an end date do not count
+  towards the seven days, so an episode continues across such an interval
+  of any length. An episode does not end on a value followed within two
+  calendar days by a day under dialysis (an acute dialysis with an end date,
+  or a chronic dialysis up to the next transplant), so an AKI followed by
+  chronic dialysis stays open and lists that dialysis. The first value after
+  a long acute dialysis interval, which has no earlier value to be compared
+  with, does not end an episode.
+- **The recovery length is a setting**: *Recovery between episodes (hours)*
+  under "Detected AKI episodes" on the Data page, default 48, one value for
+  the dataset, kept with the saved copy (an earlier copy gets 48) and
+  exported in `analysis_settings` (OD-35 resolved).
+- **Results change** where crossings without recovery between them were
+  separate episodes: episode counts, stages per episode, chips, markers, the
+  `aki_episodes` sheet, AKI exclusion windows and with them slopes and
+  endpoint inputs. The exclusion window stays onset + N days, so a merged
+  episode excludes less than the chain it replaces. No golden fixture value
+  moved; the demo workbook keeps its eight episodes, stages and slopes.
+- **The episode list shows the episode end and the first dialysis start**
+  (review item K29): the Data page, the patient view and the sheet
+  `aki_episodes` gain the end date and the start date of the first dialysis
+  between onset and end with its intent, appended as `end_date` and
+  `dialysis_start` after `criterion`, followed by `ended_by_gap` and
+  `last_value_date`. The end date is empty while the episode is open and
+  when a gap of more than seven days ended it; the list then says "not
+  observed" and names the last value. For such episodes a dialysis counts up
+  to the recovery length (two calendar days by default) after the episode's
+  last value. The dialysis does not change the stage. The eight episodes of
+  the demo workbook all end by a gap and now have no end date.
+- Kidney package: `AkiEpisode` has `endDate`, `endedByGap` and
+  `lastValueDate`; `findKdigoAkiEpisodes` takes an options object with
+  `recoveryMs`, `blocksRecovery` and `bridgesGap`;
+  `isInAcuteDialysisInterval` and `dialysisWindowEnd` are new;
+  `episodesForSeries` takes the recovery length in hours as an optional last
+  argument.
+
+### Added (before/after comparison at an anchor event and the event axis, decided 2026-11-21)
+
+- **Before/after comparison** (issue #64). Analysis settings → Calculation
+  settings → "Before/after comparison": one anchor event per patient (the
+  first event, or the first with a chosen title or type) and an exclusion
+  window after it in days (default 0). The patient view and the full cell
+  details show the slope before and after the anchor and the difference
+  after − before, each with fitted points, span and 95 % interval.
+  Measurements on the anchor date count as before; points in the window are
+  left out of the after slope only and drawn as grey open circles, counted in
+  the legend and the exported chart context apart from the measurements
+  excluded from the fit, since they stay in the column's slope. Both sides
+  use the column's exclusions, time balancing and estimator. The interval of
+  the difference is the Welch interval from the two OLS standard errors
+  (assumes independent sides; none for Theil-Sen or a two-point side).
+- The column's slope, its reliability note, the rapid-decline flag, the
+  endpoints and the cohort-model input stay those of the whole series: **no
+  existing number changes.** The removed `event-driven` selection of the
+  steepest segment does not come back.
+- **Time axis "Years since event"** (K16) for the patient charts and the
+  overlay, zero at the same anchor. Patients without it are counted under the
+  chart; the axis label names the rule; mixed-model reference lines are not
+  drawn on this axis. The saved view stores the axis as `event`.
+- **Export:** a sheet `anchor_comparison` after `import_diagnostics` (one row
+  per patient × parameter with the comparison), the column
+  `anchor_comparison` at the end of `settings`, and one note at the end of
+  `about`. Earlier sheets, columns and notes keep their positions.
+- Demo example: patient 13, imported eGFR, anchor of type
+  `kidney_transplant`: before −12.83, after −8.01, difference +4.82
+  [4.32, 5.33] per year. The example in issue #64 (patient 2) came from the
+  predecessor's demo data and has no counterpart here.
+
+### Changed (R served with the app, decided 2026-11-21, K43)
+
+- **Cohort models load R from the app's own address.** Every build carries
+  the R runtime (webR 0.6.0 with R 4.6.0) and a pinned set of 13 R packages
+  (lme4 2.0-6, Matrix 1.7-6, jsonlite 2.0.0 and their dependencies) next to
+  the app. A fit no longer contacts `webr.r-wasm.org` or `repo.r-wasm.org`
+  and works where only the app's address can be reached. The first fit
+  still loads about 39 MB, now from the same address.
+- **Package versions are pinned** (the pinning half of OD-21). They are the
+  versions the fit loaded before, so no number moved: the model workbook of
+  the demo fit equals the earlier one in every cell except the recorded
+  versions (`packageVersions` and the version line of each unit in
+  `r_script`), `wasmAssetSource`, the export ID and the time.
+- **Model export:** `wasmAssetSource` is `self-hosted` instead of `cdn`, and
+  `packageVersions` also lists the other loaded pinned packages and `webr`.
+- The Content-Security-Policy of the build names no other host. The note
+  next to the fit button, the message after a failed load and the Methods
+  section "Network access and local storage" say that R is served with the
+  app.
+- The build runs `scripts/vendor_r_runtime.mjs`, which fetches the pinned
+  files into `public/` (not in git) and stops on a checksum that differs. The
+  deployment grows from about 1.4 MB to about 82 MB and ships
+  `THIRD-PARTY-NOTICES.txt`, the licence texts and the packages' source
+  packages (for nloptr 2.2.1.9000, which has no CRAN source package, the
+  notices name the most likely GitHub commit and its r-universe build).
+  The notices also name RcppEigen 0.3.4.0.2 with Eigen 3.4.0 (MPL-2.0),
+  header-only code compiled into lme4, and its source package is served
+  too; the build stops when a pinned package links to a package whose
+  source is not pinned.
+
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
 - **AKI detection no longer depends on the row order of the file.** A time
@@ -29,11 +208,11 @@ interfaces are still evolving before 1.0.
   `fitAkiAware` follow the same rule. `SeriesPoint` has an optional
   `timeOfDay`; points of one date without it are no longer compared in input
   order.
-- The time of day is a sort key only; it is not shown and not exported. A
-  dataset stored in the browser before this change has no times until the
+- The time of day is a sort key only; it was not shown and not exported
+  (both changed on 2026-11-22, see above). A dataset stored in the browser before this change has no times until the
   file is imported again; the notice shown when such a copy is restored says
-  so. The methodology page is not yet updated (OD-34).
-- Because no export carries the time of day, an exported cohort workbook that
+  so. The methodology page was updated on 2026-11-22 (OD-34).
+- Until 2026-11-22, because no export carried the time of day, an exported cohort workbook that
   is loaded again has none: several creatinine values of one day are then
   compared with earlier days only, and AKI episodes, exclusion windows and
   slopes can differ from the export (a rise from 1.0 at 06:00 to 1.6 at 20:00

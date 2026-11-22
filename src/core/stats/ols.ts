@@ -12,7 +12,7 @@ function nanFit(reason: OlsFit['reason']): OlsFit {
  * zero x-variance -> identical_timestamps, else slope/intercept/r2 with a
  * Student-t 95% CI on the slope.
  */
-function tCritical95(df: number): number {
+export function tCritical95(df: number): number {
   const table: Record<number, number> = {
     1: 12.706204736,
     2: 4.30265273,

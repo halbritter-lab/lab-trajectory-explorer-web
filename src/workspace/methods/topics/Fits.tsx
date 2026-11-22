@@ -161,6 +161,18 @@ export function Fits() { return <>
           confirming value must follow within 12 calendar months.
         </li>
         <li>
+          <strong>Before/after comparison</strong> — optional, per parameter: the slope before and
+          after one anchor event per patient (the first event, or the first with a chosen title or
+          type) and the difference after minus before, each with number of fitted points, span and
+          95% interval; for Theil–Sen a side with fewer than five dates has Theil–Sen bounds instead,
+          which are not a 95% interval, as for the slope. Measurements on the anchor date count as before. An exclusion window of a
+          set number of days after the anchor (default 0) leaves those measurements out of the
+          after slope only. Both sides use the same exclusions, time balancing and fit model as the
+          parameter's slope; that slope, its quality note, the flags and the endpoints remain those
+          of the whole series. The interval of the difference assumes independent sides (Welch) and
+          is not given for Theil–Sen or a side with two points.
+        </li>
+        <li>
           <strong>Exports</strong> — patient and cohort slope exports use the same event and AKI
           filtering inputs as the visible plots. Measurement rows remain visible even when they are
           excluded from the configured fit.

@@ -69,6 +69,14 @@ describe('runMixedModelWorkerJob', () => {
     await runMixedModelWorkerJob({rows:syntheticMixedModelRows(),engine:'webr-lme4',preparation,createWorker:() => worker as unknown as Worker})
     expect(worker.lastMessage).toMatchObject({preparation})
   })
+  it('records that R is served with the app (K43)', async () => {
+    const worker = new FakeWorker('success')
+    await runMixedModelWorkerJob({rows:syntheticMixedModelRows(),engine:'webr-lme4',createWorker:() => worker as unknown as Worker})
+    expect(worker.lastMessage).toMatchObject({wasmAssetSource:'self-hosted'})
+    // Also on a failure the client reports before the worker answers.
+    const failed = await runMixedModelWorkerJob({rows:syntheticMixedModelRows(),engine:'webr-lme4',createWorker:() => new FakeWorker('error') as unknown as Worker})
+    expect(failed.metadata).toMatchObject({wasmAssetSource:'self-hosted'})
+  })
   afterEach(() => {
     vi.useRealTimers()
     disposeMixedModelWorker()

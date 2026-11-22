@@ -12,6 +12,7 @@ import type { UnknownDialysisPolicy } from '../core/domains/nephrology/fitConfig
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../core/domains/nephrology/analytes'
 import { defaultFitSettings, defaultTrajectoryFitSettings, type TrajectoryFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
 import { parameterLabel } from './workspace-labels'
+import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
 import { DEFAULT_WORKSPACE_DISPLAY, type WorkspaceAxis } from './WorkspacePlot'
 import type { SparkSize } from './WorkspaceSparkline'
 
@@ -55,7 +56,7 @@ export interface SavedSettings {
 const FIT_MODELS = allValues<FitModel>()(['none', 'ols', 'theil-sen', 'rolling-ols', 'segmented-ols'])
 const TIME_BALANCING = allValues<TimeBalancing>()(['raw', 'monthly-median', 'quarterly-median'])
 const DIALYSIS_POLICIES = allValues<UnknownDialysisPolicy>()(['flag-only', 'exclude-dated-interval', 'censor-from-start'])
-const AXES = allValues<TrajectoryView['axis']>()(['baseline', 'baselineDays', 'calendar', 'age'])
+const AXES = allValues<TrajectoryView['axis']>()(['baseline', 'baselineDays', 'calendar', 'age', 'event'])
 const SCALE_MODES = allValues<TrajectoryView['scaleMode']>()(['shared', 'zoom'])
 const CHART_SIZES = allValues<TrajectoryView['chartSize']>()(['small', 'medium', 'large'])
 const CELL_DETAILS = allValues<TrajectoryView['cellDetails']>()(['minimal', 'full', 'compact'])
@@ -79,6 +80,8 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
   if ((observedCkdG4 !== undefined && !bool(observedCkdG4)) || (confirmationDays !== undefined && !days(confirmationDays))) return null
   const modules = parseColumnModuleSettings(v.moduleSettings)
   if (modules === null) return null
+  const anchorComparison = v.anchorComparison === undefined ? undefined : parseAnchorComparison(v.anchorComparison)
+  if (anchorComparison === null) return null
   ignoredModules.push(...modules.ignored)
   return {
     presetId: v.presetId, fitModel: v.fitModel, timeBalancing: v.timeBalancing,
@@ -88,7 +91,19 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
     endpoints: { percentDecline: e.percentDecline, ...(observedCkdG4 !== undefined ? { observedCkdG4 } : {}), observedCkdG5: e.observedCkdG5,
       ...(confirmationDays !== undefined ? { confirmationDays } : {}), projectedAgeToCkdG5: e.projectedAgeToCkdG5 },
     moduleSettings: modules.settings,
+    ...(anchorComparison ? { anchorComparison } : {}),
   }
+}
+
+/** A stored before/after setting (issue #64), or null when it does not fit. */
+function parseAnchorComparison(v: unknown): AnchorComparisonSettings | null {
+  // Whole days only, as the setting offers them: a fraction would be compared
+  // with calendar days and act as the next lower whole number.
+  if (!record(v) || !days(v.exclusionDays) || !Number.isInteger(v.exclusionDays) || !record(v.rule)) return null
+  const { kind, value } = v.rule
+  if (kind === 'first') return { rule: { kind }, exclusionDays: v.exclusionDays }
+  if ((kind === 'title' || kind === 'type') && typeof value === 'string') return { rule: { kind, value }, exclusionDays: v.exclusionDays }
+  return null
 }
 
 export interface RestoredSettings {
@@ -136,7 +151,9 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
   /** A saved preset id only names the preset whose current definition the
    * saved values still match; otherwise the values stay and the name goes. */
   const underCurrentPreset = (settings: WorkspaceFitSettings, label: string): WorkspaceFitSettings => {
-    if (settings.presetId === 'custom' || canonical(settings) === canonical(defaultFitSettings(settings.presetId))) return settings
+    // The before/after comparison is not part of a preset (see WorkspaceFitSettings).
+    const { anchorComparison: _comparison, ...presetPart } = settings
+    if (settings.presetId === 'custom' || canonical(presetPart) === canonical(defaultFitSettings(settings.presetId))) return settings
     out.keptAsCustom.push(label)
     return { ...settings, presetId: 'custom' }
   }

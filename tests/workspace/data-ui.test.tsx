@@ -31,6 +31,33 @@ it('names the serum creatinine series the selected eGFR source leaves out, and c
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
   expect(screen.getByText('Not used for this eGFR: Kreatinin i.S. (mg/dl), 1 value; Kreatinin (µmol/l), 1 value. Only the selected source is read; serum creatinine under another name or unit is not merged with it.')).toBeInTheDocument()
 })
+// Review of the combined branch, 2026-11-22: typing used to apply every keystroke, an emptied field as 0 hours.
+it('applies the recovery length on leaving the field or Enter, as whole days up to 90 days', () => {
+  useAppStore.getState().replaceDataset({ rows: [row] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const field = screen.getByLabelText('Recovery between episodes (hours)') as HTMLInputElement
+  const hours = () => (useAppStore.getState().analysisSettings.aki as { recoveryHours: number }).recoveryHours
+  const type = (value: string) => fireEvent.input(field, { target: { value }, inputType: 'insertText' })
+  expect(field.value).toBe('48')
+  type('')
+  expect(hours()).toBe(48)
+  fireEvent.blur(field)
+  expect([hours(), field.value]).toEqual([48, '48'])
+  type('7')
+  type('72')
+  expect(hours()).toBe(48)
+  fireEvent.keyDown(field, { key: 'Enter' })
+  expect([hours(), field.value]).toEqual([72, '72'])
+  type('36')
+  fireEvent.blur(field)
+  expect([hours(), field.value]).toEqual([24, '24'])
+  type('1000000')
+  fireEvent.blur(field)
+  expect([hours(), field.value]).toEqual([2160, '2160'])
+  // Spin buttons and arrow keys apply at once.
+  fireEvent.change(field, { target: { value: '96' } })
+  expect(hours()).toBe(96)
+})
 it('keeps Apply before the complete keyboard-scrollable computed preview', () => {
   useAppStore.getState().replaceDataset({ rows: Array.from({ length: 118 }, (_, i) => ({ ...row, patientId: `P-${i}`, patientSex: 'm' as const, patientAgeAtLab: 50 })) })
   render(<DataWorkspace onBrowse={vi.fn()} />)
@@ -43,7 +70,8 @@ it('keeps Apply before the complete keyboard-scrollable computed preview', () =>
   expect(apply.compareDocumentPosition(preview) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy()
   fireEvent.click(apply)
   expect(useAppStore.getState().analysisResult().rows).toHaveLength(236)
-})
+// Renders all 118 preview rows on purpose; over 5 s in a loaded full run (review of 2026-11-22).
+}, 20_000)
 it('blocks derivation when its output collides with an imported computed series', () => {
   useAppStore.getState().replaceDataset({ rows: [
     { ...row, patientSex: 'm', patientAgeAtLab: 50 },
@@ -263,6 +291,45 @@ it('drops the previous rejected-event list when an events re-import fails', asyn
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No usable events'))
   expect(screen.queryByRole('table', { name: 'Rejected events' })).not.toBeInTheDocument()
   expect(useAppStore.getState().events).toHaveLength(1)
+})
+// K09 (2026-11-22): a file rejected as a whole still lists its rejected rows; the loaded table stays.
+it('lists the rejected rows of an events or attributes file that is rejected as a whole', async () => {
+  useAppStore.getState().replaceDataset({ rows: [row] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const file = (name: string, text: string) => ({ name, arrayBuffer: async () => new TextEncoder().encode(text).buffer })
+  fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('events.csv', 'patientId,type,date,title\nP-01,other,2020-03-01,Visit\nP-99,other,2020-03-02,Unknown\n')] } })
+  await waitFor(() => expect(useAppStore.getState().events).toHaveLength(2))
+  fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('bad-events.csv', 'patientId,type,date,title\nP-01,surgery,2020-04-01,Other\nP-01,other,2020-02-30,Typo\n')] } })
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No usable events'))
+  expect(useAppStore.getState().events.map(event => event.title)).toEqual(['Visit', 'Unknown'])
+  const events = useAppStore.getState().importDiagnostics.filter(d => d.source === 'events')
+  expect(events.map(d => [d.sheet, d.row, d.severity])).toEqual([['events.csv', 3, 'warning'], ['bad-events.csv (rejected upload)', 2, 'rejected'], ['bad-events.csv (rejected upload)', 3, 'rejected']])
+  expect(screen.getByText(/^Events$/).closest('summary')).toHaveTextContent('(events.csv, bad-events.csv (rejected upload), 2 rows rejected)')
+  // The same for attributes.
+  fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('attributes.csv', 'patientId,group\nP-01,A\nP-01,B\n,C\n')] } })
+  await waitFor(() => expect(useAppStore.getState().patientAttributes).toEqual({ 'P-01': { group: 'A' } }))
+  fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('bad-attributes.csv', 'patientId,group\n,C\n')] } })
+  await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No usable attributes'))
+  expect(useAppStore.getState().patientAttributes).toEqual({ 'P-01': { group: 'A' } })
+  expect(useAppStore.getState().importDiagnostics.filter(d => d.source === 'attributes' && d.sheet === 'bad-attributes.csv (rejected upload)').map(d => [d.row, d.severity, d.reason])).toEqual([[2, 'rejected', 'Patient ID missing; row not imported.']])
+})
+// Review 2026-11-22: a corrected but still unusable file under the name of the loaded one keeps
+// the findings of the loaded events and lists its rows apart; a further failed upload replaces them.
+it('keeps the findings of the loaded events when a rejected file has the same name', async () => {
+  useAppStore.getState().replaceDataset({ rows: [row] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const file = (name: string, text: string) => ({ name, arrayBuffer: async () => new TextEncoder().encode(text).buffer })
+  fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('events.csv', 'patientId,type,date,title\nP-01,other,2020-03-01,Visit\nP-99,other,2020-03-02,Unknown\n')] } })
+  await waitFor(() => expect(useAppStore.getState().events).toHaveLength(2))
+  const bad = 'patientId,type,date,title\nP-01,surgery,2020-04-01,Other\nP-01,other,2020-02-30,Typo\n'
+  for (const text of [bad, bad.replace('Other\n', 'Other\n,other,2020-04-02,No ID\n')]) {
+    fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('events.csv', text)] } })
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No usable events'))
+  }
+  expect(useAppStore.getState().events.map(event => event.title)).toEqual(['Visit', 'Unknown'])
+  const events = useAppStore.getState().importDiagnostics.filter(d => d.source === 'events')
+  expect(events.map(d => [d.sheet, d.row, d.severity])).toEqual([['events.csv', 3, 'warning'], ['events.csv (rejected upload)', 2, 'rejected'], ['events.csv (rejected upload)', 3, 'rejected'], ['events.csv (rejected upload)', 4, 'rejected']])
+  expect(screen.getByText(/^Events$/).closest('summary')).toHaveTextContent('(events.csv, events.csv (rejected upload), 3 rows rejected)')
 })
 it('names the patient-days whose serum creatinine values cannot be ordered within the day', () => {
   const at = (date: string, value: number, labTime?: number): LabRow => ({ ...row, labDatum: new Date(date), wert: String(value), wertNum: value, ...(labTime === undefined ? {} : { labTime }) })

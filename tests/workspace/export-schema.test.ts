@@ -30,23 +30,23 @@ const COHORT_HEADER = [...COLUMNS_UP_TO_0_3_7, 'first_eligible_value', 'last_eli
 function groupedFixture() {
   const input = exportFixture()
   const specs = input.data.parameters.map(parameter => ({ bezeichnung: parameter.bezeichnung, einheit: parameter.einheit, mode: 'global' as const }))
-  return { ...input, cohortRows: buildCohortRows(input.data.rows, ['001-A', 'hidden'], specs, 'group', input.data.patientAttributes) }
+  return { ...input, groupBy: 'group', cohortRows: buildCohortRows(input.data.rows, ['001-A', 'hidden'], specs, 'group', input.data.patientAttributes) }
 }
 
 describe('cohort workbook schema', () => {
   it('pins the sheets and the columns of every sheet', () => {
     const workbook = read(workspaceWorkbookBytes(exportFixture()))
-    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics'])
-    const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date']
+    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
+    const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day']
     expect(header(workbook, 'measurements')).toEqual(measurement)
     expect(header(workbook, 'raw_measurements')).toEqual(measurement)
     expect(header(workbook, 'cohort')).toEqual(COHORT_HEADER)
     expect(header(workbook, 'events')).toEqual(['PatientID', 'type', 'date', 'title', 'description', 'endDate', 'intent', 'warning'])
-    expect(header(workbook, 'aki_episodes')).toEqual(['PatientID', 'creatinine_parameter', 'creatinine_unit', 'stage', 'onset_date', 'peak_date', 'peak_value_mg_dl', 'baseline_date', 'baseline_value_mg_dl', 'criterion'])
+    expect(header(workbook, 'aki_episodes')).toEqual(['PatientID', 'creatinine_parameter', 'creatinine_unit', 'stage', 'onset_date', 'peak_date', 'peak_value_mg_dl', 'baseline_date', 'baseline_value_mg_dl', 'criterion', 'end_date', 'dialysis_start', 'ended_by_gap', 'last_value_date'])
     expect(header(workbook, 'patient_attributes')).toEqual(['PatientID', 'group'])
     expect(header(workbook, 'demographics')).toEqual(['PatientID', 'baseline_age', 'birth_anchor', 'age_estimated', 'manual_override', 'warnings'])
     expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
-    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope'])
+    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison'])
     expect(header(workbook, 'about')).toEqual(['note'])
     expect(header(workbook, 'columns')).toEqual(['column', 'meaning', 'unit', 'empty_when'])
     expect(header(read(workspaceWorkbookBytes({ ...exportFixture(), patientId: '001-A' })), 'slopes')).toEqual(COHORT_HEADER)
@@ -61,6 +61,13 @@ describe('cohort workbook schema', () => {
     expect(records(plain, 'cohort').map(row => row.group ?? '')).toEqual(['', ''])
     // Column F is `slope` either way; a leading group column used to move it to G.
     expect(grouped.Sheets.cohort.F1.v).toBe('slope')
+    // K40 (2026-11-22): settings records the grouping attribute, empty without grouping,
+    // after scope and before anchor_comparison (issue #64, appended the same day).
+    expect(header(grouped, 'settings')).toEqual(header(plain, 'settings'))
+    expect(header(grouped, 'settings').slice(-3)).toEqual(['scope', 'group_by', 'anchor_comparison'])
+    expect(records(grouped, 'settings').length).toBeGreaterThan(0)
+    expect(records(grouped, 'settings').every(row => row.group_by === 'group')).toBe(true)
+    expect(records(plain, 'settings').every(row => row.group_by === '')).toBe(true)
     const { group: _group, ...first } = records(grouped, 'cohort')[0]
     const { group: _empty, ...same } = records(plain, 'cohort')[0]
     expect(first).toEqual(same)
@@ -74,9 +81,9 @@ describe('cohort workbook schema', () => {
     expect(records(workbook, 'events')).toEqual([])
     expect(header(workbook, 'events')[0]).toBe('PatientID')
     expect(records(workbook, 'aki_episodes')).toEqual([])
-    expect(header(workbook, 'aki_episodes')).toHaveLength(10)
+    expect(header(workbook, 'aki_episodes')).toHaveLength(14)
     expect(records(workbook, 'raw_measurements')).toEqual([])
-    expect(header(workbook, 'raw_measurements')).toHaveLength(14)
+    expect(header(workbook, 'raw_measurements')).toHaveLength(15)
   })
 
   // Review finding 2026-11-21: without a Rolling OLS column and without an

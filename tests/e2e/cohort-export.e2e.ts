@@ -22,7 +22,7 @@ test('the cohort export keeps one layout with and without grouping, is compresse
   await page.getByLabel('Group by attribute').selectOption('genotype')
   const grouped = await exportCohort(page)
 
-  expect(plain.workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics'])
+  expect(plain.workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
   const columns = header(plain.workbook, 'cohort')
   expect(columns).toHaveLength(80)
   expect(columns.slice(-5)).toEqual(['first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'group'])

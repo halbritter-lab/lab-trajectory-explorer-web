@@ -39,9 +39,9 @@ age are made; the lme4 citation in the R script is not.
 **Part E (E1) was approved by the owner on 2026-11-16 and is applied** (pull
 request #53).
 
-**Part G (G1) was drafted on 2026-11-21 and is not applied.** It follows the
-decision of that day on several creatinine values on one day; the page keeps
-its earlier sentence until the owner approves a wording (OD-34).
+**Part G (G1) was drafted on 2026-11-21 and applied on 2026-11-22** (OD-34
+resolved by the owner). It follows the decision of 2026-11-21 on several
+creatinine values on one day.
 
 **How the page differs from the blocks of Parts C, D and E** (code and page
 win over the draft):
@@ -1985,11 +1985,12 @@ Proposed status text under the button while the first fit of a session runs:
 A Cancel button and a separate download status are implementation questions
 and not part of this wording draft.
 
-## Part G: draft after the persona review of 2026-11-21 (not applied)
+## Part G: draft after the persona review of 2026-11-21 (applied 2026-11-22)
 
 Follows the [decision of 2026-11-21](remaining-method-decisions.md#decisions-of-2026-11-21-persona-review-issue-34)
-on several creatinine values on one day. The page is unchanged; the
-difference is tracked as OD-34 in [method algorithms](method-algorithms.md#open-decisions).
+on several creatinine values on one day. The owner resolved OD-34 on
+2026-11-22 ([method algorithms](method-algorithms.md#resolved-decisions)); the
+draft below is applied as written, in two paragraphs.
 
 ### G1. Several creatinine values on one day (OD-34)
 

@@ -1,0 +1,33 @@
+{
+  "comment": "The R runtime and R packages every build serves next to the app (K43, decided 2026-11-21). scripts/vendor_r_runtime.mjs fetches them into public/ and fails on a checksum or version that differs. Changing a version is a method decision (docs/remaining-method-decisions.md, OD-21).",
+  "webr": {
+    "version": "0.6.0",
+    "rVersion": "4.6.0",
+    "license": "GPL-3 (webR binaries, which contain R and libgfortran); MIT (webR's own scripts)",
+    "sourceUrls": [
+      "https://github.com/r-wasm/webr/tree/v0.6.0",
+      "https://cran.r-project.org/src/base/R-4/R-4.6.0.tar.gz"
+    ],
+    "files": ["webr-worker.js", "R.js", "R.wasm", "libRblas.so", "libRlapack.so", "vfs"],
+    "runtimeSha256": "16253ea95238c8ce25193676fcdcc6f4d3b6251aa80c938adaa224c1a19aebcf"
+  },
+  "binaryRepository": "https://repo.r-wasm.org/bin/emscripten/contrib/4.6",
+  "packages": [
+    { "name": "lme4", "version": "2.0-6", "license": "GPL (>= 2)", "depends": "R (>= 3.6), Matrix, methods, stats", "imports": "MASS, Rdpack, boot, graphics, grid, lattice, minqa (>= 1.1.15), nlme (>= 3.1-123), nloptr (>= 1.0.4), parallel, reformulas (>= 0.4.3.1), splines, utils", "binarySha256": "b952a58300df9161b9ccc0d1cc42ee5a6365ffc565764140bf6ac682e8e857a1", "sourceSha256": "3e503bc10626ad62804c80a82237147b1296d93c18d88946554c29075af917f7" },
+    { "name": "Matrix", "version": "1.7-6", "license": "GPL (>= 2) | file LICENCE", "depends": "R (>= 4.4), methods", "imports": "grDevices, graphics, grid, lattice, stats, utils", "binarySha256": "a6caf93b993de359eab932fff8ac0c39d7e2f372b885458f0f98051a9be82237", "sourceSha256": "694239dbe47e659d6d39a49af95157f46bd94977c283df00c4e8a016601cf143" },
+    { "name": "jsonlite", "version": "2.0.0", "license": "MIT + file LICENSE", "depends": "methods", "imports": "", "binarySha256": "35df0622339690661adc69521caab76a7b54e3a2f39b4b0d53832d2be3ccd5ea", "sourceSha256": "75eb910c82b350ec33f094779da0f87bff154c232e4ae39c9896a9b89f3ac82d" },
+    { "name": "MASS", "version": "7.3-66", "license": "GPL-2 | GPL-3", "depends": "R (>= 4.4.0), grDevices, graphics, stats, utils", "imports": "methods", "binarySha256": "2abe66de8f442fdc0cd221bdb0e774ea17f56ff963dc0275bcfcd2add27ee3b5", "sourceSha256": "59c619c70bfca653f1c74aef880e69405daefd0134e716a1862ecc5334b4e155" },
+    { "name": "Rcpp", "version": "1.1.2", "license": "GPL (>= 2)", "depends": "R (>= 3.5.0)", "imports": "methods, utils", "binarySha256": "87746dcb2b15bb70f944a9585287d5e2876fc7dcb120473d2cb27b9a2ed410b4", "sourceSha256": "2746cf2fb188e5f0a84dbf5c8f68915b54564ed33e5754572f174e7b32e7f4f3" },
+    { "name": "Rdpack", "version": "2.6.6", "license": "GPL (>= 2)", "depends": "R (>= 2.15.0), methods", "imports": "tools, utils, rbibutils (> 2.4)", "binarySha256": "98a070922d7ffc9036152a73f8a0e5feb0915105b3384eb6f777eb2235f7baf0", "sourceSha256": "b4e19d22bd5a2ec79cdb08ba209e79c66ea16dbc2fd2e7db8bca46412651cbdb" },
+    { "name": "boot", "version": "1.3-32", "license": "Unlimited", "depends": "R (>= 3.0.0), graphics, stats", "imports": "", "binarySha256": "8ffe8cb4b051ae4d1d01753b25b84e0133cc2311bf68c42afe172e2482d851dd", "sourceSha256": "3a05aced6fea42a5c310c5c6ab7a2019f69f757f5e77c4961183977747136c97" },
+    { "name": "lattice", "version": "0.23-1", "license": "GPL (>= 2)", "depends": "R (>= 4.0.0)", "imports": "grid, grDevices, graphics, stats, utils", "binarySha256": "b1f6c45be57330e13595bfeb87550c21e3b09d6ee2a58551c19911d345a72722", "sourceSha256": "34e9b2fc023582c4246959b543c331233c62118efd922bcc1ba72b4888adc590" },
+    { "name": "minqa", "version": "1.2.8", "license": "GPL-2", "depends": "", "imports": "Rcpp (>= 0.9.10)", "binarySha256": "717a589602cd8600369631ed65de78421b693df66ace2dc1af8ed99607ee4639", "sourceSha256": "5941e4b9b01978fc6d9fe24e6ca60cca66883fe9fa6ff3cbfa32aa1ac9db5467" },
+    { "name": "nlme", "version": "3.1-171", "license": "GPL (>= 2)", "depends": "R (>= 3.6.0)", "imports": "graphics, stats, utils, lattice", "binarySha256": "367d4c9dc2fcff190a7762b0db9a1b694dc3199258934c0be7071449079c552d", "sourceSha256": "481dc8277dd0e0f2717ffb36edfb08141621470de173894fb1153464383ba0d3" },
+    { "name": "nloptr", "version": "2.2.1.9000", "license": "LGPL (>= 3)", "depends": "", "imports": "", "binarySha256": "ff7eef53f2ae539a878b12b54ab06f01345b0313297284185c579d4fdb30efa3", "sourceSha256": null, "sourceNote": "Development version 2.2.1.9000 of https://github.com/astamm/nloptr; the binary (built 2026-05-20) does not record the exact revision it was built from, and CRAN has no source package of this version. Most likely source, not confirmed by the binary: commit 5fd8ea7e4e93c71beea99fc125ee523e99cdf502 (2025-08-13), the head of the master branch from before the build until at least 2026-11-22, https://github.com/astamm/nloptr/archive/5fd8ea7e4e93c71beea99fc125ee523e99cdf502.tar.gz; r-universe builds its source package nloptr_2.2.1.9000.tar.gz from the same commit (https://astamm.r-universe.dev/nloptr)." },
+    { "name": "rbibutils", "version": "2.4.1", "license": "GPL-2", "depends": "R (>= 2.10)", "imports": "utils, tools", "binarySha256": "f9be998342d3075d87254c78c968a45ea018bbf9c7d7c9de8b57d4554f0f0143", "sourceSha256": "da313d920a0f35ffdf30a54929ba8904b2b5a0d7f11a519db8674148129c8f32" },
+    { "name": "reformulas", "version": "0.4.4", "license": "GPL-3", "depends": "", "imports": "stats, methods, Matrix, Rdpack", "binarySha256": "aec634511cc48030c90777fa5f04a1cb879a65f73a09f5f0d799fb9d907412dc", "sourceSha256": "6a76d85eb4e19325aef87510180175f8cd7b5904a7075c89aff073765529e2f7" }
+  ],
+  "linkedSources": [
+    { "name": "RcppEigen", "version": "0.3.4.0.2", "license": "GPL (>= 2) | file LICENSE", "linkedInto": ["lme4"], "contains": "Eigen 3.4.0 (C++ template library, MPL-2.0)", "sourceSha256": "ecad7ba2129fd48b7ebb825558d38492ed1f3a8934959e27fcd6688175e542bb", "versionNote": "Header-only, compiled into lme4.so (lme4: LinkingTo: Matrix (>= 1.5-0), Rcpp (>= 1.1.1-1.1), RcppEigen (>= 0.3.3.9.4)); not loaded at fit time. The lme4 binary (built 2026-10-10) does not record the RcppEigen version it was compiled with. Most likely 0.3.4.0.2, not confirmed by the binary: the only RcppEigen version on CRAN since 2024-08-24 and the one in webR's repository (built 2026-05-13)." }
+  ]
+}

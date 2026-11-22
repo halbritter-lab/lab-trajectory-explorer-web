@@ -1,5 +1,203 @@
 # Manual browser smoke checklist
 
+## Combined branch of the open points (2026-11-22)
+
+Branch `integration/open-items-2026-11-22` (`chore/persona-review-open-details`,
+`feat/aki-recovery-episodes`, `feat/before-after-anchor`,
+`feat/self-hosted-webr`, in this order). In the cohort workbook `settings`
+ends with `scope`, `group_by`, `anchor_comparison`; `aki_episodes` ends with
+`criterion`, `end_date`, `dialysis_start`, `ended_by_gap`,
+`last_value_date`; the measurement sheets end with `time_of_day`.
+
+Verified 2026-11-22 only by the automated checks (unit tests, build with the
+R runtime fetched by `scripts/vendor_r_runtime.mjs`, documentation links and
+the browser suite in Chromium); the manual steps of the four sections below
+were not repeated on the combined branch.
+
+## Open points of the persona review (2026-11-22)
+
+Verified 2026-11-22 on branch `chore/persona-review-open-details` with
+ad-hoc Playwright scripts against the production build in Chromium (1440 px
+and 390 px), with the demo data, the review file with times of day, the
+800-patient review file and small synthetic files.
+
+- Review file with times of day: cohort export writes `time_of_day`
+  (`06:00:00`, `20:00:00`, empty without a time) in both measurement sheets;
+  loaded again, the same 4 AKI episodes and the same `input_data_id`. The
+  measurement table of ANSTIEG-ZEIT shows "01/09/2026 06:00" 1.0 before
+  "01/09/2026 20:00" 1.6, with "Fit disabled" on each row.
+- Demo: the measurement table of patient 6 shows dates without a time
+  ("10/01/2022"); the cohort export has an empty `time_of_day` in all 467
+  rows of both measurement sheets and `input_data_id` `b59dd57d`, as on main,
+  without a fit, with OLS, with CKD progression / Theil-Sen / segmented and
+  with acute review.
+- Events file with 3024-05-08 and an end date 2099-12-31, lab birth date
+  2030-02-01: "Implausible event date 3024-05-08 (after the import day
+  2026-11-22); the event is used unchanged.", the same for the end date, and
+  "Birth date 2030-02-01 is after the import day 2026-11-22; it is used
+  unchanged."
+- Then an events file with two invalid rows: the alert "No usable events …";
+  the events stay, and the diagnostics list "Events (events.csv,
+  bad-events.csv (rejected upload), 2 rows rejected)" with both rejected
+  rows. The same invalid file uploaded as `events.csv`: the warning of the
+  loaded `events.csv` stays, the rows are listed under "events.csv (rejected
+  upload)".
+- eGFR series ending with `<15`: the table cell reads "<15", with a trend
+  "latest <15"; another patient "latest 35".
+- Demo, grouped by `cohort`: `settings` ends with `group_by` = `cohort` on
+  every row; ungrouped it is empty.
+- Demo, patient 6, Display → AKI windows and episodes, Trend not ticked:
+  under the Kreatinin and eGFR charts "In this column nothing is excluded for
+  AKI (it has no fit): the shaded band only shows the configured 30 days
+  after each onset."
+- Demo, Cohort models, whole cohort: "73.15 ml/min/1,73m² 95% interval
+  [67.41, 78.88]". A synthetic file with 7 single-measurement patients:
+  "7 patients have a single measurement in this model. … Patients: S13, S14,
+  S15, S16, S17 and 2 more."; the R warning on the singular fit is shown as
+  recorded.
+- 800 patients, 1440 px and 390 px: the rows scroll with the page (no
+  sticky header row: tried and left out, see the decisions of 2026-11-22,
+  because the rows then scrolled inside a box of their own whose lower part
+  stayed below the window and whose last rows were read without the header
+  row). At 390 px the top bar reads "1–50 of 800" between Previous and Next,
+  with no horizontal page scroll.
+- Methods → AKI detection → AKI Timing: the two paragraphs of draft G1.
+
+## AKI episodes separated by recovery and dialysis start (2026-11-22)
+
+Branch `feat/aki-recovery-episodes` (issue #67, review item K29). Checked
+with ad-hoc Playwright scripts against the production build in Chromium.
+
+1. Import the synthetic intensive-care file (`icu_dense_labs.csv`) and its
+   events (`icu_events.csv`, CVVHDF acute 6 to 10 March with end date, CVVHD
+   acute from 6 June without one). Data → "Detected AKI episodes (6)"
+   (16 on `main` with the same events, 21 on `main` without events and 6 on
+   this branch without them). The table ends with "End" and "Dialysis
+   start": ICU01 stage III, onset 02/03/2026, end 14/03/2026, dialysis start
+   "06/03/2026 (acute)"; ICU03 "open at the last value"; ICU04 stage III,
+   end "09/06/2026 (after dialysis start 06/06/2026 without end date)" (since
+   the review of the combined branch; 09/06/2026 before), "06/06/2026
+   (acute)"; the others "none". The ICU01 chip
+   reads `AKI III` (`AKI I, 3×III` on `main`).
+2. Trajectories → open ICU01: "AKI episodes for this patient" ends "; end
+   14/03/2026; dialysis start 06/03/2026 (acute)".
+3. "Export cohort (XLSX)": `aki_episodes` has `end_date` and
+   `dialysis_start` after `criterion` (`2026-03-14`, `2026-03-06 (acute)`; empty cells for an
+   open episode or without dialysis); its `about` line explains both.
+4. Demo data: still 8 episodes with the same onsets and stages, all ended by
+   a gap: End "not observed: no values for more than 7 days after" the onset
+   date (end dates 16/09/2022 and so on until the second review), and "none"
+   as dialysis start. At 390 px the table scrolls inside its
+   frame; the page does not scroll sideways.
+5. Methods → AKI, "AKI Timing, Episodes and the Fit-Exclusion Window": the
+   rule is stated and the sustained daily rise gives "one episode of stage
+   III"; Sources: the AKI episodes entry names the 48 hours of ADQI 16.
+6. Review follow-up (2026-11-22): import labs with ICU 1.0, 3.2, 4.0, 4.2,
+   6.5 mg/dl on 1, 2, 14, 15 and 16 January 2024 and CVVHDF acute from 3 to
+   13 January, CHR 1.0, 1.6, 1.2 on 1 to 3 January with chronic HD from
+   4 January, and GAP with a crossing on 2 January 2024 and chronic HD from
+   31 December 2025. Data → episode list: ICU one stage-III episode, "open at
+   the last value", "03/01/2024 (acute)", chip `AKI III` (two episodes and
+   `AKI 2×III` before); CHR "open at the last value", "04/01/2024 (chronic)"
+   (end 03/01/2024 and "none" before); GAP "none" (31/12/2025 (chronic)
+   before). The `about` line of `aki_episodes` names the end after a gap.
+7. Second review (2026-11-22): import the review files `r2-rv67/labs.csv`
+   and `events.csv`. Data → "Detected AKI episodes (4)": POSTDX one stage-III
+   episode, onset 02/01/2024, End "not observed: no values for more than
+   7 days after 17/01/2024", "03/01/2024 (acute)" (two episodes, end
+   14/01/2024, before); PLAT ends 10/01/2024 (plateau) and its second
+   episode "not observed: … after 15/01/2024", dialysis "none" (the HD of
+   20/01/2024 lies after the last value). *Recovery between episodes
+   (hours)* shows 48; 24 gives 5 episodes (POSTDX split at 15/01/2024), 48
+   gives 4 again. The cohort export has `ended_by_gap` and
+   `last_value_date` after `dialysis_start` and `"recoveryHours":48` in
+   `analysis_settings`. At 390 px the page does not scroll sideways.
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 7
+by scripted walkthroughs with screenshots (steps 1, 4 and 7 again after the
+second review); a reduced version of steps 1 to 3
+and the ICU and CHR cases of step 6 are automated in
+`tests/e2e/aki-recovery.e2e.ts`. The k26 review file with
+times of day keeps its 4 episodes. Not verified: other browsers than
+Chromium and real research data.
+
+## Before/after comparison at an anchor event and "Years since event" (2026-11-22)
+
+Issue #64 and K16 (issue #70). Automated in `tests/e2e/anchor-comparison.e2e.ts`;
+checked again by hand with an ad-hoc Playwright script against the production
+build.
+
+1. Demo → Trajectories → Trend on for eGFR [ml/min/1,73m²] → its analysis
+   settings → Calculation settings → "Before/after comparison": tick it, anchor
+   "Type: kidney_transplant" (menu lists "First event of the patient", the
+   five titles as "Title: …" and the three types of the demo as "Type: …"). The preset stays "General
+   exploration".
+2. Export cohort (XLSX): last sheet `anchor_comparison` with 28 rows; patient
+   13: anchor 2022-07-01, before n 6 over 882 days, after n 3 over 365 days,
+   difference 4.823 [4.320, 5.326]; `settings` ends with `anchor_comparison`
+   (JSON for eGFR, empty for the other columns); the last `about` note
+   describes the sheet.
+3. Patient 13: under the eGFR slope "Before/after first event of type
+   kidney_transplant (01/07/2022): before -12.83 … after -8.01 … difference
+   after − before +4.82 … (95% CI [4.32, 5.33])". With a window of 60 days the
+   value of 10/08/2022 is a grey open circle and the difference is +4.76; the
+   legend reads "Grey open circles: 1 measurement in the exclusion window
+   after the anchor event: left out of the after-anchor slope only; it still
+   enters the slope of the whole series." and does not say "excluded from the
+   fit".
+4. Display → Time axis → "Years since event": the overlay draws patients 13
+   and 14 with both jumps at 0 (ticks -2 … 1), says "2 of 28 trajectories; 3
+   without numeric measurements; 23 trajectories without a matching anchor
+   event (not drawn)", labels the axis "Years since anchor event (first event
+   of type kidney_transplant)"; the Kreatinin chart (no comparison) draws
+   nothing, counts nothing and says where to switch the comparison on.
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 4;
+after the review fixes again step 1 (menu prefixes, also at 390 px) and the
+legend, tooltip and export context of step 3 with creatinine, first event, a
+30-day window, patient 14.
+Not checked: Firefox and WebKit, a narrow screen beyond the anchor menu and
+the patient 14 chart, the mixed-model line on the
+event axis in the browser (unit test only).
+
+
+## Review of the combined branch of the open points (2026-11-22)
+
+Branch `integration/open-items-2026-11-22`, after the independent review of
+the combined branch. Checked with ad-hoc Playwright scripts against the
+production build in Chromium.
+
+1. Import `icu_dense_labs.csv` with `icu_events.csv`. Data → "Detected AKI
+   episodes (6)": ICU04 End "09/06/2026 (after dialysis start 06/06/2026
+   without end date)", the patient view of ICU04 the same after "end". At
+   390 px the list is 1024 px wide inside its frame, dates stay on one line
+   ("02/06/2026"), the page does not scroll sideways; at 1440 px the field
+   *Recovery between episodes (hours)* is 128 px wide.
+2. In that field: empty it and leave it: 48 again, still 6 episodes; type 2
+   then 24: nothing applied until Enter; 36 and leaving: 24; 999999 and
+   Enter: 2160; arrow down: 2136 at once.
+3. Demo → eGFR trend, preset Theil-Sen, before/after at type
+   `kidney_transplant`; empty the exclusion days and leave: 0. Patient 13:
+   "after -8.01 … (3 fitted points over 365 days, Theil–Sen bounds [-8.07,
+   -7.94], not a 95% interval: 3 dates)", before "95% CI" (6 dates). Export:
+   `anchor_comparison` ends with `before_n_fitted_dates` 6 and
+   `after_n_fitted_dates` 3; the `about` notes on `patient_birth_date` ("follows
+   loinc and precedes time_of_day"), on `time_of_day` (same episodes at the
+   same recovery length; loading starts at 48 hours) and on the comparison
+   read as changed; `measurements` ends with `loinc`, `patient_birth_date`,
+   `time_of_day`.
+4. "Years since event": the Kreatinin chart without comparison counts no
+   trajectory; the overlay of eGFR reads "23 trajectories without a matching
+   anchor event (not drawn)".
+5. Methods → Data → "Network access and local storage" names what the server
+   that hosts the app sees and says that the app does not pseudonymise.
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 5
+(step 1 and 2 at 390 and 1440 px). Automated: the episode end label, the
+recovery field (unit test), the Theil-Sen bounds of a side, the event-axis
+count (unit and `tests/e2e/anchor-comparison.e2e.ts`) and the emptied
+recovery field (`tests/e2e/aki-recovery.e2e.ts`). Not checked: other browsers
+than Chromium.
 ## Combined branch of the persona review: fixes after its review (2026-11-21)
 
 Branch `integration/persona-review-2026-11-21` (all six branches of the
@@ -19,10 +217,12 @@ branch differs, they say so.
   window lines say "slope 0.251 mg/dl/year" and "slope 0.249 mg/dl/year".
 - Review file with times of day (rise from 1.0 at 06:00 to 1.6 at 20:00, in
   both row orders): the AKI marker sits on 1.6, not on the first value of the
-  day. Its cohort export lists 4 episodes and carries the `about` note "Date
-  holds the calendar day; a time of day … is not written to any sheet". That
-  export loaded again: 2 episodes, "7 patient-days … order within the day is
-  unknown", the same `input_data_id`.
+  day. Its cohort export lists 4 episodes, writes `time_of_day` in both
+  measurement sheets and carries the `about` note "Date holds the calendar
+  day and time_of_day …". That export loaded again: the same 4 episodes and
+  the same `input_data_id` (checked 2026-11-22: 4 and 4 episodes,
+  `a9259237` twice). The measurement table of ANSTIEG-ZEIT (1.6 first in the
+  file) shows "01/09/2026 06:00" 1.0 before "01/09/2026 20:00" 1.6.
 - A copy saved with "Remember on this device" by the build of `main` (review
   file with urine creatinine marked only by LOINC 2161-8 and with times of
   day), opened with this build: the notice ends "This copy was saved by an
@@ -699,10 +899,11 @@ table rows and the window list, and real research data.
    the notice "Lab Trajectory Explorer has not started" appears. Over http the
    notice never shows.
 3. Cohort models, before the first fit: under the fit button "The first fit
-   of a session downloads the R runtime from webr.r-wasm.org and R packages
-   from repo.r-wasm.org (about 33 MB). …"; the link opens Methods, "Data &
-   eGFR", "Network access and local storage". After a finished fit the
-   sentence is gone.
+   of a session loads the R runtime and R packages, which are served with
+   this app from its own address (about 39 MB). …" (until 2026-11-22: the two
+   r-wasm.org hosts, about 33 MB); the link opens Methods, "Data & eGFR",
+   "Network access and local storage". After a finished fit the sentence is
+   gone.
 4. Production build only: the page carries a Content-Security-Policy meta
    element. Fit a model on the demo data with a real network (first fit), fit
    again, then "Export models (xlsx)", "Download SVG", "Download PNG" and
@@ -730,3 +931,46 @@ Not verified: Safari and Edge themselves, the patient bundle (ZIP) and the
 patient chart exports under the policy (same export functions as the checked
 ones), a deployment that removes files while a tab is open, and the notice
 with JavaScript switched off.
+
+## R served with the app (2026-11-22, K43)
+
+1. `pnpm build`: the output starts with "R runtime vendored: webR 0.6.0
+   (R 4.6.0) …, 13 packages …"; `dist/` holds `webr/`, `r-packages/`,
+   `THIRD-PARTY-NOTICES.txt` and `licenses/` (about 82 MB in all). Change one
+   checksum in `src/core/mixedModel/rRuntimePins.json`: the build stops with
+   "Checksum mismatch for …". `THIRD-PARTY-NOTICES.txt` names RcppEigen
+   0.3.4.0.2 (Eigen 3.4.0, MPL-2.0) as compiled into lme4, and
+   `r-packages/src/contrib/RcppEigen_0.3.4.0.2.tar.gz` and
+   `licenses/RcppEigen-COPYRIGHTS` load. Remove `linkedSources` from the pin
+   file: the build stops with "… lme4 links to RcppEigen".
+2. Serve `dist/` under a subpath (for example `/lab/explorer/`), record every
+   request, load the demo, open Cohort models and fit the whole cohort:
+   "Fitted", −4.71 [−6.63, −2.78] per year, 73.15 [67.41, 78.88]; all
+   requests go to the app's own address (22 R files, 38.7 MB), none to
+   another host, also with every other host blocked.
+3. "Export models (xlsx)": `wasmAssetSource` is `self-hosted`,
+   `runtimeVersion` 4.6.0, `packageVersions` starts with
+   `"lme4":"2.0.6","Matrix":"1.7.6","jsonlite":"2.0.0"` and ends with
+   `"webr":"0.6.0"`. Compared cell by cell with the same export from a build
+   before K43, only `packageVersions`, `wasmAssetSource`, the version line of
+   each fitted unit in `r_script` ("Browser fit of …", which lists
+   `packageVersions`), the export ID, the time and the file name differ.
+4. After one fit, make the app's address unreachable and refit: the refit
+   works (R stays loaded in the worker). With the address unreachable before
+   the first fit, the fit fails ("Fit failed: Mixed-model worker failed.").
+   A deployment without `webr/R.wasm` does not fail at once: the first fit
+   ends after 120 seconds with "Fit failed: Mixed-model worker exceeded
+   120000 ms." (as when the file was blocked on webR's server before K43). A
+   missing package archive or `PACKAGES` index fails at once with "lme4 or
+   jsonlite is unavailable in this webR package repository. …".
+5. Methods, "Data & eGFR", "Network access and local storage": "… They are
+   served with the app from the same address (about 39 MB, measured in
+   November 2026); no other server is contacted. …".
+
+Verified 2026-11-22 against the production build in Chromium: step 2 at the
+root by `tests/e2e/self-hosted-r.e2e.ts` (CI, `pnpm preview`) and under
+`/lab/explorer/` by an ad-hoc Playwright script with a static server, steps
+1 (without the checksum change), 3, 4 and 5 by ad-hoc scripts. Not verified:
+Firefox and WebKit, GitHub Pages itself (how it serves the `.gz` and `.tgz`
+files), and the checksum failure inside the build (covered by unit tests of
+the script).

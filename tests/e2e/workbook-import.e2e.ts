@@ -144,8 +144,10 @@ test('import diagnostics name source rows, survive an attributes upload and a re
   expect(fileRows.filter(row => row.kind === 'data check').map(row => [row.row, row.value])).toEqual([[8, 'neg']])
   await page.getByRole('button', { name: 'Open trajectories →' }).click()
   const cohort = await read(() => page.getByRole('button', { name: /^Export cohort/ }).first().click())
-  expect(cohort.workbook.SheetNames.at(-1)).toBe('import_diagnostics')
-  expect(cohort.workbook.SheetNames.slice(0, -1)).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows'])
+  // anchor_comparison (2026-11-22) follows import_diagnostics.
+  expect(cohort.workbook.SheetNames.at(-2)).toBe('import_diagnostics')
+  expect(cohort.workbook.SheetNames.slice(0, -2)).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows'])
+  expect(cohort.workbook.SheetNames.at(-1)).toBe('anchor_comparison')
   expect(XLSX.utils.sheet_to_json(cohort.workbook.Sheets.import_diagnostics, { defval: '' })).toEqual(fileRows)
 })
 

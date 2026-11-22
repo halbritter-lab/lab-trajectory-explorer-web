@@ -310,15 +310,19 @@ tooltips in the charts (without a plus sign, like the smallest and largest
 window slope; until the review fix of 2026-11-21 these two used the general
 display rounding, so two windows with slopes 0.249 and 0.251 both read
 "0.25"), and on the Cohort models page to the change per year with its
-interval, to every row of the coefficient table (estimate and bounds), to
-the patient slope SD and to the slope in the preview legend. There it is
+interval, to every row of the coefficient table (estimate and bounds:
+starting level, change per year and factor terms), to the starting level and
+its interval in the results table (since 2026-11-22), to the patient slope SD
+and to the slope in the preview legend. There it is
 computed from the patients' own slopes under the same settings, as if Trend
 were on. Values are rounded by the browser's number formatting (`toLocaleString`,
 en-GB) to exactly that many decimals, padded with zeros, and never written as
 "-0.00"; the slope carries a plus
-sign when it is above zero. R², the latest value, the starting level of a
-model and all other numbers keep the general display rounding (at most two
-decimals, no padding). The rapid-decline tooltip and the charts are
+sign when it is above zero. R², the latest value and all other numbers keep
+the general display rounding (at most two decimals, no padding). Until
+2026-11-22 the starting level in the results table did too, while its
+interval bounds kept up to two decimals of their own: "45.5 [44.12, 46.9]"
+then, "45.50 [44.12, 46.90]" now for an eGFR column with two decimals. The rapid-decline tooltip and the charts are
 unchanged. Display only: no computed value and no export changes; exports
 keep full precision.
 

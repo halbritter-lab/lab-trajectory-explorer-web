@@ -69,6 +69,8 @@ describe('AKI detection leaves out creatinine measured under dialysis', () => {
 
   it('detects everything without events', () => {
     expect(episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl').map((e) => day(e.date))).toEqual(['2020-01-03', '2020-04-02', '2021-07-02'])
+    // Each gap of more than seven days ends the open episode at the first value after it (2026-11-22).
+    expect(episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl').map((e) => e.endDate && day(e.endDate))).toEqual(['2020-04-01', '2021-07-01', null])
   })
   it('keeps the episode before dialysis, drops those under it and resumes after transplantation', () => {
     expect(episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl', [chronic]).map((e) => day(e.date))).toEqual(['2020-01-03'])

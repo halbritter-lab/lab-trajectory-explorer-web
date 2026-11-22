@@ -1,6 +1,7 @@
 import type { FitConfig } from '../core/analysis/fitConfig'
 import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
 import { defaultColumnModuleSettings, fitPresetById, fitPresetCatalog, type ColumnModuleSettings } from '../core/analysis/registry'
+import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
 
 /** The analysis presets offered in the workspace (core catalog). */
 export const ANALYSIS_CATALOG = fitPresetCatalog
@@ -14,6 +15,11 @@ export interface WorkspaceFitSettings {
   endpoints: FitConfig['endpoints']
   /** The column's own module settings (e.g. its rapid-decline threshold). */
   moduleSettings: ColumnModuleSettings
+  /** Before/after comparison at an anchor event (issue #64); off when absent.
+   * An additional result beside the slope: it is not part of the fit
+   * configuration, does not make the preset "custom" and does not change
+   * what a cohort model receives. */
+  anchorComparison?: AnchorComparisonSettings
 }
 
 const PRESET_PARAMETER = { bezeichnung: '', einheit: null }
@@ -32,6 +38,13 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
     endpoints: { ...config.endpoints },
     moduleSettings: defaultColumnModuleSettings(),
   }
+}
+
+/** A preset's settings that keep the before/after comparison of `previous`:
+ * the comparison is not part of a preset, so choosing one leaves it as it was. */
+export function presetSettingsKeepingAnchor(presetId: string, previous: WorkspaceFitSettings): WorkspaceFitSettings {
+  const settings = defaultFitSettings(presetId)
+  return previous.anchorComparison ? { ...settings, anchorComparison: previous.anchorComparison } : settings
 }
 
 /** The column's fit configuration. Preset identity and x axis come from the

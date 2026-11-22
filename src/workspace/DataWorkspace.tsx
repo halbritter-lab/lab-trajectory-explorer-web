@@ -12,7 +12,7 @@ import { implausiblyHighCreatinineCount, nonPositiveCreatinineCount, sameDayUnor
 import { describeEventRejection, normalizeClinicalEventsWithNotes, validateClinicalEvents } from '../core/events/events'
 import { describeAttributeRejection, normalizePatientAttributes, validatePatientAttributes } from '../core/attributes/attributes'
 import { readWorkbook } from '../io/readWorkbook'
-import { attributeDiagnostics, eventDiagnostics } from '../io/loadDataset'
+import { attributeDiagnostics, eventDiagnostics, type ImportDiagnostic } from '../io/loadDataset'
 import { importWorkspaceFile, useWorkspaceData } from './workspace-data'
 import { countLabel, sexLabel } from './workspace-labels'
 import './data-workspace.css'
@@ -72,11 +72,21 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
     try {
       const raw = readWorkbook(await file.arrayBuffer())
       if (useAppStore.getState().rows !== originalRows) throw new Error('Dataset replaced during import. Please import the file again.')
+      // A file rejected as a whole leaves the loaded table and its findings as they were; its
+      // rejected rows are listed beside them under "<file> (rejected upload)", even when the
+      // file has the name of the loaded one. A further failed upload of that name replaces
+      // only those rows (2026-11-22).
+      const rejectedSheet = `${file.name} (rejected upload)`
+      const listRejected = (diagnostics: ImportDiagnostic[]) => store.setImportDiagnostics(kind, [
+        ...useAppStore.getState().importDiagnostics.filter(d => d.source === kind && d.sheet !== rejectedSheet), ...diagnostics])
       if (kind === 'events') {
         const normalized = normalizeClinicalEventsWithNotes(raw)
         const validation = validateClinicalEvents(normalized.events, originalRows)
         const { valid, rejected } = validation
-        if (!valid.length) throw new Error(`No usable events. ${[...new Set(rejected.map(describeEventRejection))].join(' ')}`)
+        if (!valid.length) {
+          listRejected(eventDiagnostics(rejectedSheet, normalized.dateReads, validation, normalized.notes))
+          throw new Error(`No usable events. ${[...new Set(rejected.map(describeEventRejection))].join(' ')}`)
+        }
         store.setEvents(valid)
         useAppStore.setState({ rejectedEvents: rejected })
         store.setImportDiagnostics('events', eventDiagnostics(file.name, normalized.dateReads, validation, normalized.notes))
@@ -84,7 +94,10 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
       } else {
         const validation = validatePatientAttributes(normalizePatientAttributes(raw), originalRows)
         const { byPatient, valid, rejected } = validation
-        if (!valid.length) throw new Error(`No usable attributes. ${[...new Set(rejected.map(describeAttributeRejection))].join(' ')}`)
+        if (!valid.length) {
+          listRejected(attributeDiagnostics(rejectedSheet, validation))
+          throw new Error(`No usable attributes. ${[...new Set(rejected.map(describeAttributeRejection))].join(' ')}`)
+        }
         store.setPatientAttributes(byPatient)
         store.setImportDiagnostics('attributes', attributeDiagnostics(file.name, validation))
         store.setNotice({ kind: 'info', text: `${countLabel(valid.length, 'attribute row')} imported; ${countLabel(rejected.length, 'row')} rejected.` })

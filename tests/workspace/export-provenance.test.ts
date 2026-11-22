@@ -94,6 +94,12 @@ describe('about sheet: provenance and personal data', () => {
     // The imported birth date is part of the identifier: an exact date and an age in whole years are different inputs.
     expect(inputDataId([{ ...a, patient_birth_date: '1969-05-06' }])).not.toBe(inputDataId([a]))
     expect(inputDataId([{ ...a, patient_birth_date: '' }])).toBe(inputDataId([a]))
+    // The time of day (2026-11-22) joins only where a row has one: rows without a time keep their identifier.
+    expect(inputDataId([{ ...a, time_of_day: '06:00:00' }])).not.toBe(inputDataId([a]))
+    expect(inputDataId([{ ...a, time_of_day: '06:00:00' }])).not.toBe(inputDataId([{ ...a, time_of_day: '20:00:00' }]))
+    expect([inputDataId([{ ...a, time_of_day: '' }, { ...b, time_of_day: '' }]), inputDataId([a, b])]).toEqual(['d2196115', 'd2196115'])
+    // The worked example with the time: the first variant (<1.0) and the variant with 1.0.
+    expect([inputDataId([{ ...a, time_of_day: '06:00:00' }, b]), inputDataId([{ ...a, time_of_day: '06:00:00' }, { ...b, Value: '1.0' }])]).toEqual(['dfa98525', '661a656d'])
     expect(inputDataId([{ PatientID: 7, Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1' }])).toBe(inputDataId([{ PatientID: '7', Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1', patient_sex: '', patient_age_at_lab: null }]))
   })
 
@@ -107,6 +113,8 @@ describe('about sheet: provenance and personal data', () => {
     expect(about[0]).toBe('Lab Trajectory Explorer export')
     expect(about[9]).toMatch(/^endpoint_percent_change is the total eGFR change/)
     expect(about[16]).toMatch(/^Measurements marked < or > are bounds/)
-    expect(about.slice(-5).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
+    // Appended on 2026-11-22 (issue #64) after the provenance rows.
+    expect(about.at(-1)).toMatch(/^anchor_comparison lists the before\/after comparison/)
+    expect(about.slice(-6, -1).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
   })
 })

@@ -87,7 +87,8 @@ export function Aki() { return <>
           Staging is by creatinine ratio / absolute level only. Renal replacement therapy does
           not raise the stage (KDIGO stage 3 by initiation of renal replacement therapy is not
           applied); creatinine values measured under dialysis are left out of detection as
-          described above. Paediatric eGFR criteria are not considered.
+          described above. The episode list names the first dialysis that starts during an
+          episode. Paediatric eGFR criteria are not considered.
         </li>
         <li>
           Episodes are detected automatically and are <strong>not clinician-adjudicated</strong>;
@@ -104,21 +105,39 @@ export function Aki() { return <>
 <section className="methodology-section"><h3 id="methods-timing" tabIndex={-1}>AKI Timing, Episodes and the Fit-Exclusion Window</h3>
 
       <p>
-        Lab dates are calendar days without a time of day. The 48-hour window therefore covers
-        earlier measurements on the same date or one or two calendar days earlier, and the 7-day
-        window those up to seven calendar days earlier, limits included. A rise from 1.0 to
-        1.3 mg/dl two days apart is detected; three days apart it is not.
+        Lab dates are calendar days. The 48-hour window covers earlier measurements one or two
+        calendar days earlier, and the 7-day window those up to seven calendar days earlier, limits
+        included. A rise from 1.0 to 1.3 mg/dl two days apart is detected; three days apart it is
+        not.
       </p>
       <p>
-        Each measurement that meets a criterion is a crossing. Consecutive crossings form one
-        episode only while they share the same baseline date; the onset is the date of the first
-        crossing. An episode has no end date, so a sustained rise is reported as a chain of
-        episodes: daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give four episodes,
-        of stages I, II, II and III.
+        Several creatinine values on one day are ordered by their time of day when the file gives
+        one for each of them; an earlier value of the day can then be the baseline of a later one.
+        The windows still count calendar days. Without a time of day the order within the day is
+        unknown: these values are compared with values of earlier days only, not with each other,
+        so a rise within that day is not detected on that day. The Data page states how many
+        patient-days this concerns.
+      </p>
+      <p>
+        Each measurement that meets a criterion is a crossing. Crossings belong to one episode
+        until creatinine has been back below the criterion for 48 hours (ADQI 16; 48 hours is the
+        default of the setting "Recovery between episodes" on the Data page): a crossing starts a
+        new episode only when the first value after the previous crossing that meets no criterion
+        against an earlier value lies more than two calendar days before it. The first value
+        after more than seven days without measurements also ends the episode, at the earlier
+        value back below the criterion if there is one; otherwise no end date is given, because
+        that value is compared with no earlier value. Days of an acute
+        dialysis with a recorded end date do not count towards the seven days. The onset is the
+        date of the first crossing, the end the date of that value; a value followed within two
+        calendar days by a day under dialysis, as defined above, does not end the episode. An end
+        means that a value no longer meets the criterion against the lowest value of the 48 hours
+        or 7 days before it, not that creatinine has returned to its level before the episode.
+        Daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give one episode of stage III.
       </p>
       <p>
         With AKI exclusion on, each episode removes from the fit all measurements from the onset
-        date through onset + 30 days (default), both ends included: onset 2 January 2020 excludes
+        date through onset + 30 days (default), both ends included, however long the episode lasts:
+        onset 2 January 2020 excludes
         2 January to 1 February 2020. For an eGFR column, the same windows are also left out of
         the baseline of the 40% and 57% decline and of the G5 projection. Observed G4 and G5 still
         use every eligible measurement (see <a href="#methods/endpoints/observed">Endpoints</a>).

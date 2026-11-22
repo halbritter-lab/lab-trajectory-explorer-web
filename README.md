@@ -6,7 +6,12 @@ The [workspace completion backlog](docs/workspace-completion-backlog.md) tracks 
 
 [Open the Lab Trajectory Explorer online](https://halbritter-lab.github.io/lab-trajectory-explorer-web/)
 
-All parsing and computation runs in the browser; no data leaves the machine.
+All parsing and computation runs in the browser. Import, trajectories and
+exports make no network requests beyond loading the app from the address it
+is served from. The first cohort model fit of a session downloads the R
+runtime and R packages from that same address (see
+[R runtime and R packages](#r-runtime-and-r-packages)); these are downloads
+only, and no measurements are sent.
 
 ## Develop
 
@@ -26,21 +31,46 @@ pnpm build       # static site -> dist/
 
 ## Run a local copy
 
-`pnpm build` writes a static site to `dist/`. It needs a web server: opening
-`dist/index.html` directly from a folder (`file://`) does not start the
-application, because browsers block its script there; the page then shows a
-notice instead. Serve the folder with any static web server and open its
-`http://` address, for example:
+Without an installation, use the
+[online version](https://halbritter-lab.github.io/lab-trajectory-explorer-web/).
+
+A local copy is the static site that `pnpm build` writes to `dist/`, served
+by a static file server. Opening `dist/index.html` by double-click (a
+`file://` address) does not work: browsers block the application's script
+there, and the page shows a notice that links to the online version instead.
+One way, on a computer with Python 3:
 
 ```bash
-pnpm preview                              # http://localhost:4173
-python3 -m http.server --directory dist   # http://localhost:8000
+python3 -m http.server --directory dist   # then open http://localhost:8000
 ```
+
+On a development machine `pnpm preview` serves the same folder at
+`http://localhost:4173`.
 
 There is no offline variant. Import, trajectories and exports work without
 internet access once the page is loaded. The first cohort model fit of a
-session downloads the R runtime from `webr.r-wasm.org` and R packages from
-`repo.r-wasm.org`, so cohort models need access to both hosts.
+session loads the R runtime and R packages (about 39 MB) from the same address
+as the app; no other host is contacted.
+
+### R runtime and R packages
+
+Every build serves webR 0.6.0 (R 4.6.0) and a pinned set of R packages next to
+the app. `pnpm build` and `pnpm dev` first run `scripts/vendor_r_runtime.mjs`
+(also `pnpm vendor:r`), which copies the runtime from the installed npm
+package `webr` and downloads the package archives from
+`repo.r-wasm.org` and their sources from CRAN into `public/` (ignored by git;
+files already in place are checked, not downloaded again). Every file is
+checked against the SHA-256 in `src/core/mixedModel/rRuntimePins.json`; a
+difference stops the build. The build therefore needs network access to
+`repo.r-wasm.org` and `cran.r-project.org` unless `public/r-packages/` is
+already filled. The deployed site is about 82 MB, of which 47.7 MB runtime,
+17.4 MB package archives and 15.5 MB package sources. A static host must
+serve the `.gz` files below `webr/` as they are, without
+`Content-Encoding: gzip`.
+
+`THIRD-PARTY-NOTICES.txt` in the build lists each component with version,
+licence and source; the licence texts are in `licenses/`. The app is MIT
+licensed; R, webR and most of the packages are under the GNU GPL.
 
 ## License
 

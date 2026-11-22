@@ -22,12 +22,13 @@ const success: MixedModelSuccess = {
   metadata: { engine: 'webr-lme4', formula: 'value ~ time_since_baseline + (1 | patient_id)', runtimeVersion: '4.6.0', packageVersions: {}, browserUserAgent: 'test', wasmAssetSource: 'cdn', optimizer: 'nloptwrap', reml: true, tolerance: 1e-6, datasetId: 'test', datasetHash: 'test', randomSeed: null, fitConfigHash: 'test' },
 }
 let data: WorkspaceData
-function Harness({ axis = 'baseline', studio = false, groupBy = '' }: { axis?: 'baseline' | 'age'; studio?: boolean; groupBy?: string }) {
+function Harness({ axis = 'baseline', studio = false, groupBy = '', anchor = false }: { axis?: 'baseline' | 'age' | 'event'; studio?: boolean; groupBy?: string; anchor?: boolean }) {
   data = useWorkspaceData()
   if (studio) return <CohortModelsWorkspace data={data} onBrowseData={() => {}} onBrowseTrajectories={() => {}} />
   const parameter = data.parameters[0]
+  const anchors = anchor ? { [parameter.key]: { rule: { kind: 'first' as const }, exclusionDays: 0 } } : undefined
   return <WorkspacePlot data={data} parameter={parameter} parameterIndex={0}
-    cohortRows={buildCohortRows(data.rows, data.patients.map(p => p.id), workspaceSpecs(data, [parameter.key]))}
+    cohortRows={buildCohortRows(data.rows, data.patients.map(p => p.id), workspaceSpecs(data, [parameter.key], undefined, anchors))}
     axis={axis} groupBy={groupBy} highlight={null} display={{ points: true, connect: true, events: false, aki: false }}
     showFit onOpen={() => {}} sharedDomain={{ min: 0, max: 100, days: 731 }} scaleMode="shared" />
 }
@@ -198,6 +199,19 @@ describe('workspace model validity', () => {
     act(() => useAppStore.setState({ cohortModelResults: { cohort: { ...stored, identity: { ...stored.identity, seriesKey: JSON.stringify(['Marker', 'other']) } } } }))
     view.rerender(<Harness />)
     expect(view.container.querySelector('.wt-cohort-model-line')).toBeNull()
+  })
+  it('hides the mixed-model reference lines on the years-since-event axis (K16)', () => {
+    const start = (patientId: string): ClinicalEvent => ({ patientId, type: 'other', date: new Date('2021-01-01T00:00:00Z'), title: 'Start', description: null, endDate: null, intent: null, warning: '' })
+    const rows = useAppStore.getState().rows
+    useAppStore.getState().replaceDataset({ rows, events: ['A', 'B', 'C'].map(start), fileName: 'test.csv' })
+    const view = render(<Harness anchor />)
+    act(() => seedResult())
+    view.rerender(<Harness anchor />)
+    expect(view.container.querySelector('.wt-cohort-model-line')).not.toBeNull()
+    view.rerender(<Harness anchor axis="event" />)
+    expect(view.container.querySelector('svg.wt-plot')).not.toBeNull()
+    expect(view.container.querySelector('.wt-cohort-model-line')).toBeNull()
+    expect(view.container.querySelector('svg.wt-plot')).toHaveAttribute('data-x-min', String(-366 / 365.25))
   })
   it('places the age-axis model at baseline age plus elapsed model time', () => {
     const view = render(<Harness axis="age" />)

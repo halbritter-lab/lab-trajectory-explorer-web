@@ -2,7 +2,7 @@ import { Icon, ToolPopover, AnalysisDrawer, Hint } from './trajectory-ui/Control
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { buildCohortRows, cohortCellFlags, type CohortCell } from '../core/cohort/screening'
 import type { ColumnModuleSettings } from '../core/analysis/registry'
-import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../core/types'
+import { comparePatientIds, patientIdKey, type LabRow, type PatientId, type WertOperator } from '../core/types'
 import { slopeQualityLabel, THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
 import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
 import { workspaceSpecs, type WorkspaceData, type WorkspaceParameter } from './workspace-data'
@@ -13,10 +13,12 @@ import { RollingWindowList } from './RollingWindowList'
 import './trajectories-workspace.css'
 import './trajectory-ui/trajectories-ui.css'
 import { SPARK_SIZES, sparkWidth, WorkspaceSparkline, type SparkDomain, type SparkSize } from './WorkspaceSparkline'
-import { exclusionReasonLabel, fittedPointNoun, sexLabel } from './workspace-labels'
+import { countLabel, exclusionReasonLabel, fittedPointNoun, sexLabel } from './workspace-labels'
+import { anchorRuleLabel, type AnchorSide } from '../core/cohort/anchorComparison'
 import { measurementFitStatus } from './measurement-fit-status'
 import { fitInclusionCaveat } from './labels/fitInclusion'
-import { akiCriterionLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes'
+import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
+import { akiCriterionLabel, akiEpisodeDialysisLabel, akiEpisodeEndLabel, akiEpisodeRows, akiStageLabel } from './aki-episodes'
 import type { ClinicalEvent } from '../core/events/events'
 import { AKI_MODULE_ID } from '../core/domains/nephrology/aki/akiModule'
 import type { FitConfig } from '../core/analysis/fitConfig'
@@ -80,6 +82,7 @@ function CellSummary({
   warningIcons = true,
   slopeDecimals = MIN_SLOPE_DECIMALS,
   missing,
+  latestOperator,
 }: {
   cell: CohortCell
   patientId: PatientId
@@ -103,10 +106,14 @@ function CellSummary({
   slopeDecimals?: number
   /** Why this cell of a computed parameter is empty (the eGFR of a patient without sex, for example). */
   missing?: MissingEgfrNote
+  /** Operator of the latest dated numeric row: a bound ("<", ">") is shown
+   * before the latest value, "latest <15" (display only, 2026-11-22). */
+  latestOperator?: WertOperator
 }) {
   const noValuesText = missing?.text ?? 'No numeric measurements with a date'
   const slopeNumber = (value: number, signed = false) => formatFixedDecimals(value, slopeDecimals, signed)
   const last = cell.points[cell.points.length - 1]
+  const latestText = last && `${latestOperator === '<' || latestOperator === '>' ? latestOperator : ''}${formatWorkspaceNumber(last.value)}`
   const quality = slopeQualityLabel(cell)
   const qualityText = quality?.label === 'no values'
     ? 'No numeric measurements'
@@ -190,8 +197,8 @@ function CellSummary({
         {showSlope && <strong aria-label={slopeText} className="pv-cell-slope">{slopeNumber(cell.slope, true)} {slopeUnitText}</strong>}
         {showSlope && hasCi && <span className="pv-cell-ci" aria-label={ciText} title={ciTitle}>{slopeRange ? 'range' : '95% CI'} [{slopeNumber(cell.ciLow)}, {slopeNumber(cell.ciHigh)}]</span>}
         {showSlope
-          ? <span aria-label={`Latest value: ${formatWorkspaceNumber(last.value)}`}>latest {formatWorkspaceNumber(last.value)}</span>
-          : <strong aria-label={last ? `Latest value: ${formatWorkspaceNumber(last.value)}` : missing?.label ?? 'No numeric measurements with a date'}>{last ? formatWorkspaceNumber(last.value) : '—'}</strong>}
+          ? <span aria-label={`Latest value: ${latestText}`}>latest {latestText}</span>
+          : <strong aria-label={last ? `Latest value: ${latestText}` : missing?.label ?? 'No numeric measurements with a date'}>{last ? latestText : '—'}</strong>}
         {last && <span aria-label={fittedCount ? mediansText ? `${measurementCount}, ${mediansText}` : `${cell.nFitted} fitted of ${measurementCount}` : measurementCount}>{fittedCount ? fittedText : `n=${cell.nNumeric}`}</span>}
         <div className="pv-cell-indicators">
           <Hint label={last ? 'Measurement details' : missing?.label ?? 'No numeric measurements'} text={!last && missing && !warningIcons ? missing.label : undefined}><p>{last ? `${measurementCount} · Latest ${formatWorkspaceDate(last.date)}` : missing?.text ?? 'No numeric measurements with a date are available for this parameter.'}</p>{fit && last && <><p>{slopeText}</p><p>{cell.nFitted} fitted over {cell.fittedSpanDays} days.</p>{hasCi && <p>{ciText}. {ciTitle}.{zeroInside ? ` ${zeroInside.title}` : ''}</p>}{rollingText && <p>{rollingText}</p>}</>}</Hint>
@@ -268,12 +275,30 @@ function CellSummary({
         : <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>)}
       {zeroInside && <p role="note" className="wt-quality-note wt-muted"><strong>{zeroInside.label}</strong>: {zeroInside.title}</p>}
       {detailed && noAkiText && <span className="wt-muted">{noAkiText}</span>}
+      {cell.anchorComparison && <AnchorComparisonText comparison={cell.anchorComparison} unit={cell.einheit} fitModel={cell.fitModel} slopeNumber={slopeNumber} />}
       {flags.filter(flag => flag.requiresFit).map(badge)}
     </>}
     {endpoint && (!detailed && warningIcons ? <Hint label={endpoint.label} icon="endpoint" tone="endpoint">{endpoint.title}</Hint> : <><span className="wt-badge wt-badge-endpoint" title={endpoint.title}>{endpoint.label}</span><details><summary>Endpoint details</summary><p>{endpoint.title}</p><a href="#methods/endpoints/missing">Endpoint results and missing projections</a></details></>)}
     {flags.filter(flag => !flag.requiresFit).map(badge)}
     {markedCount > 0 && <span className="wt-muted">{excludedText}</span>}
   </div>
+}
+
+/** The before/after comparison of a cell (issue #64), beside its slope. */
+function AnchorComparisonText({ comparison, unit, fitModel, slopeNumber }: { comparison: NonNullable<CohortCell['anchorComparison']>; unit: string | null; fitModel: CohortCell['fitModel']; slopeNumber: (value: number, signed?: boolean) => string }) {
+  const rule = anchorRuleLabel(comparison.settings.rule)
+  const perYear = `${unit ?? ''}/year`
+  if (!comparison.anchor) return <p role="note" className="wt-quality-note wt-muted" data-testid="anchor-comparison">Before/after {rule}: no matching event for this patient.</p>
+  if (!comparison.before || !comparison.after) return null
+  // As for the column's slope: Theil–Sen bounds on fewer than five dates are not a 95% interval.
+  const interval = (value: AnchorSide) => {
+    const range = `[${slopeNumber(value.ciLow)}, ${slopeNumber(value.ciHigh)}]`
+    return fitModel === 'theil-sen' && value.nFittedDates < MIN_THEIL_SEN_PROJECTION_DATES ? `Theil–Sen bounds ${range}, not a 95% interval: ${countLabel(value.nFittedDates, 'date')}` : `95% CI ${range}`
+  }
+  const side = (name: string, value: AnchorSide) => `${name} ${Number.isFinite(value.slope) ? `${slopeNumber(value.slope, true)} ${perYear}` : 'no fit'} (${countLabel(value.nFitted, 'fitted point')} over ${value.fittedSpanDays} days${Number.isFinite(value.ciLow) && Number.isFinite(value.ciHigh) ? `, ${interval(value)}` : ''})`
+  const hasCi = Number.isFinite(comparison.differenceCiLow) && Number.isFinite(comparison.differenceCiHigh)
+  const window = comparison.settings.exclusionDays > 0 ? ` ${countLabel(comparison.windowIdx.length, 'measurement')} in the ${comparison.settings.exclusionDays}-day window after the anchor left out of the after slope.` : ''
+  return <p role="note" className="wt-quality-note" data-testid="anchor-comparison"><strong>Before/after {rule} ({formatWorkspaceDate(comparison.anchor.date)})</strong>: {side('before', comparison.before)}; {side('after', comparison.after)}; difference after − before {Number.isFinite(comparison.difference) ? `${slopeNumber(comparison.difference, true)} ${perYear}${hasCi ? ` (95% CI [${slopeNumber(comparison.differenceCiLow)}, ${slopeNumber(comparison.differenceCiHigh)}])` : ''}` : 'not available'}. Measurements on the anchor date count as before.{window}</p>
 }
 
 export function TrajectoriesWorkspace({ data, requestedPatientId, active = true }: { data: WorkspaceData; requestedPatientId?: PatientId | null; active?: boolean }) {
@@ -440,7 +465,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
   const egfrKey = computedEgfrKey(data)
   const egfrNotes = useMemo(() => missingEgfrNotes(data), [data])
   const missingNote = (key: string, id: PatientId) => key === egfrKey ? egfrNotes.get(patientIdKey(id)) : undefined
-  const akiEpisodes = useMemo(() => akiEpisodeRows(data.rows, data.events), [data.rows, data.events])
+  const akiEpisodes = useMemo(() => akiEpisodeRows(data.rows, data.events, akiRecoveryHours(data.analysisSettings)), [data.rows, data.events, data.analysisSettings])
   const measurementsFor = (id: PatientId, cell: { bezeichnung: string; einheit: string | null }) => measurementsBySeries.get(JSON.stringify([id, cell.bezeichnung, cell.einheit])) ?? []
   // Root remounts this component only when rawRows identity changes. A derived
   // update can remove a parameter without discarding unrelated browser choices.
@@ -457,7 +482,9 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     const { paramKey, metric } = parseSortKey(sort)
     if ((metric === 'slope' || metric === 'absSlope') && fitConfigs[paramKey]?.fitModel === 'none') setSort('id')
   }, [sort, fitConfigs])
-  const specs = useMemo(() => workspaceSpecs(data, keys, fitConfigs), [data, keys, fitConfigs])
+  // Before/after comparison per column (issue #64): not part of the fit configuration.
+  const anchorComparisons = useMemo(() => Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).anchorComparison])), [parameters, fitSettings, columnSettings])
+  const specs = useMemo(() => workspaceSpecs(data, keys, fitConfigs, anchorComparisons), [data, keys, fitConfigs, anchorComparisons])
   /** The parameters whose trend is calculated and shown. */
   const parameterKeySet = new Set(parameters.filter(parameter => trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none').map(parameter => parameter.key))
   const cohort = useMemo(() => buildCohortRows(data.rows, data.patients.map(p => p.id), specs), [data.rows, data.patients, specs])
@@ -744,7 +771,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     }}>Overlay</button><button aria-pressed={mode === 'detail'} disabled={!current} onClick={() => {
       if (mode !== 'detail' && current) open(current.patientId)
     }}>Individual patient</button></div></div>
-<div className="pv-exports"><WorkspaceExportActions data={data} parameterKeys={keys} patientIds={keptOutsideMarks ? [keptOutsideMarks.patientId] : patientIds} cohortRows={keptOutsideMarks ? [keptOutsideMarks] : visible} fitConfigByParameterKey={fitConfigs} moduleSettingsByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).moduleSettings]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
+<div className="pv-exports"><WorkspaceExportActions data={data} parameterKeys={keys} groupBy={groupBy} patientIds={keptOutsideMarks ? [keptOutsideMarks.patientId] : patientIds} cohortRows={keptOutsideMarks ? [keptOutsideMarks] : visible} fitConfigByParameterKey={fitConfigs} anchorComparisonByParameterKey={anchorComparisons} moduleSettingsByParameterKey={Object.fromEntries(parameters.map(p => [p.key, (columnSettings[p.key] ?? fitSettings).moduleSettings]))} {...(mode === 'detail' && current ? { patientId: current.patientId,
         getCharts: () => [...(workspaceElement.current?.querySelectorAll<SVGSVGElement>('.wt-plot-card svg.wt-plot') ?? [])].map(svg => ({
           svg, title: `Patient ${current.patientId}: ${svg.closest('.wt-plot-card')?.querySelector('h3')?.textContent ?? 'Chart'}`,
         })) } : {})} /><button type="button" className="pv-defaults" onClick={() => { setSettingsScope(''); setOpenTool('analysis') }}>General defaults</button></div></div>
@@ -766,7 +793,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
                   <label className="wt-scale-control">Value scale<select aria-label="Value scale" value={scaleMode} onChange={event => setScaleMode(event.target.value as 'shared' | 'zoom')}><option value="shared">Shared parameter scale</option><option value="zoom">Zoom to visible values</option></select><span className="wt-muted">{scaleMode === 'shared' ? 'Full-dataset range including zero, consistent across patients and views.' : 'Visible values only; small changes appear larger.'}</span></label>
 
             {mode === 'table' && <div className="pv-table-options"><div className="wt-toolbar"><label>Jump to parameter<select defaultValue="" onChange={event => { jumpParameter(event.target.value); event.target.value = '' }}><option value="" disabled>Jump to …</option>{parameters.map(parameter => <option key={parameter.key} value={parameter.key}>{parameter.label}</option>)}</select></label><label>Cell details<select aria-label="Cell details" value={cellDetails} onChange={event => setCellDetails(event.target.value as 'minimal' | 'full' | 'compact')}><option value="minimal">Minimal</option><option value="compact">Compact</option><option value="full">Full details</option></select></label><label>Warnings<select aria-label="Warning display" value={warningIcons ? 'icons' : 'text'} onChange={event => setWarningIcons(event.target.value === 'icons')}><option value="icons">Icons with tooltips</option><option value="text">Text badges</option></select></label></div></div>}
-                {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="baselineDays">Days since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={key === 'points' && pointsAutoHidden ? false : display[key]} onChange={event => { if (key === 'points') setPointsChosen(true); setDisplay(previous => ({ ...previous, [key]: event.target.checked })) }} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}{OVERLAY_MODULES.map(module => <label key={module.id}><input type="checkbox" checked={display[module.id] ?? false} onChange={event => setDisplay(previous => ({ ...previous, [module.id]: event.target.checked }))} />{module.presentation.toggleLabel}</label>)}</div></section>}
+                {mode !== 'table' && <section className="card wt-control-grid" aria-label="Plot settings"><label>Time axis<select value={axis} onChange={event => setAxis(event.target.value as WorkspaceAxis)}><option value="baseline">Years since first measurement</option><option value="baselineDays">Days since first measurement</option><option value="calendar">Calendar date</option><option value="age">Age</option><option value="event">Years since event</option></select></label><label>Highlight patient<select value={highlight === null ? '' : String(patientIds.indexOf(highlight))} onChange={event => setHighlight(event.target.value === '' ? null : patientIds[Number(event.target.value)] ?? null)}><option value="">None</option>{patientIds.map((id, i) => <option key={String(id)} value={i}>{id}</option>)}</select></label><div className="wt-toolbar">{(['points', 'connect', 'events'] as const).map(key => <label key={key}><input type="checkbox" checked={key === 'points' && pointsAutoHidden ? false : display[key]} onChange={event => { if (key === 'points') setPointsChosen(true); setDisplay(previous => ({ ...previous, [key]: event.target.checked })) }} />{key === 'points' ? 'Measurement points' : key === 'connect' ? 'Connecting lines' : 'Events'}</label>)}{OVERLAY_MODULES.map(module => <label key={module.id}><input type="checkbox" checked={display[module.id] ?? false} onChange={event => setDisplay(previous => ({ ...previous, [module.id]: event.target.checked }))} />{module.presentation.toggleLabel}</label>)}</div></section>}
 
           </ToolPopover>
         </div>
@@ -774,7 +801,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       <div className="pv-statusbar"><div className="pv-scope" role="status"><strong>{visible.length}</strong> patients<span className="pv-status-dot" />{scaleMode === 'shared' ? 'Shared scales' : 'Zoomed scales'}{groupBy && mode === 'table' && <span className="pv-group-summary"> · {groupedRows.length} {groupedRows.length === 1 ? 'group' : 'groups'} · sorted within groups</span>}{parameterKeySet.size > 0 ? <span> · Trend analysis: {parameterKeySet.size}</span> : parameters.some(p => (columnSettings[p.key] ?? fitSettings).fitModel !== 'none') && <span> · Tick “Trend” at a parameter to calculate slopes</span>}{uncertainSorted > 0 && <span className="pv-uncertain-note"> · {uncertainSorted} uncertain {uncertainSorted === 1 ? 'slope' : 'slopes'} {uncertainLast ? 'placed after the reliable ones' : 'ranked among the reliable ones'}</span>}</div>
         {uncertainSorted > 0 && <label className="pv-uncertain-toggle" title="Uncertain: fewer than three fitted measurement dates or less than one year of follow-up. Patients without a slope stay last."><input type="checkbox" checked={uncertainLast} onChange={event => { setUncertainLast(event.target.checked); setTablePage(0) }} />Uncertain slopes last</label>}
         {mode === 'table' && pagedRows.length > TABLE_PAGE_SIZES[0] && <nav className="wt-table-pages" aria-label="Patient table pages">
-          {pageCount > 1 && <><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1)}>Previous</button><span role="status">Showing {firstShown}–{lastShown} of {pagedRows.length} {pagedRows.length === 1 ? 'patient' : 'patients'}{collapsedRowCount > 0 ? ` (${collapsedRowCount} more in collapsed groups)` : ''}</span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1)}>Next</button>
+          {pageCount > 1 && <><button type="button" aria-label="Previous table page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1)}>Previous</button><span role="status"><span className="wt-page-long">Showing </span>{firstShown}–{lastShown} of {pagedRows.length}<span className="wt-page-long"> {pagedRows.length === 1 ? 'patient' : 'patients'}{collapsedRowCount > 0 ? ` (${collapsedRowCount} more in collapsed groups)` : ''}</span></span><button type="button" aria-label="Next table page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1)}>Next</button>
             <label className="wt-page-option">Page<select aria-label="Go to page" value={activeTablePage} onChange={event => changePage(Number(event.target.value))}>{Array.from({ length: pageCount }, (_, page) => <option key={page} value={page}>{page + 1}</option>)}</select>of {pageCount}</label></>}
           <label className="wt-page-option">Per page<select aria-label="Patients per page" value={pageSize} onChange={event => { pageJump.current = 'scroll'; setPageSize(Number(event.target.value) as (typeof TABLE_PAGE_SIZES)[number]); setTablePage(0) }}>{TABLE_PAGE_SIZES.map(size => <option key={size} value={size}>{size}</option>)}</select></label>
         </nav>}</div>
@@ -828,7 +855,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
         {!collapsed && section.rows.map(row => <tr key={String(row.patientId)}><td><input type="checkbox" aria-label={`Select patient ${row.patientId}`} checked={selectedSet.has(row.patientId)} onChange={event => setSelected(previous => event.target.checked ? [...previous, row.patientId] : previous.filter(id => id !== row.patientId))} /></td><th scope="row"><button ref={element => { if (element) personButtons.current.set(row.patientId, element); else personButtons.current.delete(row.patientId) }} aria-label={`Open patient ${row.patientId}`} title={String(row.patientId)} onClick={() => open(row.patientId)}>{row.patientId}</button></th>{shownAttributes.map(attribute => {
           const value = attributeLabel(attribute, data.patientAttributes[String(row.patientId)]?.[attribute])
           return <td key={`attribute:${attribute}`} className="pv-attribute-column"><span title={value} aria-label={value === undefined ? 'Not recorded' : undefined}>{value ?? '—'}</span></td>
-        })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i]) && parameterKeySet.has(keys[i])} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} slopeDecimals={slopeDecimals[i]} missing={missingNote(keys[i], row.patientId)} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(row.patientId))} timeBalancing={(columnSettings[keys[i]] ?? fitSettings).timeBalancing} /></td>)}</tr>)}
+        })}{row.cells.map((cell, i) => <td key={keys[i]}><div className={`pv-graph pv-graph-${chartSize}`} data-zoom={chartSize}><WorkspaceSparkline width={chartWidth} height={SPARK_SIZES[chartSize].height} scaleMode={scaleMode} cell={cell} measurements={measurementsFor(row.patientId, cell)} patientId={row.patientId} label={parameters[i].label} domain={scaleMode === 'shared' ? sparkDomains[i] : zoomDomains[i]} fit={fitKeys.includes(keys[i]) && parameterKeySet.has(keys[i])} /></div><CellSummary cell={cell} patientId={row.patientId} fit={trendKeys.includes(keys[i]) && fitConfigs[keys[i]].fitModel !== 'none'} compact={cellDetails === 'compact'} minimal={cellDetails === 'minimal'} warningIcons={warningIcons} slopeDecimals={slopeDecimals[i]} missing={missingNote(keys[i], row.patientId)} columnSettings={(columnSettings[keys[i]] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(row.patientId))} timeBalancing={(columnSettings[keys[i]] ?? fitSettings).timeBalancing} latestOperator={measurementsFor(row.patientId, cell).filter(m => m.labDatum && m.wertNum !== null).at(-1)?.wertOperator} /></td>)}</tr>)}
       </tbody>
     })}</table></div>}
     {mode === 'table' && visible.length > 0 && pageCount > 1 && <nav className="wt-table-pages wt-table-pages-below" aria-label="Patient table pages, below the table"><button type="button" aria-label="Below the table: previous page" disabled={activeTablePage === 0} onClick={() => changePage(activeTablePage - 1, 'bottom')}>Previous</button><span>Page {activeTablePage + 1} of {pageCount} · patients {firstShown}–{lastShown} of {pagedRows.length}</span><button type="button" aria-label="Below the table: next page" disabled={activeTablePage >= pageCount - 1} onClick={() => changePage(activeTablePage + 1, 'bottom')}>Next</button></nav>}
@@ -854,12 +881,12 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
       const fitStatus = measurementFitStatus(measurements, current.cells[index])
       return <div key={parameter.key}><div className="pv-plot-controls">{parameterControls(parameter)}</div><WorkspacePlot data={data} parameter={parameter} parameterIndex={index} sharedDomain={sparkDomains[index]} scaleMode={scaleMode} cohortRows={[current]} axis={axis} groupBy="" highlight={null} display={display} slopeDecimals={slopeDecimals[index]} showFit={fitKeys.includes(parameter.key) && parameterKeySet.has(parameter.key)} onOpen={open} /><div className="card"><CellSummary detailed slopeDecimals={slopeDecimals[index]} missing={missingNote(parameter.key, current.patientId)} cell={current.cells[index]} patientId={current.patientId} fit={trendKeys.includes(parameter.key) && fitConfigs[parameter.key].fitModel !== 'none'} columnSettings={(columnSettings[parameter.key] ?? fitSettings).moduleSettings} events={eventsByPatient.get(patientIdKey(current.patientId))} excludesAki={(columnSettings[parameter.key] ?? fitSettings).exclusions.excludeAkiWindows} timeBalancing={(columnSettings[parameter.key] ?? fitSettings).timeBalancing} /><details open={!current.cells[index].points.length || axis === 'age' && data.patients.find(p => p.id === current.patientId)?.baselineAge === null}><summary>Show measurements ({measurements.length})</summary><PatientMeasurementTable parameter={parameter} measurements={measurements} fitStatus={fitStatus} events={eventsByPatient.get(patientIdKey(current.patientId)) ?? NO_EVENTS} />{!measurements.length && <p>No measurements available for this parameter.</p>}</details></div></div>
     })}</div><section className="card"><h3>Events for this patient</h3>{data.events.some(e => e.patientId === current.patientId) ? <ul>{eventsByDate(data.events.filter(e => e.patientId === current.patientId)).map((event, i) => <li key={i}>{formatWorkspaceDate(event.date)}: {eventText(event)}</li>)}</ul> : <p>No events recorded.</p>}</section><section className="card"><h3>AKI episodes for this patient</h3>{akiEpisodes.some(episode => episode.patientId === current.patientId)
-      ? <ul>{akiEpisodes.filter(episode => episode.patientId === current.patientId).map((episode, i) => <li key={i}>Stage {akiStageLabel(episode.stage)}, onset {formatWorkspaceDate(episode.onset)}, creatinine peak {formatWorkspaceNumber(episode.peakValue)} mg/dl on {formatWorkspaceDate(episode.peakDate)}; baseline {formatWorkspaceNumber(episode.baselineValue)} mg/dl on {formatWorkspaceDate(episode.baselineDate)} ({akiCriterionLabel(episode.criterion)}; {episode.parameter} [{episode.unit ?? 'no unit'}])</li>)}</ul>
+      ? <ul>{akiEpisodes.filter(episode => episode.patientId === current.patientId).map((episode, i) => <li key={i}>Stage {akiStageLabel(episode.stage)}, onset {formatWorkspaceDate(episode.onset)}, creatinine peak {formatWorkspaceNumber(episode.peakValue)} mg/dl on {formatWorkspaceDate(episode.peakDate)}; baseline {formatWorkspaceNumber(episode.baselineValue)} mg/dl on {formatWorkspaceDate(episode.baselineDate)} ({akiCriterionLabel(episode.criterion)}; {episode.parameter} [{episode.unit ?? 'no unit'}]); end {akiEpisodeEndLabel(episode)}; dialysis start {akiEpisodeDialysisLabel(episode)}</li>)}</ul>
       : <p>No AKI episode detected. Detection needs serum creatinine values close enough in time: a rise within 48 hours or 7 days.</p>}<p className="wt-muted">Automated KDIGO creatinine screening, not a diagnosis. Display → “AKI windows and episodes” marks them in the charts.</p></section></section>}
     {active && draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options" role="group" aria-label="Parameter options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} /><span>{p.label}</span></label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}
     <AnalysisDrawer open={active && openTool === 'analysis'} onClose={closeTool} title={settingsScope ? parameters.find(parameter => parameter.key === settingsScope)?.label ?? 'Parameter analysis' : 'General defaults'}>
             <QuietAnalysisSettings parameters={parameters} sharedSettings={fitSettings} overrides={columnSettings}
-        scope={settingsScope} onChange={changeSettings} onReset={resetColumnSettings}
+        scope={settingsScope} onChange={changeSettings} onReset={resetColumnSettings} events={data.events}
  />
     </AnalysisDrawer>
   </div>

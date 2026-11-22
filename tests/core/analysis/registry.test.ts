@@ -29,7 +29,7 @@ describe('computeAnalysisResult', () => {
       events: [],
       settings: {
         egfr: { formula: 'off', source: null },
-        aki: { showOverlays: false, exclusionDays: 30 },
+        aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
         rapidEgfrDecline: { threshold: 5 },
       },
       modules: [],
@@ -48,7 +48,7 @@ describe('computeAnalysisResult', () => {
         label: 'Empty contributions',
         defaultSettings: {
           egfr: { formula: 'off', source: null },
-          aki: { showOverlays: false, exclusionDays: 30 },
+          aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
           rapidEgfrDecline: { threshold: 5 },
         },
         apply: () => ({
@@ -65,7 +65,7 @@ describe('computeAnalysisResult', () => {
       events: [],
       settings: {
         egfr: { formula: 'off', source: null },
-        aki: { showOverlays: false, exclusionDays: 30 },
+        aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
         rapidEgfrDecline: { threshold: 5 },
       },
       modules,
@@ -86,7 +86,7 @@ describe('computeAnalysisResult', () => {
         label: 'Append row',
         defaultSettings: {
           egfr: { formula: 'off', source: null },
-          aki: { showOverlays: false, exclusionDays: 30 },
+          aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
           rapidEgfrDecline: { threshold: 5 },
         },
         apply: (ctx) => ({ rows: [...ctx.rows, computed] }),
@@ -96,7 +96,7 @@ describe('computeAnalysisResult', () => {
         label: 'Observe rows',
         defaultSettings: {
           egfr: { formula: 'off', source: null },
-          aki: { showOverlays: false, exclusionDays: 30 },
+          aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
           rapidEgfrDecline: { threshold: 5 },
         },
         apply: (ctx) => {
@@ -113,7 +113,7 @@ describe('computeAnalysisResult', () => {
       events: [],
       settings: {
         egfr: { formula: 'off', source: null },
-        aki: { showOverlays: false, exclusionDays: 30 },
+        aki: { showOverlays: false, exclusionDays: 30, recoveryHours: 48 },
         rapidEgfrDecline: { threshold: 5 },
       },
       modules,
@@ -127,7 +127,7 @@ describe('computeAnalysisResult', () => {
 describe('parseAnalysisSettings', () => {
   const savedSettings = {
     egfr: { formula: 'mdrd-4', source: ['Kreatinin', 'mg/dl'] },
-    aki: { showOverlays: true, exclusionDays: 30 },
+    aki: { showOverlays: true, exclusionDays: 30, recoveryHours: 48 },
     rapidEgfrDecline: { threshold: 5 },
   }
 
@@ -141,6 +141,13 @@ describe('parseAnalysisSettings', () => {
       ...olderSettings,
       rapidEgfrDecline: { threshold: 5 },
     })
+  })
+
+  it('gives a stored AKI setting without a recovery length the default of 48 hours', () => {
+    // Settings saved before 2026-11-22 have no recoveryHours.
+    expect(parseAnalysisSettings({ ...savedSettings, aki: { showOverlays: true, exclusionDays: 30 } })).toEqual(savedSettings)
+    expect(parseAnalysisSettings({ ...savedSettings, aki: { showOverlays: true, exclusionDays: 30, recoveryHours: 72 } })?.aki).toEqual({ showOverlays: true, exclusionDays: 30, recoveryHours: 72 })
+    expect(parseAnalysisSettings({ ...savedSettings, aki: { showOverlays: true, exclusionDays: 30, recoveryHours: -1 } })).toBeNull()
   })
 
   it('rejects an invalid value in a registered module', () => {

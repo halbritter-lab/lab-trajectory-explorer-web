@@ -63,7 +63,10 @@ after the date is accepted and discarded. A number is read as an Excel serial
 date (1900 system) when it lies within 10000-80000 (1927-05-18 to 2119-01-11);
 a whole number from 1900 to 2100 is rejected as a bare year. Impossible
 calendar days (`31.02.2024`), month-first dates that cannot be day-first
-(`03/15/2024`), two-digit years and `DD-MM-YYYY` are not dates.
+(`03/15/2024`), two-digit years and `DD-MM-YYYY` are not dates. An accepted
+`date` or `endDate` after the import day or before 1927-05-18 gives a warning
+and the event is kept unchanged (since 2026-11-22; see
+[Dates](import-and-values.md#dates)).
 
 Every accepted date is the written calendar day at midnight UTC. Events
 therefore have day resolution, and so do lab dates.
