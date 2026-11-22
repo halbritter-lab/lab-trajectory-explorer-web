@@ -14,6 +14,8 @@ import { COHORT_SHEET_HEADER, cohortColumnDirectoryRows, cohortSheetRow } from '
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
 import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
 import { akiEpisodeExportRows, akiEpisodeRows } from './aki-episodes'
+import { PERI_EVENT_SHEET_HEADER, periEventExportRows } from './peri-event'
+import { periEventCreatinineRows, type PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
 import { dataChecks, importDiagnosticRecords } from './import-diagnostics'
@@ -38,6 +40,9 @@ export interface WorkspaceExportInput {
    * `settings` as `trend`, `settings_source` and `column_settings` so that
    * "Apply settings from an export" can restore them; empty without an entry. */
   columnSettingsByParameterKey?: Record<string, ColumnSettingsRecord>
+  /** The peri-event creatinine selection of the Data page (issue #69); the
+   * sheet `peri_event_creatinine` is empty without one. */
+  periEventSettings?: PeriEventSettings | null
   /** Written to `about` as `exported_at`; the time of the call when omitted. */
   exportedAt?: Date
   /** Written to `about` as `export_id`; a new random UUID when omitted. */
@@ -148,7 +153,7 @@ function columnSettingsColumns(record: ColumnSettingsRecord | undefined) {
 export const COLUMN_SETTINGS_NOTE = 'trend, settings_source and column_settings, the last columns of settings, record the settings of each parameter as the app keeps them: trend is true when Trend was on (with Trend off, fit_config has fitModel none and the column has no slope), settings_source is shared for a parameter that used the shared settings and own for one with its own settings, and column_settings holds those settings as JSON (the entries of fit_config with the preset id, the module settings and the before/after setting). Loading this file does not apply them; "Apply settings from an export" in the analysis record (Trajectories) does, together with analysis_settings, and lists what it could not apply.'
 
 /** All sheets share the supplied visible scope; summaries are never fitted again. */
-export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,groupBy = '',anchorComparisonByParameterKey,columnSettingsByParameterKey,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
+export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,groupBy = '',anchorComparisonByParameterKey,columnSettingsByParameterKey,periEventSettings = null,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
   const requestedKeys = [...new Set(parameterKeys)]
   const parameters = requestedKeys.map(key => data.parameters.find(parameter => parameter.key === key))
   if (!parameters.length || parameters.some(parameter => !parameter)) throw new Error('No valid parameters selected for export.')
@@ -158,6 +163,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const ids = patientId === undefined ? visibleIds : visibleIds.filter(id => id === patientId)
   if (!ids.length) throw new Error('No patients available in the current selection.')
   const idSet = new Set(ids)
+  const periEvent = periEventSettings
   const exportedKeys = new Set(ids.map(patientIdKey))
   const loadedKeys = new Set(data.patients.map(patient => patientIdKey(patient.id)))
   const bySeries = new Map(selectedParameters.map(parameter => [seriesIdentity(parameter.bezeichnung,parameter.einheit),parameter]))
@@ -241,7 +247,9 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       // Appended 2026-11-22 (issue #64): the before/after setting, empty when the column has none.
       anchor_comparison:anchorComparisonByParameterKey?.[requestedKeys[index]] ? JSON.stringify(anchorComparisonByParameterKey[requestedKeys[index]]) : '',
       // Appended 2026-11-22 (issue #83): the settings as the app keeps them, for "Apply settings from an export".
-      ...columnSettingsColumns(columnSettingsByParameterKey?.[requestedKeys[index]])}))},
+      ...columnSettingsColumns(columnSettingsByParameterKey?.[requestedKeys[index]]),
+      // Appended 2026-11-22 (issue #69): the Data page's event selection and window, the same in every row; empty without one.
+      peri_event_creatinine:periEvent ? JSON.stringify(periEvent) : ''}))},
     {name:'about',rows:[...EXPORT_DISCLAIMER_ROWS,
       // Only this workbook has the column, so the note is not in the shared rows.
       {note:'endpoint_percent_change is the total eGFR change in percent from the first to the latest eligible measurement, with the sign the badge in the app shows: negative when eGFR fell, positive when it rose. It is not a rate per year and not the confirmed 40 % or 57 % decline event. Until 2026-11-16 the column was named endpoint_percent_decline and had the opposite sign.'},
@@ -274,6 +282,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'A computed eGFR reads one serum creatinine series per patient: the creatinine source of the Data page (source_parameter and source_unit in parameters), or, when that source is in mg/dl and the patient has no serum creatinine in mg/dl, the patient\'s series in µmol/l (divided by 88.42). egfr_source_parameter and egfr_source_unit, the last columns of demographics, name the series used for each patient; they are empty for a patient without a computed eGFR value. Series are not merged.'},
       // Appended 2026-11-22 (issue #83), after the note on anchor_comparison.
       {note:COLUMN_SETTINGS_NOTE},
+      // Appended 2026-11-22 (issue #69), so the earlier notes keep their positions.
+      {note:'peri_event_creatinine lists the serum creatinine around every event of the selected patients whose title or type equals the selection on the Data page (event_rule; the column peri_event_creatinine of the settings sheet), one row per event; the sheet is empty while no events are selected. Automated screening with the KDIGO creatinine criterion, not a diagnosis; values in mg/dl (µmol/l divided by 88.42). Dates are calendar days: event dates have no time of day, so the window of window_hours 48 (72) is the 2 (3) calendar days after the event day, up to window_end_date, and a value on the event day counts as the baseline, also where lab values carry a time. baseline is the last value on or before the event day, with no look-back limit (baseline_days_before_event); among several values of that day the latest by time when every value has a time, otherwise the lowest (n_baseline_day_values). peak is the highest value in the window. criterion_met is true when absolute_rise_mg_dl is at least 0.3 or ratio_to_baseline at least 1.5 (both inclusive) and empty when status is not_evaluable; reason then says why. The series is the serum creatinine parameter of the patient with the most exact values; values of zero or less, bounds and values under dialysis are not used, and an event whose day is under dialysis is not evaluable. Each event is evaluated on its own; overlapping_events counts the other selected events of the patient within the window length before or after it, whose values it shares.'},
       // Only with a log_trend sheet (issue #70), so an export without a logarithmic column is unchanged.
       ...(logTrends.length ? [{note:'log_trend lists, for every parameter shown on a logarithmic value axis, the trend fitted to the natural logarithm of the values with the same slope mode, estimator, exclusions and time balancing as the column (monthly or quarterly medians are medians of the log values). Values of zero or less have no logarithm and are left out (n_non_positive); bounds stay out as in every fit. log_slope is per year; doubling_time_years is ln 2 / log_slope: positive is the doubling time, negative the halving time in years. doubling_time_ci_low and doubling_time_ci_high are ln 2 divided by the upper and the lower bound of log_slope, empty when the bounds include zero. The column\'s own slope and every other sheet are unchanged by this setting.'}] : []),
     ]},
@@ -296,6 +306,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     })},
     // Added 2026-11-22 (issue #64), after every earlier sheet, so their positions stay.
     {name:'anchor_comparison',header:ANCHOR_COMPARISON_SHEET_HEADER,rows:anchorComparisonRows(prepared)},
+    // Added 2026-11-22 (issue #69), after every earlier sheet, so their positions stay.
+    {name:'peri_event_creatinine',header:PERI_EVENT_SHEET_HEADER,rows:periEventExportRows(periEvent ? periEventCreatinineRows(data.rows.filter(row => idSet.has(row.patientId)),data.events.filter(event => idSet.has(event.patientId)),periEvent) : [],periEvent?.rule ?? null)},
     // Added 2026-11-22 (issue #70), only when a column has a logarithmic axis, after every other sheet.
     ...(logTrends.length ? [{name:'log_trend',header:LOG_TREND_SHEET_HEADER,rows:logTrends}] : []),
   ]

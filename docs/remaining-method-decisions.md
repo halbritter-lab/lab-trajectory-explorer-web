@@ -1712,6 +1712,83 @@ call.
 Details: [source selection](method-algorithms/egfr.md#source-selection) and
 [AKI input series](method-algorithms/aki.md#input-series-and-conversion).
 
+## Decisions of 2026-11-22 (peri-event creatinine, issue #69)
+
+Owner decision of 2026-11-21 on issue #69, implemented on 2026-11-22. **A new
+result only**: no existing episode, slope, flag, endpoint, export column or
+golden fixture moved. While no events are selected (the default) every
+number and every existing sheet is as before; the cohort and patient
+workbooks gain the empty last sheet `peri_event_creatinine`, the empty last
+column `peri_event_creatinine` of `settings` and one note at the end of
+`about`.
+
+- **Peri-event creatinine** for selected events (for example contrast
+  administration, cardiac catheterisation): per event the last value before
+  it (baseline), the highest value in the window after it, absolute and
+  relative rise and whether the criterion is met; one row per event in the
+  interface and in the export (new sheet, last).
+- **Criterion**: KDIGO creatinine rise, ≥ 0.3 mg/dl or ≥ 1.5 × baseline,
+  within a selectable window of **48 or 72 hours** after the event (ACR/NKF
+  consensus 2020: contrast-associated AKI is KDIGO AKI within 48 hours after
+  contrast; ESUR uses 48 to 72 hours).
+- **Day resolution**: imported dates have day resolution, so 48 and 72 hours
+  are evaluated as calendar days and a value on the event date counts as the
+  baseline, as for the anchor of the before/after comparison. The interface
+  states the limitation.
+
+Details of the implementation, chosen where the decision left them open,
+**not yet confirmed by the owner**:
+
+- Events are selected by exact title or exact type, with the matching of the
+  anchor event of the before/after comparison; every matching event is
+  analysed, not only the first. The setting is dataset-level, on the Data
+  page beside the detected AKI episodes, kept apart from the analysis
+  settings (it recomputes no fit and does not discard cohort models), saved
+  with the dataset copy and exported in the last column
+  `peri_event_creatinine` of the `settings` sheet.
+- Series: per patient the eligible serum creatinine series with the most
+  exact dated rows (the AKI choice for a column that is not creatinine);
+  non-serum material excluded as in `analytes.ts`; µmol/l divided by 88.42;
+  bounds and values of zero or less not used, so the 1.5-fold rule never
+  meets a baseline of 0.
+- Values under dialysis (`isUnderDialysis`, as in AKI detection) are neither
+  baseline nor peak; an event whose own day is under dialysis is not
+  evaluable (`event_under_dialysis`). A dialysis starting on the event day or
+  in the window is named; start of renal replacement therapy does not meet
+  the criterion.
+- Baseline: the last calendar day on or before the event day with a value;
+  among several values of that day the latest by time when every value has a
+  time, otherwise the lowest. **No look-back limit**; the days between
+  baseline and event are reported. Peak: the highest value of days
+  event + 1 to event + 2 (48 h) or + 3 (72 h), both included. Thresholds are
+  inclusive with the KDIGO tolerance of 1e-12. Not evaluable reasons:
+  `no_creatinine`, `event_under_dialysis`, `no_baseline`,
+  `no_value_in_window`, tested in that order.
+- Several events in one window: each is evaluated on its own and the overlap
+  is counted (`overlapping_events`, other selected events within the window
+  length before or after); the later event's baseline can be raised by the
+  first.
+- Time of day: event dates carry no time (it is discarded at import), so the
+  exact-hour rule asked for where event and values both have times cannot be
+  applied; the calendar-day rule applies in every case. Recorded as
+  **OD-38**.
+
+Recomputed example (synthetic, no contrast events in the demo workbook):
+creatinine 0.9, 1.0, 1.2, 1.35 and 1.6 mg/dl on 1, 3, 4, 5 and 6 March 2026,
+"Contrast CT" on 3 March and "Cardiac catheterisation" on 4 March. 48 hours:
+contrast CT baseline 1.0 (event day), peak 1.35 on 5 March, rise 0.35,
+ratio 1.35, met by the absolute rule; catheterisation baseline 1.2, peak 1.6,
+rise 0.40, ratio 1.33, met; each counts one overlapping event. 72 hours:
+contrast CT peak 1.6, rise 0.60, ratio 1.60, met by both rules.
+
+New methodology-page text, minimal and factual, awaiting the maintainer's
+approval: one row for `peri_event_creatinine` in Export → Workbook contents.
+The Data page section carries its own description and the day-resolution
+note; the AKI topic of the methodology page does not yet mention the
+analysis.
+
+Details: [peri-event creatinine](method-algorithms/aki.md#peri-event-creatinine-2026-11-22).
+
 ## Approved requirements
 
 ### Observed events and recovery

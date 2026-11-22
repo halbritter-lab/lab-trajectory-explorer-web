@@ -4,6 +4,7 @@ import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analy
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
 import type { FormulaName, Source } from '../../core/domains/nephrology/egfr/series'
 import type { ClinicalEvent, RejectedClinicalEvent } from '../../core/events/events'
+import type { PeriEventSettings } from '../../core/domains/nephrology/aki/periEvent'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormulaKey, type MixedModelConfig } from '../../core/mixedModel/config'
 import type { MixedModelResult } from '../../core/mixedModel/types'
 import { mixedModelIdentityEquals, type MixedModelResultIdentity } from '../../core/mixedModel/resultIdentity'
@@ -53,6 +54,8 @@ export interface DatasetReplacement {
   patientAttributes?: Record<string, Record<string, string>>
   manualDemographics?: Record<string, ManualDemographics>
   analysisSettings?: AnalysisSettings
+  /** The peri-event creatinine selection of a restored copy; none otherwise. */
+  periEventSettings?: PeriEventSettings | null
   notice?: Notice | null
   /** Import findings of the lab values, events and attributes of this dataset. */
   importDiagnostics?: ImportDiagnostic[]
@@ -80,6 +83,9 @@ export interface AppState {
    * attribute names (e.g. "genotype") carry no special meaning to the app. */
   patientAttributes: Record<string, Record<string, string>>
   analysisSettings: AnalysisSettings
+  /** Events and window of the peri-event creatinine analysis on the Data page
+   * (issue #69); null while no events are selected. Saved with the dataset copy. */
+  periEventSettings: PeriEventSettings | null
   mixedModelConfig: MixedModelConfig
   presetExclusionPolicy: PresetExclusionPolicy
   /** The analysis settings currently chosen under Trajectories. Trajectories
@@ -120,6 +126,10 @@ export interface AppState {
   /** Replace the dataset-level analysis settings as a whole ("Apply settings
    * from an export"); an unchanged value changes nothing. */
   applyAnalysisSettings: (settings: AnalysisSettings) => void
+  /** Events and window of the peri-event creatinine analysis (dataset-level);
+   * null selects no events. Kept apart from `analysisSettings`, so a change
+   * recomputes no analysis or fit and keeps the cohort models. */
+  setPeriEventSettings: (settings: PeriEventSettings | null) => void
   setManualDemographics: (patientId: LabRow['patientId'], demo: ManualDemographics) => void
   setEvents: (events: ClinicalEvent[]) => void
   setPatientAttributes: (byPatient: Record<string, Record<string, string>>) => void
@@ -141,7 +151,7 @@ export interface AppState {
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'pristineDemo' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'importDiagnostics' | 'patientAttributes'
-  | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
+  | 'analysisSettings' | 'periEventSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
   | 'cohortModelProgress' | 'cohortModelRuntimeLoaded' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
 
 const initialState = (): AppData => ({
@@ -154,6 +164,7 @@ const initialState = (): AppData => ({
   importDiagnostics: [],
   patientAttributes: {},
   analysisSettings: defaultAnalysisSettings(),
+  periEventSettings: null,
   mixedModelConfig: DEFAULT_MIXED_MODEL_CONFIG,
   presetExclusionPolicy: 'apply',
   trajectoryFitSettings: defaultTrajectoryFitSettings(),
@@ -268,6 +279,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       patientAttributes: dataset.patientAttributes ?? {},
       manualDemographics: dataset.manualDemographics ?? {},
       analysisSettings: dataset.analysisSettings ?? initial.analysisSettings,
+      periEventSettings: dataset.periEventSettings ?? null,
       notice: dataset.notice ?? null,
       pristineDemo: dataset.pristineDemo ?? false,
     })
@@ -292,6 +304,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),
+  setPeriEventSettings: (settings) => set({ periEventSettings: settings, pristineDemo: false }),
   setManualDemographics: (patientId, demo) => set((s) => ({
     manualDemographics: { ...s.manualDemographics, [patientId]: demo },
     pristineDemo: false,

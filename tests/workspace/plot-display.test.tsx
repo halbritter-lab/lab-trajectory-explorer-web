@@ -359,7 +359,7 @@ describe('Rolling OLS windows (K18)', () => {
     const workbook = (mode: 'rolling' | 'global') => XLSX.read(workspaceWorkbookBytes({ data, parameterKeys: [CREA.key], patientIds: ['R'], patientId: 'R',
       cohortRows: buildCohortRows(rows, ['R'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode }]) }), { type: 'array' })
     const rolling = workbook('rolling')
-    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
+    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison', 'peri_event_creatinine'])
     const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(rolling.Sheets.rolling_windows)
     expect(records).toHaveLength(5)
     expect(Object.keys(records[0])).toEqual(['PatientID', 'Parameter', 'Unit', 'window', 'window_start', 'window_end', 'first_date', 'last_date', 'n', 'slope'])

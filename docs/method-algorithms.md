@@ -36,9 +36,11 @@ Conventions used throughout:
 - **Dates are calendar days.** Import keeps the calendar day as written and
   stores it at midnight UTC. Measurements of one day share one timestamp, and
   every elapsed-time rule works in whole days. A time of day on a lab date is
-  kept beside the date and used for one thing only: it orders the creatinine
-  values of one day in AKI detection (and, for display, the rows of one day
-  in the measurement table); it is exported as `time_of_day`.
+  kept beside the date and used for ordering only: it orders the creatinine
+  values of one day in AKI detection, chooses the latest of several values
+  of the baseline day in the peri-event creatinine analysis (and, for
+  display, orders the rows of one day in the measurement table); it is
+  exported as `time_of_day`. Event dates carry no time of day.
 - **A year is 365.25 days** wherever elapsed time is converted to years.
 - **A series** is one patient, one parameter name and one unit, compared as
   stored after import. Different names or units are never pooled.
@@ -73,6 +75,7 @@ Contents:
 12. [eGFR derivation](method-algorithms/egfr.md#egfr-derivation)
 13. [KDIGO creatinine AKI detection](method-algorithms/aki.md#kdigo-creatinine-aki-detection)
 14. [AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window)
+    - [Peri-event creatinine](method-algorithms/aki.md#peri-event-creatinine-2026-11-22)
 15. [Clinical events](method-algorithms/clinical-events.md#clinical-events)
 16. [Observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction)
 17. [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models)
@@ -114,12 +117,14 @@ instruction of 2026-11-22 to resolve the open points. OD-37 was added on
 decision does not say what a slope without a 95 % interval gets.
 OD-36 was added on 2026-11-22 with the per-patient creatinine source of
 issue #65: the cases the owner decision of 2026-11-21 does not name are
-implemented with the option that changes least.
+implemented with the option that changes least. OD-38 was added on
+2026-11-22 with the peri-event creatinine analysis (issue #69).
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
 | OD-36 | [eGFR source selection](method-algorithms/egfr.md#source-selection) | A patient without the selected mg/dl source falls back to µmol/l only without any serum creatinine in mg/dl; mg/dl creatinine under another name, several µmol/l series without one under the selected name, and a selected µmol/l source give no fallback and no eGFR for that patient. |
 | OD-37 | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) | A slope below the negative threshold without a 95 % interval (missing bounds, or Theil–Sen bounds on fewer than five fitted dates) is marked "rapid ↓?" (`possible`), the conservative reading chosen during implementation; the decision of 2026-11-21 does not cover the case. |
+| OD-38 | [Peri-event creatinine](method-algorithms/aki.md#days-baseline-window-and-criterion) | The decision of 2026-11-21 asks for exact hours when the event and the values have a time of day. The import keeps no time on events, so the 48- and 72-hour windows are always calendar days after the event day and a value on the event day is always a baseline value, also when the lab values carry times. |
 
 ### Resolved decisions
 

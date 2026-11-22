@@ -21,7 +21,7 @@ test('compares the slopes at the transplant, exports them and aligns the overlay
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
   const workbook = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
-  expect(workbook.SheetNames.at(-1)).toBe('anchor_comparison')
+  expect(workbook.SheetNames.at(-2)).toBe('anchor_comparison')
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.anchor_comparison)
   expect(rows).toHaveLength(28)
   const p13 = rows.find(row => row.PatientID === 13)!

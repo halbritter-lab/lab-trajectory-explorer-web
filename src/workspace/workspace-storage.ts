@@ -5,6 +5,7 @@ import type { AnalysisContext } from '../core/analysis/types'
 import { isRecord as record, parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
 import type { LabRow, Sex, WertOperator } from '../core/types'
 import { nonSerumCreatinineLoincName } from '../core/domains/nephrology/analytes'
+import { parsePeriEventSettings, type PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 import { IMPORT_SOURCES, type ImportDiagnostic, type ImportSource } from '../io/loadDataset'
 import { allValues, restoreSavedSettings, SAVED_SETTINGS_VERSION, type RestoredSettings, type SavedSettings } from './saved-settings'
 import {
@@ -44,6 +45,10 @@ interface Snapshot extends AnalysisContext {
   /** Import findings per source table. Absent in copies saved before
    * 2026-11-21, which restore without them. */
   importDiagnostics?: ImportDiagnostic[]
+  /** The peri-event creatinine selection (issue #69); absent or null without
+   * one and in copies saved before 2026-11-22. An unreadable value restores
+   * as no selection. */
+  periEventSettings?: PeriEventSettings | null
 }
 /** `datasetToken` is the write token of the dataset copy the settings belong
  * to. A record for another copy is never applied. */
@@ -284,7 +289,7 @@ function snapshot(): Snapshot {
   return { version: 1, writeToken: crypto.randomUUID(), savedAt: Date.now(), rows: state.rows, fileName: state.fileName,
     events: state.events, patientAttributes: state.patientAttributes,
     manualDemographics: state.manualDemographics, analysisSettings: state.analysisSettings,
-    importDiagnostics: state.importDiagnostics }
+    importDiagnostics: state.importDiagnostics, periEventSettings: state.periEventSettings }
 }
 function settingsRecord(datasetToken: string): SettingsRecord {
   const state = useAppStore.getState()
@@ -430,7 +435,8 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       useAppStore.getState().replaceDataset({ rows: separated.rows,
         events: value.events, patientAttributes: value.patientAttributes,
         manualDemographics: value.manualDemographics, analysisSettings: parseAnalysisSettings(value.analysisSettings)!,
-        fileName: value.fileName, importDiagnostics: storedImportDiagnostics(value.importDiagnostics) })
+        fileName: value.fileName, importDiagnostics: storedImportDiagnostics(value.importDiagnostics),
+        periEventSettings: parsePeriEventSettings(value.periEventSettings) })
       // Parameters include derived ones (computed eGFR), so they come from the analysis.
       const parameterKeys = new Set(useAppStore.getState().analysisResult().rows.filter(r => r.bezeichnung !== null).map(r => JSON.stringify([r.bezeichnung, r.einheit])))
       // Settings written for another dataset copy are never applied.
@@ -449,7 +455,7 @@ export async function startWorkspaceStorage(): Promise<() => void> {
     if (state.rows !== previous.rows || state.events !== previous.events
       || state.patientAttributes !== previous.patientAttributes || state.manualDemographics !== previous.manualDemographics
       || state.analysisSettings !== previous.analysisSettings || state.fileName !== previous.fileName
-      || state.importDiagnostics !== previous.importDiagnostics) void save()
+      || state.importDiagnostics !== previous.importDiagnostics || state.periEventSettings !== previous.periEventSettings) void save()
     else if (state.trajectoryFitSettings !== previous.trajectoryFitSettings || state.trajectoryView !== previous.trajectoryView) saveSettings()
   })
   const onShown = () => { if (document.visibilityState === 'visible') void checkSavedCopy() }

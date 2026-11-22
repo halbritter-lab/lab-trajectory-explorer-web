@@ -8,12 +8,13 @@ import { useAppStore } from './state/store'
 import { DraftNumberInput } from './DraftNumberInput'
 import { MAX_AKI_RECOVERY_HOURS } from '../core/domains/nephrology/constants'
 import { countLabel, sexLabel } from './workspace-labels'
+import { WorkspacePeriEventCreatinine } from './WorkspacePeriEventCreatinine'
 
 /** Levels listed per attribute before the rest is summarised as a count. */
 const LEVEL_LIMIT = 8
 
 /** What the import produced, by name: parameters, attributes with their
- * levels, and the detected AKI episodes. Counts alone do not show that two
+ * levels, the detected AKI episodes and the creatinine after selected events. Counts alone do not show that two
  * spellings of one test became two parameters. */
 export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData; onBrowse: (patientId?: PatientId) => void }) {
   const parameters = useMemo(() => {
@@ -79,5 +80,6 @@ export function WorkspaceDataOverview({ data, onBrowse }: { data: WorkspaceData;
         </table>
       </div>}
     </details>
+    <WorkspacePeriEventCreatinine data={data} onBrowse={onBrowse} />
   </div>
 }

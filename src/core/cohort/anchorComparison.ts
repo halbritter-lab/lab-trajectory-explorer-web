@@ -69,14 +69,23 @@ export function anchorRuleLabel(rule: AnchorRule): string {
   return 'first event'
 }
 
+/** Whether the rule accepts an event: every dated event for `first`,
+ * otherwise an exact match of the title or type (case and spaces as stored).
+ * Shared with the peri-event creatinine analysis, which takes every accepted
+ * event rather than the first. */
+export function eventMatchesRule(event: ClinicalEvent, rule: AnchorRule): boolean {
+  if (!Number.isFinite(event.date.getTime())) return false
+  if (rule.kind === 'title') return event.title === rule.value
+  if (rule.kind === 'type') return event.type === rule.value
+  return true
+}
+
 /** The anchor event of one patient: the earliest event the rule accepts;
  * among events of the same date the first in file order. */
 export function anchorEvent(events: readonly ClinicalEvent[], rule: AnchorRule): ClinicalEvent | null {
   let best: ClinicalEvent | null = null
   for (const event of events) {
-    if (!Number.isFinite(event.date.getTime())) continue
-    if (rule.kind === 'title' && event.title !== rule.value) continue
-    if (rule.kind === 'type' && event.type !== rule.value) continue
+    if (!eventMatchesRule(event, rule)) continue
     if (best === null || event.date.getTime() < best.date.getTime()) best = event
   }
   return best

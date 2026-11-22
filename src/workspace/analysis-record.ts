@@ -24,13 +24,13 @@ import { anchorRuleLabel } from '../core/cohort/anchorComparison'
 
 /** Where a setting is changed in the interface. */
 export type SettingControl =
-  | { page: 'Data'; target: 'egfr' | 'aki-recovery' | 'demographics' }
+  | { page: 'Data'; target: 'egfr' | 'aki-recovery' | 'demographics' | 'peri-event' }
   | { page: 'Trajectories'; target: 'analysis' | 'parameters' | 'trend' | 'grouping' }
   | { page: 'Cohort models'; target: 'model' | 'fit-summary' }
 
 /** The element each control of another page is in (see WorkspaceApp). */
 export const CONTROL_ELEMENT_IDS: Record<Exclude<SettingControl, { page: 'Trajectories' }>['target'], string> = {
-  egfr: 'data-egfr', 'aki-recovery': 'data-aki-recovery', demographics: 'data-demographics',
+  egfr: 'data-egfr', 'aki-recovery': 'data-aki-recovery', demographics: 'data-demographics', 'peri-event': 'data-peri-event',
   model: 'cohort-model-settings', 'fit-summary': 'cohort-model-fit-summary',
 }
 
@@ -122,6 +122,8 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   'trajectoryView.logKeys': { label: 'Logarithmic value axis', area: 'Trajectories', exportField: 'log_trend (one row per patient for each parameter on a logarithmic axis)', control: { page: 'Trajectories', target: 'parameters' } },
 
   // Cohort models: recorded with each fitted model in the model workbook (models sheet).
+  // Data page: the peri-event creatinine selection (issue #69); it changes no fit.
+  'periEventSettings': { label: 'Creatinine after selected events', area: 'Data', exportField: 'settings.peri_event_creatinine; sheet peri_event_creatinine', control: { page: 'Data', target: 'peri-event' } },
   'mixedModelConfig.timeAxis': { label: 'Model time axis', area: 'Cohort models', exportField: 'model workbook: models.modelConfig', control: MODEL_SETTINGS },
   'mixedModelConfig.covariates': { label: 'Model covariates', area: 'Cohort models', exportField: 'model workbook: models.modelConfig', control: MODEL_SETTINGS },
   'mixedModelConfig.randomEffects': { label: 'Random effects', area: 'Cohort models', exportField: 'model workbook: models.modelConfig', control: MODEL_SETTINGS },
@@ -146,12 +148,12 @@ export const STORE_FIELDS = {
   pristineDemo: 'state', rejectedEvents: 'state', busy: 'state', notice: 'state',
   // Results and the progress of a fit, not choices.
   cohortModelResults: 'state', cohortModelRunning: 'state', cohortModelProgress: 'state', cohortModelRuntimeLoaded: 'state',
-  analysisSettings: 'settings', manualDemographics: 'settings', trajectoryFitSettings: 'settings', trajectoryView: 'settings',
+  analysisSettings: 'settings', periEventSettings: 'settings', manualDemographics: 'settings', trajectoryFitSettings: 'settings', trajectoryView: 'settings',
   mixedModelConfig: 'settings', presetExclusionPolicy: 'settings', projectionSettings: 'settings', showCohortMixedModelLine: 'settings',
 } as const satisfies Record<string, 'data' | 'state' | 'settings'>
 
 /** Paths whose value is one setting although it is an object or a list. */
-const LEAF_PATHS = new Set(['analysisSettings.egfr.source', 'manualDemographics', 'trajectoryView.display', 'mixedModelConfig.covariates', 'mixedModelConfig.factors', 'projectionSettings', 'trajectoryView.parameterKeys', 'trajectoryView.trendKeys', 'trajectoryView.fitKeys'])
+const LEAF_PATHS = new Set(['analysisSettings.egfr.source', 'periEventSettings', 'manualDemographics', 'trajectoryView.display', 'mixedModelConfig.covariates', 'mixedModelConfig.factors', 'projectionSettings', 'trajectoryView.parameterKeys', 'trajectoryView.trendKeys', 'trajectoryView.fitKeys'])
 
 /** The leaves of a settings value as [path, value], depth first in key order.
  * An empty object counts as a leaf, so a new empty setting is not skipped. */

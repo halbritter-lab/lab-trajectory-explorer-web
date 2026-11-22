@@ -36,7 +36,7 @@ function groupedFixture() {
 describe('cohort workbook schema', () => {
   it('pins the sheets and the columns of every sheet', () => {
     const workbook = read(workspaceWorkbookBytes(exportFixture()))
-    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
+    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison', 'peri_event_creatinine'])
     const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day']
     expect(header(workbook, 'measurements')).toEqual(measurement)
     expect(header(workbook, 'raw_measurements')).toEqual(measurement)
@@ -46,8 +46,12 @@ describe('cohort workbook schema', () => {
     expect(header(workbook, 'patient_attributes')).toEqual(['PatientID', 'group'])
     expect(header(workbook, 'demographics')).toEqual(['PatientID', 'baseline_age', 'birth_anchor', 'age_estimated', 'manual_override', 'warnings', 'egfr_source_parameter', 'egfr_source_unit'])
     expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
-    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison', 'trend', 'settings_source', 'column_settings'])
+    expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison', 'trend', 'settings_source', 'column_settings', 'peri_event_creatinine'])
     expect(header(workbook, 'about')).toEqual(['note'])
+    expect(header(workbook, 'peri_event_creatinine')).toEqual(['PatientID', 'event_date', 'event_type', 'event_title', 'event_rule', 'window_hours', 'window_end_date',
+      'creatinine_parameter', 'creatinine_unit', 'baseline_date', 'baseline_value_mg_dl', 'baseline_days_before_event', 'n_baseline_day_values',
+      'peak_date', 'peak_value_mg_dl', 'n_window_values', 'absolute_rise_mg_dl', 'ratio_to_baseline', 'criterion_met', 'criterion', 'status', 'reason',
+      'dialysis_start_in_window', 'n_window_values_under_dialysis', 'overlapping_events'])
     expect(header(workbook, 'columns')).toEqual(['column', 'meaning', 'unit', 'empty_when'])
     expect(header(read(workspaceWorkbookBytes({ ...exportFixture(), patientId: '001-A' })), 'slopes')).toEqual(COHORT_HEADER)
   })
@@ -65,7 +69,7 @@ describe('cohort workbook schema', () => {
     // after scope and before anchor_comparison (issue #64, appended the same day), which
     // the settings of the analysis record follow (issue #83).
     expect(header(grouped, 'settings')).toEqual(header(plain, 'settings'))
-    expect(header(grouped, 'settings').slice(-6)).toEqual(['scope', 'group_by', 'anchor_comparison', 'trend', 'settings_source', 'column_settings'])
+    expect(header(grouped, 'settings').slice(-7)).toEqual(['scope', 'group_by', 'anchor_comparison', 'trend', 'settings_source', 'column_settings', 'peri_event_creatinine'])
     expect(records(grouped, 'settings').length).toBeGreaterThan(0)
     expect(records(grouped, 'settings').every(row => row.group_by === 'group')).toBe(true)
     expect(records(plain, 'settings').every(row => row.group_by === '')).toBe(true)

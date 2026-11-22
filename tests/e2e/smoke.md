@@ -55,6 +55,32 @@ Verified 2026-11-22 in Chromium against the dev server by the browser tests
 and 1280 px (steps 1, 2 and 4); step 3 with another dataset only by the unit
 tests.
 
+## Creatinine after selected events (2026-11-22, issue #69)
+
+1. Load the demo data, then Data → "Replace events" with a CSV holding
+   `11,other,2022-07-10,Contrast CT,,,` and `13,other,2022-06-10,Contrast CT,,,`
+   (header `patientId,type,date,title,description,endDate,intent`).
+   "Creatinine after selected events (none selected)" sits below "Detected
+   AKI episodes" and states that the window counts calendar days and that a
+   value on the event day is the baseline.
+2. Events analysed → "Title: Contrast CT": two rows. Patient 11 baseline 1.1
+   on 10/07/2022, highest 1.8 on 12/07/2022, rise 0.7, 1.64 ×, "Met: rise
+   ≥ 0.3 mg/dl and to ≥ 1.5 times baseline". Patient 13 "Not evaluable: no
+   value in the window". The patient button opens the patient.
+3. Window → 72 hours: the summary line and rows update; "Type: dialysis"
+   after adding a dialysis event shows "event day under dialysis".
+4. Export cohort (XLSX): the last sheet is `peri_event_creatinine`, one row
+   per event; the last column `peri_event_creatinine` of `settings` holds
+   the selection. With "None" the sheet and the column are empty.
+5. At 390 px the page does not scroll sideways; the table scrolls inside its
+   region and dates do not break.
+
+Verified 2026-11-22 in Chromium against the development server: steps 1, 2,
+4 and 5 and the dialysis case of step 3 are automated in
+`tests/e2e/peri-event.e2e.ts`, with screenshots at 1280 and 390 px checked
+by eye. Reload with "Remember on this device" (the selection is kept with
+the dataset copy) was not checked in a browser.
+
 ## Combined branch of the open points (2026-11-22)
 
 Branch `integration/open-items-2026-11-22` (`chore/persona-review-open-details`,
