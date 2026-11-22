@@ -54,7 +54,6 @@ export interface MixedModelMetadata {
   preparation?: MixedModelPreparationSummary
   optimizer: string | null
   reml: boolean
-  tolerance: number | null
   datasetId: string
   datasetHash: string
   randomSeed: number | null
@@ -122,7 +121,6 @@ export interface CohortSlopeApproximationResult {
 }
 
 export const MIXED_MODEL_FORMULA = 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)'
-export const MIXED_MODEL_TOLERANCE = 1e-6
 // A cold run downloads the webR runtime plus the lme4 package and installs them
 // before fitting, which can take well over 30s on a slow connection. The first
 // job pays this; reused workers (see runMixedModelWorkerJob) skip it.

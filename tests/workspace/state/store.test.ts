@@ -35,7 +35,6 @@ const mixedModelResult: MixedModelResult = {
     wasmAssetSource: 'cdn',
     optimizer: 'nloptwrap',
     reml: true,
-    tolerance: 0.000001,
     datasetId: 'cohort',
     datasetHash: 'dataset',
     randomSeed: null,

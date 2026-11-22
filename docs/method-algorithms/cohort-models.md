@@ -624,7 +624,6 @@ The `models` worksheet has one row per fitted unit:
 | `preset_exclusion_policy`, `excluded_by_preset` | Exclusion policy and count |
 | `reml` | Always true |
 | `optimizer` | Optimizer reported by lme4, or `lme4-default` when it reports none |
-| `tolerance` | Constant `1e-6` |
 | `runtimeVersion` | R version of the webR runtime |
 | `packageVersions` | JSON: loaded versions of `lme4` and `Matrix` (or `nlme`) and `jsonlite`, then of every other loaded pinned package and of `webr`, as R's `packageVersion` writes them (for example `"lme4":"2.0.6"`); `Matrix` since 2026-11-05, the others since 2026-11-22 |
 | `browserUserAgent`, `wasmAssetSource` | Browser and runtime source: `self-hosted` since 2026-11-22, `cdn` before |
@@ -760,7 +759,31 @@ extended in R. They add no estimate and change none.
 
 **Precision of returned numbers** (OD-30, decided 2026-11-13). Every number the worker returns from R, including estimates, interval bounds, random-effect standard deviations, the residual standard deviation, standard errors and `vcov`, is serialized by `jsonlite::toJSON` with `digits = NA`, that is 15 significant digits. The random-effect standard deviations, their correlation and the residual standard deviation are exported only since 2026-11-21 (`intercept_sd`, `slope_sd`, `intercept_slope_correlation`, `residual_sd` on `models`); until then they were stored at full precision but only shown, with two decimals, in the model's details (for example 0.21, 0.05, 0.18 and 0.31). Before, `toJSON`'s default `digits = 4` rounded all but the standard errors and `vcov`: a slope of 0.00034 per year was stored, shown and exported as 0.0003, and values between 1e-5 and 5e-5 became 0 or −0 (`toJSON(c(0.00034, 3.4e-6, -0.000049))` gave `[0.0003, 3.4e-06, -0]`). Stored results and exports carry the full value, so an R refit now matches the browser estimates to 1e-9. Results fitted and saved before this change keep their four-decimal values until they are refitted.
 
-> **Open decision OD-21.** The exported `tolerance` (1e-6) is not used by any fit — the only tolerance in the fit is the 1e-4 singularity check. Behaviour is unchanged pending an owner decision. The second half of this entry, R packages without pinned versions, was settled on 2026-11-22: the versions are pinned and served with the app (see *Reproducibility*).
+**No `tolerance` field** (OD-21, decided 2026-10-07, implemented
+2026-11-22). Until 2026-11-22 every result carried a constant `tolerance` of
+`1e-6` that no fit used (the only tolerance in a fit is lme4's `1e-4`
+singularity check, see *Singular, lme4*). It was exported as a column of
+`models` between `reml` and `datasetId` and was part of the input of
+`fitConfigHash`. Both are removed:
+
+- `models` no longer has the column `tolerance`. This is a deliberate
+  exception to "0.3.7 columns keep their positions": every column that
+  followed it (`datasetId`, `datasetHash`, `randomSeed`, `fitConfigHash`,
+  `preset_exclusion_policy` and the later ones) is one position further left;
+  names and values are unchanged, so a reader that selects columns by header
+  is not affected.
+- `fitConfigHash` is computed from the same configuration without the
+  constant, so every value differs from the one an earlier version gave for
+  the same model and data. Example: eGFR in `ml/min/1.73m2`, global OLS, the
+  default model and no fit settings gave `e3861a2b` and now gives
+  `74ba071d`. Model results are not saved across a reload, so no stored
+  result becomes outdated; only a comparison of `fitConfigHash` with a
+  workbook exported before 2026-11-22 reports a difference. `datasetHash`,
+  the result identity's other fields and all fitted numbers are unchanged.
+
+The other half of the entry, R packages without pinned versions, was settled
+on 2026-11-22: the versions are pinned and served with the app (see
+*Reproducibility*).
 
 ### Fitted model line
 

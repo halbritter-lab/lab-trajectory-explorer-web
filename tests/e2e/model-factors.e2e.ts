@@ -11,7 +11,7 @@ const workerScript = `self.onmessage = async ({data:q}) => {
     status:'success',converged:true,singular:false,warnings:[],
     metadata:{engine:q.engine,formula:q.formula,modelConfig:q.config,preparation:q.preparation,
       runtimeVersion:'browser-fixture',packageVersions:{},browserUserAgent:'playwright',
-      wasmAssetSource:'local-dev',optimizer:null,reml:true,tolerance:null,datasetId:q.datasetId,
+      wasmAssetSource:'local-dev',optimizer:null,reml:true,datasetId:q.datasetId,
       datasetHash,randomSeed:null,fitConfigHash:q.fitConfigHash},
     nPatients:new Set(q.rows.map(r=>r.patient_id)).size,nMeasurements:q.rows.length,
     fixedEffects:{intercept:70,timeSinceBaseline:-1},

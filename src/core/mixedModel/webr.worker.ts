@@ -4,7 +4,6 @@ import { isRecord } from './guards'
 import { lme4ModelCall, mixedModelDataRCode, rStringLiteral } from './rCode'
 import { PINNED_R_PACKAGES, R_PACKAGE_CONTRIB_PATH, R_PACKAGE_REPOSITORY_PATH, WEBR_RUNTIME_PATH, rAssetRoot } from './rRuntime'
 import {
-  MIXED_MODEL_TOLERANCE,
   type MixedModelEngine,
   type MixedModelFailure,
   type MixedModelFailureStage,
@@ -234,7 +233,6 @@ function createBaseMetadata(request: MixedModelWorkerRequest): MixedModelMetadat
     wasmAssetSource: request.wasmAssetSource,
     optimizer: null,
     reml: true,
-    tolerance: MIXED_MODEL_TOLERANCE,
     datasetId: request.datasetId,
     datasetHash: hashMixedModelInput(request.rows),
     randomSeed: null,

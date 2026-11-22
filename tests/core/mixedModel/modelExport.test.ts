@@ -28,7 +28,7 @@ it('exports explicit response and disabled projection provenance, rejecting an o
 describe('mixed model export', () => {
   it('exports fitted configuration, every term, reference, exclusions, centers and disclaimer', () => {
     const config = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'genotype',kind:'categorical' as const,effect:'level_slope' as const,reference:'A'}, {key:'baseline_age',kind:'numeric' as const,effect:'level_slope' as const}, {key:'dose',kind:'numeric' as const,effect:'level_slope' as const}]}
-    const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:null,packageVersions:{},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,tolerance:null,datasetId:'test',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:'fitted formula',datasetHash:'fitted hash',preparation:{nPatientsBefore:4,nMeasurementsBefore:12,presetExclusionPolicy:'apply' as const,excludedByPreset:2,centers:{factor_1_:62},excludedPatients:[{patientId:'p4',reasons:['Missing sex']}]}},nPatients:3,nMeasurements:9,converged:true,singular:true,warnings:['singular'],fixedEffectTerms:[{term:'time_since_baseline:factor_0_B',estimate:-2,confidenceInterval:[-3,-1]}],fixedEffects:{intercept:60,timeSinceBaseline:-1},fixedEffectConfidenceIntervals:{timeSinceBaseline:null},randomEffects:{interceptSd:null,slopeSd:null,interceptSlopeCorrelation:null},residualSd:null} satisfies MixedModelSuccess
+    const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:null,packageVersions:{},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,datasetId:'test',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:'fitted formula',datasetHash:'fitted hash',preparation:{nPatientsBefore:4,nMeasurementsBefore:12,presetExclusionPolicy:'apply' as const,excludedByPreset:2,centers:{factor_1_:62},excludedPatients:[{patientId:'p4',reasons:['Missing sex']}]}},nPatients:3,nMeasurements:9,converged:true,singular:true,warnings:['singular'],fixedEffectTerms:[{term:'time_since_baseline:factor_0_B',estimate:-2,confidenceInterval:[-3,-1]}],fixedEffects:{intercept:60,timeSinceBaseline:-1},fixedEffectConfidenceIntervals:{timeSinceBaseline:null},randomEffects:{interceptSd:null,slopeSd:null,interceptSlopeCorrelation:null},residualSd:null} satisfies MixedModelSuccess
     const storedIdentity = {seriesKey:'eGFR (CKD-EPI 2021)|ml/min/1.73m2'}
     const fitted: MixedModelSuccess = {...result,fixedEffectTerms:[
       ...result.fixedEffectTerms,
@@ -72,7 +72,7 @@ it('labels category strings literally and distinguishes generated columns with s
 describe('R reproduction export', () => {
   const config = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'genotype',kind:'categorical' as const,effect:'level_slope' as const,reference:'A'}, {key:'dose',kind:'numeric' as const,effect:'level' as const}]}
   const terms = ['(Intercept)','time_since_baseline','factor_0_B','factor_1_','time_since_baseline:factor_0_B']
-  const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:'4.5.1',packageVersions:{lme4:'1.1-37',Matrix:'1.7-3',jsonlite:'2.0.0'},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,tolerance:null,datasetId:'cohort',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:mixedModelFormula(config),datasetHash:'hash'},nPatients:2,nMeasurements:2,converged:true,singular:false,warnings:[],
+  const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:'4.5.1',packageVersions:{lme4:'1.1-37',Matrix:'1.7-3',jsonlite:'2.0.0'},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,datasetId:'cohort',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:mixedModelFormula(config),datasetHash:'hash'},nPatients:2,nMeasurements:2,converged:true,singular:false,warnings:[],
     fixedEffectTerms:terms.map((term,index) => ({term,estimate:index+1,confidenceInterval:null,standardError:index/10})),
     fixedEffectCovariance:{terms,matrix:terms.map((_,row) => terms.map((__,column) => row === column ? (row/10)**2 : 0.001))},
     fixedEffects:{intercept:1,timeSinceBaseline:2},fixedEffectConfidenceIntervals:{timeSinceBaseline:null},randomEffects:{interceptSd:null,slopeSd:null,interceptSlopeCorrelation:null},residualSd:null} satisfies MixedModelSuccess
@@ -127,6 +127,8 @@ describe('R reproduction export', () => {
     expect(header('factors').slice(0,1)).toEqual(['entity'])
     expect(header('factors').at(-1)).toBe('unit_key')
     expect(header('models').slice(0,2)).toEqual(['entity','series_key'])
+    // OD-21 (2026-11-22): the unused constant `tolerance` is no longer exported.
+    expect(header('models')).not.toContain('tolerance')
     // unit_key, then the variance components added on 2026-11-21.
     expect(header('models').slice(-5)).toEqual(['unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
   })
