@@ -38,10 +38,19 @@ async function showOnlyParameter(page: Page, label: RegExp, fit = true): Promise
   }
 }
 
-async function applyParameterPreset(page: Page, preset: string): Promise<void> {
+async function applyParameterPreset(page: Page, preset: string, extrapolate = false): Promise<void> {
   await page.getByRole('button', { name: /^Analysis settings:/ }).click()
   await page.getByRole('dialog').getByLabel('Analysis preset').selectOption(preset)
+  // The extrapolation to CKD G5 is off in every preset since 2026-11-22 (issue #81).
+  if (extrapolate) await switchOnExtrapolation(page)
   await page.getByRole('button', { name: 'Close analysis settings' }).click()
+}
+
+async function switchOnExtrapolation(page: Page): Promise<void> {
+  const dialog = page.getByRole('dialog')
+  const box = dialog.getByLabel('Extrapolation to CKD G5')
+  if (!(await box.isVisible())) await dialog.getByText('Calculation settings', { exact: true }).click()
+  await box.check()
 }
 
 const patientRow = (page: Page, id: string) => page.getByRole('button', { name: `Open patient ${id}`, exact: true }).locator('xpath=ancestor::tr')
@@ -84,12 +93,16 @@ test('renders every G5 projection outcome in its patient row', async ({ page }) 
   const problems = collectBrowserProblems(page)
   const csv = [
     'patientId,labDate,testName,unit,value,ageAtLab',
+    // Four dates over three years where a later gate is shown (KDIGO minimum, 2026-11-22).
+    '1,2021-01-01,eGFR,ml/min/1.73m2,38,49',
     '1,2022-01-01,eGFR,ml/min/1.73m2,40,50',
     '1,2023-01-01,eGFR,ml/min/1.73m2,42,51',
     '1,2024-01-01,eGFR,ml/min/1.73m2,44,52',
+    '2,2021-01-01,eGFR,ml/min/1.73m2,40,59',
     '2,2022-01-01,eGFR,ml/min/1.73m2,30,60',
     '2,2023-01-01,eGFR,ml/min/1.73m2,20,61',
     '2,2024-01-01,eGFR,ml/min/1.73m2,14,62',
+    '3,2021-01-01,eGFR,ml/min/1.73m2,70,',
     '3,2022-01-01,eGFR,ml/min/1.73m2,60,',
     '3,2023-01-01,eGFR,ml/min/1.73m2,50,',
     '3,2024-01-01,eGFR,ml/min/1.73m2,40,',
@@ -98,12 +111,15 @@ test('renders every G5 projection outcome in its patient row', async ({ page }) 
     '5,2024-01-01,eGFR,ml/min/1.73m2,60,70',
     '5,2024-04-01,eGFR,ml/min/1.73m2,50,70',
     '5,2024-07-01,eGFR,ml/min/1.73m2,40,70',
+    '6,2022-01-01,eGFR,ml/min/1.73m2,60,70',
+    '6,2023-06-01,eGFR,ml/min/1.73m2,50,71',
+    '6,2025-01-01,eGFR,ml/min/1.73m2,40,73',
   ].join('\n')
 
   await uploadCsv(page, 'g5-reasons.csv', csv)
-  await expect(page.locator('.workspace-dataset')).toContainText('5 patients')
+  await expect(page.locator('.workspace-dataset')).toContainText('6 patients')
   await showOnlyParameter(page, /^eGFR \[ml\/min\/1\.73m2\]$/, false)
-  await applyParameterPreset(page, 'ckd_progression')
+  await applyParameterPreset(page, 'ckd_progression', true)
   await page.getByRole('checkbox', { name: /^Analyse trend:/ }).check()
 
   // The G5 label is the last token of the endpoint badge; pin it exactly.
@@ -113,6 +129,7 @@ test('renders every G5 projection outcome in its patient row', async ({ page }) 
     ['3', 'G5 no age'],
     ['4', 'G5 < 3 dates'],
     ['5', 'G5 < 1 yr'],
+    ['6', 'G5 < 4 dates/3 yrs'],
   ])
   for (const [patient, label] of expected) {
     const badge = patientRow(page, patient).locator('.wt-badge-endpoint')
@@ -129,7 +146,7 @@ test('keeps the AKI chip visible next to endpoint badges', async ({ page }) => {
   await page.getByLabel('eGFR formula').selectOption('ckd-epi-2021')
   await page.getByRole('button', { name: 'Apply calculation' }).click()
   await showOnlyParameter(page, /^eGFR \(CKD-EPI 2021, computed\)/, false)
-  await applyParameterPreset(page, 'ckd_progression')
+  await applyParameterPreset(page, 'ckd_progression', true)
 
   const row = patientRow(page, '12')
   const aki = row.getByRole('button', { name: /^AKI/ })

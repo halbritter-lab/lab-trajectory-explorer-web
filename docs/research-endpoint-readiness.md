@@ -1,7 +1,7 @@
-# Endpoint analysis readiness — implementation status updated 2026-10-07
+# Endpoint analysis readiness — implementation status updated 2026-11-22
 
-This is a technical inventory. Owner-approved observed-event and prediction
-definitions are recorded in [method decisions](remaining-method-decisions.md)
+This is a technical inventory. Owner-approved observed-event and individual
+extrapolation definitions are recorded in [method decisions](remaining-method-decisions.md)
 and [algorithm documentation](method-algorithms.md). Event-time models remain a
 separate, unapproved extension.
 
@@ -38,20 +38,31 @@ See the configurable trend projection design and implementation plan.
   the original five patients' eGFR rows are synthetic, not formula-derived.
   Attributes include genotype, inheritance and cohort. These are demo/test data;
   they do not establish representativeness for a research cohort.
-- Individual endpoint prediction continues the global fitted curve on the
+- The individual extrapolation to CKD G5 is a conditional extrapolation of
+  the fitted trend, not a prognosis. Since 2026-11-22 it is off by default and
+  switched on per parameter (issue #81); saved settings that had it on keep it
+  and say so. It continues the global fitted curve on the
   endpoint-eligible measurements: dated exact numeric eGFR before the first
   kidney transplant or chronic dialysis start and outside complete dated acute
   dialysis intervals, including later recovery values. The age at the latest eligible measurement provides the
   age anchor; the latest measured value does not shift the fitted line. A
-  crossing is withheld when the endpoint fit's slope confidence interval
-  includes zero or the crossing lies more than 20 years ahead.
+  crossing is withheld with fewer than four measurement dates over three
+  years (KDIGO 2012, p. 66; since 2026-11-22), when the endpoint fit's slope
+  confidence interval includes zero, or when the crossing lies more than 20
+  years ahead. For the absolute risk of kidney failure, KDIGO 2024 recommends
+  a validated risk equation instead (Rec 2.2.1).
 - Observed G4/G5 use strict thresholds below 30/15, a configurable minimum
   confirmation interval (default 90 days) and a 12-calendar-month maximum. The
   first crossing and earliest confirmation are separate dates; recovery before
   confirmation restarts the candidate, while later recovery preserves the event
-  and is shown separately. Confirmed 40 %/57 % eGFR decline and kidney failure
-  reached (kidney transplant or chronic dialysis start) are reported as
-  separate results.
+  and is shown separately. A 28-day confirmation preset (ISN trial definition,
+  unverified) is offered beside the 90-day default; the 12-month maximum is a
+  rule of this tool. A single value below 15 without confirmation is never an
+  observed G5 and is labelled "single value <15, unconfirmed (possible AKI)".
+  Confirmed 40 %/57 % eGFR decline, the optional confirmed 50 % decline (since
+  2026-11-22, same rule) and kidney failure reached (kidney transplant or
+  chronic dialysis start) are reported as separate results. Which of them the
+  table shows as badges is a view choice; the export keeps all.
 - Existing clinical events are transplant, dialysis or other. Their fit
   exclusions are measurement-selection rules; they are not an event-time
   dataset with follow-up status, competing events and censoring reasons.
@@ -90,7 +101,7 @@ analyses](https://pmc.ncbi.nlm.nih.gov/articles/PMC2394262/).
 ## Issue mapping
 
 - #4: factors (#11) and mixed-model threshold projections (#12) are integrated.
-  Observed G4/G5 and individual projection choices have since been approved;
+  Observed G4/G5 and individual extrapolation choices have since been approved;
   optional event-time work and research acceptance remain open. Technical
   integration does not close the issue.
 - #6: estimator conventions are now approved and implemented with full

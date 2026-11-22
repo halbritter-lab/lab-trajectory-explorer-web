@@ -2024,3 +2024,95 @@ Draft:
 Not in the draft, for the owner to add or leave out: midnight counts as no
 time of day; values with the same time are not compared with each other; the
 time of day is not shown or exported.
+
+## Part: endpoint decisions of 2026-11-22 (for approval)
+
+Follows the owner decisions `proj`, `minfu`, `g5single`, `confirm`, `p50`
+and `badges` of 2026-11-22 ([method decisions](remaining-method-decisions.md#decisions-of-2026-11-22-decision-artifact-issues-2-4-6585))
+as implemented the same day
+([method reference](method-algorithms/endpoints-and-projection.md#individual-g5-projection)).
+**Not applied.** Only three sentences of the page that the change made false
+were corrected in place, minimally: the requirement list of the projection
+algorithm (topic *Endpoints & projection*, "Require measurements …") gained
+"at least four different dates over at least three years (KDIGO 2012)"; the
+*CKD progression* preset bullet (topic *Fits & slopes*) now reads "percent
+decline, observed G4 and observed G5 switched on (projected age to G5 off)";
+and the *G5 projection* bullet of *Limitations & sources* now reads "Reported
+only when switched on, with measurements on at least four different dates
+(five with Theil–Sen) over at least three years, …". The section address
+`#methods/endpoints/prediction` became `#methods/endpoints/extrapolation`
+(old links still open it); its heading and navigation label are unchanged.
+The drafts below are new explanatory wording for the maintainer.
+
+### EP1. What the projection is (topic *Endpoints & projection*, first paragraph)
+
+Current:
+
+> Observed endpoints record events supported by measurements. A projection
+> extrapolates a fitted trend; it does not establish an observed event.
+
+Draft:
+
+> Observed endpoints record events supported by measurements. The
+> extrapolation to CKD G5 is a conditional extrapolation of the fitted trend,
+> not a prognosis: it gives the age at which the fitted line would reach 15 if
+> the trend continued unchanged. It is off by default and is switched on per
+> parameter in its endpoint settings. It does not establish an observed event.
+> For the absolute risk of kidney failure, KDIGO 2024 recommends a validated
+> risk equation instead.
+
+### EP2. Missing results, new row (table "Endpoint status explanations")
+
+Draft row, after **G5 &lt; 1 yr**:
+
+> **G5 &lt; 4 dates/3 yrs** — fewer than four measurement dates, or less than
+> three years between the first and the latest measurement used for the
+> extrapolation. KDIGO 2012 notes that extrapolating the previous rate of
+> change needs about four measurements over three years. *What to check:* the
+> number of measurement dates and the follow-up span.
+
+And as first sentence of the section:
+
+> The extrapolation to CKD G5 is off by default; a cell then shows no G5
+> badge. When it is switched on and no age can be computed, …
+
+### EP3. Heading of the algorithm block
+
+Current: "Individual endpoint projection algorithm". Draft: "Extrapolation to
+CKD G5: algorithm (conditional, not a prognosis)".
+
+### EP4. Observed events: confirmation presets and the single low value
+
+Draft, after the first paragraph of "Observed G4/G5 and confirmed decline
+event algorithms":
+
+> The minimum interval can be chosen from two presets: 90 days, the default,
+> which follows the KDIGO chronicity criterion of more than three months, and
+> 28 days, the ISN trial definition of a sustained decline (not yet checked
+> against the full text of its source). The 12-month maximum is a rule of
+> this tool. A single value below 15 without a confirming value is never an
+> observed G5; the cell marks it as "single value &lt;15, unconfirmed
+> (possible AKI)". It does not withhold the extrapolation.
+
+### EP5. Confirmed 50 % decline
+
+Draft, after "Confirmed 40% and 57% eGFR decline are independent observed
+endpoints; …":
+
+> A confirmed 50 % decline can be switched on beside them; it uses the same
+> baseline, confirmation and recovery rules. It is used, for example, in
+> paediatric CKD studies. It is off by default.
+
+### EP6. Endpoint badges (topic *Trajectories*, display)
+
+Draft:
+
+> Endpoint badges: the table options choose which endpoint results the cells
+> show. This changes the display only; the patient view and the export keep
+> every result.
+
+### EP7. Quick guide question
+
+The question "Why is there no G5 projection?" (topic *Start here*) is still
+true and was left unchanged. Optional draft: "Why is there no extrapolation
+to CKD G5?", with the same link.

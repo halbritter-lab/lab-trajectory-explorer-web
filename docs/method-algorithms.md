@@ -92,6 +92,8 @@ it; the way the tool applies it is its own.
 | --- | --- | --- |
 | Rapid eGFR decline flag, two levels | The default threshold of 5 mL/min/1.73 m² per year goes back to the KDIGO 2012 CKD guideline; KDIGO 2024 gives no numeric threshold for rapid progression. The threshold is a configurable convention. Applying it to one fitted slope without testing that the decline is sustained, and the two levels "rapid ↓" (whole 95 % interval below −threshold) and "rapid ↓?" (only the slope below it), are this tool's rules (decided 2026-11-21). | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
 | Slope reliability rule | Fewer than three fitted dates or under 365 days of fitted span: a clinical rule of thumb, not a published cut-off. | [Reliability rule](method-algorithms/slope-quality.md#reliability-rule) |
+| Maximum confirmation window of observed endpoints | The minimum interval of 90 days follows the KDIGO 2024 chronicity criterion (more than 3 months); the 28-day preset is attributed to the ISN trial definition (Levin 2020) and is unverified, because the full text of that paper was not checked. That a confirming value must follow within 12 calendar months of the first low value is this tool's rule (labelled so on 2026-11-22, issue #85). | [Maximum window](method-algorithms/endpoints-and-projection.md#observed-g4g5) |
+| Minimum data of the extrapolation to CKD G5 | Four measurements over three years are from KDIGO 2012 CKD (p. 66, "in most cases"); counting them as distinct dates over 36 calendar months, the 365-day and three-date minimums before it and the 20-year horizon are this tool's (2026-11-22). | [Minimum data](method-algorithms/endpoints-and-projection.md#individual-g5-projection) |
 
 ## Open decisions
 
@@ -124,7 +126,17 @@ implemented with the option that changes least. OD-38 was added on
 of its decision and resolved the same day: the decision prescribes calendar
 days.
 
-No decision is open at present.
+OD-40 to OD-44 were added on 2026-11-22 with the endpoint decisions of
+that day (issues #81, #82, #85, #4): each records a gap the decision leaves,
+implemented with the option that changes least.
+
+| ID | Open question, and what is implemented | Section |
+| --- | --- | --- |
+| OD-40 | The decision `p50` makes the 50 % decline the default decline endpoint of a paediatric preset, but the app has no paediatric preset and the fit presets do not choose the eGFR equation (issue #66 changes that in a separate package). Implemented: no new preset; the 50 % decline is off everywhere and switched on by hand. | [Confirmed 50 % decline](method-algorithms/endpoints-and-projection.md#total-percent-change-and-confirmed-40-57--decline) |
+| OD-41 | "A single value below 15" is read as an isolated low date (the neighbouring eligible dates are not low). Two or more neighbouring low dates that are not confirmed get no label. | [Single value below 15](method-algorithms/endpoints-and-projection.md#single-value-below-15-unconfirmed-2026-11-22) |
+| OD-42 | KDIGO's "≥ 4 measurements over ≥ 3 years" is counted as four distinct dates of the projection fit (outside AKI windows where the column excludes them) and 36 UTC calendar months from the first to the latest of them. | [Minimum data](method-algorithms/endpoints-and-projection.md#individual-g5-projection) |
+| OD-43 | The choice of endpoint badges applies to the Trajectories table only; the patient view shows every badge. | [Endpoint badges](method-algorithms/endpoints-and-projection.md#endpoint-badges-in-the-table-2026-11-22) |
+| OD-44 | The confirmed 50 % decline is a sub-option of "Percent eGFR decline" (it needs its baseline), not an independent endpoint; a stored `observedDecline50` without percent decline is not evaluated. | [Confirmed 50 % decline](method-algorithms/endpoints-and-projection.md#total-percent-change-and-confirmed-40-57--decline) |
 
 ### Resolved decisions
 

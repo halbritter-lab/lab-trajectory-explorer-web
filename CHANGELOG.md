@@ -5,6 +5,52 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (endpoints, owner decisions of 2026-11-22, issues #81, #82, #85, #4; changes results)
+
+- **The extrapolation to CKD G5 is off by default** (`proj`, issue #81). The
+  CKD progression preset no longer switches on the projected age to CKD G5;
+  it is switched on per parameter in the endpoint settings ("Extrapolation to
+  CKD G5 (off by default)"). The interface calls it a "conditional
+  extrapolation of the fitted trend, not a prognosis". Its export columns keep
+  their positions and are empty while it is off; `fit_config` records whether
+  it was on. Settings saved on this device or applied from an export with it
+  on keep it on and say so (under CKD progression they are now shown as
+  custom settings). The methodology section is now
+  `#methods/endpoints/extrapolation`; the old `#methods/endpoints/prediction`
+  still opens it. Consequence for exports under CKD progression:
+  `endpoint_projected_age_to_ckd_g5` and the `endpoint_prediction_*` columns
+  are empty unless the extrapolation is switched on.
+- **The extrapolation needs four measurement dates over three years**
+  (`minfu`, KDIGO 2012 CKD p. 66): new withheld reason
+  `kdigo_minimum_follow_up`, badge `G5 < 4 dates/3 yrs`, checked after the
+  three-date, five-date (Theil–Sen) and 365-day minimums. Series with three
+  dates, or with less than 36 calendar months between their first and last
+  date, no longer get a projected age: 40, 33 and 26 on 2020-01-15,
+  2021-07-15 and 2023-01-15 gave 65.40 years (born 1960-01-01) and are now
+  withheld. Test fixtures with three dates over one or two years were
+  extended by a fourth date over three years where they test a later gate,
+  or now expect the new reason, because the values moved by this decision.
+- **A single value below 15 without confirmation is labelled** (`g5single`):
+  it never was an observed G5; the cell now shows "single value <15,
+  unconfirmed (possible AKI)" for an isolated low date and the cohort sheet
+  gains `endpoint_g5_single_value_unconfirmed`. It does not withhold the
+  extrapolation.
+- **Confirmation preset "28 days (ISN trial definition)"** beside the 90-day
+  default (`confirm`, issue #85); the 28-day rule is marked unverified, and
+  the 12-month maximum is listed as a rule of this tool.
+- **Confirmed 50 % eGFR decline** (`p50`, issue #82), by the same rule as 40 %
+  and 57 % and switched on under percent decline (off by default): badge
+  `50% decline`, columns `endpoint_observed_decline_50` and
+  `endpoint_decline_50_*`. No paediatric preset was added (OD-40).
+- **Choice of endpoint badges** (`badges`, issues #82, #2): "Endpoint badges"
+  in the table options chooses which endpoint results the cells show; the
+  default is the set shown before, the export keeps all, and the choice is
+  saved with the view settings.
+- New cohort-sheet columns are appended before `group`, which stays last;
+  every earlier column keeps its position. A note at the end of the `about`
+  sheet describes them. Open decisions OD-40 to OD-44 record the gaps of
+  these decisions.
+
 ### Changed (OD-11 and OD-21, decided 2026-10-07, implemented 2026-11-22, issue #4)
 
 - **OLS 95 % intervals above 40 degrees of freedom use the exact Student-t

@@ -38,9 +38,19 @@ export function ToolPopover({ name, icon, open, onToggle, onClose, badge, childr
   close.current = onClose
   useLayoutEffect(() => {
     if (!open) return
-    const anchor = trigger.current!.getBoundingClientRect()
-    const rect = content.current!.getBoundingClientRect()
-    setPosition({ left: Math.max(8, Math.min(anchor.right - rect.width, innerWidth - rect.width - 8)), top: Math.max(8, Math.min(anchor.bottom + 6, innerHeight - rect.height - 8)) })
+    const place = () => {
+      const anchor = trigger.current!.getBoundingClientRect()
+      const rect = content.current!.getBoundingClientRect()
+      const next = { left: Math.max(8, Math.min(anchor.right - rect.width, innerWidth - rect.width - 8)), top: Math.max(8, Math.min(anchor.bottom + 6, innerHeight - rect.height - 8)) }
+      setPosition(previous => previous.left === next.left && previous.top === next.top ? previous : next)
+    }
+    place()
+    // A disclosure that opens inside (e.g. Endpoint badges) makes the box taller:
+    // move it up so that its end stays on the screen.
+    if (typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(place)
+    observer.observe(content.current!)
+    return () => observer.disconnect()
   }, [open])
   useEffect(() => {
     if (!open) return

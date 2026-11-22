@@ -1070,3 +1070,40 @@ root by `tests/e2e/self-hosted-r.e2e.ts` (CI, `pnpm preview`) and under
 Firefox and WebKit, GitHub Pages itself (how it serves the `.gz` and `.tgz`
 files), and the checksum failure inside the build (covered by unit tests of
 the script).
+
+## Endpoint decisions of 2026-11-22 (issues #81, #82, #85, #4)
+
+1. Upload eGFR rows of two patients (patient 1: 60, 58, 31, 29, 27, 24 on
+   2020-01-15, 2020-03-01, 2021-01-15, 2021-06-01, 2021-09-01, 2022-03-01;
+   patient 2: 40, 36, 12, 33, 29 on 2020-01-15, 2021-01-15, 2021-06-01,
+   2022-01-15, 2023-01-15). Choose CKD progression for the column: under
+   "eGFR endpoints & thresholds", "Extrapolation to CKD G5 (off by default)"
+   is unticked with "a conditional extrapolation of the fitted trend, not a
+   prognosis" below it, and "Confirmation preset" offers "90 days (default)"
+   and "28 days (ISN trial definition)".
+2. Tick "Also confirmed 50% decline" and Trend, cell details Full, warnings
+   as text: patient 1 shows `-60%, CKD G4, 40% decline, 50% decline`, patient
+   2 `-28%, single value <15, unconfirmed (possible AKI)`; no `G5 @` and no
+   withheld-projection badge.
+3. Display → "Endpoint badges": untick "50% decline" and "Total eGFR change";
+   the summary reads "Endpoint badges (7 of 9)", patient 1 shows
+   `CKD G4, 40% decline`. The open list stays on the screen at 1440 × 900 and
+   390 × 900 (the box moves up). The patient view of patient 1 still shows
+   every badge.
+4. Export cohort: `endpoint_observed_decline_50` `yes` (first 2021-06-01,
+   confirmed 2021-09-01) for patient 1, `endpoint_g5_single_value_unconfirmed`
+   `yes` for patient 2, the projection columns empty; these columns come
+   right before `group`, which is last; `fit_config` has
+   `"projectedAgeToCkdG5":false,"observedDecline50":true`.
+5. Tick the extrapolation: patient 1 adds `G5 < 4 dates/3 yrs`. Remember on
+   this device and reload: the notice names "The extrapolation to CKD G5 is
+   switched on in own settings of eGFR [ml/min/1.73m2], as saved: …", the
+   badge choice and the badges are as before.
+6. Open `#methods/endpoints/prediction`: the projection section
+   (`#methods-extrapolation`) opens and has the focus.
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 to 6
+by `tests/e2e/endpoint-decisions.e2e.ts`, except the phone width and the box
+position in step 3, which were checked by screenshots of an ad-hoc Playwright
+script. Not verified: the patient view in step 3 (it is given all badges by
+code), Firefox and WebKit.
