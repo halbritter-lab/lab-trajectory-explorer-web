@@ -108,9 +108,10 @@ export function readableMixedModelFormula(config: MixedModelConfig, outcome: str
 /** The factor of the "Group interaction" preset for one attribute: level and
  * slope effect. A numeric attribute is a numeric factor and carries no
  * reference level (a reference there is an invalid configuration); a
- * categorical one uses its first level as reference. */
-export function groupInteractionFactor(key: string, available: { numeric: boolean; levels: readonly string[] } | undefined): MixedModelFactor {
+ * categorical one has no chosen reference, so each model takes the first
+ * level among its own patients (OD-29). */
+export function groupInteractionFactor(key: string, available: { numeric: boolean; levels?: readonly string[] } | undefined): MixedModelFactor {
   return available?.numeric
     ? { key, kind: 'numeric', effect: 'level_slope' }
-    : { key, kind: 'categorical', effect: 'level_slope', reference: available?.levels[0] ?? undefined }
+    : { key, kind: 'categorical', effect: 'level_slope' }
 }

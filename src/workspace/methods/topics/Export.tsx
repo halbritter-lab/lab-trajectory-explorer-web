@@ -23,7 +23,7 @@ export function Export() { return <>
 <ReferenceTable label="Cohort-model workbook contents"><table><thead><tr><th>Sheet</th><th>Contents</th></tr></thead><tbody>
 <tr><td>models</td><td>One row per fitted unit: status, formula, model configuration, data preparation, R and package versions, warnings and variance components.</td></tr>
 <tr><td>coefficients / vcov</td><td>Every fixed effect with unit, estimate, 95% interval and standard error, and the fixed-effect variance-covariance matrix.</td></tr>
-<tr><td>factors / centering / excluded_patients</td><td>Factors with type, effect and reference level, the mean each numeric factor was centred at, and the patients left out with the reason.</td></tr>
+<tr><td>factors / centering / excluded_patients</td><td>Factors with type, effect and reference level and whether the type and the reference were chosen by the user, the mean each numeric factor was centred at, and the patients left out with the reason.</td></tr>
 <tr><td>projections</td><td>Present when a projection was applied: profile, thresholds and results.</td></tr>
 <tr><td>model_rows / model_input_flags</td><td>The rows each model received in R, and every measurement of the series with whether it entered, was aggregated into a time-balancing median, or why it was excluded.</td></tr>
 <tr><td>r_script</td><td>An R script that refits the models from model_rows.</td></tr>

@@ -22,6 +22,33 @@ interfaces are still evolving before 1.0.
   `fitConfigHash`, so every `fitConfigHash` differs from earlier exports of
   the same model and data. No fitted number changes.
 
+### Changed (cohort-model factors, OD-22 and OD-29, decided 2026-10-07; changes results for affected models)
+
+- **The type of an attribute factor can be switched (OD-22).** Next to every
+  attribute factor under Cohort models a selector offers *Numeric* and
+  *Categorical*; the automatic type is marked "(automatic)" and stays the
+  default, so nothing changes until the user switches. Codes such as 0/1/2
+  can now enter as categories instead of one linear term. Baseline age and
+  sex keep their fixed type. The `factors` sheet of the model export gains
+  `kind_source` (`automatic` or `user`) and `modelConfig` records
+  `kindSource`; `r_script` names each factor's type and reference in a
+  comment per unit.
+- **The default reference level comes from the fitted data (OD-29).** A
+  categorical factor without a chosen reference now takes, for each fitted
+  unit, the first level among that unit's own model rows, instead of the
+  first level among all patients of the dataset. Example: with genotypes A,
+  B and C where only patients without an eGFR row have A, the eGFR model now
+  uses B as reference and can be fitted; before, it used A and could not be
+  fitted until another reference was chosen. A whole cohort and a group can
+  therefore have different defaults; a reference chosen by the user is kept
+  and still shared by all units. The *Adjusted for age and sex* and
+  *Difference between groups* presets use the default. The reference
+  selector offers "Ref: first level in the model". `factors` gains
+  `reference_source` (`default_first_level_in_model` or `user`). Estimates
+  change only for a unit that lacked the dataset's first level, which could
+  not be fitted before; no golden fixture covers cohort models, so none
+  changed.
+
 ### Changed (open points of the persona review, decided 2026-11-22)
 
 - Review of the combined branch (2026-11-22): a before/after side fitted

@@ -100,19 +100,22 @@ adjustment"), *Difference between groups* (formerly "Group interaction") and
 factors and fits per group (see *Stratified (grouped) fits*); it keeps the
 current grouping attribute or else selects the first groupable attribute in
 numeric-aware, case-insensitive order, which can be `birthDate` or `sex`.
-*Adjusted for age and sex* adds baseline age (level) and sex (level).
+*Adjusted for age and sex* adds baseline age (level) and sex (level), sex
+with the default reference (see *Default reference level*).
 *Difference between groups* adds, with level and slope, the first groupable attribute other
 than `sex` in that order; when `sex` is the only one it uses `sex`. A
-categorical attribute becomes a categorical factor with its first sorted level
-as reference. A numeric attribute becomes a numeric factor without a reference
+categorical attribute becomes a categorical factor with the default reference.
+A numeric attribute becomes a numeric factor without a reference
 level (`groupInteractionFactor`; decided 2026-10-07, formerly OD-23: before,
 the preset stored a reference level with the numeric factor, which
 `validateMixedModelConfig` rejects, so nothing could be fitted). When the
-dataset has no attribute and no resolved sex the preset stores a factor
-`genotype` without a reference level, which is an invalid configuration: the
-readable formula in the details is empty, every unit with model rows shows "Invalid or duplicate
-mixed-model factor; categorical factors require a reference level." and
-nothing is fitted. *Custom model* leaves the choice to the user.
+dataset has no attribute and no resolved sex the preset stores a categorical
+factor `genotype`, which no patient has: every patient is removed as a
+complete-case exclusion (`Missing genotype`), the whole cohort shows "Mixed
+model fitting requires at least one measurement row." and nothing is fitted
+(until 2026-11-22 the factor was an invalid configuration without a
+reference, reported as "Invalid or duplicate mixed-model factor; categorical
+factors require a reference level."). *Custom model* leaves the choice to the user.
 
 The *Difference between groups* description reads "Reports how much faster or slower
 each group changes than the reference group, with a 95% interval. No p-values
@@ -261,8 +264,11 @@ run in this order; the first failure is reported.
 1. At least one row; every row has a non-empty patient id and a finite value
    and time.
 2. The configuration is valid: each factor key appears once, a categorical
-   factor names a reference level, a numeric factor names none, and baseline
-   age is numeric.
+   factor's reference, when chosen, is non-blank, a numeric factor names none,
+   and baseline age is numeric. A categorical factor without a chosen
+   reference is valid since 2026-11-22: before the remaining checks the
+   default reference of the unit is filled in from its rows (see *Default
+   reference level*).
 3. The factor validity gate, for each configured factor:
    - every model row carries a valid value (a finite number, or non-blank text);
    - the value is constant within each patient;
@@ -292,7 +298,8 @@ run in this order; the first failure is reported.
    patient passes unless the check above applies. A minimum per level is an
    owner decision tracked in issue #4. Levels are always taken from the model
    rows of the unit, so a level absent from a unit cannot enter its design;
-   only an absent reference level fails.
+   only an absent reference level fails, which since 2026-11-22 can only be
+   a reference the user chose.
 
    **Per-level counts.** `mixedModelFactorLevelCounts` reports, for each
    categorical factor, the number of patients and of qualifying patients (the
@@ -386,10 +393,30 @@ and converts to a finite number (`1e999` does not), and categorical otherwise. T
 optional decimal point (or a leading point), and an optional exponent:
 `^[+-]?(\d+(\.\d*)?|\.\d+)([eE][+-]?\d+)?$`. A decimal comma (`1,5`), a
 thousands separator or inner whitespace does not match, so one such value makes
-the whole attribute categorical. The interface applies this type when the
-factor is added and offers no control to change it.
+the whole attribute categorical. The interface applies this automatic type
+when the factor is added.
 
-> **Open decision OD-22.** The factor type (numeric or categorical) is chosen automatically with no control to override it (a comment in `src/core/mixedModel/factors.ts` still says the dialog selects factor kinds); numerically coded categories such as 0/1/2 therefore enter as one linear term. Behaviour is unchanged pending an owner decision.
+**Type override** (decided 2026-10-07, formerly OD-22; implemented
+2026-11-22). The type of `baseline_age` (numeric) and `sex` (categorical)
+is fixed. Next to every other factor a selector, labelled "<attribute>
+type", offers *Numeric* and *Categorical*; the automatic type is marked
+"(automatic)" and stays selected unless the user switches. *Numeric* is
+disabled for an attribute none of whose values matches the grammar. A switch
+to the other type is stored on the factor as `kindSource: 'user'`; switching
+back to the automatic type removes the mark. Each switch drops a chosen
+reference level, so a factor switched to categorical starts with the default
+reference. The chosen type is used everywhere the factor's type is read:
+complete cases (a factor switched to numeric removes each patient whose
+value fails the grammar, `Invalid numeric <factor>`), centring, validation,
+the formula, the R code and the export. Example: an attribute `stage` with
+the values `0`, `1` and `2` is numeric by default and enters as one centred
+linear term `factor_0_`; switched to categorical it enters as the treatment
+contrasts `factor_0_1` and `factor_0_2` against the reference `0`. The type
+is part of the model settings, which, like all cohort-model settings, are
+kept for the session and not saved with the dataset on this device. The
+export records it in the `factors` sheet (`kind`, and `kind_source`:
+`automatic` or `user`), in `modelConfig` on the `models` sheet
+(`kindSource`), and as a comment per factor in `r_script`.
 
 **Complete cases.** A patient is removed from a unit's model, with all of its
 rows, when any configured factor has no usable value: a missing or blank value
@@ -439,19 +466,45 @@ coefficient, the difference from the reference level, named
 `<column><level>`. With level and slope, `time_since_baseline:<column><level>`
 is the difference in slope per year from the reference level.
 
-**Default reference level.** The first level in ascending string order
-(JavaScript default sort: digits before upper-case before lower-case letters)
-among all patients of the loaded dataset that have a lab row of any series. It
-is not restricted to the selected series or to a group. The default, and any
-level offered in the selector, can therefore be absent from a unit's model
-rows; that unit then fails the factor validity gate ("Factor … requires
-variation and an observed reference level.") until another reference is
-chosen. The same reference applies to the pooled fit and to every group. The
-page names the reference in use and marks it as the default. *Demographic
-adjustment* uses the first sorted sex code of the dataset (`d` before `m`
-before `w`), or `w` when no sex is available.
+**Default reference level** (decided 2026-10-07, formerly OD-29;
+implemented 2026-11-22). A categorical factor has no reference until the
+user chooses one. Each fitted unit (the whole cohort and every group) then
+takes the first level in ascending string order (JavaScript default sort by
+UTF-16 code unit: digits before upper-case before lower-case letters) among
+its own model rows, that is the complete-case patients of the selected
+series after data preparation, whatever their number of measurements
+(`resolveMixedModelFactorReferences`, `src/core/mixedModel/config.ts`). The
+default is therefore always observed in the unit, and the whole cohort and
+a group can have different defaults. It is filled in by validation and
+again before each unit's job, so the worker, the stored `modelConfig`, the
+export and the R script name the level used; the stored factor carries
+`referenceSource: 'default'`. The worker refuses a categorical factor without
+a reference. A unit without a value of the factor keeps no reference and
+fails validation as before. The reference selector, labelled "<factor>
+reference", offers "Ref: first level in the model" (the default) and every
+level among the patients of the dataset that have a lab row of any series. A
+chosen level is kept as chosen and applies to the pooled fit and to every
+group; a unit whose rows lack it fails the factor validity gate ("Factor …
+requires variation and an observed reference level.") until another
+reference is chosen. The page names the reference in use: "Sex = m (default:
+the first level among the patients in the model; choose another next to the
+factor)", with one level per unit where they differ ("genotype = B in the
+whole cohort, C in G2 (default: …)"), and "Sex = w (chosen)" for a chosen
+level. *Adjusted for age and sex* and *Difference between groups* use the
+default (until 2026-11-22 *Adjusted for age and sex* stored the first sorted
+sex code of the dataset, `d` before `m` before `w`, or `w` when no sex was
+available).
 
-> **Open decision OD-29.** The default reference level of a categorical factor is taken from all patients of the dataset, not from the fitted series or group, so it can be a level that the fitted unit does not contain; that unit then cannot be fitted until another reference is chosen, and one reference is shared by the pooled fit and all groups. Behaviour is unchanged pending an owner decision.
+Example: the dataset holds genotypes `A`, `B` and `C`, but the patients with
+`A` have creatinine rows only. In an eGFR model with the factor `genotype`
+the default reference is `B` and the coefficient `factor_0_C` is the
+difference of `C` from `B`. Until 2026-11-22 the default was `A`, which no
+model row has, so the eGFR model could not be fitted until another reference
+was chosen. In a model per centre, a centre whose patients have genotypes
+`C` and `D` takes `C`, where before it shared the dataset's `A` and failed.
+A unit that contains the dataset's first level gets the same reference and
+the same estimates as before; the result of a unit changes only where the
+former default was absent from it.
 
 **Category text.** Values are trimmed and otherwise compared exactly, including
 case: `A1` and `a1` are different levels.
@@ -662,11 +715,15 @@ with the factors baseline age (numeric, no reference) and sex (categorical),
 `factors` reads `entity`, `key`, `kind`, `effect`, `column`, `reference`,
 `unit_key`, and the baseline-age row has an empty `reference` cell; with a
 successful whole-cohort fit and a failed group fit, `models` ends in
-`singular`, `message`, `unit_key`. On `vcov`, `model_rows` and
+`singular`, `message`, `unit_key`. Since 2026-11-22 `factors` ends in
+`unit_key`, `kind_source` (`automatic`, or `user` for a type the user
+switched) and `reference_source` (for a categorical factor:
+`default_first_level_in_model` or `user`; empty for a numeric factor). On `vcov`, `model_rows` and
 `model_input_flags` `unit_key` follows `entity`. The four variance-component
 columns added on 2026-11-21 follow `unit_key` on `models`, so that sheet ends
 in `unit_key`, `intercept_sd`, `slope_sd`, `intercept_slope_correlation`,
-`residual_sd`; `unit_key` stays the last column of the other sheets.
+`residual_sd`; `unit_key` stays the last column of the other sheets except
+`factors`.
 
 **`about` (rows appended on 2026-11-21).** After the `export_id` and
 `unit_key` rows the sheet explains the variance-component columns and the
@@ -736,7 +793,11 @@ extended in R. They add no estimate and change none.
   id written to both at export, so a browser-renamed second download cannot be
   refitted in place of the first),
   reads `model_rows` and `coefficients` with `readxl` (`trim_ws = FALSE`),
-  selects each unit's rows by `unit_key`, rebuilds `mm_data`,
+  selects each unit's rows by `unit_key`, names each factor of the unit in a
+  comment with its type and reference and whether each was chosen by the user
+  (since 2026-11-22, for example `# factor_0_ = genotype: categorical (type
+  chosen by the user), reference B (default: first level among these model
+  rows)`), rebuilds `mm_data`,
   factors, reference levels and treatment contrasts with the worker's own R
   code (`mixedModelDataRCode`), runs the worker's exact call
   `lme4::lmer(<formula>, data = mm_data, REML = TRUE, na.action = na.fail)`
@@ -854,7 +915,8 @@ Regression evidence:
 [timeout and worker handling](../../tests/core/mixedModel/browserClient.test.ts),
 [grouping](../../tests/core/grouping/grouping.test.ts),
 [workspace exclusion count, lines and withholding](../../tests/workspace/model-validity.test.tsx),
-[presets and reference categories](../../tests/workspace/cohort-models.test.tsx)
+[default reference levels](../../tests/core/mixedModel/defaultReference.test.ts),
+[presets, type override and reference categories](../../tests/workspace/cohort-models.test.tsx)
 and [results table](../../tests/workspace/models/CohortModelTable.test.tsx).
 The R code is asserted as text against a mocked runtime; the browser tests
 replace the worker. Real webR fits run only in
@@ -862,8 +924,7 @@ replace the worker. Real webR fits run only in
 [the projection verification script](../../scripts/verify_mixed_model_projections.mjs),
 which are not part of `pnpm test` or CI. No dedicated regression test: the
 numeric grammar's rejection of decimal commas, the shared resolved sex behind
-grouping and the `sex` factor, a default reference level absent from a unit
-(OD-29), the calendar-axis restriction of the overlay line, the status text of
+grouping and the `sex` factor, the calendar-axis restriction of the overlay line, the status text of
 a non-converged fit, and the fact that validation warnings are not surfaced.
 The [model validity tests](../../tests/workspace/model-validity.test.tsx) cover
 the Trajectories settings reaching the model rows, the discarding of fitted

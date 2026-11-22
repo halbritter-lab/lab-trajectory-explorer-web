@@ -1,6 +1,6 @@
 import type { RunMixedModelWorkerJobOptions } from './browserClient'
 import { entityGroupValue, entityKey, type CohortModelEntityRows } from './cohortModelEntity'
-import type { MixedModelConfig } from './config'
+import { mixedModelFormulaKey, resolveMixedModelFactorReferences, type MixedModelConfig } from './config'
 import {
   buildMixedModelResultIdentity,
   type MixedModelResultIdentity,
@@ -23,7 +23,8 @@ export interface RunCohortMixedModelsParams {
   seriesKey: string
   fitConfigHash: string
   /** The same engine/config/formula/datasetId are forwarded to every entity;
-   * only the rows differ. */
+   * only the rows differ, and with them a default reference level, which is
+   * filled in per entity (`resolveMixedModelFactorReferences`). */
   engine?: MixedModelEngine
   config?: MixedModelConfig
   formula?: string
@@ -71,22 +72,26 @@ export async function runCohortMixedModels({
       preparation,
     })
 
+    // A categorical factor without a chosen reference gets the first level
+    // among this unit's rows (OD-29); the fit, its stored config and the
+    // export then name that level.
+    const unitConfig = config && resolveMixedModelFactorReferences(config, rows)
     let result: MixedModelResult
     try {
       result = await runJob({
         rows,
         preparation,
         engine,
-        config,
+        config: unitConfig,
         formula,
-        formulaKey,
+        formulaKey: unitConfig !== config && unitConfig ? mixedModelFormulaKey(unitConfig) : formulaKey,
         datasetId,
         fitConfigHash,
         reuseWorker: true,
         signal,
       })
     } catch (error) {
-      result = jobFailure(engine, formula, config, datasetId, fitConfigHash, error)
+      result = jobFailure(engine, formula, unitConfig, datasetId, fitConfigHash, error)
       result.metadata.preparation = preparation
     }
 

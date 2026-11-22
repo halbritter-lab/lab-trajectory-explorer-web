@@ -274,6 +274,64 @@ describe('CohortModelsWorkspace', () => {
     expect(screen.getByRole('button', { name: 'Fit models (2)' })).toBeEnabled()
   })
 
+  it('lets the user switch an attribute between numeric and categorical (OD-22)', () => {
+    const data = qualifyingData(12)
+    data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { stage: String(i % 3) }]))
+    studio(data)
+    fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+    fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'stage' } })
+    const type = screen.getByLabelText('stage type') as HTMLSelectElement
+    // The automatic choice stays the default: codes 0, 1, 2 are numeric.
+    expect(type.value).toBe('numeric')
+    expect([...type.options].map(option => option.textContent)).toEqual(['Numeric (automatic)', 'Categorical'])
+    expect(useAppStore.getState().mixedModelConfig.factors).toEqual([{ key: 'stage', kind: 'numeric', effect: 'level' }])
+    expect(screen.queryByLabelText('stage reference')).toBeNull()
+    fireEvent.change(type, { target: { value: 'categorical' } })
+    expect(useAppStore.getState().mixedModelConfig.factors).toEqual([{ key: 'stage', kind: 'categorical', effect: 'level', kindSource: 'user' }])
+    expect(screen.getByLabelText('Reference categories')).toHaveTextContent('stage = 0 (default: the first level among the patients in the model')
+    expect(screen.getByLabelText('Patients per level')).toHaveTextContent('stage: 0 4 (4), 1 4 (4), 2 4 (4)')
+    fireEvent.change(screen.getByLabelText('stage reference'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('stage type'), { target: { value: 'numeric' } })
+    // Back to the automatic type: no override recorded and no reference kept.
+    expect(useAppStore.getState().mixedModelConfig.factors).toEqual([{ key: 'stage', kind: 'numeric', effect: 'level' }])
+    // Baseline age and sex have a fixed type.
+    fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'sex' } })
+    expect(screen.queryByLabelText('Sex type')).toBeNull()
+  })
+
+  it('does not offer numeric for an attribute without a number', () => {
+    const data = qualifyingData(12)
+    data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i % 2 ? 'A' : 'B' }]))
+    studio(data)
+    fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+    fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'arm' } })
+    const type = screen.getByLabelText('arm type') as HTMLSelectElement
+    expect(type.value).toBe('categorical')
+    expect(type.options[0]).toBeDisabled()
+    expect(type.options[1].textContent).toBe('Categorical (automatic)')
+  })
+
+  it('takes the default reference from the patients in the model, not from the whole dataset (OD-29)', () => {
+    const data = qualifyingData(12)
+    // Patient X has only a creatinine row, so it is not in the eGFR model; its
+    // level "0" sorts first and was the default before 2026-11-22.
+    const other = { ...sampleRow1, patientId: 'X', bezeichnung: 'Kreatinin', einheit: 'mg/dl', wertNum: 1.2 }
+    data.rows = [...data.rows, other]
+    data.rawRows = data.rows
+    data.patients = [...data.patients, { id: 'X', label: 'X', attributes: {}, baselineAge: 50 }]
+    data.patientAttributes = { ...Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i % 2 ? 'A' : 'B' }])), X: { arm: '0' } }
+    studio(data)
+    fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+    fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'arm' } })
+    expect([...(screen.getByLabelText('arm reference') as HTMLSelectElement).options].map(option => option.value)).toEqual(['', '0', 'A', 'B'])
+    expect(screen.getByLabelText('Reference categories')).toHaveTextContent('arm = A (default')
+    expect(fitButtons()[0]).toBeEnabled()
+    // A chosen reference is kept even where the model lacks it.
+    fireEvent.change(screen.getByLabelText('arm reference'), { target: { value: '0' } })
+    expect(screen.getByLabelText('Reference categories')).toHaveTextContent('arm = 0 (chosen)')
+    expect(fitButtons()[0]).toBeDisabled()
+  })
+
   it('keeps the validation reasons when groups fail for something other than size', () => {
     const data = qualifyingData(24)
     data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { sex: i % 2 ? 'm' : 'w' }]))
@@ -525,13 +583,18 @@ describe('CohortModelsWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /Adjusted for age and sex/i }))
     const references = screen.getByLabelText('Reference categories')
     const select = screen.getByLabelText('Sex reference') as HTMLSelectElement
-    const [first, second] = [...select.options].map(option => option.value)
-    expect(references).toHaveTextContent(`Sex = ${first} (first level by default; change it next to the factor)`)
-    if (second !== undefined) {
-      fireEvent.change(select, { target: { value: second } })
-      expect(screen.getByLabelText('Reference categories')).toHaveTextContent(`Sex = ${second}`)
-      expect(screen.getByLabelText('Reference categories')).not.toHaveTextContent('first level')
-    }
+    // Since 2026-11-22 the default is the first level among the patients in the model (OD-29).
+    const [defaultOption, first, second] = [...select.options].map(option => option.value)
+    expect(defaultOption).toBe('')
+    expect(select.value).toBe('')
+    expect(references).toHaveTextContent(/Sex = \S+ \(default: the first level among the patients in the model; choose another next to the factor\)/)
+    const chosen = second ?? first
+    fireEvent.change(select, { target: { value: chosen } })
+    expect(screen.getByLabelText('Reference categories')).toHaveTextContent(`Sex = ${chosen} (chosen)`)
+    expect(screen.getByLabelText('Reference categories')).not.toHaveTextContent('first level')
+    expect(useAppStore.getState().mixedModelConfig.factors?.find(factor => factor.key === 'sex')?.reference).toBe(chosen)
+    fireEvent.change(select, { target: { value: '' } })
+    expect(useAppStore.getState().mixedModelConfig.factors?.find(factor => factor.key === 'sex')).not.toHaveProperty('reference')
   })
 
   it('does not offer an overlay for an unrelated stored result', async () => {

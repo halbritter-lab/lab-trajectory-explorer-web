@@ -84,10 +84,9 @@ Each entry is described in full in the section named, with an example where
 one applies. The documentation review of 2026-10-07 produced 29 entries; the
 owner decided all of them on the same day (see
 [method decisions](remaining-method-decisions.md)). Those settled since are
-listed under *Resolved decisions* below. Two remain, **OD-22 and OD-29: to
-be changed after release 0.3.0.** Their behaviour is unchanged until then.
-OD-11 and OD-21, in the same group, were implemented on 2026-11-22 as
-decided. OD-30, added on 2026-11-05 with the R reproduction export, was
+listed under *Resolved decisions* below. None of the group scheduled
+for after release 0.3.0 remains: OD-11, OD-21, OD-22 and OD-29 were
+implemented on 2026-11-22 as decided. OD-30, added on 2026-11-05 with the R reproduction export, was
 decided on 2026-11-13. OD-32 was added on 2026-11-15 with the rule for a
 `u` that abbreviates "und" in creatinine names and was decided the same day.
 OD-31 is not used on `main`; the number is reserved by the deferred MCP
@@ -100,10 +99,7 @@ OD-35 was added on 2026-11-22 with the review of the AKI recovery
 rule and resolved on the second review of the same day, on the owner's
 instruction of 2026-11-22 to resolve the open points.
 
-| ID | Section | Implemented behaviour that needs a decision |
-| --- | --- | --- |
-| OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
-| OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+No decision is open at present.
 
 ### Resolved decisions
 
@@ -135,12 +131,14 @@ methodology page. The numbers are not reused.
 | OD-19 | The minimum confirmation interval is at most 365 days. | [Observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction) |
 | OD-20 | eGFR is recognised by the unit mL/min/1.73 m² everywhere, in four accepted spellings. | [Observed endpoints and individual prediction](method-algorithms/endpoints-and-projection.md#observed-endpoints-and-individual-prediction) |
 | OD-21 | The unused model `tolerance` is no longer in the result metadata or `fitConfigHash`; the `models` column stays, empty, for column positions; the R package versions are pinned; implemented 2026-11-22. | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) |
+| OD-22 | The type of an attribute factor can be switched between numeric and categorical; the automatic type stays the default; implemented 2026-11-22. | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
 | OD-23 | The "Group interaction" preset builds a valid numeric factor. | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) |
 | OD-24 | The JavaScript date-parser fallback for attribute birth dates is removed. | [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation) |
 | OD-25 | Two accepted headers for one lab or event field produce a warning naming the column used. | [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation) |
 | OD-26 | Lab rows without a patient ID are listed as rejected. | [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation) |
 | OD-27 | An empty pre-parsed operator beside a number means an exact value. | [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation) |
 | OD-28 | Implausible stated ages are reported as `age_implausible`. | [Demographics resolution](method-algorithms/demographics.md#demographics-resolution) |
+| OD-29 | Without a chosen reference, each fitted unit takes the first level among its own model rows; a chosen reference is kept; implemented 2026-11-22. | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
 | OD-30 | Every number returned from R is serialized at full precision (`digits = NA`); decided 2026-11-13. | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) |
 | OD-32 | A lone `u` in a creatinine name is "und" only between two blood-material words or in "vor u. nach"; next to any other word it stays urine; decided 2026-11-15. | [eGFR derivation](method-algorithms/egfr.md#eligible-source-series) |
 | OD-33 | The methodology page describes AKI staging against the lowest value of the previous 7 days and the "Slope range" label for Theil-Sen bounds on fewer than five dates; wording approved 2026-11-16. | [AKI staging](method-algorithms/aki.md#staging) |
