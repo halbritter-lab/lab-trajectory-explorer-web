@@ -3,6 +3,7 @@
 // time); since lab dates carry a time of day, that remainder showed as a
 // measured time. The calendar day of each row stays the same; only the labs
 // sheet's labDate column is touched. One-off: run it, commit the workbook, done.
+// Written compressed, as the app writes its exports.
 import { readFileSync, writeFileSync } from 'node:fs'
 import * as XLSX from 'xlsx'
 
@@ -26,5 +27,5 @@ for (let r = range.s.r + 1; r <= range.e.r; r++) {
   rewritten++
 }
 
-writeFileSync(FILE, XLSX.write(book, { type: 'buffer', bookType: 'xlsx' }))
+writeFileSync(FILE, XLSX.write(book, { type: 'buffer', bookType: 'xlsx', compression: true }))
 console.log(`labDate cells moved to midnight: ${rewritten}`)
