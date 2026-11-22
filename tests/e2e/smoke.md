@@ -24,7 +24,10 @@ and 390 px), with the demo data, the review file with times of day, the
   unchanged."
 - Then an events file with two invalid rows: the alert "No usable events …";
   the events stay, and the diagnostics list "Events (events.csv,
-  bad-events.csv, 2 rows rejected)" with both rejected rows.
+  bad-events.csv (rejected upload), 2 rows rejected)" with both rejected
+  rows. The same invalid file uploaded as `events.csv`: the warning of the
+  loaded `events.csv` stays, the rows are listed under "events.csv (rejected
+  upload)".
 - eGFR series ending with `<15`: the table cell reads "<15", with a trend
   "latest <15"; another patient "latest 35".
 - Demo, grouped by `cohort`: `settings` ends with `group_by` = `cohort` on

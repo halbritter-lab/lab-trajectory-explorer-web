@@ -72,16 +72,19 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
     try {
       const raw = readWorkbook(await file.arrayBuffer())
       if (useAppStore.getState().rows !== originalRows) throw new Error('Dataset replaced during import. Please import the file again.')
-      // A file rejected as a whole leaves the loaded table as it was; its rejected rows are
-      // listed beside the findings of that table all the same (2026-11-22).
+      // A file rejected as a whole leaves the loaded table and its findings as they were; its
+      // rejected rows are listed beside them under "<file> (rejected upload)", even when the
+      // file has the name of the loaded one. A further failed upload of that name replaces
+      // only those rows (2026-11-22).
+      const rejectedSheet = `${file.name} (rejected upload)`
       const listRejected = (diagnostics: ImportDiagnostic[]) => store.setImportDiagnostics(kind, [
-        ...useAppStore.getState().importDiagnostics.filter(d => d.source === kind && d.sheet !== file.name), ...diagnostics])
+        ...useAppStore.getState().importDiagnostics.filter(d => d.source === kind && d.sheet !== rejectedSheet), ...diagnostics])
       if (kind === 'events') {
         const normalized = normalizeClinicalEventsWithNotes(raw)
         const validation = validateClinicalEvents(normalized.events, originalRows)
         const { valid, rejected } = validation
         if (!valid.length) {
-          listRejected(eventDiagnostics(file.name, normalized.dateReads, validation, normalized.notes))
+          listRejected(eventDiagnostics(rejectedSheet, normalized.dateReads, validation, normalized.notes))
           throw new Error(`No usable events. ${[...new Set(rejected.map(describeEventRejection))].join(' ')}`)
         }
         store.setEvents(valid)
@@ -92,7 +95,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         const validation = validatePatientAttributes(normalizePatientAttributes(raw), originalRows)
         const { byPatient, valid, rejected } = validation
         if (!valid.length) {
-          listRejected(attributeDiagnostics(file.name, validation))
+          listRejected(attributeDiagnostics(rejectedSheet, validation))
           throw new Error(`No usable attributes. ${[...new Set(rejected.map(describeAttributeRejection))].join(' ')}`)
         }
         store.setPatientAttributes(byPatient)

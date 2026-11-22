@@ -55,8 +55,9 @@ interfaces are still evolving before 1.0.
   runtime only, no measurements sent). The notice of a page opened from a
   folder links to the online version.
 - An events or attributes file whose rows are all rejected ("No usable
-  events …") still lists its rejected rows in the import diagnostics; the
-  loaded events or attributes stay as before.
+  events …") still lists its rejected rows in the import diagnostics, under
+  "<file name> (rejected upload)"; the loaded events or attributes stay as
+  before, with their findings, also when the rejected file has the same name.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 

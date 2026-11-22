@@ -1068,10 +1068,11 @@ Resolved with a change:
   ("No usable events …"), the loaded table stays as it was and the rejected
   rows of that file are listed in the import diagnostics (and therefore in
   the `import_diagnostics` export sheet). Details of the implementation: the
-  rows are added to the findings of the table, which keep those of the file
-  that is still loaded; a second upload under the same file name replaces
-  the findings of the first; the summary of the list names every file it
-  holds. Details:
+  rows are added under "<file name> (rejected upload)" to the findings of
+  the table, which keep those of the file that is still loaded, also when
+  the rejected file has the same name; a further rejected upload under the
+  same file name replaces only the rejected rows of the earlier one; the
+  summary of the list names every file it holds. Details:
   [import findings](method-algorithms/import-and-values.md#import-findings).
 
 ## Approved requirements

@@ -275,15 +275,33 @@ it('lists the rejected rows of an events or attributes file that is rejected as 
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No usable events'))
   expect(useAppStore.getState().events.map(event => event.title)).toEqual(['Visit', 'Unknown'])
   const events = useAppStore.getState().importDiagnostics.filter(d => d.source === 'events')
-  expect(events.map(d => [d.sheet, d.row, d.severity])).toEqual([['events.csv', 3, 'warning'], ['bad-events.csv', 2, 'rejected'], ['bad-events.csv', 3, 'rejected']])
-  expect(screen.getByText(/^Events$/).closest('summary')).toHaveTextContent('(events.csv, bad-events.csv, 2 rows rejected)')
+  expect(events.map(d => [d.sheet, d.row, d.severity])).toEqual([['events.csv', 3, 'warning'], ['bad-events.csv (rejected upload)', 2, 'rejected'], ['bad-events.csv (rejected upload)', 3, 'rejected']])
+  expect(screen.getByText(/^Events$/).closest('summary')).toHaveTextContent('(events.csv, bad-events.csv (rejected upload), 2 rows rejected)')
   // The same for attributes.
   fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('attributes.csv', 'patientId,group\nP-01,A\nP-01,B\n,C\n')] } })
   await waitFor(() => expect(useAppStore.getState().patientAttributes).toEqual({ 'P-01': { group: 'A' } }))
   fireEvent.change(screen.getByLabelText('Replace attributes'), { target: { files: [file('bad-attributes.csv', 'patientId,group\n,C\n')] } })
   await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No usable attributes'))
   expect(useAppStore.getState().patientAttributes).toEqual({ 'P-01': { group: 'A' } })
-  expect(useAppStore.getState().importDiagnostics.filter(d => d.source === 'attributes' && d.sheet === 'bad-attributes.csv').map(d => [d.row, d.severity, d.reason])).toEqual([[2, 'rejected', 'Patient ID missing; row not imported.']])
+  expect(useAppStore.getState().importDiagnostics.filter(d => d.source === 'attributes' && d.sheet === 'bad-attributes.csv (rejected upload)').map(d => [d.row, d.severity, d.reason])).toEqual([[2, 'rejected', 'Patient ID missing; row not imported.']])
+})
+// Review 2026-11-22: a corrected but still unusable file under the name of the loaded one keeps
+// the findings of the loaded events and lists its rows apart; a further failed upload replaces them.
+it('keeps the findings of the loaded events when a rejected file has the same name', async () => {
+  useAppStore.getState().replaceDataset({ rows: [row] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  const file = (name: string, text: string) => ({ name, arrayBuffer: async () => new TextEncoder().encode(text).buffer })
+  fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('events.csv', 'patientId,type,date,title\nP-01,other,2020-03-01,Visit\nP-99,other,2020-03-02,Unknown\n')] } })
+  await waitFor(() => expect(useAppStore.getState().events).toHaveLength(2))
+  const bad = 'patientId,type,date,title\nP-01,surgery,2020-04-01,Other\nP-01,other,2020-02-30,Typo\n'
+  for (const text of [bad, bad.replace('Other\n', 'Other\n,other,2020-04-02,No ID\n')]) {
+    fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('events.csv', text)] } })
+    await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent('No usable events'))
+  }
+  expect(useAppStore.getState().events.map(event => event.title)).toEqual(['Visit', 'Unknown'])
+  const events = useAppStore.getState().importDiagnostics.filter(d => d.source === 'events')
+  expect(events.map(d => [d.sheet, d.row, d.severity])).toEqual([['events.csv', 3, 'warning'], ['events.csv (rejected upload)', 2, 'rejected'], ['events.csv (rejected upload)', 3, 'rejected'], ['events.csv (rejected upload)', 4, 'rejected']])
+  expect(screen.getByText(/^Events$/).closest('summary')).toHaveTextContent('(events.csv, events.csv (rejected upload), 3 rows rejected)')
 })
 it('names the patient-days whose serum creatinine values cannot be ordered within the day', () => {
   const at = (date: string, value: number, labTime?: number): LabRow => ({ ...row, labDatum: new Date(date), wert: String(value), wertNum: value, ...(labTime === undefined ? {} : { labTime }) })

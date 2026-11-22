@@ -423,11 +423,16 @@ No finding changes an imported value.
   leaves the findings as they were. An upload whose rows are all rejected
   ("No usable events …", "No usable attributes …") leaves the loaded table as
   it was but lists its rejected rows (since 2026-11-22): the findings of that
-  file are added to those of the table, which keep their own; findings of an
-  earlier upload under the same file name are replaced. Example: `events.csv`
-  is loaded with one warning, then `bad-events.csv` with two rejected rows;
-  the events of `events.csv` stay, and the events list of the diagnostics
-  reads "(events.csv, bad-events.csv, 2 rows rejected)" with three lines.
+  file are added under "<file name> (rejected upload)" to those of the
+  table, which keep their own, also when the rejected file has the name of
+  the loaded one; a further rejected upload under the same file name replaces
+  only the rejected rows of the earlier one. Example: `events.csv` is loaded
+  with one warning, then `bad-events.csv` with two rejected rows; the events
+  of `events.csv` stay, and the events list of the diagnostics reads
+  "(events.csv, bad-events.csv (rejected upload), 2 rows rejected)" with
+  three lines. A corrected but still unusable file uploaded again as
+  `events.csv` is listed as "events.csv (rejected upload)" and leaves the
+  warning of the loaded `events.csv` in place.
   Before, the rejected rows were named only in the error message.
 - **Saved copy.** With "Remember on this device" the findings are saved with
   the dataset and restored with it. A copy saved before 2026-11-21 restores
