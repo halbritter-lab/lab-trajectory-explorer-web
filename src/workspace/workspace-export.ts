@@ -12,8 +12,10 @@ import { demographicWarningsByPatient } from '../core/demographics/describe'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString, type WorkbookSheet } from '../io/export'
 import { COHORT_SHEET_HEADER, cohortColumnDirectoryRows, cohortSheetRow } from './cohort-sheet-columns'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
-import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
+import { akiPeriEventSettings, akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
 import { akiEpisodeExportRows, akiEpisodeRows } from './aki-episodes'
+import { PERI_EVENT_SHEET_HEADER, periEventExportRows } from './peri-event'
+import { periEventCreatinineRows } from '../core/domains/nephrology/aki/periEvent'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
 import { dataChecks, importDiagnosticRecords } from './import-diagnostics'
@@ -123,6 +125,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const ids = patientId === undefined ? visibleIds : visibleIds.filter(id => id === patientId)
   if (!ids.length) throw new Error('No patients available in the current selection.')
   const idSet = new Set(ids)
+  const periEvent = akiPeriEventSettings(data.analysisSettings)
   const exportedKeys = new Set(ids.map(patientIdKey))
   const loadedKeys = new Set(data.patients.map(patient => patientIdKey(patient.id)))
   const bySeries = new Map(selectedParameters.map(parameter => [seriesIdentity(parameter.bezeichnung,parameter.einheit),parameter]))
@@ -226,6 +229,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements: patient, date, parameter, unit, value, sex, stated age, imported birth date and time of day; a 32-bit checksum, independent of row order and of the settings): two exports with the same input_data_id were computed from the same imported rows. Events, attributes and manual demographic entries are not part of it.'},
       // Appended 2026-11-22 (issue #64), so the earlier notes keep their positions.
       {note:`anchor_comparison lists the before/after comparison at an anchor event, one row per patient and parameter whose settings switch it on (settings: anchor_comparison). The anchor is the first event of the patient (anchor_rule first) or the first whose title or type equals anchor_value; among events of one date the first in the file. Measurements on the anchor date count as before; those of the exclusion_days days after it are left out of the after slope (n_excluded_window). Both sides use the points of the column\'s own fit (same censoring, exclusions and time balancing, balanced per side) and its estimator; n counts fitted points and n_fitted_dates their distinct dates. ci_low and ci_high of a side are its 95 % interval; for Theil-Sen with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval, as for the slope of the cohort sheet. slope_difference is after minus before; its 95 % interval is the Welch interval from the two OLS standard errors, assuming independent sides, and is empty for Theil-Sen and for a side with two points. A patient without a matching event has a row with empty values. The slope, flags and endpoints of the cohort sheet are those of the whole series.`},
+      // Appended 2026-11-22 (issue #69), so the earlier notes keep their positions.
+      {note:'peri_event_creatinine lists the serum creatinine around every event of the selected patients whose title or type equals the selection on the Data page (event_rule; aki.periEvent in analysis_settings of the settings sheet), one row per event; the sheet is empty while no events are selected. Automated screening with the KDIGO creatinine criterion, not a diagnosis; values in mg/dl (µmol/l divided by 88.42). Dates are calendar days: event dates have no time of day, so the window of window_hours 48 (72) is the 2 (3) calendar days after the event day, up to window_end_date, and a value on the event day counts as the baseline, also where lab values carry a time. baseline is the last value on or before the event day, with no look-back limit (baseline_days_before_event); among several values of that day the latest by time when every value has a time, otherwise the lowest (n_baseline_day_values). peak is the highest value in the window. criterion_met is true when absolute_rise_mg_dl is at least 0.3 or ratio_to_baseline at least 1.5 (both inclusive) and empty when status is not_evaluable; reason then says why. The series is the serum creatinine parameter of the patient with the most exact values; values of zero or less, bounds and values under dialysis are not used, and an event whose day is under dialysis is not evaluable. Each event is evaluated on its own; overlapping_events counts the other selected events of the patient within the window length before or after it, whose values it shares.'},
     ]},
     // Sheets added later follow the earlier ones, so sheet positions stay.
     {name:'columns',header:['column','meaning','unit','empty_when'],rows:cohortColumnDirectoryRows()},
@@ -246,6 +251,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     })},
     // Added 2026-11-22 (issue #64), after every earlier sheet, so their positions stay.
     {name:'anchor_comparison',header:ANCHOR_COMPARISON_SHEET_HEADER,rows:anchorComparisonRows(prepared)},
+    // Added 2026-11-22 (issue #69), after every earlier sheet, so their positions stay.
+    {name:'peri_event_creatinine',header:PERI_EVENT_SHEET_HEADER,rows:periEventExportRows(periEvent ? periEventCreatinineRows(data.rows.filter(row => idSet.has(row.patientId)),data.events.filter(event => idSet.has(event.patientId)),periEvent) : [],periEvent?.rule ?? null)},
   ]
 }
 

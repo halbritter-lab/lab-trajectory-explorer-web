@@ -114,7 +114,9 @@ describe('about sheet: provenance and personal data', () => {
     expect(about[9]).toMatch(/^endpoint_percent_change is the total eGFR change/)
     expect(about[16]).toMatch(/^Measurements marked < or > are bounds/)
     // Appended on 2026-11-22 (issue #64) after the provenance rows.
-    expect(about.at(-1)).toMatch(/^anchor_comparison lists the before\/after comparison/)
-    expect(about.slice(-6, -1).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
+    expect(about.at(-2)).toMatch(/^anchor_comparison lists the before\/after comparison/)
+    // Appended on 2026-11-22 (issue #69) after the anchor comparison note.
+    expect(about.at(-1)).toMatch(/^peri_event_creatinine lists the serum creatinine around every event/)
+    expect(about.slice(-7, -2).map(note => note.split(':')[0])).toEqual(['app_version', 'exported_at', 'export_id', 'input_data_id', 'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements'])
   })
 })

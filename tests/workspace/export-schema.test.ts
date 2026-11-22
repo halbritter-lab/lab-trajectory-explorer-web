@@ -36,7 +36,7 @@ function groupedFixture() {
 describe('cohort workbook schema', () => {
   it('pins the sheets and the columns of every sheet', () => {
     const workbook = read(workspaceWorkbookBytes(exportFixture()))
-    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
+    expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison', 'peri_event_creatinine'])
     const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day']
     expect(header(workbook, 'measurements')).toEqual(measurement)
     expect(header(workbook, 'raw_measurements')).toEqual(measurement)
@@ -48,6 +48,10 @@ describe('cohort workbook schema', () => {
     expect(header(workbook, 'parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
     expect(header(workbook, 'settings')).toEqual(['parameter_key', 'parameter', 'unit', 'mode', 'fit_config', 'rapid_egfr_threshold', 'analysis_settings', 'patient_ids', 'source_file', 'scope', 'group_by', 'anchor_comparison'])
     expect(header(workbook, 'about')).toEqual(['note'])
+    expect(header(workbook, 'peri_event_creatinine')).toEqual(['PatientID', 'event_date', 'event_type', 'event_title', 'event_rule', 'window_hours', 'window_end_date',
+      'creatinine_parameter', 'creatinine_unit', 'baseline_date', 'baseline_value_mg_dl', 'baseline_days_before_event', 'n_baseline_day_values',
+      'peak_date', 'peak_value_mg_dl', 'n_window_values', 'absolute_rise_mg_dl', 'ratio_to_baseline', 'criterion_met', 'criterion', 'status', 'reason',
+      'dialysis_start_in_window', 'n_window_values_under_dialysis', 'overlapping_events'])
     expect(header(workbook, 'columns')).toEqual(['column', 'meaning', 'unit', 'empty_when'])
     expect(header(read(workspaceWorkbookBytes({ ...exportFixture(), patientId: '001-A' })), 'slopes')).toEqual(COHORT_HEADER)
   })

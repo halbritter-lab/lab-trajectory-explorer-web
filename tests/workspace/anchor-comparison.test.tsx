@@ -105,7 +105,7 @@ describe('before/after comparison in the Trajectories page (issue #64)', () => {
     const workbook = XLSX.read(workspaceWorkbookBytes({ data, parameterKeys: [MARKER.key], patientIds: ['P1'], cohortRows, anchorComparisonByParameterKey: anchors }), { type: 'array' })
     const [p1] = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.anchor_comparison)
     expect(p1).toMatchObject({ fit_model: 'theil-sen', before_n_fitted_dates: 4, after_n_fitted_dates: 3 })
-    expect(XLSX.utils.sheet_to_json<{ note: string }>(workbook.Sheets.about).at(-1)!.note).toContain('for Theil-Sen with n_fitted_dates below 5 they are Theil-Sen bounds, not a 95 % interval')
+    expect(XLSX.utils.sheet_to_json<{ note: string }>(workbook.Sheets.about).at(-2)!.note).toContain('for Theil-Sen with n_fitted_dates below 5 they are Theil-Sen bounds, not a 95 % interval')
   })
 
   it('says when a patient has no matching anchor event', () => {
