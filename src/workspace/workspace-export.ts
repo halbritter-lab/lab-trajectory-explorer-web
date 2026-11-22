@@ -1,5 +1,6 @@
 import { version as APP_VERSION } from '../../package.json'
-import { cohortExportRecords, cohortSheetRecord, EXPORT_DISCLAIMER_ROWS, type CohortRow } from '../core/cohort/screening'
+import { cohortExportRecords, cohortSheetRecord, EXPORT_DISCLAIMER_ROWS, slopeUnit, type CohortRow } from '../core/cohort/screening'
+import type { AnchorComparisonSettings, AnchorSide } from '../core/cohort/anchorComparison'
 import { hashString } from '../core/mixedModel/validation'
 import { MIN_THEIL_SEN_PROJECTION_DATES } from '../core/endpoints/thresholdEndpoints'
 import { THEIL_SEN_FEW_DATES_COVERAGE } from './labels/qualityLabels'
@@ -26,6 +27,8 @@ export interface WorkspaceExportInput {
   /** Each column's own module settings (e.g. its rapid-decline threshold);
    * module defaults for columns without an entry. */
   moduleSettingsByParameterKey?: Record<string, ColumnModuleSettings>
+  /** Each column's before/after setting (issue #64); none for columns without an entry. */
+  anchorComparisonByParameterKey?: Record<string, AnchorComparisonSettings | undefined>
   /** Written to `about` as `exported_at`; the time of the call when omitted. */
   exportedAt?: Date
   /** Written to `about` as `export_id`; a new random UUID when omitted. */
@@ -71,9 +74,38 @@ export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anch
 export const PARAMETERS_SHEET_HEADER = ['parameter_key','parameter','unit','origin','formula','source_parameter','source_unit','loinc'] as const
 export const ROLLING_WINDOWS_SHEET_HEADER = ['PatientID','Parameter','Unit','window','window_start','window_end','first_date','last_date','n','slope'] as const
 export const IMPORT_DIAGNOSTICS_SHEET_HEADER = ['source','sheet','kind','row','patient_id','date','parameter','value','message'] as const
+export const ANCHOR_COMPARISON_SHEET_HEADER = ['PatientID','Parameter','Unit','fit_model','anchor_rule','anchor_value','anchor_date','anchor_type','anchor_title','exclusion_days','n_excluded_window',
+  'before_n','before_first_date','before_last_date','before_span_days','before_slope','before_ci_low','before_ci_high',
+  'after_n','after_first_date','after_last_date','after_span_days','after_slope','after_ci_low','after_ci_high',
+  'slope_difference','difference_ci_low','difference_ci_high','slope_unit'] as const
+
+const numberOrBlank = (value: number | undefined): number | '' => value === undefined || !Number.isFinite(value) ? '' : value
+
+/** One row per patient and column with a before/after comparison (issue #64);
+ * a patient without a matching anchor event has a row with empty values. */
+function anchorComparisonRows(rows: readonly CohortRow[]) {
+  return rows.flatMap(row => row.cells.flatMap(cell => {
+    const comparison = cell.anchorComparison
+    if (!comparison) return []
+    const { rule, exclusionDays } = comparison.settings
+    const side = (prefix: 'before' | 'after', value: AnchorSide | null) => ({
+      [`${prefix}_n`]: value?.nFitted ?? '', [`${prefix}_first_date`]: utcDateOrBlank(value?.firstDate ?? null), [`${prefix}_last_date`]: utcDateOrBlank(value?.lastDate ?? null),
+      [`${prefix}_span_days`]: value?.fittedSpanDays ?? '', [`${prefix}_slope`]: numberOrBlank(value?.slope), [`${prefix}_ci_low`]: numberOrBlank(value?.ciLow), [`${prefix}_ci_high`]: numberOrBlank(value?.ciHigh),
+    })
+    return [{
+      PatientID: row.patientId, Parameter: cell.bezeichnung, Unit: cell.einheit ?? '', fit_model: cell.fitModel,
+      anchor_rule: rule.kind, anchor_value: rule.kind === 'first' ? '' : rule.value,
+      anchor_date: utcDateOrBlank(comparison.anchor?.date ?? null), anchor_type: comparison.anchor?.type ?? '', anchor_title: comparison.anchor?.title ?? '',
+      exclusion_days: exclusionDays, n_excluded_window: comparison.before ? comparison.windowIdx.length : '',
+      ...side('before', comparison.before), ...side('after', comparison.after),
+      slope_difference: numberOrBlank(comparison.difference), difference_ci_low: numberOrBlank(comparison.differenceCiLow), difference_ci_high: numberOrBlank(comparison.differenceCiHigh),
+      slope_unit: slopeUnit(cell.einheit),
+    }]
+  }))
+}
 
 /** All sheets share the supplied visible scope; summaries are never fitted again. */
-export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
+export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRows,patientId,fitConfigByParameterKey,moduleSettingsByParameterKey,anchorComparisonByParameterKey,exportedAt = new Date(),exportId = crypto.randomUUID()}: WorkspaceExportInput): WorkbookSheet[] {
   const requestedKeys = [...new Set(parameterKeys)]
   const parameters = requestedKeys.map(key => data.parameters.find(parameter => parameter.key === key))
   if (!parameters.length || parameters.some(parameter => !parameter)) throw new Error('No valid parameters selected for export.')
@@ -150,7 +182,9 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     {name:'parameters',header:PARAMETERS_SHEET_HEADER,rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : '',
       // Appended 2026-11-21: the distinct codes of the parameter's imported rows, whatever patients are selected.
       loinc:parameter.derived ? '' : [...new Set(data.rawRows.filter(row => row.loinc !== null && seriesIdentity(row.bezeichnung,row.einheit) === seriesIdentity(parameter.bezeichnung,parameter.einheit)).map(row => row.loinc))].join('; ')}))},
-    {name:'settings',rows:specs.map((spec,index) => ({parameter_key:requestedKeys[index],parameter:spec.bezeichnung,unit:spec.einheit ?? '',mode:spec.mode,fit_config:JSON.stringify(exportedFitConfig(spec.fitConfig)),...moduleSettingColumns(requestedKeys[index]),analysis_settings:JSON.stringify(data.analysisSettings),patient_ids:JSON.stringify(ids),source_file:data.fileName ?? '',scope:patientId === undefined ? 'visible cohort' : 'selected patient'}))},
+    {name:'settings',rows:specs.map((spec,index) => ({parameter_key:requestedKeys[index],parameter:spec.bezeichnung,unit:spec.einheit ?? '',mode:spec.mode,fit_config:JSON.stringify(exportedFitConfig(spec.fitConfig)),...moduleSettingColumns(requestedKeys[index]),analysis_settings:JSON.stringify(data.analysisSettings),patient_ids:JSON.stringify(ids),source_file:data.fileName ?? '',scope:patientId === undefined ? 'visible cohort' : 'selected patient',
+      // Appended 2026-11-22 (issue #64): the before/after setting, empty when the column has none.
+      anchor_comparison:anchorComparisonByParameterKey?.[requestedKeys[index]] ? JSON.stringify(anchorComparisonByParameterKey[requestedKeys[index]]) : ''}))},
     {name:'about',rows:[...EXPORT_DISCLAIMER_ROWS,
       // Only this workbook has the column, so the note is not in the shared rows.
       {note:'endpoint_percent_change is the total eGFR change in percent from the first to the latest eligible measurement, with the sign the badge in the app shows: negative when eGFR fell, positive when it rose. It is not a rate per year and not the confirmed 40 % or 57 % decline event. Until 2026-11-16 the column was named endpoint_percent_decline and had the opposite sign.'},
@@ -177,6 +211,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:`export_id: ${exportId}`},
       {note:`input_data_id: ${inputDataId(rawMeasurements)}`},
       {note:'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements: patient, date, parameter, unit, value, sex, stated age and imported birth date; a 32-bit checksum, independent of row order and of the settings): two exports with the same input_data_id were computed from the same imported rows. Events, attributes and manual demographic entries are not part of it.'},
+      // Appended 2026-11-22 (issue #64), so the earlier notes keep their positions.
+      {note:'anchor_comparison lists the before/after comparison at an anchor event, one row per patient and parameter whose settings switch it on (settings: anchor_comparison). The anchor is the first event of the patient (anchor_rule first) or the first whose title or type equals anchor_value; among events of one date the first in the file. Measurements on the anchor date count as before; those of the exclusion_days days after it are left out of the after slope (n_excluded_window). Both sides use the points of the column\'s own fit (same censoring, exclusions and time balancing, balanced per side) and its estimator; n counts fitted points. slope_difference is after minus before; its 95 % interval is the Welch interval from the two OLS standard errors, assuming independent sides, and is empty for Theil-Sen and for a side with two points. A patient without a matching event has a row with empty values. The slope, flags and endpoints of the cohort sheet are those of the whole series.'},
     ]},
     // Sheets added later follow the earlier ones, so sheet positions stay.
     {name:'columns',header:['column','meaning','unit','empty_when'],rows:cohortColumnDirectoryRows()},
@@ -195,6 +231,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       const key = patientIdKey(record.patient_id)
       return exportedKeys.has(key) || (patientId === undefined && !loadedKeys.has(key))
     })},
+    // Added 2026-11-22 (issue #64), after every earlier sheet, so their positions stay.
+    {name:'anchor_comparison',header:ANCHOR_COMPARISON_SHEET_HEADER,rows:anchorComparisonRows(prepared)},
   ]
 }
 

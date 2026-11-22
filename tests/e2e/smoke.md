@@ -1,5 +1,36 @@
 # Manual browser smoke checklist
 
+## Before/after comparison at an anchor event and "Years since event" (2026-11-22)
+
+Issue #64 and K16 (issue #70). Automated in `tests/e2e/anchor-comparison.e2e.ts`;
+checked again by hand with an ad-hoc Playwright script against the production
+build.
+
+1. Demo → Trajectories → Trend on for eGFR [ml/min/1,73m²] → its analysis
+   settings → Calculation settings → "Before/after comparison": tick it, anchor
+   `kidney_transplant` (menu lists "First event of the patient", the five
+   titles and the three types of the demo). The preset stays "General
+   exploration".
+2. Export cohort (XLSX): last sheet `anchor_comparison` with 28 rows; patient
+   13: anchor 2022-07-01, before n 6 over 882 days, after n 3 over 365 days,
+   difference 4.823 [4.320, 5.326]; `settings` ends with `anchor_comparison`
+   (JSON for eGFR, empty for the other columns); the last `about` note
+   describes the sheet.
+3. Patient 13: under the eGFR slope "Before/after first event of type
+   kidney_transplant (01/07/2022): before -12.83 … after -8.01 … difference
+   after − before +4.82 … (95% CI [4.32, 5.33])". With a window of 60 days the
+   value of 10/08/2022 is a grey open circle and the difference is +4.76.
+4. Display → Time axis → "Years since event": the overlay draws patients 13
+   and 14 with both jumps at 0 (ticks -2 … 1), says "2 of 28 trajectories; 3
+   without numeric measurements; 23 additional trajectories without a matching
+   anchor event", labels the axis "Years since anchor event (first event of
+   type kidney_transplant)"; the Kreatinin chart (no comparison) draws nothing
+   and says where to switch the comparison on.
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 4.
+Not checked: Firefox and WebKit, a narrow screen, the mixed-model line on the
+event axis in the browser (unit test only).
+
 ## Combined branch of the persona review: fixes after its review (2026-11-21)
 
 Branch `integration/persona-review-2026-11-21` (all six branches of the

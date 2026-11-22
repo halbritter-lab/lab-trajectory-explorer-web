@@ -2,7 +2,7 @@ import { useId, useMemo, useRef, useState } from 'react'
 import { trajectorySettingsDiscardModels, useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import { workspaceModelSpec } from './workspace-data'
-import { ANALYSIS_CATALOG, describeModelPreparation, defaultFitSettings, modelPreparationKey, modelPreparationSource } from './workspace-analysis'
+import { ANALYSIS_CATALOG, describeModelPreparation, modelPreparationKey, presetSettingsKeepingAnchor, modelPreparationSource } from './workspace-analysis'
 import { PresetOptions } from './WorkspaceAnalysisSettings'
 import { STANDARD_PRESETS } from '../core/analysis/fitConfig'
 import { groupColors, groupPatients } from '../core/grouping/grouping'
@@ -159,8 +159,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   function changeDataPreparation(presetId: string) {
     const state = useAppStore.getState()
     const current = state.trajectoryFitSettings
-    const nextSettings = defaultFitSettings(presetId)
     const ownTarget = Boolean(activeParamKey && (current.columns[activeParamKey] || !STANDARD_PRESETS.some(preset => preset.id === presetId)))
+    const nextSettings = presetSettingsKeepingAnchor(presetId, activeParamKey && ownTarget ? current.columns[activeParamKey] ?? current.shared : current.shared)
     const next = activeParamKey && ownTarget
       ? { ...current, columns: { ...current.columns, [activeParamKey]: nextSettings } }
       : { ...current, shared: nextSettings }

@@ -4,6 +4,7 @@ import type { ClinicalEvent } from '../events/events'
 import { modeForFitModel } from '../fitPipeline/modes'
 import { patientIdKey } from '../types'
 import type { CohortSeriesSpec } from './screening'
+import type { AnchorComparisonSettings } from './anchorComparison'
 
 /** Clinical events bucketed by patientIdKey, as cohort specs expect them. */
 export function clinicalEventsByPatient(events: readonly ClinicalEvent[]): Record<string, ClinicalEvent[]> {
@@ -21,7 +22,7 @@ export function clinicalEventsByPatient(events: readonly ClinicalEvent[]): Recor
 export function cohortSeriesSpec(
   parameter: { bezeichnung: string; einheit: string | null },
   fitConfig: FitConfig = generalExplorationConfig(parameter),
-  context: { clinicalEventsByPatient?: Record<string, ClinicalEvent[]>; exactBirthDateByPatient?: Record<string, Date>; fitInputs?: AnalysisFitInputContribution[] } = {},
+  context: { clinicalEventsByPatient?: Record<string, ClinicalEvent[]>; exactBirthDateByPatient?: Record<string, Date>; fitInputs?: AnalysisFitInputContribution[]; anchorComparison?: AnchorComparisonSettings } = {},
 ): CohortSeriesSpec {
   return {
     bezeichnung: parameter.bezeichnung,
@@ -32,5 +33,6 @@ export function cohortSeriesSpec(
     clinicalEventsByPatient: context.clinicalEventsByPatient,
     exactBirthDateByPatient: context.exactBirthDateByPatient,
     fitInputs: context.fitInputs,
+    ...(context.anchorComparison ? { anchorComparison: context.anchorComparison } : {}),
   }
 }

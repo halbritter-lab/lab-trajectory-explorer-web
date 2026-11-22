@@ -5,6 +5,36 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (before/after comparison at an anchor event and the event axis, decided 2026-11-21)
+
+- **Before/after comparison** (issue #64). Analysis settings → Calculation
+  settings → "Before/after comparison": one anchor event per patient (the
+  first event, or the first with a chosen title or type) and an exclusion
+  window after it in days (default 0). The patient view and the full cell
+  details show the slope before and after the anchor and the difference
+  after − before, each with fitted points, span and 95 % interval.
+  Measurements on the anchor date count as before; points in the window are
+  left out of the after slope only and drawn as grey open circles. Both sides
+  use the column's exclusions, time balancing and estimator. The interval of
+  the difference is the Welch interval from the two OLS standard errors
+  (assumes independent sides; none for Theil-Sen or a two-point side).
+- The column's slope, its reliability note, the rapid-decline flag, the
+  endpoints and the cohort-model input stay those of the whole series: **no
+  existing number changes.** The removed `event-driven` selection of the
+  steepest segment does not come back.
+- **Time axis "Years since event"** (K16) for the patient charts and the
+  overlay, zero at the same anchor. Patients without it are counted under the
+  chart; the axis label names the rule; mixed-model reference lines are not
+  drawn on this axis. The saved view stores the axis as `event`.
+- **Export:** a sheet `anchor_comparison` after `import_diagnostics` (one row
+  per patient × parameter with the comparison), the column
+  `anchor_comparison` at the end of `settings`, and one note at the end of
+  `about`. Earlier sheets, columns and notes keep their positions.
+- Demo example: patient 13, imported eGFR, anchor of type
+  `kidney_transplant`: before −12.83, after −8.01, difference +4.82
+  [4.32, 5.33] per year. The example in issue #64 (patient 2) came from the
+  predecessor's demo data and has no counterpart here.
+
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
 - **AKI detection no longer depends on the row order of the file.** A time

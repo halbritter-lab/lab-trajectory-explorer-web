@@ -17,6 +17,7 @@ import { isUnstableSlope } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
 import { CENSORED_VALUE_REASON, isExactMeasurement } from '../measurements/censored'
 import { filterEndpointPointsForEvents } from '../domains/nephrology/endpoints/endpointEventPolicy'
+import { compareAtAnchor, type AnchorComparison, type AnchorComparisonSettings } from './anchorComparison'
 
 
 export interface CohortSeriesSpec {
@@ -38,6 +39,9 @@ export interface CohortSeriesSpec {
   exactBirthDateByPatient?: Record<string, Date>
   fitConfig?: FitConfig
   fitInputs?: AnalysisFitInputContribution[]
+  /** Before/after comparison at an anchor event (issue #64); none when omitted.
+   * Not part of the fit configuration: it changes no number of the column. */
+  anchorComparison?: AnchorComparisonSettings
 }
 
 export interface CohortCell {
@@ -95,6 +99,10 @@ export interface CohortCell {
   pointExclusionReasons: string[][]
   /** Endpoint results of every endpoint module (see CellEndpoints). */
   endpoints: CellEndpoints
+  /** Present when the spec asks for a before/after comparison: the anchor
+   * event and the slopes on either side. An additional result; `slope`,
+   * flags and endpoints stay those of the whole series. */
+  anchorComparison?: AnchorComparison
 }
 
 export interface RollingSummary {
@@ -226,6 +234,10 @@ export function buildCohortRows(
             },
           )
       const eligibleRows = eligible.map(point => point.row)
+      // The same points the column's fit can use: exact and outside every window.
+      const anchorComparison = spec.anchorComparison
+        ? compareAtAnchor({ points, available: pointExclusionReasons.map(reasons => reasons.length === 0), events: cellEvents(spec, pid), settings: spec.anchorComparison, fitModel, timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw' })
+        : undefined
       const slope = match?.slope ?? Number.NaN
       const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match && match.nFitted > 0
         ? { windowDays: spec.windowDays ?? 730, stepDays: spec.stepDays ?? 180, nWindows: match.nWindows ?? 0, slopeMin: match.slopeMin ?? Number.NaN, slopeMax: match.slopeMax ?? Number.NaN, timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw', windows: rollingWindowsFor(match, spec.stepDays ?? 180, fitLines.length) }
@@ -263,6 +275,7 @@ export function buildCohortRows(
         excludedIdx,
         pointExclusionReasons,
         endpoints,
+        ...(anchorComparison ? { anchorComparison } : {}),
       }
     })
     const groupValue = attributeName

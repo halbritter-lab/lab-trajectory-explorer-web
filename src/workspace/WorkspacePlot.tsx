@@ -19,9 +19,12 @@ import { workspaceModelSpec } from './workspace-data'
 import { modelPreparationKey } from './workspace-analysis'
 import { currentWorkspaceModels, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
 import { overlayModules } from '../core/analysis/registry'
+import { ANCHOR_WINDOW_REASON, anchorRuleLabel } from '../core/cohort/anchorComparison'
 
-/** `baseline` and `baselineDays` are the same elapsed-time axis in years or in days. */
-export type WorkspaceAxis = 'baseline' | 'baselineDays' | 'calendar' | 'age'
+/** `baseline` and `baselineDays` are the same elapsed-time axis in years or in
+ * days. `event` counts years from the anchor event of the column's
+ * before/after comparison (K16). */
+export type WorkspaceAxis = 'baseline' | 'baselineDays' | 'calendar' | 'age' | 'event'
 /** Modules whose overlays the charts can draw, with their presentation. */
 export const OVERLAY_MODULES = overlayModules().map(module => ({ id: module.id, presentation: module.overlayPresentation! }))
 /** Display toggles: measurement marks, events, and one per overlay module,
@@ -170,14 +173,19 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const age = patient?.baselineAge ?? null
       const ageDate = firstDates.get(row.patientId)
       const anchor = patient?.birthAnchor
-      const xValue = (date: Date): number | null => axis === 'calendar' ? date.getTime() : axis === 'baseline' || axis === 'baselineDays'
+      // Years since event: zero at the anchor of the column's before/after comparison.
+      const eventAnchor = cell?.anchorComparison?.anchor?.date.getTime()
+      const xValue = (date: Date): number | null => axis === 'calendar' ? date.getTime() : axis === 'event'
+        ? eventAnchor === undefined ? null : (date.getTime() - eventAnchor) / YEAR
+        : axis === 'baseline' || axis === 'baselineDays'
         ? baseline === undefined ? null : (date.getTime() - baseline) / (axis === 'baseline' ? YEAR : MS_PER_DAY)
         : anchor !== undefined ? anchor === null ? null : (date.getTime() - anchor.getTime()) / YEAR
           : age === null || ageDate === undefined ? null : age + (date.getTime() - ageDate) / YEAR
       const group = groupBy ? patient?.attributes[groupBy] || 'Not recorded' : 'All patients'
       const points = (cell?.points ?? []).flatMap((point, index) => {
         const x = xValue(point.date)
-        const exclusions: string[] = (cell?.pointExclusionReasons?.[index] ?? []).filter(reason => cell?.fitModel !== 'none' || reason === 'censored-value')
+        const exclusions: string[] = [...(cell?.pointExclusionReasons?.[index] ?? []).filter(reason => cell?.fitModel !== 'none' || reason === 'censored-value'),
+          ...(cell?.anchorComparison?.windowIdx.includes(index) ? [ANCHOR_WINDOW_REASON] : [])]
         return x === null || !Number.isFinite(x) || !Number.isFinite(point.value) ? [] : [{ ...point, x, exclusions, operator: sourceRows.get(row.patientId)?.[index]?.wertOperator ?? '=' as WertOperator, akiSkipped: skippedByAkiDetection(parameter, point.date, events) }]
       })
       // Module markers (e.g. AKI episodes, which reach every column of the
@@ -239,7 +247,8 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   // A line is drawn only for a result whose source identity matches the full
   // dataset preparation; display filters never change the model population.
   const modelLines = useMemo(() => {
-    if (!showCohortMixedModelLine || !cohortModelResults || axis === 'calendar') return []
+    // Not on the event axis either: the model counts time from the first measurement.
+    if (!showCohortMixedModelLine || !cohortModelResults || axis === 'calendar' || axis === 'event') return []
     const spec = workspaceModelSpec(data, parameter.key, useAppStore.getState().trajectoryFitSettings)
     if (!spec) return []
     const patientIds = data.patients.map(p => p.id)
@@ -318,7 +327,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   // so no date is repeated. Days: whole days only.
   const xTicks = axis === 'calendar' ? calendarTicks(xMin, xMax) : niceTicks(xMin, xMax, 5, axis === 'baselineDays' ? 1 : 0)
   const xTickLabels = tickLabels(xTicks)
-  const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)' : `${axis === 'baselineDays' ? 'Days' : 'Years'} since first measurement of this parameter`
+  // The event axis names its anchor rule, so an exported chart explains itself.
+  const anchorRule = cohortRows.map(row => row.cells[parameterIndex]?.anchorComparison?.settings.rule).find(rule => rule !== undefined)
+  const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)'
+    : axis === 'event' ? `Years since anchor event (${anchorRule ? anchorRuleLabel(anchorRule) : 'no anchor set for this parameter'})`
+    : `${axis === 'baselineDays' ? 'Days' : 'Years'} since first measurement of this parameter`
   // In the overlay the trajectory under the pointer or the keyboard focus is
   // emphasised and named, so a line can be identified without the selector.
   // The explicit highlight wins when it is plotted here, then focus, then the pointer.
@@ -354,10 +367,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   return <section className="wt-plot-card" aria-label={`Chart ${parameter.label}`}>
     <div className="wt-card-heading"><h3>{parameter.label}</h3><ChartExportActions getSvg={() => svg.current} title={exportTitle} /></div>
     {groupBy && <div className="wt-legend" role="group" aria-label={`Groups for ${parameter.label}`}>{groups.map(group => <button key={group} aria-pressed={!hiddenGroups.includes(group)} onClick={() => setHiddenGroups(previous => previous.includes(group) ? previous.filter(g => g !== group) : [...previous, group])}><span style={{ color: groupColor(group) }}>● </span>{groupLabel(group)}{hiddenGroups.includes(group) ? ' (hidden)' : ''}</button>)}</div>}
-    <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? `; ${visible.length} of ${cohortRows.length} trajectories` : ''}{withoutValues > 0 ? `; ${withoutValues} without numeric measurements` : ''}{withoutAge > 0 ? `; ${withoutAge} additional trajectories without age data` : ''}</p>
+    <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? `; ${visible.length} of ${cohortRows.length} trajectories` : ''}{withoutValues > 0 ? `; ${withoutValues} without numeric measurements` : ''}{withoutAge > 0 ? `; ${withoutAge} additional trajectories without ${axis === 'event' ? 'a matching anchor event' : 'age data'}` : ''}</p>
     {density >= 2 && <p className="wt-muted" data-testid="density-note">{`${visible.length} trajectories in this chart: lines are drawn ${density === 3 ? 'paler and thinner' : 'paler'}${pointsAutoHidden ? ' and measurement points are hidden' : ''}.`} Search, a group filter or a selection narrows the overlay{pointsAutoHidden ? '; Display → “Measurement points” shows the points' : ''}. Numbers and table exports are unchanged.</p>}
     {axis === 'age' && <p className="wt-muted">{cohortRows.length === 1 ? visible[0]?.ageEstimated ? 'Age: estimated birth-date anchor.' : visible.length ? 'Age: recorded birth date.' : 'Age unavailable.' : `${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors; other ages use recorded birth dates.`}</p>}
-    {!visible.length ? <p>No trajectories can be plotted. Check measurements, ages, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-x-min={xMin} data-y-min={yMin} data-y-max={yMax} data-density={density} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${pointsAutoHidden ? '; measurement points hidden in this dense overlay' : ''}${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? fitModel === 'none' ? '; Fit model disabled' : `; ${uncertain} uncertain individual ${modelLabel} fits; ${noFit} without a fit` : ''}${excludedCount ? `; ${countLabel(excludedCount, 'measurement')} excluded from the fit (grey open circles)` : ''}${shownOverlays.map(module => `; ${module.presentation.exportContext(markerCount(module.id))}`).join('')}${pooledModelLine ? '; Cohort mixed model mean line' : ''}${groupModelLines.length ? `; Group mixed model mean lines: ${groupModelLines.map(line => groupLabel(line.group!)).join(', ')}` : ''}`}>
+    {axis === 'event' && !anchorRule && <p className="wt-muted" data-testid="event-axis-note">“Years since event” starts at the anchor event of the before/after comparison. Switch the comparison on in this parameter’s analysis settings (Calculation settings → Before/after comparison).</p>}
+    {!visible.length ? <p>No trajectories can be plotted. Check measurements, {axis === 'event' ? 'anchor events' : 'ages'}, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-x-min={xMin} data-y-min={yMin} data-y-max={yMax} data-density={density} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${pointsAutoHidden ? '; measurement points hidden in this dense overlay' : ''}${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? fitModel === 'none' ? '; Fit model disabled' : `; ${uncertain} uncertain individual ${modelLabel} fits; ${noFit} without a fit` : ''}${excludedCount ? `; ${countLabel(excludedCount, 'measurement')} excluded from the fit (grey open circles)` : ''}${shownOverlays.map(module => `; ${module.presentation.exportContext(markerCount(module.id))}`).join('')}${pooledModelLine ? '; Cohort mixed model mean line' : ''}${groupModelLines.length ? `; Group mixed model mean lines: ${groupModelLines.map(line => groupLabel(line.group!)).join(', ')}` : ''}`}>
       <title>{parameter.label} by {axisLabel.charAt(0).toLowerCase()}{axisLabel.slice(1)}</title>
       <desc>Measurements for the selected patients. Press Enter or Space to open a trajectory. Research use only.</desc>
       <defs>
@@ -408,7 +422,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : rollingLines ? 'Dashed: Rolling OLS window lines from the prepared analyses; each line names its window.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}
     {pooledModelLine && <p className="wt-muted">Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.{axis === 'age' ? ' Age axis: mean baseline age of fitted patients plus elapsed model time.' : ''}</p>}
     {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groupModelLines.map(line => groupLabel(line.group!)).join(', ')}).{axis === 'age' ? ' Age axis: mean baseline age of each group plus elapsed model time.' : ''}</p>}
-    {excludedCount > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> Grey open circles: {countLabel(excludedCount, 'measurement')} excluded from the fit ({excludedReasons.map(exclusionReasonLabel).join('; ')}). They stay visible but do not enter the slope.</p>}
+    {excludedCount > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> Grey open circles: {countLabel(excludedCount, 'measurement')} excluded from the fit ({excludedReasons.map(exclusionReasonLabel).join('; ')}). They stay visible but do not enter the slope{excludedReasons.includes(ANCHOR_WINDOW_REASON) ? '; points in the exclusion window after the anchor event are left out of the after-anchor slope only and still enter the slope of the whole series' : ''}.</p>}
     {shownOverlays.map(module => <p key={module.id} className="wt-muted wt-plot-key">{markerCount(module.id) > 0
       ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={module.presentation.color} /></svg>{module.presentation.markerLegend}{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${module.presentation.color}26`, borderColor: `${module.presentation.color}40` }} /><span data-testid={`${module.id}-band-legend`}>{bandLegends(module)}</span>{cohortRows.length > 1 ? visible.some(p => p.row.patientId === highlight) ? ', shown for the highlighted patient' : highlight !== null ? '; the highlighted patient is not plotted in this chart' : '; windows and stage labels appear once a patient is chosen under Display → “Highlight patient”' : ''}.</>
       : module.presentation.emptyLegend}</p>)}

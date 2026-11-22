@@ -18,7 +18,9 @@ models is at the end of [Cohort mixed models](cohort-models.md#cohort-mixed-mode
   matching "chronic run-in" branch, equally unreachable.
 - Slope mode `event-driven`: splits the fitted points at event dates, fits each
   part with the global fit and reports the part with the largest absolute
-  slope.
+  slope. The before/after comparison of 2026-11-22 does not use it: it
+  reports both sides of one chosen anchor event as an additional result (see
+  [before/after comparison](anchor-comparison.md#beforeafter-comparison-at-an-anchor-event-2026-11-22)).
 - Slope mode `aki-aware`: applies AKI windows whatever the column's exclusion
   option says, and draws its line with the OLS kernel without the two-point
   case. Live AKI exclusion uses the column option "Exclude AKI windows from

@@ -909,6 +909,82 @@ Details: [first and last eligible value, sex, baseline age and group](method-alg
 [workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
 and [fit axis](method-algorithms/fit-input-presets-and-time-balancing.md#fit-axis).
 
+## Decisions of 2026-11-22 (before/after comparison and event axis, issues #64 and #70)
+
+Owner decisions of 2026-11-21 on issue #64 and on item K16 of issue #70
+(option a), implemented on 2026-11-22 after the owner's instruction of that
+day to resolve the open points. **A numeric result for a new option only**:
+no existing slope, interval, flag, endpoint, export column or golden fixture
+moved. With the comparison off (the default) every number and every existing
+sheet is as before; the cohort workbook gains the sheet `anchor_comparison`
+(empty), the column `anchor_comparison` at the end of `settings` (empty) and
+one note at the end of `about`.
+
+- **Before/after comparison at an anchor event** (#64). One anchor event per
+  patient: the first event, or the first whose title or type equals a chosen
+  value. Per column the slope before, the slope after and the difference
+  (after − before), each with n, span and 95 % interval; one export row per
+  patient × column. **Measurements on the anchor date count as before.** An
+  optional **exclusion window after the anchor**, in days per column,
+  **default 0**; the points in it are drawn as grey open circles like other
+  fit exclusions. The `event-driven` mode, which reported the segment with
+  the largest absolute slope, stays unreachable.
+- **Time axis "Years since event"** (K16, option a) for the patient charts
+  and the overlay, zero at the anchor of the column's before/after
+  comparison, so chart and numbers refer to the same day.
+
+Details of the implementation, chosen where the decisions left them open
+(the option that changes least), **not yet confirmed by the owner**:
+
+- Both sides use the points of the column's own fit: the same censoring,
+  dialysis-interval and AKI exclusions and the same time balancing, applied
+  per side, so a month or quarter that contains the anchor gives one median
+  per side. The estimator is the column's scalar one (OLS, also under
+  Rolling and Segmented OLS; Theil-Sen). Without a fit (Trend off or fit
+  model "none") only the anchor is determined.
+- The reliability rule, the rapid eGFR decline flag and the endpoints stay on
+  the column's slope of the whole series. The sides have no reliability note
+  or flag of their own; their n and span are shown.
+- The 95 % interval of the difference is the Welch interval from the two OLS
+  standard errors: half-width t(0.975, ν) · √(SE_b² + SE_a²) with the
+  Welch–Satterthwaite ν, truncated to a whole number as for the OLS interval.
+  It assumes independent slope estimates; it is empty for Theil-Sen and for a
+  side with the exact two-point line.
+- The exclusion window covers the calendar days anchor + 1 to anchor + N,
+  both included. Its points are left out of the after slope only; the
+  column's slope keeps them, and the chart legend and measurement table say
+  so.
+- Title and type are matched exactly as stored. Among events of one date the
+  first in the file is the anchor; an event with an end date anchors at its
+  start. All loaded events of the patient are candidates.
+- The setting belongs to the shared or a parameter's own analysis settings,
+  is not part of `fit_config`, does not make the preset "custom", is kept
+  when a preset is chosen and does not discard cohort models.
+- The export is a new sheet `anchor_comparison` after `import_diagnostics`,
+  with a row also for a patient without an anchor (values empty); `settings`
+  records the setting as JSON.
+- The event axis takes its anchor from the comparison only: with the
+  comparison off for a parameter, its chart draws nothing on this axis and
+  says where to switch it on. Patients without an anchor are not drawn and
+  are counted under the chart. The axis label names the rule. Mixed-model
+  reference lines are hidden on this axis. There is no days variant of the
+  event axis.
+
+The example of issue #64 (patient 2: before −17.4, after −9.6, difference
++7.8) came from the predecessor's demo data; the demo workbook of this
+repository has no event for patient 2. Recomputed example: patient 13,
+imported eGFR, General exploration, anchor of type `kidney_transplant`
+(2022-07-01): before −12.828 per year (n = 6, 882 days), after −8.005 (n = 3,
+365 days), difference +4.823 with 95 % interval [4.320, 5.326].
+
+New methodology-page text, minimal and factual, awaiting the maintainer's
+approval: one list item "Before/after comparison" in Fits → Fit pipeline, one
+sentence on the event axis in Trajectories → Overlay, and one row for
+`anchor_comparison` in Export → Workbook contents.
+
+Details: [before/after comparison](method-algorithms/anchor-comparison.md#beforeafter-comparison-at-an-anchor-event-2026-11-22)
+and [time axis "Years since event"](method-algorithms/anchor-comparison.md#time-axis-years-since-event-k16-2026-11-22).
+
 ## Approved requirements
 
 ### Observed events and recovery

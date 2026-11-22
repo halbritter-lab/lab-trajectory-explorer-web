@@ -11,6 +11,7 @@ import { loadBundledFixtureData, loadDatasetFromWorkbook, type ImportDiagnostic 
 import { sameDayUnorderedCreatinine } from '../core/domains/nephrology/aki/akiAware'
 import { exactBirthDateByPatient, patientBirthAnchor } from '../core/demographics/exactBirthDate'
 import { trajectoryFitConfig, type TrajectoryFitSettings } from './workspace-analysis'
+import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
 
 export interface WorkspaceParameter { key: string; label: string; bezeichnung: string; einheit: string | null; derived: boolean }
 export interface WorkspacePatient { id: PatientId; label: string; attributes: Record<string, string>; baselineAge: number | null; birthAnchor?: Date | null; ageEstimated?: boolean }
@@ -75,12 +76,15 @@ export function workspaceModelSpec(data: WorkspaceData, parameterKey: string, se
   return parameter ? workspaceSpecs(data, [parameterKey], { [parameterKey]: trajectoryFitConfig(settings, parameter) })[0] : undefined
 }
 
-export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>): CohortSeriesSpec[] {
+/** `anchorComparisonByParameterKey`: the before/after setting of each column
+ * that has one switched on (see WorkspaceFitSettings.anchorComparison). */
+export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>, anchorComparisonByParameterKey?: Record<string, AnchorComparisonSettings | undefined>): CohortSeriesSpec[] {
   const parameters = new Map(data.parameters.map(p => [p.key, p]))
   const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), exactBirthDateByPatient: exactBirthDateByPatient(data.patients), fitInputs: data.analysis?.fitInputs ?? Object.create(null) }
   return parameterKeys.flatMap(key => {
     const parameter = parameters.get(key)
-    return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], context)] : []
+    const anchorComparison = anchorComparisonByParameterKey?.[key]
+    return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], anchorComparison ? { ...context, anchorComparison } : context)] : []
   })
 }
 

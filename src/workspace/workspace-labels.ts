@@ -1,5 +1,6 @@
 import { exclusionReasonLabel as moduleExclusionReasonLabel } from '../core/analysis/registry'
 import { CENSORED_VALUE_REASON } from '../core/measurements/censored'
+import { ANCHOR_WINDOW_REASON } from '../core/cohort/anchorComparison'
 
 /** Presentation only: stored sex codes and grouping identities remain unchanged. */
 export function sexLabel(value?: string | null): string {
@@ -11,6 +12,7 @@ export function sexLabel(value?: string | null): string {
  * excludes it names it. */
 export function exclusionReasonLabel(reason: string): string {
   if (reason === CENSORED_VALUE_REASON) return 'censored value (limit, not exact)'
+  if (reason === ANCHOR_WINDOW_REASON) return 'exclusion window after the anchor event, after-anchor slope only'
   return moduleExclusionReasonLabel(reason)
 }
 
