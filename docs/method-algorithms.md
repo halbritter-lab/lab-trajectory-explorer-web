@@ -78,6 +78,17 @@ Contents:
 18. [Cohort-model projections](method-algorithms/cohort-models.md#cohort-model-projections)
 19. [Fit code not reachable from the interface](method-algorithms/unreachable-code.md#fit-code-not-reachable-from-the-interface)
 
+## Rules of this tool that are not published standards
+
+Rules that decide a mark or a classification and that no guideline or
+publication defines in this form. A number taken from a source is named with
+it; the way the tool applies it is its own.
+
+| Rule | What is from a source, and what is this tool's | Section |
+| --- | --- | --- |
+| Rapid eGFR decline flag, two levels | The default threshold of 5 mL/min/1.73 m² per year goes back to the KDIGO 2012 CKD guideline; KDIGO 2024 gives no numeric threshold for rapid progression. The threshold is a configurable convention. Applying it to one fitted slope without testing that the decline is sustained, and the two levels "rapid ↓" (whole 95 % interval below −threshold) and "rapid ↓?" (only the slope below it), are this tool's rules (decided 2026-11-21). | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
+| Slope reliability rule | Fewer than three fitted dates or under 365 days of fitted span: a clinical rule of thumb, not a published cut-off. | [Reliability rule](method-algorithms/slope-quality.md#reliability-rule) |
+
 ## Open decisions
 
 Each entry is described in full in the section named, with an example where
@@ -97,7 +108,9 @@ yet state the rule for several creatinine values on one day decided that day;
 the owner resolved it on 2026-11-22 and the drafted wording (G1) is applied.
 OD-35 was added on 2026-11-22 with the review of the AKI recovery
 rule and resolved on the second review of the same day, on the owner's
-instruction of 2026-11-22 to resolve the open points.
+instruction of 2026-11-22 to resolve the open points. OD-37 was added on
+2026-11-22 with the two levels of the rapid-decline flag (issue #72), whose
+decision does not say what a slope without a 95 % interval gets.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -105,6 +118,7 @@ instruction of 2026-11-22 to resolve the open points.
 | OD-21 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The exported model `tolerance` is used by no fit. (The pinning of R package versions, the other half of this entry, was settled on 2026-11-22.) |
 | OD-22 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | Numeric or categorical factor type is assigned automatically and cannot be changed. |
 | OD-29 | [Cohort mixed models](method-algorithms/cohort-models.md#cohort-mixed-models) | The default reference level of a factor is taken from all patients of the dataset and can be absent from the fitted series or group, which then cannot be fitted until another reference is chosen. |
+| OD-37 | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) | A slope below the negative threshold without a 95 % interval (missing bounds, or Theil–Sen bounds on fewer than five fitted dates) is marked "rapid ↓?" (`possible`), the conservative reading chosen during implementation; the decision of 2026-11-21 does not cover the case. |
 
 ### Resolved decisions
 
@@ -124,7 +138,7 @@ methodology page. The numbers are not reused.
 | OD-7 | Dialysis intent is matched without regard to case. | [Clinical events](method-algorithms/clinical-events.md#clinical-events) |
 | OD-8 | Text with three digits after a point is read as a decimal and reported. | [Import and value interpretation](method-algorithms/import-and-values.md#import-and-value-interpretation) |
 | OD-9 | Fitted points on one date get their own "no slope" note. | [Reason codes and the slope reliability rule](method-algorithms/slope-quality.md#reason-codes-and-the-slope-reliability-rule) |
-| OD-10 | The rapid-decline flag stayed without a reliability gate (2026-10-07). Replaced on 2026-11-17: the flag is not set on a slope that meets the reliability rule. | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
+| OD-10 | The rapid-decline flag stayed without a reliability gate (2026-10-07). Replaced on 2026-11-17: the flag is not set on a slope that meets the reliability rule. Since 2026-11-21 the flag has two levels by the slope's 95 % interval; the gate stays. | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
 | OD-12 | Both creatinine conversion constants stay; the methodology page names them. | [eGFR derivation](method-algorithms/egfr.md#egfr-derivation) |
 | OD-13 | Creatinine of zero or less takes no part in AKI detection. | [KDIGO creatinine AKI detection](method-algorithms/aki.md#kdigo-creatinine-aki-detection) |
 | OD-14 | Creatinine measured under dialysis is left out of AKI detection. | [KDIGO creatinine AKI detection](method-algorithms/aki.md#kdigo-creatinine-aki-detection) |

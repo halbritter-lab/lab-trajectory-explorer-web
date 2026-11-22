@@ -5,6 +5,23 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (rapid-decline flag, decided 2026-11-21, issue #72)
+
+- **The rapid eGFR decline flag has two levels.** "rapid ↓" now needs the
+  whole 95 % interval of the slope below the negative threshold (upper bound
+  below −5 per year by default); a slope below it whose interval reaches −5
+  or above is marked "rapid ↓?" (possible rapid decline), and so is one
+  without a 95 % interval, such as Theil–Sen on fewer than five dates
+  (Open decision OD-37). `rapid_progression` reads `yes`, `possible` or
+  blank; *Show only* gains *Possible rapid decline*. The reliability gate of
+  2026-11-17 and `unstable_slope` are unchanged, and no slope, interval or
+  golden fixture moved. Demo data (eGFR, General exploration): patients 4, 9,
+  20, 21, 24, 25, 26 and, in the computed column, 2 stay "rapid ↓"; patients
+  6, 7, 17, 19, 22 and 27 change from `yes` to `possible`. The method
+  reference names KDIGO 2012 as the source of the default threshold (KDIGO
+  2024 gives none) and lists the flag under the rules of this tool that are
+  not published standards.
+
 ### Changed (open points of the persona review, decided 2026-11-22)
 
 - Review of the combined branch (2026-11-22): a before/after side fitted
