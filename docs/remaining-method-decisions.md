@@ -1013,7 +1013,9 @@ Resolved with a change:
   with three decimals "1.200 [1.050, 1.350]". Details:
   [displayed decimals](method-algorithms/slope-quality.md#table-order-mark-filters-and-displayed-decimals).
 - **The cohort workbook records the grouping attribute** (K40). The
-  `settings` sheet gains the last column `group_by`: the attribute the
+  `settings` sheet gains the column `group_by` after `scope` (the last one
+  until `anchor_comparison` of the before/after comparison followed it the
+  same day): the attribute the
   Trajectories table was grouped by, empty without grouping. Existing
   columns keep their positions. Detail of the implementation: the column is
   filled on every row of the sheet (one per parameter), also in the export

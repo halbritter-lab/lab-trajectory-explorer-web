@@ -9,8 +9,9 @@ The [workspace completion backlog](docs/workspace-completion-backlog.md) tracks 
 All parsing and computation runs in the browser. Import, trajectories and
 exports make no network requests beyond loading the app from the address it
 is served from. The first cohort model fit of a session downloads the R
-runtime and R packages (see [Run a local copy](#run-a-local-copy)); these are
-downloads only, and no measurements are sent.
+runtime and R packages from that same address (see
+[R runtime and R packages](#r-runtime-and-r-packages)); these are downloads
+only, and no measurements are sent.
 
 ## Develop
 
