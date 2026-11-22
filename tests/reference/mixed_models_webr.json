@@ -1,0 +1,195 @@
+{
+ "about": "Browser (webR) fits of tests/reference/inputs/mixed_models.json with the production worker, written by scripts/reference/mixed_model_inputs.mjs --webr. Research use only.",
+ "generated": "2026-11-22",
+ "results": [
+  {
+   "name": "random_slope_no_factors",
+   "converged": true,
+   "singular": false,
+   "warnings": [],
+   "fixedEffectTerms": [
+    {
+     "term": "(Intercept)",
+     "estimate": 64.6462044470534,
+     "standardError": 1.4525012721065,
+     "confidenceInterval": [
+      61.7993542662261,
+      67.4930546278808
+     ]
+    },
+    {
+     "term": "time_since_baseline",
+     "estimate": -2.53052648868442,
+     "standardError": 0.228898980262211,
+     "confidenceInterval": [
+      -2.9791602460963,
+      -2.08189273127254
+     ]
+    }
+   ],
+   "randomEffects": {
+    "interceptSd": 6.09463601906211,
+    "slopeSd": 0.902341122755216,
+    "interceptSlopeCorrelation": -0.197466955512899
+   },
+   "residualSd": 1.62777670521548,
+   "nObservations": 194,
+   "optimizer": "nloptwrap",
+   "runtimeVersion": "4.6.0",
+   "packageVersions": {
+    "lme4": "2.0.6",
+    "Matrix": "1.7.6",
+    "jsonlite": "2.0.0",
+    "MASS": "7.3.66",
+    "Rcpp": "1.1.2",
+    "Rdpack": "2.6.6",
+    "boot": "1.3.32",
+    "lattice": "0.23.1",
+    "minqa": "1.2.8",
+    "nlme": "3.1.171",
+    "nloptr": "2.2.1.9000",
+    "rbibutils": "2.4.1",
+    "reformulas": "0.4.4",
+    "webr": "0.6.0"
+   }
+  },
+  {
+   "name": "categorical_and_numeric_factor",
+   "converged": true,
+   "singular": false,
+   "warnings": [],
+   "fixedEffectTerms": [
+    {
+     "term": "(Intercept)",
+     "estimate": 60.3735008404931,
+     "standardError": 1.36342111653531,
+     "confidenceInterval": [
+      57.7012445563225,
+      63.0457571246637
+     ]
+    },
+    {
+     "term": "time_since_baseline",
+     "estimate": -2.24536958918281,
+     "standardError": 0.139090169458078,
+     "confidenceInterval": [
+      -2.51798131192421,
+      -1.9727578664414
+     ]
+    },
+    {
+     "term": "factor_0_B",
+     "estimate": 8.28704091000263,
+     "standardError": 2.36151206772839,
+     "confidenceInterval": [
+      3.65856230819828,
+      12.915519511807
+     ]
+    },
+    {
+     "term": "factor_1_",
+     "estimate": 0.056204964314395,
+     "standardError": 0.198225626052751,
+     "confidenceInterval": [
+      -0.332310123561901,
+      0.444720052190691
+     ]
+    },
+    {
+     "term": "time_since_baseline:factor_0_B",
+     "estimate": -1.05530806418146,
+     "standardError": 0.240900296584907,
+     "confidenceInterval": [
+      -1.52746396935289,
+      -0.583152159010021
+     ]
+    }
+   ],
+   "randomEffects": {
+    "interceptSd": 5.36112716041091,
+    "slopeSd": 0.417366752937798,
+    "interceptSlopeCorrelation": 0.00441727476044128
+   },
+   "residualSd": 1.83086254931105,
+   "nObservations": 264,
+   "optimizer": "nloptwrap",
+   "runtimeVersion": "4.6.0",
+   "packageVersions": {
+    "lme4": "2.0.6",
+    "Matrix": "1.7.6",
+    "jsonlite": "2.0.0",
+    "MASS": "7.3.66",
+    "Rcpp": "1.1.2",
+    "Rdpack": "2.6.6",
+    "boot": "1.3.32",
+    "lattice": "0.23.1",
+    "minqa": "1.2.8",
+    "nlme": "3.1.171",
+    "nloptr": "2.2.1.9000",
+    "rbibutils": "2.4.1",
+    "reformulas": "0.4.4",
+    "webr": "0.6.0"
+   }
+  },
+  {
+   "name": "random_intercept_baseline_age",
+   "converged": true,
+   "singular": false,
+   "warnings": [],
+   "fixedEffectTerms": [
+    {
+     "term": "(Intercept)",
+     "estimate": 64.8395453477363,
+     "standardError": 1.08494668334791,
+     "confidenceInterval": [
+      62.7130889232282,
+      66.9660017722444
+     ]
+    },
+    {
+     "term": "time_since_baseline",
+     "estimate": -2.71965869549548,
+     "standardError": 0.100495598372048,
+     "confidenceInterval": [
+      -2.91662644890949,
+      -2.52269094208146
+     ]
+    },
+    {
+     "term": "baseline_age_centered",
+     "estimate": -0.26602387983698,
+     "standardError": 0.10701963981561,
+     "confidenceInterval": [
+      -0.475778519514024,
+      -0.0562692401599364
+     ]
+    }
+   ],
+   "randomEffects": {
+    "interceptSd": 4.04926195339934,
+    "slopeSd": null,
+    "interceptSlopeCorrelation": null
+   },
+   "residualSd": 2.0907273651286,
+   "nObservations": 162,
+   "optimizer": "nloptwrap",
+   "runtimeVersion": "4.6.0",
+   "packageVersions": {
+    "lme4": "2.0.6",
+    "Matrix": "1.7.6",
+    "jsonlite": "2.0.0",
+    "MASS": "7.3.66",
+    "Rcpp": "1.1.2",
+    "Rdpack": "2.6.6",
+    "boot": "1.3.32",
+    "lattice": "0.23.1",
+    "minqa": "1.2.8",
+    "nlme": "3.1.171",
+    "nloptr": "2.2.1.9000",
+    "rbibutils": "2.4.1",
+    "reformulas": "0.4.4",
+    "webr": "0.6.0"
+   }
+  }
+ ]
+}

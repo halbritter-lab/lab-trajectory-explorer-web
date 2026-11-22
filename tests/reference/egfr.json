@@ -1,0 +1,4499 @@
+{
+ "about": "eGFR equations from the R packages egfr (full precision) and kidney.epi (rounded to two decimals by the package; its bedside Schwartz is equation_type 'classic', 0.413 x height / creatinine) on a grid of creatinine (mg/dl), age (whole years) and sex, for comparison with src/core/domains/nephrology/egfr/formulas.ts. CKD-EPI 2009 and MDRD without the race coefficient; MDRD with the IDMS-traceable constant 175. Research use only.",
+ "generatedBy": "scripts/reference/generate.R",
+ "generated": "2026-11-22",
+ "environment": {
+  "R": "4.6.0",
+  "platform": "x86_64-pc-linux-gnu",
+  "packages": {
+   "egfr": "2.0.0",
+   "kidney.epi": "1.4.0"
+  }
+ },
+ "cases": {
+  "adults": [
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 18,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 176.913439773827,
+     "ckdEpi2009": 195.165218103226,
+     "mdrd4": 390.498888631936,
+     "ekfc": 148.216042208298
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 148.22
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 18,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 151.622098908843,
+     "ckdEpi2009": 158.205867027617,
+     "mdrd4": 216.574013646183,
+     "ekfc": 125.736079515041
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 125.74
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 18,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 136.972012726598,
+     "ckdEpi2009": 137.772951544422,
+     "mdrd4": 146.884034188585,
+     "ekfc": 112.825349449522
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 112.83
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 18,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 126.960962961303,
+     "ckdEpi2009": 124.252628727414,
+     "mdrd4": 109.90611948261,
+     "ekfc": 96.3188256262976
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 96.32
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 18,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 111.882257070599,
+     "ckdEpi2009": 109.391802756672,
+     "mdrd4": 97.3235025276171,
+     "ekfc": 85.4896815764495
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 85.49
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 18,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 81.6637269583511,
+     "ckdEpi2009": 79.6576090081477,
+     "mdrd4": 71.8997038551588,
+     "ekfc": 63.5228280386159
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 63.52
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 18,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 48.6995809578261,
+     "ckdEpi2009": 47.3194311070166,
+     "mdrd4": 43.7349984182187,
+     "ekfc": 39.0074665166184
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 39.01
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 18,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 18.403744807058,
+     "ckdEpi2009": 17.7521455625532,
+     "mdrd4": 17.155780825542,
+     "ekfc": 15.576760191568
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 15.58
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 25,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 169.376741488344,
+     "ckdEpi2009": 185.800620799139,
+     "mdrd4": 365.307256342378,
+     "ekfc": 153.641014404037
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 169.38,
+     "ckdEpi2009": 185.8,
+     "mdrd4": 365.31,
+     "ekfc": 153.64
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 25,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 145.162838298974,
+     "ckdEpi2009": 150.614687358123,
+     "mdrd4": 202.602519554709,
+     "ekfc": 130.338244875871
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 145.16,
+     "ckdEpi2009": 150.61,
+     "mdrd4": 202.6,
+     "ekfc": 130.34
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 25,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 131.13686117002,
+     "ckdEpi2009": 131.162202850838,
+     "mdrd4": 137.408338645766,
+     "ekfc": 116.954959002029
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 131.14,
+     "ckdEpi2009": 131.16,
+     "mdrd4": 137.41,
+     "ekfc": 116.95
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 25,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 121.552292635877,
+     "ckdEpi2009": 118.290624619741,
+     "mdrd4": 102.815921202974,
+     "ekfc": 107.863404014923
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 121.55,
+     "ckdEpi2009": 118.29,
+     "mdrd4": 102.82,
+     "ekfc": 107.86
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 25,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 107.115955448077,
+     "ckdEpi2009": 104.14286449226,
+     "mdrd4": 91.0450265570531,
+     "ekfc": 97.0058575189443
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 107.12,
+     "ckdEpi2009": 104.14,
+     "mdrd4": 91.05,
+     "ekfc": 97.01
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 25,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 78.1847664467021,
+     "ckdEpi2009": 75.8354042227995,
+     "mdrd4": 67.2613528790707,
+     "ekfc": 72.0798848736371
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 78.18,
+     "ckdEpi2009": 75.84,
+     "mdrd4": 67.26,
+     "ekfc": 72.08
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 25,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 46.6249276766632,
+     "ckdEpi2009": 45.0489065674375,
+     "mdrd4": 40.9135921852944,
+     "ekfc": 44.262098879176
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 46.62,
+     "ckdEpi2009": 45.05,
+     "mdrd4": 40.91,
+     "ekfc": 44.26
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 25,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 17.6197259551768,
+     "ckdEpi2009": 16.9003457588151,
+     "mdrd4": 16.0490372859858,
+     "ekfc": 17.6750802188772
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 17.62,
+     "ckdEpi2009": 16.9,
+     "mdrd4": 16.05,
+     "ekfc": 17.68
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 26,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 168.326605691116,
+     "ckdEpi2009": 184.500016453545,
+     "mdrd4": 362.410299093536,
+     "ekfc": 152.838499731312
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 168.33,
+     "ckdEpi2009": 184.5,
+     "mdrd4": 362.41,
+     "ekfc": 153.11
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 26,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 144.26282870152,
+     "ckdEpi2009": 149.560384546616,
+     "mdrd4": 200.995842360464,
+     "ekfc": 129.65744779616
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 144.26,
+     "ckdEpi2009": 149.56,
+     "mdrd4": 201,
+     "ekfc": 129.89
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 26,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 130.323812630766,
+     "ckdEpi2009": 130.244067430882,
+     "mdrd4": 136.318663924609,
+     "ekfc": 116.344066975502
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 130.32,
+     "ckdEpi2009": 130.24,
+     "mdrd4": 136.32,
+     "ekfc": 116.55
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 26,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 120.798668421535,
+     "ckdEpi2009": 117.462590247402,
+     "mdrd4": 102.00057104758,
+     "ekfc": 107.3
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 120.8,
+     "ckdEpi2009": 117.46,
+     "mdrd4": 102,
+     "ekfc": 107.49
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 26,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 106.451836524299,
+     "ckdEpi2009": 103.413864440815,
+     "mdrd4": 90.3230218744845,
+     "ekfc": 95.2362404079036
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 106.45,
+     "ckdEpi2009": 103.41,
+     "mdrd4": 90.32,
+     "ekfc": 95.83
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 26,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 77.7000208947325,
+     "ckdEpi2009": 75.3045563932399,
+     "mdrd4": 66.7279573321525,
+     "ekfc": 70.7649766722502
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 77.7,
+     "ckdEpi2009": 75.3,
+     "mdrd4": 66.73,
+     "ekfc": 71.21
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 26,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 46.3358531250679,
+     "ckdEpi2009": 44.7335642214655,
+     "mdrd4": 40.5891394803466,
+     "ekfc": 43.4546531274401
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 46.34,
+     "ckdEpi2009": 44.73,
+     "mdrd4": 40.59,
+     "ekfc": 43.73
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 26,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 17.5104836542547,
+     "ckdEpi2009": 16.7820433385034,
+     "mdrd4": 15.9217653139804,
+     "ekfc": 17.3526447990549
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 17.51,
+     "ckdEpi2009": 16.78,
+     "mdrd4": 15.92,
+     "ekfc": 17.46
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 40,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 154.290312864553,
+     "ckdEpi2009": 167.219102502614,
+     "mdrd4": 332.064112738286,
+     "ekfc": 152.838499731312
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 154.29,
+     "ckdEpi2009": 167.22,
+     "mdrd4": 332.06,
+     "ekfc": 153.11
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 40,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 132.233148073618,
+     "ckdEpi2009": 135.552038176257,
+     "mdrd4": 184.165588628279,
+     "ekfc": 129.65744779616
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 132.23,
+     "ckdEpi2009": 135.55,
+     "mdrd4": 184.17,
+     "ekfc": 129.89
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 40,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 119.456468227016,
+     "ckdEpi2009": 118.044954578992,
+     "mdrd4": 124.904110890378,
+     "ekfc": 116.344066975502
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 119.46,
+     "ckdEpi2009": 118.04,
+     "mdrd4": 124.9,
+     "ekfc": 116.55
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 40,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 110.725599603555,
+     "ckdEpi2009": 106.460635052293,
+     "mdrd4": 93.4596207901125,
+     "ekfc": 107.3
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 110.73,
+     "ckdEpi2009": 106.46,
+     "mdrd4": 93.46,
+     "ekfc": 107.49
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 40,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 97.5751105709322,
+     "ckdEpi2009": 93.7277618209542,
+     "mdrd4": 82.7598834625019,
+     "ekfc": 95.2362404079036
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 97.58,
+     "ckdEpi2009": 93.73,
+     "mdrd4": 82.76,
+     "ekfc": 95.83
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 40,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 71.2208297922286,
+     "ckdEpi2009": 68.2512694388061,
+     "mdrd4": 61.1405360216338,
+     "ekfc": 70.7649766722502
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 71.22,
+     "ckdEpi2009": 68.25,
+     "mdrd4": 61.14,
+     "ekfc": 71.21
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 40,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 42.4720337356033,
+     "ckdEpi2009": 40.5436628388592,
+     "mdrd4": 37.1904347698275,
+     "ekfc": 43.4546531274401
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 42.47,
+     "ckdEpi2009": 40.54,
+     "mdrd4": 37.19,
+     "ekfc": 43.73
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 40,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 16.0503325682351,
+     "ckdEpi2009": 15.2101787260875,
+     "mdrd4": 14.5885668410587,
+     "ekfc": 17.3526447990549
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 16.05,
+     "ckdEpi2009": 15.21,
+     "mdrd4": 14.59,
+     "ekfc": 17.46
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 41,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 153.333712924793,
+     "ckdEpi2009": 166.048568785096,
+     "mdrd4": 330.403772835301,
+     "ekfc": 151.310114733999
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 153.33,
+     "ckdEpi2009": 166.05,
+     "mdrd4": 330.4,
+     "ekfc": 151.58
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 41,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 131.413302555562,
+     "ckdEpi2009": 134.603173909023,
+     "mdrd4": 183.244749959401,
+     "ekfc": 128.360873318198
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 131.41,
+     "ckdEpi2009": 134.6,
+     "mdrd4": 183.24,
+     "ekfc": 128.59
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 41,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 118.715838124009,
+     "ckdEpi2009": 117.218639896939,
+     "mdrd4": 124.279583061556,
+     "ekfc": 115.180626305747
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 118.72,
+     "ckdEpi2009": 117.22,
+     "mdrd4": 124.28,
+     "ekfc": 115.39
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 41,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 110.039100886013,
+     "ckdEpi2009": 105.715410606927,
+     "mdrd4": 92.9923172431075,
+     "ekfc": 106.227
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 110.04,
+     "ckdEpi2009": 105.72,
+     "mdrd4": 92.99,
+     "ekfc": 106.42
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 41,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 96.9701448853924,
+     "ckdEpi2009": 93.0716674882076,
+     "mdrd4": 82.3460792252838,
+     "ekfc": 94.2838780038246
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 96.97,
+     "ckdEpi2009": 93.07,
+     "mdrd4": 82.35,
+     "ekfc": 94.87
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 41,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 70.7792606475168,
+     "ckdEpi2009": 67.7735105527344,
+     "mdrd4": 60.834829780723,
+     "ekfc": 70.0573269055277
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 70.78,
+     "ckdEpi2009": 67.77,
+     "mdrd4": 60.83,
+     "ekfc": 70.5
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 41,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 42.2087071264426,
+     "ckdEpi2009": 40.2598571989872,
+     "mdrd4": 37.0044804300209,
+     "ekfc": 43.0201065961657
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 42.21,
+     "ckdEpi2009": 40.26,
+     "mdrd4": 37,
+     "ekfc": 43.29
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 41,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 15.9508205063121,
+     "ckdEpi2009": 15.1037074750049,
+     "mdrd4": 14.5156231572205,
+     "ekfc": 17.1791183510643
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 15.95,
+     "ckdEpi2009": 15.1,
+     "mdrd4": 14.52,
+     "ekfc": 17.29
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 50,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 144.986839768328,
+     "ckdEpi2009": 155.875684319615,
+     "mdrd4": 317.357824126257,
+     "ekfc": 138.224399528236
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 144.99,
+     "ckdEpi2009": 155.88,
+     "mdrd4": 317.36,
+     "ekfc": 138.47
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 50,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 124.259688737827,
+     "ckdEpi2009": 126.356776202123,
+     "mdrd4": 176.00935555498,
+     "ekfc": 117.259871678237
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 124.26,
+     "ckdEpi2009": 126.36,
+     "mdrd4": 176.01,
+     "ekfc": 117.47
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 50,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 112.253423410484,
+     "ckdEpi2009": 110.037297175367,
+     "mdrd4": 119.372420373039,
+     "ekfc": 105.219488706267
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 112.25,
+     "ckdEpi2009": 110.04,
+     "mdrd4": 119.37,
+     "ekfc": 105.41
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 50,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 104.049012993225,
+     "ckdEpi2009": 99.2388076094211,
+     "mdrd4": 89.3205280541459,
+     "ekfc": 97.0401966484447
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 104.05,
+     "ckdEpi2009": 99.24,
+     "mdrd4": 89.32,
+     "ekfc": 97.21
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 50,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 91.6914786098333,
+     "ckdEpi2009": 87.3696772374361,
+     "mdrd4": 79.0946553182708,
+     "ekfc": 86.1299487161372
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 91.69,
+     "ckdEpi2009": 87.37,
+     "mdrd4": 79.09,
+     "ekfc": 86.67
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 50,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 66.9263212027977,
+     "ckdEpi2009": 63.6213995305352,
+     "mdrd4": 58.4327746763511,
+     "ekfc": 63.9985764407993
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 66.93,
+     "ckdEpi2009": 63.62,
+     "mdrd4": 58.43,
+     "ekfc": 64.4
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 50,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 39.9110341766224,
+     "ckdEpi2009": 37.793356711337,
+     "mdrd4": 35.5433634774141,
+     "ekfc": 39.2996093641821
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 39.91,
+     "ckdEpi2009": 37.79,
+     "mdrd4": 35.54,
+     "ekfc": 39.55
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 50,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 15.0825217286452,
+     "ckdEpi2009": 14.1783862134739,
+     "mdrd4": 13.9424757213911,
+     "ekfc": 15.69342091026
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 15.08,
+     "ckdEpi2009": 14.18,
+     "mdrd4": 13.94,
+     "ekfc": 15.79
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 70,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 128.029023179223,
+     "ckdEpi2009": 135.445113987023,
+     "mdrd4": 296.404790620814,
+     "ekfc": 113.054695319356
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 128.03,
+     "ckdEpi2009": 135.45,
+     "mdrd4": 296.4,
+     "ekfc": 113.26
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 70,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 109.726142007638,
+     "ckdEpi2009": 109.795238625141,
+     "mdrd4": 164.388624494171,
+     "ekfc": 95.907662547391
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 109.73,
+     "ckdEpi2009": 109.8,
+     "mdrd4": 164.39,
+     "ekfc": 96.08
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 70,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 99.1241423754892,
+     "ckdEpi2009": 95.6147478921826,
+     "mdrd4": 111.491050721642,
+     "ekfc": 86.0597497832896
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 99.12,
+     "ckdEpi2009": 95.61,
+     "mdrd4": 111.49,
+     "ekfc": 86.21
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 70,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 91.8793286174852,
+     "ckdEpi2009": 86.2316125011091,
+     "mdrd4": 83.4232856521506,
+     "ekfc": 79.3698500645625
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 91.88,
+     "ckdEpi2009": 86.23,
+     "mdrd4": 83.42,
+     "ekfc": 79.51
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 70,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 80.967144735573,
+     "ckdEpi2009": 75.9181648124753,
+     "mdrd4": 73.8725595103357,
+     "ekfc": 70.4462825898223
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 80.97,
+     "ckdEpi2009": 75.92,
+     "mdrd4": 73.87,
+     "ekfc": 70.89
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 70,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 59.0985467526885,
+     "ckdEpi2009": 55.2825653920345,
+     "mdrd4": 54.5748458889314,
+     "ekfc": 52.3448796672764
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 59.1,
+     "ckdEpi2009": 55.28,
+     "mdrd4": 54.57,
+     "ekfc": 52.67
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 70,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 35.242996729016,
+     "ckdEpi2009": 32.8397949305753,
+     "mdrd4": 33.1966707878963,
+     "ekfc": 32.1434231438257
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 35.24,
+     "ckdEpi2009": 32.84,
+     "mdrd4": 33.2,
+     "ekfc": 32.34
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 70,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 13.3184537788627,
+     "ckdEpi2009": 12.3200301908432,
+     "mdrd4": 13.0219464678791,
+     "ekfc": 12.8357578371351
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 13.32,
+     "ckdEpi2009": 12.32,
+     "mdrd4": 13.02,
+     "ekfc": 12.92
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 90,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 113.054611042061,
+     "ckdEpi2009": 117.692371218986,
+     "mdrd4": 281.662410250614,
+     "ekfc": 92.4682196296424
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 113.05,
+     "ckdEpi2009": 117.69,
+     "mdrd4": 281.66,
+     "ekfc": 92.63
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 90,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 96.8924545214575,
+     "ckdEpi2009": 95.4044158697765,
+     "mdrd4": 156.212374624014,
+     "ekfc": 78.4435425662452
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 96.89,
+     "ckdEpi2009": 95.4,
+     "mdrd4": 156.21,
+     "ekfc": 78.58
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 90,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 87.5304761597014,
+     "ckdEpi2009": 83.0825569980669,
+     "mdrd4": 105.945784485664,
+     "ekfc": 70.3888663956344
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 87.53,
+     "ckdEpi2009": 83.08,
+     "mdrd4": 105.95,
+     "ekfc": 70.51
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 90,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 81.1330236044574,
+     "ckdEpi2009": 74.9292658151157,
+     "mdrd4": 79.2740348716891,
+     "ekfc": 64.9171510038577
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 81.13,
+     "ckdEpi2009": 74.93,
+     "mdrd4": 79.27,
+     "ekfc": 65.03
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 90,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 71.497140476129,
+     "ckdEpi2009": 65.9675980355413,
+     "mdrd4": 70.1983362667078,
+     "ekfc": 57.6185032581507
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 71.5,
+     "ckdEpi2009": 65.97,
+     "mdrd4": 70.2,
+     "ekfc": 57.98
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 90,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 52.1863172143654,
+     "ckdEpi2009": 48.0366992690528,
+     "mdrd4": 51.8604392322287,
+     "ekfc": 42.8132402275576
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 52.19,
+     "ckdEpi2009": 48.04,
+     "mdrd4": 51.86,
+     "ekfc": 43.08
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 90,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 31.1209379577781,
+     "ckdEpi2009": 28.5354947251545,
+     "mdrd4": 31.5455572996343,
+     "ekfc": 26.2903287874584
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 31.12,
+     "ckdEpi2009": 28.54,
+     "mdrd4": 31.55,
+     "ekfc": 26.45
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 90,
+    "sex": "m",
+    "egfr": {
+     "ckdEpi2021": 11.7607131122386,
+     "ckdEpi2009": 10.7052482291001,
+     "mdrd4": 12.3742697296328,
+     "ekfc": 10.4984553843108
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 11.76,
+     "ckdEpi2009": 10.71,
+     "mdrd4": 12.37,
+     "ekfc": 10.56
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 18,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 157.591622008996,
+     "ckdEpi2009": 167.154366490143,
+     "mdrd4": 289.750175364897,
+     "ekfc": 139.390649365868
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 139.39
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 18,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 139.337359704765,
+     "ckdEpi2009": 141.295876332577,
+     "mdrd4": 160.697918125468,
+     "ekfc": 118.249236123098
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 118.25
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 18,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 128.484494516839,
+     "ckdEpi2009": 126.489176044507,
+     "mdrd4": 108.98795336793,
+     "ekfc": 103.165199069984
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 103.17
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 18,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 95.0336384505447,
+     "ckdEpi2009": 93.346427177572,
+     "mdrd4": 81.5503406560969,
+     "ekfc": 77.6214374664517
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 77.62
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 18,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 83.7468283122504,
+     "ckdEpi2009": 82.1820355386662,
+     "mdrd4": 72.2140388754919,
+     "ekfc": 68.8944443556575
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 68.89
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 18,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 61.1274593486612,
+     "ckdEpi2009": 59.8438300627922,
+     "mdrd4": 53.3495802605278,
+     "ekfc": 51.1917913474369
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 51.19
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 18,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 36.4529242807467,
+     "ckdEpi2009": 35.5493471257298,
+     "mdrd4": 32.4513688263183,
+     "ekfc": 31.4353461356751
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 31.44
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 18,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 13.7756897028507,
+     "ckdEpi2009": 13.3365336409573,
+     "mdrd4": 12.7295893725522,
+     "ekfc": 12.5530031048219
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": null,
+     "ckdEpi2009": null,
+     "mdrd4": null,
+     "ekfc": 12.55
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 25,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 150.87805344733,
+     "ckdEpi2009": 159.133811675033,
+     "mdrd4": 271.057984206045,
+     "ekfc": 141.360628051498
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 150.88,
+     "ckdEpi2009": 159.65,
+     "mdrd4": 271.06,
+     "ekfc": 141.36
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 25,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 133.40144188341,
+     "ckdEpi2009": 134.516087416077,
+     "mdrd4": 150.331069509594,
+     "ekfc": 119.920427668687
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 133.4,
+     "ckdEpi2009": 134.95,
+     "mdrd4": 150.33,
+     "ekfc": 119.92
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 25,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 123.010920147508,
+     "ckdEpi2009": 120.419855862896,
+     "mdrd4": 101.956987275158,
+     "ekfc": 107.606855645895
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 123.01,
+     "ckdEpi2009": 120.81,
+     "mdrd4": 101.96,
+     "ekfc": 107.61
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 25,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 90.9851056715253,
+     "ckdEpi2009": 88.8673929070759,
+     "mdrd4": 76.2894135326067,
+     "ekfc": 81.5470411694262
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 90.99,
+     "ckdEpi2009": 89.15,
+     "mdrd4": 76.29,
+     "ekfc": 81.55
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 25,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 80.179125495763,
+     "ckdEpi2009": 78.2387013937333,
+     "mdrd4": 67.5554097053334,
+     "ekfc": 72.3786916809384
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 80.18,
+     "ckdEpi2009": 78.49,
+     "mdrd4": 67.56,
+     "ekfc": 72.38
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 25,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 58.5233653993379,
+     "ckdEpi2009": 56.9723482735738,
+     "mdrd4": 49.9079238362705,
+     "ekfc": 53.7807499165468
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 58.52,
+     "ckdEpi2009": 57.16,
+     "mdrd4": 49.91,
+     "ekfc": 53.78
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 25,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 34.8999914324635,
+     "ckdEpi2009": 33.8435855997208,
+     "mdrd4": 30.3578854014885,
+     "ekfc": 33.0251480669757
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 34.9,
+     "ckdEpi2009": 33.95,
+     "mdrd4": 30.36,
+     "ekfc": 33.03
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 25,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 13.1888308576575,
+     "ckdEpi2009": 12.6966077966201,
+     "mdrd4": 11.9083856662014,
+     "ekfc": 13.1878549844078
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 13.19,
+     "ckdEpi2009": 12.74,
+     "mdrd4": 11.91,
+     "ekfc": 13.19
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 26,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 149.942609515957,
+     "ckdEpi2009": 158.019874993307,
+     "mdrd4": 268.908441927404,
+     "ekfc": 140.957518913474
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 149.94,
+     "ckdEpi2009": 158.53,
+     "mdrd4": 268.91,
+     "ekfc": 141.05
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 26,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 132.574352943733,
+     "ckdEpi2009": 133.574474804164,
+     "mdrd4": 149.138915031464,
+     "ekfc": 119.578458190373
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 132.57,
+     "ckdEpi2009": 134,
+     "mdrd4": 149.14,
+     "ekfc": 119.65
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 26,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 122.248252442593,
+     "ckdEpi2009": 119.576916871856,
+     "mdrd4": 101.14844863206,
+     "ekfc": 107.3
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 122.25,
+     "ckdEpi2009": 119.96,
+     "mdrd4": 101.15,
+     "ekfc": 107.37
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 26,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 90.4209980163618,
+     "ckdEpi2009": 88.2453211567264,
+     "mdrd4": 75.6844237173043,
+     "ekfc": 80.7324593490128
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 90.42,
+     "ckdEpi2009": 88.53,
+     "mdrd4": 75.68,
+     "ekfc": 80.91
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 26,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 79.6820149176892,
+     "ckdEpi2009": 77.6910304839771,
+     "mdrd4": 67.0196822308675,
+     "ekfc": 71.6556934509217
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 79.68,
+     "ckdEpi2009": 77.94,
+     "mdrd4": 67.02,
+     "ekfc": 71.81
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 26,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 58.160520533862,
+     "ckdEpi2009": 56.5735418356588,
+     "mdrd4": 49.5121443404571,
+     "ekfc": 53.2435284485208
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 58.16,
+     "ckdEpi2009": 56.76,
+     "mdrd4": 49.51,
+     "ekfc": 53.36
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 26,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 34.6836114855823,
+     "ckdEpi2009": 33.6066805005227,
+     "mdrd4": 30.1171414944172,
+     "ekfc": 32.6952564504801
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 34.68,
+     "ckdEpi2009": 33.71,
+     "mdrd4": 30.12,
+     "ekfc": 32.77
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 26,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 13.1070601063401,
+     "ckdEpi2009": 12.6077315420437,
+     "mdrd4": 11.8139498629734,
+     "ekfc": 13.0561201382811
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 13.11,
+     "ckdEpi2009": 12.65,
+     "mdrd4": 11.81,
+     "ekfc": 13.08
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 40,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 137.439307582767,
+     "ckdEpi2009": 143.219183292644,
+     "mdrd4": 246.391571651809,
+     "ekfc": 140.957518913474
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 137.44,
+     "ckdEpi2009": 143.68,
+     "mdrd4": 246.39,
+     "ekfc": 141.05
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 40,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 121.519342171252,
+     "ckdEpi2009": 121.06342440156,
+     "mdrd4": 136.650866762183,
+     "ekfc": 119.578458190373
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 121.52,
+     "ckdEpi2009": 121.45,
+     "mdrd4": 136.65,
+     "ekfc": 119.65
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 40,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 112.054306798798,
+     "ckdEpi2009": 108.376926483234,
+     "mdrd4": 92.6788502806604,
+     "ekfc": 107.3
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 112.05,
+     "ckdEpi2009": 108.73,
+     "mdrd4": 92.68,
+     "ekfc": 107.37
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 40,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 82.8810396086176,
+     "ckdEpi2009": 79.9799571161458,
+     "mdrd4": 69.3470386262635,
+     "ekfc": 80.7324593490128
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 82.88,
+     "ckdEpi2009": 80.24,
+     "mdrd4": 69.35,
+     "ekfc": 80.91
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 40,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 73.0375507831979,
+     "ckdEpi2009": 70.41421805675,
+     "mdrd4": 61.4078335291764,
+     "ekfc": 71.6556934509217
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 73.04,
+     "ckdEpi2009": 70.64,
+     "mdrd4": 61.41,
+     "ekfc": 71.81
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 40,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 53.3106746416643,
+     "ckdEpi2009": 51.274666924135,
+     "mdrd4": 45.3662777280523,
+     "ekfc": 53.2435284485208
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 53.31,
+     "ckdEpi2009": 51.44,
+     "mdrd4": 45.37,
+     "ekfc": 53.36
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 40,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 31.7914404880411,
+     "ckdEpi2009": 30.4589617898732,
+     "mdrd4": 27.595302599212,
+     "ekfc": 32.6952564504801
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 31.79,
+     "ckdEpi2009": 30.56,
+     "mdrd4": 27.6,
+     "ekfc": 32.77
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 40,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 12.0140984025583,
+     "ckdEpi2009": 11.4268475070043,
+     "mdrd4": 10.8247165960655,
+     "ekfc": 13.0561201382811
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 12.01,
+     "ckdEpi2009": 11.46,
+     "mdrd4": 10.82,
+     "ekfc": 13.08
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 41,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 136.587183875754,
+     "ckdEpi2009": 142.216649009596,
+     "mdrd4": 245.159599443794,
+     "ekfc": 139.547943724339
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 136.59,
+     "ckdEpi2009": 142.67,
+     "mdrd4": 245.16,
+     "ekfc": 139.64
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 41,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 120.765922249791,
+     "ckdEpi2009": 120.215980430749,
+     "mdrd4": 135.967604469875,
+     "ekfc": 118.382673608469
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 120.77,
+     "ckdEpi2009": 120.6,
+     "mdrd4": 135.97,
+     "ekfc": 118.46
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 41,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 111.359570096645,
+     "ckdEpi2009": 107.618287997852,
+     "mdrd4": 92.2154506316744,
+     "ekfc": 106.227
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 111.36,
+     "ckdEpi2009": 107.96,
+     "mdrd4": 92.22,
+     "ekfc": 106.29
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 41,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 82.3671771630442,
+     "ckdEpi2009": 79.4200974163327,
+     "mdrd4": 69.0002993943857,
+     "ekfc": 79.9251347555227
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 82.37,
+     "ckdEpi2009": 79.68,
+     "mdrd4": 69,
+     "ekfc": 80.1
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 41,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 72.584717968342,
+     "ckdEpi2009": 69.9213185303527,
+     "mdrd4": 61.1007907851606,
+     "ekfc": 70.9391365164124
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 72.58,
+     "ckdEpi2009": 70.15,
+     "mdrd4": 61.1,
+     "ekfc": 71.09
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 41,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 52.980148458886,
+     "ckdEpi2009": 50.9157442556661,
+     "mdrd4": 45.1394436972964,
+     "ekfc": 52.7110931640356
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 52.98,
+     "ckdEpi2009": 51.08,
+     "mdrd4": 45.14,
+     "ekfc": 52.83
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 41,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 31.5943335570152,
+     "ckdEpi2009": 30.2457490573441,
+     "mdrd4": 27.4573244790755,
+     "ekfc": 32.3683038859753
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 31.59,
+     "ckdEpi2009": 30.34,
+     "mdrd4": 27.46,
+     "ekfc": 32.44
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 41,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 11.9396109924625,
+     "ckdEpi2009": 11.3468595744553,
+     "mdrd4": 10.7705923826576,
+     "ekfc": 12.9255589368982
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 11.94,
+     "ckdEpi2009": 11.38,
+     "mdrd4": 10.77,
+     "ekfc": 12.95
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 50,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 129.151924682827,
+     "ckdEpi2009": 133.503815469218,
+     "mdrd4": 235.479505501683,
+     "ekfc": 127.47945344306
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 129.15,
+     "ckdEpi2009": 133.93,
+     "mdrd4": 235.48,
+     "ekfc": 127.56
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 50,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 114.19190916803,
+     "ckdEpi2009": 112.851007105329,
+     "mdrd4": 130.598941821795,
+     "ekfc": 108.144614144563
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 114.19,
+     "ckdEpi2009": 113.21,
+     "mdrd4": 130.6,
+     "ekfc": 108.21
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 50,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 105.297601149144,
+     "ckdEpi2009": 101.025106146391,
+     "mdrd4": 88.5743359167951,
+     "ekfc": 97.0401966484447
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 105.3,
+     "ckdEpi2009": 101.35,
+     "mdrd4": 88.57,
+     "ekfc": 97.1
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 50,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 77.8834379583907,
+     "ckdEpi2009": 74.5544639383398,
+     "mdrd4": 66.2758318161762,
+     "ekfc": 73.0129891066242
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 77.88,
+     "ckdEpi2009": 74.79,
+     "mdrd4": 66.28,
+     "ekfc": 73.17
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 50,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 68.6334966588009,
+     "ckdEpi2009": 65.6376231014332,
+     "mdrd4": 58.688234246157,
+     "ekfc": 64.8041247293393
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 68.63,
+     "ckdEpi2009": 65.85,
+     "mdrd4": 58.69,
+     "ekfc": 64.95
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 50,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 50.0961213877233,
+     "ckdEpi2009": 47.7964160520174,
+     "mdrd4": 43.3571188098525,
+     "ekfc": 48.1524927390635
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 50.1,
+     "ckdEpi2009": 47.95,
+     "mdrd4": 43.36,
+     "ekfc": 48.26
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 50,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 29.8744645886509,
+     "ckdEpi2009": 28.3927580139193,
+     "mdrd4": 26.3731757002413,
+     "ekfc": 29.5690038716302
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 29.87,
+     "ckdEpi2009": 28.48,
+     "mdrd4": 26.37,
+     "ekfc": 29.63
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 50,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 11.289666393909,
+     "ckdEpi2009": 10.6516997646387,
+     "mdrd4": 10.3453169852722,
+     "ekfc": 11.8077210222229
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 11.29,
+     "ckdEpi2009": 10.69,
+     "mdrd4": 10.35,
+     "ekfc": 11.83
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 70,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 114.04617677908,
+     "ckdEpi2009": 116.00551800532,
+     "mdrd4": 219.932354640644,
+     "ekfc": 104.266329372182
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 114.05,
+     "ckdEpi2009": 116.38,
+     "mdrd4": 219.93,
+     "ekfc": 104.33
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 70,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 100.835900755643,
+     "ckdEpi2009": 98.0596658654612,
+     "mdrd4": 121.976359374675,
+     "ekfc": 88.4522301726137
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 100.84,
+     "ckdEpi2009": 98.38,
+     "mdrd4": 121.98,
+     "ekfc": 88.51
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 70,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 92.9818805608951,
+     "ckdEpi2009": 87.7837815261291,
+     "mdrd4": 82.7263596354585,
+     "ekfc": 79.3698500645625
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 92.98,
+     "ckdEpi2009": 88.07,
+     "mdrd4": 82.73,
+     "ekfc": 79.42
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 70,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 68.7741073575049,
+     "ckdEpi2009": 64.7826369484563,
+     "mdrd4": 61.9000779538957,
+     "ekfc": 59.7178303250189
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 68.77,
+     "ckdEpi2009": 64.99,
+     "mdrd4": 61.9,
+     "ekfc": 59.85
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 70,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 60.606049132745,
+     "ckdEpi2009": 57.0345232588154,
+     "mdrd4": 54.8134391566691,
+     "ekfc": 53.0037432010429
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 60.61,
+     "ckdEpi2009": 57.22,
+     "mdrd4": 54.81,
+     "ekfc": 53.12
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 70,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 44.236825194524,
+     "ckdEpi2009": 41.5317568522264,
+     "mdrd4": 40.4945356495871,
+     "ekfc": 39.3842578738803
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 44.24,
+     "ckdEpi2009": 41.67,
+     "mdrd4": 40.49,
+     "ekfc": 39.47
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 70,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 26.3803151058319,
+     "ckdEpi2009": 24.671329350612,
+     "mdrd4": 24.631929724619,
+     "ekfc": 24.1846934044457
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 26.38,
+     "ckdEpi2009": 24.75,
+     "mdrd4": 24.63,
+     "ekfc": 24.24
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 70,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 9.96921488006123,
+     "ckdEpi2009": 9.25558527665423,
+     "mdrd4": 9.66228427916631,
+     "ekfc": 9.65761694128874
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 9.97,
+     "ckdEpi2009": 9.29,
+     "mdrd4": 9.66,
+     "ekfc": 9.68
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 90,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 100.707213383516,
+     "ckdEpi2009": 100.800716147214,
+     "mdrd4": 208.993508405955,
+     "ekfc": 85.2801541513058
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 100.71,
+     "ckdEpi2009": 101.13,
+     "mdrd4": 208.99,
+     "ekfc": 85.33
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 90,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 89.0420254401748,
+     "ckdEpi2009": 85.2070204448521,
+     "mdrd4": 115.909581971019,
+     "ekfc": 72.3456927041278
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 89.04,
+     "ckdEpi2009": 85.48,
+     "mdrd4": 115.91,
+     "ekfc": 72.39
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 90,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 82.1066198877109,
+     "ckdEpi2009": 76.2779925997877,
+     "mdrd4": 78.6117720883627,
+     "ekfc": 64.9171510038577
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 82.11,
+     "ckdEpi2009": 76.52,
+     "mdrd4": 78.61,
+     "ekfc": 64.96
+    }
+   },
+   {
+    "scrMgdl": 0.9,
+    "ageYears": 90,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 60.7302138530217,
+     "ckdEpi2009": 56.291599835879,
+     "mdrd4": 58.8213338747933,
+     "ekfc": 48.8436277210873
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 60.73,
+     "ckdEpi2009": 56.47,
+     "mdrd4": 58.82,
+     "ekfc": 48.95
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 90,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 53.5175004960163,
+     "ckdEpi2009": 49.559028643274,
+     "mdrd4": 52.0871655098972,
+     "ekfc": 43.352129282755
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 53.52,
+     "ckdEpi2009": 49.72,
+     "mdrd4": 52.09,
+     "ekfc": 43.45
+    }
+   },
+   {
+    "scrMgdl": 1.3,
+    "ageYears": 90,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 39.0628385807615,
+     "ckdEpi2009": 36.0882042987332,
+     "mdrd4": 38.4804459103137,
+     "ekfc": 32.2126577471651
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 39.06,
+     "ckdEpi2009": 36.2,
+     "mdrd4": 38.48,
+     "ekfc": 32.28
+    }
+   },
+   {
+    "scrMgdl": 2,
+    "ageYears": 90,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 23.2948451015038,
+     "ckdEpi2009": 21.4376670145244,
+     "mdrd4": 23.4068035163286,
+     "ekfc": 19.7808285191581
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 23.29,
+     "ckdEpi2009": 21.51,
+     "mdrd4": 23.41,
+     "ekfc": 19.82
+    }
+   },
+   {
+    "scrMgdl": 4.5,
+    "ageYears": 90,
+    "sex": "w",
+    "egfr": {
+     "ckdEpi2021": 8.80320479429351,
+     "ckdEpi2009": 8.04245901652338,
+     "mdrd4": 9.18170813938756,
+     "ekfc": 7.89903189693661
+    },
+    "kidneyEpi": {
+     "ckdEpi2021": 8.8,
+     "ckdEpi2009": 8.07,
+     "mdrd4": 9.18,
+     "ekfc": 7.92
+    }
+   }
+  ],
+  "children": [
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 2,
+    "sex": "m",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 123.604003500901,
+     "ckidU25": 158.457194494497,
+     "bedsideSchwartz": 181.72
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 158.46,
+     "bedsideSchwartz": 181.72
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 2,
+    "sex": "m",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 108.475373023144,
+     "ckidU25": 105.638129662998,
+     "bedsideSchwartz": 121.146666666667
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 105.64,
+     "bedsideSchwartz": 121.15
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 2,
+    "sex": "m",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 62.5317255051962,
+     "ckidU25": 63.3828777977987,
+     "bedsideSchwartz": 72.688
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 63.38,
+     "bedsideSchwartz": 72.69
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 2,
+    "sex": "m",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 42.725138223256,
+     "ckidU25": 45.2734841412848,
+     "bedsideSchwartz": 51.92
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 45.27,
+     "bedsideSchwartz": 51.92
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 2,
+    "sex": "m",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 28.5321473175572,
+     "ckidU25": 31.6914388988994,
+     "bedsideSchwartz": 36.344
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 31.69,
+     "bedsideSchwartz": 36.34
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 2,
+    "sex": "m",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 18.0301422220766,
+     "ckidU25": 21.1276259325996,
+     "bedsideSchwartz": 24.2293333333333
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 21.13,
+     "bedsideSchwartz": 24.23
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 5,
+    "sex": "m",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 128.824286023355,
+     "ckidU25": 202.863340092239,
+     "bedsideSchwartz": 227.15
+    },
+    "kidneyEpi": {
+     "ekfc": 128.82,
+     "ckidU25": 202.86,
+     "bedsideSchwartz": 227.15
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 5,
+    "sex": "m",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 113.056714062841,
+     "ckidU25": 135.242226728159,
+     "bedsideSchwartz": 151.433333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 113.06,
+     "ckidU25": 135.24,
+     "bedsideSchwartz": 151.43
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 5,
+    "sex": "m",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 72.3198636079855,
+     "ckidU25": 81.1453360368957,
+     "bedsideSchwartz": 90.86
+    },
+    "kidneyEpi": {
+     "ekfc": 72.32,
+     "ckidU25": 81.15,
+     "bedsideSchwartz": 90.86
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 5,
+    "sex": "m",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 49.4129362971352,
+     "ckidU25": 57.9609543120683,
+     "bedsideSchwartz": 64.9
+    },
+    "kidneyEpi": {
+     "ekfc": 49.41,
+     "ckidU25": 57.96,
+     "bedsideSchwartz": 64.9
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 5,
+    "sex": "m",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 32.9983058324086,
+     "ckidU25": 40.5726680184478,
+     "bedsideSchwartz": 45.43
+    },
+    "kidneyEpi": {
+     "ekfc": 33,
+     "ckidU25": 40.57,
+     "bedsideSchwartz": 45.43
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 5,
+    "sex": "m",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 20.8524139674477,
+     "ckidU25": 27.0484453456319,
+     "bedsideSchwartz": 30.2866666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 20.85,
+     "ckidU25": 27.05,
+     "bedsideSchwartz": 30.29
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 8,
+    "sex": "m",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 139.839042310636,
+     "ckidU25": 241.770023426072,
+     "bedsideSchwartz": 264.32
+    },
+    "kidneyEpi": {
+     "ekfc": 139.84,
+     "ckidU25": 241.77,
+     "bedsideSchwartz": 264.32
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 8,
+    "sex": "m",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 122.723308697156,
+     "ckidU25": 161.180015617381,
+     "bedsideSchwartz": 176.213333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 122.72,
+     "ckidU25": 161.18,
+     "bedsideSchwartz": 176.21
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 8,
+    "sex": "m",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 96.4979992838689,
+     "ckidU25": 96.7080093704288,
+     "bedsideSchwartz": 105.728
+    },
+    "kidneyEpi": {
+     "ekfc": 96.5,
+     "ckidU25": 96.71,
+     "bedsideSchwartz": 105.73
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 8,
+    "sex": "m",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 65.932777711825,
+     "ckidU25": 69.0771495503063,
+     "bedsideSchwartz": 75.52
+    },
+    "kidneyEpi": {
+     "ekfc": 65.93,
+     "ckidU25": 69.08,
+     "bedsideSchwartz": 75.52
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 8,
+    "sex": "m",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 44.0303719299748,
+     "ckidU25": 48.3540046852144,
+     "bedsideSchwartz": 52.864
+    },
+    "kidneyEpi": {
+     "ekfc": 44.03,
+     "ckidU25": 48.35,
+     "bedsideSchwartz": 52.86
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 8,
+    "sex": "m",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 27.8238388142579,
+     "ckidU25": 32.2360031234763,
+     "bedsideSchwartz": 35.2426666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 27.82,
+     "ckidU25": 32.24,
+     "bedsideSchwartz": 35.24
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 11,
+    "sex": "m",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 150.776469311108,
+     "ckidU25": 280.505952380952,
+     "bedsideSchwartz": 299.425
+    },
+    "kidneyEpi": {
+     "ekfc": 150.78,
+     "ckidU25": 280.51,
+     "bedsideSchwartz": 299.42
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 11,
+    "sex": "m",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 132.32203883684,
+     "ckidU25": 187.003968253968,
+     "bedsideSchwartz": 199.616666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 132.32,
+     "ckidU25": 187,
+     "bedsideSchwartz": 199.62
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 11,
+    "sex": "m",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 112.252723449458,
+     "ckidU25": 112.202380952381,
+     "bedsideSchwartz": 119.77
+    },
+    "kidneyEpi": {
+     "ekfc": 112.25,
+     "ckidU25": 112.2,
+     "bedsideSchwartz": 119.77
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 11,
+    "sex": "m",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 85.9166164575978,
+     "ckidU25": 80.1445578231293,
+     "bedsideSchwartz": 85.55
+    },
+    "kidneyEpi": {
+     "ekfc": 85.92,
+     "ckidU25": 80.14,
+     "bedsideSchwartz": 85.55
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 11,
+    "sex": "m",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 57.375719769115,
+     "ckidU25": 56.1011904761905,
+     "bedsideSchwartz": 59.885
+    },
+    "kidneyEpi": {
+     "ekfc": 57.38,
+     "ckidU25": 56.1,
+     "bedsideSchwartz": 59.88
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 11,
+    "sex": "m",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 36.2570813902458,
+     "ckidU25": 37.4007936507937,
+     "bedsideSchwartz": 39.9233333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 36.26,
+     "ckidU25": 37.4,
+     "bedsideSchwartz": 39.92
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 12,
+    "sex": "m",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 154.095712504571,
+     "ckidU25": 292.5,
+     "bedsideSchwartz": 309.75
+    },
+    "kidneyEpi": {
+     "ekfc": 154.1,
+     "ckidU25": 292.5,
+     "bedsideSchwartz": 309.75
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 12,
+    "sex": "m",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 135.235020078283,
+     "ckidU25": 195,
+     "bedsideSchwartz": 206.5
+    },
+    "kidneyEpi": {
+     "ekfc": 135.24,
+     "ckidU25": 195,
+     "bedsideSchwartz": 206.5
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 12,
+    "sex": "m",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 114.723892126903,
+     "ckidU25": 117,
+     "bedsideSchwartz": 123.9
+    },
+    "kidneyEpi": {
+     "ekfc": 114.72,
+     "ckidU25": 117,
+     "bedsideSchwartz": 123.9
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 12,
+    "sex": "m",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 92.7520385919151,
+     "ckidU25": 83.5714285714286,
+     "bedsideSchwartz": 88.5
+    },
+    "kidneyEpi": {
+     "ekfc": 92.75,
+     "ckidU25": 83.57,
+     "bedsideSchwartz": 88.5
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 12,
+    "sex": "m",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 61.9404626681297,
+     "ckidU25": 58.5,
+     "bedsideSchwartz": 61.95
+    },
+    "kidneyEpi": {
+     "ekfc": 61.94,
+     "ckidU25": 58.5,
+     "bedsideSchwartz": 61.95
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 12,
+    "sex": "m",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 39.1416509517455,
+     "ckidU25": 39,
+     "bedsideSchwartz": 41.3
+    },
+    "kidneyEpi": {
+     "ekfc": 39.14,
+     "ckidU25": 39,
+     "bedsideSchwartz": 41.3
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 14,
+    "sex": "m",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 160.053090746656,
+     "ckidU25": 344.9706975,
+     "bedsideSchwartz": 334.53
+    },
+    "kidneyEpi": {
+     "ekfc": 160.05,
+     "ckidU25": 344.97,
+     "bedsideSchwartz": 334.53
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 14,
+    "sex": "m",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 140.46323930053,
+     "ckidU25": 229.980465,
+     "bedsideSchwartz": 223.02
+    },
+    "kidneyEpi": {
+     "ekfc": 140.46,
+     "ckidU25": 229.98,
+     "bedsideSchwartz": 223.02
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 14,
+    "sex": "m",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 119.15914608495,
+     "ckidU25": 137.988279,
+     "bedsideSchwartz": 133.812
+    },
+    "kidneyEpi": {
+     "ekfc": 119.16,
+     "ckidU25": 137.99,
+     "bedsideSchwartz": 133.81
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 14,
+    "sex": "m",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 105.983082826638,
+     "ckidU25": 98.5630564285714,
+     "bedsideSchwartz": 95.58
+    },
+    "kidneyEpi": {
+     "ekfc": 105.98,
+     "ckidU25": 98.56,
+     "bedsideSchwartz": 95.58
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 14,
+    "sex": "m",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 70.7762469152767,
+     "ckidU25": 68.9941395,
+     "bedsideSchwartz": 66.906
+    },
+    "kidneyEpi": {
+     "ekfc": 70.78,
+     "ckidU25": 68.99,
+     "bedsideSchwartz": 66.91
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 14,
+    "sex": "m",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 44.7251930821905,
+     "ckidU25": 45.996093,
+     "bedsideSchwartz": 44.604
+    },
+    "kidneyEpi": {
+     "ekfc": 44.73,
+     "ckidU25": 46,
+     "bedsideSchwartz": 44.6
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 15,
+    "sex": "m",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 162.656869640805,
+     "ckidU25": 371.62074860625,
+     "bedsideSchwartz": 344.855
+    },
+    "kidneyEpi": {
+     "ekfc": 162.66,
+     "ckidU25": 349.03,
+     "bedsideSchwartz": 344.85
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 15,
+    "sex": "m",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 142.748326181317,
+     "ckidU25": 247.7471657375,
+     "bedsideSchwartz": 229.903333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 142.75,
+     "ckidU25": 232.69,
+     "bedsideSchwartz": 229.9
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 15,
+    "sex": "m",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 121.097653290112,
+     "ckidU25": 148.6482994425,
+     "bedsideSchwartz": 137.942
+    },
+    "kidneyEpi": {
+     "ekfc": 121.1,
+     "ckidU25": 139.61,
+     "bedsideSchwartz": 137.94
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 15,
+    "sex": "m",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 108.663202341533,
+     "ckidU25": 106.177356744643,
+     "bedsideSchwartz": 98.53
+    },
+    "kidneyEpi": {
+     "ekfc": 108.66,
+     "ckidU25": 99.72,
+     "bedsideSchwartz": 98.53
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 15,
+    "sex": "m",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 74.9075446123661,
+     "ckidU25": 74.32414972125,
+     "bedsideSchwartz": 68.971
+    },
+    "kidneyEpi": {
+     "ekfc": 74.91,
+     "ckidU25": 69.81,
+     "bedsideSchwartz": 68.97
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 15,
+    "sex": "m",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 47.335858315733,
+     "ckidU25": 49.5494331475,
+     "bedsideSchwartz": 45.9806666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 47.34,
+     "ckidU25": 46.54,
+     "bedsideSchwartz": 45.98
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 16,
+    "sex": "m",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 164.998226191204,
+     "ckidU25": 395.319916107187,
+     "bedsideSchwartz": 351.05
+    },
+    "kidneyEpi": {
+     "ekfc": 165,
+     "ckidU25": 355.3,
+     "bedsideSchwartz": 351.05
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 16,
+    "sex": "m",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 144.803110152638,
+     "ckidU25": 263.546610738125,
+     "bedsideSchwartz": 234.033333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 144.8,
+     "ckidU25": 236.87,
+     "bedsideSchwartz": 234.03
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 16,
+    "sex": "m",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 122.840787683359,
+     "ckidU25": 158.127966442875,
+     "bedsideSchwartz": 140.42
+    },
+    "kidneyEpi": {
+     "ekfc": 122.84,
+     "ckidU25": 142.12,
+     "bedsideSchwartz": 140.42
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 16,
+    "sex": "m",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 110.227349623794,
+     "ckidU25": 112.948547459196,
+     "bedsideSchwartz": 100.3
+    },
+    "kidneyEpi": {
+     "ekfc": 110.23,
+     "ckidU25": 101.51,
+     "bedsideSchwartz": 100.3
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 16,
+    "sex": "m",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 78.7673020833865,
+     "ckidU25": 79.0639832214375,
+     "bedsideSchwartz": 70.21
+    },
+    "kidneyEpi": {
+     "ekfc": 78.77,
+     "ckidU25": 71.06,
+     "bedsideSchwartz": 70.21
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 16,
+    "sex": "m",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 49.774930824741,
+     "ckidU25": 52.709322147625,
+     "bedsideSchwartz": 46.8066666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 49.77,
+     "ckidU25": 47.37,
+     "bedsideSchwartz": 46.81
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 17,
+    "sex": "m",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 167.074399109696,
+     "ckidU25": 417.969421888858,
+     "bedsideSchwartz": 355.18
+    },
+    "kidneyEpi": {
+     "ekfc": 167.07,
+     "ckidU25": 359.48,
+     "bedsideSchwartz": 355.18
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 17,
+    "sex": "m",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 146.625167896846,
+     "ckidU25": 278.646281259239,
+     "bedsideSchwartz": 236.786666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 146.63,
+     "ckidU25": 239.65,
+     "bedsideSchwartz": 236.79
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 17,
+    "sex": "m",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 124.386493492214,
+     "ckidU25": 167.187768755543,
+     "bedsideSchwartz": 142.072
+    },
+    "kidneyEpi": {
+     "ekfc": 124.39,
+     "ckidU25": 143.79,
+     "bedsideSchwartz": 142.07
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 17,
+    "sex": "m",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 111.614340523325,
+     "ckidU25": 119.419834825388,
+     "bedsideSchwartz": 101.48
+    },
+    "kidneyEpi": {
+     "ekfc": 111.61,
+     "ckidU25": 102.71,
+     "bedsideSchwartz": 101.48
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 17,
+    "sex": "m",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 82.3071399043158,
+     "ckidU25": 83.5938843777716,
+     "bedsideSchwartz": 71.036
+    },
+    "kidneyEpi": {
+     "ekfc": 82.31,
+     "ckidU25": 71.9,
+     "bedsideSchwartz": 71.04
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 17,
+    "sex": "m",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 52.0118385009876,
+     "ckidU25": 55.7292562518477,
+     "bedsideSchwartz": 47.3573333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 52.01,
+     "ckidU25": 47.93,
+     "bedsideSchwartz": 47.36
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 18,
+    "sex": "m",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 168.887146358053,
+     "ckidU25": 439.42,
+     "bedsideSchwartz": 357.245
+    },
+    "kidneyEpi": {
+     "ekfc": 168.89,
+     "ckidU25": 439.42,
+     "bedsideSchwartz": 357.24
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 18,
+    "sex": "m",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 148.216042208298,
+     "ckidU25": 292.946666666667,
+     "bedsideSchwartz": 238.163333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 148.22,
+     "ckidU25": 292.95,
+     "bedsideSchwartz": 238.16
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 18,
+    "sex": "m",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 125.736079515041,
+     "ckidU25": 175.768,
+     "bedsideSchwartz": 142.898
+    },
+    "kidneyEpi": {
+     "ekfc": 125.74,
+     "ckidU25": 175.77,
+     "bedsideSchwartz": 142.9
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 18,
+    "sex": "m",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 112.825349449522,
+     "ckidU25": 125.548571428571,
+     "bedsideSchwartz": 102.07
+    },
+    "kidneyEpi": {
+     "ekfc": 112.83,
+     "ckidU25": 125.55,
+     "bedsideSchwartz": 102.07
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 18,
+    "sex": "m",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 85.4896815764495,
+     "ckidU25": 87.884,
+     "bedsideSchwartz": 71.449
+    },
+    "kidneyEpi": {
+     "ekfc": 85.49,
+     "ckidU25": 87.88,
+     "bedsideSchwartz": 71.45
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 18,
+    "sex": "m",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 54.0229622463408,
+     "ckidU25": 58.5893333333333,
+     "bedsideSchwartz": 47.6326666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 54.02,
+     "ckidU25": 58.59,
+     "bedsideSchwartz": 47.63
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 21,
+    "sex": "m",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 172.819270814465,
+     "ckidU25": 441.96,
+     "bedsideSchwartz": 359.31
+    },
+    "kidneyEpi": {
+     "ekfc": 172.82,
+     "ckidU25": 441.96,
+     "bedsideSchwartz": 359.31
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 21,
+    "sex": "m",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 151.666890523091,
+     "ckidU25": 294.64,
+     "bedsideSchwartz": 239.54
+    },
+    "kidneyEpi": {
+     "ekfc": 151.67,
+     "ckidU25": 294.64,
+     "bedsideSchwartz": 239.54
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 21,
+    "sex": "m",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 128.663536837734,
+     "ckidU25": 176.784,
+     "bedsideSchwartz": 143.724
+    },
+    "kidneyEpi": {
+     "ekfc": 128.66,
+     "ckidU25": 176.78,
+     "bedsideSchwartz": 143.72
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 21,
+    "sex": "m",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 115.45221197542,
+     "ckidU25": 126.274285714286,
+     "bedsideSchwartz": 102.66
+    },
+    "kidneyEpi": {
+     "ekfc": 115.45,
+     "ckidU25": 126.27,
+     "bedsideSchwartz": 102.66
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 21,
+    "sex": "m",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 92.6943808351981,
+     "ckidU25": 88.392,
+     "bedsideSchwartz": 71.862
+    },
+    "kidneyEpi": {
+     "ekfc": 92.69,
+     "ckidU25": 88.39,
+     "bedsideSchwartz": 71.86
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 21,
+    "sex": "m",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 58.5757829946969,
+     "ckidU25": 58.928,
+     "bedsideSchwartz": 47.908
+    },
+    "kidneyEpi": {
+     "ekfc": 58.58,
+     "ckidU25": 58.93,
+     "bedsideSchwartz": 47.91
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 25,
+    "sex": "m",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 175.068717931274,
+     "ckidU25": 444.5,
+     "bedsideSchwartz": 361.375
+    },
+    "kidneyEpi": {
+     "ekfc": 175.07,
+     "ckidU25": 444.5,
+     "bedsideSchwartz": 361.38
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 25,
+    "sex": "m",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 153.641014404037,
+     "ckidU25": 296.333333333333,
+     "bedsideSchwartz": 240.916666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 153.64,
+     "ckidU25": 296.33,
+     "bedsideSchwartz": 240.92
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 25,
+    "sex": "m",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 130.338244875871,
+     "ckidU25": 177.8,
+     "bedsideSchwartz": 144.55
+    },
+    "kidneyEpi": {
+     "ekfc": 130.34,
+     "ckidU25": 177.8,
+     "bedsideSchwartz": 144.55
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 25,
+    "sex": "m",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 116.954959002029,
+     "ckidU25": 127,
+     "bedsideSchwartz": 103.25
+    },
+    "kidneyEpi": {
+     "ekfc": 116.95,
+     "ckidU25": 127,
+     "bedsideSchwartz": 103.25
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 25,
+    "sex": "m",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 97.0058575189443,
+     "ckidU25": 88.9,
+     "bedsideSchwartz": 72.275
+    },
+    "kidneyEpi": {
+     "ekfc": 97.01,
+     "ckidU25": 88.9,
+     "bedsideSchwartz": 72.27
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 25,
+    "sex": "m",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 61.3003076135389,
+     "ckidU25": 59.2666666666667,
+     "bedsideSchwartz": 48.1833333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 61.3,
+     "ckidU25": 59.27,
+     "bedsideSchwartz": 48.18
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 2,
+    "sex": "w",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 121.410940058447,
+     "ckidU25": 146.674480032086,
+     "bedsideSchwartz": 181.72
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 146.67,
+     "bedsideSchwartz": 181.72
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 2,
+    "sex": "w",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 104.688979496691,
+     "ckidU25": 97.782986688057,
+     "bedsideSchwartz": 121.146666666667
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 97.78,
+     "bedsideSchwartz": 121.15
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 2,
+    "sex": "w",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 58.7175845446932,
+     "ckidU25": 58.6697920128342,
+     "bedsideSchwartz": 72.688
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 58.67,
+     "bedsideSchwartz": 72.69
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 2,
+    "sex": "w",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 40.1191058704956,
+     "ckidU25": 41.9069942948816,
+     "bedsideSchwartz": 51.92
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 41.91,
+     "bedsideSchwartz": 51.92
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 2,
+    "sex": "w",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 26.7918206130597,
+     "ckidU25": 29.3348960064171,
+     "bedsideSchwartz": 36.344
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 29.33,
+     "bedsideSchwartz": 36.34
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 2,
+    "sex": "w",
+    "heightCm": 88,
+    "egfr": {
+     "ekfc": 16.9303884024382,
+     "ckidU25": 19.5565973376114,
+     "bedsideSchwartz": 24.2293333333333
+    },
+    "kidneyEpi": {
+     "ekfc": null,
+     "ckidU25": 19.56,
+     "bedsideSchwartz": 24.23
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 5,
+    "sex": "w",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 129.885167669574,
+     "ckidU25": 187.778630187944,
+     "bedsideSchwartz": 227.15
+    },
+    "kidneyEpi": {
+     "ekfc": 129.89,
+     "ckidU25": 187.78,
+     "bedsideSchwartz": 227.15
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 5,
+    "sex": "w",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 113.98774808316,
+     "ckidU25": 125.18575345863,
+     "bedsideSchwartz": 151.433333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 113.99,
+     "ckidU25": 125.19,
+     "bedsideSchwartz": 151.43
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 5,
+    "sex": "w",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 74.4353541775879,
+     "ckidU25": 75.1114520751778,
+     "bedsideSchwartz": 90.86
+    },
+    "kidneyEpi": {
+     "ekfc": 74.44,
+     "ckidU25": 75.11,
+     "bedsideSchwartz": 90.86
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 5,
+    "sex": "w",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 50.8583566220348,
+     "ckidU25": 53.6510371965556,
+     "bedsideSchwartz": 64.9
+    },
+    "kidneyEpi": {
+     "ekfc": 50.86,
+     "ckidU25": 53.65,
+     "bedsideSchwartz": 64.9
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 5,
+    "sex": "w",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 33.9635676749877,
+     "ckidU25": 37.5557260375889,
+     "bedsideSchwartz": 45.43
+    },
+    "kidneyEpi": {
+     "ekfc": 33.96,
+     "ckidU25": 37.56,
+     "bedsideSchwartz": 45.43
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 5,
+    "sex": "w",
+    "heightCm": 110,
+    "egfr": {
+     "ekfc": 21.4623858742076,
+     "ckidU25": 25.0371506917259,
+     "bedsideSchwartz": 30.2866666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 21.46,
+     "ckidU25": 25.04,
+     "bedsideSchwartz": 30.29
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 8,
+    "sex": "w",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 139.433320016515,
+     "ckidU25": 223.792252453364,
+     "bedsideSchwartz": 264.32
+    },
+    "kidneyEpi": {
+     "ekfc": 139.43,
+     "ckidU25": 223.79,
+     "bedsideSchwartz": 264.32
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 8,
+    "sex": "w",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 122.367245172092,
+     "ckidU25": 149.194834968909,
+     "bedsideSchwartz": 176.213333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 122.37,
+     "ckidU25": 149.19,
+     "bedsideSchwartz": 176.21
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 8,
+    "sex": "w",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 95.5173270185368,
+     "ckidU25": 89.5169009813457,
+     "bedsideSchwartz": 105.728
+    },
+    "kidneyEpi": {
+     "ekfc": 95.52,
+     "ckidU25": 89.52,
+     "bedsideSchwartz": 105.73
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 8,
+    "sex": "w",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 65.2627281050131,
+     "ckidU25": 63.940643558104,
+     "bedsideSchwartz": 75.52
+    },
+    "kidneyEpi": {
+     "ekfc": 65.26,
+     "ckidU25": 63.94,
+     "bedsideSchwartz": 75.52
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 8,
+    "sex": "w",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 43.5829080975179,
+     "ckidU25": 44.7584504906728,
+     "bedsideSchwartz": 52.864
+    },
+    "kidneyEpi": {
+     "ekfc": 43.58,
+     "ckidU25": 44.76,
+     "bedsideSchwartz": 52.86
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 8,
+    "sex": "w",
+    "heightCm": 128,
+    "egfr": {
+     "ekfc": 27.5410757803846,
+     "ckidU25": 29.8389669937819,
+     "bedsideSchwartz": 35.2426666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 27.54,
+     "ckidU25": 29.84,
+     "bedsideSchwartz": 35.24
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 11,
+    "sex": "w",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 147.584784447955,
+     "ckidU25": 259.647817460317,
+     "bedsideSchwartz": 299.425
+    },
+    "kidneyEpi": {
+     "ekfc": 147.58,
+     "ckidU25": 259.65,
+     "bedsideSchwartz": 299.42
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 11,
+    "sex": "w",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 129.521003301609,
+     "ckidU25": 173.098544973545,
+     "bedsideSchwartz": 199.616666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 129.52,
+     "ckidU25": 173.1,
+     "bedsideSchwartz": 199.62
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 11,
+    "sex": "w",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 109.876521646098,
+     "ckidU25": 103.859126984127,
+     "bedsideSchwartz": 119.77
+    },
+    "kidneyEpi": {
+     "ekfc": 109.88,
+     "ckidU25": 103.86,
+     "bedsideSchwartz": 119.77
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 11,
+    "sex": "w",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 79.6913044758074,
+     "ckidU25": 74.1850907029478,
+     "bedsideSchwartz": 85.55
+    },
+    "kidneyEpi": {
+     "ekfc": 79.69,
+     "ckidU25": 74.19,
+     "bedsideSchwartz": 85.55
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 11,
+    "sex": "w",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 53.2184127140961,
+     "ckidU25": 51.9295634920635,
+     "bedsideSchwartz": 59.885
+    },
+    "kidneyEpi": {
+     "ekfc": 53.22,
+     "ckidU25": 51.93,
+     "bedsideSchwartz": 59.88
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 11,
+    "sex": "w",
+    "heightCm": 145,
+    "egfr": {
+     "ekfc": 33.6299802250731,
+     "ckidU25": 34.619708994709,
+     "bedsideSchwartz": 39.9233333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 33.63,
+     "ckidU25": 34.62,
+     "bedsideSchwartz": 39.92
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 12,
+    "sex": "w",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 149.87154101077,
+     "ckidU25": 270.75,
+     "bedsideSchwartz": 309.75
+    },
+    "kidneyEpi": {
+     "ekfc": 149.87,
+     "ckidU25": 270.75,
+     "bedsideSchwartz": 309.75
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 12,
+    "sex": "w",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 131.527870103158,
+     "ckidU25": 180.5,
+     "bedsideSchwartz": 206.5
+    },
+    "kidneyEpi": {
+     "ekfc": 131.53,
+     "ckidU25": 180.5,
+     "bedsideSchwartz": 206.5
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 12,
+    "sex": "w",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 111.579006478212,
+     "ckidU25": 108.3,
+     "bedsideSchwartz": 123.9
+    },
+    "kidneyEpi": {
+     "ekfc": 111.58,
+     "ckidU25": 108.3,
+     "bedsideSchwartz": 123.9
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 12,
+    "sex": "w",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 84.1174660290199,
+     "ckidU25": 77.3571428571429,
+     "bedsideSchwartz": 88.5
+    },
+    "kidneyEpi": {
+     "ekfc": 84.12,
+     "ckidU25": 77.36,
+     "bedsideSchwartz": 88.5
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 12,
+    "sex": "w",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 56.1742344794387,
+     "ckidU25": 54.15,
+     "bedsideSchwartz": 61.95
+    },
+    "kidneyEpi": {
+     "ekfc": 56.17,
+     "ckidU25": 54.15,
+     "bedsideSchwartz": 61.95
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 12,
+    "sex": "w",
+    "heightCm": 150,
+    "egfr": {
+     "ekfc": 35.4978342712157,
+     "ckidU25": 36.1,
+     "bedsideSchwartz": 41.3
+    },
+    "kidneyEpi": {
+     "ekfc": 35.5,
+     "ckidU25": 36.1,
+     "bedsideSchwartz": 41.3
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 14,
+    "sex": "w",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 153.752778398029,
+     "ckidU25": 306.01554489,
+     "bedsideSchwartz": 334.53
+    },
+    "kidneyEpi": {
+     "ekfc": 153.75,
+     "ckidU25": 306.02,
+     "bedsideSchwartz": 334.53
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 14,
+    "sex": "w",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 134.9340597204,
+     "ckidU25": 204.01036326,
+     "bedsideSchwartz": 223.02
+    },
+    "kidneyEpi": {
+     "ekfc": 134.93,
+     "ckidU25": 204.01,
+     "bedsideSchwartz": 223.02
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 14,
+    "sex": "w",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 114.468578498729,
+     "ckidU25": 122.406217956,
+     "bedsideSchwartz": 133.812
+    },
+    "kidneyEpi": {
+     "ekfc": 114.47,
+     "ckidU25": 122.41,
+     "bedsideSchwartz": 133.81
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 14,
+    "sex": "w",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 92.0284059096474,
+     "ckidU25": 87.4330128257143,
+     "bedsideSchwartz": 95.58
+    },
+    "kidneyEpi": {
+     "ekfc": 92.03,
+     "ckidU25": 87.43,
+     "bedsideSchwartz": 95.58
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 14,
+    "sex": "w",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 61.457215681628,
+     "ckidU25": 61.203108978,
+     "bedsideSchwartz": 66.906
+    },
+    "kidneyEpi": {
+     "ekfc": 61.46,
+     "ckidU25": 61.2,
+     "bedsideSchwartz": 66.91
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 14,
+    "sex": "w",
+    "heightCm": 162,
+    "egfr": {
+     "ekfc": 38.8362756921114,
+     "ckidU25": 40.802072652,
+     "bedsideSchwartz": 44.604
+    },
+    "kidneyEpi": {
+     "ekfc": 38.84,
+     "ckidU25": 40.8,
+     "bedsideSchwartz": 44.6
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 15,
+    "sex": "w",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 155.348298093493,
+     "ckidU25": 322.716059904645,
+     "bedsideSchwartz": 344.855
+    },
+    "kidneyEpi": {
+     "ekfc": 155.35,
+     "ckidU25": 313.96,
+     "bedsideSchwartz": 344.85
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 15,
+    "sex": "w",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 136.334294253498,
+     "ckidU25": 215.14403993643,
+     "bedsideSchwartz": 229.903333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 136.33,
+     "ckidU25": 209.31,
+     "bedsideSchwartz": 229.9
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 15,
+    "sex": "w",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 115.656439124139,
+     "ckidU25": 129.086423961858,
+     "bedsideSchwartz": 137.942
+    },
+    "kidneyEpi": {
+     "ekfc": 115.66,
+     "ckidU25": 125.58,
+     "bedsideSchwartz": 137.94
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 15,
+    "sex": "w",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 95.4297672984415,
+     "ckidU25": 92.2045885441843,
+     "bedsideSchwartz": 98.53
+    },
+    "kidneyEpi": {
+     "ekfc": 95.43,
+     "ckidU25": 89.7,
+     "bedsideSchwartz": 98.53
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 15,
+    "sex": "w",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 63.7286687011175,
+     "ckidU25": 64.543211980929,
+     "bedsideSchwartz": 68.971
+    },
+    "kidneyEpi": {
+     "ekfc": 63.73,
+     "ckidU25": 62.79,
+     "bedsideSchwartz": 68.97
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 15,
+    "sex": "w",
+    "heightCm": 167,
+    "egfr": {
+     "ekfc": 40.2716608573548,
+     "ckidU25": 43.028807987286,
+     "bedsideSchwartz": 45.9806666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 40.27,
+     "ckidU25": 41.86,
+     "bedsideSchwartz": 45.98
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 16,
+    "sex": "w",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 156.720352148631,
+     "ckidU25": 336.069161545011,
+     "bedsideSchwartz": 351.05
+    },
+    "kidneyEpi": {
+     "ekfc": 156.72,
+     "ckidU25": 319.6,
+     "bedsideSchwartz": 351.05
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 16,
+    "sex": "w",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 137.538414437501,
+     "ckidU25": 224.046107696674,
+     "bedsideSchwartz": 234.033333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 137.54,
+     "ckidU25": 213.07,
+     "bedsideSchwartz": 234.03
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 16,
+    "sex": "w",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 116.677930110848,
+     "ckidU25": 134.427664618004,
+     "bedsideSchwartz": 140.42
+    },
+    "kidneyEpi": {
+     "ekfc": 116.68,
+     "ckidU25": 127.84,
+     "bedsideSchwartz": 140.42
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 16,
+    "sex": "w",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 98.4258811263573,
+     "ckidU25": 96.0197604414316,
+     "bedsideSchwartz": 100.3
+    },
+    "kidneyEpi": {
+     "ekfc": 98.43,
+     "ckidU25": 91.31,
+     "bedsideSchwartz": 100.3
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 16,
+    "sex": "w",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 65.7294945538407,
+     "ckidU25": 67.2138323090021,
+     "bedsideSchwartz": 70.21
+    },
+    "kidneyEpi": {
+     "ekfc": 65.73,
+     "ckidU25": 63.92,
+     "bedsideSchwartz": 70.21
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 16,
+    "sex": "w",
+    "heightCm": 170,
+    "egfr": {
+     "ekfc": 41.5360302819445,
+     "ckidU25": 44.8092215393348,
+     "bedsideSchwartz": 46.8066666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 41.54,
+     "ckidU25": 42.61,
+     "bedsideSchwartz": 46.81
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 17,
+    "sex": "w",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 157.877548874756,
+     "ckidU25": 347.843443463611,
+     "bedsideSchwartz": 355.18
+    },
+    "kidneyEpi": {
+     "ekfc": 157.88,
+     "ckidU25": 323.36,
+     "bedsideSchwartz": 355.18
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 17,
+    "sex": "w",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 138.553974961208,
+     "ckidU25": 231.895628975741,
+     "bedsideSchwartz": 236.786666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 138.55,
+     "ckidU25": 215.57,
+     "bedsideSchwartz": 236.79
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 17,
+    "sex": "w",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 117.539460326192,
+     "ckidU25": 139.137377385444,
+     "bedsideSchwartz": 142.072
+    },
+    "kidneyEpi": {
+     "ekfc": 117.54,
+     "ckidU25": 129.34,
+     "bedsideSchwartz": 142.07
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 17,
+    "sex": "w",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 101.004643438045,
+     "ckidU25": 99.3838409896032,
+     "bedsideSchwartz": 101.48
+    },
+    "kidneyEpi": {
+     "ekfc": 101,
+     "ckidU25": 92.39,
+     "bedsideSchwartz": 101.48
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 17,
+    "sex": "w",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 67.4516101334224,
+     "ckidU25": 69.5686886927222,
+     "bedsideSchwartz": 71.036
+    },
+    "kidneyEpi": {
+     "ekfc": 67.45,
+     "ckidU25": 64.67,
+     "bedsideSchwartz": 71.04
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 17,
+    "sex": "w",
+    "heightCm": 172,
+    "egfr": {
+     "ekfc": 42.6242760587916,
+     "ckidU25": 46.3791257951482,
+     "bedsideSchwartz": 47.3573333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 42.62,
+     "ckidU25": 43.11,
+     "bedsideSchwartz": 47.36
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 18,
+    "sex": "w",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 158.830910943589,
+     "ckidU25": 358.11,
+     "bedsideSchwartz": 357.245
+    },
+    "kidneyEpi": {
+     "ekfc": 158.83,
+     "ckidU25": 358.11,
+     "bedsideSchwartz": 357.24
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 18,
+    "sex": "w",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 139.390649365868,
+     "ckidU25": 238.74,
+     "bedsideSchwartz": 238.163333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 139.39,
+     "ckidU25": 238.74,
+     "bedsideSchwartz": 238.16
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 18,
+    "sex": "w",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 118.249236123098,
+     "ckidU25": 143.244,
+     "bedsideSchwartz": 142.898
+    },
+    "kidneyEpi": {
+     "ekfc": 118.25,
+     "ckidU25": 143.24,
+     "bedsideSchwartz": 142.9
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 18,
+    "sex": "w",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 103.165199069984,
+     "ckidU25": 102.317142857143,
+     "bedsideSchwartz": 102.07
+    },
+    "kidneyEpi": {
+     "ekfc": 103.17,
+     "ckidU25": 102.32,
+     "bedsideSchwartz": 102.07
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 18,
+    "sex": "w",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 68.8944443556575,
+     "ckidU25": 71.622,
+     "bedsideSchwartz": 71.449
+    },
+    "kidneyEpi": {
+     "ekfc": 68.89,
+     "ckidU25": 71.62,
+     "bedsideSchwartz": 71.45
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 18,
+    "sex": "w",
+    "heightCm": 173,
+    "egfr": {
+     "ekfc": 43.5360373062099,
+     "ckidU25": 47.748,
+     "bedsideSchwartz": 47.6326666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 43.54,
+     "ckidU25": 47.75,
+     "bedsideSchwartz": 47.63
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 21,
+    "sex": "w",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 160.606948467453,
+     "ckidU25": 360.18,
+     "bedsideSchwartz": 359.31
+    },
+    "kidneyEpi": {
+     "ekfc": 160.61,
+     "ckidU25": 360.18,
+     "bedsideSchwartz": 359.31
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 21,
+    "sex": "w",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 140.949307074741,
+     "ckidU25": 240.12,
+     "bedsideSchwartz": 239.54
+    },
+    "kidneyEpi": {
+     "ekfc": 140.95,
+     "ckidU25": 240.12,
+     "bedsideSchwartz": 239.54
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 21,
+    "sex": "w",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 119.571491843191,
+     "ckidU25": 144.072,
+     "bedsideSchwartz": 143.724
+    },
+    "kidneyEpi": {
+     "ekfc": 119.57,
+     "ckidU25": 144.07,
+     "bedsideSchwartz": 143.72
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 21,
+    "sex": "w",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 107.278025924143,
+     "ckidU25": 102.908571428571,
+     "bedsideSchwartz": 102.66
+    },
+    "kidneyEpi": {
+     "ekfc": 107.28,
+     "ckidU25": 102.91,
+     "bedsideSchwartz": 102.66
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 21,
+    "sex": "w",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 71.6410190087641,
+     "ckidU25": 72.036,
+     "bedsideSchwartz": 71.862
+    },
+    "kidneyEpi": {
+     "ekfc": 71.64,
+     "ckidU25": 72.04,
+     "bedsideSchwartz": 71.86
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 21,
+    "sex": "w",
+    "heightCm": 174,
+    "egfr": {
+     "ekfc": 45.2716631274249,
+     "ckidU25": 48.024,
+     "bedsideSchwartz": 47.908
+    },
+    "kidneyEpi": {
+     "ekfc": 45.27,
+     "ckidU25": 48.02,
+     "bedsideSchwartz": 47.91
+    }
+   },
+   {
+    "scrMgdl": 0.2,
+    "ageYears": 25,
+    "sex": "w",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 161.075634751114,
+     "ckidU25": 362.25,
+     "bedsideSchwartz": 361.375
+    },
+    "kidneyEpi": {
+     "ekfc": 161.08,
+     "ckidU25": 362.25,
+     "bedsideSchwartz": 361.38
+    }
+   },
+   {
+    "scrMgdl": 0.3,
+    "ageYears": 25,
+    "sex": "w",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 141.360628051498,
+     "ckidU25": 241.5,
+     "bedsideSchwartz": 240.916666666667
+    },
+    "kidneyEpi": {
+     "ekfc": 141.36,
+     "ckidU25": 241.5,
+     "bedsideSchwartz": 240.92
+    }
+   },
+   {
+    "scrMgdl": 0.5,
+    "ageYears": 25,
+    "sex": "w",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 119.920427668687,
+     "ckidU25": 144.9,
+     "bedsideSchwartz": 144.55
+    },
+    "kidneyEpi": {
+     "ekfc": 119.92,
+     "ckidU25": 144.9,
+     "bedsideSchwartz": 144.55
+    }
+   },
+   {
+    "scrMgdl": 0.7,
+    "ageYears": 25,
+    "sex": "w",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 107.606855645895,
+     "ckidU25": 103.5,
+     "bedsideSchwartz": 103.25
+    },
+    "kidneyEpi": {
+     "ekfc": 107.61,
+     "ckidU25": 103.5,
+     "bedsideSchwartz": 103.25
+    }
+   },
+   {
+    "scrMgdl": 1,
+    "ageYears": 25,
+    "sex": "w",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 72.3786916809384,
+     "ckidU25": 72.45,
+     "bedsideSchwartz": 72.275
+    },
+    "kidneyEpi": {
+     "ekfc": 72.38,
+     "ckidU25": 72.45,
+     "bedsideSchwartz": 72.27
+    }
+   },
+   {
+    "scrMgdl": 1.5,
+    "ageYears": 25,
+    "sex": "w",
+    "heightCm": 175,
+    "egfr": {
+     "ekfc": 45.7378160266305,
+     "ckidU25": 48.3,
+     "bedsideSchwartz": 48.1833333333333
+    },
+    "kidneyEpi": {
+     "ekfc": 45.74,
+     "ckidU25": 48.3,
+     "bedsideSchwartz": 48.18
+    }
+   }
+  ]
+ }
+}

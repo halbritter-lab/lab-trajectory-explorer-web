@@ -162,6 +162,11 @@ each is implemented with the option that changes least.
 OD-65 to OD-69 were added on 2026-11-22 with the equations for children and
 adolescents (issue #66): where the decisions `peds-eq`, `height` and `switch`
 leave a gap, the conservative option is implemented.
+OD-85 to OD-88 were added on 2026-11-22 with the comparisons against native
+R and R packages (issue #79, decision `rref`; see
+[reference comparisons](reference-comparisons.md)): each records a place where
+an independent implementation differs from the app; the app's numbers are
+unchanged. OD-89 of that range is not used.
 OD-70 to OD-72 were added on 2026-11-22 from the code review of that day's
 merges, for rules that were implemented without an owner decision; the
 behaviour is unchanged.
@@ -200,6 +205,10 @@ behaviour is unchanged.
 | OD-70 | CKiD U25 is published for ages 1 to 25 and the decision `height` set a 30-day height limit under 2 years, but no eGFR is computed under 2 (EKFC from 2, decision of 2026-11-21), so that limit has no case. Should CKiD U25 apply from age 1 with the 30-day limit? | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 | OD-71 | A conclusive bound (`>x` with x at or above 15, for example `>20`) counts as a date that is not low for the flag "single value below 15, unconfirmed"; set during the merge of 2026-11-22 without an owner decision. Should bounds be ignored there? | [Single value below 15](method-algorithms/endpoints-and-projection.md#single-value-below-15-unconfirmed-2026-11-22) |
 | OD-72 | The segment after kidney replacement therapy and both sides of the before/after comparison at an anchor event take bounded values by the column's `boundedValues` setting, as its own fit; set during the merge of 2026-11-22 without an owner decision. | [Kidney replacement therapy in every preset](method-algorithms/clinical-events.md#kidney-replacement-therapy-in-every-preset), [Points and boundaries](method-algorithms/anchor-comparison.md#points-and-boundaries) |
+| OD-85 | EKFC above 25 years uses Q = 0.90 and 0.70 mg/dl; the R package `kidney.epi` uses 80 and 62 µmol/l (0.905 and 0.701 mg/dl), so its values are up to 0.66 % higher (man, 50 years, 1.0 mg/dl: 86.130 against 86.67). Which unit's constants are primary? | [Formulas](method-algorithms/egfr.md#formulas) |
+| OD-86 | CKiD U25 from 15 to under 18 years: the app (and `egfr`) use 39.0 × 1.045^(age − 12) and 36.1 × 1.023^(age − 12); `kidney.epi` uses the constants 41.8 and 37.6, up to 14 % lower (boy, 17 years, 172 cm, 0.3 mg/dl: 278.6 against 239.65). Pierce 2021 itself was not checked for these ages. | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
+| OD-87 | The Theil–Sen upper slope bound is taken one rank higher than in the R package `zyp` (1-based ranks 19 and 48 against 19 and 47 for N = 66: [1.5, 2.3] against [1.5, 2.285714]); the app keeps the SciPy convention, which was not checked against Sen 1968 or Hollander and Wolfe. | [Theil-Sen](method-algorithms/trend-estimators.md#theil-sen-2026-09-23) |
+| OD-88 | CKD-EPI 2009 for women uses 141 × 1.018 = 143.538; `kidney.epi` uses the table constant 144, 0.32 % higher (woman, 50 years, 1.0 mg/dl: 65.638 against 65.85). | [Formulas](method-algorithms/egfr.md#formulas) |
 
 ### Resolved decisions
 

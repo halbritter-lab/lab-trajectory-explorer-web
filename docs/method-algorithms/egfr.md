@@ -405,6 +405,31 @@ to 107.300000 at 26.
 
 Decided 2026-10-07 (formerly OD-12): both constants stay, 88.42 µmol/l per mg/dl for measured creatinine and 88.4 inside the EKFC Q polynomial. Within EKFC the difference affects ages 2 to 25 only and is at most about 0.03 mL/min/1.73 m² (male, 20 years, 0.9 mg/dl: 102.179692 against 102.153530). With 88.42 the SI forms of the KDIGO thresholds are 26.526 µmol/l for the absolute rise and 353.68 µmol/l for the stage-III level, just above the rounded 26.5 and 353.6 µmol/l. The methodology page names both constants.
 
+**Comparison with R packages** (2026-11-22, issue #79; details in
+[reference comparisons](../reference-comparisons.md#egfr)). Every equation of
+this section, and CKiD U25 and bedside Schwartz below, agrees with the R
+package `egfr` 2.0.0 to 1e-12 relative on a grid of 272 cases. The package
+`kidney.epi` 1.4.0 (results rounded to 0.01) agrees within 0.005 except in
+three places, described as the code behaves:
+
+- **Open decision OD-85.** For age above 25 the EKFC Q is 0.90 mg/dl (`m`,
+  `d`) and 0.70 mg/dl (`w`), as Pottel 2021 gives it in mg/dl; `kidney.epi`
+  uses the µmol/l values 80 and 62, which are 0.905 and 0.701 mg/dl with 88.4.
+  The app's values are lower by up to 0.66 %: man, 50 years, 1.0 mg/dl:
+  `107.3 × (1.0/0.90)^(−1.132) × 0.99^10 = 86.130` in the app, 86.67 in
+  `kidney.epi` (`Q = 80/88.4 = 0.904977`); man, 70 years, 4.5 mg/dl: 12.836
+  against 12.92. With measured creatinine in µmol/l the app's Q corresponds
+  to 79.56 and 61.88 µmol/l (0.90 × 88.4, 0.70 × 88.4). Which unit's
+  constants are primary is for the owner to decide.
+- **Open decision OD-88.** CKD-EPI 2009 for `w` uses `141 × 1.018 = 143.538`,
+  the single-expression form of Levey 2009; `kidney.epi` uses 144, the
+  constant of the per-sex table form. Its values for women are 0.32 % higher:
+  woman, 50 years, 1.0 mg/dl: `143.538 × (1.0/0.7)^(−1.209) × 0.993^50 =
+  65.638` in the app, `144 × … = 65.85` in `kidney.epi`. Men agree.
+- Age range: `kidney.epi` returns no value for its adult equations at exactly
+  18 and for EKFC at exactly 2; the app computes there. No decision needed:
+  the app's ranges are decided (see [Conditions](#conditions-for-a-computed-value)).
+
 ### Children and adolescents
 
 Since 2026-11-22 (owner decisions of 2026-11-21 and 2026-11-22, issue #66;
@@ -622,6 +647,17 @@ full-age formula the last two become EKFC (Q = 72.3226 µmol/l at 18:
   day gets no value ("Age under 2"); with CKiD U25 from 1 year it would get
   k = 39.0 × 1.008^(1 − 12) = 35.727 (boy), 35.727 × 0.75 / 0.3 = 89.3. The
   owner decides whether CKiD U25 applies from age 1 with the 30-day limit.
+- **Open decision OD-86.** From 15 to under 18 years the R package
+  `kidney.epi` 1.4.0 uses a constant CKiD U25 k of 41.8 (boys) and 37.6
+  (girls); the app (and the R package `egfr` 2.0.0) continues
+  `39.0 × 1.045^(age − 12)` and `36.1 × 1.023^(age − 12)` up to 18, as the
+  secondary sources above give it. Boy, 17 years, 172 cm, 0.3 mg/dl:
+  `48.60 × 1.72 / 0.3 = 278.6` in the app, `41.8 × 1.72 / 0.3 = 239.65` in
+  `kidney.epi` (14 % lower); boy, 16 years, 170 cm, 1.0 mg/dl: 79.06 against
+  71.06. `kidney.epi`'s boys' constant drops at 15 (44.51 by the exponential,
+  41.8). The app is not changed; the owner decides whether Pierce 2021 itself
+  is checked for these ages (see
+  [reference comparisons](../reference-comparisons.md#egfr)).
 
 ### Rounding and limits
 
