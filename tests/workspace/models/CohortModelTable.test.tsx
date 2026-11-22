@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from 'vitest'
 import { CohortModelTable } from '../../../src/workspace/models/CohortModelTable'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula } from '../../../src/core/mixedModel/config'
 import { buildMixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
-import { hashMixedModelInput } from '../../../src/core/mixedModel/validation'
+import { hashMixedModelInput, validateMixedModelRows } from '../../../src/core/mixedModel/validation'
 import { useAppStore } from '../../../src/workspace/state/store'
 import { formatWorkspaceNumber } from '../../../src/workspace/WorkspacePlot'
 import type { RunMixedModelWorkerJobOptions } from '../../../src/core/mixedModel/browserClient'
@@ -85,13 +85,14 @@ function renderTable(opts: {
   runJob?: (options: RunMixedModelWorkerJobOptions) => Promise<MixedModelResult>
   seed?: () => void
   slopeDecimals?: number
+  entities?: CohortModelEntityRows[]
 } = {}) {
   useAppStore.getState().reset()
   opts.seed?.()
   const runJob = opts.runJob ?? vi.fn(async () => success(-2))
   render(
     <CohortModelTable
-      entities={entities}
+      entities={opts.entities ?? entities}
       entityLabels={entityLabels}
       entityColors={entityColors}
       seriesIndex={0}
@@ -203,6 +204,24 @@ describe('CohortModelTable', () => {
     const coefficients = within(screen.getByRole('table', { name: 'Fixed effect coefficients' })).getAllByRole('row').slice(1).map(row => within(row).getAllByRole('cell').slice(1).map(cell => cell.textContent))
     expect(coefficients).toEqual([['1.200', '[1.050, 1.350]'], ['0.090', '[0.050, 0.131]']])
     expect(screen.getByText('Patient slope SD').nextElementSibling).toHaveTextContent(/^0\.012$/)
+  })
+
+  // K34 (2026-11-22): the input warning in plain words with the patients concerned; the stored
+  // (exported) text stays as it was, and a warning from R is shown as recorded.
+  it('explains an input warning of the model check and names up to five patients', async () => {
+    const singles: MixedModelSpikeRow[] = Array.from({ length: 7 }, (_, index) => ({ patient_id: `s${index}`, value: 50, time_since_baseline: 0, baseline_age: 60, baseline_age_centered: 0 }))
+    const rows = [...cohortRows, ...singles]
+    const recorded = validateMixedModelRows(rows, DEFAULT_MIXED_MODEL_CONFIG)
+    expect(recorded).toEqual({ ok: true, warnings: ['7 patients have fewer than 2 repeated measurements and contribute limited within-patient information.'] })
+    const runJob = vi.fn(async () => ({ ...success(-2), warnings: [...(recorded.ok ? recorded.warnings : []), 'Model failed to converge with max|grad| = 0.002'] }))
+    renderTable({ runJob, entities: [{ entity: { kind: 'cohort' }, rows }] })
+    await userEvent.click(screen.getByRole('button', { name: 'Fit selected' }))
+    await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('Fitted'))
+    await userEvent.click(within(rowByEntity('cohort')).getByRole('button', { name: 'Details' }))
+    expect(screen.getByText('7 patients have a single measurement in this model. They count towards the starting level but say nothing about the change over time within the patient. Patients: s0, s1, s2, s3, s4 and 2 more.')).toBeInTheDocument()
+    expect(screen.getByText('Model failed to converge with max|grad| = 0.002')).toBeInTheDocument()
+    expect(screen.queryByText(/fewer than 2 repeated measurements/)).not.toBeInTheDocument()
+    expect(useAppStore.getState().cohortModelResults?.cohort.result.warnings[0]).toBe(recorded.ok ? recorded.warnings[0] : '')
   })
 
   it('writes coefficients and their intervals with two decimals by default', async () => {

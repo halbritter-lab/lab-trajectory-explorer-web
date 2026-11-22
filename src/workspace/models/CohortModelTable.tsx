@@ -22,7 +22,7 @@ import type {
   MixedModelSpikeRow,
   MixedModelSuccess,
 } from '../../core/mixedModel/types'
-import { validateMixedModelRows } from '../../core/mixedModel/validation'
+import { mixedModelWarningDetails, patientIdList, validateMixedModelRows, type MixedModelWarningDetail } from '../../core/mixedModel/validation'
 import { useAppStore, type StoredMixedModelResult } from '../state/store'
 import { projectionSettingsKey } from '../state/store'
 import { buildProjectionSnapshot, type ProjectionResponse, type ProjectionSnapshot } from '../../core/projection/projectionSnapshot'
@@ -70,6 +70,8 @@ interface EntityRow {
   inputFlags?: CohortModelEntityRows['inputFlags']
   validationMessage: string | null
   eligible: boolean
+  /** The input warnings of the passed check, with their meaning and patients. */
+  warningDetails: MixedModelWarningDetail[]
 }
 
 /** One results table over the whole cohort + each group. Each row can be
@@ -117,6 +119,7 @@ export function CohortModelTable({
             inputFlags,
             validationMessage: validation.ok ? null : validation.message,
             eligible: validation.ok,
+            warningDetails: validation.ok ? mixedModelWarningDetails(rows, config) : [],
           }
         })
         // Always keep the pooled cohort row; drop empty groups (no model rows).
@@ -347,7 +350,7 @@ export function CohortModelTable({
                     {success && isExpanded && (
                       <tr className="cohort-model-details-row" data-testid="cohort-model-details" data-entity={row.key}>
                         <td className="cohort-model-details-cell" data-testid="cohort-model-details-cell" colSpan={8}>
-                          <ModelDetails result={success} outcome={mixedModelOutcomeLabel(sourceResponse.outcome, sourceResponse.unit)} decimals={slopeDecimals} />
+                          <ModelDetails result={success} outcome={mixedModelOutcomeLabel(sourceResponse.outcome, sourceResponse.unit)} decimals={slopeDecimals} warningDetails={row.warningDetails} />
                           {(() => {
                             const snapshot = exportable.find((model) => model.key === row.key)?.projection
                             return snapshot ? <ModelProjectionPanel snapshot={snapshot} showWarnings={false}
@@ -386,12 +389,21 @@ function failureStatusText(result: MixedModelFailure): string {
   return message
 }
 
-function ModelDetails({ result, outcome, decimals }: { result: MixedModelSuccess; outcome: string; decimals: number }) {
+/** A stored warning as the interface shows it: an input warning of the check
+ * in plain words with the patients concerned (2026-11-22), any other warning
+ * (from R, for example) as recorded. The export keeps the recorded text. */
+function warningText(warning: string, details: readonly MixedModelWarningDetail[]): string {
+  const detail = details.find((candidate) => candidate.text === warning)
+  if (!detail) return warning
+  return `${detail.plain} ${detail.patientIds.length === 1 ? 'Patient' : 'Patients'}: ${patientIdList(detail.patientIds)}.`
+}
+
+function ModelDetails({ result, outcome, decimals, warningDetails }: { result: MixedModelSuccess; outcome: string; decimals: number; warningDetails: readonly MixedModelWarningDetail[] }) {
   const factors = result.metadata.modelConfig ? mixedModelFactors(result.metadata.modelConfig) : []
   return (
     <>
     {factors.length > 0 && <p>Reference starting level and change per year: {factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : `${factor.key} at its included-patient mean`).join('; ')}. Associations are conditional on this model and population.</p>}
-    {result.warnings.map((warning, index) => <p role="status" key={index}>{warning}</p>)}
+    {result.warnings.map((warning, index) => <p role="status" key={index}>{warningText(warning, warningDetails)}</p>)}
     <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{formatFixedDecimals(coefficient.estimate, decimals)}</td><td>{formatFixedInterval(coefficient.confidenceInterval, decimals)}</td></tr>)}</tbody></table>
     <dl className="cohort-model-details">
       <div className="cohort-model-detail-item">

@@ -1012,6 +1012,16 @@ Resolved with a change:
   only while bands are drawn (Display → "AKI windows and episodes", and for
   the highlighted patient in an overlay), once per chart. Details:
   [exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window).
+- **The model-validation warning says what it means and names the patients**
+  (K34). On the Cohort models page each input warning of the model check is
+  shown in plain words with the patient IDs concerned, up to five and then
+  "and N more". The text stored with the fit and exported in
+  `models.warnings` and `projections.warnings` keeps its wording, so scripts
+  that match it keep working; the two wordings differ on purpose. Details of
+  the implementation: the IDs are listed in the order of the model rows; the
+  duplicate warning names each patient once although it counts rows;
+  warnings from R are shown as recorded. Details:
+  [minimum data and validity gates](method-algorithms/cohort-models.md#minimum-data-and-validity-gates).
 
 ## Approved requirements
 

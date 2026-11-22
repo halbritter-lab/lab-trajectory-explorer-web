@@ -36,6 +36,10 @@ interfaces are still evolving before 1.0.
 - A chart column that does not exclude AKI windows from its fit ("Acute
   review", for example) says under the chart that nothing is excluded there
   and that the shaded band shows the configured window length.
+- Cohort models: the warnings of the model input check (single measurement,
+  too few measurement times, duplicate times) are shown in plain words with
+  the patient IDs concerned (up to five, then "and N more"). The exported
+  text in `models.warnings` and `projections.warnings` is unchanged.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
