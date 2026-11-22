@@ -2024,3 +2024,62 @@ Draft:
 Not in the draft, for the owner to add or leave out: midnight counts as no
 time of day; values with the same time are not compared with each other; the
 time of day is not shown or exported.
+
+## Part CM: cohort-model decisions of 2026-11-22 (for approval)
+
+Follows the [decisions of 2026-11-22](remaining-method-decisions.md#decisions-of-2026-11-22-decision-artifact-issues-2-4-6585)
+`genomin`, `genomiss`, `uacr`, `inference` and `dropout` (issue #4). The
+methodology page is unchanged apart from one word that became false: in
+*Cohort Model Specification, Intervals and Projections* "the exported R script
+names the lmerTest package" now reads "uses", since the script runs lmerTest
+where it is installed. The paragraphs below are drafts for the maintainer;
+none is applied.
+
+### CM1. Minimum per level and "not tested"
+
+Topic *Cohort models*, block "Inputs, time origin and fit safeguards", after
+the paragraph on the ten-patient minimum.
+
+> A category of a factor needs at least five patients with two or more
+> measurements in the model. Smaller categories are pooled into “other
+> (pooled)” before the fit; the page lists them with their counts, and the
+> export records them in factor_levels. This minimum is a rule of this tool.
+> “Not tested” (“not tested”, “nicht getestet”, “n.t.”, “NT”) is its own
+> category and is never merged with “no variant”; a small “not tested”
+> category is left out of the model with its patients instead of being
+> pooled. A blank value is missing.
+
+### CM2. Log baseline UACR
+
+Same block, after CM1.
+
+> Log baseline UACR can be added as a covariate. It is off by default and
+> labelled a possible mediator: albuminuria can lie on the path from a genetic
+> variant to the decline, and adjusting for it can remove part of the effect
+> of interest. The baseline value is the UACR measured nearest to the first
+> model measurement, at most 90 days before or after it.
+
+### CM3. Tests in R
+
+Block "Cohort Model Specification, Intervals and Projections", replacing the
+last sentence of the first paragraph ("For tests, the exported R script uses
+the lmerTest package.").
+
+> The exported R script refits each model with lmerTest where it is
+> installed: one F test per factor with Satterthwaite degrees of freedom, and
+> the contrasts against the reference category, which are exploratory and not
+> adjusted for multiple comparisons (a Holm adjustment is prepared as a
+> comment).
+
+### CM4. Dropout
+
+Block "Inputs, time origin and fit safeguards", after the paragraph on
+follow-up and dropout.
+
+> The Fit summary reports how follow-up ended in each model and category:
+> kidney replacement therapy, death once deaths are recorded, loss to
+> follow-up (no measurement in the last year of the data) or still in
+> follow-up. When more than 10 % of the patients reached kidney replacement
+> therapy or died, the page says so, and the R script of the export outlines a
+> joint model of the course and the time to that event as a sensitivity
+> analysis. These definitions and the threshold are rules of this tool.

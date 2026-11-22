@@ -92,6 +92,10 @@ it; the way the tool applies it is its own.
 | --- | --- | --- |
 | Rapid eGFR decline flag, two levels | The default threshold of 5 mL/min/1.73 m² per year goes back to the KDIGO 2012 CKD guideline; KDIGO 2024 gives no numeric threshold for rapid progression. The threshold is a configurable convention. Applying it to one fitted slope without testing that the decline is sustained, and the two levels "rapid ↓" (whole 95 % interval below −threshold) and "rapid ↓?" (only the slope below it), are this tool's rules (decided 2026-11-21). | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
 | Slope reliability rule | Fewer than three fitted dates or under 365 days of fitted span: a clinical rule of thumb, not a published cut-off. | [Reliability rule](method-algorithms/slope-quality.md#reliability-rule) |
+| Minimum per cohort-model factor level | Pre-specified variant classes follow Cornec-Le Gall et al. (JASN 2016); the minimum of 5 patients with 2 or more model rows per level, pooling into "other (pooled)" and removing a small "not tested" level are this tool's rules (decided 2026-11-22). | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| "Not tested" vocabulary | Keeping "not tested" apart from "no variant" follows Groenwold et al. (CMAJ 2012); the four recognised texts are this tool's list (2026-11-22). | [Columns](method-algorithms/import-and-values.md#columns) |
+| Baseline UACR window | The 90-day window around the model baseline and the nearest-date rule for the optional log baseline UACR covariate are this tool's rules (2026-11-22). | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| Dropout report and joint-model suggestion | KRT and death as informative dropout follow Vonesh et al. (Stat Med 2006); the event types counted as KRT, loss after 365 days without a model row before the data end and the suggestion above 10 % KRT or death are this tool's rules (decided 2026-11-22). | [Which measurements enter](method-algorithms/cohort-models.md#which-measurements-enter) |
 
 ## Open decisions
 
@@ -124,7 +128,17 @@ implemented with the option that changes least. OD-38 was added on
 of its decision and resolved the same day: the decision prescribes calendar
 days.
 
-No decision is open at present.
+Added on 2026-11-22 with the cohort-model decisions of that day (`genomin`,
+`genomiss`, `uacr`, `dropout`; issue #4), for the details those decisions
+leave open; each is implemented with the conservative option:
+
+| ID | Open point | Section |
+| --- | --- | --- |
+| OD-55 | Owner-defined classes of factor levels (for example truncating and non-truncating variants) need a mapping from levels to classes, which is not built; every small level is pooled into "other (pooled)". | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| OD-56 | A pooled level that still has fewer than 5 patients with 2 or more model rows is kept in the model with a note; when all levels are pooled the factor fails for lack of variation. The removal of small "not tested" levels runs once, before pooling. | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| OD-57 | The "not tested" vocabulary applies to cohort-model factors only; grouping keeps the imported spellings, so `NT` and `not tested` are two groups there. | [Columns](method-algorithms/import-and-values.md#columns) |
+| OD-58 | The UACR series of the log baseline UACR covariate is recognised by name; with several UACR series (for example in mg/g and mg/mmol) the covariate is not offered and the user cannot choose one. | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| OD-59 | The dropout report counts a kidney transplant or chronic dialysis as KRT (not dialysis of unknown intent), calls a patient lost after more than 365 days without a model row before the latest lab date of the dataset, and applies the 10 % threshold to the whole unit, not per level. Death is counted once an event type `death` exists. | [Which measurements enter](method-algorithms/cohort-models.md#which-measurements-enter) |
 
 ### Resolved decisions
 

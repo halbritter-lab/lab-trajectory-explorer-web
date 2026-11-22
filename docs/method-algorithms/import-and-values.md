@@ -248,6 +248,23 @@ later row is rejected with a diagnostic. A patient without lab rows is kept
 with a warning. A stated-age column in the attributes table is an ordinary free
 attribute and is not used for age.
 
+**"Not tested" values** (decision `genomiss` of 2026-11-22, issue #4;
+Groenwold RHH et al., CMAJ 2012;184:1265, PMID 22371511). The vocabulary
+`NOT_TESTED_VOCABULARY` (`src/core/attributes/notTested.ts`) holds four
+texts: `not tested`, `nicht getestet`, `n.t.` and `nt`. An attribute value
+matches when, trimmed, lower-cased and with inner whitespace collapsed to one
+space, it equals one of them: `Not Tested`, ` NICHT  getestet `, `N.T.` and
+`NT` match; `n. t.`, `not done`, `n.a.`, `NA`, `negative`, `no variant` and
+`NTRK1` do not. The list is deliberately short; other spellings stay
+ordinary values. The import keeps the value as it is in the file, and every
+sheet, group and display shows it so. Only a cohort-model attribute factor
+reads a matching value as the level `not tested` (see
+[Factors and covariates](cohort-models.md#factors-and-covariates)): it is
+never merged with "no variant" or any other level, and a blank cell stays
+missing. Open decision OD-57: grouping (Trajectories and the *Model
+grouping* of Cohort models) does not apply the vocabulary, so `NT` and
+`not tested` form two groups there.
+
 **Pre-parsed values.** When the lab sheet has both a pre-parsed number column
 and a pre-parsed operator column, the value column is not interpreted at all.
 Its text is kept only for display and for the duplicate check. A sheet with

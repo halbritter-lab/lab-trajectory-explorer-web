@@ -310,6 +310,15 @@ birth-date anchor are not repeated here.
 **Sex.** The resolved patient sex is used. `m` and `w` select the male and
 female coefficients. `d` uses the male coefficients in all four formulas,
 including the EKFC Q value. An unresolved or unrecognised sex gives no value.
+Since 2026-11-22 (decision `sexd`, issue #4) the cohort workbook marks this
+per patient: `egfr_male_coefficients_for_sex_d`, the last column of
+`demographics` (after `egfr_source_unit`), is `true` when at least one
+computed eGFR value of the patient was computed with sex `d`, `false` when
+the patient has computed eGFR values with `m` or `w` only, and empty without
+a computed eGFR value. An `about` row, appended last, explains the column. No
+eGFR value changes. Example: a patient with resolved sex `d` and creatinine
+1.0 mg/dl at 55 years gets CKD-EPI 2021 eGFR 88.9 mL/min/1.73 m² (the male
+value; the female value would be 66.5) and the mark `true`.
 
 ### Formulas
 
