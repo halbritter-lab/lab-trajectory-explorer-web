@@ -57,7 +57,7 @@ export function lmerTestLines(config: MixedModelConfig): string[] {
     '  print(mm_contrasts)',
     '  # Optional Holm adjustment of the contrast p-values (all terms but the intercept):',
     '  # print(p.adjust(mm_contrasts[-1, "Pr(>|t|)"], method = "holm"))',
-    '} else message("lmerTest is not installed; install.packages(\"lmerTest\") adds the Satterthwaite F tests.")',
+    "} else message('lmerTest is not installed; install.packages(\"lmerTest\") adds the Satterthwaite F tests.')",
   ]
 }
 

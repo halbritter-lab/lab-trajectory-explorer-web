@@ -1070,3 +1070,40 @@ root by `tests/e2e/self-hosted-r.e2e.ts` (CI, `pnpm preview`) and under
 Firefox and WebKit, GitHub Pages itself (how it serves the `.gz` and `.tgz`
 files), and the checksum failure inside the build (covered by unit tests of
 the script).
+
+## Cohort-model decisions of 2026-11-22 (issue #4, #83)
+
+1. Import 30 patients with four yearly eGFR values, a UACR value in mg/g on
+   2020-01-20 each, genotypes `PKD2` (2), `NT` (5), `PKD1` (10) and
+   `no variant` (13), and kidney transplants of four patients on 2023-06-01.
+   Cohort models, *Custom model*, add genotype: the Fit summary reads "Whole
+   cohort: genotype PKD2 (2 of 2) pooled into “other (pooled)”, which still
+   has fewer than 5." and the levels `PKD1 10 (10), no variant 13 (13), not
+   tested 5 (5), other (pooled) 2 (2)`. Untick *Pool small levels*: PKD2 is
+   listed as "below the minimum, kept".
+2. Add *Log baseline UACR (possible mediator)*; it is not in any preset. The
+   dropout note says more than 10 % reached kidney replacement therapy;
+   *Follow-up and dropout* lists 4 of 30 (13.3 %), per level 2 of 10 for
+   PKD1.
+3. Fit (real webR) and export: `coefficients` has `factor_0_not tested`,
+   `factor_0_other (pooled)` and `factor_1_` in "per unit of ln(baseline
+   UACR)"; `factor_levels`, `dropout` and `dropout_patients` are the last
+   sheets; `models` ends in `app_version`, `egfr_formula`; `r_script` names
+   the pooled level, refits with lmerTest inside `requireNamespace` and holds
+   the commented JMbayes2 outline.
+4. Group by an attribute whose groups resolve a different default
+   reference: the note "The models use different default reference levels
+   …" appears and goes away when a reference is chosen.
+5. Run `source("refit.R")` from the exported `r_script` in R with lme4,
+   readxl and lmerTest installed: the anova table and the coefficient table
+   print; without lmerTest a message is printed and the refit still ends.
+6. Trajectories export with a patient of sex `d` and a computed eGFR:
+   `demographics` ends in `egfr_male_coefficients_for_sex_d` = true.
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 to 3 by
+an ad-hoc Playwright script with a real webR fit (estimates for
+`factor_0_not tested` −1.84, `factor_0_other (pooled)` −5.37), step 1 also
+by `tests/e2e/model-factors.e2e.ts`, the export sheets by
+`tests/e2e/model-projections.e2e.ts`, steps 4 and 6 by unit tests. Not
+verified: step 5 (no R installation here), so the lmerTest and JMbayes2
+lines are checked as text only.

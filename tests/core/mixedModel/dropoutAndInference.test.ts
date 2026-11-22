@@ -67,6 +67,8 @@ describe('R script: lmerTest and the joint-model suggestion', () => {
     expect(lines).toContain('  # Contrasts against the reference level: exploratory, unadjusted for multiple comparisons.')
     expect(lines).toContain('  # print(p.adjust(mm_contrasts[-1, "Pr(>|t|)"], method = "holm"))')
     expect(lines[1]).toBe('if (requireNamespace("lmerTest", quietly = TRUE)) {')
+    // A valid R string: single quotes around the double-quoted package name.
+    expect(lines.at(-1)).toBe(`} else message('lmerTest is not installed; install.packages("lmerTest") adds the Satterthwaite F tests.')`)
   })
 
   it('suggests JMbayes2, commented, only above 10 % KRT or death', () => {
