@@ -148,6 +148,18 @@ describe('filters with counts for marks and event types (K01), and select all ma
     expect(within(filters).getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(['Rapid decline: 1 patient', 'Uncertain slope: 1 patient', 'Endpoint reached: 1 patient', 'Kidney transplant: 1 patient', 'Other event: 1 patient'])
   })
 
+  it('offers the possible rapid decline as a mark of its own (issue #72)', () => {
+    // R1 falls steadily (whole interval below -5); S scatters (slope below -5, interval reaching above it).
+    render(<TrajectoriesWorkspace data={dataset([{ id: 'R1', values: [80, 70, 60, 50] }, { id: 'S', values: [80, 40, 75, 45] }], 'ml/min/1.73m²')} />)
+    enableTrend()
+    expect(within(rowOf('R1')).getByRole('button', { name: 'rapid ↓' })).toBeInTheDocument()
+    expect(within(rowOf('S')).getByRole('button', { name: 'rapid ↓?' })).toBeInTheDocument()
+    expect(filterButton(/^Rapid decline/)).toHaveAccessibleName('Rapid decline: 1 patient')
+    fireEvent.click(filterButton(/^Possible rapid decline/))
+    expect(filterButton(/^Possible rapid decline/)).toHaveAccessibleName('Possible rapid decline: 1 patient')
+    expect(order()).toEqual(['S'])
+  })
+
   it('narrows table and export scope to the patients carrying every chosen mark', () => {
     render(<TrajectoriesWorkspace data={marked()} />)
     enableTrend()

@@ -394,7 +394,8 @@ export interface CohortExportRecord {
   demographics_conflict: string
   // Module columns follow here in registry order: e.g. `aki` (the AKI chip),
   // `rapid_progression` ('yes' for a rapid eGFR decline under the column's
-  // threshold) and the CKD endpoint columns (`endpoint_*`). The rolling
+  // threshold with the whole 95 % interval below it, 'possible' when only the
+  // slope is) and the CKD endpoint columns (`endpoint_*`). The rolling
   // columns (`rolling_*`) come last, appended so positional readers keep
   // working; they are filled for slope mode `rolling` only. The fit dates,
   // `intercept`, `slope_se` and `n_fitted_dates` follow them, then
@@ -432,6 +433,7 @@ export function cohortCellFlags(cell: CohortCell, patientId: PatientId, columnSe
   return [
     ...cell.flags,
     ...moduleCellFlags({ patientId, seriesKey: { bezeichnung: cell.bezeichnung, einheit: cell.einheit ?? null }, slope: cell.slope, fitModel: cell.fitModel,
+      ciLow: cell.ciLow, ciHigh: cell.ciHigh, nFittedDates: cell.nFittedDates,
       unstableSlope: isUnstableSlope({ reason: cell.reason, nFitted: cell.nFitted, nFittedDates: cell.nFittedDates, fittedSpanDays: cell.fittedSpanDays, fitModel: cell.fitModel }) }, columnSettings),
   ]
 }

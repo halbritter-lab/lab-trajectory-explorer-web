@@ -65,8 +65,9 @@ function usePhoneLayout(): boolean {
   }, [])
   return phone
 }
-/** The rapid-decline mark is a finding, not a warning about the value: its own icon. */
-const flagIcon = (tone: string) => tone === 'aki' ? 'event' : tone === 'rapid' ? 'decline' : 'endpoint'
+/** The rapid-decline mark is a finding, not a warning about the value: its own icon,
+ * for both levels ("rapid ↓" and the possible "rapid ↓?"). */
+const flagIcon = (tone: string) => tone === 'aki' ? 'event' : tone === 'rapid' || tone === 'rapid-possible' ? 'decline' : 'endpoint'
 
 function CellSummary({
   cell,
@@ -141,7 +142,7 @@ function CellSummary({
   const badge = (flag: (typeof flags)[number]) => !detailed && flag.tone === 'aki'
     ? <Hint key={flag.id} label={flag.label} icon="event" tone="aki" text="AKI">{flag.title}</Hint>
     : !detailed && warningIcons
-    ? <Hint key={flag.id} label={flag.label} icon={flagIcon(flag.tone)} tone={flag.tone}>{flag.title}</Hint>
+    ? <Hint key={flag.id} label={flag.label} icon={flagIcon(flag.tone)} tone={flag.tone} text={flag.tone === 'rapid-possible' ? '?' : undefined}>{flag.title}</Hint>
     : <details key={flag.id} className="wt-badge-details"><summary className={`wt-badge wt-badge-${flag.tone}`} title={flag.title}>{flag.label}</summary><p>{flag.title}</p></details>
   const endpoint = endpointBadge(cell.endpoints, cell.points.length)
   const markedReasons = cell.pointExclusionReasons.map(reasons => reasons.filter(reason => cell.fitModel !== 'none' || reason === 'censored-value'))
@@ -206,7 +207,7 @@ function CellSummary({
           {included && <Hint label={included.label} icon="warning" tone="caution" text={warningIcons ? undefined : included.label}>{included.title}</Hint>}
           {/* Icon mode: a second "i" beside Measurement details would look the same; the sentence is in that hint. */}
           {zeroInside && !warningIcons && <Hint label={zeroInside.label} text={zeroInside.label}>{zeroInside.title}</Hint>}
-          {visibleFlags.map(flag => <Hint key={flag.id} label={flag.label} icon={flagIcon(flag.tone)} tone={flag.tone} text={flag.tone === 'aki' ? 'AKI' : warningIcons ? undefined : flag.label}>{flag.title}</Hint>)}
+          {visibleFlags.map(flag => <Hint key={flag.id} label={flag.label} icon={flagIcon(flag.tone)} tone={flag.tone} text={flag.tone === 'aki' ? 'AKI' : !warningIcons ? flag.label : flag.tone === 'rapid-possible' ? '?' : undefined}>{flag.title}</Hint>)}
           {endpoint && <Hint label={endpoint.label} icon="endpoint" tone="endpoint" text={warningIcons ? undefined : endpoint.label}>{endpoint.title}</Hint>}
           {markedCount > 0 && <Hint label="Excluded measurements" icon="excluded" text={warningIcons ? undefined : `${markedCount} excluded`}>{excludedText}</Hint>}
         </div>

@@ -209,6 +209,13 @@ describe('cohortExportRecords', () => {
     const spanning = (last: string) => buildCohortRows([rows[0], { ...rows[1], labDatum: d('2019-07-01') }, { ...rows[2], labDatum: d(last) }], [1], [spec])
     expect(cohortExportRecords(spanning('2019-12-31'), threshold(5))[0]).toMatchObject({ unstable_slope: 'yes', rapid_progression: '' })
     expect(cohortExportRecords(spanning('2020-01-01'), threshold(5))[0]).toMatchObject({ unstable_slope: '', rapid_progression: 'yes' })
+    // Decided 2026-11-21 (issue #72): a scattered decline whose 95 % interval reaches
+    // above -5 is 'possible', not 'yes'. 90, 60, 85, 70 on four dates over two years.
+    const scattered = buildCohortRows([rows[0], { ...rows[1], labDatum: d('2019-07-01'), wertNum: 60 }, { ...rows[1], wertNum: 85 }, rows[2]], [1], [spec])
+    const record = cohortExportRecords(scattered, threshold(5))[0]
+    expect(record).toMatchObject({ unstable_slope: '', rapid_progression: 'possible' })
+    expect(Number(record.slope)).toBeLessThan(-5)
+    expect(Number(record.ci_high)).toBeGreaterThan(-5)
   })
 
   it('adds a leading group column only when rows carry a groupValue', () => {
