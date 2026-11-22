@@ -92,6 +92,8 @@ it; the way the tool applies it is its own.
 | --- | --- | --- |
 | Rapid eGFR decline flag, two levels | The default threshold of 5 mL/min/1.73 m² per year goes back to the KDIGO 2012 CKD guideline; KDIGO 2024 gives no numeric threshold for rapid progression. The threshold is a configurable convention. Applying it to one fitted slope without testing that the decline is sustained, and the two levels "rapid ↓" (whole 95 % interval below −threshold) and "rapid ↓?" (only the slope below it), are this tool's rules (decided 2026-11-21). | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) |
 | Slope reliability rule | Fewer than three fitted dates or under 365 days of fitted span: a clinical rule of thumb, not a published cut-off. | [Reliability rule](method-algorithms/slope-quality.md#reliability-rule) |
+| Admission proxy for the AKI look-back baseline | The look-back mean of 7 to 365 days and the 1.5-fold criterion follow KDIGO 2012 AKI (ch. 2.4); what counts as an admission (a gap of more than seven days followed by values on consecutive days) is this tool's (decided 2026-11-22, OD-45). | [First value of an admission](method-algorithms/aki.md#first-value-of-an-admission) |
+| Shorter AKI window where too few values remain | The 90 days after an AKI episode follow the duration of acute kidney disease (KDIGO 2024); the fallback to 30 days from the onset and its test by the reliability rule are this tool's (decided 2026-11-22, OD-48). | [Enough values](method-algorithms/aki.md#enough-values) |
 
 ## Open decisions
 
@@ -124,7 +126,19 @@ implemented with the option that changes least. OD-38 was added on
 of its decision and resolved the same day: the decision prescribes calendar
 days.
 
-No decision is open at present.
+OD-45 to OD-49 were added on 2026-11-22 with the AKI decisions of that day
+(rows `akifirst` and `akiwin`, issue #4): the decisions leave the definition
+of an admission, of outpatient values and of "enough values", and the
+treatment of an episode without an observed end, to the implementation,
+which took the conservative option in each case.
+
+| ID | Section | Implemented behaviour that needs a decision |
+| --- | --- | --- |
+| OD-45 | [First value of an admission](method-algorithms/aki.md#first-value-of-an-admission) | The data hold no admission dates. An admission is taken to begin at the first value of a series or after more than seven days without values, and only when a further value follows on one of the next two calendar days; a single value after a gap is never compared with a look-back baseline. |
+| OD-46 | [First value of an admission](method-algorithms/aki.md#first-value-of-an-admission) | Outpatient values cannot be told apart: the look-back mean takes every detection value 7 to 365 days before, including values of earlier admissions and AKI episodes. |
+| OD-47 | [First value of an admission](method-algorithms/aki.md#first-value-of-an-admission) | Only the first values of an admission are compared with the look-back mean, by the 1.5-fold criterion only; the retrospective fall (an option, off by default) is tested only when no look-back value exists. |
+| OD-48 | [Enough values](method-algorithms/aki.md#enough-values) | The fallback to 30 days from the onset is decided once per column for all its episodes, by the reliability rule (3 fitted dates over 365 days) on the column's own measurements after censoring, the longer windows and time balancing. |
+| OD-49 | [AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window) | An episode without an observed end (open at the last value, or ended by a gap) counts its 90 days from the recovery window of its last value, the convention of the episode list. |
 
 ### Resolved decisions
 

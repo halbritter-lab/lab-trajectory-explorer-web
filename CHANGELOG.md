@@ -5,6 +5,38 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (AKI baseline and exclusion window, rows `akifirst` and `akiwin`, decided and implemented 2026-11-22, issue #4; changes AKI episodes and slopes)
+
+- **AKI at the first value of an admission is detected against a look-back
+  baseline.** The first value of a series or after more than seven days
+  without values, followed by a value on one of the next two days, is
+  compared with the mean of the creatinine values 7 to 365 days before it; at
+  1.5 times the mean or more it opens an episode (criterion
+  `relative_1_5x_lookback_mean`, staged against the mean). Until now such a
+  value had no baseline. Creatinine 1.0 and 1.7 mg/dl in January 2020 and 4.0
+  and 8.0 on 1 and 2 April 2020 now give an episode with onset 1 April (2.96
+  times 1.35) instead of 2 April. A retrospective fall during the admission
+  is a new Data-page option, off by default (`aki.retrospectiveFall` in
+  `analysis_settings`). No MDRD back-calculation. The `aki_episodes` sheet
+  gains `baseline_source` and `baseline_n` as its last columns. In the demo
+  workbook the episode count stays 8. OD-45, OD-46 and OD-47 record the
+  admission proxy, the use of all values as "outpatient" values and the
+  scope of the look-back.
+- **AKI exclusion windows run to 90 days after the episode end.** A column
+  that excludes AKI windows now leaves out the measurements from each onset
+  to 90 days after the episode's last day (*Window after the episode end
+  (days)*, `akiDaysAfterEnd` in `fit_config`) instead of 30 days from the
+  onset. Where the fit would then keep fewer than 3 fitted dates over 365
+  days, every episode of the column gets the former 30 days from the onset
+  (*Shorter window from onset (days)*, `akiExclusionDays`) and the cell is
+  labelled "AKI window 30 d". The `cohort` sheet gains `aki_window` and
+  `n_aki_excluded` before `group`. Under CKD progression in the demo the
+  eGFR slope of patient 7 moves from −10.206 to −9.778 and of patient 11
+  from −6.308 to −6.511 mL/min/1.73 m² per year (computed CKD-EPI 2021:
+  −9.133 to −9.571); patient 12 keeps the 30-day windows, labelled. Settings
+  saved before get the 90 days and keep their preset. OD-48 and OD-49 record
+  the per-column fallback and the end of an episode without an observed end.
+
 ### Changed (OD-11 and OD-21, decided 2026-10-07, implemented 2026-11-22, issue #4)
 
 - **OLS 95 % intervals above 40 degrees of freedom use the exact Student-t

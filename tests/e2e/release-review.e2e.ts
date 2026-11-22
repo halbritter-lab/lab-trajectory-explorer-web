@@ -72,8 +72,8 @@ test('names the AKI exclusion in a withheld G5 projection and exports the eligib
   await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
   const exported = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
   const header = XLSX.utils.sheet_to_json<string[]>(exported.Sheets.cohort, { header: 1 })[0]
-  expect(header.slice(-12)).toEqual(['index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
-    'first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'group'])
+  expect(header.slice(-14)).toEqual(['index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
+    'first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'aki_window', 'n_aki_excluded', 'group'])
   // The eligible dates ignore the AKI windows; the fit keeps only the first day.
   expect(XLSX.utils.sheet_to_json(exported.Sheets.cohort)[0]).toMatchObject({
     first_eligible_date: '2020-01-01', last_eligible_date: '2021-12-16', index_date: '2020-01-01', last_fitted_date: '2020-01-01',

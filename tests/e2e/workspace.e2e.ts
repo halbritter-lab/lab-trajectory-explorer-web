@@ -314,7 +314,8 @@ test('column analysis settings stay independent and export on desktop and mobile
   await parameterSettings.click()
   await expect(page.getByLabel('Fit model', { exact: true })).toHaveValue('theil-sen')
   await expect(page.getByLabel('Rapid decline threshold')).toHaveValue('7.5')
-  await expect(page.getByLabel('AKI exclusion days')).toBeDisabled()
+  await expect(page.getByLabel('Shorter AKI window from onset (days)')).toBeDisabled()
+  await expect(page.getByLabel('AKI window after episode end (days)')).toBeDisabled()
 
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })

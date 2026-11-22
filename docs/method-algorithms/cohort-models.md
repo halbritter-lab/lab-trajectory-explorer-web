@@ -202,7 +202,9 @@ apply and the count was always 0.
   is the shared one or the parameter's own, for example "CKD progression
   (own settings): quarterly medians; event windows after kidney transplant,
   after chronic dialysis start, acute dialysis intervals, dated dialysis of
-  unknown intent; AKI windows 30 days." A preset that was edited is named
+  unknown intent; AKI windows onset to 90 days after the episode end (30
+  days from onset where too few values would remain)." (until 2026-11-22
+  "AKI windows 30 days."). A preset that was edited is named
   "Edited settings". A parameter that is not among the Trajectories columns
   keeps own settings given to it earlier.
 - With fit model "No fit" the page says that no cohort model is prepared, the

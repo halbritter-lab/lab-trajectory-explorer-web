@@ -5,7 +5,7 @@ test('help deep links survive reload and open technical sections', async ({ page
   const heading = page.getByRole('heading', { name: 'AKI Timing, Episodes and the Fit-Exclusion Window' })
   await expect(heading).toBeVisible()
   await expect(heading).toBeFocused()
-  await expect(page.getByText(/onset 2 January 2020 excludes/)).toBeVisible()
+  await expect(page.getByText(/2 January 2020 and end 3 January 2020 exclude/)).toBeVisible()
   await page.reload()
   await expect(heading).toBeVisible()
   await expect(page.getByRole('button', { name: 'Methods', exact: true })).toHaveAttribute('aria-current', 'page')

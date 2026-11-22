@@ -24,8 +24,9 @@ test('the cohort export keeps one layout with and without grouping, is compresse
 
   expect(plain.workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison', 'peri_event_creatinine'])
   const columns = header(plain.workbook, 'cohort')
-  expect(columns).toHaveLength(80)
-  expect(columns.slice(-5)).toEqual(['first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'group'])
+  // aki_window and n_aki_excluded were added before group on 2026-11-22 (rows akiwin).
+  expect(columns).toHaveLength(82)
+  expect(columns.slice(-7)).toEqual(['first_eligible_value', 'last_eligible_value', 'sex', 'baseline_age', 'aki_window', 'n_aki_excluded', 'group'])
   expect(header(grouped.workbook, 'cohort')).toEqual(columns)
   expect(grouped.workbook.Sheets.cohort.F1.v).toBe('slope')
   const groups = (workbook: XLSX.WorkBook) => new Set(XLSX.utils.sheet_to_json<{ group?: string }>(workbook.Sheets.cohort).map(row => row.group ?? ''))

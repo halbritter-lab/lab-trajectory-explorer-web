@@ -2024,3 +2024,74 @@ Draft:
 Not in the draft, for the owner to add or leave out: midnight counts as no
 time of day; values with the same time are not compared with each other; the
 time of day is not shown or exported.
+
+## Part H: AKI baseline and exclusion window (decisions of 2026-11-22, for approval)
+
+Follows the owner decisions of 2026-11-22, rows `akifirst` and `akiwin`
+([method decisions](remaining-method-decisions.md#method-and-clinical-decisions)).
+Two sentences of the topic *AKI detection*
+(`src/workspace/methods/topics/Aki.tsx`) became false with the
+implementation and were corrected minimally on 2026-11-22; the wording below
+is a draft for the maintainer, who may replace the corrections.
+
+### H1. Baseline of the first value of an admission
+
+First block, paragraph after the stage list. Before 2026-11-22:
+
+> No earlier baseline is used, so an AKI that is already present at the first
+> measurement, or a rise slower than 7 days, is not detected.
+
+Applied minimally on 2026-11-22:
+
+> No earlier baseline is used, except that the first value of an admission is
+> compared with the mean of the values 7 to 365 days before it; an AKI
+> already present at the first measurement without such values, or a rise
+> slower than 7 days, is not detected.
+
+Draft:
+
+> The first value of an admission has no earlier value in these windows. The
+> data hold no admission dates, so an admission is taken to begin with the
+> first value after more than seven days without values (or the first value
+> of a series), when a further value follows within two days. That value is
+> compared with the mean of the creatinine values 7 to 365 days before it
+> (KDIGO 2012, chapter 2.4) and is an AKI when it is at least 1.5 times that
+> mean; the stage is graded against the mean. The data do not say which
+> values were measured as an outpatient, so every value of that period
+> counts. Optionally (Data page, off by default), an admission without such
+> values is an AKI when creatinine later in the admission falls by 0.3 mg/dl
+> or to 1/1.5 of the first value. No baseline is estimated from an assumed
+> eGFR of 75. A rise slower than 7 days is not detected.
+
+### H2. AKI exclusion window
+
+Block "AKI Timing, Episodes and the Fit-Exclusion Window", last paragraph.
+Before 2026-11-22:
+
+> With AKI exclusion on, each episode removes from the fit all measurements
+> from the onset date through onset + 30 days (default), both ends included,
+> however long the episode lasts: onset 2 January 2020 excludes 2 January to
+> 1 February 2020.
+
+Applied minimally on 2026-11-22:
+
+> With AKI exclusion on, each episode removes from the fit all measurements
+> from the onset date through 90 days after the end of the episode (default),
+> both ends included: onset 2 January 2020 and end 3 January 2020 exclude
+> 2 January to 2 April 2020. Where the fit would then keep fewer than 3 dates
+> over 365 days, each episode removes the onset date through onset + 30 days
+> instead, and the cell says so.
+
+Draft:
+
+> With AKI exclusion on, each episode removes from the fit the measurements
+> from its onset through 90 days after its end, both days included, because
+> kidney function can take up to three months to settle after an AKI (acute
+> kidney disease, KDIGO 2024). An episode whose end was not observed counts
+> from two days after its last value. Measurements before the onset stay in
+> the fit. Where the longer window would leave the fit fewer than three
+> measurement dates over a year, every episode of the parameter removes only
+> the 30 days after its onset, and the cell is labelled "AKI window 30 d".
+> Both lengths can be changed in the analysis settings of the parameter; the
+> export records the window used (`aki_window`) and the number of
+> measurements it removed (`n_aki_excluded`).
