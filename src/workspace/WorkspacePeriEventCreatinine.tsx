@@ -3,10 +3,14 @@ import type { PatientId } from '../core/types'
 import { formatDisplayDate, formatDisplayNumber } from '../core/format'
 import { akiPeriEventSettings } from '../core/domains/nephrology/aki/akiModule'
 import { DEFAULT_PERI_EVENT_WINDOW_HOURS, PERI_EVENT_WINDOW_HOURS, periEventCreatinineRows, type PeriEventWindowHours } from '../core/domains/nephrology/aki/periEvent'
-import { periEventNotes, periEventRuleFromValue, periEventRuleValue, periEventStatusLabel, periEventValueLabel } from './peri-event'
+import { periEventNotes, periEventRuleFromValue, periEventRuleValue, periEventStatusLabel } from './peri-event'
 import type { WorkspaceData } from './workspace-data'
 import { useAppStore } from './state/store'
 import { countLabel } from './workspace-labels'
+
+/** "1.2 on 03/03/2026" with the date kept on one line, or "–". */
+const ValueOnDate = ({ value, date }: { value: number | null; date: Date | null }) =>
+  value === null || date === null ? <>–</> : <>{formatDisplayNumber(value)} on <span className="aki-date">{formatDisplayDate(date)}</span></>
 
 /** Serum creatinine around selected events (issue #69): one row per event
  * with baseline, highest value in the window, rise and the KDIGO criterion.
@@ -51,8 +55,8 @@ export function WorkspacePeriEventCreatinine({ data, onBrowse }: { data: Workspa
           <tbody>{results.map((result, index) => <tr key={index}>
             <th><button onClick={() => onBrowse(result.patientId)}>{result.patientId}</button></th>
             <td><span className="aki-date">{formatDisplayDate(result.event.date)}</span> {result.event.title} ({result.event.type})</td>
-            <td>{periEventValueLabel(result.baselineValue, result.baselineDate)}{result.baselineDaysBefore !== null && result.baselineDaysBefore > 0 ? `, ${countLabel(result.baselineDaysBefore, 'day')} before` : ''}</td>
-            <td>{periEventValueLabel(result.peakValue, result.peakDate)}</td>
+            <td><ValueOnDate value={result.baselineValue} date={result.baselineDate} />{result.baselineDaysBefore !== null && result.baselineDaysBefore > 0 ? `, ${countLabel(result.baselineDaysBefore, 'day')} before` : ''}</td>
+            <td><ValueOnDate value={result.peakValue} date={result.peakDate} /></td>
             <td>{result.absoluteRise === null ? '–' : formatDisplayNumber(result.absoluteRise)}</td>
             <td>{result.ratioToBaseline === null ? '–' : `${formatDisplayNumber(result.ratioToBaseline)} ×`}</td>
             <td>{periEventStatusLabel(result)}</td>

@@ -1,5 +1,5 @@
 import type { PeriEventCriterion, PeriEventReason, PeriEventResult, PeriEventRule } from '../core/domains/nephrology/aki/periEvent'
-import { formatDisplayDate, formatDisplayNumber, utcDateOrBlank } from '../core/format'
+import { formatDisplayDate, utcDateOrBlank } from '../core/format'
 import { countLabel } from './workspace-labels'
 
 const REASONS: Record<PeriEventReason, string> = {
@@ -35,10 +35,6 @@ export function periEventNotes(result: PeriEventResult): string {
   ].filter(Boolean)
   return notes.length ? notes.join('; ') : '–'
 }
-
-/** A value with its date, "1.2 on 03/03/2026", or "–". */
-export const periEventValueLabel = (value: number | null, date: Date | null) =>
-  value === null || date === null ? '–' : `${formatDisplayNumber(value)} on ${formatDisplayDate(date)}`
 
 export const periEventRuleValue = (rule: PeriEventRule) => `${rule.kind}:${rule.value}`
 export function periEventRuleFromValue(value: string): PeriEventRule | null {
