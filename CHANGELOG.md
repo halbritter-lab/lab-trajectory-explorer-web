@@ -11,6 +11,17 @@ interfaces are still evolving before 1.0.
   Fit-Exclusion Window") states the rule for several creatinine values on one
   day: ordered by the time of day where each has one, otherwise compared with
   values of earlier days only (OD-34 resolved).
+- **The time of day is exported and read again.** `measurements` and
+  `raw_measurements` gain the last column `time_of_day` (`HH:MM:SS`, empty
+  when the file gave none). Loading the app's own workbook again reads it from
+  `raw_measurements`, so the AKI episodes are the same after a round trip
+  (before, a rise from 1.0 at 06:00 to 1.6 at 20:00 was an episode after the
+  import of the file and none after the re-import of its export).
+  `input_data_id` covers the time of the rows that have one; for a dataset
+  without times it is unchanged.
+- The measurement table of the patient view shows the time beside the date
+  where the file gave one, and orders the rows of one day by it when every
+  row of that day has one (file order otherwise).
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
@@ -36,11 +47,11 @@ interfaces are still evolving before 1.0.
   `fitAkiAware` follow the same rule. `SeriesPoint` has an optional
   `timeOfDay`; points of one date without it are no longer compared in input
   order.
-- The time of day is a sort key only; it is not shown and not exported. A
-  dataset stored in the browser before this change has no times until the
+- The time of day is a sort key only; it was not shown and not exported
+  (both changed on 2026-11-22, see above). A dataset stored in the browser before this change has no times until the
   file is imported again; the notice shown when such a copy is restored says
   so. The methodology page was updated on 2026-11-22 (OD-34).
-- Because no export carries the time of day, an exported cohort workbook that
+- Until 2026-11-22, because no export carried the time of day, an exported cohort workbook that
   is loaded again has none: several creatinine values of one day are then
   compared with earlier days only, and AKI episodes, exclusion windows and
   slopes can differ from the export (a rise from 1.0 at 06:00 to 1.6 at 20:00

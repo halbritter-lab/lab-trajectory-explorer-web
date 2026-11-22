@@ -178,9 +178,12 @@ the lowest value of the date that reaches the episode's stage, and when the
 values of one date cross by different criteria the lower one comes first.
 
 The time of day is a sort key only. Onset, peak, baseline and staging dates
-are calendar days, both KDIGO windows and the fit-exclusion window count
-calendar days, and the time is neither shown in the measurement table and the
-tooltips nor exported.
+are calendar days, and both KDIGO windows and the fit-exclusion window count
+calendar days. Since 2026-11-22 the time is shown in the measurement table of
+the patient view and exported in the column `time_of_day`, and a re-import of
+the app's workbook reads it again, so the episodes are the same after a round
+trip (see [Dates](import-and-values.md#dates)); it is not shown in the
+tooltips.
 
 Before 2026-11-21 the time was dropped at import and rows of one date stayed
 in source row order, an earlier row being a valid baseline for a later row of

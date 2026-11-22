@@ -19,10 +19,12 @@ branch differs, they say so.
   window lines say "slope 0.251 mg/dl/year" and "slope 0.249 mg/dl/year".
 - Review file with times of day (rise from 1.0 at 06:00 to 1.6 at 20:00, in
   both row orders): the AKI marker sits on 1.6, not on the first value of the
-  day. Its cohort export lists 4 episodes and carries the `about` note "Date
-  holds the calendar day; a time of day … is not written to any sheet". That
-  export loaded again: 2 episodes, "7 patient-days … order within the day is
-  unknown", the same `input_data_id`.
+  day. Its cohort export lists 4 episodes, writes `time_of_day` in both
+  measurement sheets and carries the `about` note "Date holds the calendar
+  day and time_of_day …". That export loaded again: the same 4 episodes and
+  the same `input_data_id` (checked 2026-11-22: 4 and 4 episodes,
+  `a9259237` twice). The measurement table of ANSTIEG-ZEIT (1.6 first in the
+  file) shows "01/09/2026 06:00" 1.0 before "01/09/2026 20:00" 1.6.
 - A copy saved with "Remember on this device" by the build of `main` (review
   file with urine creatinine marked only by LOINC 2161-8 and with times of
   day), opened with this build: the notice ends "This copy was saved by an

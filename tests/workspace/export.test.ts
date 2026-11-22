@@ -51,9 +51,9 @@ describe('workspace workbook', () => {
     XLSX.utils.book_append_sheet(workbook, XLSX.utils.aoa_to_sheet([['genotype'], ['UMOD']]), 'attributes')
     expect(() => loadDatasetFromWorkbook(XLSX.write(workbook, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer)).toThrow('Could not read this file. Patient attributes file missing required column: patientId.')
   })
-  // Review finding 2026-11-21: the time of day orders creatinine values of one day in AKI
-  // detection but is in no export, and nothing said that a re-import can give other episodes.
-  it('does not carry the time of day: a re-import of a file with times can lose an AKI episode, and about says so', () => {
+  // Review finding 2026-11-21 (K26): the time of day orders creatinine values of one day in AKI
+  // detection; until 2026-11-22 it was in no export, so a re-import lost an AKI episode.
+  it('exports the time of day and reads it again, so a re-import keeps the AKI episode, and about says so', () => {
     const csv = ['patientId,labDate,testName,unit,value,sex,ageAtLab', 'RISE,2026-09-01 06:00,Kreatinin,mg/dl,1.0,f,60', 'RISE,2026-09-01 20:00,Kreatinin,mg/dl,1.6,f,60', 'RISE,2026-09-04 06:00,Kreatinin,mg/dl,1.2,f,60'].join('\n')
     const rows = loadDatasetFromWorkbook(new TextEncoder().encode(csv)).rows
     expect(rows.map(row => row.labTime)).toEqual([6 * 3_600_000, 20 * 3_600_000, 6 * 3_600_000])
@@ -64,13 +64,36 @@ describe('workspace workbook', () => {
     const workbook = XLSX.read(bytes, { type: 'array' })
     expect(records(workbook, 'aki_episodes')).toEqual([expect.objectContaining({ PatientID: 'RISE', onset_date: '2026-09-01', peak_value_mg_dl: 1.6 })])
     expect(records(workbook, 'raw_measurements').map(row => row.Date)).toEqual(['2026-09-01', '2026-09-01', '2026-09-04'])
+    expect(records(workbook, 'raw_measurements').map(row => row.time_of_day)).toEqual(['06:00:00', '20:00:00', '06:00:00'])
+    expect(records(workbook, 'measurements').map(row => row.time_of_day)).toEqual(['06:00:00', '20:00:00', '06:00:00'])
     const again = loadDatasetFromWorkbook(bytes).rows
-    expect(again.map(row => row.labTime)).toEqual([undefined, undefined, undefined])
-    expect(akiEpisodeRows(again, [])).toEqual([])
+    expect(again.map(row => row.labTime)).toEqual([6 * 3_600_000, 20 * 3_600_000, 6 * 3_600_000])
+    expect(akiEpisodeRows(again, [])).toEqual(akiEpisodeRows(rows, []))
+    expect(akiEpisodeRows(again, [])).toHaveLength(1)
     const note = records(workbook, 'about').map(row => String(row.note)).find(text => text.startsWith('Date holds the calendar day'))!
-    expect(note).toContain('a time of day of the imported lab date is not written to any sheet')
-    expect(note).toContain('AKI episodes, exclusion windows and slopes can differ from this export')
-    expect(note).toContain('input_data_id does not cover the time of day')
+    expect(note).toContain('time_of_day, the last column of the measurement sheets')
+    expect(note).toContain('Loading this file again reads time_of_day from raw_measurements, so the AKI episodes are the same as in this export')
+    expect(note).toContain('input_data_id covers the time of day of the rows that have one')
+  })
+  it('writes an empty time_of_day for rows without a time and reads the column only from raw_measurements', () => {
+    const rows = loadDatasetFromWorkbook(new TextEncoder().encode(['patientId,labDate,testName,unit,value', 'P1,2026-09-01,Kreatinin,mg/dl,1.0', 'P1,2026-09-02 07:30,Kreatinin,mg/dl,1.1'].join('\n'))).rows
+    const parameter = { key: JSON.stringify(['Kreatinin', 'mg/dl']), label: 'Kreatinin [mg/dl]', bezeichnung: 'Kreatinin', einheit: 'mg/dl', derived: false }
+    const data = { rawRows: rows, rows, fileName: 'p1.csv', parameters: [parameter], patients: [{ id: 'P1', label: 'P1', attributes: {}, baselineAge: null }], events: [], patientAttributes: {},
+      analysis: { rows, messages: [], fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
+    const bytes = workspaceWorkbookBytes({ data, parameterKeys: [parameter.key], patientIds: ['P1'], cohortRows: buildCohortRows(rows, ['P1'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }]) })
+    expect(records(XLSX.read(bytes, { type: 'array' }), 'raw_measurements').map(row => row.time_of_day)).toEqual(['', '07:30:00'])
+    expect(loadDatasetFromWorkbook(bytes).rows.map(row => row.labTime)).toEqual([undefined, 7.5 * 3_600_000])
+    // A column of that name in any other lab file is not read.
+    const other = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(other, XLSX.utils.aoa_to_sheet([['patientId', 'labDate', 'testName', 'unit', 'value', 'time_of_day'], ['P1', '2026-09-01', 'Kreatinin', 'mg/dl', 1, '06:00:00']]), 'labs')
+    expect(loadDatasetFromWorkbook(XLSX.write(other, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer).rows.map(row => row.labTime)).toEqual([undefined])
+    // In raw_measurements: HH:MM, a fraction of a day and a workbook time cell; midnight and text that is no time are none; a time in the date wins.
+    const own = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(own, XLSX.utils.aoa_to_sheet([['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'time_of_day'],
+      ['P1', '2026-09-01', 'Kreatinin', 'mg/dl', 1, '6:15'], ['P1', '2026-09-02', 'Kreatinin', 'mg/dl', 1, 0.25], ['P1', '2026-09-03', 'Kreatinin', 'mg/dl', 1, '00:00:00'],
+      ['P1', '2026-09-04', 'Kreatinin', 'mg/dl', 1, 'late'], ['P1', '2026-09-05 09:00', 'Kreatinin', 'mg/dl', 1, '06:00:00'], ['P1', '2026-09-06', 'Kreatinin', 'mg/dl', 1, '24:00']]), 'raw_measurements')
+    XLSX.utils.book_append_sheet(own, XLSX.utils.aoa_to_sheet([['note']]), 'about')
+    expect(loadDatasetFromWorkbook(XLSX.write(own, { type: 'array', bookType: 'xlsx' }) as ArrayBuffer).rows.map(row => row.labTime)).toEqual([6.25 * 3_600_000, 6 * 3_600_000, undefined, undefined, 9 * 3_600_000, undefined])
   })
   it('writes the imported birth date to raw_measurements, so a re-import keeps the exact birth-date anchor', () => {
     const input = exportFixture()
@@ -124,7 +147,7 @@ describe('workspace workbook', () => {
     input.data.rawRows[2].loinc = '30522-7'
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name], { header: 1 })[0]
-    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date'])
+    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day'])
     expect(header('raw_measurements')).toEqual(header('measurements'))
     expect(header('parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
     expect(records(workbook, 'raw_measurements').map(row => row.loinc)).toEqual(['1988-5'])

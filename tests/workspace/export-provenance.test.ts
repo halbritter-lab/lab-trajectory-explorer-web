@@ -94,6 +94,10 @@ describe('about sheet: provenance and personal data', () => {
     // The imported birth date is part of the identifier: an exact date and an age in whole years are different inputs.
     expect(inputDataId([{ ...a, patient_birth_date: '1969-05-06' }])).not.toBe(inputDataId([a]))
     expect(inputDataId([{ ...a, patient_birth_date: '' }])).toBe(inputDataId([a]))
+    // The time of day (2026-11-22) joins only where a row has one: rows without a time keep their identifier.
+    expect(inputDataId([{ ...a, time_of_day: '06:00:00' }])).not.toBe(inputDataId([a]))
+    expect(inputDataId([{ ...a, time_of_day: '06:00:00' }])).not.toBe(inputDataId([{ ...a, time_of_day: '20:00:00' }]))
+    expect([inputDataId([{ ...a, time_of_day: '' }, { ...b, time_of_day: '' }]), inputDataId([a, b])]).toEqual(['d2196115', 'd2196115'])
     expect(inputDataId([{ PatientID: 7, Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1' }])).toBe(inputDataId([{ PatientID: '7', Date: '2024-01-01', Parameter: 'a', Unit: 'u', Value: '1', patient_sex: '', patient_age_at_lab: null }]))
   })
 

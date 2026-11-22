@@ -37,7 +37,8 @@ Conventions used throughout:
   stores it at midnight UTC. Measurements of one day share one timestamp, and
   every elapsed-time rule works in whole days. A time of day on a lab date is
   kept beside the date and used for one thing only: it orders the creatinine
-  values of one day in AKI detection.
+  values of one day in AKI detection (and, for display, the rows of one day
+  in the measurement table); it is exported as `time_of_day`.
 - **A year is 365.25 days** wherever elapsed time is converted to years.
 - **A series** is one patient, one parameter name and one unit, compared as
   stored after import. Different names or units are never pooled.

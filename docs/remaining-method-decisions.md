@@ -945,6 +945,24 @@ Resolved with a change:
   The points the draft left out (midnight counts as no time, values with the
   same time are not compared) stay in the
   [method reference](method-algorithms/aki.md#measurements-on-the-same-date).
+- **The time of day is shown and exported** (K26 follow-up; replaces the
+  accepted detail "the time of day stays internal" of 2026-11-21). Both
+  measurement sheets gain the last column `time_of_day` (`HH:MM:SS`, empty
+  when the file gave none); a re-import of the app's workbook reads it from
+  `raw_measurements`, so AKI episodes are the same after a round trip; and
+  `input_data_id` covers it. The measurement table of the patient view shows
+  the time beside the date and orders the rows of one day by it. A real
+  sample at 00:00 still counts as no time. AKI detection itself is unchanged;
+  only a re-imported export now gives the episodes of the original file.
+  Details of the implementation: the column is read only from a sheet named
+  `raw_measurements`, and only where `Date` gives no time of its own;
+  derived values (computed eGFR) have no time; `input_data_id` takes the time
+  in only for rows that have one, so the identifier of a dataset without
+  times does not change; the table orders the rows of a date by time only
+  when every row of that date has one (the rule of AKI detection) and keeps
+  the file order otherwise, and the fit status moves with its row. Details:
+  [Dates](method-algorithms/import-and-values.md#dates) and
+  [workbook sheets](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
 
 ## Approved requirements
 

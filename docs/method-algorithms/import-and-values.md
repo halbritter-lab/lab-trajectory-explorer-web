@@ -132,18 +132,22 @@ Sheet names are compared after header normalisation (see Columns).
   and so is a separately uploaded attributes file without an attribute column
   (see [Columns](#columns)).
 
-  The time of day of a lab date does not come back: `Date` holds the calendar
-  day, and no sheet carries the time (see [Dates](#dates)). Where the original
-  file gave times, the re-imported rows have none, so several serum
-  creatinine values of one day are compared with earlier days only
-  ([Measurements on the same date](aki.md#measurements-on-the-same-date)),
-  and AKI episodes, their exclusion windows and slopes can differ from the
-  export. Example: 1.0 mg/dl at 06:00 and 1.6 mg/dl at 20:00 on 1 September
-  and 1.2 mg/dl on 4 September give a stage I episode after the import of
-  the file (`aki_episodes` of its export: onset 2026-09-01, peak 1.6) and no
-  episode after the re-import of that export; the Data page then names one
-  patient-day without an order. `input_data_id` is computed from the rows of
-  `raw_measurements` and is the same for both. The `about` sheet states this.
+  The time of day of a lab date comes back (since 2026-11-22): the export
+  writes it to the last column `time_of_day` of `raw_measurements`
+  (`HH:MM:SS`, empty text where the row has none), and the re-import of a
+  sheet named `raw_measurements` reads that column, so several serum
+  creatinine values of one day keep their order
+  ([Measurements on the same date](aki.md#measurements-on-the-same-date))
+  and the AKI episodes are those of the export. Example: 1.0 mg/dl at 06:00
+  and 1.6 mg/dl at 20:00 on 1 September and 1.2 mg/dl on 4 September give a
+  stage I episode (onset 2026-09-01, peak 1.6) after the import of the file
+  and after the re-import of its export. The column is read as `HH:MM` or
+  `HH:MM:SS` text, as a fraction of a day (0.25 is 06:00) or as a workbook
+  time cell; midnight and an unreadable cell count as no time, and a time in
+  `Date` itself takes precedence. A `time_of_day` column of any other lab
+  sheet is not read. Until 2026-11-22 no sheet carried the time, and the
+  re-imported rows had none: the same example then gave no episode after the
+  re-import.
   Example: an export of patient 7 with creatinine and computed
   eGFR selected loads patient 7's creatinine rows as imported; eGFR is
   computed anew from them.
@@ -534,10 +538,15 @@ The time of day has one use: it orders the serum creatinine values of one
 date in AKI detection (see
 [Measurements on the same date](aki.md#measurements-on-the-same-date), which
 also states the rule for dates without a time and the note on the Data page).
-It is not shown in the measurement table or the tooltips, is in no export
-(so a re-imported export has none, see the app's own workbook export under
-[Files and sheets](#files-and-sheets)) and
-is not part of the duplicate comparison above: two rows of one date with the
+Since 2026-11-22 it is also shown beside the date in the measurement table of
+the patient view (`01/09/2026 06:00`, with seconds only when they are not
+zero), where the rows of a date are ordered by it when every row of that date
+has one and keep the row order of the file otherwise; the fit status of each
+row moves with it. It is written to the column `time_of_day` of both
+measurement sheets and read again from `raw_measurements` (see the app's own
+workbook export under [Files and sheets](#files-and-sheets)). It is not shown
+in the tooltips or the chart line, which keeps the values of one date in file
+order, and it is not part of the duplicate comparison above: two rows of one date with the
 same value at different times still count as duplicates. The times of event
 dates and birth dates are read and ignored. The time is stored with a dataset
 kept in the browser; a dataset stored before 2026-11-21 has none until the

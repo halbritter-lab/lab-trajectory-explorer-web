@@ -114,8 +114,10 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, importOp
     if (wb.sheetNames.length === 0) {
       return { rows: [], events: [], patientAttributes: {}, sheetNames: [], diagnostics: [], rejectedEvents: [] }
     }
+    // The app's own `raw_measurements` sheet carries the time of day in a column of its own.
+    const labOptions = (sheetName: string): LabImportOptions => normaliseHeader(sheetName) === 'rawmeasurements' ? { ...options, timeOfDayColumn: true } : options
     if (wb.sheetNames.length === 1) {
-      const labs = loadLabRowsWithDiagnostics(wb.getSheet(0), options)
+      const labs = loadLabRowsWithDiagnostics(wb.getSheet(0), labOptions(wb.sheetNames[0]))
       return { rows: labs.rows, events: [], patientAttributes: {}, sheetNames: wb.sheetNames, diagnostics: labDiagnostics(wb.sheetNames[0], labs.issues), rejectedEvents: [] }
     }
 
@@ -128,7 +130,7 @@ export function loadDatasetFromWorkbook(data: ArrayBuffer | Uint8Array, importOp
       labsSheetName = wb.sheetNames.find((s) => s !== eventsSheetName && s !== attributesSheetName) ?? wb.sheetNames[0]
     }
 
-    const labs = loadLabRowsWithDiagnostics(wb.getSheet(labsSheetName), options)
+    const labs = loadLabRowsWithDiagnostics(wb.getSheet(labsSheetName), labOptions(labsSheetName))
     const rows = labs.rows
     const diagnostics: ImportDiagnostic[] = labDiagnostics(labsSheetName, labs.issues)
 

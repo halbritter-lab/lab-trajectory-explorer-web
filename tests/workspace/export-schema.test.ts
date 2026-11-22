@@ -37,7 +37,7 @@ describe('cohort workbook schema', () => {
   it('pins the sheets and the columns of every sheet', () => {
     const workbook = read(workspaceWorkbookBytes(exportFixture()))
     expect(workbook.SheetNames).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics'])
-    const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date']
+    const measurement = ['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day']
     expect(header(workbook, 'measurements')).toEqual(measurement)
     expect(header(workbook, 'raw_measurements')).toEqual(measurement)
     expect(header(workbook, 'cohort')).toEqual(COHORT_HEADER)
@@ -76,7 +76,7 @@ describe('cohort workbook schema', () => {
     expect(records(workbook, 'aki_episodes')).toEqual([])
     expect(header(workbook, 'aki_episodes')).toHaveLength(10)
     expect(records(workbook, 'raw_measurements')).toEqual([])
-    expect(header(workbook, 'raw_measurements')).toHaveLength(14)
+    expect(header(workbook, 'raw_measurements')).toHaveLength(15)
   })
 
   // Review finding 2026-11-21: without a Rolling OLS column and without an

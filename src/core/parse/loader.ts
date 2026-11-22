@@ -67,6 +67,38 @@ export interface LabImportOptions {
    * supplies the one for non-serum creatinine codes.
    */
   separateSeries?: (testName: string | null, loinc: string | null) => { name: string; consequence: string } | null
+  /**
+   * Read the column `time_of_day` that the app's own workbook writes to
+   * `raw_measurements` (added 2026-11-22): `HH:MM` or `HH:MM:SS` text, a
+   * fraction of a day or a workbook time cell. It sets the time of day of a
+   * row whose lab date gives none; a time in the lab date itself takes
+   * precedence. Midnight and an unreadable cell count as no time.
+   * `loadDatasetFromWorkbook` sets it for a sheet named `raw_measurements`
+   * only, so the column of any other file is not read.
+   */
+  timeOfDayColumn?: boolean
+}
+
+const DAY_MS = 86_400_000
+const TIME_OF_DAY_RE = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/
+
+const timeOfDayFromColumn = (v: unknown): { labTime?: number } => {
+  const ms = timeOfDayCell(v)
+  return ms === undefined ? {} : { labTime: ms }
+}
+
+/** Milliseconds after midnight from a `time_of_day` cell, or undefined. */
+function timeOfDayCell(v: unknown): number | undefined {
+  let ms: number | undefined
+  if (v instanceof Date && Number.isFinite(v.getTime())) ms = ((v.getTime() % DAY_MS) + DAY_MS) % DAY_MS
+  else if (typeof v === 'number' && v >= 0 && v < 1) ms = v * DAY_MS
+  else {
+    const m = TIME_OF_DAY_RE.exec(toStr(v) ?? '')
+    if (m && Number(m[1]) <= 23 && Number(m[2]) <= 59 && Number(m[3] ?? 0) <= 59) ms = ((Number(m[1]) * 60 + Number(m[2])) * 60 + Number(m[3] ?? 0)) * 1000
+  }
+  if (ms === undefined) return undefined
+  const whole = Math.min(Math.round(ms / 1000) * 1000, DAY_MS - 1000)
+  return whole > 0 ? whole : undefined
 }
 
 const WERT_OPERATORS: readonly WertOperator[] = ['=', '<', '>', 'range', 'unparseable']
@@ -165,6 +197,7 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[], options: LabImport
   const hasPreParsed = columns.valueNum !== undefined && columns.valueOperator !== undefined
   const hasAge = columns.ageAtLab !== undefined
   const hasBirth = columns.birthDate !== undefined
+  const timeHeader = options.timeOfDayColumn ? [...headers].find((h) => normaliseHeader(h) === 'timeofday') : undefined
 
   const rejected: LabImportIssue[] = []
   const birthWarnings = new Map<string, LabImportIssue>()
@@ -250,7 +283,7 @@ export function loadLabRowsWithDiagnostics(rawRows: RawRow[], options: LabImport
     const row: LabRow = {
       patientId,
       labDatum,
-      ...(parsedDate.kind === 'date' && parsedDate.timeOfDay !== undefined ? { labTime: parsedDate.timeOfDay } : {}),
+      ...(parsedDate.kind !== 'date' ? {} : parsedDate.timeOfDay !== undefined ? { labTime: parsedDate.timeOfDay } : timeOfDayFromColumn(timeHeader === undefined ? undefined : r[timeHeader])),
       bezeichnung: separate?.name ?? testName,
       einheit: toStr(cell(r, columns, 'unit')),
       wert: rawWert,

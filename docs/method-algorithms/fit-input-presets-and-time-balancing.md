@@ -218,11 +218,15 @@ Since 2026-11-21:
   types strictly. A dataset that mixes both kinds of ID (`7` and `A12`) still
   has both cell types in the column.
 - **Measurement sheets.** `measurements` and `raw_measurements` end with
-  `patient_birth_date`, after `demographics` and `loinc`. In `raw_measurements` it is the
+  `patient_birth_date` and `time_of_day`, after `demographics` and `loinc`. In `raw_measurements` `patient_birth_date` is the
   birth date read from the imported lab row (`YYYY-MM-DD`, empty text when
   the row had none); in `measurements` it is always empty text. It exists so
   that a re-import keeps an exact birth date (see
-  [the import rule](import-and-values.md)).
+  [the import rule](import-and-values.md)). `time_of_day` (appended
+  2026-11-22) is the time of day of the lab date as `HH:MM:SS`, in both
+  sheets, and empty text where the file gave none and for derived values; the
+  re-import reads it from `raw_measurements`, so AKI episodes are the same
+  after a round trip.
 - **Empty cells.** A number without a value (`slope`, `r2`, `ci_low`,
   `ci_high`, `intercept`, `slope_se`, the `rolling_*` numbers, the numeric
   endpoint columns, `baseline_age`, and `NumericValue` on the measurement
@@ -254,19 +258,22 @@ Since 2026-11-21:
   parameters. Each row is reduced to the JSON array of patient ID as text,
   `Date`, `Parameter`, `Unit`, `Value` (the text as imported), `patient_sex`
   (empty text when absent), `patient_age_at_lab` (`null` when absent) and
-  `patient_birth_date` (empty text when absent). The
+  `patient_birth_date` (empty text when absent), followed by `time_of_day`
+  only where the row has a time (since 2026-11-22; a row without a time is
+  reduced as before, so a dataset without times keeps its identifier). The
   arrays are sorted as text by UTF-16 code units, joined with commas inside
   `[` and `]`, and hashed with 32-bit FNV-1a over the UTF-16 code units
   (offset basis `0x811c9dc5`, prime `0x01000193`), written as eight lower-case
   hex digits. The identifier does not depend on the row order, the fit
   settings, events, attributes, manual demographic entries or the app
-  version; it changes with any of the eight fields and with the exported
+  version; it changes with any of these fields and with the exported
   scope. It is a checksum for comparing runs, not a cryptographic hash: two
   different inputs can share a value (about 1 in 4.3 thousand million per
   pair). Example: patient 7, creatinine in mg/dl, sex `w`, stated age 54, no
   birth date, with `1.2` on 2024-01-15 and `<1.0` on 2024-07-15 gives
   `d2196115` in either row order; with `1.0` instead of `<1.0` it gives
-  `bf80cedd`. The birth date is part of the identifier because a file with
+  `bf80cedd`; with the time `06:00:00` on the row of 2024-01-15 it gives
+  `dfa98525`. The birth date is part of the identifier because a file with
   birth dates and a file with the same ages in whole years resolve to
   different birth-date anchors. The
   `datasetHash` of the model workbook is a different quantity: a hash of the
