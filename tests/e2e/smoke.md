@@ -315,8 +315,12 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
 4. Apply CKD-EPI 2021 on the Data page. Under Trajectories the computed eGFR
    cell of patient 5 reads "No eGFR: sex and age missing" (hint: sex missing
    and age missing with four creatinine values each, "Enter the sex and the
-   age under Data → “Review and edit patients”"), that of patient 10 "No
-   eGFR: no creatinine in the source".
+   age under Data → “Review and edit patients”"); patient 10 (creatinine in
+   µmol/l only) has computed values from its µmol/l series (issue #65), and
+   the Data page reads "Patients without serum creatinine in mg/dl use their
+   µmol/l series: Kreatinin (µmol/l) for 1 patient." In the cohort export,
+   `demographics` names `Kreatinin`/`µmol/l` in `egfr_source_parameter` and
+   `egfr_source_unit` for patient 10 and `Kreatinin`/`mg/dl` for patient 2.
 5. A dataset of several hundred patients with a grouping attribute: the page
    controls stand above and below the table; *Next* below the table shows the
    top of the next page with the focus on the table region; "Per page" offers
@@ -327,6 +331,10 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
 6. Export a cohort of several hundred patients: "Exporting …" appears beside
    the button until the download starts.
 
+Step 4 re-checked 2026-11-22 on branch `wp/65-creatinine-source-per-patient`
+by `tests/e2e/table-screening.e2e.ts` only (patient 5 note, patient 10 with
+values); the Data page sentence and the export columns are covered by unit
+tests, not yet clicked through.
 Verified 2026-11-21 against the production build in Chromium
 (`tests/e2e/table-screening.e2e.ts`, seven checks, and scripted walkthroughs
 with the demo and an 800-patient review dataset): steps 1 to 6. With 800

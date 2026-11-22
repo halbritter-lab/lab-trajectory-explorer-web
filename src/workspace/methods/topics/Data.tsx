@@ -57,10 +57,12 @@ export function Data() { return <>
           <strong>Units</strong> — creatinine is expected in <em>mg/dl</em>. Values recorded in{' '}
           <em>µmol/l</em> are converted automatically (÷ 88.42); other units are not used as an eGFR
           source. A value stored under the wrong unit would therefore yield a wrong eGFR. The
-          calculation reads one creatinine source: one test name with one unit. If that source is
-          recorded in <em>µmol/l</em>, its values are converted. Creatinine values of the same
-          patient under another test name or in another unit form a separate parameter and are not
-          added to the source. The Data page lists such series under “Not used for this eGFR”.
+          calculation reads one creatinine series per patient: one test name with one unit. It is
+          the selected creatinine source; a patient without any serum creatinine in <em>mg/dl</em>
+          uses their own <em>µmol/l</em> series instead when the selected source is in mg/dl. If
+          that series is recorded in <em>µmol/l</em>, its values are converted. Other creatinine
+          values of the same patient form a separate parameter and are not added to the series. The
+          Data page lists such series under “Not used for this eGFR”.
           Creatinine from urine, dialysate or another body fluid is not used as an eGFR source
           either (see <a href="#methods/aki/detection">AKI detection</a> for how such series are
           recognised). If a saved session selects such a series, or a series in another unit, the

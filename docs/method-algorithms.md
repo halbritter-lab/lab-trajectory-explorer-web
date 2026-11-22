@@ -111,9 +111,13 @@ rule and resolved on the second review of the same day, on the owner's
 instruction of 2026-11-22 to resolve the open points. OD-37 was added on
 2026-11-22 with the two levels of the rapid-decline flag (issue #72), whose
 decision does not say what a slope without a 95 % interval gets.
+OD-36 was added on 2026-11-22 with the per-patient creatinine source of
+issue #65: the cases the owner decision of 2026-11-21 does not name are
+implemented with the option that changes least.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
+| OD-36 | [eGFR source selection](method-algorithms/egfr.md#source-selection) | A patient without the selected mg/dl source falls back to µmol/l only without any serum creatinine in mg/dl; mg/dl creatinine under another name, several µmol/l series without one under the selected name, and a selected µmol/l source give no fallback and no eGFR for that patient. |
 | OD-37 | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) | A slope below the negative threshold without a 95 % interval (missing bounds, or Theil–Sen bounds on fewer than five fitted dates) is marked "rapid ↓?" (`possible`), the conservative reading chosen during implementation; the decision of 2026-11-21 does not cover the case. |
 
 ### Resolved decisions

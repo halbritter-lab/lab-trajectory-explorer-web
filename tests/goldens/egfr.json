@@ -567,6 +567,48 @@
       "operator": "="
     },
     {
+      "patientId": 10,
+      "date": "2021-04-01T00:00:00Z",
+      "wertNum": 94.3,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2021-09-01T00:00:00Z",
+      "wertNum": 89.1,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2022-02-01T00:00:00Z",
+      "wertNum": 82.7,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2022-07-01T00:00:00Z",
+      "wertNum": 76.6,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2022-12-01T00:00:00Z",
+      "wertNum": 70,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2023-05-01T00:00:00Z",
+      "wertNum": 64.1,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2023-10-01T00:00:00Z",
+      "wertNum": 58,
+      "operator": "="
+    },
+    {
       "patientId": 11,
       "date": "2022-01-10T00:00:00Z",
       "wertNum": 79.3,

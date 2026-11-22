@@ -88,7 +88,8 @@ test('names the reason for a missing computed eGFR in the cell', async ({ page }
   await expect(hint).toBeVisible()
   await hint.hover()
   await expect(page.getByRole('tooltip')).toContainText('No eGFR for this patient: sex missing (4 creatinine values); age missing (4 creatinine values). Enter the sex and the age under Data → “Review and edit patients”.')
-  await expect(rowOf(page, '10').getByRole('button', { name: 'No eGFR: no creatinine in the source' })).toBeVisible()
+  // Since issue #65 patient 10 uses its µmol/l series and has values.
+  await expect(rowOf(page, '10').getByRole('button', { name: /^No eGFR/ })).toHaveCount(0)
 })
 
 function centres(): Buffer {

@@ -75,7 +75,7 @@ const seriesIdentity = (name: string | null, unit: string | null) => JSON.string
 export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics','loinc','patient_birth_date','time_of_day'] as const
 export const EVENTS_SHEET_HEADER = ['PatientID','type','date','title','description','endDate','intent','warning'] as const
 export const AKI_EPISODES_SHEET_HEADER = ['PatientID','creatinine_parameter','creatinine_unit','stage','onset_date','peak_date','peak_value_mg_dl','baseline_date','baseline_value_mg_dl','criterion','end_date','dialysis_start','ended_by_gap','last_value_date'] as const
-export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings'] as const
+export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings','egfr_source_parameter','egfr_source_unit'] as const
 export const PARAMETERS_SHEET_HEADER = ['parameter_key','parameter','unit','origin','formula','source_parameter','source_unit','loinc'] as const
 export const ROLLING_WINDOWS_SHEET_HEADER = ['PatientID','Parameter','Unit','window','window_start','window_end','first_date','last_date','n','slope'] as const
 export const IMPORT_DIAGNOSTICS_SHEET_HEADER = ['source','sheet','kind','row','patient_id','date','parameter','value','message'] as const
@@ -156,6 +156,9 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   const specs = workspaceSpecs(data,requestedKeys,fitConfigByParameterKey)
   const columnSettings = (key: string): ColumnModuleSettings => moduleSettingsByParameterKey?.[key] ?? defaultColumnModuleSettings()
   const patientById = new Map(data.patients.map(patient => [patient.id,patient]))
+  // One creatinine series per patient (issue #65): the selected source or the patient's µmol/l fallback.
+  const egfrSourceByPatient = new Map<string,{bezeichnung: string; einheit: string}>()
+  for (const row of data.rows) if (row.sourceSeries && !egfrSourceByPatient.has(patientIdKey(row.patientId))) egfrSourceByPatient.set(patientIdKey(row.patientId),row.sourceSeries)
   // Sex, baseline age and the group follow the columns of earlier releases;
   // `group` is always last and empty without grouping (decided 2026-11-21).
   const summaries = cohortExportRecords(prepared,cellIndex => columnSettings(requestedKeys[cellIndex]),conflictKeys).map((record,index) => {
@@ -187,7 +190,10 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     {name:'patient_attributes',rows:patientAttributesExportRows(attrs,key => idByKey.get(key) ?? key)},
     {name:'demographics',header:DEMOGRAPHICS_SHEET_HEADER,rows:ids.map(id => {
       const patient = patientById.get(id)
-      return {PatientID:id,baseline_age:patient?.baselineAge ?? null,birth_anchor:utcDateOrBlank(patient?.birthAnchor ?? null),age_estimated:patient?.ageEstimated ?? null,manual_override:JSON.stringify(data.manualDemographics[patientIdKey(id)] ?? {}),warnings:warningsFor(id).join('; ')}
+      // Appended 2026-11-22 (issue #65): the creatinine series this patient's computed eGFR was derived from.
+      const egfrSource = egfrSourceByPatient.get(patientIdKey(id))
+      return {PatientID:id,baseline_age:patient?.baselineAge ?? null,birth_anchor:utcDateOrBlank(patient?.birthAnchor ?? null),age_estimated:patient?.ageEstimated ?? null,manual_override:JSON.stringify(data.manualDemographics[patientIdKey(id)] ?? {}),warnings:warningsFor(id).join('; '),
+        egfr_source_parameter:egfrSource?.bezeichnung ?? '',egfr_source_unit:egfrSource?.einheit ?? ''}
     })},
     {name:'parameters',header:PARAMETERS_SHEET_HEADER,rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : '',
       // Appended 2026-11-21: the distinct codes of the parameter's imported rows, whatever patients are selected.
@@ -226,6 +232,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'app_version is the version of Lab Trajectory Explorer that computed and wrote this file; exported_at is the time of the export in UTC; export_id is a random identifier of this file. input_data_id identifies the imported measurements in the exported scope (the rows of raw_measurements: patient, date, parameter, unit, value, sex, stated age, imported birth date and time of day; a 32-bit checksum, independent of row order and of the settings): two exports with the same input_data_id were computed from the same imported rows. Events, attributes and manual demographic entries are not part of it.'},
       // Appended 2026-11-22 (issue #64), so the earlier notes keep their positions.
       {note:`anchor_comparison lists the before/after comparison at an anchor event, one row per patient and parameter whose settings switch it on (settings: anchor_comparison). The anchor is the first event of the patient (anchor_rule first) or the first whose title or type equals anchor_value; among events of one date the first in the file. Measurements on the anchor date count as before; those of the exclusion_days days after it are left out of the after slope (n_excluded_window). Both sides use the points of the column\'s own fit (same censoring, exclusions and time balancing, balanced per side) and its estimator; n counts fitted points and n_fitted_dates their distinct dates. ci_low and ci_high of a side are its 95 % interval; for Theil-Sen with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval, as for the slope of the cohort sheet. slope_difference is after minus before; its 95 % interval is the Welch interval from the two OLS standard errors, assuming independent sides, and is empty for Theil-Sen and for a side with two points. A patient without a matching event has a row with empty values. The slope, flags and endpoints of the cohort sheet are those of the whole series.`},
+      // Appended 2026-11-22 (issue #65).
+      {note:'A computed eGFR reads one serum creatinine series per patient: the creatinine source of the Data page (source_parameter and source_unit in parameters), or, when that source is in mg/dl and the patient has no serum creatinine in mg/dl, the patient\'s series in µmol/l (divided by 88.42). egfr_source_parameter and egfr_source_unit, the last columns of demographics, name the series used for each patient; they are empty for a patient without a computed eGFR value. Series are not merged.'},
     ]},
     // Sheets added later follow the earlier ones, so sheet positions stay.
     {name:'columns',header:['column','meaning','unit','empty_when'],rows:cohortColumnDirectoryRows()},

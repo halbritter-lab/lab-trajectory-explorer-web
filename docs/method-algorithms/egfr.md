@@ -6,8 +6,9 @@ only.
 
 ## eGFR derivation
 
-A computed eGFR series is derived from one serum-creatinine series and each
-patient's resolved sex and age. It is an automated research derivation, not a
+A computed eGFR series is derived, for each patient, from one
+serum-creatinine series of that patient and the patient's resolved sex and
+age. It is an automated research derivation, not a
 validated clinical result. The implementation is `appendComputedEgfr` in
 `src/core/domains/nephrology/egfr/series.ts`, the equations are in
 `egfr/formulas.ts`, and the name and unit rules are in
@@ -148,12 +149,61 @@ the first-letter rule (`G/L` is `G/l`).
 
 ### Source selection
 
-One (name, unit) pair is the source for the whole dataset. Rows belong to the
-source when their name and unit strings equal the pair exactly, as stored
-after import (the import already rewrites unit spellings with the same unit
-key within one test name to a single spelling). Other creatinine series never
-fill gaps for patients who lack the selected pair. An explicitly selected pair
-that is not an eligible serum-creatinine source produces no eGFR rows.
+The setting holds one (name, unit) pair, the *selected source*. Since
+2026-11-21 (owner decision, issue #65; see
+[method decisions](../remaining-method-decisions.md#creatinine-source-per-patient-decided-2026-11-21-issue-65))
+the series is chosen per patient (`patientCreatinineSources` in
+`egfr/series.ts`). Rows belong to a series when their name and unit strings
+equal the pair exactly, as stored after import (the import already rewrites
+unit spellings with the same unit key within one test name to a single
+spelling). A patient "has" a pair when at least one imported row of the
+patient carries it, whatever its date, value or demographics. Only eligible
+serum-creatinine pairs count. The first rule that matches decides:
+
+| Patient | Series used |
+| --- | --- |
+| has the selected pair | the selected pair |
+| selected pair in µmol/l, patient without it | none |
+| selected pair in mg/dl, patient without it but with serum creatinine in mg/dl under another name | none |
+| selected pair in mg/dl, no serum creatinine in mg/dl, a µmol/l series under the selected pair's name | that µmol/l series (the *fallback*) |
+| selected pair in mg/dl, no serum creatinine in mg/dl, exactly one µmol/l series | that series (the fallback) |
+| selected pair in mg/dl, no serum creatinine in mg/dl, several µmol/l series, none under the selected name | none |
+| no eligible serum creatinine | none |
+
+Every patient's eGFR reads exactly one series; series are never merged
+(decision of 2026-11-16), so a patient with both units keeps the selected
+mg/dl series and the µmol/l values stay unused. Each computed row records the
+series it came from (`LabRow.sourceSeries`); the AKI windows of the computed
+eGFR column and the export column `egfr_source_parameter` read it. Since the
+import stores at most one unit spelling per test name, a patient has at most
+one µmol/l pair under the selected name. An explicitly selected pair that is
+not an eligible serum-creatinine source produces no eGFR rows for anyone.
+
+Open decision OD-36: the decision names the mg/dl series of a patient first
+and the µmol/l series otherwise; it does not say what happens when the
+patient's mg/dl series is not the selected one, when the patient has several
+µmol/l series, or when the selected pair is itself in µmol/l. The
+implementation takes the option that changes least: the selected pair stays
+the only mg/dl series used (a patient with `Kreatinin HP [mg/dl]` only gets
+no eGFR under `Kreatinin [mg/dl]`, as before, and its µmol/l values are not
+used either, because the patient has mg/dl values); several µmol/l series
+without one under the selected name give no eGFR; a selected µmol/l pair has
+no fallback. The note of such a patient names the case (below).
+
+Example (demo workbook, CKD-EPI 2021, *Automatic* = `Kreatinin [mg/dl]`):
+patient 10 has `Kreatinin [µmol/l]` only, seven values from 82 to 121
+µmol/l. Before 2026-11-21 it had no eGFR; it now uses the fallback. 82 µmol/l
+÷ 88.42 = 0.927392 mg/dl, male, 60 years: 142 × (0.927392/0.9)^−1.2 ×
+0.9938^60 = 94.3; 121 µmol/l at 63 years gives 58.0. Patient 2 has both
+units and keeps its mg/dl series. 27 of the 28 patients have a computed
+eGFR (26 before); patient 5 has neither sex nor age.
+
+A saved workspace stores the imported rows and the setting, and its computed
+rows are derived again on load. The stored pair keeps its meaning as the
+selected source: a patient with values in it keeps the same eGFR values, and
+a patient without serum creatinine in mg/dl gains the fallback values when a
+copy saved before 2026-11-21 is loaded. No setting is rewritten and no notice
+is shown.
 
 When no source is selected, `defaultCreatinineSource` chooses one. The
 candidates are the distinct eligible pairs in the dataset, sorted mg/dl
@@ -171,7 +221,17 @@ A final fallback to the first candidate exists in the code but cannot be
 reached, because every candidate has one of the two units. The exact-name
 preference of rule 1 applies to mg/dl only: with `Kreatinin [µmol/l]` and
 `Creatinine B [µmol/l]` as the only candidates, rule 4 selects
-`Creatinine B`, the alphabetically first.
+`Creatinine B`, the alphabetically first. These rules choose the selected
+source for the dataset; the per-patient fallback above applies after them.
+
+**On the Data page** under *Derive eGFR*, the counts of source values and of
+reasons cover the rows of each patient's own series. "Patients without serum
+creatinine in mg/dl use their µmol/l series: Kreatinin (µmol/l) for 1
+patient." names the fallback; "Not used for this eGFR" lists, per eligible
+pair, the values no patient's eGFR reads (demo: `Kreatinin (µmol/l), 4
+values` of patient 2); two further notices count the patients left without a
+series because they have mg/dl creatinine under another name only, or several
+µmol/l series.
 
 ### Unit conversion
 
@@ -209,9 +269,17 @@ table's order, each with the number of creatinine values that fail it (a
 row failing two conditions counts under both), and a pointer to "Review and
 edit patients" naming the sex, the age or both. The cell itself shows the
 first reason ("No eGFR: sex missing"), or "No eGFR: sex and age missing"
-when both are missing. A patient with no row in the selected source at all
-(creatinine only under another name or unit) reads "no value in the
-creatinine source". Examples: four creatinine values with an age and no
+when both are missing. For a patient without a series of
+their own (see [Source selection](#source-selection)) the note names the
+case instead (since 2026-11-21, issue #65): without any serum creatinine,
+"No eGFR: no serum creatinine" ("No eGFR for this patient: no serum
+creatinine value in mg/dl or µmol/l."); with mg/dl creatinine under another
+name only, "No eGFR: creatinine under another name"; with several µmol/l
+series, "No eGFR: several µmol/l series"; under a selected µmol/l source,
+"No eGFR: no creatinine in the source", naming the unused series. The
+reasons of a patient who uses the fallback are counted on the µmol/l rows,
+and the note adds "Creatinine source of this patient: Kreatinin [µmol/l],
+because the patient has no serum creatinine in mg/dl." Examples: four creatinine values with an age and no
 resolved sex give "No eGFR for this patient: sex missing (4 creatinine
 values). Enter the sex under Data → “Review and edit patients”." Patient 5
 of the demo data has four creatinine values and neither sex nor age: "No
@@ -405,14 +473,17 @@ age-specific Q, sex spellings),
 [eGFR source tests](../../tests/core/egfr/series.test.ts) (urine exclusion,
 formula-specific series names including CKD-EPI 2009,
 default-source rules 1, 2 and 4, µmol/l conversion and spellings, reversed
-bound, under-18 rows, rejected non-serum source),
+bound, under-18 rows, rejected non-serum source, every row of the per-patient
+source table, the recorded source and the AKI windows of a fallback),
 [creatinine source tests](../../tests/core/aki/creatinineSource.test.ts)
 (non-serum and serum names, plausibility counts at both thresholds),
 [Data page tests](../../tests/workspace/data-ui.test.tsx) (both plausibility
-notices, a saved non-serum source),
+notices, a saved non-serum source, the fallback and the two notices without
+a series),
 [eGFR gap tests](../../tests/workspace/egfr-gaps.test.tsx) (order of the
 reasons, the age boundary at 18, sex and age missing on the same rows, the
-note per patient in cell and patient view),
+note per patient in cell and patient view, the notes without a series
+and on a fallback),
 [eGFR module tests](../../tests/core/analysis/egfrModule.test.ts) (formula
 `off` contributes nothing, saved formula names validated), [unit-key tests](../../tests/core/parse/units.test.ts)
 and [eGFR fixture tests](../../tests/parity/egfr.parity.test.ts). The golden

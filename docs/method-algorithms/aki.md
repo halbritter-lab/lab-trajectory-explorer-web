@@ -35,8 +35,12 @@ rows without a number are ignored and cannot establish an episode.
 Each eligible creatinine series detects AKI on itself. A computed eGFR column
 uses the creatinine pair it was computed from (decided 2026-11-05, issue #34):
 every computed row carries its source pair (`LabRow.sourceSeries`), and the
-patient's rows of that pair are the detection input. Before, a computed eGFR
-column was treated like any other analyte. For any other analyte column the
+patient's rows of that pair are the detection input. Since the eGFR source
+is chosen per patient (decided 2026-11-21, issue #65; see
+[source selection](egfr.md#source-selection)), that pair is the patient's
+own: the selected source, or the patient's µmol/l fallback, so the windows
+always come from the series the patient's eGFR values were computed from.
+Before, a computed eGFR column was treated like any other analyte. For any other analyte column the
 patient's eligible creatinine pair with the most exact dated rows is used;
 ties retain the first encountered pair. Bounds do not win source selection by
 inflating the row count. The choice is made per patient. Rows with different
@@ -511,6 +515,17 @@ computed eGFR column used `Kreatinin enzym.` (five rows), showed no episode
 and kept both AKI values in its slope. A `HbA1c` column of the same patient
 still uses `Kreatinin enzym.` and shows none.
 
+Example with the per-patient source (issue #65): the selected source is
+`Kreatinin [mg/dl]`; a patient without serum creatinine in mg/dl has
+`Kreatinin [µmol/l]` with 88, 140 and 88 µmol/l on 2020-01-01, -02 and
+2020-02-01, and five rows of 88 µmol/l in `Kreatinin X [µmol/l]` in 2019. The
+fallback is `Kreatinin [µmol/l]`, the patient's µmol/l series under the
+selected name. 88 and 140 µmol/l are 0.995250 and 1.583352 mg/dl; the
+computed CKD-EPI 2021 eGFR is 92.2, 52.8 and 92.2 (male, 50 years), and the
+eGFR column shows the episode with onset 2020-01-02 (a rise of 0.59 mg/dl
+within 48 hours). The pair with the most exact dated rows would have been
+`Kreatinin X`, which shows none.
+
 ### Not implemented
 
 - The KDIGO urine-output criterion is not evaluated; urine data are not used.
@@ -600,7 +615,9 @@ tooltip text) and
 [censored measurement tests](../../tests/core/censoredMeasurements.test.ts).
 No dedicated regression test: the inclusive window bound at exactly two days,
 the oldest-value tie rule for the baseline, and a computed eGFR column whose AKI source differs from its eGFR
-source. Non-positive values and creatinine under dialysis are covered by the
+source. The [eGFR source tests](../../tests/core/egfr/series.test.ts) pin the
+per-patient example above (AKI from the µmol/l fallback, not from the pair
+with more rows). Non-positive values and creatinine under dialysis are covered by the
 [dialysis and positivity tests](../../tests/core/aki/dialysisAndPositivity.test.ts).
 
 ### Episode list
