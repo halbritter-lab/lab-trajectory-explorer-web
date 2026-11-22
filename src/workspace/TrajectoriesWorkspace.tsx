@@ -755,13 +755,14 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
       }))
     }
     else if (control.target === 'parameters') { closeTool(); setParameterQuery(''); setDraftKeys([...keys]) }
-    else if (control.target === 'trend') {
-      // The Trend switch is in the column header of the table.
+    else if (control.target === 'trend' || control.target === 'log') {
+      // The Trend switch and the log button are in the column header of the table.
       if (mode !== 'table') setMode('table')
+      const selector = control.target === 'trend' ? 'input[aria-label^="Analyse trend:"]' : 'button[aria-label^="Logarithmic value axis:"]'
       requestAnimationFrame(() => {
         const header = parameterKey === undefined ? undefined : parameterHeaders.current.get(parameterKey)
         header?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
-        header?.querySelector<HTMLInputElement>('input[aria-label^="Analyse trend:"]')?.focus({ preventScroll: true })
+        header?.querySelector<HTMLElement>(selector)?.focus({ preventScroll: true })
       })
     }
     else {
@@ -782,16 +783,17 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
     document.addEventListener('keydown', escape)
     return () => document.removeEventListener('keydown', escape)
   }, [pickerOpen])
-  const toggleTrend = (key: string) => {
-    if (trendKeys.includes(key)) {
-      setTrendKeys(previous => previous.filter(item => item !== key))
-      setFitKeys(previous => previous.filter(item => item !== key))
-      if (sort === `${key}:slope` || sort === `${key}:absSlope`) setSort('id')
-    } else {
-      // One step to a visible result: the line is drawn with the first slope and can be hidden again.
-      setTrendKeys(previous => [...previous, key])
-      setFitKeys(previous => previous.includes(key) ? previous : [...previous, key])
-    }
+  const toggleTrend = (key: string) => setTrend(trendKeys.includes(key) ? trendKeys.filter(item => item !== key) : [...trendKeys, key])
+  /** Set Trend for every parameter as a switch would: a parameter whose
+   * Trend goes on also draws its line (one step to a visible result; the line
+   * can be hidden again), one whose Trend goes off loses its line and a
+   * slope sort on it. Used by the switch and by applied export settings. */
+  const setTrend = (next: readonly string[]) => {
+    const on = next.filter(key => !trendKeys.includes(key))
+    const off = trendKeys.filter(key => !next.includes(key))
+    setTrendKeys([...next])
+    if (on.length || off.length) setFitKeys(previous => [...previous.filter(key => !off.includes(key)), ...on.filter(key => !previous.includes(key))])
+    if (off.some(key => sort === `${key}:slope` || sort === `${key}:absSlope`)) setSort('id')
   }
   const parameterControls = (p: WorkspaceParameter) => {
     const settings = columnSettings[p.key] ?? fitSettings
@@ -944,8 +946,8 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
       ? <ul>{akiEpisodes.filter(episode => episode.patientId === current.patientId).map((episode, i) => <li key={i}>Stage {akiStageLabel(episode.stage)}, onset {formatWorkspaceDate(episode.onset)}, creatinine peak {formatWorkspaceNumber(episode.peakValue)} mg/dl on {formatWorkspaceDate(episode.peakDate)}; baseline {formatWorkspaceNumber(episode.baselineValue)} mg/dl on {formatWorkspaceDate(episode.baselineDate)} ({akiCriterionLabel(episode.criterion)}; {episode.parameter} [{episode.unit ?? 'no unit'}]); end {akiEpisodeEndLabel(episode)}; dialysis start {akiEpisodeDialysisLabel(episode)}</li>)}</ul>
       : <p>No AKI episode detected. Detection needs serum creatinine values close enough in time: a rise within 48 hours or 7 days.</p>}<p className="wt-muted">Automated KDIGO creatinine screening, not a diagnosis. Display → “AKI windows and episodes” marks them in the charts.</p></section></section>}
     {active && draftKeys !== null && <dialog ref={dialog} open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); closePicker() }} aria-labelledby="wt-parameter-title" className="wt-parameter-dialog"><h2 id="wt-parameter-title">Select parameters</h2><label>Search parameters<input autoFocus value={parameterQuery} onChange={event => setParameterQuery(event.target.value)} /></label><div className="wt-toolbar"><button onClick={() => setDraftKeys(data.parameters.map(p => p.key))}>All parameters</button><button onClick={() => setDraftKeys([])}>No parameters</button></div><div className="wt-parameter-options" role="group" aria-label="Parameter options">{data.parameters.filter(p => p.label.toLocaleLowerCase().includes(parameterQuery.toLocaleLowerCase())).map(p => <label key={p.key}><input type="checkbox" checked={draftKeys.includes(p.key)} onChange={event => setDraftKeys(previous => event.target.checked ? [...previous!, p.key] : previous!.filter(key => key !== p.key))} /><span>{p.label}</span></label>)}</div><div className="wt-toolbar"><button onClick={() => { setParameterKeys(draftKeys); closePicker() }}>Apply</button><button onClick={closePicker}>Cancel</button></div></dialog>}
-    {active && recordOpen && <AnalysisRecordDialog data={data} parameters={parameters} trendKeys={trendKeys} groupBy={groupBy} onClose={closeRecord} onChange={changeFromRecord}
-      onApplyView={(nextKeys, nextTrend) => { if (nextKeys) setParameterKeys(nextKeys); setTrendKeys(nextTrend) }} />}
+    {active && recordOpen && <AnalysisRecordDialog data={data} parameters={parameters} trendKeys={trendKeys} logKeys={logKeys} groupBy={groupBy} onClose={closeRecord} onChange={changeFromRecord}
+      onApplyView={(nextKeys, nextTrend, nextLog) => { if (nextKeys) setParameterKeys(nextKeys); setTrend(nextTrend); setLogKeys(nextLog) }} />}
     <AnalysisDrawer open={active && openTool === 'analysis'} onClose={closeTool} title={settingsScope ? parameters.find(parameter => parameter.key === settingsScope)?.label ?? 'Parameter analysis' : 'General defaults'}>
             <QuietAnalysisSettings parameters={parameters} sharedSettings={fitSettings} overrides={columnSettings}
         scope={settingsScope} onChange={changeSettings} onReset={resetColumnSettings} events={data.events}

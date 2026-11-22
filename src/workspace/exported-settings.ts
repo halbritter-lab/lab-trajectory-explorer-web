@@ -14,6 +14,9 @@ import { COMPUTED_EGFR_UNIT, computedEgfrName } from '../core/domains/nephrology
 import { defaultTrajectoryView, restoreSavedSettings, parameterKeyLabel, SAVED_SETTINGS_VERSION } from './saved-settings'
 import { defaultFitSettings, type TrajectoryFitSettings } from './workspace-analysis'
 import { parameterLabel } from './workspace-labels'
+import { eventMatchesRule } from '../core/cohort/anchorComparison'
+import { parsePeriEventSettings, type PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
+import type { ClinicalEvent } from '../core/events/events'
 
 export interface ExportedColumn {
   parameterKey: string
@@ -38,6 +41,12 @@ export interface ExportedSettings {
   rebuilt: boolean
   /** Patients with manual demographic entries in `demographics`. */
   manualDemographicPatients: number
+  /** `peri_event_creatinine` of the first row as written: undefined when the
+   * workbook has no such column (before 2026-11-22), '' without a selection. */
+  periEventCreatinine: unknown
+  /** Parameters with rows in `log_trend`, matched to `settings` by parameter
+   * and unit: shown on a logarithmic axis when exported. */
+  logParameterKeys: string[]
 }
 
 const text = (value: unknown) => value === null || value === undefined ? '' : String(value)
@@ -93,8 +102,14 @@ export function readExportedSettings(bytes: ArrayBuffer | Uint8Array): ExportedS
   const aboutValue = (key: string) => about.find(note => note.startsWith(`${key}: `))?.slice(key.length + 2) ?? null
   const demographics = workbook.sheetNames.includes('demographics') ? workbook.getSheet('demographics') as Record<string, unknown>[] : []
   const manualDemographicPatients = demographics.filter(row => { const value = json(row.manual_override); return isRecord(value) && Object.keys(value).length > 0 }).length
+  // log_trend has no parameter_key: its rows name parameter and unit as the settings rows do.
+  const logTrend = workbook.sheetNames.includes('log_trend') ? workbook.getSheet('log_trend') as Record<string, unknown>[] : []
+  const logSeries = new Set(logTrend.map(row => JSON.stringify([text(row.Parameter), text(row.Unit)])))
+  const logParameterKeys = rows.filter(row => logSeries.has(JSON.stringify([text(row.parameter), text(row.unit)]))).map(row => String(row.parameter_key))
+  const periEventCreatinine = 'peri_event_creatinine' in rows[0] ? text(rows[0].peri_event_creatinine) : undefined
   return {
     columns, analysisSettings: json(rows[0].analysis_settings), groupBy: text(rows[0].group_by), rebuilt, manualDemographicPatients,
+    periEventCreatinine, logParameterKeys: [...new Set(logParameterKeys)],
     appVersion: aboutValue('app_version'), exportId: aboutValue('export_id'), inputDataId: aboutValue('input_data_id'),
   }
 }
@@ -105,6 +120,10 @@ export interface AppliedSettings {
   /** The parameters to show, in the exported order; null keeps the current selection. */
   parameterKeys: string[] | null
   trendKeys: string[]
+  /** Parameters on a logarithmic value axis. */
+  logKeys: string[]
+  /** The Data page's peri-event creatinine selection. */
+  periEventSettings: PeriEventSettings | null
   /** What was applied, in a few words each. */
   applied: string[]
   /** What could not be applied and keeps its current value. */
@@ -119,6 +138,10 @@ export interface ApplyTarget {
   analysisSettings: AnalysisSettings
   trajectoryFitSettings: TrajectoryFitSettings
   trendKeys: readonly string[]
+  logKeys: readonly string[]
+  /** The loaded events, for the peri-event selection. */
+  events: readonly ClinicalEvent[]
+  periEventSettings: PeriEventSettings | null
 }
 
 /**
@@ -184,10 +207,28 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
   const parameterKeys = present.length ? present.map(column => column.parameterKey) : null
   const trendKeys = [...target.trendKeys.filter(key => !exportedKeys.has(key)), ...present.filter(column => column.trend).map(column => column.parameterKey)]
   if (parameterKeys) applied.push(`parameter selection and Trend (${countText(parameterKeys.length, 'parameter')})`)
+  // Log axes: the export records them only through rows in log_trend, so a
+  // listed parameter without such rows keeps its current axis.
+  const logOn = present.filter(column => exported.logParameterKeys.includes(column.parameterKey)).map(column => column.parameterKey)
+  const logKeys = [...target.logKeys.filter(key => !logOn.includes(key)), ...logOn]
+  if (logOn.length) applied.push(`logarithmic value axis of ${logOn.map(label).join(', ')}`)
+
+  // Data page: creatinine after selected events. An older workbook without
+  // the column keeps the current selection.
+  let periEventSettings = target.periEventSettings
+  const periEvent = exported.periEventCreatinine
+  if (periEvent === '') { periEventSettings = null; applied.push('creatinine after selected events (none selected)') }
+  else if (periEvent !== undefined) {
+    const parsedPeriEvent = parsePeriEventSettings(json(periEvent))
+    const ruleText = parsedPeriEvent ? `${parsedPeriEvent.rule.kind === 'title' ? 'Title' : 'Type'}: ${parsedPeriEvent.rule.value}` : ''
+    if (!parsedPeriEvent) notApplied.push('creatinine after selected events: not readable in this file')
+    else if (!target.events.some(event => eventMatchesRule(event, parsedPeriEvent.rule))) notApplied.push(`creatinine after selected events, ${ruleText} (no such event in this dataset; the current selection is kept)`)
+    else { periEventSettings = parsedPeriEvent; applied.push(`creatinine after selected events (${ruleText}, ${parsedPeriEvent.windowHours} hours)`) }
+  }
 
   if (exported.groupBy) notApplied.push(`grouping by ${exported.groupBy} (choose it under Trajectories: Group by)`)
   if (exported.manualDemographicPatients) notApplied.push(`manual demographic entries of ${countText(exported.manualDemographicPatients, 'patient')} (enter them under Data: Review and edit patients)`)
-  return { analysisSettings, trajectoryFitSettings, parameterKeys, trendKeys, applied, notApplied }
+  return { analysisSettings, trajectoryFitSettings, parameterKeys, trendKeys, logKeys, periEventSettings, applied, notApplied }
 }
 
 const countText = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`

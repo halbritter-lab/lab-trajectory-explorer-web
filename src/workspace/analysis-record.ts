@@ -21,11 +21,12 @@ import { defaultFitSettings, type TrajectoryFitSettings, type WorkspaceFitSettin
 import { defaultTrajectoryView, type TrajectoryView } from './saved-settings'
 import type { StoredMixedModelResult } from './state/store'
 import { anchorRuleLabel } from '../core/cohort/anchorComparison'
+import type { PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 
 /** Where a setting is changed in the interface. */
 export type SettingControl =
   | { page: 'Data'; target: 'egfr' | 'aki-recovery' | 'demographics' | 'peri-event' }
-  | { page: 'Trajectories'; target: 'analysis' | 'parameters' | 'trend' | 'grouping' }
+  | { page: 'Trajectories'; target: 'analysis' | 'parameters' | 'trend' | 'log' | 'grouping' }
   | { page: 'Cohort models'; target: 'model' | 'fit-summary' }
 
 /** The element each control of another page is in (see WorkspaceApp). */
@@ -119,7 +120,7 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   'trajectoryView.warningIcons': { label: 'Warning display', area: 'Trajectories', noNumericEffect: 'Icons or text for warnings.', control: null },
   'trajectoryView.pointsChosen': { label: 'Measurement points choice', area: 'Trajectories', noNumericEffect: 'Whether charts draw the points.', control: null },
   // A logarithmic axis adds the log_trend sheet (issue #70); the column's own slope is unchanged.
-  'trajectoryView.logKeys': { label: 'Logarithmic value axis', area: 'Trajectories', exportField: 'log_trend (one row per patient for each parameter on a logarithmic axis)', control: { page: 'Trajectories', target: 'parameters' } },
+  'trajectoryView.logKeys': { label: 'Logarithmic value axis', area: 'Trajectories', exportField: 'log_trend (one row per patient for each parameter on a logarithmic axis)', control: { page: 'Trajectories', target: 'log' } },
 
   // Cohort models: recorded with each fitted model in the model workbook (models sheet).
   // Data page: the peri-event creatinine selection (issue #69); it changes no fit.
@@ -227,6 +228,12 @@ export function settingValueText(path: string, value: unknown): string {
   const leaf = path.split('.').slice(1).join('.') || path
   if (value === undefined) return 'Off'
   if (path === 'analysisSettings.egfr.formula') return value === 'off' ? 'Off' : EGFR_FORMULA_LABELS[value as keyof typeof EGFR_FORMULA_LABELS] ?? String(value)
+  if (path === 'periEventSettings') {
+    if (!value) return 'None selected'
+    const { rule, windowHours } = value as PeriEventSettings
+    return `${rule.kind === 'title' ? 'Title' : 'Type'}: ${rule.value}, window ${windowHours} hours`
+  }
+  if (path === 'trajectoryView.logKeys') return value ? 'Logarithmic' : 'Linear'
   if (path === 'analysisSettings.egfr.source') return Array.isArray(value) ? `${value[0]} (${value[1]})` : 'Automatic'
   if (path.endsWith('.presetId')) return value === 'custom' ? 'Custom configuration' : fitPresetById(String(value))?.name ?? String(value)
   if (path.endsWith('.fitModel')) return FIT_MODEL_TEXT[String(value)] ?? String(value)
@@ -277,8 +284,10 @@ export interface AnalysisRecordInput {
   analysisSettings: AnalysisSettings
   manualDemographics: Record<string, ManualDemographics>
   trajectoryFitSettings: TrajectoryFitSettings
-  /** The parameters shown under Trajectories, in order, with Trend on or off. */
-  parameters: ReadonlyArray<{ key: string; label: string; trend: boolean }>
+  /** The parameters shown under Trajectories, in order, with Trend and the logarithmic value axis on or off. */
+  parameters: ReadonlyArray<{ key: string; label: string; trend: boolean; log: boolean }>
+  /** The Data page's creatinine after selected events; null while none are selected. */
+  periEventSettings: PeriEventSettings | null
   groupBy: string
   mixedModelConfig: MixedModelConfig
   presetExclusionPolicy: PresetExclusionPolicy
@@ -298,6 +307,7 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
     entries: [
       ...settingLeaves(input.analysisSettings, 'analysisSettings').filter(([path]) => SETTINGS[path] && !SETTINGS[path].noNumericEffect).map(([path, value]) => entry(path, value, defaultLeaves.get(path))),
       { ...entry('manualDemographics', null, null), value: manualCount ? `${manualCount} ${manualCount === 1 ? 'patient' : 'patients'}` : 'None', defaultValue: 'None', deviates: manualCount > 0 },
+      entry('periEventSettings', input.periEventSettings, null),
     ],
   }
   const shared = input.trajectoryFitSettings.shared
@@ -310,11 +320,13 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
     const own = input.trajectoryFitSettings.columns[parameter.key]
     // Trend is off until it is switched on (TrajectoryView.trendKeys starts empty).
     const trend = { ...entry('trajectoryView.trendKeys', parameter.trend, false), parameterKey: parameter.key }
+    // The value axis is linear until the column's log button is pressed.
+    const log = { ...entry('trajectoryView.logKeys', parameter.log, false), parameterKey: parameter.key }
     const entries = own ? fitEntries(own, shared, parameter.key).filter(e => e.deviates) : []
     return {
       id: `parameter:${parameter.key}`, title: `Trajectories: ${parameter.label}`, area: 'Trajectories' as const,
       note: own ? (entries.length ? 'Own settings of this parameter; deviations are against the shared settings.' : 'Own settings of this parameter, equal to the shared settings.') : 'Uses the shared settings.',
-      entries: [trend, ...entries],
+      entries: [trend, log, ...entries],
     }
   })
   const grouping: RecordSection = {

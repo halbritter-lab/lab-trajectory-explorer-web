@@ -12,7 +12,8 @@ import { defaultAnalysisSettings, type AnalysisSettings } from '../../src/core/a
 import { defaultFitSettings, type WorkspaceFitSettings } from '../../src/workspace/workspace-analysis'
 import { trajectoryColumnSettings } from '../../src/workspace/trajectory-ui/analysis'
 import { workspaceWorkbookBytes } from '../../src/workspace/workspace-export'
-import { applyExportedSettings, readExportedSettings } from '../../src/workspace/exported-settings'
+import { applyExportedSettings, readExportedSettings, type ApplyTarget } from '../../src/workspace/exported-settings'
+import { buildCohortRows } from '../../src/core/cohort/screening'
 import { mixedModelExportSheets } from '../../src/core/mixedModel/modelExport'
 import type { MixedModelSuccess } from '../../src/core/mixedModel/types'
 import { exportFixture } from './export-fixture'
@@ -89,9 +90,9 @@ function exportWith(analysisSettings: AnalysisSettings, shared: WorkspaceFitSett
   const columns = trajectoryColumnSettings({ shared, columns: {} }, parameters, trendKeys)
   return workspaceWorkbookBytes({ ...input, ...columns, exportedAt: new Date(0), exportId: 'fixed' })
 }
-const target = (analysisSettings: AnalysisSettings) => ({
+const target = (analysisSettings: AnalysisSettings): ApplyTarget => ({
   parameterKeys: new Set(['marker', 'derived', 'other-unit']), importedParameters: [['Marker|one', 'mg/L'], ['Creatinine', 'mg/dl']] as const,
-  analysisSettings, trajectoryFitSettings: { shared: defaultFitSettings(), columns: {} }, trendKeys: [],
+  analysisSettings, trajectoryFitSettings: { shared: defaultFitSettings(), columns: {} }, trendKeys: [], logKeys: [], events: [], periEventSettings: null,
 })
 
 describe('every exported setting is in the documented columns and comes back from the workbook', () => {
@@ -158,7 +159,8 @@ describe('analysis record', () => {
       analysisSettings: { ...defaultAnalysisSettings(), egfr: { formula: 'ckd-epi-2021', source: null } },
       manualDemographics: { 1: { age: 50 } },
       trajectoryFitSettings: { shared, columns: { b: own } },
-      parameters: [{ key: 'a', label: 'A', trend: true }, { key: 'b', label: 'B', trend: false }],
+      parameters: [{ key: 'a', label: 'A', trend: true, log: false }, { key: 'b', label: 'B', trend: false, log: true }],
+      periEventSettings: { rule: { kind: 'title', value: 'Contrast CT' }, windowHours: 72 },
       groupBy: 'sex', mixedModelConfig: mixedModelConfigSample(), presetExclusionPolicy: 'apply', cohortModelResults: null,
     })
     const find = (id: string, path: string) => sections.find(section => section.id === id)!.entries.find(entry => entry.path === path)!
@@ -167,12 +169,74 @@ describe('analysis record', () => {
     expect(find('shared', `${FIT_PREFIX}.timeBalancing`)).toMatchObject({ value: 'Quarterly median', defaultValue: 'Raw (unweighted points)', deviates: true })
     expect(find('shared', `${FIT_PREFIX}.fitModel`)).toMatchObject({ deviates: false })
     // A parameter's own settings list only what differs from the shared ones.
-    expect(sections.find(section => section.id === 'parameter:b')!.entries.map(entry => entry.path)).toEqual(['trajectoryView.trendKeys', `${FIT_PREFIX}.presetId`, `${FIT_PREFIX}.fitModel`])
+    expect(sections.find(section => section.id === 'parameter:b')!.entries.map(entry => entry.path)).toEqual(['trajectoryView.trendKeys', 'trajectoryView.logKeys', `${FIT_PREFIX}.presetId`, `${FIT_PREFIX}.fitModel`])
+    // The value axis: linear by default, the log button of the column is its control.
+    expect(find('parameter:a', 'trajectoryView.logKeys')).toMatchObject({ value: 'Linear', deviates: false, parameterKey: 'a', control: { page: 'Trajectories', target: 'log' } })
+    expect(find('parameter:b', 'trajectoryView.logKeys')).toMatchObject({ value: 'Logarithmic', defaultValue: 'Linear', deviates: true })
+    // Creatinine after selected events: none selected by default, the Data page section is its control.
+    expect(find('data', 'periEventSettings')).toMatchObject({ value: 'Title: Contrast CT, window 72 hours', defaultValue: 'None selected', deviates: true, control: { page: 'Data', target: 'peri-event' } })
     expect(find('parameter:b', 'trajectoryView.trendKeys')).toMatchObject({ value: 'Off', deviates: false })
     expect(find('parameter:a', 'trajectoryView.trendKeys')).toMatchObject({ value: 'On', defaultValue: 'Off', deviates: true })
     expect(find('grouping', 'groupBy')).toMatchObject({ value: 'sex', deviates: true })
     expect(find('models', 'mixedModelConfig.factors')).toMatchObject({ value: 'genotype (reference A)', deviates: true })
     // Only settings with a numeric effect are listed.
     for (const section of sections) for (const entry of section.entries) expect(SETTINGS[entry.path]?.noNumericEffect, entry.path).toBeUndefined()
+  })
+  it('shows no peri-event selection and linear axes as defaults', () => {
+    const sections = analysisRecord({
+      analysisSettings: defaultAnalysisSettings(), manualDemographics: {}, trajectoryFitSettings: { shared: defaultFitSettings(), columns: {} },
+      parameters: [{ key: 'a', label: 'A', trend: false, log: false }], periEventSettings: null,
+      groupBy: '', mixedModelConfig: mixedModelConfigSample(), presetExclusionPolicy: 'apply', cohortModelResults: null,
+    })
+    const entries = sections.flatMap(section => section.entries)
+    expect(entries.find(entry => entry.path === 'periEventSettings')).toMatchObject({ value: 'None selected', deviates: false })
+    expect(entries.find(entry => entry.path === 'trajectoryView.logKeys')).toMatchObject({ value: 'Linear', deviates: false })
+  })
+})
+
+describe('applying an export: creatinine after selected events and log axes', () => {
+  const baseAnalysis = { ...defaultAnalysisSettings(), egfr: { formula: 'ckd-epi-2021' as const, source: null } }
+  const visit = { rule: { kind: 'title' as const, value: 'Visit' }, windowHours: 72 as const }
+  const fixture = exportFixture()
+  const withEvents = (overrides: Partial<ApplyTarget> = {}): ApplyTarget => ({ ...target(baseAnalysis), events: fixture.data.events, ...overrides })
+  const exportWithPeriEvent = (periEventSettings: typeof visit | null) => {
+    const input = exportFixture()
+    const parameters = input.parameterKeys.map(key => input.data.parameters.find(p => p.key === key)!)
+    return workspaceWorkbookBytes({ ...input, ...trajectoryColumnSettings({ shared: defaultFitSettings(), columns: {} }, parameters, []), periEventSettings, exportedAt: new Date(0), exportId: 'fixed' })
+  }
+
+  it('applies the peri-event selection when the dataset has a matching event', () => {
+    const applied = applyExportedSettings(readExportedSettings(exportWithPeriEvent(visit)), withEvents())
+    expect(applied.periEventSettings).toEqual(visit)
+    expect(applied.applied).toContain('creatinine after selected events (Title: Visit, 72 hours)')
+    expect(applied.notApplied.filter(item => item.includes('creatinine after'))).toEqual([])
+  })
+  it('keeps the current selection and names it when no event of the dataset matches', () => {
+    const current = { rule: { kind: 'type' as const, value: 'dialysis' }, windowHours: 48 as const }
+    const applied = applyExportedSettings(readExportedSettings(exportWithPeriEvent(visit)), withEvents({ events: [], periEventSettings: current }))
+    expect(applied.periEventSettings).toBe(current)
+    expect(applied.notApplied).toContain('creatinine after selected events, Title: Visit (no such event in this dataset; the current selection is kept)')
+  })
+  it('clears the selection for an export without one; keeps it for a workbook without the column or an unreadable value', () => {
+    const current = visit
+    expect(applyExportedSettings(readExportedSettings(exportWithPeriEvent(null)), withEvents({ periEventSettings: current })).periEventSettings).toBeNull()
+    const exported = readExportedSettings(exportWithPeriEvent(null))
+    expect(applyExportedSettings({ ...exported, periEventCreatinine: undefined }, withEvents({ periEventSettings: current })).periEventSettings).toBe(current)
+    const unreadable = applyExportedSettings({ ...exported, periEventCreatinine: '{"rule":{"kind":"first"},"windowHours":48}' }, withEvents({ periEventSettings: current }))
+    expect(unreadable.periEventSettings).toBe(current)
+    expect(unreadable.notApplied).toContain('creatinine after selected events: not readable in this file')
+  })
+  it('switches on the log axis of every parameter in log_trend and keeps the others', () => {
+    const input = exportFixture()
+    const parameters = input.parameterKeys.map(key => input.data.parameters.find(p => p.key === key)!)
+    const cohortRows = buildCohortRows(input.data.rows, ['001-A', 'hidden'], input.data.parameters.map(p => ({ bezeichnung: p.bezeichnung, einheit: p.einheit, mode: 'global' as const, ...(p.key === 'marker' ? { logTrend: true } : {}) })))
+    const bytes = workspaceWorkbookBytes({ ...input, cohortRows, ...trajectoryColumnSettings({ shared: defaultFitSettings(), columns: {} }, parameters, []), exportedAt: new Date(0), exportId: 'fixed' })
+    const exported = readExportedSettings(bytes)
+    expect(exported.logParameterKeys).toEqual(['marker'])
+    // "derived" is exported without log_trend rows: its current axis stays, as does that of a parameter the file does not list.
+    const applied = applyExportedSettings(exported, withEvents({ logKeys: ['derived', 'other-unit'] }))
+    expect(applied.logKeys).toEqual(['derived', 'other-unit', 'marker'])
+    expect(applied.applied.find(item => item.startsWith('logarithmic'))).toBe('logarithmic value axis of Marker|one [mg/L]')
+    expect(applyExportedSettings(readExportedSettings(exportWithPeriEvent(null)), withEvents({ logKeys: ['marker'] })).logKeys).toEqual(['marker'])
   })
 })

@@ -42,18 +42,24 @@ Branch `wp/83-analysis-record`. `settings` now ends with `anchor_comparison`,
    with Calculation settings open and the field focused; on Trend it focuses
    the column's Trend switch; on Recovery between AKI episodes it opens Data
    with the field focused; on Random effects it opens Cohort models at the
-   model presets.
+   model presets. Press **log** on the column: the record shows its value
+   axis "Logarithmic (changed)", and **Change** on it focuses that log
+   button. Choose events under Data → Creatinine after selected events: the
+   Data section shows the selection as changed.
 3. Export the cohort, reset the method, apply the downloaded file in the
    record: "Every setting of the file was applied." and the table shows the
    exported method and interval again. Apply it to another file without one
-   of its parameters: the parameter is named under "Not applied".
+   of its parameters: the parameter is named under "Not applied". With a log
+   column and an event selection in the export, both come back; an event
+   selection whose title the other file lacks is named under "Not applied".
 4. Phone width (390 px): the record fills the screen, scrolls inside, Close
    stays visible, no horizontal scrolling.
 
 Verified 2026-11-22 in Chromium against the dev server by the browser tests
 (`analysis-record.e2e.ts`: steps 2 to 4 in part) and by screenshots at 390 px
 and 1280 px (steps 1, 2 and 4); step 3 with another dataset only by the unit
-tests.
+tests. The log-axis and event-selection parts of steps 2 and 3 (added after
+the branch review of 2026-11-22) are covered by the unit tests only so far.
 
 ## Creatinine after selected events (2026-11-22, issue #69)
 

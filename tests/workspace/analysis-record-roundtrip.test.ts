@@ -70,7 +70,7 @@ describe('settings round trip on the demo workbook', () => {
     const reloaded = dataOf(exported, defaultAnalysisSettings(), 'demo.xlsx')
     const applied = applyExportedSettings(readExportedSettings(exported), {
       parameterKeys: new Set(reloaded.parameters.map(p => p.key)), importedParameters: reloaded.parameters.filter(p => !p.derived).map(p => [p.bezeichnung, p.einheit] as const),
-      analysisSettings: defaultAnalysisSettings(), trajectoryFitSettings: { shared: defaultFitSettings(), columns: {} }, trendKeys: [],
+      analysisSettings: defaultAnalysisSettings(), trajectoryFitSettings: { shared: defaultFitSettings(), columns: {} }, trendKeys: [], logKeys: [], events: [], periEventSettings: null,
     })
     expect(applied.notApplied).toEqual([])
     expect(applied.analysisSettings).toEqual(analysisSettings)
@@ -83,7 +83,7 @@ describe('settings round trip on the demo workbook', () => {
     const reloaded = dataOf(exported, defaultAnalysisSettings(), 'demo.xlsx')
     const applied = applyExportedSettings(readExportedSettings(exported), {
       parameterKeys: new Set(reloaded.parameters.map(p => p.key)), importedParameters: reloaded.parameters.filter(p => !p.derived).map(p => [p.bezeichnung, p.einheit] as const),
-      analysisSettings: defaultAnalysisSettings(), trajectoryFitSettings: { shared: defaultFitSettings(), columns: {} }, trendKeys: [],
+      analysisSettings: defaultAnalysisSettings(), trajectoryFitSettings: { shared: defaultFitSettings(), columns: {} }, trendKeys: [], logKeys: [], events: [], periEventSettings: null,
     })
     const again = exportOf(dataOf(exported, applied.analysisSettings, 'demo.xlsx'), applied.trajectoryFitSettings, applied.parameterKeys!, applied.trendKeys)
     expect(note(again, 'input_data_id')).toBe(note(exported, 'input_data_id'))
@@ -101,7 +101,7 @@ describe('settings round trip on the demo workbook', () => {
     const keys = new Set(reduced.parameters.map(p => p.key).filter(key => key !== other.key))
     const result = applyExportedSettings(readExportedSettings(exported), {
       parameterKeys: keys, importedParameters: [], analysisSettings: defaultAnalysisSettings(),
-      trajectoryFitSettings: { shared: defaultFitSettings(), columns: {} }, trendKeys: [],
+      trajectoryFitSettings: { shared: defaultFitSettings(), columns: {} }, trendKeys: [], logKeys: [], events: [], periEventSettings: null,
     })
     expect(result.notApplied).toEqual([`settings of ${other.label} (parameter not in this dataset)`])
     expect(result.parameterKeys).toEqual(parameterKeys.filter(key => key !== other.key))
@@ -109,7 +109,7 @@ describe('settings round trip on the demo workbook', () => {
     // Own settings of a parameter the file does not list stay; one the file lists as shared loses its own.
     const elsewhere = JSON.stringify(['Not exported', 'u'])
     const kept = applyExportedSettings(readExportedSettings(exported), {
-      parameterKeys: keys, importedParameters: [], analysisSettings: defaultAnalysisSettings(), trendKeys: [],
+      parameterKeys: keys, importedParameters: [], analysisSettings: defaultAnalysisSettings(), trendKeys: [], logKeys: [], events: [], periEventSettings: null,
       trajectoryFitSettings: { shared: defaultFitSettings(), columns: { [elsewhere]: defaultFitSettings('theil_sen'), [other.key]: defaultFitSettings('theil_sen') } },
     })
     expect(kept.trajectoryFitSettings.columns).toEqual({ ...settings.columns, [elsewhere]: defaultFitSettings('theil_sen') })

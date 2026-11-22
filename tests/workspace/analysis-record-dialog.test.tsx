@@ -20,7 +20,7 @@ beforeEach(() => {
 function renderRecord(overrides: Partial<Parameters<typeof AnalysisRecordDialog>[0]> = {}) {
   const { data } = exportFixture()
   const props = {
-    data, parameters: data.parameters.slice(0, 2), trendKeys: ['marker'], groupBy: '',
+    data, parameters: data.parameters.slice(0, 2), trendKeys: ['marker'], logKeys: [] as string[], groupBy: '',
     onClose: vi.fn(), onChange: vi.fn(), onApplyView: vi.fn(), ...overrides,
   }
   render(<AnalysisRecordDialog {...props} />)
@@ -69,7 +69,7 @@ describe('analysis record dialog', () => {
     expect(report).toHaveTextContent('creatinine source Creatinine')
     await waitFor(() => expect(useAppStore.getState().trajectoryFitSettings).toEqual(settings))
     expect(useAppStore.getState().analysisSettings.egfr.formula).toBe('ekfc-2021')
-    expect(props.onApplyView).toHaveBeenCalledWith(['marker'], ['marker'])
+    expect(props.onApplyView).toHaveBeenCalledWith(['marker'], ['marker'], [])
   })
 
   it('refuses a file that is not an export of this app', async () => {

@@ -344,7 +344,23 @@ applies none of its settings. The rules:
   changed keep their values as custom settings.
 - **Selection and Trend.** The applicable parameters become the shown
   parameters, in the order of the file; Trend follows `trend` for them and is
-  unchanged for the others.
+  unchanged for the others. A parameter whose Trend goes on also shows its
+  trend line, and one whose Trend goes off loses its line and a slope sort
+  on it, as with the Trend switch.
+- **Logarithmic value axis.** The workbook records a log axis only through
+  rows of the `log_trend` sheet (matched to the `settings` rows by
+  `Parameter` and `Unit`), and a column on a log axis without such rows
+  leaves no trace. So the rule only switches on: every applicable parameter
+  with rows in `log_trend` gets the log axis; every other parameter keeps its
+  current axis, and a workbook without the sheet changes no axis.
+- **Creatinine after selected events** (Data page, `peri_event_creatinine`
+  of the first row). Empty: the selection is cleared. A selection applies
+  when at least one loaded event matches its title or type
+  (`eventMatchesRule`); otherwise it is named ("no such event in this
+  dataset") and the current selection stays, as for a creatinine source the
+  dataset lacks. A value that is not a valid selection
+  (`parsePeriEventSettings`) is named as not readable. A workbook without the
+  column (written before 2026-11-22) keeps the current selection.
 - **Not applied, and named when the file has them:** grouping (`group_by`),
   manual demographic entries (`manual_override` in `demographics`). The
   patient selection (`patient_ids`) and the cohort model settings, which the

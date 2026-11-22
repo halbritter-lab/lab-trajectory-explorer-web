@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { TrajectoriesWorkspace } from '../../src/workspace/TrajectoriesWorkspace'
 import type { WorkspaceData } from '../../src/workspace/workspace-data'
@@ -6,7 +6,8 @@ import type { LabRow } from '../../src/core/types'
 import type { ClinicalEvent } from '../../src/core/events/events'
 import { buildCohortRows } from '../../src/core/cohort/screening'
 import { useAppStore } from '../../src/workspace/state/store'
-import { workspaceWorkbookSheets } from '../../src/workspace/workspace-export'
+import { workspaceWorkbookBytes, workspaceWorkbookSheets } from '../../src/workspace/workspace-export'
+import { trajectoryColumnSettings } from '../../src/workspace/trajectory-ui/analysis'
 import { logTickLabels, logTicks } from '../../src/workspace/plot-ticks'
 import { doublingTimeText } from '../../src/workspace/labels/doublingTime'
 import { restoreSavedSettings, SAVED_SETTINGS_VERSION, defaultTrajectoryView } from '../../src/workspace/saved-settings'
@@ -146,5 +147,31 @@ describe('export and saved view', () => {
     expect(restoreSavedSettings(saved([CEA.key, 'gone']), new Set([CEA.key])).trajectoryView.logKeys).toEqual([CEA.key])
     expect(restoreSavedSettings(saved(undefined), new Set([CEA.key])).trajectoryView.logKeys).toBeUndefined()
     expect(restoreSavedSettings(saved(7), new Set([CEA.key])).notRestored).toContain('log axis choices')
+  })
+})
+
+describe('applying an export from the analysis record', () => {
+  it('turns Trend on as the switch does, applies the log axis of log_trend and leads to the log button', async () => {
+    Element.prototype.scrollIntoView ??= function () {}
+    const data = dataset(rows())
+    const trendOn = trajectoryColumnSettings(defaultTrajectoryFitSettings(), [CEA], [CEA.key])
+    const cohortRows = buildCohortRows(data.rows, ['A', 'B'], [{ bezeichnung: 'CEA', einheit: 'ng/ml', mode: 'global', fitConfig: trendOn.fitConfigByParameterKey[CEA.key], logTrend: true }])
+    const bytes = workspaceWorkbookBytes({ data, parameterKeys: [CEA.key], patientIds: ['A', 'B'], cohortRows, ...trendOn, exportedAt: new Date(0), exportId: 'x' })
+    render(<TrajectoriesWorkspace data={data} />)
+    const trend = screen.getByRole('checkbox', { name: 'Analyse trend: CEA [ng/ml]' })
+    expect(trend).not.toBeChecked()
+    fireEvent.click(screen.getByRole('button', { name: 'Analysis record' }))
+    const file = new File([bytes as Uint8Array<ArrayBuffer>], 'cohort.xlsx')
+    fireEvent.change(screen.getByLabelText('Apply settings from an exported workbook'), { target: { files: [file] } })
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: 'Analyse trend: CEA [ng/ml]', hidden: true })).toBeChecked())
+    // Trend on draws the line, as the switch does.
+    expect(screen.getByRole('button', { name: 'Show trend line: CEA [ng/ml]', hidden: true })).toHaveAttribute('aria-pressed', 'true')
+    const log = screen.getByRole('button', { name: 'Logarithmic value axis: CEA [ng/ml]', hidden: true })
+    expect(log).toHaveAttribute('aria-pressed', 'true')
+    const record = document.querySelector<HTMLElement>('dialog.ar-dialog')!
+    const column = within(record).getByRole('region', { name: 'Trajectories: CEA [ng/ml]', hidden: true })
+    expect(column).toHaveTextContent('Logarithmic')
+    fireEvent.click(within(column).getByRole('button', { name: 'Change Logarithmic value axis (Trajectories: CEA [ng/ml])', hidden: true }))
+    await waitFor(() => expect(document.activeElement).toBe(screen.getByRole('button', { name: 'Logarithmic value axis: CEA [ng/ml]' })))
   })
 })

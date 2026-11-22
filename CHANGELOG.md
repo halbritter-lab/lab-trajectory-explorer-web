@@ -110,17 +110,22 @@ interfaces are still evolving before 1.0.
 
 - **Analysis record.** "Analysis record" beside the export button of
   Trajectories (on a phone in the toolbar, beside Display) lists every setting that changes an exported number, from
-  Data, Trajectories (shared settings, each shown parameter's own settings
-  and Trend, grouping) and Cohort models, with its current value. Values
+  Data (creatinine after selected events included), Trajectories (shared
+  settings, each shown parameter's own settings, Trend and value axis,
+  grouping) and Cohort models, with its current value. Values
   that differ from their default are marked "changed" with the default
   beside them; "Change" leads to the control. A Versions section names the
   app version, the eGFR formula and, after a model fit, the R and package
   versions. Display choices are not listed.
 - **Apply settings from an export.** The record applies the settings of a
   cohort or patient workbook of this app to the loaded data and lists what it
-  could not apply (a parameter or creatinine source the data lack, grouping,
-  manual demographic entries). Loading a workbook still applies none of its
-  settings. Rules in the method reference (Fit input → Applying the settings
+  could not apply (a parameter or creatinine source the data lack, an
+  event selection without a matching event, grouping, manual demographic
+  entries). Trend applied this way also shows or hides the trend line, as
+  the switch does. The workbook records a logarithmic axis only through the
+  `log_trend` sheet, so applying switches on the log axis of the parameters
+  that sheet lists and leaves every other axis as it is. Loading a workbook
+  still applies none of its settings. Rules in the method reference (Fit input → Applying the settings
   of an export).
 - The `settings` sheet gains `trend`, `settings_source` and
   `column_settings` at its end, and `about` a note on them after the note on
