@@ -717,10 +717,30 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
   useEffect(() => { if (!active) setRecordOpen(false) }, [active])
   const recordButton = useRef<HTMLButtonElement>(null)
   const closeRecord = () => { setRecordOpen(false); recordButton.current?.focus({ preventScroll: true }) }
-  const changeFromRecord = (control: SettingControl, parameterKey?: string) => {
+  const changeFromRecord = (control: SettingControl, parameterKey?: string, label?: string) => {
     if (control.page !== 'Trajectories') { onNavigate?.(control); return }
-    if (control.target === 'analysis') { setSettingsScope(parameterKey ?? ''); setOpenTool('analysis') }
+    if (control.target === 'analysis') {
+      setSettingsScope(parameterKey ?? ''); setOpenTool('analysis')
+      // Open the calculation settings and move to the setting, once the drawer is shown.
+      requestAnimationFrame(() => requestAnimationFrame(() => {
+        const panel = document.querySelector<HTMLElement>('.pv-analysis-panel[open]')
+        if (!panel || label === 'Analysis preset') return
+        panel.querySelector<HTMLDetailsElement>('details.wt-advanced-settings')?.setAttribute('open', '')
+        const target = [...panel.querySelectorAll<HTMLElement>('select, input')].find(element => element.getAttribute('aria-label') === label)
+        target?.scrollIntoView({ block: 'center' })
+        target?.focus({ preventScroll: true })
+      }))
+    }
     else if (control.target === 'parameters') { closeTool(); setParameterQuery(''); setDraftKeys([...keys]) }
+    else if (control.target === 'trend') {
+      // The Trend switch is in the column header of the table.
+      if (mode !== 'table') setMode('table')
+      requestAnimationFrame(() => {
+        const header = parameterKey === undefined ? undefined : parameterHeaders.current.get(parameterKey)
+        header?.scrollIntoView({ block: 'nearest', inline: 'nearest' })
+        header?.querySelector<HTMLInputElement>('input[aria-label^="Analyse trend:"]')?.focus({ preventScroll: true })
+      })
+    }
     else {
       if (mode === 'detail') setMode('table')
       requestAnimationFrame(() => workspaceElement.current?.querySelector<HTMLSelectElement>('select[aria-label="Group by attribute"]')?.focus())

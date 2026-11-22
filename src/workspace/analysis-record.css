@@ -1,6 +1,6 @@
 /* Analysis record dialog (issue #83). Shares the frame of the parameter picker. */
 .pv-explorer .wt-parameter-dialog.ar-dialog { width: 720px; }
-.ar-dialog .ar-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; gap: 16px; padding-right: 4px; overflow-wrap: anywhere; }
+.pv-explorer .wt-parameter-dialog.ar-dialog > .ar-body { flex: 1 1 auto; min-height: 0; overflow-y: auto; display: grid; gap: 16px; padding-right: 4px; overflow-wrap: anywhere; }
 .ar-dialog .ar-body > p { margin: 0; }
 .ar-section h3 { margin: 0 0 4px; font-size: 1rem; }
 .ar-note { margin: 0 0 6px; color: #5d6f78; font-size: .875rem; }

@@ -168,8 +168,8 @@ describe('analysis record', () => {
     expect(find('shared', `${FIT_PREFIX}.fitModel`)).toMatchObject({ deviates: false })
     // A parameter's own settings list only what differs from the shared ones.
     expect(sections.find(section => section.id === 'parameter:b')!.entries.map(entry => entry.path)).toEqual(['trajectoryView.trendKeys', `${FIT_PREFIX}.presetId`, `${FIT_PREFIX}.fitModel`])
-    expect(find('parameter:b', 'trajectoryView.trendKeys')).toMatchObject({ value: 'Off', deviates: true })
-    expect(find('parameter:a', 'trajectoryView.trendKeys')).toMatchObject({ value: 'On', deviates: false })
+    expect(find('parameter:b', 'trajectoryView.trendKeys')).toMatchObject({ value: 'Off', deviates: false })
+    expect(find('parameter:a', 'trajectoryView.trendKeys')).toMatchObject({ value: 'On', defaultValue: 'Off', deviates: true })
     expect(find('grouping', 'groupBy')).toMatchObject({ value: 'sex', deviates: true })
     expect(find('models', 'mixedModelConfig.factors')).toMatchObject({ value: 'genotype (reference A)', deviates: true })
     // Only settings with a numeric effect are listed.

@@ -501,7 +501,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         <p className={preparationNotice && preparationNotice.key === activeParamKey ? 'notice cm-preparation-notice' : 'sr-only'} role="status" aria-label="Preparation change" aria-atomic="true">{preparationNotice && preparationNotice.key === activeParamKey ? preparationNotice.text : ''}</p>
 
         {/* Preset Selector */}
-        <div className="cm-preset-section">
+        <div className="cm-preset-section" id="cohort-model-settings">
           <div className="cm-preset-bar" role="group" aria-label="Model presets">
             <button
               type="button"
@@ -556,7 +556,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
         {/* Covariates & Factor Chips (Shown if custom or active factors exist) */}
         {(preset === 'custom' || activeFactors.length > 0) && (
-          <div className="cm-factors-container" id="cohort-model-settings">
+          <div className="cm-factors-container">
             <div className="cm-factors-header">
               <strong>Active covariates ({activeFactors.length})</strong>
               <div className="cm-random-effects-toggle">

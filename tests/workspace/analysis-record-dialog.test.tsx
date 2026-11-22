@@ -41,14 +41,16 @@ describe('analysis record dialog', () => {
     expect(within(data).getByText('Default: Off')).toBeInTheDocument()
     const shared = within(dialog).getByRole('region', { name: 'Trajectories: shared settings' })
     expect(within(shared).getByText('Theil–Sen')).toBeInTheDocument()
-    // Trend is off for the second parameter: a change from the default, which removes its slope.
+    // Trend starts off: on for the first parameter is a change, off for the second is not.
+    const first = within(dialog).getByRole('region', { name: 'Trajectories: Marker|one (mg/L)' })
+    expect(within(first).getByText('(changed)')).toBeInTheDocument()
     const second = within(dialog).getByRole('region', { name: 'Trajectories: Marker|one (g/L)' })
-    expect(within(second).getByText('(changed)')).toBeInTheDocument()
+    expect(within(second).queryByText('(changed)')).not.toBeInTheDocument()
     fireEvent.click(within(shared).getByRole('button', { name: 'Change Fit model (Trajectories: shared settings)' }))
     expect(props.onClose).toHaveBeenCalled()
-    expect(props.onChange).toHaveBeenCalledWith({ page: 'Trajectories', target: 'analysis' }, undefined)
+    expect(props.onChange).toHaveBeenCalledWith({ page: 'Trajectories', target: 'analysis' }, undefined, 'Fit model')
     fireEvent.click(within(data).getByRole('button', { name: 'Change eGFR formula (Data)' }))
-    expect(props.onChange).toHaveBeenLastCalledWith({ page: 'Data', target: 'egfr' }, undefined)
+    expect(props.onChange).toHaveBeenLastCalledWith({ page: 'Data', target: 'egfr' }, undefined, 'eGFR formula')
     expect(within(dialog).getByRole('region', { name: 'Versions' })).toHaveTextContent(/Lab Trajectory Explorer\s*\d+\.\d+\.\d+/)
   })
 

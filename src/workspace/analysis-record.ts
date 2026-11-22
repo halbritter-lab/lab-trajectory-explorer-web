@@ -25,7 +25,7 @@ import { anchorRuleLabel } from '../core/cohort/anchorComparison'
 /** Where a setting is changed in the interface. */
 export type SettingControl =
   | { page: 'Data'; target: 'egfr' | 'aki-recovery' | 'demographics' }
-  | { page: 'Trajectories'; target: 'analysis' | 'parameters' | 'grouping' }
+  | { page: 'Trajectories'; target: 'analysis' | 'parameters' | 'trend' | 'grouping' }
   | { page: 'Cohort models'; target: 'model' | 'fit-summary' }
 
 /** The element each control of another page is in (see WorkspaceApp). */
@@ -79,7 +79,8 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   'analysisSettings.aki.recoveryHours': { label: 'Recovery between AKI episodes (hours)', area: 'Data', exportField: ANALYSIS_SETTINGS, control: { page: 'Data', target: 'aki-recovery' } },
   // No control: the columns set their own AKI exclusion window (fit.exclusions.akiExclusionDays).
   'analysisSettings.aki.exclusionDays': { label: 'AKI exclusion window, dataset default (days)', area: 'Data', exportField: ANALYSIS_SETTINGS, control: null },
-  'analysisSettings.aki.showOverlays': { label: 'AKI overlays, dataset default', area: 'Data', exportField: ANALYSIS_SETTINGS, control: null },
+  // Written to analysis_settings like every dataset setting, but no computation reads it.
+  'analysisSettings.aki.showOverlays': { label: 'AKI overlays, dataset default', area: 'Data', noNumericEffect: 'No computation reads it; the charts have their own overlay switch under Display.', control: null },
   // No control: each column has its own threshold (fit.moduleSettings.rapidEgfrDecline.threshold).
   'analysisSettings.rapidEgfrDecline.threshold': { label: 'Rapid decline threshold, dataset default', area: 'Data', exportField: ANALYSIS_SETTINGS, control: null },
   // Manual demographic entries are data, but they change ages, sex and with them eGFR and endpoints.
@@ -108,7 +109,7 @@ export const SETTINGS: Readonly<Record<string, SettingDefinition>> = {
   // Trajectories: the view. Only the selection and Trend decide exported numbers.
   'trajectoryView.parameterKeys': { label: 'Selected parameters', area: 'Trajectories', exportField: 'settings.parameter_key (one row per parameter)', control: { page: 'Trajectories', target: 'parameters' } },
   // Trend off writes fitModel "none" to fit_config: the column has no slope.
-  'trajectoryView.trendKeys': { label: 'Trend', area: 'Trajectories', exportField: 'settings.trend; settings.fit_config (fitModel)', control: { page: 'Trajectories', target: 'parameters' } },
+  'trajectoryView.trendKeys': { label: 'Trend', area: 'Trajectories', exportField: 'settings.trend; settings.fit_config (fitModel)', control: { page: 'Trajectories', target: 'trend' } },
   'trajectoryView.fitKeys': { label: 'Trend line', area: 'Trajectories', noNumericEffect: 'Draws the fitted line in the charts.', control: null },
   'trajectoryView.display': { label: 'Display options', area: 'Trajectories', noNumericEffect: 'Chart overlays and markers.', control: null },
   'trajectoryView.axis': { label: 'Time axis of the charts', area: 'Trajectories', noNumericEffect: 'Every slope is fitted on time since the first fitted measurement, whatever the chart axis.', control: null },
@@ -227,7 +228,12 @@ export function settingValueText(path: string, value: unknown): string {
   if (path.endsWith('.fitModel')) return FIT_MODEL_TEXT[String(value)] ?? String(value)
   if (path.endsWith('.timeBalancing')) return TIME_BALANCING_TEXT[String(value)] ?? String(value)
   if (path.endsWith('.unknownDialysisPolicy')) return DIALYSIS_TEXT[String(value)] ?? String(value)
-  if (path.endsWith('anchorComparison')) return value ? anchorRuleLabel((value as AnchorComparisonSettings).rule) + `, ${(value as AnchorComparisonSettings).exclusionDays} days left out after it` : 'Off'
+  if (path.endsWith('anchorComparison')) {
+    if (!value) return 'Off'
+    const { rule, exclusionDays } = value as AnchorComparisonSettings
+    const anchor = anchorRuleLabel(rule)
+    return `At the ${anchor}${exclusionDays ? `, ${exclusionDays} days after it left out` : ''}`
+  }
   if (path === 'mixedModelConfig.factors') return Array.isArray(value) && value.length ? (value as MixedModelFactor[]).map(f => `${f.key}${f.reference ? ` (reference ${f.reference})` : ''}${f.effect === 'level_slope' ? ', level and slope' : ''}`).join('; ') : 'None'
   if (path === 'mixedModelConfig.covariates') return Array.isArray(value) && value.length ? value.join(', ') : 'None'
   if (path.startsWith('mixedModelConfig.') || path === 'presetExclusionPolicy') return MODEL_TEXT[String(value)] ?? String(value)
@@ -286,7 +292,7 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
   const data: RecordSection = {
     id: 'data', title: 'Data', area: 'Data',
     entries: [
-      ...settingLeaves(input.analysisSettings, 'analysisSettings').filter(([path]) => SETTINGS[path]).map(([path, value]) => entry(path, value, defaultLeaves.get(path))),
+      ...settingLeaves(input.analysisSettings, 'analysisSettings').filter(([path]) => SETTINGS[path] && !SETTINGS[path].noNumericEffect).map(([path, value]) => entry(path, value, defaultLeaves.get(path))),
       { ...entry('manualDemographics', null, null), value: manualCount ? `${manualCount} ${manualCount === 1 ? 'patient' : 'patients'}` : 'None', defaultValue: 'None', deviates: manualCount > 0 },
     ],
   }
@@ -298,7 +304,8 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
   }
   const parameterSections: RecordSection[] = input.parameters.map(parameter => {
     const own = input.trajectoryFitSettings.columns[parameter.key]
-    const trend = { ...entry('trajectoryView.trendKeys', parameter.trend, true), parameterKey: parameter.key }
+    // Trend is off until it is switched on (TrajectoryView.trendKeys starts empty).
+    const trend = { ...entry('trajectoryView.trendKeys', parameter.trend, false), parameterKey: parameter.key }
     const entries = own ? fitEntries(own, shared, parameter.key).filter(e => e.deviates) : []
     return {
       id: `parameter:${parameter.key}`, title: `Trajectories: ${parameter.label}`, area: 'Trajectories' as const,

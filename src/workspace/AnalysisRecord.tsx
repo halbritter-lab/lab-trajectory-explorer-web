@@ -13,7 +13,7 @@ export interface AnalysisRecordProps {
   groupBy: string
   onClose: () => void
   /** Go to the control of an entry; the dialog is closed first. */
-  onChange: (control: SettingControl, parameterKey?: string) => void
+  onChange: (control: SettingControl, parameterKey?: string, label?: string) => void
   /** Show the parameters and Trend of applied settings. */
   onApplyView: (parameterKeys: string[] | null, trendKeys: string[]) => void
 }
@@ -66,7 +66,7 @@ export function AnalysisRecordDialog({ data, parameters, trendKeys, groupBy, onC
       {entry.deviates && <span className="ar-default">Default: {entry.defaultValue}</span>}
     </div>
     {entry.control
-      ? <button type="button" aria-label={`Change ${entry.label} (${sectionTitle})`} onClick={() => { onClose(); onChange(entry.control!, entry.parameterKey) }}>Change</button>
+      ? <button type="button" aria-label={`Change ${entry.label} (${sectionTitle})`} onClick={() => { onClose(); onChange(entry.control!, entry.parameterKey, entry.label) }}>Change</button>
       : <span className="ar-fixed">No control</span>}
   </li>
 
