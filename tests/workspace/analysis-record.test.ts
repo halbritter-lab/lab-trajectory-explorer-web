@@ -60,6 +60,7 @@ const STRING_ALTERNATIVES: Record<string, unknown> = {
   'analysisSettings.egfr.paediatric': 'schwartz-bedside',
   [`${FIT_PREFIX}.fitModel`]: 'segmented-ols',
   [`${FIT_PREFIX}.timeBalancing`]: 'monthly-median',
+  [`${FIT_PREFIX}.boundedValues`]: 'half-limit',
   [`${FIT_PREFIX}.censoring.unknownDialysisPolicy`]: 'censor-from-start',
   [`${FIT_PREFIX}.anchorComparison.rule.kind`]: 'type',
   [`${FIT_PREFIX}.anchorComparison.rule.value`]: 'Dialysis',

@@ -14,7 +14,7 @@
  *     fitted slope and the column's own module settings.
  */
 import type { ClinicalEvent } from '../events/events'
-import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
+import type { EndpointBound, EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ExclusionWindow, ReasonedExclusionWindow } from '../exclusions/windows'
 import type { ProjectionTarget } from '../projection/linearProjection'
 import type { FitConfig } from './fitConfig'
@@ -204,6 +204,11 @@ export interface EndpointContext {
    * when the column excludes them). Only the decline baseline and the
    * projection use them (decided 2026-11-05). */
   fitPoints(withAges: boolean): EndpointPoint[]
+  /** Event-eligible bounded measurements (`<x`, `>x`) of the series, oldest
+   * first: before KRT and outside complete acute dialysis intervals, like
+   * `points`. Endpoints exclude them; observed G4/G5 use a conclusive one
+   * only to interrupt an unconfirmed candidate (issue #73). */
+  bounds?(): EndpointBound[]
   ageBasis: 'birth_date' | 'whole_years'
   /** Global fit of `fitPoints` with the scalar model (OLS or
    * Theil-Sen); NaN slope and intercept when the model is 'none'. */

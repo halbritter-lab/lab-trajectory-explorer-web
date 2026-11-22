@@ -2429,3 +2429,37 @@ under the setting “Under 18 years”)"; in *Sources*, "no eGFR is computed bel
 Points to check: whether "rule of this tool" should name OD-68 (both
 neighbours within 90 days); whether the methodology page should say that age
 is counted in whole years also for CKiD U25 (OD-65).
+
+## Part "Bounded values" (issue #73): drafts for approval, 2026-11-22
+
+Not applied. Two sentences of the page became false with the setting and were
+corrected minimally (Fit pipeline: bounds "are excluded from slopes" became
+"enter as the parameter's setting says (by default at their limit)"; Endpoints:
+the exclusion sentence names the reset of a G4/G5 candidate). The blocks below
+are new explanatory wording for the maintainer to approve, change or leave out.
+
+### BV1. Bounded values in the fit (after the bounds paragraph of *Fit Pipeline*)
+
+> **Bounded values.** A result reported as `<x` or `>x` says only that the true
+> value lies below or above x. Under Calculation settings each parameter chooses
+> how such values enter its slope and trend line: at the limit x (the default),
+> with `<x` at half its limit, or not at all. Each choice is a convention, not an
+> estimate of the unknown value. The cell warns ("*p* % bounded") when 20 % or
+> more of the fitted points are bounded; a monthly or quarterly median counts
+> when its period holds a bound. With that many bounds both substituting and
+> leaving them out can bias the slope (Hornung and Reed 1990; Hughes 1999);
+> compare the settings before relying on the slope. Endpoints, AKI detection and
+> cohort models leave bounded values out whatever is chosen.
+
+### BV2. Bounds and observed G4/G5 (after the exclusion sentence of *Endpoints*)
+
+> A bound can only end an unconfirmed G4 or G5 candidate, and only when it is
+> conclusive: `>60` proves that eGFR was not below 30 or 15 that day, `>20` only
+> that it was not below 15. A bound never starts, confirms or ends a confirmed
+> event, and the 40 % and 57 % decline events ignore bounds.
+
+### BV3. Cohort models (after the R script description of *Cohort models*)
+
+> The exported R script ends with a commented suggestion for a censored mixed
+> model as a sensitivity analysis. It reads the bounded values from
+> `model_input_flags`; the browser models do not use them.

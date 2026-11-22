@@ -67,12 +67,16 @@ describe('log trend of a cell', () => {
     expect(trend.doublingCiHigh).toBeCloseTo(1.1906, 4)
   })
 
-  it('leaves out values of zero or less and keeps bounds out of the fit', () => {
+  it('leaves out values of zero or less and treats bounds by the column setting', () => {
     const rows = [...exampleRows, row({ labDatum: day('2023-07-03'), wertNum: 0, wert: '0' }), row({ labDatum: day('2023-08-01'), wertNum: 20, wert: '>20', wertOperator: '>' })]
-    const cell = buildCohortRows(rows, [1], [spec({ logTrend: true })])[0].cells[0]
-    expect(cell.logTrend!.nNonPositive).toBe(1)
-    expect(cell.logTrend!.nFitted).toBe(5)
-    expect(cell.logTrend!.slope).toBeCloseTo(0.68147, 5)
+    const excluded = buildCohortRows(rows, [1], [spec({ logTrend: true, fitConfig: { ...generalExplorationConfig(parameter), boundedValues: 'exclude' } })])[0].cells[0]
+    expect(excluded.logTrend!.nNonPositive).toBe(1)
+    expect(excluded.logTrend!.nFitted).toBe(5)
+    expect(excluded.logTrend!.slope).toBeCloseTo(0.68147, 5)
+    // Issue #73: under the default 'limit' the bound enters at ln 20.
+    const limit = buildCohortRows(rows, [1], [spec({ logTrend: true })])[0].cells[0]
+    expect(limit.logTrend!.nNonPositive).toBe(1)
+    expect(limit.logTrend!.nFitted).toBe(6)
   })
 
   it('uses the column estimator: Theil-Sen on log values', () => {

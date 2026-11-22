@@ -80,7 +80,7 @@ describe('R reproduction export', () => {
     {patient_id:'p1',value:60,date:'2020-01-01',time_since_baseline:0,factorValues:{factor_0_:'A',factor_1_:-1.5},factorRawValues:{factor_0_:'A',factor_1_:2}},
     {patient_id:'p2',value:58,date:'2020-03-01',time_since_baseline:0,factorValues:{factor_0_:'B',factor_1_:1.5},factorRawValues:{factor_0_:'B',factor_1_:5}},
   ]
-  const inputFlags = [{patient_id:'p1',date:'2020-01-01',value:60,status:'entered' as const,reason:'',model_date:'2020-01-01'}, {patient_id:'p1',date:'2020-02-01',value:40,status:'excluded' as const,reason:'aki',model_date:''}]
+  const inputFlags = [{patient_id:'p1',date:'2020-01-01',value:60,status:'entered' as const,reason:'',model_date:'2020-01-01',operator:'='}, {patient_id:'p1',date:'2020-02-01',value:40,status:'excluded' as const,reason:'aki',model_date:'',operator:'='}]
   const sheets = mixedModelExportSheets([{entity:'G1',result,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'},rows,inputFlags}])
   const workbook = XLSX.read(sheetsToXlsxBytes(sheets),{type:'array'})
   const sheet = (name: string) => XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[name], {defval:''})
@@ -91,8 +91,8 @@ describe('R reproduction export', () => {
       {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p2',date:'2020-03-01',value:58,time_since_baseline:0,factor_0_:'B',raw_factor_0_:'B',factor_1_:1.5,raw_factor_1_:5},
     ])
     expect(sheet('model_input_flags')).toEqual([
-      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01'},
-      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-02-01',value:40,status:'excluded',reason:'aki',model_date:''},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01',operator:'='},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-02-01',value:40,status:'excluded',reason:'aki',model_date:'',operator:'='},
     ])
   })
 

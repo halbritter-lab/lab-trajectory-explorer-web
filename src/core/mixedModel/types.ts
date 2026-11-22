@@ -26,6 +26,9 @@ export interface MixedModelInputFlag {
   status: 'entered' | 'aggregated_into_median' | 'excluded'
   reason: string
   model_date: string
+  /** `=`, `<` or `>` (other operators as stored); appended 2026-11-22
+   * (issue #73), so a censored model can be fitted from this sheet. */
+  operator: string
 }
 
 export interface MixedModelPreparationSummary {

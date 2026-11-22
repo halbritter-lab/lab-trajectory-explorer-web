@@ -6,6 +6,7 @@
  */
 import type { BaseFitConfig } from '../fitPipeline/types'
 import { noAkiExclusion, noCensoring, noEndpoints, type NephrologyFitSections } from '../domains/nephrology/fitConfig'
+import { DEFAULT_BOUNDED_VALUE_POLICY } from '../measurements/censored'
 
 export type FitPreset = 'general_exploration' | 'theil_sen' | 'ckd_progression' | 'acute_review' | 'custom'
 
@@ -42,6 +43,7 @@ export function generalExplorationConfig(parameter: FitConfig['parameter']): Fit
     timeBalancing: 'raw',
     fitModel: 'ols',
     endpoints: noEndpoints(),
+    boundedValues: DEFAULT_BOUNDED_VALUE_POLICY,
   }
 }
 

@@ -1,6 +1,8 @@
 import type { CkdEndpoints } from '../../core/domains/nephrology/endpoints/ckdEndpoints'
 import { isUnstableSlope, type SlopeQualityInput } from '../../core/stats/slopeQuality'
 import { CKD_G5_EGFR_THRESHOLD } from '../../core/domains/nephrology/constants'
+import { boundedShareWarns, type BoundedValuePolicy } from '../../core/measurements/censored'
+import type { FitModel, TimeBalancing } from '../../core/fitPipeline/types'
 
 export { isUnstableSlope }
 export type { SlopeQualityInput }
@@ -196,5 +198,26 @@ export function projectedG5Label(endpoints: CkdEndpoints): QualityLabel | null {
     // G5 already happened and the observed date is shown instead.
     default:
       return null
+  }
+}
+
+/**
+ * The warning of a fit in which bounded values (`<x`, `>x`) make up 20 % or
+ * more of the fitted points (owner decision 2026-11-21, issue #73), or null.
+ * Substituting a limit biases slopes at high censoring fractions (Hornung and
+ * Reed 1990; Hughes 1999), so the share is named, not hidden.
+ */
+export function boundedShareLabel(input: { nBounded: number; nFitted: number; boundedValues: BoundedValuePolicy; timeBalancing?: TimeBalancing; fitModel: FitModel }): QualityLabel | null {
+  if (input.fitModel === 'none' || !boundedShareWarns(input.nBounded, input.nFitted)) return null
+  const percent = Math.round((input.nBounded / input.nFitted) * 100)
+  const entered = input.boundedValues === 'half-limit' ? '<x at half its limit (x/2) and >x at its limit' : 'at their limit x'
+  const monthly = input.timeBalancing === 'monthly-median'
+  const points = input.timeBalancing && input.timeBalancing !== 'raw'
+    ? `${input.nBounded} of ${input.nFitted} fitted ${monthly ? 'monthly' : 'quarterly'} medians come from a ${monthly ? 'month' : 'quarter'} that holds a bounded value (<x, >x)`
+    : `${input.nBounded} of ${input.nFitted} fitted points are bounded values (<x, >x)`
+  return {
+    label: `${percent} % bounded`,
+    title: `${points}; bounds enter ${entered}. The true values lie beyond the limits, so with 20 % or more bounded points the slope can be biased. Compare with "Exclude" under Calculation settings before relying on it.`,
+    caveat: true,
   }
 }

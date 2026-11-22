@@ -75,7 +75,7 @@ function buildMixedModelRows(
     const flagFor = new Map<LabRow, MixedModelInputFlag>()
     for (const row of allSeriesRows) {
       const reason = row.labDatum === null ? 'no_date' : row.wertNum === null ? 'no_numeric_value' : !isExactMeasurement(row) ? 'bound_value' : ''
-      const flag: MixedModelInputFlag = { patient_id: patientKey, date: utcDateOrBlank(row.labDatum), value: row.wertNum, status: 'excluded', reason, model_date: '' }
+      const flag: MixedModelInputFlag = { patient_id: patientKey, date: utcDateOrBlank(row.labDatum), value: row.wertNum, status: 'excluded', reason, model_date: '', operator: row.wertOperator }
       flagFor.set(row, flag)
       inputFlags.push(flag)
     }
@@ -96,6 +96,14 @@ function buildMixedModelRows(
     const exclusion = applyExclusionWindows(points, allWindows)
     excludedByPreset += exclusion.excludedIdx.length
     for (const index of exclusion.excludedIdx) points[index].flag.reason = exclusionReasonsAt(points[index].date, allWindows).join('; ')
+    // A bound inside a window also names the window, so "bound_value" alone
+    // marks the bounds a censored sensitivity model could use (issue #73).
+    for (const row of allSeriesRows) {
+      const flag = flagFor.get(row)!
+      if (flag.reason !== 'bound_value') continue
+      const reasons = exclusionReasonsAt(row.labDatum!, allWindows)
+      if (reasons.length) flag.reason = ['bound_value', ...reasons].join('; ')
+    }
     const included = exclusion.kept
 
     const groups = balanceSeriesPointGroups(included, spec.fitConfig?.timeBalancing)

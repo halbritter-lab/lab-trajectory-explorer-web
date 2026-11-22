@@ -10,6 +10,7 @@ import { fitPresetById, isRecord as record, parseColumnModuleSettings } from '..
 import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
 import type { UnknownDialysisPolicy } from '../core/domains/nephrology/fitConfig'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../core/domains/nephrology/analytes'
+import { DEFAULT_BOUNDED_VALUE_POLICY, type BoundedValuePolicy } from '../core/measurements/censored'
 import { defaultFitSettings, defaultTrajectoryFitSettings, type TrajectoryFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
 import { parameterLabel } from './workspace-labels'
 import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
@@ -58,6 +59,7 @@ export interface SavedSettings {
 
 const FIT_MODELS = allValues<FitModel>()(['none', 'ols', 'theil-sen', 'rolling-ols', 'segmented-ols'])
 const TIME_BALANCING = allValues<TimeBalancing>()(['raw', 'monthly-median', 'quarterly-median'])
+const BOUNDED_VALUES = allValues<BoundedValuePolicy>()(['limit', 'exclude', 'half-limit'])
 const DIALYSIS_POLICIES = allValues<UnknownDialysisPolicy>()(['flag-only', 'exclude-dated-interval', 'censor-from-start'])
 const AXES = allValues<TrajectoryView['axis']>()(['baseline', 'baselineDays', 'calendar', 'age', 'event'])
 const SCALE_MODES = allValues<TrajectoryView['scaleMode']>()(['shared', 'zoom'])
@@ -83,6 +85,9 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
   if ((observedCkdG4 !== undefined && !bool(observedCkdG4)) || (confirmationDays !== undefined && !days(confirmationDays))) return null
   const modules = parseColumnModuleSettings(v.moduleSettings)
   if (modules === null) return null
+  // Absent in settings saved or exported before 2026-11-22 (issue #73): the default applies.
+  if (v.boundedValues !== undefined && !oneOf(BOUNDED_VALUES, v.boundedValues)) return null
+  const boundedValues = v.boundedValues ?? DEFAULT_BOUNDED_VALUE_POLICY
   const anchorComparison = v.anchorComparison === undefined ? undefined : parseAnchorComparison(v.anchorComparison)
   if (anchorComparison === null) return null
   ignoredModules.push(...modules.ignored)
@@ -93,6 +98,7 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
     // Key order is part of the exported fit_config JSON (see nephrology/fitConfig.ts).
     endpoints: { percentDecline: e.percentDecline, ...(observedCkdG4 !== undefined ? { observedCkdG4 } : {}), observedCkdG5: e.observedCkdG5,
       ...(confirmationDays !== undefined ? { confirmationDays } : {}), projectedAgeToCkdG5: e.projectedAgeToCkdG5 },
+    boundedValues,
     moduleSettings: modules.settings,
     ...(anchorComparison ? { anchorComparison } : {}),
   }

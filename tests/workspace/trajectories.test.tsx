@@ -247,19 +247,23 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(badge)
     expect(screen.getByRole('tooltip')).toHaveTextContent('1 AKI episode: 1× stage II')
   })
-  it('labels bounded values as excluded in chart and measurement table', () => {
+  // Issue #73: under the default setting a bound enters the fit at its limit;
+  // it stays marked, and the table says at which value it enters.
+  it('labels bounded values in chart and measurement table', () => {
     const data = fixture()
     const bounded = data.rows.find(row => row.patientId === 'ID-A' && row.einheit === 'unit-0' && row.labDatum?.getUTCFullYear() === 2021)!
     bounded.wert = '<11'; bounded.wertNum = 11; bounded.wertOperator = '<'
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
     const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
-    expect(within(chart).getByText(/Bounds marked/)).toBeInTheDocument()
-    expect(chart.querySelector('[data-exclusion="censored-value"]')).toBeInTheDocument()
+    expect(within(chart).getByText(/Bounds marked.*enter the trend at their limit/)).toBeInTheDocument()
+    expect(chart.querySelector('[data-exclusion="censored-value"]')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Table' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
     const table = screen.getByRole('table', { name: 'Measurements Marker · unit-0', hidden: true })
-    expect(within(table).getByText('Excluded: censored value (limit, not exact)')).toBeInTheDocument()
+    // Trend is off here, so the row reads "Fit disabled" like its exact neighbours rather than "Excluded".
+    expect(table.textContent).not.toContain('Excluded')
+    expect(table.textContent).toContain('< 1141Fit disabled')
   })
   // Decided 2026-11-16: below five distinct fitted dates the Theil–Sen bounds are a range, not a 95% interval.
   // Each case lists [year offset, value]; two entries with one offset are two values on one date.
@@ -622,7 +626,7 @@ describe('real-data trajectories workspace', () => {
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     expect(screen.queryByText('> 12')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
-    expect(screen.getByText(/01\/01\/2020: > 10 unit-0, excluded from the fit \(censored value/)).toBeInTheDocument()
+    expect(screen.getByText(/^01\/01\/2020: > 10 unit-0$/)).toBeInTheDocument()
     expect(screen.getAllByText('> 10').length).toBeGreaterThan(0)
     expect(screen.getByRole('columnheader', { name: 'Derived value' })).toBeInTheDocument()
   })

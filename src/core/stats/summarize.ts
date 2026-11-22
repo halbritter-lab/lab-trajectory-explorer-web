@@ -6,7 +6,7 @@ import { rollingSlopes, type RollingSlope } from './rolling'
 import type { FitModel, TimeBalancing } from '../fitPipeline/types'
 import { applyExclusionWindows, type ExclusionWindow } from '../exclusions/windows'
 import { balanceSeriesPoints } from './timeBalancing'
-import { isExactMeasurement } from '../measurements/censored'
+import { DEFAULT_BOUNDED_VALUE_POLICY, fitValueOf, isBoundedMeasurement, type BoundedValuePolicy } from '../measurements/censored'
 import { distinctDateCount } from './time'
 
 /** How a series is segmented before fitting. 'chronic-ckd' fits after an
@@ -46,6 +46,10 @@ export interface SeriesSummary {
    * reliability rule counts these rather than nFitted, so same-day repeats
    * cannot make a series look better supported than it is. */
   nFittedDates: number
+  /** Fitted points that are bounded values (`<x`, `>x`) or, under time
+   * balancing, monthly or quarterly medians whose bin holds one. Always 0
+   * under the bounded-value policy `exclude` and without a fit. */
+  nBounded: number
   /** Whole days between the first and last points consumed by the scalar fit. */
   fittedSpanDays: number
   /** Dates of the first and last points consumed by the scalar fit; null when
@@ -75,6 +79,8 @@ export interface SummarizeParams {
   eventDates?: Date[]
   fitModel?: FitModel
   timeBalancing?: TimeBalancing
+  /** How bounded values enter the fit (issue #73); `limit` when omitted. */
+  boundedValues?: BoundedValuePolicy
   /** Windows per series (by the group's name and unit); none when omitted. */
   exclusionWindows?: (series: { bezeichnung: string | null; einheit: string | null }) => SeriesExclusionWindows | undefined
 }
@@ -89,7 +95,7 @@ function spanDaysForPoints(points: readonly SeriesPoint[]): number {
 
 /** Count, span and first/last dates of the date-sorted points a fit consumed. */
 function fittedFields(points: readonly SeriesPoint[]) {
-  return { nFitted: points.length, nFittedDates: distinctDateCount(points), fittedSpanDays: spanDaysForPoints(points), firstFittedDate: points[0]?.date ?? null, lastFittedDate: points.at(-1)?.date ?? null }
+  return { nFitted: points.length, nFittedDates: distinctDateCount(points), nBounded: points.filter((p) => p.bounded).length, fittedSpanDays: spanDaysForPoints(points), firstFittedDate: points[0]?.date ?? null, lastFittedDate: points.at(-1)?.date ?? null }
 }
 
 function fitFields(fit: OlsFit) {
@@ -120,7 +126,7 @@ export function summarizeByBezeichnung(
   mode: SlopeMode = 'global',
   params: SummarizeParams = {},
 ): SeriesSummary[] {
-  const { gapDays = 180, windowDays = 730, stepDays = 180, minNPerWindow = 3, minNPerSegment = 3, cutoffDays = 90, eventDates = [], fitModel = 'ols', timeBalancing = 'raw', exclusionWindows } = params
+  const { gapDays = 180, windowDays = 730, stepDays = 180, minNPerWindow = 3, minNPerSegment = 3, cutoffDays = 90, eventDates = [], fitModel = 'ols', timeBalancing = 'raw', boundedValues = DEFAULT_BOUNDED_VALUE_POLICY, exclusionWindows } = params
   const sub = rows.filter((r) => r.patientId === patientId)
 
   const order: string[] = []
@@ -147,7 +153,11 @@ export function summarizeByBezeichnung(
           )
         : 0
     const first = group[0]
-    const allPoints: SeriesPoint[] = numericRows.filter(isExactMeasurement).map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
+    // Exact rows, and bounds at the value the column's policy gives them (issue #73).
+    const allPoints: SeriesPoint[] = numericRows.flatMap((r) => {
+      const value = fitValueOf(r, boundedValues)
+      return value === null ? [] : [{ date: r.labDatum!, value, ...(isBoundedMeasurement(r) ? { bounded: true as const } : {}) }]
+    })
     const windows = exclusionWindows?.({ bezeichnung: first.bezeichnung, einheit: first.einheit ?? null })
     let fitPoints = applyExclusionWindows(allPoints, windows?.censoring ?? []).kept
     const fitExclusions = windows?.exclusions ?? []

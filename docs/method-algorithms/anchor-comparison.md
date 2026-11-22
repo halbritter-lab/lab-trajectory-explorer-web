@@ -51,7 +51,10 @@ dialysis of unknown intent on 2023-03-01, not at the chronic dialysis start on
 ### Points and boundaries
 
 Both sides use exactly the points the column's own fit can use: exact
-measurements (no bounds) outside every censoring and exclusion window of the
+measurements and, by the column's bounded-value setting (since 2026-11-22,
+issue #73), bounds at their limit or half limit; under `exclude` no bounds
+(see [bounded values](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22)),
+outside every censoring and exclusion window of the
 column (event censoring, acute and unknown dialysis intervals, AKI windows,
 as configured). Dates are calendar days (UTC). With the anchor day `A` and
 the window `W` days:

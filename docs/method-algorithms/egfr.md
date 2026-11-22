@@ -644,8 +644,10 @@ A bounded creatinine row (`<x` or `>x`) is evaluated at its numeric limit and
 the inequality is reversed, because eGFR falls as creatinine rises. With
 CKD-EPI 2021 for a male aged 60, `<0,5` mg/dl becomes `>116.8` and `>5` mg/dl
 becomes `<12.5`. These
-rows stay visible and are excluded from all calculations by their operator,
-as described under [bounded measurements](bounded-measurements.md#bounded-measurements-2026-10-06).
+rows stay visible and are bounds like imported ones: they enter the eGFR
+column's fits as its bounded-value setting says (at the eGFR limit, 116.8 and
+12.5 here, under `limit`) and are excluded from endpoints, AKI detection and
+cohort models, as described under [bounded measurements](bounded-measurements.md#bounded-measurements-2026-10-06).
 
 A row whose operator is `range` or `unparseable` normally has no numeric value
 and therefore yields no eGFR row. The exception is a lab sheet that supplies

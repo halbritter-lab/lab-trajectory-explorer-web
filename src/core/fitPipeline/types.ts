@@ -5,6 +5,8 @@
  * configuration the app uses.
  */
 
+import type { BoundedValuePolicy } from '../measurements/censored'
+
 export type FitXAxis = 'age' | 'calendar_time' | 'time_since_baseline'
 export type TimeBalancing = 'raw' | 'monthly-median' | 'quarterly-median'
 export type FitModel = 'none' | 'ols' | 'theil-sen' | 'rolling-ols' | 'segmented-ols'
@@ -20,6 +22,10 @@ export interface BaseFitConfig {
   xAxis: FitXAxis
   timeBalancing: TimeBalancing
   fitModel: FitModel
+  /** How bounded values (`<x`, `>x`) enter the column's individual fits and
+   * slope lines (issue #73); `limit` when absent. Last key of the exported
+   * `fit_config`. */
+  boundedValues?: BoundedValuePolicy
 }
 
 export interface BaseFitPoint {

@@ -123,6 +123,36 @@ export function mixedModelRScript(models: readonly { entity: string; result: Mix
     // local() keeps each unit's mm_data in the formula environment of its fit.
     lines.push(`# ${comment(entity)}`, `mm_fits[[${name}]] <- local({`, ...unitLines.map((line) => `  ${line}`), '})')
   }
-  lines.push('', 'sessionInfo()')
+  lines.push('', ...CENSORED_SENSITIVITY_LINES, '', 'sessionInfo()')
   return lines
 }
+
+/** A commented suggestion for a censored mixed model (decided 2026-11-22,
+ * issue #73). Comments only: the script runs without the packages it names. */
+export const CENSORED_SENSITIVITY_LINES: readonly string[] = [
+  '# Sensitivity analysis (a suggestion; these lines are comments and need no package to run the script):',
+  '# the models above leave bounded values (<x, >x) out, as every cohort model of the app does',
+  '# (decided 2026-11-22). When many values of a series are bounded, leaving them out or',
+  '# substituting the limit can bias slopes (Hornung RW, Reed LD. Appl Occup Environ Hyg',
+  '# 1990;5:46-51. Hughes JP. Biometrics 1999;55:625-629). A censored linear mixed model uses',
+  '# each bound as "below x" or "above x" instead. model_input_flags lists every measurement of',
+  '# the series with its operator; reason "bound_value" alone marks a bound outside the event and',
+  '# AKI windows of the column. The sketch fits the raw measurements (no time balancing, no run-in)',
+  '# with a random intercept and slope per patient and no covariates; add the factors of the model',
+  '# to X as mm_data builds them. Its time is years since each patient\'s first row used here,',
+  '# which can differ from time_since_baseline in model_rows.',
+  '#   mm_flags <- as.data.frame(readxl::read_excel(mm_workbook, sheet = "model_input_flags", trim_ws = FALSE))',
+  '#   d <- mm_flags[mm_flags$unit_key == "cohort" & (mm_flags$status != "excluded" | mm_flags$reason == "bound_value"), ]',
+  '#   d$day <- as.numeric(as.Date(d$date))',
+  '#   d$time <- (d$day - ave(d$day, d$patient_id, FUN = min)) / 365.25',
+  '#   d <- d[order(d$patient_id, d$time), ]',
+  '#   # lmec (Vaida F, Liu L. J Comput Graph Stat 2009;18:797-817) takes left censoring (<x) only:',
+  '#   d_left <- d[d$operator != ">", ]',
+  '#   fit <- lmec::lmec(yc = d_left$value, cens = as.integer(d_left$operator == "<"),',
+  '#     X = cbind(1, d_left$time), Z = cbind(1, d_left$time),',
+  '#     cluster = as.integer(factor(d_left$patient_id, levels = unique(d_left$patient_id))), method = "ML")',
+  '#   fit$beta  # intercept and slope per year',
+  '#   # Both directions, for example with brms:',
+  '#   # d$censoring <- ifelse(d$operator == "<", "left", ifelse(d$operator == ">", "right", "none"))',
+  '#   # brms::brm(value | cens(censoring) ~ time + (time | patient_id), data = d)',
+]

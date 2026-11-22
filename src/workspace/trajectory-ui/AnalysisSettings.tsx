@@ -1,5 +1,6 @@
 // Contextual editor; optional module adapters own domain-specific configuration.
 import type { FitModel, TimeBalancing } from '../../core/fitPipeline/types'
+import type { BoundedValuePolicy } from '../../core/measurements/censored'
 import type { WorkspaceParameter } from '../workspace-data'
 import { presetSettingsKeepingAnchor, type WorkspaceFitSettings } from '../workspace-analysis'
 import { fitPresetById } from '../../core/analysis/registry'
@@ -93,6 +94,19 @@ export function QuietAnalysisSettings({ parameters, sharedSettings, overrides, s
                 <option value="quarterly-median">Quarterly median</option>
               </select>
             </label>
+
+            <label>Bounded values (&lt;x, &gt;x)
+              <select
+                aria-label="Bounded values"
+                value={fitSettings.boundedValues}
+                onChange={e => updateSettings({ boundedValues: e.target.value as BoundedValuePolicy })}
+              >
+                <option value="limit">Limit: enter at x</option>
+                <option value="half-limit">Half limit: &lt;x at x/2, &gt;x at x</option>
+                <option value="exclude">Exclude from the fit</option>
+              </select>
+            </label>
+            <p className="wt-muted">How values reported as &lt;x or &gt;x enter this parameter’s slope and trend line. Endpoints, AKI detection and cohort models leave them out whatever is chosen.</p>
           </div>
           {activeParameter && <AnalysisModuleSettings parameter={activeParameter} settings={fitSettings} onUpdate={updateSettings} />}
           {/* Not part of the preset: changing it keeps the preset name. */}
