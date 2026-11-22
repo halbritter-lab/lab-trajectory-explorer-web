@@ -71,6 +71,16 @@ describe('tCritical95', () => {
     expect(tCritical95(60.9)).toBe(tCritical95(60))
   })
 
+  it('returns the normal quantile for very large and infinite df, and the old fallback for NaN', () => {
+    expect(tCritical95(Number.POSITIVE_INFINITY)).toBe(1.959963984540054)
+    expect(tCritical95(1e8)).toBe(1.959963984540054)
+    expect(tCritical95(1e15)).toBe(1.959963984540054)
+    // Just below the bound the exact quantile is still accurate: qt(0.975, 1e7) ≈ 1.9599642218 (z + (z³ + z) / (4 df))
+    expect(Math.abs(tCritical95(1e7) - 1.9599642218)).toBeLessThan(1e-8)
+    // Before 2026-11-22 every df that failed the comparisons (NaN) fell through to 1.959963985.
+    expect(tCritical95(Number.NaN)).toBe(1.959963985)
+  })
+
   it('reproduces the worked example of 62 monthly points (df 60)', () => {
     const x = Array.from({ length: 62 }, (_, i) => i / 12)
     const y = x.map((v, i) => 60 - 2 * v + (i % 2 ? 0.5 : -0.5))

@@ -14,7 +14,10 @@ interfaces are still evolving before 1.0.
   1.01 % wider (t at df 121: 1.959964 → 1.979764; df 1000: 1.962339). The
   projection's confidence gate and the before/after difference interval use
   the same value. Slopes, `slope_se` and R² are unchanged; no stored fixture
-  moves (the OLS fixtures have at most five points).
+  moves (the OLS fixtures have at most five points). Above 10⁷ degrees of freedom and for
+  an infinite df the value is the normal quantile 1.959963984540054 (the
+  exact computation is unstable there); a NaN df keeps the earlier fallback
+  1.959963985.
 - **The unused model `tolerance` is removed** (OD-21). The constant 1e-6,
   used by no fit, is no longer part of the result metadata. The `models`
   sheet of the cohort workbook keeps the column `tolerance` at its position
@@ -142,7 +145,10 @@ interfaces are still evolving before 1.0.
   `peri_event_creatinine`, one row per event, and a closing `about` note;
   the selection is saved with the dataset copy and exported in the last
   column `peri_event_creatinine` of `settings`; it changes no fit and keeps
-  cohort models.
+  cohort models. The series is the patient's serum creatinine series with
+  the most exact dated values above zero (review of the combined branch: a
+  series of zeros no longer wins the choice; AKI detection's own series
+  choice is unchanged).
   Automated screening for research use. No existing result, sheet, column
   or note changed.
 

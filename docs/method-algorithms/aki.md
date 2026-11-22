@@ -879,11 +879,16 @@ selection; the dataset is kept) and exported as JSON in the last column
 ### Input series and values
 
 - **Series.** Per patient, the eligible serum creatinine series (name and
-  unit) with the most exact dated numeric rows, counted before values of
-  zero or less and values under dialysis are left out; on a tie the series
-  met first in the rows (`largestCreatinineSeries`, the choice AKI detection makes for a
-  column that is neither creatinine nor computed eGFR; see
-  [Input series and conversion](#input-series-and-conversion)). Eligible
+  unit) with the most exact dated values above zero; values under dialysis
+  still count here. On a tie the series met first in the rows
+  (`largestCreatinineSeries`, the choice AKI detection makes for a column
+  that is neither creatinine nor computed eGFR, see
+  [Input series and conversion](#input-series-and-conversion); here it is
+  given only the rows this analysis can use, while AKI detection counts every
+  exact dated numeric row). Since 2026-11-22 (review of the combined branch)
+  values of zero or less no longer count towards the choice: a series of
+  three zeros no longer wins over a series of two valid values, which before
+  left the event `no_creatinine`. Eligible
   means a creatinine name that is not a non-serum material (urine, dialysate,
   puncture fluid and the other materials of `isNonSerumName`, and creatinine
   with the urine LOINC codes 2161-8 and 14683-7) with the unit mg/dl or µmol/l.
@@ -952,7 +957,7 @@ reason, tested in this order:
 
 | Reason | When |
 | --- | --- |
-| `no_creatinine` | The chosen series has no exact value above zero: the patient has no eligible serum creatinine series (also a patient with events but no lab rows, and one with only non-serum creatinine), or its values are all zero or less. Values under dialysis count here: when every value is under dialysis, the reason is one of the later ones. |
+| `no_creatinine` | The patient has no eligible serum creatinine series with an exact dated value above zero (also a patient with events but no lab rows, one with only non-serum creatinine, and one whose creatinine values are all zero or less; the row then names no series). Values under dialysis count here: when every value is under dialysis, the reason is one of the later ones. |
 | `event_under_dialysis` | The event day itself is under dialysis (`isUnderDialysis`). Selecting the type `dialysis` therefore makes a chronic dialysis start and a dated acute dialysis not evaluable. |
 | `no_baseline` | No usable value on or before the event day. |
 | `no_value_in_window` | No usable value in the window. |

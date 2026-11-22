@@ -9,10 +9,19 @@ function nanFit(reason: OlsFit['reason']): OlsFit {
 
 /** Exact critical values above 40 degrees of freedom, computed once per df. */
 const EXACT_ABOVE_40 = new Map<number, number>()
+/** The 97.5th percentile of the standard normal distribution, the limit of t as df grows. */
+export const NORMAL_QUANTILE_975 = 1.959963984540054
+/** Above this many degrees of freedom the normal quantile is used: the
+ * bisection on the incomplete beta loses precision near 1e8 (1.75 at 1e15),
+ * and t differs from the normal value by less than 2.5e-7 here. */
+export const NORMAL_ABOVE_DF = 1e7
 
 /**
  * Two-sided 95 % critical value of Student's t (the 97.5th percentile) for
  * `df` degrees of freedom, truncated to a whole number and at least 1.
+ * Above `NORMAL_ABOVE_DF` (Infinity included) it is the normal quantile;
+ * a NaN df returns 1.959963985, the value every non-finite df had before
+ * 2026-11-22.
  */
 export function tCritical95(df: number): number {
   const table: Record<number, number> = {
@@ -57,8 +66,10 @@ export function tCritical95(df: number): number {
     39: 2.02269092,
     40: 2.02107539,
   }
+  if (Number.isNaN(df)) return 1.959963985
   const whole = Math.max(1, Math.trunc(df))
   if (whole <= 40) return table[whole]
+  if (whole > NORMAL_ABOVE_DF) return NORMAL_QUANTILE_975
   // Exact Student-t quantile above 40 degrees of freedom (OD-11, implemented
   // 2026-11-22); before, a step function between breakpoints and the normal
   // value above 120 was used. The table above stays so that every value up

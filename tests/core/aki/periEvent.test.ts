@@ -73,6 +73,12 @@ describe('peri-event creatinine: input series', () => {
     expect(one([row('2026-02-28', 1.0), row('2026-03-01', 0), row('2026-03-02', 1.2)], [event('2026-03-01')])).toMatchObject({ baselineValue: 1.0, baselineDate: day('2026-02-28'), status: 'not_met' })
     expect(one([row('2026-03-01', 0), row('2026-03-02', 0.3)], [event('2026-03-01')])).toMatchObject({ status: 'not_evaluable', reason: 'no_baseline' })
   })
+  it('chooses the series among usable values, so a series of zeros does not win over a valid one', () => {
+    const zeros = [row('2026-02-01', 0, { einheit: 'µmol/l' }), row('2026-02-02', 0, { einheit: 'µmol/l' }), row('2026-02-03', -1, { einheit: 'µmol/l' })]
+    const r = one([...zeros, row('2026-03-01', 1.0), row('2026-03-02', 1.4)], [event('2026-03-01')])
+    expect(r).toMatchObject({ parameter: 'Kreatinin', unit: 'mg/dl', status: 'met', baselineValue: 1.0 })
+    expect(one(zeros, [event('2026-03-01')])).toMatchObject({ status: 'not_evaluable', reason: 'no_creatinine', parameter: null })
+  })
   it('is not evaluable without a baseline, keeping the peak it found', () => {
     expect(one([row('2026-03-02', 1.4)], [event('2026-03-01')])).toMatchObject({ status: 'not_evaluable', reason: 'no_baseline', peakValue: 1.4, absoluteRise: null })
     expect(one([], [event('2026-03-01')])).toMatchObject({ status: 'not_evaluable', reason: 'no_creatinine' })

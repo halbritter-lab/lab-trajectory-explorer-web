@@ -1632,8 +1632,10 @@ Implementation of the two decisions of 2026-10-07 scheduled after 0.3.0
   move: up to 0.62 % narrower from 43 to 122 points (df 50: 2.021075 →
   2.008559) and up to 1.01 % wider from 123 points on (df 121: 1.959964 →
   1.979764). Slopes, standard errors and R² are unchanged; no stored fixture
-  moves, because the OLS fixtures have at most five points. Details and an
-  example with 62 points: [trend estimators](method-algorithms/trend-estimators.md#95--confidence-interval-for-the-slope).
+  moves, because the OLS fixtures have at most five points. Above 10⁷
+  degrees of freedom and for an infinite df the normal quantile
+  1.959963984540054 is used, and a NaN df keeps the earlier 1.959963985.
+  Details and an example with 62 points: [trend estimators](method-algorithms/trend-estimators.md#95--confidence-interval-for-the-slope).
 - **OD-21, the unused `tolerance`.** The constant `1e-6` is removed from the
   result metadata and from the input of `fitConfigHash`. Chosen where the decision left it open: the
   0.3.7 column `tolerance` of the `models` sheet stays at its position and is

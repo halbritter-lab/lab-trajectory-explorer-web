@@ -96,8 +96,9 @@ function baselineOf(values: readonly Value[]): Value {
  *
  * - Series: the patient's eligible serum creatinine series (name and unit,
  *   non-serum materials excluded, mg/dl or µmol/l) with the most exact dated
- *   numeric rows, the AKI choice for a column that is not creatinine; µmol/l
- *   is divided by 88.42. Only exact values above zero count.
+ *   values above zero (the AKI choice for a column that is not creatinine,
+ *   applied to the usable rows only); µmol/l is divided by 88.42. Only exact
+ *   values above zero count.
  * - Values measured under dialysis (`isUnderDialysis`) are neither baseline
  *   nor peak. An event whose own day is under dialysis is not evaluable.
  * - Baseline: the values of the last calendar day on or before the event day
@@ -113,10 +114,13 @@ export function periEventCreatinine(rows: readonly LabRow[], events: readonly Cl
     .map((event, order) => ({ event, order })).sort((a, b) => a.event.date.getTime() - b.event.date.getTime() || a.order - b.order).map(({ event }) => event)
   if (selected.length === 0) return []
   const windowDays = settings.windowHours / 24
-  const series = largestCreatinineSeries(rows.filter(r => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r)))
+  // The series is chosen among the rows this analysis can use (exact, dated,
+  // above zero), so a series of zeros cannot win over a valid one. AKI
+  // detection counts its own input; the shared helper is unchanged.
+  const series = largestCreatinineSeries(rows.filter(r => r.wertNum !== null && r.wertNum > 0 && r.labDatum !== null && isExactMeasurement(r)))
   const parameter = series[0]?.bezeichnung ?? null
   const unit = series[0] ? series[0].einheit ?? null : null
-  const values: Value[] = series.filter(r => r.wertNum! > 0).map((r, order) => ({
+  const values: Value[] = series.map((r, order) => ({
     day: dayIndex(r.labDatum!), date: r.labDatum!, time: r.labTime, order,
     value: normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum! / MGDL_PER_UMOLL : r.wertNum!,
     underDialysis: isUnderDialysis(r.labDatum!, events),

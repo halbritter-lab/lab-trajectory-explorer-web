@@ -95,6 +95,12 @@ endpoint-only fit uses the same calculation.
   computed once per df and kept. Examples: 2.019541 at df 41, 2.000298 at
   df 60, 1.979930 at df 120, 1.979764 at df 121, 1.971896 at df 200,
   1.962339 at df 1000; it approaches the normal value 1.959964 as df grows.
+- **df above 10⁷, and an infinite df:** the normal quantile
+  1.959963984540054 (`NORMAL_ABOVE_DF`). The bisection loses precision near
+  10⁸ degrees of freedom (it returns 1.75 at 10¹⁵), while t at 10⁷ differs
+  from the normal value by 2.4 × 10⁻⁷. No fit reaches this many points.
+- **NaN df:** 1.959963985, the value every df that is not a number had
+  before 2026-11-22 (it failed every comparison of the step function).
 
 Before 2026-11-22 the value above df 40 came from a step function: the value
 of the lower breakpoint (40, 50, 60, 80, 100) up to the next breakpoint, and
