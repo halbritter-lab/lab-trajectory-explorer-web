@@ -144,7 +144,9 @@ describe('workspace workbook', () => {
     const second = input.data.parameters.find(p => p.key === input.parameterKeys[1])!
     const cell = input.cohortRows[0].cells.find(c => c.bezeichnung === second.bezeichnung)!
     // A supported slope: the flag is not set on one the reliability rule calls uncertain.
-    Object.assign(cell, { slope: -8, reason: null, nFitted: 4, nFittedDates: 4, fittedSpanDays: 400 })
+    // Decided 2026-11-21 (issue #72): 'yes' needs the whole 95 % interval below
+    // the negative threshold, so the cell carries an OLS interval of its own.
+    Object.assign(cell, { slope: -8, ciLow: -9, ciHigh: -7, fitModel: 'ols', reason: null, nFitted: 4, nFittedDates: 4, fittedSpanDays: 400 })
     const configs = {
       [first.key]: toFitConfig(defaultFitSettings(), first),
       [second.key]: toFitConfig(defaultFitSettings('theil_sen'), second),
@@ -159,6 +161,12 @@ describe('workspace workbook', () => {
       expect(settings[1].rapid_egfr_threshold).toBe(threshold)
       expect(records(workbook, 'cohort').find(row => row.Parameter === second.bezeichnung)?.rapid_progression).toBe(threshold === 5 ? 'yes' : '')
     }
+    // Only the slope below -5, the interval reaching above it: 'possible'.
+    Object.assign(cell, { ciHigh: -4 })
+    const workbook = XLSX.read(workspaceWorkbookBytes({ ...input, fitConfigByParameterKey: configs,
+      moduleSettingsByParameterKey: { [first.key]: { rapidEgfrDecline: { threshold: 5 } }, [second.key]: { rapidEgfrDecline: { threshold: 5 } } },
+    }), { type: 'array' })
+    expect(records(workbook, 'cohort').find(row => row.Parameter === second.bezeichnung)?.rapid_progression).toBe('possible')
   })
   it('carries an aki_episodes sheet and its note, also when no episode was detected', () => {
     const workbook = XLSX.read(workspaceWorkbookBytes(exportFixture()), { type: 'array' })

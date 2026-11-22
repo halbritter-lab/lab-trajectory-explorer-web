@@ -27,10 +27,11 @@ export function compareSlopeCells(a: SlopeCell, b: SlopeCell, options: { absolut
 
 /** What a patient row can be filtered by: the marks of its shown cells and the
  * types of its clinical events. */
-export type RowMark = 'rapid' | 'uncertain' | 'endpoint' | 'aki' | `event:${ClinicalEventType}`
+export type RowMark = 'rapid' | 'rapid-possible' | 'uncertain' | 'endpoint' | 'aki' | `event:${ClinicalEventType}`
 
 const MARK_LABELS: Record<RowMark, string> = {
   rapid: 'Rapid decline',
+  'rapid-possible': 'Possible rapid decline',
   uncertain: 'Uncertain slope',
   endpoint: 'Endpoint reached',
   aki: 'AKI',
@@ -66,6 +67,7 @@ export function rowMarks(
       if (flag.requiresFit && !column.fit) continue
       if (flag.tone === 'aki') marks.add('aki')
       else if (flag.tone === 'rapid') marks.add('rapid')
+      else if (flag.tone === 'rapid-possible') marks.add('rapid-possible')
     }
     if (column.fit && cell.points.length > 0 && hasUncertainSlope(cell)) marks.add('uncertain')
     if (endpointReached(cell.endpoints)) marks.add('endpoint')

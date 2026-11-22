@@ -56,17 +56,22 @@ test('counts medians, not measurements, beside a slope under quarterly medians',
   await expect(row.locator('.pv-cell-slope')).toHaveText('-6.20 ml/min/1,73m²/yr')
   await expect(row.locator('.pv-cell-ci')).toHaveText('95% CI [-25.08, 12.68]')
   await expect(row.getByText('latest 49.5', { exact: true })).toBeVisible()
-  // Decided 2026-11-17. Patient 6: an interval with zero inside is named; the flag stays (the
-  // reliability rule is not met). Patient 7: interval below zero, no note. Patient 12: under a
-  // year of follow-up, so the reliability note stands alone, without the flag.
+  // Decided 2026-11-17. Patient 6: an interval with zero inside is named. Patient 7: interval
+  // below zero, no note. Patient 12: under a year of follow-up, so the reliability note stands
+  // alone, without the flag. Decided 2026-11-21 (issue #72): both intervals of 6 and 7 reach
+  // above -5, so both carry the possible level "rapid ↓?"; patient 9's lies below -5.
   await expect(row.getByRole('button', { name: 'Interval includes 0' })).toHaveCount(1)
-  await expect(row.getByRole('button', { name: 'rapid ↓' })).toBeVisible()
+  await expect(row.getByRole('button', { name: 'rapid ↓?' })).toBeVisible()
+  await expect(row.getByRole('button', { name: 'rapid ↓', exact: true })).toHaveCount(0)
   const seven = page.getByRole('button', { name: 'Open patient 7', exact: true }).locator('xpath=ancestor::tr')
   await expect(seven.locator('.pv-cell-ci')).toHaveText('95% CI [-26.01, -0.72]')
   await expect(seven.getByRole('button', { name: 'Interval includes 0' })).toHaveCount(0)
+  await expect(seven.getByRole('button', { name: 'rapid ↓?' })).toBeVisible()
+  const nine = page.getByRole('button', { name: 'Open patient 9', exact: true }).locator('xpath=ancestor::tr')
+  await expect(nine.getByRole('button', { name: 'rapid ↓', exact: true })).toBeVisible()
   const twelve = page.getByRole('button', { name: 'Open patient 12', exact: true }).locator('xpath=ancestor::tr')
   await expect(twelve.getByRole('button', { name: 'Follow-up < 1 year, uncertain slope' })).toBeVisible()
-  await expect(twelve.getByRole('button', { name: 'rapid ↓' })).toHaveCount(0)
+  await expect(twelve.getByRole('button', { name: /^rapid ↓/ })).toHaveCount(0)
   await page.getByRole('button', { name: `Analysis settings: ${label}`, exact: true }).click()
   await page.getByRole('dialog').getByLabel('Analysis preset').selectOption('ckd_progression')
   await page.getByRole('button', { name: 'Close analysis settings' }).click()

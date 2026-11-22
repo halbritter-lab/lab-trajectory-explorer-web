@@ -142,6 +142,9 @@
 .pv-hint-caution { color: #946100; }
 .pv-hint-aki { color: #b45309; }
 .pv-hint-rapid { color: #b91c1c; }
+/* Possible rapid decline: the same icon, lighter, with a question mark beside it. */
+.pv-hint-rapid-possible { color: #dc5b5b; }
+.pv-hint-rapid-possible.pv-hint-label { background: transparent; padding: 2px; }
 .pv-hint-endpoint { color: #326b8e; }
 .pv-hint-label { padding: 4px 6px; background: #f3f6f3; }
 .pv-hint-label > span { text-align: left; overflow-wrap: anywhere; }

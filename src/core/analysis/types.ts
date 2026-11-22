@@ -174,6 +174,12 @@ export interface CellFlagContext {
   /** The slope meets the app's reliability rule (`isUnstableSlope`): fewer
    * than three fitted dates or under a year of fitted span. */
   unstableSlope?: boolean
+  /** The slope's reported bounds (a 95 % interval, or a Theil–Sen slope range
+   * below five fitted dates); NaN or omitted when there are none. */
+  ciLow?: number
+  ciHigh?: number
+  /** Distinct calendar dates among the fitted points. */
+  nFittedDates?: number
 }
 
 /** One (patient, series column) as a module's `endpoints` hook sees it. */

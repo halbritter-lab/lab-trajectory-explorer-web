@@ -299,11 +299,12 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
    "1 uncertain slope placed after the reliable ones". Unticking *Uncertain
    slopes last* puts it at rank 9, between 9 and 6. *Export cohort (XLSX)*
    lists the eGFR rows of `cohort` in the order of the table.
-3. "Show only": the buttons carry counts (demo, eGFR trend: Rapid decline 13,
-   Uncertain slope 1, Endpoint reached 4, AKI 4, Kidney transplant 3,
-   Dialysis 3, Other event 1). *Rapid decline* leaves 13 rows, the export
-   button reads "Export 13 of 28 patients (XLSX)" and "Select all 13
-   matching" is offered without a selection. *Show all* ends it. With Trend
+3. "Show only": the buttons carry counts (demo, eGFR trend: Rapid decline 7,
+   Possible rapid decline 6, Uncertain slope 1, Endpoint reached 4, AKI 4,
+   Kidney transplant 3, Dialysis 3, Other event 1; until 2026-11-21 Rapid
+   decline 13). *Rapid decline* leaves 7 rows, the export button reads
+   "Export 7 of 28 patients (XLSX)" and "Select all 7 matching" is offered
+   without a selection. *Show all* ends it. With Trend
    on for all four columns and *Uncertain slope* chosen (patients 3, 5, 12),
    open patient 5 and set the creatinine trend method to *No fit*: patient 5
    stays open with the note "Patient 5 does not match “Show only: Uncertain

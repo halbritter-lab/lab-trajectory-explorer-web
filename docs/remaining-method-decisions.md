@@ -633,7 +633,9 @@ on examples from the demo data.
   it.** The cell shows "Interval includes 0". The reliability rule is not
   extended: `unstable_slope` and the flag ignore the interval, so patient 6
   (−6.20 per year, interval −25.08 to 12.68) keeps "rapid ↓" and gets the
-  note. Extending the rule was considered and not chosen.
+  note. Extending the rule was considered and not chosen. (The flag itself
+  reads the interval since 2026-11-21: patient 6 now carries "rapid ↓?"; see
+  the decisions of 2026-11-21 on issue #72.)
 
 Details: [rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag)
 and [labels](method-algorithms/slope-quality.md#labels).
@@ -924,6 +926,47 @@ shows a bound with its sign ("latest <15"; decided on 2026-11-22: it does).
 Details: [first and last eligible value, sex, baseline age and group](method-algorithms/fit-input-presets-and-time-balancing.md#first-and-last-eligible-value-sex-baseline-age-and-group),
 [workbook sheets, column names and empty cells](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells)
 and [fit axis](method-algorithms/fit-input-presets-and-time-balancing.md#fit-axis).
+
+## Decisions of 2026-11-21 (two levels of the rapid-decline flag, issue #72)
+
+Owner decision of 2026-11-21 on issue #72, which replaces the part of the
+decision of 2026-11-17 that kept "rapid ↓" on a slope with a wide interval.
+The reliability gate of 2026-11-17 stays.
+
+- **Two levels from the 95 % interval of the slope.** "rapid ↓" when the
+  whole interval lies below the negative threshold (upper bound
+  `ciHigh < −threshold`, with the default 5: below −5 per year); "rapid ↓?"
+  (possible rapid decline) when only the slope is below it and the interval
+  reaches −threshold or above. Both comparisons are strict.
+- **The reliability gate stays.** A slope from fewer than three fitted dates
+  or under 365 days of fitted span gets neither mark.
+- **Export.** `rapid_progression` is `yes`, `possible` or blank.
+  `unstable_slope` is unchanged.
+- **This changes export values and marks, not numbers.** No slope, interval,
+  `unstable_slope` value or golden fixture moved. Cells that were `yes` turn
+  `possible` where the interval reaches above −threshold. Demo data, eGFR
+  imported or computed (CKD-EPI 2021), General exploration, OLS: patients 2
+  (computed column only: −12.39, interval −13.54 to −11.24), 4 (−16.53,
+  −18.00 to −15.06), 9 (−7.73, −8.47 to −7.00), 20, 21, 24, 25 and 26 stay
+  "rapid ↓"; patients 6 (−6.20, −25.08 to 12.68), 7 (−13.37, −26.01 to
+  −0.72), 17, 19, 22 and 27 become "rapid ↓?". The unit tests whose expected
+  value moved (`rapid_progression` of a cell without an interval of its own
+  in the workspace export test) now give that cell an OLS interval, because
+  `yes` now depends on it.
+- **No 95 % interval** (not covered by the decision; chosen during
+  implementation as the conservative reading and listed as Open decision
+  OD-37): a slope below −threshold whose bounds are missing, or are
+  Theil–Sen bounds on fewer than five fitted dates (a slope range, decided
+  2026-11-16), is "rapid ↓?", never "rapid ↓".
+- **Source of the threshold** (issue comment of 2026-11-22). KDIGO 2024 gives
+  no numeric threshold for rapid progression; the default of
+  5 mL/min/1.73 m² per year goes back to KDIGO 2012. The method reference
+  names that source and calls the threshold a configurable convention. The
+  two-level flag is a rule of this tool and is listed under "Rules of this
+  tool that are not published standards" in the
+  [method reference index](method-algorithms.md#rules-of-this-tool-that-are-not-published-standards).
+
+Details: [rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag).
 
 ## Decisions of 2026-11-22 (open points of the persona review)
 

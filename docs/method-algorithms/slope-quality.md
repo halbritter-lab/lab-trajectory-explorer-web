@@ -105,7 +105,8 @@ minimal and compact layouts (with icons instead of text badges, the sentence
 is in the cell's details), and as a line under the interval in the full
 layout and the patient view. It is not part of the reliability
 rule: `unstable_slope`, the rapid-decline flag and the overlay are unchanged
-by it. It is not shown for Theil–Sen bounds below five fitted dates, which
+by it (the level of the rapid-decline flag reads the upper bound of the
+interval itself since 2026-11-21, see below). It is not shown for Theil–Sen bounds below five fitted dates, which
 are not a 95% interval, nor when a bound is exactly zero. Example: interval
 −25.08 to 12.68 gives the note; −26.01 to −0.72 does not.
 
@@ -138,7 +139,7 @@ or the 364/365-day boundary.
 
 `rapidEgfrDeclineModule`
 (`src/core/domains/nephrology/rapidEgfrDeclineModule.ts`) marks a table cell
-with "rapid ↓" as a screening signal for research review.
+with "rapid ↓" or "rapid ↓?" as a screening signal for research review.
 
 A cell is flagged when all of the following hold:
 
@@ -150,8 +151,36 @@ A cell is flagged when all of the following hold:
 - `slope < −threshold`. The comparison is strict: a slope of exactly −5 with a
   threshold of 5 is not flagged.
 
+Two levels (decided 2026-11-21, issue #72), by the upper bound of the
+slope's 95 % interval (`rapidEgfrDeclineLevel`):
+
+| Level | Condition (in addition to the list above) | Mark | `rapid_progression` |
+| --- | --- | --- | --- |
+| Rapid decline | the slope has a 95 % interval and `ciHigh < −threshold`: the whole interval lies below the negative threshold | "rapid ↓" | `yes` |
+| Possible rapid decline | otherwise: `ciHigh ≥ −threshold`, or the slope has no 95 % interval | "rapid ↓?" | `possible` |
+
+The comparison of the upper bound is strict as well: with a threshold of 5,
+an upper bound of exactly −5 gives "rapid ↓?". The interval is the one
+reported for the cell (`ci_low`, `ci_high`; see the
+[OLS interval](trend-estimators.md#95--confidence-interval-for-the-slope)
+and the [Theil–Sen bounds](trend-estimators.md#theil-sen-2026-09-23)).
+The slope has a 95 % interval when both bounds are finite numbers and they
+are not Theil–Sen bounds on fewer than five distinct fitted dates
+(`hasSlopeInterval`, the same rule that labels those bounds "Slope range",
+decided 2026-11-16). Without one the level is "possible": the conservative
+reading, chosen during implementation because the decision of 2026-11-21
+does not cover the case. **Open decision OD-37.** Under the reliability gate
+this concerns in practice a Theil–Sen fit on three or four fitted dates; an
+OLS fit from three or more dates always has finite bounds.
+
 The threshold is a per-column setting in mL/min/1.73 m² per year. Its default is
-5 (`DEFAULT_RAPID_EGFR_DECLINE`). The input has a minimum of 0 and a spinner
+5 (`DEFAULT_RAPID_EGFR_DECLINE`). The number is a configurable convention,
+not a value of the current guideline: KDIGO 2024 gives no numeric threshold
+for rapid progression, and 5 mL/min/1.73 m² per year goes back to the KDIGO
+2012 CKD guideline, which defined rapid progression as a sustained decline of
+more than 5 mL/min/1.73 m² per year. Neither guideline defines the two
+levels; they are a rule of this tool (see the
+[index](../method-algorithms.md#rules-of-this-tool-that-are-not-published-standards)). The input has a minimum of 0 and a spinner
 step of 0.5; the step is not enforced, so any non-negative number typed is
 stored as entered. A negative entry is stored as 0, and so is an empty or
 non-numeric one. A
@@ -180,24 +209,50 @@ reliability note and no flag, and `rapid_progression` is blank for it.
 `cohortCellFlags` evaluates the rule on the cell and passes the result to the
 module as `unstableSlope`. Counted are fitted points and dates, so under
 quarterly medians eight measurements in two quarters are two dates and give no
-flag. The flag still does not consult the confidence bounds or R²: a slope
-with a wide interval over more than a year is flagged (see the interval note
-under "Labels").
+flag. Neither level is set on such a slope. The gate does not consult the
+confidence bounds or R²; since 2026-11-21 the level does consult the upper
+bound, so a slope with a wide interval over more than a year is flagged
+"rapid ↓?" (see also the interval note under "Labels"). R² is not used.
 
 Example: eGFR 90 on 2019-01-01 and 80 on 2020-01-01 gives −10.01 per year
 from two dates (365 days): `unstable_slope = yes`, `rapid_progression` blank
 (before: `yes`). The same two values plus 70 on 2021-01-01 give −9.99 per
-year from three dates over 731 days: `rapid_progression = yes`. Three dates
-over 364 days give no flag, three dates over 365 days can. Demo data, General
-exploration: patient 12 (−7.35 per year, follow-up under one year) loses the
-flag; patient 6 (−6.20 per year, interval −25.08 to 12.68, eleven values over
-more than a year) keeps it.
+year from three dates over 731 days, interval −10.09 to −9.89:
+`rapid_progression = yes`. Three dates over 364 days
+give no flag, three dates over 365 days can. Scattered values 90, 60, 85 and
+70 on 2019-01-01, 2019-07-01, 2020-01-01 and 2021-01-01 give −5.39 per year
+with the interval −51.55 to 40.78: `rapid_progression = possible`.
 
-In the table the badge appears only while the fit is shown for that column; its
-tooltip states the comparison, for example "Rapid decline: slope < -5 /year".
-The export does not depend on that display toggle: `rapid_progression` is `yes`
-for a flagged cell and blank otherwise, and the `settings` sheet records the
-threshold as `rapid_egfr_threshold`.
+Recomputed example (2026-11-22), demo data, imported eGFR or the computed
+column "eGFR (CKD-EPI 2021, computed)", General exploration, OLS, threshold 5:
+
+| Patient | Slope per year | 95 % interval | Mark | Before 2026-11-21 |
+| --- | --- | --- | --- | --- |
+| 2 (computed column) | −12.39 | −13.54 to −11.24 | rapid ↓ | rapid ↓ |
+| 4 | −16.53 | −18.00 to −15.06 | rapid ↓ | rapid ↓ |
+| 9 | −7.73 | −8.47 to −7.00 | rapid ↓ | rapid ↓ |
+| 7 | −13.37 | −26.01 to −0.72 | rapid ↓? | rapid ↓ |
+| 6 | −6.20 | −25.08 to 12.68 | rapid ↓? | rapid ↓ |
+| 27 | −6.06 | −7.78 to −4.35 | rapid ↓? | rapid ↓ |
+| 12 | −7.35 | −75.66 to 60.96 | none (follow-up under one year) | none since 2026-11-17 |
+
+Patients 20, 21, 24, 25 and 26 (all interval upper bounds below −6.8) stay
+"rapid ↓"; patients 17, 19 and 22 (slopes −5.28, −5.21, −5.33, upper bounds
+−3.94, −4.05, −3.98) become "rapid ↓?". Patient 2's imported eGFR falls at
+−4.00 per year and is not flagged. Patient 12 lost the flag on 2026-11-17
+(reliability gate).
+
+In the table the badge appears only while the fit is shown for that column. Its
+tooltip states the comparison: "Rapid decline: slope and its whole 95%
+interval < -5 /year"; "Possible rapid decline: slope < -5 /year, but its 95%
+interval reaches -5 or above"; or, without a 95 % interval, "Possible rapid
+decline: slope < -5 /year, no 95% interval to confirm it". With icons instead
+of text badges both levels use the decline icon; the possible level is drawn
+lighter with a "?" beside it. As a text badge "rapid ↓" is solid red and
+"rapid ↓?" has a dashed red outline. The export does not depend on that
+display toggle: `rapid_progression` is `yes`, `possible` or blank, and the
+`settings` sheet records the threshold as `rapid_egfr_threshold`. The
+column description in the workbook's `columns` sheet says the same.
 
 Regression evidence:
 [rapid-decline module tests](../../tests/core/analysis/rapidEgfrDeclineModule.test.ts),
@@ -207,8 +262,13 @@ Regression evidence:
 `rapid_egfr_threshold`, and the
 [decision tests](../../tests/core/endpoints/decisions20261007.test.ts) for a
 clearance in ml/min. The module and export record tests cover the reliability
-gate. No dedicated regression test covers a slope exactly equal to the
-negative threshold.
+gate. The module tests cover both levels, an upper bound of exactly −5, the
+missing interval and Theil–Sen on four and five dates; the
+[table tests](../../tests/workspace/trajectories.test.tsx) and
+[screening tests](../../tests/workspace/trajectories-screening.test.tsx)
+cover the "rapid ↓?" badge, its tooltip and the filter button. The level
+derivation is pinned against a slope exactly equal to the negative threshold;
+the cell-level path for that boundary is not.
 
 ## Table order, mark filters and displayed decimals
 
@@ -258,7 +318,8 @@ leave. A patient carries a mark when any shown parameter column does:
 
 | Button | A patient carries it when |
 | --- | --- |
-| Rapid decline | a cell shows the [rapid-decline flag](#rapid-egfr-decline-flag); needs Trend on for that column |
+| Rapid decline | a cell shows "rapid ↓", the first level of the [rapid-decline flag](#rapid-egfr-decline-flag); needs Trend on for that column |
+| Possible rapid decline | a cell shows "rapid ↓?" (since 2026-11-21); needs Trend on for that column |
 | Uncertain slope | a cell with Trend on has measurements and an uncertain slope as defined above |
 | Endpoint reached | a cell reports kidney failure reached by an event, a confirmed observed CKD G4 or G5, or a confirmed 40% or 57% decline; projections and the total percent change do not count |
 | AKI | a cell carries the AKI mark of its creatinine series |
@@ -284,9 +345,11 @@ wide the buttons are in the toolbar menu "Show only" instead of a row, with
 the number of chosen marks on the menu button.
 
 Example, demo data with eGFR (CKD-EPI 2021) applied and Trend on for all
-four default columns: Rapid decline 14, Uncertain slope 3 (patients 3, 5 and
-12), Endpoint reached 4, AKI 4, Kidney transplant 3, Dialysis 3, Other event
-1.
+four default columns: Rapid decline 8, Possible rapid decline 6, Uncertain
+slope 3 (patients 3, 5 and 12), Endpoint reached 4, AKI 4, Kidney transplant
+3, Dialysis 3, Other event 1. Until 2026-11-21 there was one button, Rapid
+decline 14; the six patients 6, 7, 17, 19, 22 and 27 have moved to the
+possible level (see the [recomputed example](#rapid-egfr-decline-flag)).
 
 ### Decimals of slopes
 

@@ -783,6 +783,28 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent(/rapid/i)
   })
 
+  it('marks a decline whose 95% interval reaches above the threshold as possible', () => {
+    // Decided 2026-11-21 (issue #72): 80, 30, 60 give a slope of -10 per year whose
+    // interval (one degree of freedom) reaches far above -5: "rapid ↓?", not "rapid ↓".
+    const data = fixture()
+    data.parameters[0] = { ...data.parameters[0], bezeichnung: 'eGFR', einheit: 'ml/min/1.73m²', label: 'eGFR [ml/min/1.73m²]' }
+    data.rows = data.rows.map(row => {
+      if (row.patientId === 'ID-A' && row.einheit === 'unit-0') {
+        const year = row.labDatum!.getUTCFullYear() - 2020
+        return { ...row, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m²', wertNum: [80, 30, 60][year] }
+      }
+      return row
+    })
+    renderWorkspace(<TrajectoriesWorkspace data={data} />)
+    iconWarnings()
+    enableTrend('eGFR [ml/min/1.73m²]')
+    expect(screen.queryByRole('button', { name: 'rapid ↓' })).toBeNull()
+    const warning = screen.getByRole('button', { name: 'rapid ↓?' })
+    expect(warning).toHaveTextContent('?')
+    fireEvent.focus(warning)
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Possible rapid decline: slope < -5 /year, but its 95% interval reaches -5 or above')
+  })
+
   it('sorts cohort table by patient ID, latest value, slope, and duration', () => {
     const data = fixture()
     // Give ID-A and ID-B distinct values so sort order is verifiable
