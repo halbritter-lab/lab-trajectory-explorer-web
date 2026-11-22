@@ -93,6 +93,9 @@ behind two decisions of that day; the maintainer approved its wording the
 same day. OD-34 was added on 2026-11-21 because the methodology page did not
 yet state the rule for several creatinine values on one day decided that day;
 the owner resolved it on 2026-11-22 and the drafted wording (G1) is applied.
+OD-35 was added on 2026-11-22 with the review of the AKI recovery
+rule and resolved on the second review of the same day, on the owner's
+instruction of 2026-11-22 to resolve the open points.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
@@ -139,4 +142,5 @@ methodology page. The numbers are not reused.
 | OD-32 | A lone `u` in a creatinine name is "und" only between two blood-material words or in "vor u. nach"; next to any other word it stays urine; decided 2026-11-15. | [eGFR derivation](method-algorithms/egfr.md#eligible-source-series) |
 | OD-33 | The methodology page describes AKI staging against the lowest value of the previous 7 days and the "Slope range" label for Theil-Sen bounds on fewer than five dates; wording approved 2026-11-16. | [AKI staging](method-algorithms/aki.md#staging) |
 | OD-34 | The methodology page states the rule for several creatinine values on one day: ordered by the time of day where every value has one, otherwise compared with earlier days only; wording G1 applied 2026-11-22. | [Measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date) |
+| OD-35 | The recovery that separates two AKI episodes is a dataset-level setting (*Recovery between episodes (hours)*, default 48, `recoveryHours` in the exported analysis settings); a gap of more than seven days without creatinine values outside dated acute dialysis intervals still ends an episode (step 4), which the episode list then gives without an end date; decided 2026-11-22. | [Episodes](method-algorithms/aki.md#recovery-length) |
 

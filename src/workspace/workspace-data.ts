@@ -77,7 +77,7 @@ export function workspaceModelSpec(data: WorkspaceData, parameterKey: string, se
 
 export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>): CohortSeriesSpec[] {
   const parameters = new Map(data.parameters.map(p => [p.key, p]))
-  const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), exactBirthDateByPatient: exactBirthDateByPatient(data.patients), fitInputs: data.analysis?.fitInputs ?? Object.create(null) }
+  const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), exactBirthDateByPatient: exactBirthDateByPatient(data.patients), fitInputs: data.analysis?.fitInputs ?? Object.create(null), analysisSettings: data.analysisSettings }
   return parameterKeys.flatMap(key => {
     const parameter = parameters.get(key)
     return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], context)] : []

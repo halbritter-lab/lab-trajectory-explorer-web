@@ -18,6 +18,14 @@ export const KDIGO_ABSOLUTE_RISE_MGDL = 0.3
 export const KDIGO_ABSOLUTE_WINDOW_MS = 48 * MS_PER_HOUR
 export const KDIGO_RELATIVE_RISE_RATIO = 1.5
 export const KDIGO_RELATIVE_WINDOW_MS = 7 * MS_PER_DAY
+/** Default sustained reversal that separates two AKI episodes (ADQI 16,
+ * decided 2026-11-21, issue #67): a crossing starts a new episode only when it
+ * lies more than this after the first value of the open episode that was back
+ * below the KDIGO criterion. Counted in calendar days like the 48-hour
+ * criterion. The AKI module setting `recoveryHours` (dataset-level, decided
+ * 2026-11-22) chooses another length. */
+export const DEFAULT_AKI_RECOVERY_HOURS = 48
+export const AKI_RECOVERY_WINDOW_MS = DEFAULT_AKI_RECOVERY_HOURS * MS_PER_HOUR
 /** Small tolerance for decimal KDIGO comparisons after unit conversion.
  * Applied in the compared quantity's units (mg/dl or a dimensionless ratio). */
 export const KDIGO_THRESHOLD_TOLERANCE = 1e-12

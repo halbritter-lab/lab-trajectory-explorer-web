@@ -84,11 +84,12 @@ describe('findKdigoAkiEpisodes staging against the seven-day minimum', () => {
     expect(run([[0, 1.0], [4, 3.2]])).toMatchObject([{ baselineValue: 1.0, criterion: 'relative_1_5x_7d', stage: 3 }])
   })
 
-  it('keeps two episodes when the baseline moves and stages each against its seven-day minimum', () => {
-    // The second episode is detected against 2.9 and was stage 1; 3.2 / 1.0 is stage 3.
+  it('stages the crossing detected against a moved baseline against its seven-day minimum', () => {
+    // 3.2 is detected against 2.9 (48 hours) and graded against 1.0 (seven days): stage 3.
+    // One episode since 2026-11-22 (no value back below the criterion between the crossings);
+    // until then two, stages 2 and 3.
     expect(run([[0, 1.0], [5, 2.9], [6, 3.2]])).toMatchObject([
-      { date: day(5), baselineDate: day(0), peakValue: 2.9, stage: 2 },
-      { date: day(6), baselineDate: day(5), baselineValue: 2.9, peakValue: 3.2, stage: 3 },
+      { date: day(5), baselineDate: day(0), peakValue: 3.2, peakDate: day(6), stage: 3, stageValue: 3.2, stageDate: day(6), stageReferenceValue: 1.0, endDate: null },
     ])
   })
 
@@ -107,9 +108,11 @@ describe('findKdigoAkiEpisodes staging against the seven-day minimum', () => {
     }
   })
 
-  it('stages a sustained daily rise as I, II, II, III', () => {
-    // Four episodes because the 48-hour baseline moves; every crossing is graded against 1.0 while it is within seven days.
-    expect(run([[0, 1.0], [1, 1.4], [2, 1.8], [3, 2.2], [4, 2.6], [5, 3.0]]).map(e => e.stage)).toEqual([1, 2, 2, 3])
+  it('reports a sustained daily rise as one stage-III episode', () => {
+    // Until 2026-11-22 four episodes of stages I, II, II and III, because the 48-hour baseline moves.
+    expect(run([[0, 1.0], [1, 1.4], [2, 1.8], [3, 2.2], [4, 2.6], [5, 3.0]])).toMatchObject([
+      { date: day(1), baselineDate: day(0), baselineValue: 1.0, peakValue: 3.0, peakDate: day(5), stage: 3, stageDate: day(5), criterion: 'absolute_0_3_mg_dl_48h', endDate: null },
+    ])
   })
 
   it('changes nothing when the seven-day minimum is the detection baseline', () => {

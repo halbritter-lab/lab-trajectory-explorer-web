@@ -2,6 +2,8 @@ import { describe, expect, it } from 'vitest'
 import type { LabRow } from '../../../src/core/types'
 import { akiModule } from '../../../src/core/domains/nephrology/aki/akiModule'
 import { MGDL_PER_UMOLL } from '../../../src/core/domains/nephrology/constants'
+import { buildCohortRows } from '../../../src/core/cohort/screening'
+import { cohortSeriesSpec } from '../../../src/core/cohort/specs'
 
 function row(date: string, value: number, p: Partial<LabRow> = {}): LabRow {
   return {
@@ -50,6 +52,25 @@ describe('akiModule', () => {
       'AKI stage III, onset 08/01/2024, creatinine peak 3.3 mg/dl on 09/01/2024; staged from 3.1 mg/dl on 08/01/2024 against 1 mg/dl, the lowest value of the 7 days before',
     ])
   })
+  it('detects episodes with the recovery length of the dataset settings, for markers, chips and fit inputs', () => {
+    // 1.6 on day 4 crosses against the 1.0 of day 2, two calendar days later: one episode with 48 hours of
+    // recovery, two with 24 hours (decided 2026-11-22: the recovery length is a setting).
+    const rows = [row('2024-01-01T00:00:00Z', 1.0), row('2024-01-02T00:00:00Z', 1.6), row('2024-01-03T00:00:00Z', 1.0), row('2024-01-05T00:00:00Z', 1.6)]
+    const chip = (recoveryHours?: number) => akiModule.series({
+      patientId: 1, seriesKey: { bezeichnung: 'Kreatinin', einheit: 'mg/dl' }, patientRows: rows,
+      points: rows.map((r) => ({ date: r.labDatum!, value: r.wertNum! })), mode: 'global', events: [], fitInputs: [], cache: new Map(),
+      ...(recoveryHours === undefined ? {} : { analysisSettings: { aki: { showOverlays: false, exclusionDays: 30, recoveryHours } } }),
+    }).flags?.[0]?.label
+    expect(chip()).toBe('AKI I')
+    expect(chip(48)).toBe('AKI I')
+    expect(chip(24)).toBe('AKI 2×I')
+    // The cohort spec carries the dataset settings to every cell.
+    const cellChip = (recoveryHours: number) => buildCohortRows(rows, [1], [cohortSeriesSpec({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' }, undefined,
+      { analysisSettings: { aki: { showOverlays: false, exclusionDays: 30, recoveryHours } } })])[0].cells[0].flags.find((flag) => flag.moduleId === 'aki')?.label
+    expect([cellChip(48), cellChip(24)]).toEqual(['AKI I', 'AKI 2×I'])
+    const windows = (recoveryHours: number) => akiModule.apply({ rows, manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: false, exclusionDays: 30, recoveryHours }).fitInputs?.[0].windows.length
+    expect([windows(48), windows(24)]).toEqual([1, 2])
+  })
   const spiky = [
     row('2020-01-01T00:00:00Z', 1.0),
     row('2020-01-02T00:00:00Z', 1.6),
@@ -57,7 +78,7 @@ describe('akiModule', () => {
   ]
 
   it('always contributes aki-aware fit inputs for eligible series', () => {
-    const out = akiModule.apply({ rows: spiky, manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: false, exclusionDays: 30 })
+    const out = akiModule.apply({ rows: spiky, manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: false, exclusionDays: 30, recoveryHours: 48 })
     expect(out.fitInputs).toHaveLength(1)
     expect(out.fitInputs?.[0]).toMatchObject({
       patientId: 1,
@@ -71,7 +92,7 @@ describe('akiModule', () => {
   })
 
   it('contributes episode markers and window bands per series, whatever showOverlays says', () => {
-    const out = akiModule.apply({ rows: spiky, manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: true, exclusionDays: 30 })
+    const out = akiModule.apply({ rows: spiky, manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: true, exclusionDays: 30, recoveryHours: 48 })
     expect(out.fitInputs?.[0].windows).toHaveLength(1)
     const seriesKey = { bezeichnung: 'Kreatinin', einheit: 'mg/dl' }
     const points = spiky.map((r) => ({ date: r.labDatum!, value: r.wertNum! }))
@@ -87,7 +108,7 @@ describe('akiModule', () => {
       einheit: 'ml/min/1,73m²',
       wertNum: 80 - (r.wertNum ?? 0),
     }))
-    const out = akiModule.apply({ rows: [...spiky, ...egfrRows], manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: false, exclusionDays: 30 })
+    const out = akiModule.apply({ rows: [...spiky, ...egfrRows], manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: false, exclusionDays: 30, recoveryHours: 48 })
     const egfrInput = out.fitInputs?.find((i) => i.seriesKey.bezeichnung.includes('eGFR'))
     expect(egfrInput?.windows).toHaveLength(1)
   })
@@ -106,7 +127,7 @@ describe('akiModule', () => {
       wertNum: 1.5 + (r.wertNum ?? 0),
     }))
 
-    const out = akiModule.apply({ rows: [...spiky, ...egfrRows, ...cystatinRows], manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: false, exclusionDays: 30 })
+    const out = akiModule.apply({ rows: [...spiky, ...egfrRows, ...cystatinRows], manualDemographics: {}, patientAttributes: {}, events: [] }, { showOverlays: false, exclusionDays: 30, recoveryHours: 48 })
     const egfrInput = out.fitInputs?.find((i) => i.seriesKey.bezeichnung.includes('eGFR'))
     const cystatinInput = out.fitInputs?.find((i) => i.seriesKey.bezeichnung === 'Cystatin C')
 

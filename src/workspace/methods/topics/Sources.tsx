@@ -83,10 +83,10 @@ export function Sources() { return <><h3>Intended Use</h3>
           no such window.
         </li>
         <li>
-          <strong>AKI episodes.</strong> Consecutive measurements that meet a criterion form one
-          episode only while they share the same baseline date, and an episode has no end. A chip
-          such as <em>AKI I, 2×II, III</em> therefore counts crossings against a moving baseline,
-          not clinical episodes.
+          <strong>AKI episodes.</strong> Measurements that meet a criterion belong to one episode
+          until creatinine has been back below the criterion for 48 hours. ADQI 16 proposes the
+          48 hours and calls them arbitrary; applying them to calendar days, and ending an episode
+          after more than seven days without measurements, are this tool&apos;s rules.
         </li>
         <li>
           <strong>Confirmation of an observed event.</strong> A later low value at least 90 days

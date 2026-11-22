@@ -11,6 +11,7 @@ import { demographicWarningsByPatient } from '../core/demographics/describe'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString, type WorkbookSheet } from '../io/export'
 import { COHORT_SHEET_HEADER, cohortColumnDirectoryRows, cohortSheetRow } from './cohort-sheet-columns'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
+import { akiRecoveryHours } from '../core/domains/nephrology/aki/akiModule'
 import { akiEpisodeExportRows, akiEpisodeRows } from './aki-episodes'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import { columnSettingModules, defaultColumnModuleSettings, type ColumnModuleSettings } from '../core/analysis/registry'
@@ -70,7 +71,7 @@ const seriesIdentity = (name: string | null, unit: string | null) => JSON.string
  * `birth_anchor` in `demographics`. */
 export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics','loinc','patient_birth_date','time_of_day'] as const
 export const EVENTS_SHEET_HEADER = ['PatientID','type','date','title','description','endDate','intent','warning'] as const
-export const AKI_EPISODES_SHEET_HEADER = ['PatientID','creatinine_parameter','creatinine_unit','stage','onset_date','peak_date','peak_value_mg_dl','baseline_date','baseline_value_mg_dl','criterion'] as const
+export const AKI_EPISODES_SHEET_HEADER = ['PatientID','creatinine_parameter','creatinine_unit','stage','onset_date','peak_date','peak_value_mg_dl','baseline_date','baseline_value_mg_dl','criterion','end_date','dialysis_start','ended_by_gap','last_value_date'] as const
 export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings'] as const
 export const PARAMETERS_SHEET_HEADER = ['parameter_key','parameter','unit','origin','formula','source_parameter','source_unit','loinc'] as const
 export const ROLLING_WINDOWS_SHEET_HEADER = ['PatientID','Parameter','Unit','window','window_start','window_end','first_date','last_date','n','slope'] as const
@@ -147,7 +148,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
     {name:'raw_measurements',header:MEASUREMENT_SHEET_HEADER,rows:rawMeasurements},
     {name:patientId === undefined ? 'cohort' : 'slopes',header:COHORT_SHEET_HEADER,rows:summaries},
     {name:'events',header:EVENTS_SHEET_HEADER,rows:data.events.filter(event => idSet.has(event.patientId)).map(event => ({PatientID:event.patientId,type:event.type,date:utcDateOrBlank(event.date),title:event.title,description:event.description,endDate:utcDateOrBlank(event.endDate),intent:event.intent,warning:event.warning}))},
-    {name:'aki_episodes',header:AKI_EPISODES_SHEET_HEADER,rows:akiEpisodeExportRows(akiEpisodeRows(data.rows.filter(row => idSet.has(row.patientId)),data.events))},
+    {name:'aki_episodes',header:AKI_EPISODES_SHEET_HEADER,rows:akiEpisodeExportRows(akiEpisodeRows(data.rows.filter(row => idSet.has(row.patientId)),data.events,akiRecoveryHours(data.analysisSettings)))},
     {name:'patient_attributes',rows:patientAttributesExportRows(attrs,key => idByKey.get(key) ?? key)},
     {name:'demographics',header:DEMOGRAPHICS_SHEET_HEADER,rows:ids.map(id => {
       const patient = patientById.get(id)
@@ -165,7 +166,7 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'Research use only. Not for clinical decision-making.'},
       {note:'Measurements, summaries, events and attributes are restricted to the selected patients and parameters. Events and attributes apply at patient level.'},
       {note:'measurements contains analysis values with resolved demographics and explicitly marked derived values; raw_measurements contains only imported values for the selected parameters. Unselected source measurements are not added.'},
-      {note:'aki_episodes lists every AKI episode detected for the selected patients, one row per episode and serum creatinine parameter, whichever parameters are selected and whether or not a column excludes AKI windows from its fit. Automated KDIGO creatinine screening, not a diagnosis; creatinine values in mg/dl.'},
+      {note:'aki_episodes lists every AKI episode detected for the selected patients, one row per episode and serum creatinine parameter, whichever parameters are selected and whether or not a column excludes AKI windows from its fit. Automated KDIGO creatinine screening, not a diagnosis; creatinine values in mg/dl. A new episode starts only after creatinine was back below the KDIGO criterion for the recovery length, aki.recoveryHours in analysis_settings of the settings sheet (48 hours by default: no crossing on the two calendar days after a value below it, none of them under dialysis), or after more than seven days without creatinine values outside dated acute dialysis intervals; end_date is the date of the first value back below it; it is empty while the episode is still open at the last value and when such a gap ended it (ended_by_gap true: the first value after the gap is not compared with any earlier value, so no recovery was observed). last_value_date is the date of the last value of the episode before its end. dialysis_start is the first dialysis starting between onset and end_date, or, when end_date is empty, up to the recovery length (two days by default) after last_value_date, with its intent; it does not change the stage.'},
       {note:'Slopes and quality information come directly from the displayed summary; export does not refit the data. n counts raw measurements; n_fitted counts the points actually fitted.'},
       {note:`ci_low and ci_high are the 95 % interval of the slope. For a Theil-Sen fit with n_fitted_dates below ${MIN_THEIL_SEN_PROJECTION_DATES} they are Theil-Sen bounds, not a 95 % interval. ${THEIL_SEN_FEW_DATES_COVERAGE}.`},
       {note:'Measurements marked < or > are bounds. Their numeric limits remain in raw and chart data, but these rows are excluded from fits, endpoints, AKI detection and cohort mixed models.'},

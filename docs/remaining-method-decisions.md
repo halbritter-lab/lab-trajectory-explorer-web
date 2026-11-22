@@ -116,7 +116,8 @@ of that day.
   minimum is not a statistical power guarantee. It counts qualifying patients
   and does not remove the others, and it applies to the pooled model and to
   each group separately.
-- **Not changed for now:** AKI episode merging and staging; the rapid-decline
+- **Not changed for now:** AKI episode merging and staging (staging revised
+  on 2026-11-16, merging on 2026-11-22); the rapid-decline
   flag; quarterly calendar-median aggregation (made visible only). Their rules
   as implemented are written out in [method algorithms](method-algorithms.md):
   the AKI rules under *Known limitations* of the AKI section, the missing
@@ -515,7 +516,8 @@ sign-off. Details, boundaries and recomputed examples are in
   lowest positive value of the seven days before it, and an episode reports
   the highest stage of its crossings. This revises the staging part of the
   2026-10-06 decision "Not changed for now: AKI episode merging and staging".
-  Episode merging stays as decided then: detection, the recorded baseline,
+  Episode merging stays as decided then (revised on 2026-11-22, see
+  [below](#decisions-of-2026-11-22-aki-episodes-separated-by-recovery-issue-67)): detection, the recorded baseline,
   the grouping of crossings into episodes, onset dates and exclusion windows
   are unchanged, so 1.0, 2.9 and 3.2 mg/dl on days 0, 5 and 6 remain two
   episodes (now stages II and III, formerly II and I). A stage is never lower
@@ -1074,6 +1076,216 @@ Resolved with a change:
   same file name replaces only the rejected rows of the earlier one; the
   summary of the list names every file it holds. Details:
   [import findings](method-algorithms/import-and-values.md#import-findings).
+
+## Decisions of 2026-11-22 (AKI episodes separated by recovery, issue #67)
+
+The owner decided on 2026-11-21 (issue #67) to separate AKI episodes by
+recovery following ADQI 16 (Chawla et al., Nat Rev Nephrol 2017, statement
+1B), and on 2026-11-22 instructed to resolve the open points. This revises
+the merging part of the 2026-10-06 decision "Not changed for now: AKI episode
+merging and staging", which the 2026-11-16 decision had kept. Details,
+boundaries and recomputed examples are in
+[AKI episodes](method-algorithms/aki.md#episodes),
+[episode list](method-algorithms/aki.md#episode-list) and
+[AKI fit-exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window).
+
+- **A new episode starts only after creatinine has been back below the KDIGO
+  criterion for at least 48 hours.** Crossings without such a recovery belong
+  to one episode, which keeps its highest stage. The 48 hours are evaluated on
+  calendar days like the 48-hour criterion and are a parameter of the
+  detector (`AKI_RECOVERY_WINDOW_MS`, option `recoveryMs` of
+  `findKdigoAkiEpisodes`). Daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and
+  3.0 mg/dl are one stage-III episode instead of four (I, II, II, III), and
+  1.0, 2.9 and 3.2 mg/dl on days 0, 5 and 6 one stage-III episode instead of
+  two (II, III).
+- **The episode list gains the episode end and the first dialysis start.**
+  The sheet `aki_episodes` gets `end_date` and then `dialysis_start`, both
+  appended last; the Data page and the patient view show both after the
+  creatinine parameter. A dialysis counts towards an episode when it starts
+  between onset and end, both days included (owner decision on K29,
+  2026-11-21); every intent is shown next to the date; the stage does not
+  change.
+- **Moved values.** Episode counts, stages per episode, onsets of later
+  crossings, AKI exclusion windows and therefore fitted slopes and endpoint
+  inputs can change wherever crossings without recovery between them were
+  separate episodes. No value of the golden fixtures moved: the four cases of
+  `tests/goldens/aki.json` keep their episodes (onsets 2020-01-02, 2020-01-05,
+  2020-01-02 and none; stages 1, 1, 3) and the four cases of
+  `tests/goldens/aki_aware.json` keep their kept indices and slopes. The
+  bundled demo workbook keeps its eight episodes with unchanged onset, peak,
+  baseline, stage and criterion (patient 6: one, 2022-09-08; patient 7:
+  three, 2021-06-03, 2022-01-04, 2022-10-03; patient 11: one, 2022-07-12;
+  patient 12: three, 2021-01-03, 2021-02-17, 2021-04-03), and no slope, fitted
+  count or exclusion of the CKD progression preset moved; the episodes gain
+  the end dates 2022-09-16; 2021-06-12, 2022-01-20, 2022-10-18; 2022-07-20;
+  2021-01-20, 2021-03-10, 2021-04-20 and no dialysis start (the only acute
+  dialysis, patient 7 in August 2020, lies before his episodes). Two unit
+  tests changed their expectation deliberately (the sustained daily rise
+  and the moved-baseline example in `tests/core/aki/kdigo.test.ts`).
+
+Details fixed in the implementation (2026-11-22, the option that changes
+least where there was a choice):
+
+- **"Back below the criterion"** is a value of the detection input that meets
+  neither criterion against its own 48-hour and 7-day minima. The first such
+  value after the episode's last crossing is the candidate end; a crossing
+  more than 48 hours (three calendar days or more) after it starts a new
+  episode, a crossing two calendar days or fewer after it joins the episode
+  and clears the candidate. The days in between need no measurement, but a
+  gap without any value is not a recovery by itself.
+- **A gap of more than seven days ends an episode** at the first value after
+  it (a value without any earlier value in its 7-day window), or at an
+  earlier candidate end. Without this, the strict rule joined crossings
+  months apart into one episode with one 30-day window: the dialysis example
+  of the method reference (episodes in January 2020, April 2020 and July
+  2021) became one episode, and a regression test with stage-III crossings
+  every two weeks for two years lost 98 of its 103 excluded values. Days of a
+  dated acute dialysis interval do not count towards the gap (added after
+  the review of 2026-11-22): an ICU course with CVVHDF from 3 to 13 January
+  and creatinine of 3.2 on 2 January, 4.0 on 14 January and 6.5 on 16 January
+  had given two stage-III episodes and is one. This rule lets a new episode
+  start less than 48 hours after the previous one ended; it was open for the
+  owner's confirmation (OD-35) and is kept (see the second review below).
+- **Same day.** Values of one date are processed in the order of the
+  2026-11-21 rule; on a date whose values cannot be ordered they ascend, so a
+  date that contains a crossing continues the episode and none of its values
+  ends it. The 48 hours count calendar days, not hours.
+- **Dialysis.** A value whose next two calendar days include a day under
+  dialysis (the days whose creatinine OD-14 leaves out: a dated acute
+  dialysis interval, and a chronic dialysis from its start up to the next
+  transplant) is no candidate end, so an episode does not end during such an
+  interval or just before a chronic dialysis starts. Acute dialysis without
+  an end date and unknown dialysis remove no value and do not block an end.
+  Until the review of 2026-11-22 chronic dialysis did not block an end:
+  1.0, 1.6 and 1.2 mg/dl on 1 to 3 January with chronic dialysis from
+  4 January ended the episode on 3 January and listed no dialysis start.
+- **Exclusion window.** It stays `[onset, onset + N days]` for every episode,
+  also for a long one; counting N from the last crossing would have
+  lengthened unchanged episodes as well. A merged episode therefore excludes
+  less than the chain it replaces (2 January to 1 February instead of to
+  5 February in the sustained-rise example).
+- **End date.** The date of the value that ended the episode; empty for an
+  episode still open at the last value. For an open episode, and for one
+  ended by the first value after a gap, a dialysis start counts up to two
+  calendar days after the episode's last value before the end (after the
+  review of 2026-11-22; until then every later start counted for an open
+  episode, also one years after the values stop). On one start date the first
+  event of the events table is shown; a dialysis without intent is shown as
+  `unknown`.
+- **The recovery length is not an interface setting.** It is a constant and
+  an option of the detector; no control changes it. Issue #67 asked for a
+  setting, so this is open for the owner's decision (OD-35). Superseded by
+  the second review below: it is a setting.
+- **Moved values of the review follow-up.** No golden value and no value of
+  the bundled demo workbook moved: its eight episodes keep onset, stage, peak,
+  end date and the empty dialysis start listed above. One unit test changed
+  its expectation deliberately: an open episode no longer lists a chronic
+  dialysis that starts nine months after its last value
+  (`tests/workspace/aki-episodes.test.ts`).
+
+The Methods page states the rule in its AKI timing section and in the
+sources overview, and names the dialysis start of the episode list (wording
+applied on the owner's instruction of 2026-11-22 for the maintainer's
+review). New or changed sentences:
+
+- `Aki.tsx`, limitations list, added: "The episode list names the first
+  dialysis that starts during an episode."
+- `Aki.tsx`, timing section, replacing the paragraph on episodes sharing a
+  baseline date and the chain of four episodes: "Each measurement that meets
+  a criterion is a crossing. Crossings belong to one episode until creatinine
+  has been back below the criterion for 48 hours (ADQI 16): a crossing starts
+  a new episode only when the first value after the previous crossing that
+  meets no criterion lies more than two calendar days before it. The first
+  value after more than seven days without measurements also ends the
+  episode; days of an acute dialysis with a recorded end date do not count
+  towards the seven days. The onset is the date of the first crossing, the
+  end the date of that value; a value followed within two calendar days by a
+  day under dialysis, as defined above, does not end the episode. Daily
+  values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl give one episode of stage
+  III."
+- `Aki.tsx`, exclusion paragraph, inserted: "however long the episode
+  lasts".
+- `Sources.tsx`, item "AKI episodes", replacing the text on the shared
+  baseline date and the chip *AKI I, 2×II, III*: "Measurements that meet a
+  criterion belong to one episode until creatinine has been back below the
+  criterion for 48 hours. ADQI 16 proposes the 48 hours and calls them
+  arbitrary; applying them to calendar days, and ending an episode after
+  more than seven days without measurements, are this tool's rules."
+
+### Second review of 2026-11-22
+
+Applied on the owner's instruction of 2026-11-22 to resolve the open points;
+OD-35 is resolved.
+
+- **A value without a reference does not end an episode.** After a gap that
+  a dated acute dialysis interval bridges, the first value has no earlier
+  value in its 7-day window. It was the candidate end, although it is
+  compared with nothing; it now continues the episode as its last value, and
+  the next value compared with it can end the episode. 1.0 and 3.2 mg/dl on
+  1 and 2 January, CVVHDF from 3 to 13 January, then 4.0, 4.1, 4.2 and
+  7.0 mg/dl on 14 to 17 January: one stage-III episode, open (4.1 on
+  15 January is the candidate end and 7.0 joins two days later); before, the
+  episode ended on 14 January at 4.0 mg/dl and 7.0 opened a second stage-III
+  episode.
+- **An episode ended by a gap has no end date in the list.** The first value
+  after a gap of more than seven days shows no recovery, so `end_date` is
+  empty for such an episode and the Data page and the patient view show
+  "not observed: no values for more than 7 days after" the date of its last
+  value. Two columns are appended to `aki_episodes`: `ended_by_gap`
+  (`true`/`false`) and `last_value_date`. The dialysis start of such an
+  episode still counts up to the recovery length after `last_value_date`, so
+  the shown end and the dialysis window agree. Before, the list showed the
+  first value after the gap, possibly weeks later, as the end, while a
+  dialysis between the two dates was not listed.
+- **The recovery length is a setting.** *Recovery between episodes (hours)*
+  under "Detected AKI episodes" on the Data page, default 48, counted on
+  calendar days (only multiples of 24 matter). It is one value per dataset
+  (`recoveryHours` of the AKI module settings), not a column setting,
+  because the episode list does not belong to a column; it decides the
+  episodes of every column, the list and the export, is kept with the dataset
+  copy (a copy saved earlier gets 48) and is exported in `analysis_settings`
+  of the `settings` sheet. A change discards fitted cohort models.
+- **Step 4 is kept.** A gap of more than seven days without values outside
+  dated acute dialysis intervals ends an episode, so a new one can start
+  less than the recovery length later; the episode list gives the former no
+  end date (above).
+- **Known limitation documented.** An episode end compares a value with the
+  lowest value of the 48 hours and 7 days before it, not with the creatinine
+  before the episode: on a plateau the reference catches up. 1.0 and
+  2.0 mg/dl on days 0 and 1 and 3.0 daily on days 2 to 12 end the episode on
+  day 9, and 4.6 on day 14 opens a second stage-III episode. Unchanged
+  behaviour, now in the method reference and a regression test.
+- **Moved values.** No golden value moved, and no episode count, onset,
+  stage, peak, baseline, exclusion window, slope or dialysis start of the
+  bundled demo workbook. All eight demo episodes end by a gap; their
+  `end_date` moved from 2022-09-16 (patient 6, onset 2022-09-08);
+  2021-06-12, 2022-01-20, 2022-10-18 (patient 7, onsets 2021-06-03,
+  2022-01-04, 2022-10-03); 2022-07-20 (patient 11, onset 2022-07-12);
+  2021-01-20, 2021-03-10, 2021-04-20 (patient 12, onsets 2021-01-03,
+  2021-02-17, 2021-04-03) to empty, with `ended_by_gap` `true` and
+  `last_value_date` equal to the onset date in each case. Unit tests changed
+  their expectation deliberately: the episode list of the gap example
+  (`tests/workspace/aki-episodes.test.ts`), the sheet header and the
+  `about` note (`tests/workspace/export-schema.test.ts`,
+  `tests/workspace/export.test.ts`), and the AKI settings in the registry
+  tests, which now carry `recoveryHours`.
+
+Methods page (`Aki.tsx`, timing section), changed sentences:
+
+- "Crossings belong to one episode until creatinine has been back below the
+  criterion for 48 hours (ADQI 16; 48 hours is the default of the setting
+  "Recovery between episodes" on the Data page): a crossing starts a new
+  episode only when the first value after the previous crossing that meets
+  no criterion against an earlier value lies more than two calendar days
+  before it."
+- "The first value after more than seven days without measurements also
+  ends the episode; no end date is given then, because that value is
+  compared with no earlier value."
+- "Days of an acute dialysis with a recorded end date do not count towards
+  the seven days." (split from the previous sentence, wording unchanged)
+- Added: "An end means that a value no longer meets the criterion against
+  the lowest value of the 48 hours or 7 days before it, not that creatinine
+  has returned to its level before the episode."
 
 ## Approved requirements
 

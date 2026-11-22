@@ -97,6 +97,9 @@ markers, exclusion windows, cohort-model exclusions).
 Example: creatinine 1.0 and 1.7 mg/dl on 2020-01-01 and 2020-01-03, 4.0 and
 8.0 on 2020-04-01 and 2020-04-02, 1.2 and 2.0 on 2021-07-01 and 2021-07-02.
 Without events there are three episodes (2020-01-03, 2020-04-02, 2021-07-02).
+Each later episode follows a gap of more than seven days, which ends the
+previous one at the first value after it (see [Episodes](#episodes)): the
+episodes end on 2020-04-01 and 2021-07-01, and the third is open.
 With chronic dialysis from 2020-03-01 only the episode of 2020-01-03 remains.
 With an additional kidney transplant on 2021-06-01 the episode of 2021-07-02
 is detected again.
@@ -278,15 +281,130 @@ the stage.
 
 The stage is never lower than under the earlier rule. Detection, the recorded
 baseline, the grouping into episodes, onset dates and exclusion windows are
-unchanged; only the stage and what is derived from it (chip, marker label and
-tooltip, the `aki` export column) can differ.
+unchanged by that decision; only the stage and what is derived from it (chip,
+marker label and tooltip, the `aki` export column) could differ. The grouping
+into episodes changed on 2026-11-22 (see [Episodes](#episodes)).
 
 ### Episodes
 
-Crossings are grouped into episodes in chronological order
-(`clusterEpisodes`). A crossing joins the preceding episode when its baseline
-date equals that episode's baseline date; any other crossing starts a new
-episode. An episode consists of:
+Crossings are grouped into episodes in detection order (`clusterEpisodes`
+in `aki/kdigo.ts`) by recovery, following the ADQI 16 consensus (Chawla et
+al., Nat Rev Nephrol 2017, statement 1B: at least 48 hours of sustained
+reversal separate two episodes; decided 2026-11-21, issue #67, details of
+2026-11-22). The rule uses every value of the detection input, crossing or
+not, in the order of [Detection](#detection):
+
+1. The first crossing of the series, or the first crossing after an episode
+   has ended, opens an episode.
+2. While an episode is open, the first later value that is not a crossing
+   (it meets neither criterion against its own 48-hour and 7-day minima) and
+   has at least one earlier value in its 7-day window is its **candidate
+   end**, provided that none of the calendar days of its recovery window is
+   a day under dialysis (see below). A value without an earlier value in its
+   7-day window is compared with nothing and shows no reversal; it is never a
+   candidate end (since the second review of 2026-11-22; see step 4 for the
+   only case in which such a value reaches step 2). The
+   recovery window is the calendar days after the value up to the recovery
+   length, **48 hours** by default (see [Recovery length](#recovery-length)):
+   the next two calendar days. A later value that is not a crossing does not
+   replace a candidate.
+3. A crossing **joins** the open episode when the episode has no candidate
+   end or when the crossing lies at most the recovery length after it (two
+   calendar days or fewer, inclusive, as for the 48-hour criterion); it
+   clears the candidate end. A crossing more than the recovery length after
+   the candidate end (three calendar days or more) **ends** the open episode
+   at the candidate end and opens a new episode.
+4. A value without any earlier value in its 7-day window, which happens only
+   after a gap of more than seven days without detection values, ends the
+   open episode: at the candidate end when there is one, otherwise at the
+   date of this value (`endedByGap`). Detection starts afresh there, so the
+   next crossing opens a new episode however close it follows. Days of a
+   dated acute dialysis interval do not count towards the gap: when the
+   calendar days strictly between this value and the previous detection value
+   that lie outside such intervals number fewer than seven, step 4 does not
+   apply: the value continues the open episode, becomes its last value
+   (`lastValueDate`) and is not a candidate end, because it has no earlier
+   value to be compared with (decided 2026-11-22 after the review of the same
+   day; until the second review of that day it was a candidate end, so a
+   crossing three or more days later opened a new episode).
+5. After the last value, an episode with a candidate end ends there, also
+   when fewer than two days of data follow it; an episode without one is
+   still open and has no end date.
+
+A gap without measurements is therefore not a recovery by itself: an
+episode ends with a value that is back below the criterion (step 2) or with
+the first value after a gap of more than seven days (step 4), never on a day
+without a value. Because dates are calendar days, the recovery window counts
+calendar days whatever the times of day: a value back below the criterion on
+1 March at 23:00 followed by a crossing on 4 March at 01:00 (50 hours) gives
+two episodes; 1 March at 01:00 followed by 3 March at 23:00 (70 hours) gives
+one. On a date whose values cannot be ordered (see
+[Measurements on the same date](#measurements-on-the-same-date)) the values
+are processed in ascending order; when one of them crosses, the lower ones
+come first, so the date continues the episode and none of its values is a
+candidate end.
+
+**Dialysis.** Creatinine under dialysis is not in the detection input (see
+above) and cannot show recovery. A value whose recovery window contains a day
+under dialysis (`isUnderDialysis` in `aki/akiAware.ts`: from a chronic
+dialysis start up to, not including, the next transplant, and a dated acute
+dialysis interval, `date` through `endDate`, both included) is not a candidate
+end, so an episode does not end during such an interval or just before a
+chronic dialysis starts; the first value after an acute interval can end it.
+Acute dialysis without an end date and dialysis of unknown intent remove no
+value and do not block a candidate end. Days of a dated acute dialysis
+interval (`isInAcuteDialysisInterval`) do not count towards the gap of step 4,
+so an episode continues across an acute interval of any length. Days under a
+chronic dialysis do count: the transplant that ends it starts detection
+afresh, and a transplant rise after more than seven days of dialysis is
+separated from an earlier episode by step 4. Until the review of 2026-11-22
+only a dated acute interval blocked a candidate end, and an acute interval of
+more than seven days ended the episode at the first value after it.
+
+#### Recovery length
+
+The recovery length is a setting since 2026-11-22 (issue #67; OD-35
+resolved): *Recovery between episodes (hours)* under "Detected AKI episodes"
+on the Data page, stored as `recoveryHours` of the dataset-level AKI module
+settings (`AkiModuleSettings` in `aki/akiModule.ts`), default **48**
+(`DEFAULT_AKI_RECOVERY_HOURS`). It is one value for the dataset, not a column
+setting: it decides the episodes of every column (chip, markers, bands, AKI
+windows of the fits and of the endpoints), the episode list and the sheet
+`aki_episodes`, and it is written with the other analysis settings into the
+`analysis_settings` column of the `settings` sheet. It is kept with the
+dataset copy on the device; a copy saved before 2026-11-22 has no value and
+gets 48. A negative or non-numeric entry is stored as 0, a stored value that
+is not a finite number of at least 0 invalidates the stored analysis
+settings, as for `exclusionDays`. Changing it discards fitted cohort models,
+like a change of the eGFR formula.
+
+The hours are counted on calendar days (`findKdigoAkiEpisodes`, option
+`recoveryMs`): the recovery window of a value is the calendar days *d* ≥ 1
+after it with 24·*d* ≤ hours, and a crossing joins the episode when its date
+lies at most the given hours after the candidate end. With whole-day dates
+only multiples of 24 matter; other values act like the next lower multiple
+(36 like 24). 24 hours: the next calendar day; a crossing two days after the
+candidate end opens a new episode (values 1.0, 1.6, 1.0, 1.6 on days 0, 1, 2
+and 4: two episodes, end day 2; with 48 hours one). 0 hours: any later
+crossing on a later date opens a new episode, and no day under dialysis is
+checked. The dialysis start of an open or gap-ended episode in the
+[episode list](#episode-list) counts up to the same length after its last
+value.
+
+Step 4 is a rule of this tool, fixed on 2026-11-22 and kept on the owner's
+instruction of that day to resolve the open points (OD-35 resolved): it lets
+a new episode start less than the recovery length after the end of the
+previous one (days 0, 1, 20 and 21 in the examples below), although the
+owner's rule starts a new episode only after 48 hours back below the
+criterion. Without it, the strict rule joins crossings months apart into one
+episode with one exclusion window: in the example of
+[KDIGO creatinine AKI detection](#kdigo-creatinine-aki-detection) with a
+transplant, the rise after the transplant in July 2021 would join the episode
+of January 2020, and a regression test with stage-III crossings every two
+weeks for two years would keep 98 more values in the fit. Such an episode has
+no observed end: the [episode list](#episode-list) gives no end date for it.
+
+An episode consists of:
 
 | Field | Definition |
 | --- | --- |
@@ -296,19 +414,45 @@ episode. An episode consists of:
 | Criterion | criterion of the first crossing |
 | Stage | the highest stage of the episode's crossings, each graded against its own 7-day minimum (see [Staging](#staging)) |
 | Staging value and reference | value and date of the first crossing that reached the episode's stage, and value and date of its reference (`stageValue`, `stageDate`, `stageReferenceValue`, `stageReferenceDate`); `kdigoStage(stageReferenceValue, stageValue)` gives the stage |
+| End | date of the value that ended the episode (`endDate`, steps 3 and 4); empty while the episode is open. `endedByGap` is true when step 4 ended the episode at its own value without an earlier candidate end; the [episode list](#episode-list) then gives no end date |
+| Last value | date of the episode's last value before its end (`lastValueDate`): its last crossing, or a later value that could not be a candidate end because of dialysis or because it had no earlier value in its 7-day window (step 4, gap bridged by an acute dialysis interval); for an open episode its last such value. Only the [episode list](#episode-list) uses it |
 
-Example: 1.0, 1.6 and 2.1 mg/dl on 1, 2 and 3 January form one episode. Both
-later values cross against the 1 January baseline, so the onset is 2 January,
-the peak is 2.1 mg/dl on 3 January and the stage is II.
+Examples (mg/dl, one value per day, days counted from day 0):
 
-The stage need not come from the peak crossing, because the 7-day minimum
-moves as earlier values leave the window. Values of 1.0 mg/dl on day 0, 1.4 on
-day 6, 3.1 on day 7 and 3.3 on day 8 form one episode (baseline 1.4 on day 6,
-onset day 7, peak 3.3 on day 8). On day 7 the 7-day minimum is still 1.0
-(exactly seven days back, inside the window): 3.1-fold, stage III. On day 8
-the 1.0 has left the window and the minimum is 1.4: 3.3 is 2.36-fold,
-stage II. The episode is stage III, its staging value is 3.1 on day 7 and its
-staging reference is 1.0 on day 0.
+| Values | Episodes | Until 2026-11-22 |
+| --- | --- | --- |
+| 1.0, 1.6, 2.1 on 1, 2 and 3 January | one, onset 2 January, peak 2.1 on 3 January, stage II, open | the same, without end |
+| 1.0, 1.4, 1.8, 2.2, 2.6, 3.0 on 1 to 6 January | one, onset 2 January, baseline 1.0 on 1 January, peak 3.0 on 6 January, stage III (3.0-fold), open | four, stages I, II, II, III |
+| 1.0, 1.0, 1.3, 1.3 on four consecutive days | one stage-I episode, onset day 2 | two stage-I episodes |
+| 1.0 (day 0), 2.9 (day 5), 3.2 (day 6) | one, onset day 5, peak 3.2, stage III | two, stages II and III |
+| 1.0, 1.6, 1.0, 1.6 on days 0, 1, 2, 4 | one, onset day 1, open: day 4 lies two days after the 1.0 of day 2 | two (baselines day 0 and day 2) |
+| 1.0, 1.6, 1.0, 1.6 on days 0, 1, 2, 5 | two: onset day 1, end day 2; onset day 5, open | one (same baseline day 0) |
+| 1.0, 1.6, 1.0, 1.6 on days 0, 1, 20, 21 | two: onset day 1, end day 20 (step 4); onset day 21, open | two |
+| 1.0, 1.6, 1.0, 1.6 on days 0, 1, 2, 6, acute dialysis days 3 to 4 | one, onset day 1, open: day 2 is no candidate end | one |
+| 1.0, 1.6, 1.2 on days 0, 1, 2, chronic dialysis from day 3 | one, onset day 1, open: day 2 is no candidate end | one (until the review of 2026-11-22: end day 2) |
+| 1.0, 3.2, 4.0, 4.2, 6.5 on days 0, 1, 13, 14, 15, acute dialysis days 2 to 12 | one, onset day 1, stage III, open: day 13 has no reference and the gap lies in the interval, so it continues the episode; day 14 (4.2 against 4.0) is the candidate end and the crossing of day 15 (6.5, 2.5 mg/dl above the 4.0 of day 13 within 48 hours) joins | two (until the review of 2026-11-22 as well: end day 13; onset day 15) |
+| 1.0, 3.2, 4.0, 4.1, 4.2, 7.0 on days 0, 1, 13, 14, 15, 16, acute dialysis days 2 to 12 | one, onset day 1, stage III, open: day 14 (4.1 against 4.0) is the candidate end, the crossing of day 16 (7.0, 2.9 mg/dl above the 4.1 of day 14 within 48 hours) lies two days after it | two until the second review of 2026-11-22: day 13 (4.0, no reference) was the candidate end, three days before day 16 |
+| 1.0, 2.0, then 3.0 daily on days 2 to 12, 4.6 on day 14 | two: onset day 1, stage III, end day 9; onset day 14, stage III, open (see [Known limitations](#known-limitations)) | two |
+| the same without the dialysis, or with acute dialysis on days 2 to 4 only | two: onset day 1, end day 13 (step 4); onset day 15, open | two |
+
+The row with days 0, 1, 2 and 5 shows that the rule can also separate
+crossings that the earlier merge by shared baseline date kept together: the
+crossing of day 5 is detected against day 0 but follows three days of
+recovery. In the first row the
+two later values cross against the 1 January baseline. The 7-day minimum
+moves as earlier values leave the window, so the stage need not come from
+the peak crossing: values of 1.0 mg/dl on day 0, 1.4 on day 6, 3.1 on day 7
+and 3.3 on day 8 form one episode (baseline 1.4 on day 6, onset day 7, peak
+3.3 on day 8). On day 7 the 7-day minimum is still 1.0 (exactly seven days
+back, inside the window): 3.1-fold, stage III. On day 8 the 1.0 has left the
+window and the minimum is 1.4: 3.3 is 2.36-fold, stage II. The episode is
+stage III, its staging value is 3.1 on day 7 and its staging reference is
+1.0 on day 0.
+
+Until 2026-11-22 a crossing joined the preceding episode only when its
+baseline date equalled that episode's baseline date, and episodes had no end.
+Because the baseline is a sliding minimum, each move of it started a new
+episode, and a sustained rise was reported as a chain of episodes.
 
 ### Where results appear
 
@@ -364,7 +508,9 @@ still uses `Kreatinin enzym.` and shows none.
 ### Not implemented
 
 - The KDIGO urine-output criterion is not evaluated; urine data are not used.
-- Start of renal replacement therapy is not treated as stage III.
+- Start of renal replacement therapy is not treated as stage III. The
+  [episode list](#episode-list) names the first dialysis that starts during
+  an episode; the stage stays as detected.
 - The paediatric stage-III criterion (eGFR below 35 mL/min/1.73 m²) is not
   evaluated.
 - There is no outpatient, historical or back-calculated baseline; the only
@@ -372,43 +518,42 @@ still uses `Kreatinin enzym.` and shows none.
 
 ### Known limitations
 
-The following two properties are deliberate current behaviour. The owner
-decided on 2026-10-06 not to change AKI episode merging, and on 2026-11-16 to
-keep it while changing the staging reference (see
-[method decisions](../remaining-method-decisions.md)); they are documented here
-so that episode counts and stages are read correctly.
+The following properties are deliberate current behaviour (see
+[method decisions](../remaining-method-decisions.md)); they are documented
+here so that episode counts and stages are read correctly.
 
-**Episodes are split whenever the baseline moves.** Episodes are merged only
-while consecutive crossings share one baseline date. Because the baseline is a
-sliding minimum, it moves forward as earlier values leave the window, and
-each move starts a new episode.
+**Episode counts are counts of episodes separated by recovery as defined
+above, not of clinical events.** The 48 hours of ADQI 16 are applied to
+calendar-day data and to the values that happen to be measured: a rise and
+fall within one gap of the measurements is not seen, and an episode ends
+only with a measured value.
 
-**There is no episode end, recovery rule or minimum gap.** An episode does not
-last until creatinine returns towards baseline, and nothing prevents a new
-episode from starting the day after the previous one. A sustained rise is
-therefore reported as a chain of episodes, each detected against its own recent
-baseline. Daily values of 1.0, 1.4, 1.8, 2.2, 2.6 and 3.0 mg/dl from 1 to
-6 January give four episodes:
+**An episode end is not a return to the creatinine before the episode.**
+"Back below the criterion" compares a value with the lowest value of the
+48 hours and 7 days before it, so on a sustained plateau the reference
+catches up and the episode ends while creatinine stays raised. Values of 1.0
+and 2.0 mg/dl on days 0 and 1 and 3.0 mg/dl daily from day 2 to day 12 give
+one stage-III episode with onset day 1 (2.0, criterion absolute; stage III
+from 3.0 against 1.0 on day 2) that ends on day 9: from that day the 1.0 and
+2.0 have left the 7-day window, the 7-day minimum is 3.0 and 3.0 meets no
+criterion. 4.6 mg/dl on day 14 rises 1.6 mg/dl above the 3.0 of day 12 and opens a
+second stage-III episode (4.6 ≥ 4.0 mg/dl) with its own exclusion window, although
+creatinine never returned towards 1.0. The same follows after a long acute
+dialysis interval: the values after it are compared with each other only.
 
-| Onset | Baseline | Peak | Stage (against the 7-day minimum 1.0) |
-| --- | --- | --- | --- |
-| 2 January | 1.0 (1 January) | 1.8 (3 January) | I (1.8-fold) |
-| 4 January | 1.4 (2 January) | 2.2 | II (2.2-fold) |
-| 5 January | 1.8 (3 January) | 2.6 | II (2.6-fold) |
-| 6 January | 2.2 (4 January) | 3.0 | III (3.0-fold) |
-
-The chip reads `AKI I, 2×II, III` for one continuous rise (until 2026-11-16:
-`AKI 4×I`, each episode graded against its own baseline). A
-plateau behaves the same way: 1.0, 1.0, 1.3 and 1.3 mg/dl on four consecutive
-days give two stage-I episodes, because the second 1.3 is compared with the
-1.0 of the second day once the first day has left the 48-hour window. Episode
-counts are counts of baseline-specific crossings, not of clinical events.
+**A long episode keeps one exclusion window from its onset** (see
+[AKI fit-exclusion window](#aki-fit-exclusion-window)). Crossings later than
+the configured length after the onset are not covered by a window of their
+own. Until 2026-11-22 such crossings could start episodes of their own, with
+their own windows. An episode that continues across a dated acute dialysis
+interval longer than the window (see [Episodes](#episodes)) is such an
+episode: a crossing after the interval adds no window.
 
 **The absolute criterion decides the recorded baseline first.** When the
 absolute criterion fires, the relative criterion is not tested, and the
 recorded baseline is the 48-hour minimum even when the 7-day minimum is lower.
-This affects the baseline field and the grouping into episodes, not the stage
-(see [Staging](#staging)). Values of 1.0 mg/dl on 1 January, 1.4 on 5 January
+This affects the baseline field, not the stage (see [Staging](#staging)) and,
+since 2026-11-22, not the grouping into episodes. Values of 1.0 mg/dl on 1 January, 1.4 on 5 January
 and 3.2 on 6 January give one episode with onset 6 January and recorded
 baseline 1.4 mg/dl; its stage is III, because 3.2 mg/dl is 3.2 times the 7-day
 minimum of 1.0 (until 2026-11-16: stage II, ratio 2.29 against 1.4). The
@@ -420,7 +565,18 @@ Regression evidence: [KDIGO boundary tests](../../tests/core/aki/kdigo.test.ts)
 (tolerance, exact 0.3 mg/dl and 1.5-fold boundaries, stage values, the
 4.0 mg/dl rule, staging against the 7-day minimum with the examples above,
 the inclusive bound at exactly seven days, the staging value and reference of
-each episode, and the sustained daily rise graded I, II, II, III), [same-day order tests](../../tests/core/aki/sameDayOrder.test.ts)
+each episode, and the sustained daily rise as one stage-III episode),
+[recovery tests](../../tests/core/aki/recovery.test.ts) (the plateau, the
+two- and three-day boundaries of the recovery window, calendar days against
+hours, a date whose values cannot be ordered, the recovery length as an
+option, the gap of more than seven days against one of exactly seven, the
+plateau whose reference catches up, the exclusion window of a merged
+episode, dated acute dialysis in and after the recovery window and without
+an end date, and the first value after a long acute interval, which is no
+candidate end), [AKI module tests](../../tests/core/analysis/akiModule.test.ts)
+also cover the recovery length of the dataset settings (chip, cohort cell and
+fit inputs with 24 and 48 hours), [registry tests](../../tests/core/analysis/registry.test.ts)
+a stored setting without it, [same-day order tests](../../tests/core/aki/sameDayOrder.test.ts)
 (the examples of "Measurements on the same date" in both row orders, with and
 without a time of day, from text, workbook date cells and serial numbers, the
 windows in calendar days and the patient-day count),
@@ -437,8 +593,7 @@ stages and criteria on fixture series),
 tooltip text) and
 [censored measurement tests](../../tests/core/censoredMeasurements.test.ts).
 No dedicated regression test: the inclusive window bound at exactly two days,
-the oldest-value tie rule for the baseline, the plateau
-chain, and a computed eGFR column whose AKI source differs from its eGFR
+the oldest-value tie rule for the baseline, and a computed eGFR column whose AKI source differs from its eGFR
 source. Non-positive values and creatinine under dialysis are covered by the
 [dialysis and positivity tests](../../tests/core/aki/dialysisAndPositivity.test.ts).
 
@@ -460,16 +615,69 @@ dated rows, see above).
 
 Each row gives patient, stage, onset date (`AkiEpisode.date`), peak date and
 value, baseline date and value, the criterion that detected the episode
-(`absolute_0_3_mg_dl_48h` or `relative_1_5x_7d`) and the creatinine series.
+(`absolute_0_3_mg_dl_48h` or `relative_1_5x_7d`), the creatinine series, the
+end date (since 2026-11-22) and the first dialysis start (since 2026-11-22).
 All values are in mg/dl. Rows are ordered by patient, then by onset date. The sheet columns are `PatientID`,
 `creatinine_parameter`, `creatinine_unit`, `stage`, `onset_date`, `peak_date`,
-`peak_value_mg_dl`, `baseline_date`, `baseline_value_mg_dl`, `criterion`; the
+`peak_value_mg_dl`, `baseline_date`, `baseline_value_mg_dl`, `criterion`,
+`end_date`, `dialysis_start`, `ended_by_gap`, `last_value_date` (the last
+two since the second review of 2026-11-22); the
 sheet is restricted to the exported patients and is present with no rows when
 no episode was detected.
 
+**End.** `end_date` is `AkiEpisode.endDate` (see [Episodes](#episodes)) as
+`YYYY-MM-DD`, the date of the first value back below the criterion. It is
+empty for an episode that is still open at the last value and for one that
+step 4 ended at the first value after a gap of more than seven days
+(`endedByGap`): that value is compared with no earlier value, so no end was
+observed. `ended_by_gap` is `true` for the latter, otherwise `false`;
+`last_value_date` is `AkiEpisode.lastValueDate` for every episode. The Data
+page and the patient view show the date; "not observed: no values for more
+than 7 days after 02/01/2024" (the last value) for an episode ended by a gap;
+or "open at the last value". Until the second review of 2026-11-22 the list
+and `end_date` gave the date of the first value after the gap, while the
+dialysis start was counted only up to two days after the last value.
+
+**Dialysis start** (owner decision 2026-11-21, review item K29). The first
+dialysis event of the patient whose start date lies between the onset and
+the end of the episode, both calendar days included, is shown with its
+intent: `2026-03-05 (acute)` in `dialysis_start`, "05/03/2026 (acute)" on the
+Data page and in the patient view, "none" or an empty cell without one. For
+an episode that is still open, and for one that step 4 ended at its own value
+(`endedByGap`), that is whenever `end_date` is empty, the end is replaced by
+the last day of the recovery window of the episode's last value
+(`last_value_date` plus the recovery length, two calendar days by default;
+`dialysisWindowEnd`), so that a dialysis after the values
+stop is not attributed to the episode: an open episode whose last value is
+on 4 March counts a start on 6 March, not one on 7 March or a year later
+(decided 2026-11-22 after the review of the same day; until then every start
+on or after the onset counted for an open episode). Every intent
+counts (`acute`, `chronic`, `unknown`; a dialysis without intent is shown as
+`unknown`); when two dialyses start on the same day, the first in the events
+table is shown. The dialysis does not change the stage, the episode or any
+other column: start of renal replacement therapy is still not treated as
+stage III (see [Not implemented](#not-implemented)).
+
 Example: creatinine 1.0 mg/dl on 2022-03-01 and 1.6 mg/dl on 2022-03-02 gives
 one row with stage 1, onset and peak 2022-03-02, peak value 1.6, baseline 1.0
-on 2022-03-01 and criterion `absolute_0_3_mg_dl_48h`. Regression evidence:
+on 2022-03-01, criterion `absolute_0_3_mg_dl_48h` and empty `end_date` and
+`dialysis_start`. Second example: 1.0, 1.6, 2.4 and 3.1 mg/dl from 1 to
+4 March 2026, then 2.0, 1.4 and 1.2 on 9, 10 and 11 March, with an acute
+dialysis from 5 to 8 March, an unknown-intent dialysis from 6 March and a
+chronic dialysis from 12 March: one stage-III episode (3.1 against 1.0),
+onset 2026-03-02, `end_date` 2026-03-09 (2.0 is not a crossing against the
+seven-day minimum 1.6 and the next two days hold none), `dialysis_start`
+`2026-03-05 (acute)`. A dialysis starting on 1 or 10 March would not be
+listed. Third example: 1.0, 1.6 and 1.2 mg/dl on 1 to 3 January 2024 and a
+chronic dialysis from 4 January: one open stage-I episode, onset
+2024-01-02, empty `end_date` (1.2 is followed by a day under dialysis),
+`dialysis_start` `2024-01-04 (chronic)`. Fourth example: 1.0 and 1.6 on 1 and
+2 January 2024 and 1.0 on 1 March: step 4 ends the episode at 1 March;
+`end_date` is empty, `ended_by_gap` is `true`, `last_value_date` is
+2024-01-02, and the list shows "not observed: no values for more than 7 days
+after 02/01/2024"; an acute dialysis starting on 4 January is listed, one
+starting on 1 February is not. With a recovery length of 24 hours, one
+starting on 4 January is not listed either (last day 3 January). Regression evidence:
 [episode list tests](../../tests/workspace/aki-episodes.test.ts).
 
 ## AKI fit-exclusion window
@@ -494,6 +702,16 @@ rise), and so does any measurement after
 the window even when creatinine is still raised. N is the column's
 `akiExclusionDays`; the default is **30** (`DEFAULT_AKI_EXCLUSION_DAYS`).
 
+The window does not depend on the episode end (decided 2026-11-22 with the
+recovery rule of [Episodes](#episodes)). An episode that joins crossings over
+more than N days keeps the one window from its onset; the alternative of
+counting N from the last crossing was not taken because it would also have
+lengthened the windows of episodes that the recovery rule leaves unchanged.
+Merged episodes therefore exclude less than the chain of episodes they
+replace: the sustained rise from 1 to 6 January (see the examples under
+[Episodes](#episodes)) excludes 2 January to 1 February with N = 30; until
+2026-11-22 its four episodes excluded 2 January to 5 February.
+
 Because dates are whole calendar days, a window of N days covers N + 1
 calendar dates: the onset date and the N following dates. With onset
 2 January 2020 and N = 30, measurements from 2 January to 1 February 2020
@@ -516,10 +734,11 @@ analysis settings.
 measurement inside several windows is excluded once, with reason `aki`. For
 drawing only, `akiExclusionBands` merges windows that overlap or touch (the
 next window starts on or before the current end) into one shaded band. Both
-cover the same dates. The four episodes of the sustained-rise example above
-give four windows (2 January to 1 February, 4 January to 3 February,
-5 January to 4 February, 6 January to 5 February) and one band from 2 January
-to 5 February. The band is drawn with the column's window length whether or
+cover the same dates. Episodes with onsets on 2, 4, 5 and 6 January give four
+windows (2 January to 1 February, 4 January to 3 February, 5 January to
+4 February, 6 January to 5 February) and one band from 2 January to
+5 February; the sustained-rise example, one episode since 2026-11-22, gives
+one window and one band from 2 January to 1 February. The band is drawn with the column's window length whether or
 not the column excludes the window from its fit. Since 2026-11-21 the legend
 and the tooltip of the band state which case applies (owner decision
 2026-11-21; the band itself is unchanged): "the configured N days after each
@@ -528,8 +747,9 @@ excluded from this fit" when the column excludes AKI windows, "values inside
 are not excluded from this fit" when it has a fit that keeps them, and "this
 column has no fit, so nothing is excluded" with fit model "No fit" or while
 "Trend" is not ticked. The tooltip gives the dates and the length of the
-drawn band, which exceeds N when windows were merged (39 days for four
-episodes within nine days and N = 30). Since 2026-11-22 a column that does
+drawn band, which exceeds N when windows were merged (39 days for the
+windows of a first and a last episode whose onsets lie nine days apart and
+N = 30). Since 2026-11-22 a column that does
 not exclude the window (fit model "No fit", "Trend" not ticked, or a fit that
 keeps the values) also carries one sentence under the chart while its bands
 are drawn: "In this column nothing is excluded for AKI (it has no fit): the

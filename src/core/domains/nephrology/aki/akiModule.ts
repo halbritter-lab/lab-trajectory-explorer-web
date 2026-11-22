@@ -1,7 +1,7 @@
 import { akiExclusionBands, akiExclusionWindows, episodesForSeries, isAkiCreatinineSource } from './akiAware'
 import type { AkiEpisode } from './kdigo'
 import { formatAkiChip, formatAkiEpisodeSummary } from './summary'
-import { DEFAULT_AKI_EXCLUSION_DAYS, MGDL_PER_UMOLL } from '../constants'
+import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_AKI_RECOVERY_HOURS, MGDL_PER_UMOLL } from '../constants'
 import { excludesAkiWindows } from '../fitConfig'
 import { COMPUTED_BEZEICHNUNG_SUFFIX, normaliseUnit } from '../analytes'
 import { patientIdKey, type LabRow, type PatientId } from '../../../types'
@@ -27,6 +27,17 @@ export interface AkiModuleSettings {
   /** Window length of the dataset-level fit inputs; a column's fit
    * configuration may choose its own. */
   exclusionDays: number
+  /** Recovery that separates two AKI episodes, in hours counted as calendar
+   * days (48 by default, decided 2026-11-22, issue #67). Dataset-level: it
+   * decides the episodes of every column, the episode list and its export. */
+  recoveryHours: number
+}
+
+/** The recovery length of a series context: the dataset's AKI module
+ * setting, the default when the caller gave no settings. */
+export function akiRecoveryHours(analysisSettings: Readonly<Record<string, unknown>> | undefined): number {
+  const hours = (analysisSettings?.aki as Partial<AkiModuleSettings> | undefined)?.recoveryHours
+  return typeof hours === 'number' && Number.isFinite(hours) && hours >= 0 ? hours : DEFAULT_AKI_RECOVERY_HOURS
 }
 
 export const AKI_MODULE_ID = 'aki'
@@ -76,11 +87,12 @@ function episodeSourceKey(patientId: PatientId, seriesKey: SeriesKey): string {
 
 /** AKI episodes shown for and excluded from one series (see episodesForSeries),
  * memoised per patient creatinine source for the duration of a cohort build. */
-export function akiEpisodesForSeriesContext(ctx: Pick<SeriesContext, 'patientId' | 'seriesKey' | 'patientRows' | 'cache'> & Partial<Pick<SeriesContext, 'events'>>): AkiEpisode[] {
-  const key = `aki-episodes:${episodeSourceKey(ctx.patientId, ctx.seriesKey)}`
+export function akiEpisodesForSeriesContext(ctx: Pick<SeriesContext, 'patientId' | 'seriesKey' | 'patientRows' | 'cache'> & Partial<Pick<SeriesContext, 'events' | 'analysisSettings'>>): AkiEpisode[] {
+  const recoveryHours = akiRecoveryHours(ctx.analysisSettings)
+  const key = `aki-episodes:${recoveryHours}:${episodeSourceKey(ctx.patientId, ctx.seriesKey)}`
   const cached = ctx.cache.get(key) as AkiEpisode[] | undefined
   if (cached) return cached
-  const episodes = episodesForSeries(ctx.patientRows as LabRow[], ctx.patientId, ctx.seriesKey.bezeichnung, ctx.seriesKey.einheit, ctx.events ?? [])
+  const episodes = episodesForSeries(ctx.patientRows as LabRow[], ctx.patientId, ctx.seriesKey.bezeichnung, ctx.seriesKey.einheit, ctx.events ?? [], recoveryHours)
   ctx.cache.set(key, episodes)
   return episodes
 }
@@ -195,13 +207,16 @@ export const akiModule = {
   id: 'aki' as const,
   label: 'AKI',
   description: 'KDIGO acute kidney injury episodes detected on serum creatinine (mg/dl or µmol/l converted to mg/dl), outside dialysis.',
-  defaultSettings: { showOverlays: false, exclusionDays: DEFAULT_AKI_EXCLUSION_DAYS } as AkiModuleSettings,
+  defaultSettings: { showOverlays: false, exclusionDays: DEFAULT_AKI_EXCLUSION_DAYS, recoveryHours: DEFAULT_AKI_RECOVERY_HOURS } as AkiModuleSettings,
+  /** A stored value without `recoveryHours` (saved before 2026-11-22) gets
+   * the default of 48 hours. */
   parseSettings: (value: unknown): AkiModuleSettings | null => {
     if (typeof value !== 'object' || value === null || Array.isArray(value)) return null
     const settings = value as Record<string, unknown>
-    return typeof settings.showOverlays === 'boolean'
-      && typeof settings.exclusionDays === 'number' && Number.isFinite(settings.exclusionDays) && settings.exclusionDays >= 0
-      ? value as AkiModuleSettings
+    const length = (v: unknown) => typeof v === 'number' && Number.isFinite(v) && v >= 0
+    return typeof settings.showOverlays === 'boolean' && length(settings.exclusionDays)
+      && (settings.recoveryHours === undefined || length(settings.recoveryHours))
+      ? { ...(value as AkiModuleSettings), recoveryHours: (settings.recoveryHours as number | undefined) ?? DEFAULT_AKI_RECOVERY_HOURS }
       : null
   },
   exclusionReasonLabels: { [AKI_EXCLUSION_REASON]: 'AKI window' },
@@ -233,7 +248,7 @@ export const akiModule = {
       const key = episodeSourceKey(patientId, seriesKey)
       let episodes = episodeCache.get(key)
       if (!episodes) {
-        episodes = episodesForSeries(rowsByPatient.get(patientId) ?? [], patientId, seriesKey.bezeichnung, seriesKey.einheit, eventsByPatient.get(patientIdKey(patientId)) ?? [])
+        episodes = episodesForSeries(rowsByPatient.get(patientId) ?? [], patientId, seriesKey.bezeichnung, seriesKey.einheit, eventsByPatient.get(patientIdKey(patientId)) ?? [], settings.recoveryHours ?? DEFAULT_AKI_RECOVERY_HOURS)
         episodeCache.set(key, episodes)
       }
       fitInputs.push(akiFitInput(patientId, seriesKey, episodes, settings.exclusionDays))

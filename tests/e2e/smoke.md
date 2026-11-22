@@ -49,6 +49,62 @@ and 390 px), with the demo data, the review file with times of day, the
   with no horizontal page scroll.
 - Methods → AKI detection → AKI Timing: the two paragraphs of draft G1.
 
+## AKI episodes separated by recovery and dialysis start (2026-11-22)
+
+Branch `feat/aki-recovery-episodes` (issue #67, review item K29). Checked
+with ad-hoc Playwright scripts against the production build in Chromium.
+
+1. Import the synthetic intensive-care file (`icu_dense_labs.csv`) and its
+   events (`icu_events.csv`, CVVHDF acute 6 to 10 March with end date, CVVHD
+   acute from 6 June without one). Data → "Detected AKI episodes (6)"
+   (16 on `main` with the same events, 21 on `main` without events and 6 on
+   this branch without them). The table ends with "End" and "Dialysis
+   start": ICU01 stage III, onset 02/03/2026, end 14/03/2026, dialysis start
+   "06/03/2026 (acute)"; ICU03 "open at the last value"; ICU04 stage III,
+   end 09/06/2026, "06/06/2026 (acute)"; the others "none". The ICU01 chip
+   reads `AKI III` (`AKI I, 3×III` on `main`).
+2. Trajectories → open ICU01: "AKI episodes for this patient" ends "; end
+   14/03/2026; dialysis start 06/03/2026 (acute)".
+3. "Export cohort (XLSX)": `aki_episodes` has `end_date` and
+   `dialysis_start` after `criterion` (`2026-03-14`, `2026-03-06 (acute)`; empty cells for an
+   open episode or without dialysis); its `about` line explains both.
+4. Demo data: still 8 episodes with the same onsets and stages, all ended by
+   a gap: End "not observed: no values for more than 7 days after" the onset
+   date (end dates 16/09/2022 and so on until the second review), and "none"
+   as dialysis start. At 390 px the table scrolls inside its
+   frame; the page does not scroll sideways.
+5. Methods → AKI, "AKI Timing, Episodes and the Fit-Exclusion Window": the
+   rule is stated and the sustained daily rise gives "one episode of stage
+   III"; Sources: the AKI episodes entry names the 48 hours of ADQI 16.
+6. Review follow-up (2026-11-22): import labs with ICU 1.0, 3.2, 4.0, 4.2,
+   6.5 mg/dl on 1, 2, 14, 15 and 16 January 2024 and CVVHDF acute from 3 to
+   13 January, CHR 1.0, 1.6, 1.2 on 1 to 3 January with chronic HD from
+   4 January, and GAP with a crossing on 2 January 2024 and chronic HD from
+   31 December 2025. Data → episode list: ICU one stage-III episode, "open at
+   the last value", "03/01/2024 (acute)", chip `AKI III` (two episodes and
+   `AKI 2×III` before); CHR "open at the last value", "04/01/2024 (chronic)"
+   (end 03/01/2024 and "none" before); GAP "none" (31/12/2025 (chronic)
+   before). The `about` line of `aki_episodes` names the end after a gap.
+7. Second review (2026-11-22): import the review files `r2-rv67/labs.csv`
+   and `events.csv`. Data → "Detected AKI episodes (4)": POSTDX one stage-III
+   episode, onset 02/01/2024, End "not observed: no values for more than
+   7 days after 17/01/2024", "03/01/2024 (acute)" (two episodes, end
+   14/01/2024, before); PLAT ends 10/01/2024 (plateau) and its second
+   episode "not observed: … after 15/01/2024", dialysis "none" (the HD of
+   20/01/2024 lies after the last value). *Recovery between episodes
+   (hours)* shows 48; 24 gives 5 episodes (POSTDX split at 15/01/2024), 48
+   gives 4 again. The cohort export has `ended_by_gap` and
+   `last_value_date` after `dialysis_start` and `"recoveryHours":48` in
+   `analysis_settings`. At 390 px the page does not scroll sideways.
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 7
+by scripted walkthroughs with screenshots (steps 1, 4 and 7 again after the
+second review); a reduced version of steps 1 to 3
+and the ICU and CHR cases of step 6 are automated in
+`tests/e2e/aki-recovery.e2e.ts`. The k26 review file with
+times of day keeps its 4 episodes. Not verified: other browsers than
+Chromium and real research data.
+
 ## Combined branch of the persona review: fixes after its review (2026-11-21)
 
 Branch `integration/persona-review-2026-11-21` (all six branches of the

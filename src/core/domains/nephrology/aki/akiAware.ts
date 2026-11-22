@@ -5,11 +5,12 @@ import { fitOls } from '../../../stats/ols'
 import { datesToYears } from '../../../stats/time'
 import { findKdigoAkiEpisodes, type AkiEpisode } from './kdigo'
 import { isKdigoCreatinineSeries, normaliseUnit } from '../analytes'
-import { DEFAULT_AKI_EXCLUSION_DAYS, IMPLAUSIBLE_CREATININE_ABOVE_MGDL, MGDL_PER_UMOLL } from '../constants'
+import { DEFAULT_AKI_EXCLUSION_DAYS, DEFAULT_AKI_RECOVERY_HOURS, IMPLAUSIBLE_CREATININE_ABOVE_MGDL, MGDL_PER_UMOLL } from '../constants'
 import { fixedLengthWindow, type ReasonedExclusionWindow } from '../../../exclusions/windows'
 import type { ClinicalEvent } from '../../../events/events'
 
 const MS_PER_DAY = 86_400_000
+const MS_PER_HOUR = 3_600_000
 
 export interface DateBand {
   start: Date
@@ -98,6 +99,16 @@ export function isUnderDialysis(date: Date, events: readonly ClinicalEvent[]): b
   return false
 }
 
+/** Whether a day lies in a dated acute dialysis interval (`date` through
+ * `endDate`, both included). Its days do not count towards a gap of more
+ * than seven days, so an AKI episode continues across the interval (decided
+ * 2026-11-22, issue #67). */
+export function isInAcuteDialysisInterval(date: Date, events: readonly ClinicalEvent[]): boolean {
+  const day = utcDay(date)
+  return events.some((e) => e.type === 'dialysis' && e.intent === 'acute' && validDate(e.date) && validDate(e.endDate)
+    && day >= utcDay(e.date) && day <= utcDay(e.endDate))
+}
+
 /** Exact dated serum creatinine values of zero or less. They are ignored by
  * AKI detection and by eGFR derivation; the Data page reports their number. */
 export function nonPositiveCreatinineCount(rows: readonly LabRow[]): number {
@@ -160,9 +171,13 @@ export function implausiblyHighCreatinineRows(rows: readonly LabRow[]): LabRow[]
  * from (`LabRow.sourceSeries`); any other analyte uses the same patient's
  * creatinine series with the most exact dated rows. Names and units are never pooled.
  * Creatinine measured under dialysis (see `isUnderDialysis`; `events` are the
- * patient's clinical events) is left out before detection.
- * Returns [] when no eligible creatinine data exists. */
-export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null, events: readonly ClinicalEvent[] = []): AkiEpisode[] {
+ * patient's clinical events) is left out before detection; no episode ends on
+ * a value whose recovery window holds such a day, and an episode continues
+ * across a dated acute dialysis interval (`isInAcuteDialysisInterval`).
+ * `recoveryHours` is the recovery that separates two episodes (the AKI
+ * module setting, 48 by default). Returns [] when no eligible creatinine data
+ * exists. */
+export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichnung: string | null, einheit: string | null, events: readonly ClinicalEvent[] = [], recoveryHours = DEFAULT_AKI_RECOVERY_HOURS): AkiEpisode[] {
   // One pass over the dataset per call; callers pass every patient's rows.
   const own = rows.filter((r) => r.patientId === patientId)
   const sub = own.filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r))
@@ -187,5 +202,5 @@ export function episodesForSeries(rows: LabRow[], patientId: PatientId, bezeichn
     .filter((r) => r.wertNum !== null && r.labDatum !== null && isExactMeasurement(r) && !isUnderDialysis(r.labDatum, events))
     .sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())
     .map((r) => ({ date: r.labDatum!, timeOfDay: r.labTime ?? null, value: normaliseUnit(r.einheit) === 'µmol/l' ? r.wertNum! / MGDL_PER_UMOLL : r.wertNum! }))
-  return points.length > 0 ? findKdigoAkiEpisodes(points) : []
+  return points.length > 0 ? findKdigoAkiEpisodes(points, { recoveryMs: recoveryHours * MS_PER_HOUR, blocksRecovery: (date) => isUnderDialysis(date, events), bridgesGap: (date) => isInAcuteDialysisInterval(date, events) }) : []
 }
