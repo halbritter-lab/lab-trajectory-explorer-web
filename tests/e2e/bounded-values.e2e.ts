@@ -25,7 +25,7 @@ test('the demo UACR of patient 2 warns and follows the bounded-value setting', a
   await page.getByRole('checkbox', { name: /^Analyse trend:/ }).check()
 
   const cell = patientRow(page, '2')
-  await expect(cell.getByText(/\+159\.1/).first()).toBeVisible()
+  await expect(cell.getByText(/\+159\.06/).first()).toBeVisible()
   await expect(cell.getByText('60 % bounded').first()).toBeVisible()
 
   await page.getByRole('button', { name: /^Analysis settings:/ }).click()
@@ -34,11 +34,11 @@ test('the demo UACR of patient 2 warns and follows the bounded-value setting', a
   await expect(dialog.getByLabel('Bounded values')).toHaveValue('limit')
   await dialog.getByLabel('Bounded values').selectOption('half-limit')
   await page.getByRole('button', { name: 'Close analysis settings' }).click()
-  await expect(cell.getByText(/\+165\.1/).first()).toBeVisible()
+  await expect(cell.getByText(/\+165\.06/).first()).toBeVisible()
 
   await page.getByRole('button', { name: /^Analysis settings:/ }).click()
   await page.getByRole('dialog').getByLabel('Bounded values').selectOption('exclude')
   await page.getByRole('button', { name: 'Close analysis settings' }).click()
-  await expect(cell.getByText(/\+148\.9/).first()).toBeVisible()
+  await expect(cell.getByText(/\+148\.88/).first()).toBeVisible()
   await expect(cell.getByText('60 % bounded')).toHaveCount(0)
 })

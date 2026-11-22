@@ -70,7 +70,11 @@ the **natural logarithm** of the values (`logTransformedRows`):
    Segmented OLS, as for the column's slope), the same preset, the same
    censoring and exclusion windows (event censoring, dialysis intervals, AKI
    windows, as configured; they are dates and do not depend on the values),
-   bounds left out as in every fit, and the same time balancing. **Monthly or
+   bounds as the column's bounded-value setting says (since 2026-11-22: the
+   logarithm of the limit, of half the limit for `<x` under `half-limit`, or
+   left out under `exclude`; see
+   [bounded values](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22)),
+   and the same time balancing. **Monthly or
    quarterly medians are medians of the log values**: for an odd count this is
    the log of the median value; for an even count it is the mean of the two
    middle logs, the log of their geometric mean, which can differ from the

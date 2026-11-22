@@ -49,7 +49,8 @@ export interface LogTrend {
 /** The rows of a patient with the values of one series replaced by their
  * natural logarithm. A series value of zero or less becomes a row without a
  * numeric value, so the fit pipeline treats it as absent. Bounds (`<x`, `>x`)
- * keep their operator and stay out of every fit, as on the linear scale. */
+ * keep their operator; the caller substitutes their policy value first and
+ * runs the log fit with the policy `limit` or `exclude` (issue #73). */
 export function logTransformedRows(rows: readonly LabRow[], isSeriesRow: (row: LabRow) => boolean): { rows: LabRow[]; nNonPositive: number } {
   let nNonPositive = 0
   const out = rows.map((row) => {

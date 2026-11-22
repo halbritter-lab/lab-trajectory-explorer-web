@@ -1070,3 +1070,27 @@ root by `tests/e2e/self-hosted-r.e2e.ts` (CI, `pnpm preview`) and under
 Firefox and WebKit, GitHub Pages itself (how it serves the `.gz` and `.tgz`
 files), and the checksum failure inside the build (covered by unit tests of
 the script).
+
+## Bounded values in fits (2026-11-22, issue #73)
+
+1. Load the demo, Trajectories, only Albumin/Kreatinin-Quotient [mg/g], Trend
+   on, Cell details full: patient 2 shows "OLS: +159.06 mg/g/year" and the
+   caution "60 % bounded" (`<30`, 45, 120, `>300`, `>300`).
+2. Analysis settings of the parameter, Calculation settings, "Bounded values":
+   "Limit" is selected; "Half limit" gives +165.06, "Exclude" +148.88 (the
+   exact two-point line, "n < 3") and no caution.
+3. Open patient 2: the measurement table reads "Available before time
+   balancing; bounded value, enters the fit at its limit (300)" for the `>300`
+   rows (with Trend on), and the chart note "They enter the trend at their
+   limit and are excluded from endpoints."
+4. Export the cohort: `n_bounded` 3 stands before `group`; `fit_config` ends
+   with `"boundedValues":"limit"`. Reload the page with "Remember on this
+   device": the setting is kept.
+5. Cohort models, fit, "Export models (xlsx)": `model_input_flags` ends with
+   `operator`; `r_script` ends with the commented "Sensitivity analysis" block
+   before `sessionInfo()`.
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 and 2 by
+`tests/e2e/bounded-values.e2e.ts`; steps 3 to 5 by unit tests
+(`tests/core/boundedValuePolicy.test.ts`, `tests/workspace/saved-settings.test.ts`,
+the export schema tests), not clicked through.
