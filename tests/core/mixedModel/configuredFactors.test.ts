@@ -21,10 +21,14 @@ it('generates safe factor formulas with explicit interactions and distinct refer
   expect(mixedModelFormulaKey(config)).not.toBe(mixedModelFormulaKey({...config, factors: [{...config.factors![0], reference: 'B'}, config.factors![1]]}))
   expect(mixedModelFormula({...config, covariates: ['baseline_age'], factors: []})).not.toContain('baseline_age_centered')
 })
-it('rejects duplicate factors, invalid kinds/effects and absent categorical references', () => {
-  for (const factors of [[config.factors![0],config.factors![0]], [{key:'x',kind:'bad',effect:'level'}], [{key:'x',kind:'numeric',effect:'bad'}], [{key:'x',kind:'categorical',effect:'level'}]]) {
+it('rejects duplicate factors, invalid kinds/effects, blank references and invalid type or reference sources', () => {
+  for (const factors of [[config.factors![0],config.factors![0]], [{key:'x',kind:'bad',effect:'level'}], [{key:'x',kind:'numeric',effect:'bad'}], [{key:'x',kind:'categorical',effect:'level',reference:' '}],
+    [{key:'x',kind:'categorical',effect:'level',referenceSource:'default'}], [{key:'x',kind:'numeric',effect:'level',referenceSource:'default'}], [{key:'x',kind:'numeric',effect:'level',kindSource:'other'}]]) {
     expect(validateMixedModelConfig({...config, factors} as MixedModelConfig).ok).toBe(false)
   }
+  // Since 2026-11-22 (OD-29) a categorical factor without a reference is valid: each unit takes its first level.
+  expect(validateMixedModelConfig({...config, factors: [{key:'x',kind:'categorical',effect:'level'}]}).ok).toBe(true)
+  expect(validateMixedModelConfig({...config, factors: [{key:'x',kind:'categorical',effect:'level',kindSource:'user'}]}).ok).toBe(true)
 })
 it('requires complete, patient-constant factors and existing reference levels', () => {
   expect(validateMixedModelRows(rows, config).ok).toBe(true)

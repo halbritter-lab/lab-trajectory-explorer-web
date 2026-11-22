@@ -10,7 +10,12 @@ export interface AvailableMixedModelFactor {
   key: string
   label: string
   levels: string[]
+  /** The automatic type: numeric when every level is a number. */
   numeric: boolean
+  /** Whether the user may switch the type (OD-22): attributes other than
+   * baseline age and sex. Numeric is offered only when a level is a number. */
+  typeSwitchable: boolean
+  anyNumericLevel: boolean
 }
 
 /** Prepare only patient covariates. Measurement selection/time origin is owned
@@ -87,8 +92,9 @@ export function prepareMixedModelFactors(
   return { rows: selected, preparation }
 }
 
-/** Values from patients present in this scope only. Type suggestions are not
- * automatic conversions; the model dialog explicitly selects factor kinds. */
+/** Values from patients present in this scope only. `numeric` is the
+ * automatic type, applied when the factor is added; the user can switch an
+ * attribute's type afterwards (OD-22, 2026-11-22). */
 export function availableMixedModelFactors(resolvedRows: readonly LabRow[], attributes: Attributes): AvailableMixedModelFactor[] {
   const patientIds = new Set(resolvedRows.map((row) => patientIdKey(row.patientId)))
   const keys = new Set(['baseline_age', 'sex'])
@@ -100,11 +106,14 @@ export function availableMixedModelFactors(resolvedRows: readonly LabRow[], attr
       : [...patientIds].map((id) => key === 'sex' ? patientSex(id, sexes, attributes) : attributeValue(attributes, id, key))
         .filter((value): value is string => value !== undefined && value !== null && value.trim() !== '')
     const levels = [...new Set(values.map((value) => value.trim()))].sort()
+    const builtIn = key === 'baseline_age' || key === 'sex'
     return {
       key,
       label: key === 'baseline_age' ? 'Baseline age' : key === 'sex' ? 'Sex' : key,
       levels,
       numeric: key === 'baseline_age' || (key !== 'sex' && levels.length > 0 && levels.every((value) => finiteNumeric(value) !== null)),
+      typeSwitchable: !builtIn && levels.length > 0,
+      anyNumericLevel: key === 'baseline_age' || (key !== 'sex' && levels.some((value) => finiteNumeric(value) !== null)),
     }
   })
 }

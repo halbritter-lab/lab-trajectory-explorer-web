@@ -110,7 +110,12 @@ export function mixedModelExportSheets(
       residual_sd: result.status === 'success' ? result.residualSd ?? null : null,
     })
     if (config) mixedModelFactors(config).forEach((factor, index) => {
-      factors.push({ entity, ...factor, column: mixedModelFactorColumn(factor, index), unit_key: unitKey })
+      const { kindSource, referenceSource, ...rest } = factor
+      factors.push({ entity, ...rest, column: mixedModelFactorColumn(factor, index), unit_key: unitKey,
+        // Whether the type was the automatic one (OD-22) and the reference the
+        // default, the first level among this unit's model rows (OD-29).
+        kind_source: kindSource ?? 'automatic',
+        reference_source: factor.kind !== 'categorical' ? undefined : referenceSource === 'default' ? 'default_first_level_in_model' : 'user' })
     })
     for (const [column, mean] of Object.entries(preparation?.centers ?? {})) {
       centers.push({ entity, column, patient_weighted_mean: mean, unit_key: unitKey })
@@ -183,7 +188,7 @@ export function mixedModelExportSheets(
 }
 
 /** Columns added to the 0.3.7 sheets, in the order they were added. */
-const COLUMNS_SINCE_0_3_7 = ['std_error', 'unit_key', 'intercept_sd', 'slope_sd', 'intercept_slope_correlation', 'residual_sd']
+const COLUMNS_SINCE_0_3_7 = ['std_error', 'unit_key', 'intercept_sd', 'slope_sd', 'intercept_slope_correlation', 'residual_sd', 'kind_source', 'reference_source']
 
 /** Gives every row of a 0.3.7 sheet the same keys in one order: the 0.3.7
  * columns in the order they first appear across the rows, as the workbook

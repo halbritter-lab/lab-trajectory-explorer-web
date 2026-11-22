@@ -125,7 +125,8 @@ describe('R reproduction export', () => {
     const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name],{header:1})[0]
     expect(header('coefficients')).toEqual(['entity','outcome','unit','term','label','estimate','ci_lower','ci_upper','std_error','unit_key'])
     expect(header('factors').slice(0,1)).toEqual(['entity'])
-    expect(header('factors').at(-1)).toBe('unit_key')
+    // The type and reference sources added on 2026-11-22 (OD-22, OD-29) follow unit_key.
+    expect(header('factors').slice(-3)).toEqual(['unit_key','kind_source','reference_source'])
     expect(header('models').slice(0,2)).toEqual(['entity','series_key'])
     // unit_key, then the variance components added on 2026-11-21.
     expect(header('models').slice(-5)).toEqual(['unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
@@ -188,9 +189,10 @@ describe('R reproduction export', () => {
       {entity:'Whole cohort',result:fitted,identity:{seriesKey:'eGFR|ml/min'}},
       {entity:'G1',result:failed,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'}},
     ])
-    expect(header(mixed,'factors')).toEqual(['entity','key','kind','effect','column','reference','unit_key'])
+    // kind_source and reference_source added on 2026-11-22 (OD-22, OD-29), after unit_key.
+    expect(header(mixed,'factors')).toEqual(['entity','key','kind','effect','column','reference','unit_key','kind_source','reference_source'])
     expect(header(mixed,'models').slice(-7)).toEqual(['singular','message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
-    expect(XLSX.utils.sheet_to_json(XLSX.read(sheetsToXlsxBytes(mixed),{type:'array'}).Sheets.factors)[0]).toEqual({entity:'Whole cohort',key:'baseline_age',kind:'numeric',effect:'level_slope',column:'baseline_age_centered',unit_key:'cohort'})
+    expect(XLSX.utils.sheet_to_json(XLSX.read(sheetsToXlsxBytes(mixed),{type:'array'}).Sheets.factors)[0]).toEqual({entity:'Whole cohort',key:'baseline_age',kind:'numeric',effect:'level_slope',column:'baseline_age_centered',unit_key:'cohort',kind_source:'automatic'})
     // A unit without projection targets (fewer columns) before one with a target.
     const base = {status:'success', converged:true, singular:false, metadata:{}, warnings:[], fixedEffects:{intercept:80,timeSinceBaseline:5}, fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as unknown as MixedModelSuccess
     const second = {...base} as MixedModelSuccess

@@ -93,7 +93,15 @@ export function mixedModelRScript(models: readonly { entity: string; result: Mix
     }
     const name = rStringLiteral(mixedModelUnitKey(identity))
     const versions = Object.entries(result.metadata.packageVersions).map(([pkg, version]) => `${pkg} ${version}`).join('; ')
+    const factorNotes = mixedModelFactors(config).map((factor, index) => {
+      const column = mixedModelFactorColumn(factor, index)
+      const type = `${factor.kind}${factor.kindSource === 'user' ? ' (type chosen by the user)' : ' (automatic type)'}`
+      const reference = factor.kind !== 'categorical' ? ''
+        : `, reference ${factor.reference ?? 'unknown'}${factor.referenceSource === 'default' ? ' (default: first level among these model rows)' : ' (chosen by the user)'}`
+      return `# ${column} = ${comment(factor.key)}: ${type}${comment(reference)}`
+    })
     const unitLines = [
+      ...factorNotes,
       `cat(${rStringLiteral(`Browser fit of ${entity}: R ${result.metadata.runtimeVersion ?? 'version unknown'} (webR); ${versions || 'package versions unknown'}`)}, "\\n")`,
       `mm_unit <- mm_rows[mm_rows$unit_key == ${name}, , drop = FALSE]`,
       'mm_patient_id <- as.character(mm_unit$patient_id)',

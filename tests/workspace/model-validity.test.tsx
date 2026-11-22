@@ -128,7 +128,8 @@ describe('workspace model validity', () => {
   it('builds a valid Group interaction factor for numeric and categorical attributes', () => {
     // Formerly a numeric attribute received a reference level, which no fit accepts (OD-23).
     expect(groupInteractionFactor('dose', { numeric: true, levels: ['1', '2'] })).toEqual({ key: 'dose', kind: 'numeric', effect: 'level_slope' })
-    expect(groupInteractionFactor('arm', { numeric: false, levels: ['A', 'B'] })).toEqual({ key: 'arm', kind: 'categorical', effect: 'level_slope', reference: 'A' })
+    // No chosen reference since 2026-11-22: each model takes the first level among its patients (OD-29).
+    expect(groupInteractionFactor('arm', { numeric: false, levels: ['A', 'B'] })).toEqual({ key: 'arm', kind: 'categorical', effect: 'level_slope' })
     expect(validateMixedModelConfig({ timeAxis: 'time_since_baseline', covariates: [], factors: [groupInteractionFactor('dose', { numeric: true, levels: ['1', '2'] })], randomEffects: 'intercept_slope' }).ok).toBe(true)
   })
   it('discards fitted models when a Trajectories setting changes the model measurements, not otherwise', () => {

@@ -16,6 +16,7 @@ import {
   type MixedModelConfig,
   type MixedModelFactor,
   mixedModelFactors,
+  resolveMixedModelFactorReferences,
 } from '../core/mixedModel/config'
 import { prepareMixedModelCohortRows } from '../core/mixedModel/cohortDataset'
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mixedModel/factors'
@@ -288,14 +289,13 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
       })
     } else if (newPreset === 'demographic') {
       setGroupByAttribute(null)
-      const sexFactor = availableFactors.find(f => f.key === 'sex')
-      const defaultSexRef = sexFactor?.levels[0] ?? 'w'
       setMixedModelConfig({
         timeAxis: 'time_since_baseline',
         covariates: ['baseline_age'],
         factors: [
           { key: 'baseline_age', kind: 'numeric', effect: 'level' },
-          { key: 'sex', kind: 'categorical', effect: 'level', reference: defaultSexRef },
+          // Reference: the first sex code among each model's patients (OD-29).
+          { key: 'sex', kind: 'categorical', effect: 'level' },
         ],
         randomEffects: 'intercept_slope',
       })
@@ -319,15 +319,22 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
     if (patch) {
       const factorDef = availableFactors.find(f => f.key === key)
-      const defaultKind = key === 'baseline_age' || (factorDef?.numeric ?? false) ? 'numeric' : 'categorical'
-      const defaultRef = factorDef?.levels[0] ?? undefined
-      const updated: MixedModelFactor = {
+      const automaticKind = key === 'baseline_age' || (factorDef?.numeric ?? false) ? 'numeric' : 'categorical'
+      // A categorical factor without a reference takes the first level among
+      // the patients of each fitted model (OD-29).
+      const merged: MixedModelFactor = {
         key,
-        kind: defaultKind,
+        kind: automaticKind,
         effect: 'level',
-        reference: defaultKind === 'categorical' ? defaultRef : undefined,
         ...(index >= 0 ? currentFactors[index] : {}),
         ...patch,
+      }
+      const { reference, kindSource: _kindSource, referenceSource: _referenceSource, ...rest } = merged
+      const updated: MixedModelFactor = {
+        ...rest,
+        ...(merged.kind === 'categorical' && reference !== undefined ? { reference } : {}),
+        // Recorded only when the type differs from the automatic one (OD-22).
+        ...(merged.kind !== automaticKind ? { kindSource: 'user' as const } : {}),
       }
       if (index >= 0) currentFactors[index] = updated
       else currentFactors.push(updated)
@@ -385,13 +392,21 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
 
   const activeFactors = mixedModelFactors(mixedModelConfig)
   // Categorical estimates are contrasts against this level; it is shown, not
-  // left implicit, because the default is simply the first level found.
-  const categoricalReferences = activeFactors.flatMap(factor => {
+  // left implicit. The default is the first level among each model's
+  // patients (OD-29), so the whole cohort and a group can differ.
+  const categoricalReferences = activeFactors.flatMap((factor, index) => {
     if (factor.kind !== 'categorical') return []
-    const levels = availableFactors.find(f => f.key === factor.key)?.levels ?? []
-    const reference = factor.reference ?? levels[0]
-    if (reference === undefined) return []
-    return [{ label: factor.key === 'sex' ? 'Sex' : factor.key, reference, isDefault: reference === levels[0] }]
+    const label = factor.key === 'sex' ? 'Sex' : factor.key
+    if (factor.reference !== undefined) return [`${label} = ${factor.reference} (chosen)`]
+    const perUnit = entities.flatMap(item => {
+      const resolved = resolveMixedModelFactorReferences(mixedModelConfig, item.rows).factors?.[index]?.reference
+      return resolved === undefined ? [] : [{ unit: item.entity.kind === 'cohort' ? 'the whole cohort' : item.entity.value, reference: resolved }]
+    })
+    if (perUnit.length === 0) return []
+    const note = ' (default: the first level among the patients in the model; choose another next to the factor)'
+    return new Set(perUnit.map(item => item.reference)).size === 1
+      ? [`${label} = ${perUnit[0].reference}${note}`]
+      : [`${label} = ${perUnit.map(item => `${item.reference} in ${item.unit}`).join(', ')}${note}`]
   })
   const inactiveFactors = availableFactors.filter(f => !activeFactors.some(af => af.key === f.key))
   const sampleSummary = prepareMixedModelFactors(mixedModelRows, mixedModelConfig, data.patientAttributes ?? {}, data.rows ?? [])
@@ -598,12 +613,24 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                       <option value="level_slope">Shifts level and slope</option>
                     </select>
 
+                    {factorDef?.typeSwitchable && (
+                      <select
+                        aria-label={`${label} type`}
+                        value={factor.kind}
+                        onChange={e => updateFactor(factor.key, { kind: e.target.value as MixedModelFactor['kind'], reference: undefined })}
+                      >
+                        <option value="numeric" disabled={!factorDef.anyNumericLevel && factor.kind !== 'numeric'}>Numeric{factorDef.numeric ? ' (automatic)' : ''}</option>
+                        <option value="categorical">Categorical{factorDef.numeric ? '' : ' (automatic)'}</option>
+                      </select>
+                    )}
+
                     {factor.kind === 'categorical' && factorDef?.levels && factorDef.levels.length > 0 && (
                       <select
                         aria-label={`${label} reference`}
-                        value={factor.reference ?? factorDef.levels[0]}
-                        onChange={e => updateFactor(factor.key, { reference: e.target.value })}
+                        value={factor.reference ?? ''}
+                        onChange={e => updateFactor(factor.key, { reference: e.target.value === '' ? undefined : e.target.value })}
                       >
+                        <option value="">Ref: first level in the model</option>
                         {factorDef.levels.map(lvl => (
                           <option key={lvl} value={lvl}>Ref: {lvl}</option>
                         ))}
@@ -654,7 +681,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           ? <p className="muted">The settings of this parameter define no event or AKI windows, so nothing is excluded. To leave out values after transplant or dialysis and in AKI windows, choose “CKD progression” under Data preparation.</p>
           : <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>)}
         {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label="Reference categories">
-          Reference categories: {categoricalReferences.map(item => `${item.label} = ${item.reference}${item.isDefault ? ' (first level by default; change it next to the factor)' : ''}`).join('; ')}
+          Reference categories: {categoricalReferences.join('; ')}
         </p>}
         {levelCounts.length > 0 && <p className="muted cm-level-counts" aria-label="Patients per level">
           Whole cohort, patients per level (with enough measurement times): {levelCounts.map(([key, levels]) => `${key === 'sex' ? 'Sex' : key}: ${levels.map(item => `${item.level} ${item.patients} (${item.qualifying})`).join(', ')}`).join('; ')}

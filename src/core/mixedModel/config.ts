@@ -6,7 +6,17 @@ export interface MixedModelFactor {
   key: string
   kind: 'numeric' | 'categorical'
   effect: 'level' | 'level_slope'
+  /** A categorical factor's reference level. Absent: the default, the first
+   * level among the model rows of each fitted unit, filled in per unit by
+   * `resolveMixedModelFactorReferences` before the fit (OD-29, 2026-11-22). */
   reference?: string
+  /** `'user'` when the type was switched away from the automatic choice
+   * (OD-22, 2026-11-22); absent means the automatic type. */
+  kindSource?: 'automatic' | 'user'
+  /** Set by `resolveMixedModelFactorReferences`: `'default'` when the
+   * reference was filled in from the unit's model rows. Absent with a
+   * reference means the user chose it. */
+  referenceSource?: 'default'
 }
 
 export interface MixedModelConfig {
@@ -18,6 +28,40 @@ export interface MixedModelConfig {
 
 export function mixedModelFactors(config: MixedModelConfig): MixedModelFactor[] {
   return config.factors ?? config.covariates.map(key => ({ key, kind: 'numeric', effect: 'level' }))
+}
+
+/** Whether every categorical factor names its reference level, as the R code
+ * needs it; true without categorical factors. */
+export function mixedModelReferencesResolved(config: MixedModelConfig): boolean {
+  return mixedModelFactors(config).every(factor => factor.kind !== 'categorical' || typeof factor.reference === 'string')
+}
+
+/** The configuration one unit is fitted with: each categorical factor without
+ * a reference gets the first of its levels among `rows` in ascending string
+ * order (JavaScript default sort, by UTF-16 code unit), marked
+ * `referenceSource: 'default'` (OD-29, decided 2026-10-07, implemented
+ * 2026-11-22). A reference the user chose is kept, also where the unit lacks
+ * it. Without rows for a factor its reference stays absent and validation
+ * rejects the unit. Returns `config` itself when nothing is filled in. */
+export function resolveMixedModelFactorReferences(
+  config: MixedModelConfig,
+  rows: readonly { factorValues?: Record<string, number | string> }[],
+): MixedModelConfig {
+  if (config.factors === undefined || config.factors.every(factor => factor.kind !== 'categorical' || factor.reference !== undefined)) return config
+  return {
+    ...config,
+    factors: config.factors.map((factor, index) => {
+      if (factor.kind !== 'categorical' || factor.reference !== undefined) return factor
+      const column = mixedModelFactorColumn(factor, index)
+      const levels = rows.flatMap(row => {
+        const value = row.factorValues?.[column]
+        return typeof value === 'string' && value.trim() ? [value] : []
+      })
+      if (levels.length === 0) return factor
+      const reference = [...new Set(levels)].sort()[0]
+      return { ...factor, reference, referenceSource: 'default' as const }
+    }),
+  }
 }
 
 export function mixedModelFactorColumn(factor: MixedModelFactor, index: number): string {
@@ -48,10 +92,12 @@ export function validateMixedModelConfig(config: MixedModelConfig): MixedModelCo
     for (const factor of config.factors) {
       if (!factor || typeof factor.key !== 'string' || !factor.key.trim() || seen.has(factor.key) ||
           !['numeric', 'categorical'].includes(factor.kind) || !['level', 'level_slope'].includes(factor.effect) ||
-          (factor.kind === 'categorical' && (typeof factor.reference !== 'string' || !factor.reference.trim())) ||
-          (factor.kind === 'numeric' && factor.reference !== undefined) ||
+          (factor.kind === 'categorical' && factor.reference !== undefined && (typeof factor.reference !== 'string' || !factor.reference.trim())) ||
+          (factor.kind === 'numeric' && (factor.reference !== undefined || factor.referenceSource !== undefined)) ||
+          (factor.referenceSource !== undefined && (factor.referenceSource !== 'default' || factor.reference === undefined)) ||
+          (factor.kindSource !== undefined && !['automatic', 'user'].includes(factor.kindSource)) ||
           (factor.key === 'baseline_age' && factor.kind !== 'numeric')) {
-        return { ok: false, code: 'UNSUPPORTED_CONFIG', message: 'Invalid or duplicate mixed-model factor; categorical factors require a reference level.' }
+        return { ok: false, code: 'UNSUPPORTED_CONFIG', message: 'Invalid or duplicate mixed-model factor.' }
       }
       seen.add(factor.key)
     }
