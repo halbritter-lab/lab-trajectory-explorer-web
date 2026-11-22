@@ -1,5 +1,46 @@
 # Manual browser smoke checklist
 
+## Open points of the persona review (2026-11-22)
+
+Verified 2026-11-22 on branch `chore/persona-review-open-details` with
+ad-hoc Playwright scripts against the production build in Chromium (1440 px
+and 390 px), with the demo data, the review file with times of day, the
+800-patient review file and small synthetic files.
+
+- Review file with times of day: cohort export writes `time_of_day`
+  (`06:00:00`, `20:00:00`, empty without a time) in both measurement sheets;
+  loaded again, the same 4 AKI episodes and the same `input_data_id`. The
+  measurement table of ANSTIEG-ZEIT shows "01/09/2026 06:00" 1.0 before
+  "01/09/2026 20:00" 1.6, with "Fit disabled" on each row.
+- Events file with 3024-05-08 and an end date 2099-12-31, lab birth date
+  2030-02-01: "Implausible event date 3024-05-08 (after the import day
+  2026-11-22); the event is used unchanged.", the same for the end date, and
+  "Birth date 2030-02-01 is after the import day 2026-11-22; it is used
+  unchanged."
+- Then an events file with two invalid rows: the alert "No usable events …";
+  the events stay, and the diagnostics list "Events (events.csv,
+  bad-events.csv, 2 rows rejected)" with both rejected rows.
+- eGFR series ending with `<15`: the table cell reads "<15", with a trend
+  "latest <15"; another patient "latest 35".
+- Demo, grouped by `cohort`: `settings` ends with `group_by` = `cohort` on
+  every row; ungrouped it is empty.
+- Demo, patient 6, Display → AKI windows and episodes, Trend not ticked:
+  under the Kreatinin and eGFR charts "In this column nothing is excluded for
+  AKI (it has no fit): the shaded band only shows the configured 30 days
+  after each onset."
+- Demo, Cohort models, whole cohort: "73.15 ml/min/1,73m² 95% interval
+  [67.41, 78.88]". A synthetic file with 7 single-measurement patients:
+  "7 patients have a single measurement in this model. … Patients: S13, S14,
+  S15, S16, S17 and 2 more."; the R warning on the singular fit is shown as
+  recorded.
+- 800 patients, 1440 px and 390 px: the header row of the table stays at the
+  top of the table box while the rows scroll inside it, the ID column stays
+  at the left; the pager below the table is reached when the box is at its
+  end; Next starts the new page at its first row; back from a patient the
+  position inside the box is restored. At 390 px the top bar reads "1–50 of
+  800" between Previous and Next, with no horizontal page scroll.
+- Methods → AKI detection → AKI Timing: the two paragraphs of draft G1.
+
 ## Combined branch of the persona review: fixes after its review (2026-11-21)
 
 Branch `integration/persona-review-2026-11-21` (all six branches of the
