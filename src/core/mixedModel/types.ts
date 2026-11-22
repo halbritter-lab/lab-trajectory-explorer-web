@@ -38,6 +38,24 @@ export interface MixedModelPreparationSummary {
   nMeasurementsBefore: number
   excludedPatients: Array<{ patientId: string; reasons: string[] }>
   centers: Record<string, number>
+  /** Per categorical factor and level of this unit, how the minimum per
+   * level was applied (decision `genomin`, 2026-11-22). Absent without a
+   * categorical factor. */
+  levelPooling?: MixedModelLevelPooling[]
+}
+
+/** One level of a categorical factor in one unit, before pooling. */
+export interface MixedModelLevelPooling {
+  factor: string
+  column: string
+  /** The level as read (a "not tested" value already as `not tested`). */
+  level: string
+  /** The level the patients enter the model with; empty when excluded. */
+  modelLevel: string
+  patients: number
+  /** Patients with at least two model rows: the count the minimum applies to. */
+  patientsWithRepeated: number
+  action: 'kept' | 'pooled' | 'kept_below_minimum' | 'excluded_not_tested'
 }
 
 export interface MixedModelProductionRow extends MixedModelSpikeRow {

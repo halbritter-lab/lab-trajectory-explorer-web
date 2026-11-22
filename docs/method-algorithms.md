@@ -98,6 +98,10 @@ it; the way the tool applies it is its own.
 | Height for CKiD U25 and bedside Schwartz | The equations (Pierce 2021, Schwartz 2009) need a height; how a creatinine value gets one is this tool's rule: the height of the same day, or a linear interpolation between two heights both at most 90 days away (30 days under 2 years), never extrapolated (owner decision `height`, 2026-11-22; no source sets the gap). | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 | Bounded-value substitution and the 20 % warning | Substituting the limit or half of it for a censored value is a common convention whose bias at high censored fractions is documented (Hornung and Reed 1990; Hughes 1999). The three settings, the default `limit`, counting a median bin as bounded when it holds a bound and the warning at 20 % of the fitted points are this tool's rules (decided 2026-11-21 and 2026-11-22). | [Bounded values in individual fits](method-algorithms/bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22) |
 | Slope reliability rule | Fewer than three fitted dates or under 365 days of fitted span: a clinical rule of thumb, not a published cut-off. | [Reliability rule](method-algorithms/slope-quality.md#reliability-rule) |
+| Minimum per cohort-model factor level | Pre-specified variant classes follow Cornec-Le Gall et al. (JASN 2016); the minimum of 5 patients with 2 or more model rows per level, pooling into "other (pooled)" and removing a small "not tested" level are this tool's rules (decided 2026-11-22). | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| "Not tested" vocabulary | Keeping "not tested" apart from "no variant" follows Groenwold et al. (CMAJ 2012); the four recognised texts are this tool's list (2026-11-22). | [Columns](method-algorithms/import-and-values.md#columns) |
+| Baseline UACR window | The 90-day window around the model baseline and the nearest-date rule for the optional log baseline UACR covariate are this tool's rules (2026-11-22). | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| Dropout report and joint-model suggestion | KRT and death as informative dropout follow Vonesh et al. (Stat Med 2006); the event types counted as KRT, loss after 365 days without a model row before the data end and the suggestion above 10 % KRT or death are this tool's rules (decided 2026-11-22). | [Which measurements enter](method-algorithms/cohort-models.md#which-measurements-enter) |
 
 ## Open decisions
 
@@ -130,6 +134,9 @@ implemented with the option that changes least. OD-38 was added on
 of its decision and resolved the same day: the decision prescribes calendar
 days.
 
+OD-55 to OD-59 were added on 2026-11-22 with the cohort-model decisions of that day (`genomin`,
+`genomiss`, `uacr`, `dropout`; issue #4), for the details those decisions
+leave open; each is implemented with the conservative option.
 OD-60 to OD-63 were added on 2026-11-22 with the bounded-value setting of
 issue #73, for cases its decisions of 2026-11-21 and 2026-11-22 do not name;
 each is implemented with the option that changes least.
@@ -139,6 +146,11 @@ leave a gap, the conservative option is implemented.
 
 | ID | Open question | Section |
 | --- | --- | --- |
+| OD-55 | Owner-defined classes of factor levels (for example truncating and non-truncating variants) need a mapping from levels to classes, which is not built; every small level is pooled into "other (pooled)". | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| OD-56 | A pooled level that still has fewer than 5 patients with 2 or more model rows is kept in the model with a note; when all levels are pooled the factor fails for lack of variation. The removal of small "not tested" levels runs once, before pooling. | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| OD-57 | The "not tested" vocabulary applies to cohort-model factors only; grouping keeps the imported spellings, so `NT` and `not tested` are two groups there. | [Columns](method-algorithms/import-and-values.md#columns) |
+| OD-58 | The UACR series of the log baseline UACR covariate is recognised by name; with several UACR series (for example in mg/g and mg/mmol) the covariate is not offered and the user cannot choose one. | [Factors and covariates](method-algorithms/cohort-models.md#factors-and-covariates) |
+| OD-59 | The dropout report counts a kidney transplant or chronic dialysis as KRT (not dialysis of unknown intent), calls a patient lost after more than 365 days without a model row before the latest lab date of the dataset, and applies the 10 % threshold to the whole unit, not per level. Death is counted once an event type `death` exists. | [Which measurements enter](method-algorithms/cohort-models.md#which-measurements-enter) |
 | OD-60 | `n_bounded` and the 20 % warning are defined on fitted values (decision of 2026-11-21), so under `exclude` they are 0 and silent even when most raw values of a series are bounds and leaving them out biases the slope. Should `exclude` warn on the raw share? | [Bounded values in individual fits](method-algorithms/bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22) |
 | OD-61 | A conclusive bound (for example `>60`) after a confirmed G4/G5 event is not recorded as recovery; the decision of 2026-11-22 names only the reset of a candidate. Should it record recovery, with the limit as value? | [Bounds and endpoints](method-algorithms/bounded-measurements.md#bounds-and-endpoints-2026-11-22) |
 | OD-62 | Bounds do not interrupt a 40 % or 57 % decline candidate, although `>x` can prove the decline from the baseline was below the threshold that day; the decision names G4/G5 only. | [Bounds and endpoints](method-algorithms/bounded-measurements.md#bounds-and-endpoints-2026-11-22) |

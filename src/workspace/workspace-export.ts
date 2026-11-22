@@ -9,6 +9,7 @@ import { patientAttributesExportRows } from '../core/attributes/attributes'
 import { patientIdKey, type LabRow, type PatientId } from '../core/types'
 import { exportTimeOfDay, utcDateOrBlank } from '../core/format'
 import { demographicWarningsByPatient } from '../core/demographics/describe'
+import { normaliseSex } from '../core/demographics/sex'
 import { fileStamp, sheetsToXlsxBytes, svgElementToString, type WorkbookSheet } from '../io/export'
 import { COHORT_SHEET_HEADER, cohortColumnDirectoryRows, cohortSheetRow } from './cohort-sheet-columns'
 import { workspaceSpecs, type WorkspaceData } from './workspace-data'
@@ -88,7 +89,7 @@ const seriesIdentity = (name: string | null, unit: string | null) => JSON.string
 export const MEASUREMENT_SHEET_HEADER = ['PatientID','Date','Parameter','Unit','Value','NumericValue','Operator','origin','formula','patient_sex','patient_age_at_lab','demographics','loinc','patient_birth_date','time_of_day','egfr_equation','egfr_height_cm'] as const
 export const EVENTS_SHEET_HEADER = ['PatientID','type','date','title','description','endDate','intent','warning'] as const
 export const AKI_EPISODES_SHEET_HEADER = ['PatientID','creatinine_parameter','creatinine_unit','stage','onset_date','peak_date','peak_value_mg_dl','baseline_date','baseline_value_mg_dl','criterion','end_date','dialysis_start','ended_by_gap','last_value_date'] as const
-export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings','egfr_source_parameter','egfr_source_unit'] as const
+export const DEMOGRAPHICS_SHEET_HEADER = ['PatientID','baseline_age','birth_anchor','age_estimated','manual_override','warnings','egfr_source_parameter','egfr_source_unit','egfr_male_coefficients_for_sex_d'] as const
 export const PARAMETERS_SHEET_HEADER = ['parameter_key','parameter','unit','origin','formula','source_parameter','source_unit','loinc'] as const
 export const ROLLING_WINDOWS_SHEET_HEADER = ['PatientID','Parameter','Unit','window','window_start','window_end','first_date','last_date','n','slope'] as const
 export const IMPORT_DIAGNOSTICS_SHEET_HEADER = ['source','sheet','kind','row','patient_id','date','parameter','value','message'] as const
@@ -206,6 +207,12 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
   // One creatinine series per patient (issue #65): the selected source or the patient's µmol/l fallback.
   const egfrSourceByPatient = new Map<string,{bezeichnung: string; einheit: string}>()
   for (const row of data.rows) if (row.sourceSeries && !egfrSourceByPatient.has(patientIdKey(row.patientId))) egfrSourceByPatient.set(patientIdKey(row.patientId),row.sourceSeries)
+  // Decision `sexd` (2026-11-22): the eGFR equations use the male coefficients for sex d.
+  const egfrSexDByPatient = new Map<string,boolean>()
+  for (const row of data.rows) if (row.sourceSeries) {
+    const key = patientIdKey(row.patientId)
+    egfrSexDByPatient.set(key,(egfrSexDByPatient.get(key) ?? false) || normaliseSex(row.patientSex) === 'd')
+  }
   // Sex, baseline age and the group follow the columns of earlier releases;
   // `group` is always last and empty without grouping (decided 2026-11-21).
   // A slope of the computed eGFR fitted across a change of its equation (issue #66).
@@ -248,7 +255,9 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       // Appended 2026-11-22 (issue #65): the creatinine series this patient's computed eGFR was derived from.
       const egfrSource = egfrSourceByPatient.get(patientIdKey(id))
       return {PatientID:id,baseline_age:patient?.baselineAge ?? null,birth_anchor:utcDateOrBlank(patient?.birthAnchor ?? null),age_estimated:patient?.ageEstimated ?? null,manual_override:JSON.stringify(data.manualDemographics[patientIdKey(id)] ?? {}),warnings:warningsFor(id).join('; '),
-        egfr_source_parameter:egfrSource?.bezeichnung ?? '',egfr_source_unit:egfrSource?.einheit ?? ''}
+        egfr_source_parameter:egfrSource?.bezeichnung ?? '',egfr_source_unit:egfrSource?.einheit ?? '',
+        // Appended 2026-11-22 (decision `sexd`): true when a computed eGFR value of the patient used the male coefficients for sex d.
+        egfr_male_coefficients_for_sex_d:egfrSexDByPatient.get(patientIdKey(id)) ?? null}
     })},
     {name:'parameters',header:PARAMETERS_SHEET_HEADER,rows:selectedParameters.map(parameter => ({parameter_key:parameter.key,parameter:parameter.bezeichnung,unit:parameter.einheit ?? '',origin:parameter.derived ? 'derived' : 'imported',formula:parameter.derived ? data.analysisSettings.egfr.formula : '',source_parameter:parameter.derived ? data.analysisSettings.egfr.source?.[0] ?? '' : '',source_unit:parameter.derived ? data.analysisSettings.egfr.source?.[1] ?? '' : '',
       // Appended 2026-11-21: the distinct codes of the parameter's imported rows, whatever patients are selected.
@@ -300,6 +309,8 @@ export function workspaceWorkbookSheets({data,parameterKeys,patientIds,cohortRow
       {note:'peri_event_creatinine lists the serum creatinine around every event of the selected patients whose title or type equals the selection on the Data page (event_rule; the column peri_event_creatinine of the settings sheet), one row per event; the sheet is empty while no events are selected. Automated screening with the KDIGO creatinine criterion, not a diagnosis; values in mg/dl (µmol/l divided by 88.42). Dates are calendar days: event dates have no time of day, so the window of window_hours 48 (72) is the 2 (3) calendar days after the event day, up to window_end_date, and a value on the event day counts as the baseline, also where lab values carry a time. baseline is the last value on or before the event day, with no look-back limit (baseline_days_before_event); among several values of that day the latest by time when every value has a time, otherwise the lowest (n_baseline_day_values). peak is the highest value in the window. criterion_met is true when absolute_rise_mg_dl is at least 0.3 or ratio_to_baseline at least 1.5 (both inclusive) and empty when status is not_evaluable; reason then says why. The series is the serum creatinine parameter of the patient with the most exact values above zero; values of zero or less, bounds and values under dialysis are not used, and an event whose day is under dialysis is not evaluable. Each event is evaluated on its own; overlapping_events counts the other selected events of the patient within the window length before or after it, whose values it shares.'},
       // Only with a log_trend sheet (issue #70), so an export without a logarithmic column is unchanged.
       ...(logTrends.length ? [{note:'log_trend lists, for every parameter shown on a logarithmic value axis, the trend fitted to the natural logarithm of the values with the same slope mode, estimator, exclusions and time balancing as the column (monthly or quarterly medians are medians of the log values). Values of zero or less have no logarithm and are left out (n_non_positive); bounds stay out as in every fit. log_slope is per year; doubling_time_years is ln 2 / log_slope: positive is the doubling time, negative the halving time in years. doubling_time_ci_low and doubling_time_ci_high are ln 2 divided by the upper and the lower bound of log_slope, empty when the bounds include zero. The column\'s own slope and every other sheet are unchanged by this setting.'}] : []),
+      // Appended 2026-11-22 (decision `sexd`).
+      {note:'egfr_male_coefficients_for_sex_d, the last column of demographics, is true for a patient whose computed eGFR values include one with sex d: the eGFR equations have coefficients for male and female sex only, and sex d uses the male ones. It is false for a patient with computed eGFR values and sex m or w only, and empty without a computed eGFR value.'},
     ]},
     // Sheets added later follow the earlier ones, so sheet positions stay.
     {name:'columns',header:['column','meaning','unit','empty_when'],rows:cohortColumnDirectoryRows()},

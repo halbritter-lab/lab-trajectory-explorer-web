@@ -28,6 +28,8 @@ export function Export() { return <>
 <tr><td>projections</td><td>Present when a projection was applied: profile, thresholds and results.</td></tr>
 <tr><td>model_rows / model_input_flags</td><td>The rows each model received in R, and every measurement of the series with whether it entered, was aggregated into a time-balancing median, or why it was excluded.</td></tr>
 <tr><td>r_script</td><td>An R script that refits the models from model_rows.</td></tr>
+<tr><td>factor_levels</td><td>Every level of each categorical factor per unit with its patients, and whether it was kept, pooled into “other (pooled)” or, for a small “not tested” level, left out.</td></tr>
+<tr><td>dropout / dropout_patients</td><td>How follow-up ended, per unit and factor level and per patient: kidney replacement therapy, death, loss to follow-up or still in follow-up.</td></tr>
 <tr><td>about</td><td>Research-use disclaimer, interpretation notes, <code>export_id</code>, app version and export time.</td></tr></tbody></table></ReferenceTable>
 <p><code>unit_key</code> identifies the fitted unit on every sheet: <code>cohort</code> for the whole cohort, <code>group:&lt;value&gt;</code> for a group. Join sheets on <code>unit_key</code>; <code>entity</code> is a display label and can repeat. <code>export_id</code> in the about sheet ties a workbook to its <code>r_script</code>.</p>
 <p>To refit a model in R:</p>

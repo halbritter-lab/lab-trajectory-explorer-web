@@ -1,3 +1,4 @@
+import { NOT_TESTED_LEVEL } from '../attributes/notTested'
 export type MixedModelTimeAxis = 'time_since_baseline' | 'age'
 export type MixedModelCovariate = 'baseline_age'
 export type MixedModelRandomEffects = 'intercept' | 'intercept_slope'
@@ -17,13 +18,39 @@ export interface MixedModelFactor {
    * reference was filled in from the unit's model rows. Absent with a
    * reference means the user chose it. */
   referenceSource?: 'default'
+  /** The series the covariate `log_baseline_uacr` is read from (decision
+   * `uacr`, 2026-11-22); absent for every other factor. */
+  series?: { name: string; unit: string | null }
 }
+
+/** What happens to a categorical level with fewer than
+ * `MIN_LEVEL_PATIENTS` patients with at least `MIN_LEVEL_MEASUREMENTS`
+ * model rows each (decision `genomin`, 2026-11-22). Absent means `'pool'`. */
+export type MixedModelSmallLevelPolicy = 'pool' | 'keep'
 
 export interface MixedModelConfig {
   timeAxis: MixedModelTimeAxis
   covariates: MixedModelCovariate[]
   randomEffects: MixedModelRandomEffects
   factors?: MixedModelFactor[]
+  smallLevelPolicy?: MixedModelSmallLevelPolicy
+}
+
+/** A categorical level needs at least this many patients with at least
+ * `MIN_LEVEL_MEASUREMENTS` rows each in the unit's model rows; a rule of this
+ * tool (decision `genomin`, 2026-11-22). */
+export const MIN_LEVEL_PATIENTS = 5
+export const MIN_LEVEL_MEASUREMENTS = 2
+/** The level that small levels are pooled into. */
+export const POOLED_LEVEL = 'other (pooled)'
+/** Key of the optional covariate "log baseline UACR" (decision `uacr`). */
+export const LOG_BASELINE_UACR_KEY = 'log_baseline_uacr'
+
+/** Default-reference order: ascending string order, with the pooled level and
+ * the "not tested" level after every other level. */
+function defaultReferenceOrder(a: string, b: string): number {
+  const rank = (level: string) => level === POOLED_LEVEL || level === NOT_TESTED_LEVEL ? 1 : 0
+  return rank(a) - rank(b) || (a < b ? -1 : a > b ? 1 : 0)
 }
 
 export function mixedModelFactors(config: MixedModelConfig): MixedModelFactor[] {
@@ -38,7 +65,8 @@ export function mixedModelReferencesResolved(config: MixedModelConfig): boolean 
 
 /** The configuration one unit is fitted with: each categorical factor without
  * a reference gets the first of its levels among `rows` in ascending string
- * order (JavaScript default sort, by UTF-16 code unit), marked
+ * order (JavaScript default sort, by UTF-16 code unit), the pooled level and
+ * the "not tested" level last (2026-11-22), marked
  * `referenceSource: 'default'` (OD-29, decided 2026-10-07, implemented
  * 2026-11-22). A reference the user chose is kept, also where the unit lacks
  * it. Without rows for a factor its reference stays absent and validation
@@ -58,10 +86,15 @@ export function resolveMixedModelFactorReferences(
         return typeof value === 'string' && value.trim() ? [value] : []
       })
       if (levels.length === 0) return factor
-      const reference = [...new Set(levels)].sort()[0]
+      const reference = [...new Set(levels)].sort(defaultReferenceOrder)[0]
       return { ...factor, reference, referenceSource: 'default' as const }
     }),
   }
+}
+
+/** The name of a factor in the interface and the export notes. */
+export function mixedModelFactorLabel(key: string): string {
+  return key === 'baseline_age' ? 'Baseline age' : key === 'sex' ? 'Sex' : key === LOG_BASELINE_UACR_KEY ? 'Log baseline UACR (possible mediator)' : key
 }
 
 export function mixedModelFactorColumn(factor: MixedModelFactor, index: number): string {
@@ -96,7 +129,9 @@ export function validateMixedModelConfig(config: MixedModelConfig): MixedModelCo
           (factor.kind === 'numeric' && (factor.reference !== undefined || factor.referenceSource !== undefined)) ||
           (factor.referenceSource !== undefined && (factor.referenceSource !== 'default' || factor.reference === undefined)) ||
           (factor.kindSource !== undefined && !['automatic', 'user'].includes(factor.kindSource)) ||
-          (factor.key === 'baseline_age' && factor.kind !== 'numeric')) {
+          (factor.key === 'baseline_age' && factor.kind !== 'numeric') ||
+          (factor.key === LOG_BASELINE_UACR_KEY && (factor.kind !== 'numeric' || !validSeries(factor.series))) ||
+          (factor.key !== LOG_BASELINE_UACR_KEY && factor.series !== undefined)) {
         return { ok: false, code: 'UNSUPPORTED_CONFIG', message: 'Invalid or duplicate mixed-model factor.' }
       }
       seen.add(factor.key)
@@ -119,10 +154,17 @@ export function validateMixedModelConfig(config: MixedModelConfig): MixedModelCo
       message: `Unsupported mixed-model covariate: ${unsupportedCovariate}.`,
     }
   }
+  if (config.smallLevelPolicy !== undefined && config.smallLevelPolicy !== 'pool' && config.smallLevelPolicy !== 'keep') {
+    return { ok: false, code: 'UNSUPPORTED_CONFIG', message: 'Unsupported handling of small factor levels.' }
+  }
   if (config.randomEffects !== 'intercept' && config.randomEffects !== 'intercept_slope') {
     return { ok: false, code: 'UNSUPPORTED_CONFIG', message: 'Unsupported mixed-model random-effects setting.' }
   }
   return { ok: true }
+}
+
+function validSeries(series: MixedModelFactor['series']): boolean {
+  return Boolean(series && typeof series.name === 'string' && series.name.trim() && (series.unit === null || typeof series.unit === 'string'))
 }
 
 /** Name of the outcome column in model rows and executable formulas. The

@@ -12,7 +12,12 @@ import { MIN_SLOPE_DECIMALS, slopeDisplayDecimals } from '../core/format'
 import { mixedModelFitConfigHash } from '../core/mixedModel/resultIdentity'
 import {
   DEFAULT_MIXED_MODEL_CONFIG,
+  LOG_BASELINE_UACR_KEY,
+  MIN_LEVEL_MEASUREMENTS,
+  MIN_LEVEL_PATIENTS,
+  mixedModelFactorLabel,
   mixedModelFormula,
+  POOLED_LEVEL,
   type MixedModelConfig,
   type MixedModelFactor,
   mixedModelFactors,
@@ -22,6 +27,8 @@ import { prepareMixedModelCohortRows } from '../core/mixedModel/cohortDataset'
 import { availableMixedModelFactors, prepareMixedModelFactors } from '../core/mixedModel/factors'
 import { MIN_QUALIFYING_PATIENTS, mixedModelFactorLevelCounts, qualifyingMixedModelPatients, validateMixedModelRows } from '../core/mixedModel/validation'
 import { entityKey, type CohortModelEntityRows } from '../core/mixedModel/cohortModelEntity'
+import { datasetEnd, INFORMATIVE_DROPOUT_SHARE, LOSS_TO_FOLLOW_UP_DAYS, mixedModelDropout, type MixedModelDropout } from '../core/mixedModel/dropout'
+import type { MixedModelLevelPooling } from '../core/mixedModel/types'
 import { CohortModelPlotPreview } from './CohortModelPlotPreview'
 import { defaultModelParameterKey } from './cohort-model-parameter'
 import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormula, workspaceGroupableAttributes, workspaceModelEntities } from './workspace-model-results'
@@ -54,6 +61,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   }
   const mixedModelConfig = useAppStore(s => s.mixedModelConfig)
   const setMixedModelConfig = useAppStore(s => s.setMixedModelConfig)
+  const setConfig = setMixedModelConfig
   const presetExclusionPolicy = useAppStore(s => s.presetExclusionPolicy)
   const setPresetExclusionPolicy = useAppStore(s => s.setPresetExclusionPolicy)
   const showCohortMixedModelLine = useAppStore(s => s.showCohortMixedModelLine)
@@ -210,6 +218,12 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     [data.rows, patientIds, cohortGroups, spec, mixedModelConfig, data.patientAttributes, presetExclusionPolicy],
   )
 
+  // How follow-up ended for the patients of each unit (decision `dropout`, 2026-11-22).
+  const dropoutByEntity = useMemo(() => {
+    const end = datasetEnd(data.rows ?? [])
+    return new Map<string, MixedModelDropout>(entities.map(item => [entityKey(item.entity), mixedModelDropout(item.rows, mixedModelConfig, data.events ?? [], end)]))
+  }, [entities, mixedModelConfig, data.events, data.rows])
+
   const validatedEntities = useMemo(() => entities.map(entity => ({ entity,
     validation: validateMixedModelRows(entity.rows, mixedModelConfig),
   })), [entities, mixedModelConfig])
@@ -269,6 +283,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   // Preset switching logic
   function selectPreset(newPreset: CohortModelPreset, targetAttr?: string | null) {
     setPreset(newPreset)
+    // The handling of small levels is kept across presets.
+    const setMixedModelConfig = (next: MixedModelConfig) => setConfig(mixedModelConfig.smallLevelPolicy ? { ...next, smallLevelPolicy: mixedModelConfig.smallLevelPolicy } : next)
 
     if (newPreset === 'unadjusted') {
       setGroupByAttribute(null)
@@ -326,6 +342,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         key,
         kind: automaticKind,
         effect: 'level',
+        // The UACR series of the optional covariate (decision `uacr`).
+        ...(key === LOG_BASELINE_UACR_KEY && factorDef?.series ? { series: factorDef.series } : {}),
         ...(index >= 0 ? currentFactors[index] : {}),
         ...patch,
       }
@@ -408,7 +426,50 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
       ? [`${label} = ${perUnit[0].reference}${note}`]
       : [`${label} = ${perUnit.map(item => `${item.reference} in ${item.unit}`).join(', ')}${note}`]
   })
+  // OD-29 follow-up (2026-11-22): default references that differ between units make
+  // their reference estimates incomparable, so the page says so.
+  const differingDefaults = activeFactors.flatMap((factor, index) => {
+    if (factor.kind !== 'categorical' || factor.reference !== undefined) return []
+    const perUnit = entities.flatMap(item => {
+      const resolved = resolveMixedModelFactorReferences(mixedModelConfig, item.rows).factors?.[index]?.reference
+      return resolved === undefined ? [] : [{ reference: resolved, text: `${resolved} in ${item.entity.kind === 'cohort' ? 'the whole cohort' : item.entity.value}` }]
+    })
+    return new Set(perUnit.map(item => item.reference)).size > 1 ? [`${factor.key} (${perUnit.map(item => item.text).join(', ')})`] : []
+  })
+  const hasCategorical = activeFactors.some(factor => factor.kind === 'categorical')
+  const pooling = (mixedModelConfig.smallLevelPolicy ?? 'pool') === 'pool'
+  // The minimum per level (decision `genomin`): what each unit did with its small levels.
+  const poolingNotes = entities.flatMap(item => {
+    const unit = item.entity.kind === 'cohort' ? 'Whole cohort' : item.entity.value
+    const byFactor = new Map<string, MixedModelLevelPooling[]>()
+    for (const record of item.preparation?.levelPooling ?? []) if (record.action !== 'kept') byFactor.set(record.factor, [...(byFactor.get(record.factor) ?? []), record])
+    const parts = [...byFactor].map(([factor, list]) => {
+      const describe = (record: MixedModelLevelPooling) => `${record.level} (${record.patientsWithRepeated} of ${record.patients})`
+      const pooled = list.filter(record => record.action === 'pooled')
+      const kept = list.filter(record => record.action === 'kept_below_minimum')
+      const removed = list.filter(record => record.action === 'excluded_not_tested')
+      const pooledPatients = pooled.reduce((sum, record) => sum + record.patientsWithRepeated, 0)
+      return [
+        pooled.length ? `${factor} ${pooled.map(describe).join(', ')} pooled into “${POOLED_LEVEL}”${pooledPatients < MIN_LEVEL_PATIENTS ? `, which still has fewer than ${MIN_LEVEL_PATIENTS}` : ''}` : '',
+        kept.length ? `${factor} ${kept.map(describe).join(', ')} below the minimum, kept` : '',
+        removed.length ? `${factor} ${removed.map(describe).join(', ')} left out with its patients` : '',
+      ].filter(Boolean).join('; ')
+    })
+    return parts.length ? [`${unit}: ${parts.join('; ')}`] : []
+  })
+  const dropoutRows = entities.flatMap(item => {
+    const dropout = dropoutByEntity.get(entityKey(item.entity))
+    if (!dropout || dropout.patients.length === 0) return []
+    const unit = item.entity.kind === 'cohort' ? 'Whole cohort' : item.entity.value
+    return dropout.counts.map(count => ({ unit, key: `${entityKey(item.entity)}|${count.factor}|${count.level}`, count }))
+  })
+  const informativeUnits = entities.filter(item => dropoutByEntity.get(entityKey(item.entity))?.informative)
+    .map(item => item.entity.kind === 'cohort' ? 'the whole cohort' : item.entity.value)
+  const deathRecorded = [...dropoutByEntity.values()].some(dropout => dropout.deathRecorded)
+  const uacrSource = availableFactors.find(f => f.key === LOG_BASELINE_UACR_KEY)?.series
   const inactiveFactors = availableFactors.filter(f => !activeFactors.some(af => af.key === f.key))
+    // Not offered as a covariate of a model of the UACR series itself.
+    .filter(f => f.key !== LOG_BASELINE_UACR_KEY || !(spec && uacrSource && spec.bezeichnung === uacrSource.name && (spec.einheit ?? null) === uacrSource.unit))
   const sampleSummary = prepareMixedModelFactors(mixedModelRows, mixedModelConfig, data.patientAttributes ?? {}, data.rows ?? [])
   // Every patient behind the count in the fit summary: left out for a factor value, or
   // without a usable measurement of the outcome after data preparation.
@@ -600,7 +661,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             <div className="cm-factors-chips">
               {activeFactors.map(factor => {
                 const factorDef = availableFactors.find(f => f.key === factor.key)
-                const label = factor.key === 'baseline_age' ? 'Baseline age' : factor.key === 'sex' ? 'Sex' : (factorDef?.label ?? factor.key)
+                const label = factor.key === 'baseline_age' || factor.key === 'sex' || factor.key === LOG_BASELINE_UACR_KEY ? mixedModelFactorLabel(factor.key) : (factorDef?.label ?? factor.key)
                 return (
                   <div key={factor.key} className="cm-chip">
                     <span className="cm-chip-name">{label}</span>
@@ -683,6 +744,21 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label="Reference categories">
           Reference categories: {categoricalReferences.join('; ')}
         </p>}
+        {differingDefaults.length > 0 && <p className="notice cm-reference-warning" role="note" aria-label="Different reference levels">
+          The models use different default reference levels for {differingDefaults.join('; ')}. Their reference starting levels, slopes and contrasts refer to different groups and cannot be compared directly. Choose a reference next to the factor to use the same level in every model.
+        </p>}
+        {hasCategorical && <label className="mixed-model-config-check">
+          <input type="checkbox" checked={pooling} onChange={event => {
+            setPreset('custom')
+            const { smallLevelPolicy: _policy, ...rest } = mixedModelConfig
+            setMixedModelConfig(event.target.checked ? rest : { ...rest, smallLevelPolicy: 'keep' })
+          }} />
+          Pool small levels into “{POOLED_LEVEL}”
+        </label>}
+        {hasCategorical && <p className="muted cm-level-minimum" aria-label="Minimum per level">
+          A level needs at least {MIN_LEVEL_PATIENTS} patients with {MIN_LEVEL_MEASUREMENTS} or more measurements in the model (a rule of this tool). {pooling ? 'Smaller levels are pooled; a small “not tested” level is left out instead, as it is never merged with other levels.' : 'Small levels are kept as they are.'}
+          {poolingNotes.length > 0 ? ` ${poolingNotes.join('. ')}. In brackets: patients with ${MIN_LEVEL_MEASUREMENTS} or more measurements of all patients of the level.` : ' Every level meets it.'}
+        </p>}
         {levelCounts.length > 0 && <p className="muted cm-level-counts" aria-label="Patients per level">
           Whole cohort, patients per level (with enough measurement times): {levelCounts.map(([key, levels]) => `${key === 'sex' ? 'Sex' : key}: ${levels.map(item => `${item.level} ${item.patients} (${item.qualifying})`).join(', ')}`).join('; ')}
         </p>}
@@ -692,6 +768,22 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         {(noFit || !spec) ? <p className="muted" aria-label="Patients not in the model">{noFit ? 'No patient is in the model: the data preparation of this parameter is No fit.' : 'No patient is in the model: no parameter is selected.'}</p> : patientsNotInModel.length > 0 && <details className="cm-excluded-patients">
           <summary>Patients not in the model ({patientsNotInModel.length})</summary>
           <ul aria-label="Patients not in the model">{patientsNotInModel.map(patient => <li key={patient.patientId}>{patient.patientId}: {patient.reason}</li>)}</ul>
+        </details>}
+
+        {informativeUnits.length > 0 && <p className="notice cm-dropout-warning" role="note" aria-label="Dropout warning">
+          More than {Math.round(INFORMATIVE_DROPOUT_SHARE * 100)} % of the patients in {informativeUnits.join(', ')} reached kidney replacement therapy{deathRecorded ? ' or died' : ''} within follow-up (a rule of this tool). When dropout depends on the course of the parameter, the slope can be biased; the R script of the model export outlines a joint-model sensitivity analysis.
+        </p>}
+        {dropoutRows.length > 0 && <details className="cm-dropout">
+          <summary>Follow-up and dropout</summary>
+          <p className="muted">How follow-up ended for the patients in each model: kidney replacement therapy (KRT: kidney transplant or chronic dialysis on or after the first model measurement){deathRecorded ? ', death' : ''}, loss to follow-up (last model measurement more than {LOSS_TO_FOLLOW_UP_DAYS} days before the latest lab date of the dataset), or still in follow-up. Rules of this tool.</p>
+          <div className="cm-dropout-table-wrap">
+            <table aria-label="Dropout by reason">
+              <thead><tr><th scope="col">Model</th><th scope="col">Level</th><th scope="col">Patients</th><th scope="col">KRT</th>{deathRecorded && <th scope="col">Death</th>}<th scope="col">Lost</th><th scope="col">In follow-up</th><th scope="col">KRT{deathRecorded ? ' or death' : ''}</th></tr></thead>
+              <tbody>{dropoutRows.map(({ unit, key, count }) => <tr key={key}>
+                <td>{unit}</td><td>{count.factor ? `${count.factor} = ${count.level}` : 'All'}</td><td>{count.patients}</td><td>{count.krt}</td>{deathRecorded && <td>{count.death ?? ''}</td>}<td>{count.loss}</td><td>{count.inFollowUp}</td><td>{(count.krtOrDeathShare * 100).toFixed(1)} %</td>
+              </tr>)}</tbody>
+            </table>
+          </div>
         </details>}
 
         {/* Studio Footer with Primary Fit Action */}
@@ -756,6 +848,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             fitConfigHash={fitConfigHash}
             config={mixedModelConfig}
             formula={formulaText}
+            dropoutByEntity={dropoutByEntity}
           />
       )}
     </div>

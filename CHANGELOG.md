@@ -74,6 +74,57 @@ interfaces are still evolving before 1.0.
   `brms`) as a sensitivity analysis. Open decisions OD-60 to OD-63 record the
   cases the decisions do not name.
 
+### Changed (cohort models, decisions of 2026-11-22 `od29`, `genomin`, `genomiss`, `uacr`, `inference`, `dropout`, issue #4; changes results for affected models)
+
+- **A categorical factor level needs at least 5 patients with 2 or more
+  model rows** (a rule of this tool). Smaller levels are pooled into
+  "other (pooled)" per fitted unit before the fit, on by default; the
+  checkbox *Pool small levels* keeps them as they were. The page lists the
+  small levels of every unit with their counts before the fit; the model
+  workbook gains the sheet `factor_levels` and `r_script` names the pooled
+  levels. Estimates change for every unit with a small level. Example: a
+  whole cohort with genotypes A (7), B (3), C (2) and D (7) now has the
+  levels A, D and "other (pooled)" and two contrasts instead of three. A
+  chosen reference that was pooled is named in the validation message.
+  Owner-defined classes are not built (OD-55); a pooled level still below
+  the minimum is kept (OD-56).
+- **"Not tested" is its own level.** Attribute values `not tested`,
+  `nicht getestet`, `n.t.` and `NT` (any case) enter a cohort-model factor
+  as the level "not tested", never merged with "no variant" or a blank
+  cell, which stays missing; a small "not tested" level is left out with its
+  patients instead of being pooled. Imported values, groups and other sheets
+  keep the text as imported (OD-57). The default reference never falls on
+  "not tested" or "other (pooled)" while another level exists.
+- **Log baseline UACR** can be added as a covariate, off by default and
+  labelled "possible mediator": the natural log of the exact UACR value
+  nearest to the model baseline within 90 days, offered when the dataset has
+  one UACR series (OD-58).
+- **Different default references are flagged.** When the whole cohort and a
+  group resolve a factor's default reference to different levels, the Fit
+  summary says that their reference estimates cannot be compared directly.
+- **Dropout report.** The Fit summary and the new sheets `dropout` and
+  `dropout_patients` count, per unit and factor level, kidney replacement
+  therapy, death (once that event type exists), loss to follow-up (no model
+  row in the 365 days before the latest lab date) and patients still in
+  follow-up; above 10 % KRT or death the page warns and `r_script` adds a
+  commented JMbayes2 joint-model outline (OD-59). No estimate changes.
+- **Inference in R.** `r_script` refits every unit with lmerTest where it is
+  installed: an omnibus F test per factor (`anova`, Satterthwaite degrees of
+  freedom), contrasts labelled exploratory and unadjusted, and a commented
+  Holm adjustment. The app keeps its Wald intervals and says so under the
+  results table; the R runtime served with the app is unchanged.
+- No golden fixture covers cohort models, so none changed.
+
+### Added (decisions `versions` and `sexd` of 2026-11-22, issues #83 and #4)
+
+- The `models` sheet of the model workbook ends with `app_version` and
+  `egfr_formula`; the R and package versions stay in `runtimeVersion` and
+  `packageVersions`. `about` gains four notes at its end.
+- The `demographics` sheet of the cohort workbook ends with
+  `egfr_male_coefficients_for_sex_d` (`true` when a computed eGFR value of
+  the patient used sex `d`, which takes the male coefficients), and `about`
+  a note on it at its end. No eGFR value changes.
+
 ### Changed (OD-11 and OD-21, decided 2026-10-07, implemented 2026-11-22, issue #4)
 
 - **OLS 95 % intervals above 40 degrees of freedom use the exact Student-t

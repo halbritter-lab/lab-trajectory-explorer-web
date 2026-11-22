@@ -254,6 +254,62 @@ a visit or dropout process. A trend can be biased when the chance of a later
 visit or dropout depends on an unobserved outcome; review follow-up patterns
 and use a study-specific sensitivity analysis.
 
+**Dropout report** (decision `dropout` of 2026-11-22, issue #4; Vonesh EF et
+al., Stat Med 2006;25:143, PMID 16025541; the definitions and the threshold
+are rules of this tool). `mixedModelDropout` (`src/core/mixedModel/dropout.ts`)
+classifies every patient of a unit's model rows (complete cases, after
+pooling) by how follow-up ended. It changes no estimate.
+
+- **Follow-up** starts at the date of the patient's first model row (model
+  time 0) and the last model row is the last date of the series in the
+  model. Dates are UTC calendar days.
+- **`krt`**: an event `kidney_transplant`, or `dialysis` with intent
+  `chronic`, dated on or after the first model row. Acute dialysis, dialysis
+  of unknown intent and events before the first model row do not count.
+- **`death`**: an event of the type `death` on or after the first model row.
+  The app has no such event type yet (decision `death` of 2026-11-22 is to be
+  built separately), so the count is empty (`null`) and the interface shows
+  no death column until the type exists.
+- With both, the earlier date decides; on the same day `krt`.
+- **`loss`**: neither, and the last model row lies more than 365 days
+  (`LOSS_TO_FOLLOW_UP_DAYS`) before the data end, the latest lab date of the
+  whole dataset (any series, any patient; `datasetEnd`). Exactly 365 days is
+  not loss.
+- **`in_follow_up`**: every other patient.
+
+The counts are reported for the whole unit (`level` `all`) and per model
+level of each categorical factor, with `krt_or_death_share` = (krt + death)
+/ patients. When that share of the whole unit is above 10 %
+(`INFORMATIVE_DROPOUT_SHARE`, strictly greater: 10 % is not), the page shows
+a note ("More than 10 % of the patients in the whole cohort reached kidney
+replacement therapy within follow-up (a rule of this tool). When dropout
+depends on the course of the parameter, the slope can be biased; the R
+script of the model export outlines a joint-model sensitivity analysis.")
+and `r_script` adds, inside the unit's block, a commented outline of a joint
+model with JMbayes2 (see *R reproduction*). The table "Dropout by reason",
+in the collapsed *Follow-up and dropout* section of the Fit summary, lists
+every unit and level; the export writes the sheets `dropout` (the counts and
+`data_end`) and `dropout_patients` (per patient: `baseline_date`,
+`last_model_date`, `reason`, `event_date`, `years_to_end` from the first
+model row to the event, or to the last model row without one, and one
+`level_<factor>` column per categorical factor). Open decision OD-59: the
+decision names KRT, death and loss but not their boundaries; the event types
+counted as KRT, the 365-day gap for loss, the data end of the whole dataset
+and a threshold on the whole unit rather than per level are the
+conservative choices made here.
+
+Example: ten patients with model rows on 2020-01-01, 2021-01-01 and
+2022-01-01 (patient 3 without the last), genotype A for patients 1–5 and B
+for 6–10, a data end of 2024-06-30, a kidney transplant of patient 1 on
+2022-06-01, chronic dialysis of patient 2 from 2022-03-01, acute dialysis of
+patient 6 and a transplant of patient 7 on 2019-06-01. Patients 1 and 2 are
+`krt`, the eight others `loss` (their last row is more than 365 days before
+2024-06-30). The unit has 2 of 10 (20 %), level A 2 of 5 (40 %), level B 0
+of 5; the note and the JMbayes2 outline appear. Patient 1 has `years_to_end`
+2.4147843943 (882 days / 365.25). With a data end of 2023-01-01 and only the
+transplant of patient 1 on 2022-02-01, the unit has 1 of 10 = 10 %, no note,
+and the nine others are in follow-up (exactly 365 days).
+
 ### Minimum data and validity gates
 
 `validateMixedModelRows` (`src/core/mixedModel/validation.ts`) decides whether a
@@ -294,12 +350,19 @@ run in this order; the first failure is reported.
      Collinearity that arises only from several factors together is not
      checked here and is left to the R rank check below.
 
-   There is no minimum number of patients per level; a level held by a single
-   patient passes unless the check above applies. A minimum per level is an
-   owner decision tracked in issue #4. Levels are always taken from the model
-   rows of the unit, so a level absent from a unit cannot enter its design;
-   only an absent reference level fails, which since 2026-11-22 can only be
-   a reference the user chose.
+   Since 2026-11-22 a level needs at least 5 patients with 2 or more model
+   rows; smaller levels are pooled before this check runs (see *Minimum per
+   level* under *Factors and covariates*), so a level held by a single
+   patient reaches validation only when the user keeps small levels. Levels
+   are always taken from the model rows of the unit, so a level absent from a
+   unit cannot enter its design; only an absent reference level fails, which
+   since 2026-11-22 can only be a reference the user chose. A chosen
+   reference that was pooled fails with its own message, for example
+   `Reference level "B" of factor genotype has fewer than 5 patients with 2
+   or more measurements in this model and was pooled into "other (pooled)".
+   Choose another reference or keep small levels.` When every level of a
+   factor is pooled, the factor has one level and fails for lack of
+   variation.
 
    **Per-level counts.** `mixedModelFactorLevelCounts` reports, for each
    categorical factor, the number of patients and of qualifying patients (the
@@ -308,6 +371,9 @@ run in this order; the first failure is reported.
    categories, for example `Whole cohort, patients per level (with enough
    measurement times): genotype: A 7 (7), B 3 (3)`. Groups are not listed
    separately; a group's failing level is named in its validation message.
+   The levels are those the model receives, after pooling; the levels before
+   pooling, with their counts, are in the line on the minimum per level,
+   which names every unit (below).
 4. At least 10 patients have a model row.
 5. At least 10 patients qualify. A patient qualifies with at least two rows and
    at least three distinct `time_since_baseline` values for a random intercept
@@ -495,6 +561,24 @@ default (until 2026-11-22 *Adjusted for age and sex* stored the first sorted
 sex code of the dataset, `d` before `m` before `w`, or `w` when no sex was
 available).
 
+Since the minimum per level (2026-11-22), the levels `other (pooled)` and
+`not tested` come after every other level in this order, so neither becomes
+the default while another level exists: levels `a`, `not tested` and `other
+(pooled)` give `a`, levels `not tested` and `other (pooled)` alone give `not
+tested`. Before, `not tested` was ordered like any text and was the default
+in a unit whose other levels all sort after it (for example `variant`).
+
+**Warning on differing defaults** (decision `od29` of 2026-11-22). When a
+categorical factor uses the default and the units of the page resolve it to
+different levels, the Fit summary shows a note: "The models use different
+default reference levels for genotype (A in the whole cohort, A in G1, B in
+G2). Their reference starting levels, slopes and contrasts refer to
+different groups and cannot be compared directly. Choose a reference next to
+the factor to use the same level in every model." It lists every unit with
+its level, one factor after the other, separated by "; ". A chosen reference
+is the same in every unit, so the note is not shown for it; it is not shown
+either when all units agree or without grouping.
+
 Example: the dataset holds genotypes `A`, `B` and `C`, but the patients with
 `A` have creatinine rows only. In an eGFR model with the factor `genotype`
 the default reference is `B` and the coefficient `factor_0_C` is the
@@ -508,6 +592,123 @@ former default was absent from it.
 
 **Category text.** Values are trimmed and otherwise compared exactly, including
 case: `A1` and `a1` are different levels.
+
+**"Not tested"** (decision `genomiss` of 2026-11-22, issue #4). For an
+attribute factor (not baseline age, sex or log baseline UACR), a value of the
+not-tested vocabulary (`not tested`, `nicht getestet`, `n.t.`, `nt`, any case;
+see [Import and value interpretation](import-and-values.md#columns)) enters
+as the level `not tested`. It is its own level: never merged with "no
+variant", with another level or with a blank cell, which stays missing
+(`Missing <factor>`). The imported text stays in `model_rows`
+(`raw_factor_<i>_`). The reference selector lists the level as `not tested`.
+For a factor switched to numeric, such a value removes the patient with the
+reason `Not tested <factor>` instead of `Invalid numeric <factor>`. The
+automatic type is unchanged: an attribute with the values `0`, `1` and `NT`
+is categorical, as before. Example: patients with `PKD1` (6), `no variant`
+(5), `NT` (3), `nicht getestet` (2) and a blank cell (1) give the levels
+`PKD1`, `no variant` and `not tested` (5 patients); the patient with the
+blank cell is removed as `Missing genotype`.
+
+**Minimum per level** (decision `genomin` of 2026-11-22, issue #4; Cornec-Le
+Gall E et al., JASN 2016;27:942, PMID 26150605; the threshold is a rule of
+this tool). `prepareMixedModelFactors` applies it per fitted unit to every
+categorical factor, sex included, after the complete-case removal and before
+centring, on the unit's model rows (after data preparation, so a quarterly
+median counts as one row):
+
+1. For each level, count the complete-case patients and those with at least
+   2 model rows. A level needs at least 5 patients with at least 2 model rows
+   (`MIN_LEVEL_PATIENTS`, `MIN_LEVEL_MEASUREMENTS`; 5 is enough, 4 is not).
+2. A `not tested` level below the minimum is removed with its patients, each
+   listed among the excluded patients with the reason `Not tested <factor>:
+   fewer than 5 patients with 2 or more measurements`. It is never pooled,
+   because pooling would merge it with other levels. This pass runs for every
+   factor first, on the complete cases.
+3. On the remaining patients, every other level below the minimum is pooled
+   into the level `other (pooled)` (`POOLED_LEVEL`). A `not tested` level that
+   met the minimum in step 2 is kept, also if the removals of another factor
+   leave it below the minimum.
+4. The model receives the pooled level in `factor_<i>_`; `model_rows` keeps
+   the level as read in `raw_factor_<i>_`.
+
+The pooled level is not a class of variants defined by the owner. Open
+decision OD-55: owner-defined classes (for example truncating and
+non-truncating variants) need a mapping from levels to classes; it is not
+built, and every small level goes to `other (pooled)`. Open decision OD-56:
+a pooled level that still has fewer than 5 patients with 2 or more model rows
+is kept in the model, with a note on the page ("which still has fewer than
+5"); when every level is pooled the factor has one level and the unit fails
+validation for lack of variation. A real level named `other (pooled)` would
+join the pooled level.
+
+The checkbox *Pool small levels into "other (pooled)"*, shown with a
+categorical factor and on by default, switches the pooling: off stores
+`smallLevelPolicy: 'keep'` in the model configuration, keeps every level as
+it is and removes no `not tested` patient; the small levels are then named
+"below the minimum, kept". The setting is kept across the presets and, like
+all cohort-model settings, for the session only; on is stored as an absent
+`smallLevelPolicy`, so the default configuration and its `fitConfigHash` are
+unchanged. Before the fit the page shows, below the reference categories,
+"A level needs at least 5 patients with 2 or more measurements in the model
+(a rule of this tool)", what happens to smaller levels, and per unit the
+small levels with "patients with 2 or more measurements of all patients",
+for example `Whole cohort: genotype A (2 of 2) pooled into "other (pooled)",
+which still has fewer than 5. G2: genotype B (3 of 3), C (1 of 2) pooled
+into "other (pooled)"`, or "Every level meets it." The export records each
+level in the sheet `factor_levels` and in `preparation.levelPooling` on
+`models`, and `r_script` names the pooled levels in the comment of each
+factor.
+
+Example: a whole cohort with genotypes A (7 patients, all with 3 model
+rows), B (3), C (2, one of them with a single model row) and D (7) keeps A
+and D and pools B and C into `other (pooled)` with 5 patients, 4 of them
+with 2 or more rows: 3 from B and 1 from C. The model has the levels A, D
+and `other (pooled)`, default reference A, and the coefficients
+`factor_0_D` and `factor_0_other (pooled)`. Before 2026-11-22 the model had
+four levels and three contrasts, two of them estimated from three and two
+patients. With pooling off it has them still.
+
+**Log baseline UACR** (decision `uacr` of 2026-11-22, issue #4). An optional
+numeric covariate, `log_baseline_uacr`, labelled "Log baseline UACR
+(possible mediator)": albuminuria can lie on the path from a genotype to the
+decline, so adjusting for it can remove part of the effect of interest. It is
+off by default: no preset adds it, and it is offered under *Add covariate*
+only when the dataset has exactly one UACR series and the model parameter is
+not that series.
+
+- **Which series** (`uacrSeries`). A series with a numeric value whose name,
+  lower-cased and without spaces, hyphens, underscores, dots and slashes,
+  contains `uacr`, equals `acr`, or contains `albumin` together with
+  `kreatinin` or `creatinin`: `UACR`, `ACR`, `Albumin/Kreatinin-Quotient`
+  and `Albumin-Creatinine ratio` match; `Albumin` and `Kreatinin` do not.
+  With more than one matching (name, unit) pair, for example UACR in mg/g
+  and in mg/mmol, the covariate is not offered. Open decision OD-58: the
+  series is recognised by name only, and with several series there is no
+  choice.
+- **Baseline value** (`logBaselineUacr`). The model baseline of a patient is
+  the date of the first model row (model time 0, after data preparation).
+  Candidates are the patient's exact (`=`), dated values above 0 of the
+  series, at most 90 calendar days (UTC) before or after that date
+  (`UACR_BASELINE_WINDOW_DAYS`, a rule of this tool; 90 days counts, 91 does
+  not). The value of the nearest date is used; at equal distance the date
+  before the baseline; several values on that date give their median. The
+  covariate is the natural logarithm of that value. AKI and event windows
+  do not apply to the UACR series.
+- **In the model.** Like any numeric factor: centred at the mean over the
+  unit's complete-case patients, one value each, entered as `factor_<i>_`.
+  A patient without a baseline value is removed as `Missing
+  log_baseline_uacr`. The coefficient's unit is `<outcome unit> per unit of
+  ln(baseline UACR)`; a difference of ln 2 = 0.693 is a doubling of the
+  baseline UACR. The factor stores its series (`series` in `modelConfig`;
+  `source_series`, `<name>|<unit>`, as the last column of `factors`).
+
+Example: model baselines on 2020-01-01; patient 1 has UACR 50 mg/g on
+2019-12-01 (31 days before) and 20 mg/g on 2020-01-11 (10 days after) and
+gets ln 20 = 2.996; patient 2 has 40 mg/g on 2019-12-22 and 20 mg/g on
+2020-01-11, both 10 days away, and gets ln 40 = 3.689; patient 3 has 10 and
+40 mg/g on 2020-01-05 and gets ln 25 = 3.219; a patient whose only value is
+on 2020-04-01 (91 days after) is removed. The centre of these three is
+3.301, and patient 1 enters with −0.305.
 
 **Source of `sex`.** The factor value is the patient's resolved sex (see
 "Demographics resolution": manual entry, else the recognised attributes-table
@@ -574,7 +775,30 @@ When the interval call fails or returns a non-finite bound, the interval is
 unavailable: the coefficient table in a model's details shows "n/a", and the
 results table shows the estimate without an interval. No interval is computed for the random-effect
 standard deviations, their correlation or the residual standard deviation. No
-p-value or other test statistic is computed, displayed or exported.
+p-value or other test statistic is computed, displayed or exported by the
+app.
+
+**Inference** (decision `inference` of 2026-11-22, issue #4; Luke SG, Behav
+Res Methods 2017;49:1494, doi:10.3758/s13428-016-0809-y; Kuznetsova A et al.,
+JSS 2017;82(13), doi:10.18637/jss.v082.i13). The app keeps these Wald
+intervals; nothing is added to the R packages served with the app. Under the
+results table the note on reading the intervals adds: "The intervals are Wald
+intervals (estimate ± 1.96 standard errors); they ignore the uncertainty of
+the variance components. For tests, the exported R script runs lmerTest where
+it is installed: an F test per factor with Satterthwaite degrees of freedom,
+and contrasts that are exploratory and unadjusted." The tests themselves are
+in `r_script` (see *R reproduction*): per unit, where `lmerTest` is
+installed, the same call with `lmerTest::lmer`, then
+`anova(fit, type = "III", ddf = "Satterthwaite")` (one omnibus F test per
+model term, so all levels of a factor in one test; for a factor with level
+and slope the `time_since_baseline:<column>` row tests the slope
+difference), then the coefficient table of
+`summary(fit, ddf = "Satterthwaite")` with the comment "Contrasts against the
+reference level: exploratory, unadjusted for multiple comparisons", and a
+commented line for a Holm adjustment of the contrast p-values (all terms but
+the intercept). Without `lmerTest` the script prints a message and goes on.
+The tests are not run in the browser and are not verified against native R
+in this repository (there is no R installation in CI).
 
 ### Stratified (grouped) fits
 
@@ -688,13 +912,19 @@ The `models` worksheet has one row per fitted unit:
 | `message` | Failed fits |
 | `unit_key` | `cohort` or `group:<value>` (since 2026-11-15) |
 | `intercept_sd`, `slope_sd`, `intercept_slope_correlation`, `residual_sd` | Variance components of a successful fit (since 2026-11-21), unrounded: standard deviation of the patient random intercept and of the random slope (per year), their correlation, and the residual standard deviation (`VarCorr`, `sigma`). Empty for a failed fit; `slope_sd` and the correlation are empty with a random intercept alone, and any of them where R reports none |
+| `app_version`, `egfr_formula` | Since 2026-11-22 (issue #83, decision `versions`): the version of the app that wrote the file (the same as the `app_version` row of `about`; empty when the export function is called without one) and the eGFR formula of the dataset settings at the export, as stored (`ckd-epi-2021`, `off`, …). The formula is written for every unit; it applies to the model only when the outcome is the computed eGFR. The R and package versions of each fit stay in `runtimeVersion` and `packageVersions` at their 0.3.7 positions and are not written twice. The versions are columns of `models`, not a separate sheet, because they belong to each fitted unit |
 
 A fit that fails before the worker answers (for example a timeout) has only
 part of this provenance. The other worksheets are, in workbook order,
 `coefficients` (every fixed effect with unit, estimate, interval bounds and
 standard error), `factors`, `centering`, `excluded_patients`, `projections`
 when a projection is applied, `about`, and then the sheets added after
-version 0.3.7: `vcov`, `model_rows`, `model_input_flags` and `r_script`.
+version 0.3.7: `vcov`, `model_rows`, `model_input_flags`, `r_script` and,
+since 2026-11-22, `factor_levels` (per unit, factor and level as read:
+`column`, `model_level`, `patients`, `patients_with_2_or_more_measurements`
+and `action`: `kept`, `pooled`, `kept_below_minimum` or
+`excluded_not_tested`; see *Minimum per level*), `dropout` and
+`dropout_patients` (see *Dropout report*).
 
 **Positions and `unit_key` (since 2026-11-15).** Sheets and columns that
 existed in version 0.3.7 keep their positions; new sheets follow `about` and
@@ -722,8 +952,10 @@ switched) and `reference_source` (for a categorical factor:
 `model_input_flags` `unit_key` follows `entity`. The four variance-component
 columns added on 2026-11-21 follow `unit_key` on `models`, so that sheet ends
 in `unit_key`, `intercept_sd`, `slope_sd`, `intercept_slope_correlation`,
-`residual_sd`; `unit_key` stays the last column of the other sheets except
-`factors`.
+`residual_sd` and, since 2026-11-22, `app_version`, `egfr_formula`;
+`unit_key` stays the last column of the other sheets except `factors`. With
+the log baseline UACR covariate, `factors` ends in `source_series` after
+`reference_source`; without it the column is not written.
 
 **`about` (rows appended on 2026-11-21).** After the `export_id` and
 `unit_key` rows the sheet explains the variance-component columns and the
@@ -735,7 +967,10 @@ before the file is passed on, and ends with `app_version: <version>` (the app
 that wrote the file; left out when the export function is called without a
 version, as the library package does), `exported_at: <ISO 8601 time in UTC>`
 and one row explaining both. `export_id` keeps its row, which the R script
-reads.
+reads. Since 2026-11-22 four rows follow, in this order: on `app_version`
+and `egfr_formula` of `models`, on `factor_levels` and the not-tested
+vocabulary, on `dropout` and `dropout_patients`, and on the Wald intervals and
+the lmerTest tests of `r_script`.
 
 **R reproduction (since 2026-11-05).** These outputs let a fit be rebuilt and
 extended in R. They add no estimate and change none.
@@ -750,7 +985,10 @@ extended in R. They add no estimate and change none.
   `time_since_baseline`, and per factor the column passed to R
   (`baseline_age_centered`, `factor_<i>_`) followed by its value before
   centring (`baseline_age`, `raw_factor_<i>_`). Categorical values are passed
-  unchanged, so both columns are equal. The date and raw values are not part of
+  unchanged, so both columns are equal, except where the minimum per level
+  pooled a level (`factor_<i>_` holds `other (pooled)`, `raw_factor_<i>_` the
+  level as read) or a not-tested value was read as `not tested`
+  (`raw_factor_<i>_` holds the imported text, for example `NT`). The date and raw values are not part of
   the dataset hash; R never reads them.
 - **`model_input_flags`.** One row per measurement of the modelled series
   (same name and unit) of every patient in the unit, patients in model order
@@ -823,8 +1061,20 @@ extended in R. They add no estimate and change none.
   Names in string literals have NUL characters and unpaired UTF-16 surrogates
   replaced by U+FFFD, since R cannot parse those escapes. It states the R and package versions of
   the browser fit (`lme4`, `Matrix`, `jsonlite`), or "unknown" when not
-  recorded, how to refit with `REML = FALSE` for likelihood-ratio tests and
-  how to use `lmerTest` for Satterthwaite degrees of freedom. Non-reference
+  recorded, and how to refit with `REML = FALSE` for likelihood-ratio tests.
+  Since 2026-11-22 each unit block also refits with `lmerTest` where it is
+  installed (see *Inference*), names in the factor comment the levels pooled
+  into `other (pooled)` (for example `; levels C pooled into "other
+  (pooled)"`), and, when more than 10 % of the unit reached KRT or died
+  (see *Dropout report*), adds a commented outline: read `dropout_patients`
+  for the unit, set `event` to 1 for `krt` and `death`, refit the model with
+  `nlme::lme` (fixed part of the formula, `random = ~ time_since_baseline |
+  patient_id`, or `~ 1 | patient_id`), fit
+  `survival::coxph(Surv(years_to_end, event) ~ 1)` and join both with
+  `JMbayes2::jm(..., time_var = "time_since_baseline", id_var =
+  "patient_id")`. The outline is a comment, never run, and needs nlme,
+  survival and JMbayes2. Before 2026-11-22 the header only said how to use
+  `lmerTest` by hand. Non-reference
   levels are ordered by `sort(method = "radix")`, so every locale gives the
   browser's order (see *Categorical coding*). Verified with real webR, lme4 2.0.6 and readxl
   (`scripts/verify_mixed_model_r_export.mjs`) for the whole cohort (138 rows)
@@ -930,6 +1180,8 @@ Regression evidence:
 [grouping](../../tests/core/grouping/grouping.test.ts),
 [workspace exclusion count, lines and withholding](../../tests/workspace/model-validity.test.tsx),
 [default reference levels](../../tests/core/mixedModel/defaultReference.test.ts),
+[minimum per level, not-tested level and log baseline UACR](../../tests/core/mixedModel/levelMinimum.test.ts),
+[dropout report, lmerTest lines and the sheets of 2026-11-22](../../tests/core/mixedModel/dropoutAndInference.test.ts),
 [presets, type override and reference categories](../../tests/workspace/cohort-models.test.tsx)
 and [results table](../../tests/workspace/models/CohortModelTable.test.tsx).
 The R code is asserted as text against a mocked runtime; the browser tests

@@ -260,12 +260,28 @@ describe('workspace workbook', () => {
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('hidden')
     expect(records(workbook,'parameters')).toEqual(expect.arrayContaining([expect.objectContaining({formula:'ekfc-2021',source_parameter:'Creatinine',source_unit:'mg/dl'})]))
     // Issue #65: the series each patient's computed eGFR was derived from.
-    expect(records(workbook,'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_source_parameter:'Creatinine',egfr_source_unit:'mg/dl'})])
+    expect(records(workbook,'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_source_parameter:'Creatinine',egfr_source_unit:'mg/dl',egfr_male_coefficients_for_sex_d:false})])
     expect(records(workbook,'about').some(row => String(row.note).includes('Research use only'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).startsWith('eGFR series whose name ends in ", computed)", for example "eGFR (CKD-EPI 2021, computed)", are calculated by the app'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).startsWith('endpoint_percent_change is the total eGFR change in percent'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('numeric limits remain'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('For a Theil-Sen fit with n_fitted_dates below 5 they are Theil-Sen bounds, not a 95 % interval. With one measurement on each of three or four dates, the Theil–Sen bounds are the full range of pairwise slopes and cover the true slope only about 67 % or 92 % of the time.'))).toBe(true)
+  })
+  // Decision `sexd` (2026-11-22): the eGFR equations use the male coefficients for sex d.
+  it('marks a patient whose computed eGFR used the male coefficients for sex d', () => {
+    const input = exportFixture()
+    input.data.rows = input.data.rows.map(row => row.sourceSeries ? { ...row, patientSex: 'd' } : row)
+    input.data.analysis.rows = input.data.rows
+    const workbook = XLSX.read(workspaceWorkbookBytes(input),{type:'array'})
+    const header = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets.demographics,{header:1})[0]
+    expect(header.at(-1)).toBe('egfr_male_coefficients_for_sex_d')
+    expect(records(workbook,'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_male_coefficients_for_sex_d:true})])
+    expect(records(workbook,'about').at(-1)?.note).toMatch(/^egfr_male_coefficients_for_sex_d, the last column of demographics, is true/)
+    // Without a computed eGFR the cell is empty.
+    input.data.rows = input.data.rows.filter(row => !row.sourceSeries)
+    input.data.analysis.rows = input.data.rows
+    const without = records(XLSX.read(workspaceWorkbookBytes(input),{type:'array'}),'demographics')[0]
+    expect('egfr_male_coefficients_for_sex_d' in without).toBe(false)
   })
   it('intersects individual selection with visible IDs and rejects empty or missing summaries', () => {
     const input = exportFixture()

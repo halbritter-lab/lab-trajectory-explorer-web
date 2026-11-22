@@ -45,6 +45,10 @@ test('real workbook previews complete-case factor selection before fitting', asy
   await studio.getByLabel('genotype effect').selectOption('level_slope')
   await studio.getByLabel('genotype reference').selectOption('A')
   await expect(studio.locator('.cm-sample-meta')).toContainText('across 10 of 11 patients (30 measurements)')
+  // Minimum per level (2026-11-22): B has 3 patients, so it is pooled by default; keep it here.
+  await expect(studio.getByLabel('Minimum per level')).toContainText('Whole cohort: genotype B (3 of 3) pooled into “other (pooled)”, which still has fewer than 5.')
+  await studio.getByLabel(/Pool small levels/).uncheck()
+  await expect(studio.getByLabel('Minimum per level')).toContainText('Whole cohort: genotype B (3 of 3) below the minimum, kept.')
   await expect(studio.getByLabel('Readable formula')).toContainText('Time (years):"genotype"')
   await expect(studio.getByLabel('Patients per level')).toHaveText('Whole cohort, patients per level (with enough measurement times): genotype: A 7 (7), B 3 (3)')
   await studio.getByText('Patients not in the model (1)', { exact: true }).click()
