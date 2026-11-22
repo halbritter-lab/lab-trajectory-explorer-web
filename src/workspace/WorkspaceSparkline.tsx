@@ -68,7 +68,8 @@ export function WorkspaceSparkline({ cell, measurements, patientId, label, domai
     <text x={PLOT.left - 5} y={PLOT.top + 3} textAnchor="end">{maxLabel}</text>
     <text x={PLOT.left - 5} y={bottom + 3} textAnchor="end">{minLabel}</text>
     <text x={PLOT.left} y={bottom + 16}>0</text><text x={right} y={bottom + 16} textAnchor="end">{formatWorkspaceNumber(domain.days)} days</text>
-    {shownEvents.map(({ event, line }, i) => line !== null && <line key={`event-${i}`} data-testid="spark-event-line" x1={line} x2={line} y1={PLOT.top} y2={bottom} stroke={EVENT_COLOR} strokeWidth="1.2" strokeDasharray="2 3"><title>{eventTitle(event)}</title></line>)}
+    {/* A path, not a line: the small chart size hides the axis lines and labels. */}
+    {shownEvents.map(({ event, line }, i) => line !== null && <path key={`event-${i}`} data-testid="spark-event-line" d={`M ${line} ${PLOT.top} V ${bottom}`} stroke={EVENT_COLOR} strokeWidth="1.4" strokeDasharray="3 2"><title>{eventTitle(event)}</title></path>)}
     <polyline points={drawn.map(({ point }) => `${x(point.date)},${y(point.value)}`).join(' ')} fill="none" stroke="#176c68" strokeWidth="1.7" />
     {drawn.map(({ point, index: i }) => <g key={i}><circle cx={x(point.date)} cy={y(point.value)} r="2.4" fill={boundedPrefix(sources[i]?.wertOperator) ? 'white' : '#176c68'} stroke="#176c68" />{boundedPrefix(sources[i]?.wertOperator) && <text x={x(point.date) + 3} y={y(point.value) - 3}>{sources[i].wertOperator}</text>}</g>)}
     {fit && drawnFitLines(cell, logScale).map((line, i) => <polyline key={i} points={line.map(point => `${x(point.date)},${y(point.value)}`).join(' ')} fill="none" stroke="#253b48" strokeWidth="1.4" strokeDasharray="4 3" />)}

@@ -260,9 +260,11 @@
   .pv-zoom button { min-width: 44px; min-height: 44px; }
   .pv-column-more, .pv-param-controls > button { min-width: 44px; min-height: 44px; }
   .pv-param-controls > label, .pv-param-controls select { min-height: 44px; }
-  .pv-param-controls { flex-wrap: nowrap; gap: 4px; }
+  .pv-param-controls { flex-wrap: nowrap; gap: 2px; }
+  /* With the log toggle the controls fill a phone column: the checkbox keeps its accessible name "Analyse trend". */
+  .pv-param-controls .pv-trend-text { display: none; }
   .pv-param-controls > label { gap: 4px; font-size: 11px; white-space: nowrap; }
-  .pv-param-controls select { width: 66px; flex: 0 0 66px; }
+  .pv-param-controls select { width: 56px; flex: 0 0 56px; }
   .pv-column-sort { min-height: 44px; }
   .pv-column-menu-group button { min-height: 44px; }
 }

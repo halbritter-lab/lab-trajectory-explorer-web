@@ -133,7 +133,7 @@ describe('export and saved view', () => {
     expect(on.slice(0, -1).filter(sheet => sheet.name !== 'about')).toEqual(off.filter(sheet => sheet.name !== 'about'))
     const about = (sheets: typeof on) => sheets.find(sheet => sheet.name === 'about')!.rows
     expect(about(on)).toHaveLength(about(off).length + 1)
-    const sheet = on.at(-1)!
+    const sheet = on.at(-1)! as unknown as { rows: Record<string, unknown>[] }
     expect(sheet.rows).toHaveLength(2)
     expect(sheet.rows[0]).toMatchObject({ PatientID: 'A', n_fitted: 5, n_non_positive: 0, index_date: '2021-01-04', unstable_slope: '' })
     expect(sheet.rows[0].doubling_time_years as number).toBeCloseTo(1.0171, 4)

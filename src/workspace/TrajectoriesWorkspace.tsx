@@ -758,7 +758,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true 
     const settings = columnSettings[p.key] ?? fitSettings
     const analysed = parameterKeySet.has(p.key)
     return <div className="pv-param-controls" role="group" aria-label={`Analysis: ${p.label}`}>
-      <label><input type="checkbox" aria-label={`Analyse trend: ${p.label}`} checked={analysed} disabled={settings.fitModel === 'none'} onChange={() => toggleTrend(p.key)} />Trend</label>
+      <label title="Analyse trend"><input type="checkbox" aria-label={`Analyse trend: ${p.label}`} checked={analysed} disabled={settings.fitModel === 'none'} onChange={() => toggleTrend(p.key)} /><span className="pv-trend-text">Trend</span></label>
       <select aria-label={`Trend method: ${p.label}`} title={`${columnSettings[p.key] ? 'This parameter only' : 'Shared defaults'}: trend method`} value={settings.fitModel} onChange={event => changeParameterMethod(p.key, event.target.value as WorkspaceFitSettings['fitModel'])}>
         <option value="ols">OLS</option><option value="theil-sen">Theil–Sen</option><option value="rolling-ols">Rolling OLS</option><option value="segmented-ols">Segmented OLS</option><option value="none">No fit</option>
       </select>
