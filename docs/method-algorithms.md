@@ -118,13 +118,14 @@ decision does not say what a slope without a 95 % interval gets.
 OD-36 was added on 2026-11-22 with the per-patient creatinine source of
 issue #65: the cases the owner decision of 2026-11-21 does not name are
 implemented with the option that changes least. OD-38 was added on
-2026-11-22 with the peri-event creatinine analysis (issue #69).
+2026-11-22 with the peri-event creatinine analysis (issue #69) on a misreading
+of its decision and resolved the same day: the decision prescribes calendar
+days.
 
 | ID | Section | Implemented behaviour that needs a decision |
 | --- | --- | --- |
 | OD-36 | [eGFR source selection](method-algorithms/egfr.md#source-selection) | A patient without the selected mg/dl source falls back to µmol/l only without any serum creatinine in mg/dl; mg/dl creatinine under another name, several µmol/l series without one under the selected name, and a selected µmol/l source give no fallback and no eGFR for that patient. |
 | OD-37 | [Rapid eGFR decline flag](method-algorithms/slope-quality.md#rapid-egfr-decline-flag) | A slope below the negative threshold without a 95 % interval (missing bounds, or Theil–Sen bounds on fewer than five fitted dates) is marked "rapid ↓?" (`possible`), the conservative reading chosen during implementation; the decision of 2026-11-21 does not cover the case. |
-| OD-38 | [Peri-event creatinine](method-algorithms/aki.md#days-baseline-window-and-criterion) | The decision of 2026-11-21 asks for exact hours when the event and the values have a time of day. The import keeps no time on events, so the 48- and 72-hour windows are always calendar days after the event day and a value on the event day is always a baseline value, also when the lab values carry times. |
 
 ### Resolved decisions
 
@@ -169,4 +170,5 @@ methodology page. The numbers are not reused.
 | OD-33 | The methodology page describes AKI staging against the lowest value of the previous 7 days and the "Slope range" label for Theil-Sen bounds on fewer than five dates; wording approved 2026-11-16. | [AKI staging](method-algorithms/aki.md#staging) |
 | OD-34 | The methodology page states the rule for several creatinine values on one day: ordered by the time of day where every value has one, otherwise compared with earlier days only; wording G1 applied 2026-11-22. | [Measurements on the same date](method-algorithms/aki.md#measurements-on-the-same-date) |
 | OD-35 | The recovery that separates two AKI episodes is a dataset-level setting (*Recovery between episodes (hours)*, default 48, `recoveryHours` in the exported analysis settings); a gap of more than seven days without creatinine values outside dated acute dialysis intervals still ends an episode (step 4), which the episode list then gives without an end date; decided 2026-11-22. | [Episodes](method-algorithms/aki.md#recovery-length) |
+| OD-38 | The peri-event windows of 48 and 72 hours count calendar days after the event day and a value on the event day is a baseline value, as the decision of 2026-11-21 (issue #69) prescribes; the marker had been added on a misreading that the decision asked for exact hours. | [Peri-event creatinine](method-algorithms/aki.md#days-baseline-window-and-criterion) |
 

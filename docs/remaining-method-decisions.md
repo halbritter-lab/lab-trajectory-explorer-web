@@ -1770,10 +1770,11 @@ Details of the implementation, chosen where the decision left them open,
   is counted (`overlapping_events`, other selected events within the window
   length before or after); the later event's baseline can be raised by the
   first.
-- Time of day: event dates carry no time (it is discarded at import), so the
-  exact-hour rule asked for where event and values both have times cannot be
-  applied; the calendar-day rule applies in every case. Recorded as
-  **OD-38**.
+- Time of day: the decision prescribes day resolution ("48 h and 72 h are
+  evaluated as calendar days, and a value on the event date counts as the
+  baseline"); event dates carry no time (it is discarded at import). OD-38,
+  first recorded on a misreading that exact hours were asked for, is
+  resolved by this text of the decision.
 
 Recomputed example (synthetic, no contrast events in the demo workbook):
 creatinine 0.9, 1.0, 1.2, 1.35 and 1.6 mg/dl on 1, 3, 4, 5 and 6 March 2026,

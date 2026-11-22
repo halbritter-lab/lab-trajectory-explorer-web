@@ -145,8 +145,8 @@ interfaces are still evolving before 1.0.
   (≥ 0.3 mg/dl or ≥ 1.5 × baseline, inclusive), or why the event is not
   evaluable (no creatinine, event day under dialysis, no baseline, no value
   in the window). Event dates have no time of day, so the window counts
-  calendar days and a value on the event day is the baseline; the page says
-  so (OD-38). The cohort and patient workbooks gain the last sheet
+  calendar days and a value on the event day is the baseline, as decided;
+  the page says so. The cohort and patient workbooks gain the last sheet
   `peri_event_creatinine`, one row per event, and a closing `about` note;
   the selection is saved with the dataset copy and exported in the last
   column `peri_event_creatinine` of `settings`; it changes no fit and keeps

@@ -945,10 +945,9 @@ procedure is usually its baseline, as for the anchor of the before/after
 comparison. A rise measured later on the event day is therefore not seen, and
 the 48-hour window covers between 48 and 72 hours of elapsed time after an
 event depending on when on day `A` it took place. The Data page states this
-limitation. **Open decision OD-38**: the decision asks for exact hours when
-event and values have times; because the import keeps no time of day on
-events, the calendar-day rule is applied in every case, and an exact-hour rule
-would need event times.
+limitation, as the decision of 2026-11-21 requires: imported dates are
+evaluated with day resolution, also when the lab values carry a time of day
+(the import keeps no time of day on events). OD-38, resolved.
 
 ### Status and reasons
 
