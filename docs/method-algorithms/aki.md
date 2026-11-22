@@ -529,7 +529,14 @@ are not excluded from this fit" when it has a fit that keeps them, and "this
 column has no fit, so nothing is excluded" with fit model "No fit" or while
 "Trend" is not ticked. The tooltip gives the dates and the length of the
 drawn band, which exceeds N when windows were merged (39 days for four
-episodes within nine days and N = 30).
+episodes within nine days and N = 30). Since 2026-11-22 a column that does
+not exclude the window (fit model "No fit", "Trend" not ticked, or a fit that
+keeps the values) also carries one sentence under the chart while its bands
+are drawn: "In this column nothing is excluded for AKI (it has no fit): the
+shaded band only shows the configured 30 days after each onset." for the
+first two cases ("Acute review", for example) and the same without "(it has
+no fit)" for the third. A column that excludes the window has no such
+sentence.
 
 **Scope and order.** The windows apply to any analyte column whose
 configuration has the switch on, not only to creatinine and eGFR; the

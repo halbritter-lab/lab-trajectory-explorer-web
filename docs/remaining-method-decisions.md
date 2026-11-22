@@ -1001,6 +1001,17 @@ Resolved with a change:
   of a single patient, where it names the grouping that was active in the
   table; the `about` note on `group` names it. Details:
   [workbook sheets](method-algorithms/fit-input-presets-and-time-balancing.md#workbook-sheets-column-names-and-empty-cells).
+- **A column that does not exclude AKI windows says so under the chart**
+  (K30; replaces the accepted detail "'Acute review' gets no extra sentence
+  under the chart" of 2026-11-21). While the AKI bands of such a column are
+  drawn, one sentence under the chart reads "In this column nothing is
+  excluded for AKI (it has no fit): the shaded band only shows the
+  configured 30 days after each onset." Legend and tooltip are unchanged.
+  Details of the implementation: the sentence also appears for a column with
+  a fit that keeps the values, then without "(it has no fit)"; it is shown
+  only while bands are drawn (Display → "AKI windows and episodes", and for
+  the highlighted patient in an overlay), once per chart. Details:
+  [exclusion window](method-algorithms/aki.md#aki-fit-exclusion-window).
 
 ## Approved requirements
 

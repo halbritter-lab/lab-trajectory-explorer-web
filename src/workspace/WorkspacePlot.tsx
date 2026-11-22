@@ -200,7 +200,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       const bands = (cell?.overlays ?? []).flatMap(band => {
         if (band.kind !== 'band') return []
         const start = xValue(band.start), end = xValue(band.end)
-        return start === null || end === null || !Number.isFinite(start) || !Number.isFinite(end) ? [] : [{ moduleId: band.moduleId, start, end, title: band.title, legend: band.legend }]
+        return start === null || end === null || !Number.isFinite(start) || !Number.isFinite(end) ? [] : [{ moduleId: band.moduleId, start, end, title: band.title, legend: band.legend, note: band.note }]
       })
       return { row, cell, group, points, markers, bands, events, xValue, ageEstimated: patient?.ageEstimated ?? anchor === undefined }
     })
@@ -343,6 +343,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     const legends = [...new Set(detailSeries.flatMap(series => series.bands.filter(band => band.moduleId === module.id).map(band => band.legend ?? module.presentation.bandLegend)))]
     return legends.length ? legends.join(';') : module.presentation.bandLegend
   }
+  const bandNotes = (module: (typeof OVERLAY_MODULES)[number]) => [...new Set(detailSeries.flatMap(series => series.bands.filter(band => band.moduleId === module.id && band.note).map(band => band.note!)))]
   // Stage labels are placed together, outside the clipped trajectories: equal
   // neighbours share a label, others move apart, and none is cut at the border.
   const markerLabels = layoutMarkerLabels(detailSeries.flatMap(series => series.markers.filter(marker => display[marker.moduleId]).map(marker => ({
@@ -412,6 +413,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     {shownOverlays.map(module => <p key={module.id} className="wt-muted wt-plot-key">{markerCount(module.id) > 0
       ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={module.presentation.color} /></svg>{module.presentation.markerLegend}{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${module.presentation.color}26`, borderColor: `${module.presentation.color}40` }} /><span data-testid={`${module.id}-band-legend`}>{bandLegends(module)}</span>{cohortRows.length > 1 ? visible.some(p => p.row.patientId === highlight) ? ', shown for the highlighted patient' : highlight !== null ? '; the highlighted patient is not plotted in this chart' : '; windows and stage labels appear once a patient is chosen under Display → “Highlight patient”' : ''}.</>
       : module.presentation.emptyLegend}</p>)}
+    {shownOverlays.flatMap(module => bandNotes(module).map(note => <p key={`${module.id}:${note}`} className="wt-muted" data-testid={`${module.id}-band-note`}>{note}</p>))}
     {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurement dates or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
     {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
     {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Bounds marked &lt; or &gt; remain visible at their numeric limits. They are excluded from fits and endpoints.</p>}

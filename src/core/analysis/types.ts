@@ -110,6 +110,9 @@ export interface OverlayBand {
   /** What the band means in this column, for the chart's legend; the
    * module's general band legend is used when absent. */
   legend?: string
+  /** One sentence shown under the chart while bands of this column are
+   * drawn, once however many bands carry it. */
+  note?: string
 }
 
 /** A dated marker drawn on a trajectory. It sits on this series' measurement

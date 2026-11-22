@@ -33,6 +33,9 @@ interfaces are still evolving before 1.0.
   only.
 - The `settings` sheet of the cohort workbook ends with `group_by`, the
   attribute the table was grouped by (empty without grouping).
+- A chart column that does not exclude AKI windows from its fit ("Acute
+  review", for example) says under the chart that nothing is excluded there
+  and that the shaded band shows the configured window length.
 
 ### Changed (AKI detection: several creatinine values on one day, decided 2026-11-21)
 
