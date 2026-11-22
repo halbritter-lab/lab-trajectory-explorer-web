@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  type ClinicalEvent,
   CLINICAL_EVENT_TYPES,
   CLINICAL_EVENT_WARNINGS,
   DIALYSIS_INTENTS,
@@ -7,7 +8,8 @@ import {
   normalizeClinicalEventsWithNotes,
   validateClinicalEvents,
 } from '../../../src/core/events/events'
-import { effectForEvent } from '../../../src/core/domains/nephrology/censoring'
+import { effectForEvent, UNDATED_UNKNOWN_DIALYSIS_LABEL } from '../../../src/core/domains/nephrology/censoring'
+import type { UnknownDialysisPolicy } from '../../../src/core/domains/nephrology/fitConfig'
 import type { LabRow } from '../../../src/core/types'
 
 function labRow(id: number): LabRow {
@@ -258,8 +260,16 @@ describe('clinical events', () => {
         intent: 'unknown',
         warning: '',
       }),
-    // Since 2026-11-22 (decision `dial`) the CKD progression policy censors from its start.
-    ).toEqual({ effect: 'censor_from_date', label: 'censor from dialysis start, unknown intent without end date' })
+    // Since 2026-11-22 (decision `dial`) the CKD progression policy censors from its start; the others do not
+    // (censor-from-start does too), so without the column's policy the label is conditional.
+    ).toEqual({ effect: 'censor_from_date', label: UNDATED_UNKNOWN_DIALYSIS_LABEL })
+    expect(UNDATED_UNKNOWN_DIALYSIS_LABEL).toContain('under the policy “Dated interval, else from start” (CKD progression)')
+    const undated: ClinicalEvent = { patientId: 1, type: 'dialysis', date: new Date('2024-01-01'), title: 'unknown open', description: null, endDate: null, intent: 'unknown', warning: '' }
+    const policy = (unknownDialysisPolicy: UnknownDialysisPolicy) => ({ censorAfterKidneyTransplant: true, censorAfterChronicDialysis: true, excludeAcuteDialysisPeriods: true, unknownDialysisPolicy })
+    expect(effectForEvent(undated, policy('dated-interval-or-from-start'))).toEqual({ effect: 'censor_from_date', label: 'censor from dialysis start, unknown intent without end date' })
+    expect(effectForEvent(undated, policy('censor-from-start'))).toEqual({ effect: 'censor_from_date', label: 'censor from dialysis start, unknown intent' })
+    expect(effectForEvent(undated, policy('exclude-dated-interval'))).toEqual({ effect: 'warning_no_exclusion', label: 'warning, not excluded from fit' })
+    expect(effectForEvent(undated, policy('flag-only'))).toEqual({ effect: 'warning_no_exclusion', label: 'warning, not excluded from fit' })
     expect(
       effectForEvent({
         patientId: 1,

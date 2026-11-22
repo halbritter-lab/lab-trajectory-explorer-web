@@ -38,6 +38,10 @@ interfaces are still evolving before 1.0.
   own `unit_key` instead of always `cohort`, and the Satterthwaite block notes
   that with a slope interaction the factor's own row tests the difference at
   baseline (time 0).
+- The loaded-events table no longer says that an undated dialysis of unknown
+  intent censors from its start in every preset: it does so only under the
+  policies "Dated interval, else from start" (CKD progression) and "Censor
+  from start", and the label now says so.
 
 ### Added (release preparation and wording drafts, issues #80 and #84, decided 2026-11-22)
 

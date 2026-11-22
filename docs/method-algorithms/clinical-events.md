@@ -197,16 +197,27 @@ Defaults:
   `exclude-dated-interval` before).
 
 The "Effect when enabled" column of the loaded-events table comes from
-`effectForEvent`, which evaluates the event with the no-configuration default.
+`effectForEvent`, which evaluates the event with the no-configuration default
+(the table belongs to the Data page and knows no column's policy).
 It shows `censor from event date` (transplant), `censor from dialysis start`
 (chronic dialysis), `exclude dialysis interval` (acute with end date),
 `exclude dialysis interval, unknown intent` (unknown intent with end date),
-`censor from dialysis start, unknown intent without end date` (unknown intent
-without end date, since 2026-11-22; `warning, not excluded from fit` before),
 `warning, not excluded from fit` (acute without end date) and `display only`
-(other). It does not reflect the active column configuration, the
-`flag-only`, `exclude-dated-interval` and `censor-from-start` policies, the
-separate segment after kidney replacement therapy, or the endpoint filter.
+(other). An undated dialysis of unknown intent censors from its start only
+under the policies `dated-interval-or-from-start` (CKD progression) and
+`censor-from-start`, so its label is conditional (since 2026-11-22, code
+review): `censor from dialysis start under the policy “Dated interval, else
+from start” (CKD progression) or “Censor from start”; not excluded under the
+other policies (unknown intent without end date)` (`warning, not excluded
+from fit` before the decision `dial`; for a few hours of 2026-11-22 `censor
+from dialysis start, unknown intent without end date`, which read as true in
+every preset). Given a column's censoring, `effectForEvent` labels by its
+policy instead: `censor from dialysis start, unknown intent without end date`
+under `dated-interval-or-from-start`, `censor from dialysis start, unknown
+intent` under `censor-from-start`, `warning, not excluded from fit` under
+`exclude-dated-interval` and `flag-only`. The table does not reflect the
+other column options, the separate segment after kidney replacement therapy,
+or the endpoint filter.
 
 Per-measurement reasons: each measurement records every distinct reason whose
 window contains it, in the stored event order, followed by `aki` for AKI

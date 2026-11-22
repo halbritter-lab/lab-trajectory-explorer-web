@@ -26,7 +26,9 @@ and `tests/e2e/anchor-comparison.e2e.ts`.
    progression: the values from its start are grey ("after dialysis start of
    unknown intent without end date"), the cell shows "… values after dialysis
    of unknown intent left out", the event table reads "censor from dialysis
-   start, unknown intent without end date"; the endpoint badges still use
+   start under the policy “Dated interval, else from start” (CKD progression)
+   or “Censor from start”; not excluded under the other policies (unknown
+   intent without end date)"; the endpoint badges still use
    those values.
 
 Verified 2026-11-22 in Chromium against the production build by the browser

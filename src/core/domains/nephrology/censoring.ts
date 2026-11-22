@@ -147,14 +147,23 @@ export function clinicalEventExclusionReasonsAt(
   return exclusionReasonsAt(date, clinicalEventExclusionWindows(events, censoring))
 }
 
+/** The label of an undated dialysis of unknown intent when the column's
+ * policy is not known: only "Dated interval, else from start" (the CKD
+ * progression default) and "Censor from start" leave its values out. */
+export const UNDATED_UNKNOWN_DIALYSIS_LABEL = 'censor from dialysis start under the policy “Dated interval, else from start” (CKD progression) or “Censor from start”; not excluded under the other policies (unknown intent without end date)'
+
 /**
- * What an event does when its censoring option is on (every option enabled,
- * unknown-intent dialysis excluding its dated interval). Derived from
- * `clinicalEventExclusionWindow`, so the event table describes exactly what the
- * fits do.
+ * What an event does when its censoring option is on. With `censoring` the
+ * column's policy for dialysis of unknown intent decides; without it every
+ * option counts as on and the unknown-intent policy as
+ * `dated-interval-or-from-start`, except that an undated dialysis of unknown
+ * intent, which censors from its start under that policy (and under
+ * `censor-from-start`) only, is labelled conditionally
+ * (`UNDATED_UNKNOWN_DIALYSIS_LABEL`). Derived from
+ * `clinicalEventExclusionWindow`, so the event table describes what the fits do.
  */
-export function effectForEvent(event: ClinicalEvent): ClinicalEventEffectInfo {
-  const window = clinicalEventExclusionWindow(event)
+export function effectForEvent(event: ClinicalEvent, censoring?: ClinicalEventCensoring): ClinicalEventEffectInfo {
+  const window = clinicalEventExclusionWindow(event, censoring)
   if (window === null) {
     return event.type === 'other'
       ? { effect: 'display_only', label: 'display only' }
@@ -162,7 +171,10 @@ export function effectForEvent(event: ClinicalEvent): ClinicalEventEffectInfo {
   }
   if (window.end === null) {
     if (window.reason === 'post_kidney_transplant') return { effect: 'censor_from_date', label: 'censor from event date' }
-    if (window.reason === 'unknown_dialysis_open') return { effect: 'censor_from_date', label: 'censor from dialysis start, unknown intent without end date' }
+    if (window.reason === 'unknown_dialysis_open') {
+      return { effect: 'censor_from_date', label: censoring ? 'censor from dialysis start, unknown intent without end date' : UNDATED_UNKNOWN_DIALYSIS_LABEL }
+    }
+    if (window.reason === 'unknown_dialysis_interval') return { effect: 'censor_from_date', label: 'censor from dialysis start, unknown intent' }
     return { effect: 'censor_from_date', label: 'censor from dialysis start' }
   }
   return {
