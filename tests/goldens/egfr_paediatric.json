@@ -18,6 +18,16 @@
     { "heightCm": 120, "scrMgdl": 0.5, "egfr": 99.12 },
     { "heightCm": 150, "scrMgdl": 0.6, "egfr": 103.25 }
   ],
+  "_derivation_note": "Added 2026-11-23 (owner decision on OD-70): CKiD U25 applies from age 1; under 2 years a creatinine value needs a height within 30 days (same day, or interpolated between two heights both at most 30 days away), from 2 years 90 days; EKFC stays from age 2, so age 1 without such a height gives no value; under 1 no value. The formula cases above already covered age 1; these row-level cases pin the derivation (rowEgfrFormula, appendComputedEgfr) at the new age floor. eGFR rounded to one decimal as stored. k(1, m) = 39.0 x 1.008^-11 = 35.727181; k(1, w) = 36.1 x 1.008^-11 = 33.070545; k(2, m) = 39.0 x 1.008^-10 = 36.012999.",
+  "derivation": [
+    { "case": "boy 1 y, heights 25 days before and after", "ageYears": 1, "sex": "m", "scrMgdl": 0.25, "creatinineDate": "2020-01-01", "heights": [["2019-12-07", 84], ["2020-01-26", 86]], "rule": "ckid-u25-ekfc", "egfrFormula": "ckid-u25", "heightCm": 85, "egfr": 121.5 },
+    { "case": "girl 1 y, heights 25 days before and after, full-age formula", "ageYears": 1, "sex": "w", "scrMgdl": 0.25, "creatinineDate": "2020-01-01", "heights": [["2019-12-07", 84], ["2020-01-26", 86]], "rule": "full-age", "egfrFormula": "ckid-u25", "heightCm": 85, "egfr": 112.4 },
+    { "case": "boy 1 y, heights 35 days before and after: no value", "ageYears": 1, "sex": "m", "scrMgdl": 0.25, "creatinineDate": "2020-01-01", "heights": [["2019-11-27", 84], ["2020-02-05", 86]], "rule": "ckid-u25-ekfc", "egfrFormula": null, "heightCm": null, "egfr": null },
+    { "case": "boy 2 y, heights 35 days before and after: within 90 days", "ageYears": 2, "sex": "m", "scrMgdl": 0.25, "creatinineDate": "2020-01-01", "heights": [["2019-11-27", 84], ["2020-02-05", 86]], "rule": "ckid-u25-ekfc", "egfrFormula": "ckid-u25", "heightCm": 85, "egfr": 122.4 },
+    { "case": "boy 1 y, no height: no value (no EKFC under 2)", "ageYears": 1, "sex": "m", "scrMgdl": 0.25, "creatinineDate": "2020-01-01", "heights": [], "rule": "ckid-u25-ekfc", "egfrFormula": null, "heightCm": null, "egfr": null },
+    { "case": "boy 1 y, bedside Schwartz, heights 25 days away: 0.413 x 85 / 0.25", "ageYears": 1, "sex": "m", "scrMgdl": 0.25, "creatinineDate": "2020-01-01", "heights": [["2019-12-07", 84], ["2020-01-26", 86]], "rule": "schwartz-bedside", "egfrFormula": "schwartz-bedside", "heightCm": 85, "egfr": 140.4 },
+    { "case": "boy 0 y, height the same day: no value", "ageYears": 0, "sex": "m", "scrMgdl": 0.25, "creatinineDate": "2020-01-01", "heights": [["2020-01-01", 70]], "rule": "ckid-u25-ekfc", "egfrFormula": null, "heightCm": null, "egfr": null }
+  ],
   "ekfc": [
     { "ageYears": 2, "sex": "m", "scrMgdl": 0.25, "qUmoll": 27.4326, "egfr": 115.034342 },
     { "ageYears": 2, "sex": "w", "scrMgdl": 0.3, "qUmoll": 25.9491, "egfr": 104.688979 },

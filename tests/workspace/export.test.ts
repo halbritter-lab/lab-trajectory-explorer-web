@@ -265,7 +265,7 @@ describe('workspace workbook', () => {
     expect(records(workbook,'about').some(row => String(row.note).startsWith('eGFR series whose name ends in ", computed)", for example "eGFR (CKD-EPI 2021, computed)", are calculated by the app'))).toBe(true)
     // Since issue #66 the note names the rule under 18 and the per-row equation column, no longer "adults only".
     const egfrNote = String(records(workbook,'about').find(row => String(row.note).startsWith('eGFR series whose name ends in'))?.note)
-    for (const part of ['CKiD U25', 'EKFC', 'height in cm', 'no eGFR under 2 years', 'egfr_equation']) expect(egfrNote, part).toContain(part)
+    for (const part of ['CKiD U25', 'EKFC', 'height in cm', 'no eGFR under 1 year', 'egfr_equation']) expect(egfrNote, part).toContain(part)
     expect(egfrNote).not.toContain('adults only')
     expect(records(workbook,'about').some(row => String(row.note).startsWith('endpoint_percent_change is the total eGFR change in percent'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('numeric limits remain'))).toBe(true)

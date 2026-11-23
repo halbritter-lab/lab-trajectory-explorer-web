@@ -2903,8 +2903,10 @@ checks" in `Fits.tsx` (H1 b) would then still need H1's correction.
 
 - The figures in K1 (0.7 %, 0.3 %, 14 %) are those of the stored grid; the
   owner decides whether the page names figures or only the packages.
-- OD-85, OD-86 and OD-88 (eGFR against kidney.epi) and OD-87 (Theil–Sen
+- OD-85 and OD-88 (eGFR against kidney.epi) and OD-87 (Theil–Sen
   interval against zyp) are open; the wording should follow their decision.
+  OD-86 was resolved on 2026-11-23: the app's CKiD U25 formula from 15 to
+  under 18 stays, and kidney.epi's constants do not match the published one.
 ## Part L: series comparison and deliberate merge (issue #68, 2026-11-22, for approval)
 
 Follows the owner decisions of 2026-11-16, 2026-11-21 and 2026-11-22 on

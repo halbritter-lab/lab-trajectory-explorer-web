@@ -62,8 +62,10 @@ describe('paediatric eGFR against egfr and kidney.epi', () => {
       const label = `CKiD U25 Scr ${c.scrMgdl} age ${c.ageYears} ${c.sex}`
       expectClose(value, c.egfr.ckidU25, FULL, `${label} vs egfr`)
       if (c.ageYears >= 15 && c.ageYears < 18) {
-        // Documented difference (OD-86): kidney.epi uses a constant k of 41.8
-        // (boys) and 37.6 (girls) from 15 to under 18.
+        // Documented difference (OD-86, resolved 2026-11-23: the app's
+        // formula stays): kidney.epi uses a constant k of 41.8 (boys) and
+        // 37.6 (girls) from 15 to under 18, which does not match the
+        // published formula.
         const k = c.sex === 'm' ? 41.8 : 37.6
         expectClose(k * (c.heightCm / 100) / c.scrMgdl, c.kidneyEpi.ckidU25, ROUNDED, `${label} kidney.epi constant`)
       } else {

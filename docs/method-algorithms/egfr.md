@@ -267,7 +267,7 @@ yields nothing; no placeholder row is written.
 | Numeric value | present (`wertNum` not null) |
 | Creatinine | strictly greater than 0 mg/dl after conversion |
 | Sex | resolved to `m`, `w` or `d`, for every equation with a sex term; not checked for bedside Schwartz (since 2026-11-22, code review: before, a row without a resolved sex gave no bedside Schwartz value either) |
-| Age | present, and an equation applies at that age: from 18 for an adult formula (`age >= 18`; 17 gives no value, 18 does) and, since 2026-11-22, from 2 under the rule for children (see [Children and adolescents](#children-and-adolescents)) |
+| Age | present, and an equation applies at that age: from 18 for an adult formula (`age >= 18`; 17 gives no value, 18 does) and, under the rule for children (see [Children and adolescents](#children-and-adolescents)), from 1 since 2026-11-23 (from 2 between 2026-11-22 and 2026-11-23) |
 
 **Where the reason is named.** `egfrGapReason`
 (`src/workspace/egfr-gaps.ts`) reports the first condition of the table a
@@ -279,9 +279,11 @@ Since 2026-11-21 a patient without a single computed value also carries the
 reasons in the empty cell of the computed parameter under Trajectories and
 in the patient view. There `egfrGapReasons` reports every condition a row
 fails, not only the first (date; value missing or else not positive; sex;
-age missing or else under 18, under 2 or without a usable height, by the
+age missing or else under 18, under 1 or without a usable height, by the
 [rule for children](#children-and-adolescents); sex is not reported for a row
-that bedside Schwartz applies to, or would apply to with a height), so the note names all that has to be
+that bedside Schwartz applies to, or would apply to with a height; it is
+reported for a row of age 1 that lacks a height under the CKiD U25 rules,
+since CKiD U25 needs one), so the note names all that has to be
 supplied: every reason found among the patient's source rows, in the
 table's order, each with the number of creatinine values that fail it (a
 row failing two conditions counts under both), and a pointer to "Review and
@@ -448,7 +450,11 @@ three places, described as the code behaves:
 Since 2026-11-22 (owner decisions of 2026-11-21 and 2026-11-22, issue #66;
 artifact ids `peds-eq`, `height` and `switch` in the
 [method decisions](../remaining-method-decisions.md#decisions-of-2026-11-22-decision-artifact-issues-2-4-6585)).
-Before, every formula was adult-only and a row under 18 gave no value.
+Before, every formula was adult-only and a row under 18 gave no value. Since
+2026-11-23 CKiD U25 and bedside Schwartz apply from 1 year, with a 30-day
+height limit under 2 years (owner decision on OD-70, see
+[decisions of 2026-11-23](../remaining-method-decisions.md#decisions-of-2026-11-23));
+from 2026-11-22 to 2026-11-23 no eGFR was computed under 2.
 
 **Settings.** Two settings decide which equation a row uses (`rowEgfrFormula`
 in `egfr/series.ts`):
@@ -473,11 +479,13 @@ completed years (OD-65):
 | none | missing | any | none, reason "age missing" |
 | adult formula | ≥ 18 | any | the adult formula |
 | adult formula, rule `off` | < 18 | any | none, "age under 18" |
-| any | < 2 | any | none, "age under 2" |
+| any | < 1 | any | none, "age under 1" |
 | `ckid-u25-ekfc` | ≥ 26 | any | EKFC 2021 |
-| adult formula, rule `schwartz-bedside` | 2 to 17 | yes | bedside Schwartz |
-| adult formula, rule `schwartz-bedside` | 2 to 17 | no | none, "height missing" or "no height within 90 days before and after" |
-| adult formula, rule `ckid-u25-ekfc`; or `ckid-u25-ekfc` | 2 to 17; or 2 to 25 | yes | CKiD U25 |
+| adult formula, rule `schwartz-bedside` | 1 to 17 | yes (30 days at age 1, 90 days from 2) | bedside Schwartz |
+| adult formula, rule `schwartz-bedside` | 1 to 17 | no | none, "height missing", "no height within 90 days before and after" or, at age 1, "under 2 years, no height within 30 days before and after" |
+| adult formula, rule `ckid-u25-ekfc`; or `ckid-u25-ekfc` | 1 | yes (30 days) | CKiD U25 |
+| the same | 1 | no | none, "height missing" or "under 2 years, no height within 30 days before and after" |
+| adult formula, rule `ckid-u25-ekfc`; or `ckid-u25-ekfc` | 2 to 17; or 2 to 25 | yes (90 days) | CKiD U25 |
 | the same | the same | no | EKFC 2021 |
 
 The equation is chosen for each creatinine value on its own, so a child whose
@@ -486,9 +494,13 @@ Every equation needs a creatinine above 0, and every equation with a sex
 term a resolved sex; bedside Schwartz has none and needs no sex (since
 2026-11-22: a child without a resolved sex and with a height gets a bedside
 Schwartz value under that rule). The
-under-2 limit applies to every formula setting; KDIGO 2024 names CKiD U25
-(validated from 1 year) and EKFC (from 2 years), and the owner chose 2 as the
-lower limit. The upper limit of CKiD U25 under the full-age formula is 25
+age floor of 1 year applies to every formula setting: KDIGO 2024 Table 14
+(S189) names CKiD U25 for ages 1 to 25 (Pierce 2021) and EKFC for 2 to 100,
+so at age 1 only CKiD U25 (or bedside Schwartz under its rule) is used and a
+row without a height within 30 days gets no value, not EKFC (owner decision
+of 2026-11-23 on OD-70; from 2026-11-22 to 2026-11-23 the floor was 2). The
+floor of bedside Schwartz is set to the same 1 year; its own publication
+(Schwartz 2009) studied children from 1 to 16 years. The upper limit of CKiD U25 under the full-age formula is 25
 completed years, the day before the 26th birthday (OD-66).
 
 **Equations.** `Scr` in mg/dl after the µmol/l conversion above, height `H`
@@ -506,7 +518,7 @@ CKiD U25 (Pierce CB et al., Kidney Int 2021;99:948, PMID 33301749)
             age ≥ 18: k = 41.4
 
 Bedside Schwartz (Schwartz GJ et al., JASN 2009;20:629, PMID 19158356)
-  eGFR = 0.413 × H / Scr              height in cm; ages 2 to 17 here
+  eGFR = 0.413 × H / Scr              height in cm; ages 1 to 17 here
 
 EKFC 2021 (Pottel H et al., Ann Intern Med 2021;174:183, doi:10.7326/M20-4366)
   as above, with the age-specific Q of the polynomial for ages 2 to 25
@@ -554,15 +566,21 @@ calendar days:
 
 1. a height of the same day is used as measured;
 2. otherwise, when the value lies between the last height before it and the
-   first after it, and **both** are at most 90 days away, the height is
-   interpolated linearly in days between them;
+   first after it, and **both** are at most 90 days away (30 days at age 1,
+   `HEIGHT_MATCH_DAYS_UNDER_2`), the height is interpolated linearly in
+   days between them;
 3. otherwise there is none: a value before the first or after the last height
    is never extrapolated, however close the height is (OD-68).
 
-The limit is a rule of this tool; no source sets it. The decision `height`
-also set 30 days under 2 years; since no equation is used under 2 years, that
-limit has no case and is not implemented (until 2026-11-22 it was a constant
-of the code that no row could reach; OD-70).
+The limits are a rule of this tool; no source sets them. The decision `height`
+of 2026-11-22 set 90 days and, under 2 years, 30 days; the 30-day limit is in
+use since 2026-11-23, when CKiD U25 was extended to age 1 (OD-70, resolved;
+from 2026-11-22 to 2026-11-23 no eGFR was computed under 2 and the constant
+had been removed as unreachable). Both limits include their end: a height
+exactly 30 (or 90) days away counts. Example: heights of 84 cm on 2019-12-07
+and 86 cm on 2020-01-26 are 25 days before and after 2020-01-01, so a child of
+1 year gets the interpolated 85 cm; heights on 2019-11-27 and 2020-02-05 are
+35 days away, so the child gets none at 1 year and 85 cm at 2 years.
 
 **Formula changes.** Each computed row records its equation
 (`LabRow.egfrFormula`) and, for CKiD U25 and bedside Schwartz, the height it
@@ -594,14 +612,33 @@ from CKiD U25 or EKFC (OD-69): under CKD-EPI 2021 a child's values are in
 `eGFR (CKD-EPI 2021, computed)`, and only `egfr_equation` says which equation
 produced each value.
 
-**Reasons.** Under 2 years every row fails with "Age under 2 — no eGFR formula
-is used below 2 years"; under the rule `schwartz-bedside` a row without a
-height fails with "Height missing — bedside Schwartz needs a height in cm"
-(the patient has no height) or "No height within 90 days before and after —
-bedside Schwartz needs a height". These reasons follow "Sex missing" in the
-order of the conditions; under that rule a row of 2 to 17 years reports no
-"Sex missing", since bedside Schwartz needs no sex, and the patient note adds where heights are read
-from. With the default rule a missing height is no reason: EKFC is used.
+**Reasons.** Under 1 year every row fails with "Age under 1 — no eGFR formula
+is used below 1 year". A row without a height fails, under the rule
+`schwartz-bedside` from 1 to 17 years and under the CKiD U25 rules at age 1,
+with "Height missing — bedside Schwartz, and CKiD U25 under 2 years, need a
+height in cm" (the patient has no height), "No height within 90 days before
+and after — bedside Schwartz needs a height" (from 2 years) or "Under 2 years,
+no height within 30 days before and after — CKiD U25 and bedside Schwartz need
+one" (age 1). These reasons follow "Sex missing" in the order of the
+conditions; under the rule `schwartz-bedside` a row of 1 to 17 years reports
+no "Sex missing", since bedside Schwartz needs no sex, while a row of age 1
+under the CKiD U25 rules does. The patient note adds where heights are read
+from. From 2 years under the CKiD U25 rules a missing height is no reason:
+EKFC is used.
+
+**Worked example at age 1** (since 2026-11-23, `tests/core/egfr/paediatric.test.ts`
+and the `derivation` cases of the paediatric fixture): a boy of 1 year,
+creatinine 0.25 mg/dl on 2020-01-01, heights 84 cm on 2019-12-07 and 86 cm on
+2020-01-26 (25 days on each side), CKD-EPI 2021 with the default rule:
+height 84 + 2 × 25/50 = 85 cm; k = 39.0 × 1.008^(1 − 12) = 35.727181;
+eGFR = 35.727181 × 0.85 / 0.25 = 121.47, stored 121.5 (CKiD U25). A girl with
+the same data: k = 36.1 × 1.008^(1 − 12) = 33.070545, 112.44, stored 112.4.
+Under bedside Schwartz: 0.413 × 85 / 0.25 = 140.42, stored 140.4. With the
+heights 35 days away (2019-11-27, 2020-02-05) the boy gets no value at 1 year
+(no EKFC under 2); at 2 years the same heights lie within 90 days and give
+k = 39.0 × 1.008^(2 − 12) = 36.012999, 36.012999 × 0.85 / 0.25 = 122.44,
+stored 122.4. Without any height: no value at 1 year, EKFC at 2. Under 1
+year: no value, also with a height of the same day.
 
 **Worked example** (male, CKD-EPI 2021, under-18 rule default, heights of
 170 cm on 2020-01-01 and 175 cm on 2021-01-01; recomputed with the code on
@@ -652,24 +689,22 @@ full-age formula the last two become EKFC (Q = 72.3226 µmol/l at 18:
   only in `egfr_equation`. A copy saved before 2026-11-22 has no under-18 rule
   and is read with the default: minors gain values on load without a notice,
   as the creatinine fallback of issue #65 did.
-- **Open decision OD-70.** CKiD U25 is published for ages 1 to 25 (Pierce
-  2021), and the decision `height` of 2026-11-22 set a height limit of 30
-  days "under 2 years", which presupposes an eGFR under 2. The implementation
-  gives no eGFR under 2 years (EKFC from 2, decision of 2026-11-21), so a
-  child of 1 year with creatinine 0.3 mg/dl and a height of 75 cm on the same
-  day gets no value ("Age under 2"); with CKiD U25 from 1 year it would get
-  k = 39.0 × 1.008^(1 − 12) = 35.727 (boy), 35.727 × 0.75 / 0.3 = 89.3. The
-  owner decides whether CKiD U25 applies from age 1 with the 30-day limit.
-- **Open decision OD-86.** From 15 to under 18 years the R package
-  `kidney.epi` 1.4.0 uses a constant CKiD U25 k of 41.8 (boys) and 37.6
-  (girls); the app (and the R package `egfr` 2.0.0) continues
-  `39.0 × 1.045^(age − 12)` and `36.1 × 1.023^(age − 12)` up to 18, as the
-  secondary sources above give it. Boy, 17 years, 172 cm, 0.3 mg/dl:
+- **OD-70, resolved 2026-11-23.** CKiD U25 applies from age 1 (KDIGO 2024
+  Table 14, S189: CKiD U25 for ages 1 to 25; Pierce CB et al., Kidney Int
+  2021, PMID 33301749); under 2 years a creatinine value needs a height within
+  30 days, from 2 years 90 days; EKFC stays from 2 (its published range 2 to
+  100); under 1 year no eGFR. Bedside Schwartz has the same floor of 1 year.
+  Before, a child of 1 year with creatinine 0.3 mg/dl and a height of 75 cm on
+  the same day got no value ("Age under 2"); now it gets
+  35.727 × 0.75 / 0.3 = 89.3 (boy).
+- **OD-86, resolved 2026-11-23.** From 15 to under 18 years the app keeps
+  `39.0 × 1.045^(age − 12)` (boys) and `36.1 × 1.023^(age − 12)` (girls) up to
+  18, as the R package `egfr` 2.0.0 and the secondary sources above give it;
+  the R package `kidney.epi` 1.4.0 uses the constants 41.8 and 37.6, which do
+  not match the published formula. Boy, 17 years, 172 cm, 0.3 mg/dl:
   `48.60 × 1.72 / 0.3 = 278.6` in the app, `41.8 × 1.72 / 0.3 = 239.65` in
   `kidney.epi` (14 % lower); boy, 16 years, 170 cm, 1.0 mg/dl: 79.06 against
-  71.06. `kidney.epi`'s boys' constant drops at 15 (44.51 by the exponential,
-  41.8). The app is not changed; the owner decides whether Pierce 2021 itself
-  is checked for these ages (see
+  71.06. The reference test keeps asserting this documented difference (see
   [reference comparisons](../reference-comparisons.md#egfr)).
 
 ### Rounding and limits
@@ -760,11 +795,13 @@ EKFC reference values including the
 age-specific Q, sex spellings),
 [paediatric equation tests](../../tests/core/egfr/paediatric.test.ts)
 (height names and LOINC, same-day, interpolated and missing heights at the
-89/90/91-day limits, the rule table, CKiD U25 then CKD-EPI 2021 with the
+89/90/91-day limits, the 25/30/35-day limits at age 1, the rule table, the
+age-1 worked example, CKiD U25 then CKD-EPI 2021 with the
 recorded change, bedside Schwartz, the full-age formula),
 [paediatric fixture](../../tests/goldens/egfr_paediatric.json) with its
 [parity test](../../tests/parity/egfrPaediatric.parity.test.ts) (CKiD U25 at
-ages 1, 5, 12, 17, 18 and 24.9, bedside Schwartz, EKFC from 2 to 17),
+ages 1, 5, 12, 17, 18 and 24.9, bedside Schwartz, EKFC from 2 to 17, and
+the row-level `derivation` cases at ages 0, 1 and 2 since 2026-11-23),
 [formula change tests](../../tests/workspace/egfr-switch.test.tsx) (the worked
 example, cell notice, chart line, `egfr_formula_switch`, `egfr_equation`),
 [eGFR source tests](../../tests/core/egfr/series.test.ts) (urine exclusion,
@@ -801,3 +838,10 @@ CKD-EPI 2021 and MDRD-4 values stay null. No other fixture value moved; the
 appended rows of the demo workbook are unchanged, because the workbook has no
 patient under 18.
 
+Fixture update of 2026-11-23 (OD-70): `tests/goldens/egfr_paediatric.json`
+gains a `derivation` list of seven row-level cases at ages 0, 1 and 2 (the
+age-1 worked example above, 25 against 35 days, no height, bedside Schwartz,
+under 1), because the derivation now computes CKiD U25 and bedside Schwartz
+from age 1 with a 30-day height limit. No existing value moved: the formula
+cases already held age 1, and no row of `tests/goldens/egfr.json` or of the
+demo workbook is under 2.

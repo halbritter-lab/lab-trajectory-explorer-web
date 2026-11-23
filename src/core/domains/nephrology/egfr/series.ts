@@ -1,5 +1,5 @@
 import { patientIdKey, type LabRow, type WertOperator } from '../../../types'
-import { bedsideSchwartz, ckdEpi2009, ckdEpi2021, CKID_U25_MAX_AGE, ckidU25, ekfc2021, mdrd4, MIN_PAEDIATRIC_EGFR_AGE, normaliseSex, type HeightEgfrInput } from './formulas'
+import { bedsideSchwartz, ckdEpi2009, ckdEpi2021, CKID_U25_MAX_AGE, ckidU25, ekfc2021, EKFC_MIN_AGE, mdrd4, MIN_PAEDIATRIC_EGFR_AGE, normaliseSex, type HeightEgfrInput } from './formulas'
 import { IMPLAUSIBLE_EGFR_ABOVE, MGDL_PER_UMOLL } from '../constants'
 import { isExactMeasurement } from '../../../measurements/censored'
 import {
@@ -87,11 +87,14 @@ export interface EgfrOptions {
 }
 
 /** Longest distance, in calendar days, between a creatinine value and each
- * height it is interpolated from (issue #66, a rule of this tool): 90 days.
- * The decision also set 30 days under 2 years, but no eGFR is computed under
- * 2 (`rowEgfrFormula`), so that limit is not implemented (Open decision
- * OD-70: whether CKiD U25 applies from age 1 with the 30-day limit). */
+ * height it is interpolated from (issue #66, decision `height` of 2026-11-22,
+ * a rule of this tool): 90 days from age 2. */
 export const HEIGHT_MATCH_DAYS = 90
+
+/** The same limit under 2 years (whole-year age 1): 30 days (decision
+ * `height` of 2026-11-22; in use since CKiD U25 applies from age 1, owner
+ * decision 2026-11-23, OD-70). */
+export const HEIGHT_MATCH_DAYS_UNDER_2 = 30
 
 /** One measured height of a patient: the UTC calendar day and the height in
  * cm (the mean of the exact values of that day). */
@@ -147,8 +150,10 @@ export function heightOnDate(points: readonly HeightPoint[] | undefined, date: D
   return { cm: before.cm + (after.cm - before.cm) * (day - before.day) / (after.day - before.day), basis: 'interpolated' }
 }
 
-/** Why a row's age or height allows no formula (issue #66). */
-export type EgfrAgeGap = 'age' | 'under_18' | 'under_2' | 'no_height' | 'height_gap'
+/** Why a row's age or height allows no formula (issue #66). `height_gap`
+ * is the 90-day limit from age 2, `height_gap_under_2` the 30-day limit at
+ * age 1. */
+export type EgfrAgeGap = 'age' | 'under_18' | 'under_1' | 'no_height' | 'height_gap' | 'height_gap_under_2'
 
 export interface EgfrRule { formula: FormulaName; paediatric: PaediatricRule }
 
@@ -158,23 +163,32 @@ export interface EgfrRule { formula: FormulaName; paediatric: PaediatricRule }
  * 1. no age: none (`age`);
  * 2. adult formula (CKD-EPI 2021/2009, MDRD-4, EKFC 2021), age ≥ 18: that formula;
  * 3. adult formula, under-18 rule `off`: none (`under_18`);
- * 4. age < 2: none (`under_2`; CKiD U25 is published from 1 year, OD-70);
+ * 4. age < 1: none (`under_1`; CKiD U25 is published from 1 year);
  * 5. full-age formula `ckid-u25-ekfc`, age ≥ 26: EKFC 2021;
- * 6. under-18 rule `schwartz-bedside`: bedside Schwartz with a height, else
- *    none (`no_height` or `height_gap`);
- * 7. otherwise (rule `ckid-u25-ekfc` for 2 to 17, or the full-age formula for
- *    2 to 25): CKiD U25 with a height, else EKFC 2021. */
+ * 6. the height: limit 30 days at age 1, 90 days from age 2 (`heightOnDate`);
+ * 7. under-18 rule `schwartz-bedside`: bedside Schwartz with a height, else
+ *    none (`no_height`, `height_gap` or, at age 1, `height_gap_under_2`);
+ * 8. age 1 (rule `ckid-u25-ekfc` or the full-age formula): CKiD U25 with a
+ *    height, else none (`no_height` or `height_gap_under_2`): EKFC is not
+ *    used under 2, its published range;
+ * 9. otherwise (rule `ckid-u25-ekfc` for 2 to 17, or the full-age formula for
+ *    2 to 25): CKiD U25 with a height, else EKFC 2021.
+ *
+ * Rules 4, 6 and 8 follow the owner decision of 2026-11-23 (OD-70); before,
+ * no eGFR was computed under 2. */
 export function rowEgfrFormula(age: number | null, date: Date, rule: EgfrRule, heights: readonly HeightPoint[] | undefined): { formula: RowEgfrFormula; heightCm?: number } | { gap: EgfrAgeGap } {
   if (age === null || Number.isNaN(age)) return { gap: 'age' }
   const fullAge = rule.formula === 'ckid-u25-ekfc'
   if (!fullAge && age >= 18) return { formula: rule.formula as RowEgfrFormula }
   if (!fullAge && rule.paediatric === 'off') return { gap: 'under_18' }
-  if (age < MIN_PAEDIATRIC_EGFR_AGE) return { gap: 'under_2' }
+  if (age < MIN_PAEDIATRIC_EGFR_AGE) return { gap: 'under_1' }
   if (fullAge && age > CKID_U25_MAX_AGE) return { formula: 'ekfc-2021' }
-  // Age is at least 2 here: the 30-day limit for under 2 of the decision has no case (OD-70).
-  const height = heightOnDate(heights, date, HEIGHT_MATCH_DAYS)
+  const under2 = age < EKFC_MIN_AGE
+  const found = heightOnDate(heights, date, under2 ? HEIGHT_MATCH_DAYS_UNDER_2 : HEIGHT_MATCH_DAYS)
+  const height: { cm: number } | { gap: EgfrAgeGap } = 'gap' in found && found.gap === 'height_gap' && under2 ? { gap: 'height_gap_under_2' } : found
   if (!fullAge && rule.paediatric === 'schwartz-bedside') return 'gap' in height ? height : { formula: 'schwartz-bedside', heightCm: height.cm }
-  return 'gap' in height ? { formula: 'ekfc-2021' } : { formula: 'ckid-u25', heightCm: height.cm }
+  if ('gap' in height) return under2 ? height : { formula: 'ekfc-2021' }
+  return { formula: 'ckid-u25', heightCm: height.cm }
 }
 
 /** Whether an equation has a sex term, so that a row needs a resolved sex:

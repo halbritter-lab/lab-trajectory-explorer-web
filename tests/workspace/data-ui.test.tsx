@@ -172,7 +172,7 @@ it('explains why pediatric source rows are excluded when the under-18 rule is No
   fireEvent.change(screen.getByLabelText('Under 18 years'), { target: { value: 'off' } })
   expect(screen.getByText('1: Age under 18 — adult eGFR formulas do not apply')).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('Under 18 years'), { target: { value: 'schwartz-bedside' } })
-  expect(screen.getByText('1: Height missing — bedside Schwartz needs a height in cm')).toBeInTheDocument()
+  expect(screen.getByText('1: Height missing — bedside Schwartz, and CKiD U25 under 2 years, need a height in cm')).toBeInTheDocument()
 })
 it('counts the patients whose eGFR equation changes and applies the under-18 rule (issue #66)', () => {
   const day = (year: number, month: number) => new Date(Date.UTC(year, month, 1))

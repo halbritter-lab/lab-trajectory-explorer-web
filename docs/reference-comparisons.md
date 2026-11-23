@@ -179,9 +179,10 @@ derivation (age rule, height matching, formula choice per row).
     apart (boy, 17 years, 172 cm, 0.3 mg/dl: 278.65 in the app, 239.65 in
     kidney.epi; boy, 16 years, 170 cm, 1.0 mg/dl: 79.06 against 71.06).
     kidney.epi's constant makes its boys' value drop at 15 (k 44.51 at 15 by
-    the exponential, 41.8 by its constant). The primary publication (Pierce
-    et al., Kidney Int 2021;99:948) was not available in this container, so
-    which is right is not verified here.
+    the exponential, 41.8 by its constant). Resolved by the owner on
+    2026-11-23: the app keeps its formula, which agrees with egfr 2.0.0 and
+    the secondary sources; kidney.epi's constants do not match the published
+    formula. The test keeps asserting the difference.
   - **CKD-EPI 2009 for women, OD-88.** kidney.epi uses the constant 144 of
     the table form of the equation, the app and egfr 141 × 1.018 = 143.538 of
     the single-expression form; kidney.epi's values are 0.32 % higher (woman,

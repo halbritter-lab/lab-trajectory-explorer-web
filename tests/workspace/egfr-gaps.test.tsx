@@ -107,11 +107,21 @@ describe('missingEgfrNotes', () => {
   it('follows the under-18 rule (issue #66)', () => {
     // Default rule: P3 gets EKFC for its value at 13, so it has no note.
     expect(missingEgfrNotes(data('ckd-epi-2021', 'ckid-u25-ekfc')).has('P3')).toBe(false)
-    // A child under 2 never gets a value.
-    const baby = [lab('P8', 2020, 0.3, 'w', 1)]
+    // A child under 1 never gets a value.
+    const baby = [lab('P8', 2020, 0.3, 'w', 0)]
     const input = data('ckd-epi-2021', 'ckid-u25-ekfc', baby)
     input.patients = [...input.patients, { ...input.patients[0], id: 'P8', label: 'P8' }]
-    expect(missingEgfrNotes(input).get('P8')).toEqual({ label: 'No eGFR: age under 2', text: 'No eGFR for this patient: age under 2 (1 creatinine value).' })
+    expect(missingEgfrNotes(input).get('P8')).toEqual({ label: 'No eGFR: age under 1', text: 'No eGFR for this patient: age under 1 (1 creatinine value).' })
+    // At 1 year CKiD U25 needs a height (no EKFC under 2), and CKiD U25 needs a sex (OD-70, 2026-11-23).
+    const toddler = [lab('P7', 2020, 0.3, 'w', 1)]
+    const one = data('ckd-epi-2021', 'ckid-u25-ekfc', toddler)
+    one.patients = [...one.patients, { ...one.patients[0], id: 'P7', label: 'P7' }]
+    expect(missingEgfrNotes(one).get('P7')?.label).toBe('No eGFR: height missing')
+    const ckid = egfrGapContext({ formula: 'ckd-epi-2021', paediatric: 'ckid-u25-ekfc' }, [])
+    expect(egfrGapReasons(lab('P7', 2020, 0.3, null, 1), ckid)).toEqual(['sex', 'no_height'])
+    expect(egfrGapReasons(lab('P7', 2020, 0.3, 'w', 1), egfrGapContext({ formula: 'ckd-epi-2021', paediatric: 'schwartz-bedside' }, []))).toEqual(['no_height'])
+    expect(egfrGapReasons(lab('P7', 2020, 0.3, null, 1), egfrGapContext({ formula: 'ckd-epi-2021', paediatric: 'schwartz-bedside' }, []))).toEqual(['no_height'])
+    expect(egfrGapText('height_gap_under_2')).toBe('Under 2 years, no height within 30 days before and after — CKiD U25 and bedside Schwartz need one')
     // Bedside Schwartz needs a height: none, then one too far away on one side.
     const child = [lab('P9', 2020, 0.5, 'm', 8), lab('P9', 2021, 0.5, 'm', 9), lab('P9', 2021, 130, null, null, 'Größe', 'cm')]
     child[2] = { ...child[2], labDatum: new Date(Date.UTC(2021, 0, 2)) }
@@ -128,7 +138,7 @@ describe('missingEgfrNotes', () => {
     expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 8), withHeight)).toEqual([])
     expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 30), withHeight)).toEqual(['sex'])
     expect(egfrGapReasons(lab('P9', 2020, 0.5, null, 8), egfrGapContext({ formula: 'ckd-epi-2021', paediatric: 'ckid-u25-ekfc' }, []))).toEqual(['sex'])
-    expect(egfrGapText('under_2')).toBe('Age under 2 — no eGFR formula is used below 2 years')
+    expect(egfrGapText('under_1')).toBe('Age under 1 — no eGFR formula is used below 1 year')
   })
   it('gives nothing while the derivation is off', () => {
     expect(computedEgfrKey(data('off'))).toBeNull()

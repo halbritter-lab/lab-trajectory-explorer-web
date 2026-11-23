@@ -11,8 +11,9 @@
 import { unitKey } from '../../parse/units'
 
 /** The dataset's eGFR formula setting. `ckid-u25-ekfc` is the full-age rule
- * (issue #66, 2026-11-22): CKiD U25 from 2 to 25 years where a height is
- * available, EKFC otherwise and above 25; it changes adults too. The other
+ * (issue #66, 2026-11-22): CKiD U25 from 1 to 25 years where a height is
+ * available, EKFC otherwise (from 2) and above 25; at age 1 no value without
+ * a height (owner decision 2026-11-23, OD-70); it changes adults too. The other
  * four are adult formulas; minors follow the separate under-18 rule. */
 export type FormulaName = 'ckd-epi-2021' | 'ckd-epi-2009' | 'mdrd-4' | 'ekfc-2021' | 'ckid-u25-ekfc'
 
@@ -38,9 +39,9 @@ export const ROW_EGFR_FORMULA_LABELS: Record<RowEgfrFormula, string> = {
 }
 
 /** What rows under 18 use while an adult formula is set (issue #66):
- * `ckid-u25-ekfc` (default) CKiD U25 with a height, else EKFC, from age 2;
- * `schwartz-bedside` bedside Schwartz with a height, else no value, from age
- * 2; `off` no value under 18 (the rule up to 2026-11-22). Ignored under the
+ * `ckid-u25-ekfc` (default) CKiD U25 with a height, else EKFC (from age 2),
+ * from age 1; `schwartz-bedside` bedside Schwartz with a height, else no
+ * value, from age 1 (owner decision 2026-11-23, OD-70); `off` no value under 18 (the rule up to 2026-11-22). Ignored under the
  * full-age formula `ckid-u25-ekfc`. */
 export type PaediatricRule = 'ckid-u25-ekfc' | 'schwartz-bedside' | 'off'
 

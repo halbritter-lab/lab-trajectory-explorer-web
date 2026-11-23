@@ -1916,6 +1916,30 @@ A fifth, q3 (main number is the slope over all values; part slopes in an
 export sheet of their own), is implemented for Rolling OLS (`rolling_windows`,
 OD-2) but not for Segmented OLS. Issue #70.
 
+## Decisions of 2026-11-23
+
+Two open decisions of the eGFR for children, resolved by the owner on
+2026-11-23 and accepted because the literature backs them (see
+[Children and adolescents](method-algorithms/egfr.md#children-and-adolescents)):
+
+- **OD-70: CKiD U25 from age 1.** CKiD U25 applies from 1 year (KDIGO 2024
+  Clinical Practice Guideline for CKD, Table 14, S189: CKiD U25 for ages 1
+  to 25; Pierce CB et al., Kidney Int 2021;99:948, PMID 33301749). Under 2
+  years a creatinine value needs a height within 30 days (the 30-day limit of
+  the decision `height` of 2026-11-22); from 2 years 90 days, as before. EKFC
+  stays from 2 years (its published range 2 to 100, Pottel 2021). Under 1
+  year no eGFR, with the reason named. Under the default rule for children,
+  age 1 with a matching height gives CKiD U25, age 1 without one gives no
+  eGFR ("height missing"; no EKFC under 2). Bedside Schwartz takes the same
+  floor of 1 year (before, 2). Implemented the same day; a boy of 1 year,
+  0.25 mg/dl, 85 cm: 39.0 × 1.008^(1 − 12) × 0.85 / 0.25 = 121.5.
+- **OD-86: CKiD U25 from 15 to under 18 stays.** The app keeps its formula,
+  exponential up to 18 years (boys 39.0 × 1.045^(age − 12), girls
+  36.1 × 1.023^(age − 12)). It agrees with the R package `egfr` 2.0.0 and the
+  secondary sources; `kidney.epi` 1.4.0 uses the constants 41.8 and 37.6,
+  which do not match the published formula. No code change; the reference
+  test keeps asserting the documented difference to `kidney.epi`.
+
 ## Approved requirements
 
 ### Observed events and recovery

@@ -47,7 +47,9 @@ export function Data() { return <>
       <p>
         The four equations above are used from 18 years at the time of measurement. Under 18 the
         setting “Under 18 years” on the Data page decides; by default CKiD U25 is used where a
-        height is available and EKFC 2021 otherwise. No eGFR is computed below 2 years or when the
+        height is available and EKFC 2021 otherwise; at 1 year, below the range of EKFC, only CKiD
+        U25, with a height of the same day or interpolated between two heights at most 30 days
+        away. No eGFR is computed below 1 year or when the
         age is missing. This series is{' '}
         <strong>not for clinical decision-making</strong>.
       </p>
@@ -125,7 +127,7 @@ export function Data() { return <>
         A creatinine measurement yields an eGFR value only when it has a lab date and a numeric
         value, the creatinine is greater than 0 mg/dl after conversion, the patient&apos;s sex is
         resolved, and the age is known and an equation applies at that age (from 18 for the adult
-        equations; from 2 under the setting “Under 18 years”). Otherwise no value is produced.
+        equations; from 1 under the setting “Under 18 years”). Otherwise no value is produced.
       </p>
       <p>
         Age is the number of whole completed years at the lab date. It changes on the birthday;

@@ -5,6 +5,20 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Changed (eGFR from 1 year, owner decisions of 2026-11-23 on OD-70 and OD-86; changes values for children of 1 year)
+
+- CKiD U25 and bedside Schwartz apply from 1 year (KDIGO 2024 Table 14;
+  Pierce 2021): under 2 years a creatinine value needs a height within 30
+  days, from 2 years 90 days as before; EKFC stays from 2, so a child of 1
+  year without such a height gets no value ("height missing" or "under 2
+  years, no height within 30 days before and after"); under 1 year no eGFR
+  ("Age under 1"). Before, no eGFR was computed under 2. The Data page, the
+  export notes and the Methods page name the new floor; the paediatric
+  fixture gains row-level cases at ages 0, 1 and 2 (no existing value moved).
+- OD-86 resolved: CKiD U25 from 15 to under 18 keeps the exponential formula,
+  as in the R package `egfr`; `kidney.epi`'s constants do not match the
+  published formula. No code change.
+
 ### Added (German interface, decided 2026-11-21 and 2026-11-22, issue #71)
 
 - An EN | DE switch in the header. The interface starts in the browser

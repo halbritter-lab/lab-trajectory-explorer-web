@@ -18,9 +18,14 @@ function invalid(scr: number, age: number, s: Sex | null, minAge = 18): boolean 
   return s === null || !(scr > 0) || Number.isNaN(scr) || !(age >= minAge) || Number.isNaN(age)
 }
 
-/** Youngest age at which this app computes any eGFR (owner decision
- * 2026-11-21, issue #66: EKFC from age 2; below 2 no formula is used). */
-export const MIN_PAEDIATRIC_EGFR_AGE = 2
+/** Youngest age at which this app computes any eGFR (owner decision of
+ * 2026-11-23, OD-70: CKiD U25 and bedside Schwartz from age 1; below 1 no
+ * formula is used). */
+export const MIN_PAEDIATRIC_EGFR_AGE = 1
+
+/** Youngest age of EKFC 2021 (its published range is 2 to 100 years; owner
+ * decision 2026-11-21, issue #66, kept on 2026-11-23). */
+export const EKFC_MIN_AGE = 2
 
 /** CKD-EPI 2021 race-free creatinine equation (Inker 2021). ml/min/1.73m².
  * NaN for unknown sex / sub-adult age / non-positive creatinine. 'd' uses male
@@ -77,7 +82,7 @@ function ekfcQMgdl(ageYears: number, sex: Sex): number {
  * not here. 'd' uses the male Q value. */
 export function ekfc2021({ scrMgdl, ageYears, sex }: EgfrInput): number {
   const s = normaliseSex(sex)
-  if (invalid(scrMgdl, ageYears, s, MIN_PAEDIATRIC_EGFR_AGE)) return Number.NaN
+  if (invalid(scrMgdl, ageYears, s, EKFC_MIN_AGE)) return Number.NaN
   if (s === null) return Number.NaN
   const ratio = scrMgdl / ekfcQMgdl(ageYears, s)
   const exponent = ratio < 1.0 ? -0.322 : -1.132
@@ -86,7 +91,8 @@ export function ekfc2021({ scrMgdl, ageYears, sex }: EgfrInput): number {
 }
 
 /** CKiD U25 age band limits (Pierce CB et al., Kidney Int 2021;99:948,
- * PMID 33301749): the equation covers ages 1 to 25. */
+ * PMID 33301749; KDIGO 2024, Table 14): the equation covers ages 1 to 25.
+ * The derivation uses it from age 1 (owner decision 2026-11-23, OD-70). */
 export const CKID_U25_MIN_AGE = 1
 export const CKID_U25_MAX_AGE = 25
 
@@ -116,7 +122,8 @@ export function ckidU25({ scrMgdl, ageYears, sex, heightCm }: HeightEgfrInput): 
 
 /** Bedside Schwartz (Schwartz GJ et al., JASN 2009;20:629, PMID 19158356):
  * 0.413 × height [cm] / Scr [mg/dl]. ml/min/1.73m². Offered only for
- * comparison with older studies; the derivation applies it to ages 2 to 17.
+ * comparison with older studies; the derivation applies it to ages 1 to 17
+ * (the age floor of CKiD U25, owner decision 2026-11-23, OD-70).
  * The equation has no sex term; NaN for non-positive creatinine or height. */
 export function bedsideSchwartz({ scrMgdl, heightCm }: Pick<HeightEgfrInput, 'scrMgdl' | 'heightCm'>): number {
   if (!(scrMgdl > 0) || !(heightCm > 0)) return Number.NaN
