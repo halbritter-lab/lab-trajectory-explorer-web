@@ -228,6 +228,42 @@ describe('definition, export and page', () => {
     expect(within(area).getByRole('radiogroup', { name: 'Curve' })).toBeInTheDocument()
   })
 
+  // Smoke run of 2026-11-23: a median reached where the curve falls to 0 has
+  // no log-log interval (R NA), and groups left out of the log-rank test are named.
+  it('says "not estimable" for a limit without an interval and names the groups the log-rank test leaves out', () => {
+    const { inputs } = inputsFor('observedCkdG4', 'cohort')
+    const analysis = timeToEventAnalysis(inputs, { endpoint: 'observedCkdG4', compositeWithKrt: false, timeScale: 'age', grouping: 'cohort' })
+    // On the age scale P1 is alone at risk at its event (P2 enters at 59): S falls to 0.
+    const a = analysis.groups.find(group => group.label === 'A')!
+    expect(a.km.median).toMatchObject({ lower: null, upper: null, lowerNotEstimable: true, upperNotEstimable: true })
+    expect(a.km.median.estimate).not.toBeNull()
+    const sheets = timeToEventExportSheets(analysis, { parameterLabel: 'eGFR', parameterKey: 'eGFR|x', definition: 'def', workbookName: 'tte.xlsx', appVersion: '0.0.0', exportedAt: new Date('2026-11-22T00:00:00Z') })
+    const summary = sheets.find(sheet => sheet.name === 'km_summary')!.rows as Record<string, unknown>[]
+    expect(summary.find(row => row.group === 'A')).toMatchObject({ median_lower_95: 'not estimable', median_upper_95: 'not estimable' })
+    expect(summary.find(row => row.group === 'B')).toMatchObject({ median_years: 'not reached', median_lower_95: 'not reached', median_upper_95: 'not reached' })
+    // No patient of B is at risk at P1's event, so neither group has a variance: none is compared.
+    const logrank = sheets.find(sheet => sheet.name === 'logrank')!.rows as Record<string, unknown>[]
+    expect(logrank.map(row => row.compared)).toEqual([
+      'no: no patients at risk at any endpoint time beside patients of other groups (variance 0)',
+      'no: no patients at risk at any endpoint time beside patients of other groups (variance 0)',
+      '0 of 2 groups',
+    ])
+
+    const data = loadExample()
+    render(<CohortModelsWorkspace data={data} onBrowseTrajectories={() => {}} onBrowseData={() => {}} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Time to event' }))
+    const area = screen.getByRole('region', { name: 'Time to event' })
+    fireEvent.change(within(area).getByLabelText('Time-to-event endpoint'), { target: { value: 'observedCkdG4' } })
+    fireEvent.change(within(area).getByLabelText('Time-to-event grouping'), { target: { value: 'cohort' } })
+    const table = within(area).getByRole('table', { name: 'Time to event by group' })
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('(lower bound not estimable to upper bound not estimable)')
+    expect(within(table).getAllByRole('row')[2]).toHaveTextContent('not reached (not reached to not reached)')
+    expect(within(area).getByLabelText('Log-rank test')).toHaveTextContent('Log-rank test between 2 groups, 0 compared (2 without patients at risk at any endpoint time beside patients of other groups left out: A, B): not computed')
+    act(() => setLanguage('de'))
+    expect(within(area).getByLabelText('Log-Rank-Test')).toHaveTextContent('Log-Rank-Test zwischen 2 Gruppen, davon 0 verglichen')
+    expect(within(table).getAllByRole('row')[1]).toHaveTextContent('untere Grenze nicht schätzbar')
+  })
+
   // Code review of the language switch (issue #71): the axes and the chart name follow the page language.
   it('names the chart and its axes in the interface language', () => {
     const data = loadExample()

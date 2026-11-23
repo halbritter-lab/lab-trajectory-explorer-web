@@ -19,13 +19,17 @@
           "group": "A",
           "median": 6,
           "lower": 1,
-          "upper": null
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": true
         },
         {
           "group": "B",
           "median": 7.5,
           "lower": 2,
-          "upper": null
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": false
         }
       ],
       "logRank": {
@@ -50,13 +54,17 @@
           "group": "A",
           "median": 4,
           "lower": 3,
-          "upper": null
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": true
         },
         {
           "group": "B",
           "median": 6.5,
           "lower": 5,
-          "upper": null
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": false
         }
       ],
       "logRank": {
@@ -80,7 +88,9 @@
           "group": "all",
           "median": 5,
           "lower": 1,
-          "upper": null
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": false
         }
       ]
     },
@@ -97,7 +107,9 @@
           "group": "all",
           "median": 3,
           "lower": 1,
-          "upper": null
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": true
         }
       ]
     },
@@ -114,9 +126,53 @@
           "group": "all",
           "median": 3,
           "lower": 1,
-          "upper": null
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": false
         }
       ]
+    },
+    {
+      "name": "median_at_zero_survival_and_group_without_risk",
+      "input": {
+        "entry": [5, 0, 0, 0, 0, 20, 20],
+        "exit": [10, 3, 12, 8, 15, 25, 30],
+        "status": [1, 0, 0, 1, 0, 0, 0],
+        "group": ["A", "A", "B", "B", "B", "C", "C"]
+      },
+      "medians": [
+        {
+          "group": "A",
+          "median": 10,
+          "lower": null,
+          "upper": null,
+          "lowerNotEstimable": true,
+          "upperNotEstimable": true
+        },
+        {
+          "group": "B",
+          "median": null,
+          "lower": 8,
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": false
+        },
+        {
+          "group": "C",
+          "median": null,
+          "lower": null,
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": false
+        }
+      ],
+      "logRank": {
+        "observed": [1, 1, 0],
+        "expected": [0.58333333333333326, 1.4166666666666665, 0],
+        "chisq": 0.42372881355932218,
+        "df": 1,
+        "p": 0.51508227870964307
+      }
     },
     {
       "name": "competing_death",
@@ -131,7 +187,9 @@
           "group": "all",
           "median": null,
           "lower": 1,
-          "upper": null
+          "upper": null,
+          "lowerNotEstimable": false,
+          "upperNotEstimable": false
         }
       ],
       "aalenJohansen": {

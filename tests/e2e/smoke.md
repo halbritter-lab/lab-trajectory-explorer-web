@@ -38,6 +38,16 @@ English model workbook, model chart legend and group order of step 4 are
 covered by unit tests since 2026-11-23 (code review of the language switch),
 not yet walked in a browser.
 
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): step 1 through
+the header switch (not a German browser), steps 2 and 3, and step 4 for the
+cohort workbook only. It found English left on Cohort models (the parameter
+count in "… betrifft 10 parameters in Kohortenmodelle und Verläufe", the R
+download size "about 39 MB", the year ticks "0y 2.75y" of the model preview)
+and the time-to-event table broken mid-word at 390 px; fixed the same day and
+covered by unit tests, not walked again. Not checked: the other exports of
+step 4, steps 5 and 6.
+
 ## Series comparison and deliberate merge (2026-11-22, issue #68)
 
 Branch `wp/series-2611`. Automated in `tests/e2e/series-merge.e2e.ts`.
@@ -65,6 +75,12 @@ Branch `wp/series-2611`. Automated in `tests/e2e/series-merge.e2e.ts`.
 Verified 2026-11-22 in Chromium against the production build: steps 1 to 4
 by the browser test; step 5 by unit tests only.
 
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1 (234
+values unchanged, 11 ÷ 88.42; the AKI list stays at 8 episodes after the
+merge) and 3 (two lines, +0.250 per year, no page scroll at 390 px). Steps 2,
+4 and 5 not walked.
+
 ## Time to event and death (2026-11-22, issue #78)
 
 1. Demo → Cohort models → tab "Time to event": the endpoint offers only what
@@ -82,6 +98,19 @@ by the browser test; step 5 by unit tests only.
 Verified 2026-11-22 in Chromium against the production build: steps 2, 3
 (XLSX and PNG) and 5 by `tests/e2e/time-to-event.e2e.ts`; step 4 by the unit
 tests only (`tests/workspace/time-to-event.test.tsx`).
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1, 2
+with confirmed CKD G4 by genotype under the CKD progression preset instead
+of kidney replacement therapy, 3 (XLSX sheet order) and 5. It found the
+group table squeezed at 390 px (words broken, the number at risk cut off),
+the selects cut off at 1440 px, a median "60.5 (not reached to not
+reached)" where R gives NA for both limits (now "lower bound not estimable
+to upper bound not estimable") and a log-rank line "between 5 groups" with
+2 df that did not say two groups were left out (now named). Fixed the same
+day; the wording by unit tests and an R reference case, the layout by a
+screenshot check at 390 and 1440 px in English and German. Step 4 (the demo
+has no death) and the SVG/PNG download were not checked.
 
 ## Kidney replacement therapy in every preset, undated unknown-intent dialysis, slope tier (2026-11-22, issue #4)
 
@@ -121,6 +150,13 @@ segment sentence, export columns). Steps 1, 4 and 5 and the badge, the
 patient-view tier note and the chart key are covered by unit tests, not
 clicked through. Not checked: Firefox, WebKit, 390 px.
 
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): step 1 for
+patient 13 (-12.83 /yr, "rapid ↓", "6 of 9 fitted"), step 2 ("Reliable
+slope 21", 21 "reliable" badges) and the segment sentence of step 3
+("-8.01 ml/min/1,73m²/year (3 fitted …)"); the table had no page scroll at
+390 px. Steps 4 and 5 and the export of step 3 not walked.
+
 ## Logarithmic axis, doubling time and table-chart events (2026-11-22, issue #70)
 
 Branch `wp/70-display-extensions`. Automated in
@@ -145,6 +181,12 @@ by the automated test with screenshots at 1280 px and 390 px; step 4 by the
 unit test `tests/workspace/log-axis.test.tsx`. Not checked: Firefox and
 WebKit, real tumour-marker data, the overlay with many log trajectories, and a
 Theil-Sen, Rolling or Segmented column on a log axis in the browser.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1 and 3
+in part on the demo UACR column (log chart and the doubling-time sentence of
+patient 2, "Doubling time 0.533 years (95% CI 0.362 to 1.01 years)"). Steps
+2 and 4 not walked.
 
 ## Analysis record (issue #83, 2026-11-22)
 
@@ -182,6 +224,12 @@ and 1280 px (steps 1, 2 and 4); step 3 with another dataset only by the unit
 tests. The log-axis and event-selection parts of steps 2 and 3 (added after
 the branch review of 2026-11-22) are covered by the unit tests only so far.
 
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1, 2 in
+part (five entries marked "changed"; **Change** on Fit model opens the
+settings with the field focused) and 4 (no inner horizontal scroll at
+390 px). Step 3 not walked.
+
 ## Creatinine after selected events (2026-11-22, issue #69)
 
 1. Load the demo data, then Data → "Replace events" with a CSV holding
@@ -207,6 +255,11 @@ Verified 2026-11-22 in Chromium against the development server: steps 1, 2,
 `tests/e2e/peri-event.e2e.ts`, with screenshots at 1280 and 390 px checked
 by eye. Reload with "Remember on this device" (the selection is kept with
 the dataset copy) was not checked in a browser.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1 and 2
+(patient 11 met), step 3 (48 and 72 hours, "Type: dialysis" with four events
+not evaluable) and step 5 (no page scroll at 390 px). Step 4 not walked.
 
 ## Combined branch of the open points (2026-11-22)
 
@@ -996,7 +1049,9 @@ it does not claim research, clinical or representative-user validation.
 5. Cohort models: fit, apply a projection, *Export models (xlsx)*. The sheets
    are, in order, `models`, `coefficients`, `factors`, `centering`,
    `excluded_patients`, `projections`, `about`, `vcov`, `model_rows`,
-   `model_input_flags`, `r_script`; every sheet that names a unit has a
+   `model_input_flags`, `r_script`, `factor_levels`, `dropout`,
+   `dropout_patients` (the last three since the cohort-model decisions of
+   2026-11-22, so `r_script` is no longer last); every sheet that names a unit has a
    `unit_key` column (`cohort` or `group:<value>`).
    `models` ends with `unit_key`, `intercept_sd`, `slope_sd`,
    `intercept_slope_correlation`, `residual_sd`, and `about` ends with
@@ -1202,6 +1257,14 @@ Firefox and WebKit, GitHub Pages itself (how it serves the `.gz` and `.tgz`
 files), and the checksum failure inside the build (covered by unit tests of
 the script).
 
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): a real webR fit
+at the root finished in 8 s and "Export models (xlsx)" wrote the sheets of
+the release-review step 5 (with `factor_levels`, `dropout` and
+`dropout_patients` after `r_script`); the eGFR parameter was under the CKD
+progression preset, so the estimates (−7.22 per year) are not the ones of
+step 2. Requests were not recorded; steps 1, 3 to 5 not walked.
+
 ## eGFR for children and adolescents (2026-11-22, issue #66)
 
 1. Import a CSV with a boy (`KID`): Kreatinin mg/dl 0.8, 0.85, 0.9, 0.95 on
@@ -1235,6 +1298,14 @@ Schwartz and full-age values on this page were not clicked through), step 4
 by `tests/parity/egfr.parity.test.ts`.
 Not verified: narrow-viewport layout of the new select, Firefox and WebKit.
 
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): the "Under 18
+years" select of step 1 (CKiD U25 with height, otherwise EKFC; the
+Data page had no page scroll at 390 px), the equation-change note of step 1
+and the dotted marker of step 3 with a synthetic file (CKiD U25 → CKD-EPI
+2021), and step 4 (no marker on the demo). Step 2 and the cohort export of
+step 3 not walked.
+
 ## Bounded values in fits (2026-11-22, issue #73)
 
 1. Load the demo, Trajectories, only Albumin/Kreatinin-Quotient [mg/g], Trend
@@ -1258,6 +1329,11 @@ Verified 2026-11-22 against the production build in Chromium: steps 1 and 2 by
 `tests/e2e/bounded-values.e2e.ts`; steps 3 to 5 by unit tests
 (`tests/core/boundedValuePolicy.test.ts`, `tests/workspace/saved-settings.test.ts`,
 the export schema tests), not clicked through.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1 ("60 %
+bounded", +159.06) and 2 (the three options; "Half limit" changes the
+slope). Steps 3 to 5 not walked.
 
 ## Cohort-model decisions of 2026-11-22 (issue #4, #83)
 
@@ -1332,6 +1408,13 @@ by `tests/e2e/endpoint-decisions.e2e.ts`, except the phone width and the box
 position in step 3, which were checked by screenshots of an ad-hoc Playwright
 script. Not verified: the patient view in step 3 (it is given all badges by
 code), Firefox and WebKit.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): on the demo,
+not the uploaded file of step 1: the extrapolation is off by default and
+adds the G5 badges once ticked (step 5 in part), "single value <15,
+unconfirmed (possible AKI)" shows (step 2 in part), and the "Endpoint
+badges" menu lists every badge (step 3 in part). Steps 4 and 6 not walked.
 
 ## AKI look-back baseline and exclusion window (2026-11-22, rows akifirst and akiwin)
 

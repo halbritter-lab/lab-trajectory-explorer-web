@@ -63,12 +63,16 @@ describe(`median, delayed-entry log-rank and Aalen–Johansen against R survival
     for (const expected of c.medians) {
       const km = kaplanMeier(groups.get(expected.group)!)
       expect([km.median.estimate, km.median.lower, km.median.upper], `${c.name} ${expected.group} median`).toEqual([expected.median, expected.lower, expected.upper])
+      // R NA with an NA log-log curve at an event time: "not estimable", not "not reached".
+      expect([km.median.lowerNotEstimable, km.median.upperNotEstimable], `${c.name} ${expected.group} not estimable`).toEqual([expected.lowerNotEstimable, expected.upperNotEstimable])
     }
     if ('logRank' in c && c.logRank) {
       const test = logRankTest([...groups].map(([label, subjects]) => ({ label, subjects })))
       expectClose(test.chiSquare, c.logRank.chisq, TOL, 'log-rank chisq')
       expectClose(test.pValue, c.logRank.p, { rel: 1e-8, abs: 1e-12 }, 'log-rank p')
       expect(test.df).toBe(c.logRank.df)
+      // df is the number of compared groups (positive variance) less one.
+      expect(test.groups.filter(group => group.compared).length - 1).toBe(c.logRank.df)
       test.groups.forEach((group, i) => expectClose(group.expected, c.logRank!.expected[i], TOL, 'expected'))
       if ('survdiffChisq' in c) expectClose(test.chiSquare, c.survdiffChisq as number, TOL, 'survdiff')
     }

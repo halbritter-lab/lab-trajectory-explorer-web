@@ -6,14 +6,14 @@ import { buildCohortRows } from '../../core/cohort/screening'
 import { isEgfrUnit } from '../../core/domains/nephrology/analytes'
 import { groupColors } from '../../core/grouping/grouping'
 import { DAYS_PER_YEAR, TIME_TO_EVENT_ENDPOINTS, timeToEventAnalysis, type TimeToEventEndpoint, type TimeToEventScale } from '../../core/domains/nephrology/endpoints/timeToEvent'
-import { stepValueAt } from '../../core/survival/survival'
+import { stepValueAt, type LogRankResult, type QuantileEstimate } from '../../core/survival/survival'
 import { availableTimeToEventEndpoints, endpointDefinitionText, numberAtRiskAt, TIME_SCALE_LABELS, timeToEventExportSheets, timeToEventInputs } from '../time-to-event'
 import { workspaceGroupableAttributes } from '../workspace-model-results'
 import { ChartExportActions } from '../WorkspaceExports'
 import { labRowsInputDataId } from '../workspace-export'
 import { downloadBlob, fileStamp, sheetsToXlsxBytes } from '../../io/export'
 import { version as APP_VERSION } from '../../../package.json'
-import { inEnglish, t, tx, useLanguage } from '../../i18n'
+import { inEnglish, t, tp, tx, useLanguage } from '../../i18n'
 
 // Literal colours: exported SVGs carry no CSS variables.
 const COHORT_COLOR = '#243740'
@@ -21,6 +21,24 @@ const GRID_COLOR = '#dce5e9'
 const FRAME_COLOR = '#cbd8d6'
 
 const formatYears = (days: number | null, digits = 1) => days === null ? t('not reached') : (days / DAYS_PER_YEAR).toFixed(digits)
+/** The median and its interval. A limit is "not reached" when its curve stays
+ * above 0.5, "not estimable" when the curve falls to 0 and the log-log
+ * interval does not exist there (R NA). */
+function medianText(median: QuantileEstimate): string {
+  const low = median.lower !== null ? formatYears(median.lower) : median.lowerNotEstimable ? t('lower bound not estimable') : t('not reached')
+  const high = median.upper !== null ? formatYears(median.upper) : median.upperNotEstimable ? t('upper bound not estimable') : t('not reached')
+  return `${formatYears(median.estimate)} (${t('{low} to {high}', { low, high })})`
+}
+/** Which groups the log-rank test compares; groups with variance 0 are left out (and named). */
+function logRankGroupsText(groups: LogRankResult['groups']): string {
+  const compared = groups.filter(group => group.compared).length
+  const leftOut = groups.filter(group => !group.compared)
+  const all = tp('{n} group', '{n} groups', groups.length)
+  if (leftOut.length === 0) return all
+  return t('{all}, {compared} compared ({leftOut} without patients at risk at any endpoint time beside patients of other groups left out: {names})', {
+    all, compared, leftOut: leftOut.length, names: leftOut.map(group => groupText(group.label)).join(', '),
+  })
+}
 /** The cohort group keeps its English key; only its label is translated. */
 /** The endpoint as named in the interface (`endpointLabel` of the core, translated). */
 const endpointText = (endpoint: TimeToEventEndpoint, composite: boolean) => {
@@ -100,7 +118,8 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
   const xMax = included.length ? Math.max(xMin + step, Math.ceil(maxExit / DAYS_PER_YEAR / step) * step) : 1
   const ticks: number[] = []
   for (let tick = xMin; tick <= xMax + 1e-9; tick += step) ticks.push(Math.round(tick * 1e6) / 1e6)
-  const W = 720, H = 300, padLeft = 56, padRight = 20, padTop = 20, padBottom = 40
+  // Room for the larger axis text on phones (cohort-models-workspace.css, 600px query).
+  const W = 720, H = 300, padLeft = 76, padRight = 20, padTop = 20, padBottom = 48
   const xRange = W - padLeft - padRight
   const yRange = H - padTop - padBottom
   const scaleX = (years: number) => padLeft + ((years - xMin) / (xMax - xMin || 1)) * xRange
@@ -158,7 +177,7 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
       <h2 id={headingId}>{t('Time to event')}</h2>
       <p className="muted">{t('Kaplan–Meier estimate of the time to a confirmed eGFR endpoint per group, with the log-rank test between groups. A description of the cohort for research use, not a prognosis. No R is needed.')} <a href="https://github.com/halbritter-lab/lab-trajectory-explorer-web/blob/main/docs/method-algorithms/time-to-event.md" target="_blank" rel="noopener noreferrer">{t('Time to event: method reference (opens in a new tab)')}</a></p>
     </div>
-    <div className="cm-primary-controls">
+    <div className="cm-primary-controls cm-tte-controls">
       <label>{t('Parameter')}
         <select aria-label={t('Time-to-event parameter')} value={parameter.key} onChange={e => setChoices({ parameterKey: e.target.value })}>
           {parameters.map(p => <option key={p.key} value={p.key}>{p.label}</option>)}
@@ -192,17 +211,17 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
       <button type="button" onClick={onBrowseTrajectories}>{t('Change endpoint settings under Trajectories →')}</button>
     </div>
 
-    <div className="cm-dropout-table-wrap">
-      <table aria-label={t('Time to event by group')}>
+    <div className="cm-tte-table-wrap">
+      <table className="cm-tte-table cm-tte-groups" aria-label={t('Time to event by group')}>
         <thead><tr><th scope="col">{t('Group')}</th><th scope="col">{t('Patients')}</th><th scope="col">{t('Events')}</th><th scope="col">{t('Censored')}</th><th scope="col">{t('Of which died')}</th><th scope="col">{t('Median event-free time, years (95% CI)')}</th></tr></thead>
         <tbody>{analysis.groups.map(group => <tr key={group.label}>
           <td>{groupText(group.label)}</td><td>{group.km.subjects}</td><td>{group.km.events}</td><td>{group.km.censored}</td><td>{group.km.deaths}</td>
-          <td>{group.km.subjects === 0 ? '—' : `${formatYears(group.km.median.estimate)} (${t('{low} to {high}', { low: group.km.median.lower === null ? t('not reached') : formatYears(group.km.median.lower), high: formatYears(group.km.median.upper) })})`}</td>
+          <td>{group.km.subjects === 0 ? '—' : medianText(group.km.median)}</td>
         </tr>)}</tbody>
       </table>
     </div>
     <p className="muted">{timeScale === 'age' ? t('Median: the age at which the event-free probability reaches 0.5.') : t('Median: the years from the first eligible measurement until the event-free probability reaches 0.5.')} {t('Interval by Brookmeyer–Crowley on the log-log interval of the curve. Death before the endpoint is censored in the Kaplan–Meier estimate.')}</p>
-    {analysis.logRank && <p aria-label={t('Log-rank test')}>{t('Log-rank test between {groups} groups: {value}. Observed / expected: {value2}. Unadjusted.', { groups: analysis.logRank.groups.length, value: analysis.logRank.chiSquare === null ? t('not computed (fewer than two groups with expected events)') : `χ² = ${analysis.logRank.chiSquare.toFixed(2)}, ${analysis.logRank.df} df, p = ${formatP(analysis.logRank.pValue)}`, value2: analysis.logRank.groups.map(group => `${groupText(group.label)} ${group.observed} / ${group.expected.toFixed(1)}`).join('; ') })}</p>}
+    {analysis.logRank && <p aria-label={t('Log-rank test')}>{t('Log-rank test between {groups}: {value}. Observed / expected: {value2}. Unadjusted.', { groups: logRankGroupsText(analysis.logRank.groups), value: analysis.logRank.chiSquare === null ? t('not computed (fewer than two groups with expected events)') : `χ² = ${analysis.logRank.chiSquare.toFixed(2)}, ${analysis.logRank.df} df, p = ${formatP(analysis.logRank.pValue)}`, value2: analysis.logRank.groups.map(group => `${groupText(group.label)} ${group.observed} / ${group.expected.toFixed(1)}`).join('; ') })}</p>}
     {timeScale === 'age' && included.some(row => row.ageEstimated) && <p className="notice" role="note">{t('Ages of {length} patients rest on ages in completed years or a manual age; their entry and exit can be up to a year off.', { length: included.filter(row => row.ageEstimated).length })}</p>}
 
     {analysis.deathRecorded && <div role="radiogroup" aria-label={t('Curve')} className="cm-tte-curve">
@@ -227,10 +246,10 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
         </g>)}
         {ticks.map(tick => <g key={tick}>
           <line x1={scaleX(tick)} x2={scaleX(tick)} y1={padTop} y2={H - padBottom} stroke={GRID_COLOR} strokeDasharray="2 3" />
-          <text x={scaleX(tick)} y={H - padBottom + 16} textAnchor="middle" className="cm-axis-text">{tick}</text>
+          <text x={scaleX(tick)} y={H - padBottom + 20} textAnchor="middle" className="cm-axis-text">{tick}</text>
         </g>)}
         <text x={padLeft + xRange / 2} y={H - 6} textAnchor="middle" className="cm-axis-text">{xLabel}</text>
-        <text x={14} y={padTop + yRange / 2} textAnchor="middle" className="cm-axis-text" transform={`rotate(-90 14 ${padTop + yRange / 2})`}>{yLabel}</text>
+        <text x={18} y={padTop + yRange / 2} textAnchor="middle" className="cm-axis-text" transform={`rotate(-90 18 ${padTop + yRange / 2})`}>{yLabel}</text>
         <rect x={padLeft} y={padTop} width={xRange} height={yRange} fill="none" stroke={FRAME_COLOR} />
         {curves.map(curve => <g key={curve.label}>
           <path d={curve.km} fill="none" stroke={curve.color} strokeWidth="2"><title>{`${groupText(curve.label)}: ${mode === 'survival' ? 'Kaplan–Meier' : '1 − Kaplan–Meier'}`}</title></path>
@@ -240,15 +259,15 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
       </svg>
     </div>
     <p className="muted">{t('Ticks mark censored patients (and, in the Kaplan–Meier curve, deaths).')}{mode === 'incidence' ? ` ${t('Solid: 1 − KM; dashed: Aalen–Johansen.')}` : ''} {t('Legend: {legend}.', { legend: legend.map(item => item.label).join(', ') })}</p>
-    <div className="cm-dropout-table-wrap">
-      <table aria-label={t('Number at risk')}>
+    <div className="cm-tte-table-wrap">
+      <table className="cm-tte-table" aria-label={t('Number at risk')}>
         <caption className="muted">{t('Number at risk')}</caption>
         <thead><tr><th scope="col">{t('Group')}</th>{ticks.map(tick => <th scope="col" key={tick}>{tick}</th>)}</tr></thead>
         <tbody>{analysis.groups.map(group => <tr key={group.label}><td>{groupText(group.label)}</td>{ticks.map(tick => <td key={tick}>{numberAtRiskAt(group.subjects, tick, timeScale)}</td>)}</tr>)}</tbody>
       </table>
     </div>
-    {mode === 'incidence' && <div className="cm-dropout-table-wrap">
-      <table aria-label={t('Cumulative incidence at the ticks')}>
+    {mode === 'incidence' && <div className="cm-tte-table-wrap">
+      <table className="cm-tte-table" aria-label={t('Cumulative incidence at the ticks')}>
         <caption className="muted">{t('Cumulative incidence of the endpoint: 1 − KM / Aalen–Johansen')}</caption>
         <thead><tr><th scope="col">{t('Group')}</th>{ticks.map(tick => <th scope="col" key={tick}>{tick}</th>)}</tr></thead>
         <tbody>{analysis.groups.map(group => <tr key={group.label}><td>{groupText(group.label)}</td>{ticks.map(tick => {
