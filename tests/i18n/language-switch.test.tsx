@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { WorkspaceApp } from '../../src/workspace/WorkspaceApp'
-import { browserLanguage, getLanguage, inEnglish, setLanguage, t, tp } from '../../src/i18n'
+import { browserLanguage, getLanguage, inEnglish, renderedInEnglish, setLanguage, subscribeLanguage, t, tp } from '../../src/i18n'
 
 describe('interface language (issue #71)', () => {
   beforeEach(() => {
@@ -41,5 +41,17 @@ describe('interface language (issue #71)', () => {
     expect(inEnglish(() => tp('{n} patient', '{n} patients', 3))).toBe('3 patients')
     // The interface language is back after the export.
     expect(getLanguage()).toBe('de')
+  })
+})
+
+describe('English render for exports (issue #71)', () => {
+  it('restores the interface language when the English render fails', () => {
+    act(() => setLanguage('de'))
+    const stop = subscribeLanguage(() => { if (getLanguage() === 'en') throw new Error('render failed') })
+    try {
+      expect(() => renderedInEnglish(() => 'figure')).toThrow('render failed')
+      expect(getLanguage()).toBe('de')
+      expect(document.documentElement.lang).toBe('de')
+    } finally { stop() }
   })
 })

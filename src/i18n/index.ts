@@ -65,12 +65,26 @@ export function subscribeLanguage(listener: (transient: boolean) => void): () =>
  * that copy rendered elements (chart figures, issue #71): they read the
  * English page. Call it from an event handler, not while rendering; `make`
  * must be synchronous.
+ *
+ * The switch is inside the `try`: an error while rendering in English (or
+ * in `make`) still restores the interface language, so the page cannot be
+ * left in English. Cost: every component that reads the language renders
+ * twice more (the whole workspace, not only the exported chart), which is a
+ * noticeable pause on a large cohort. Rendering only the exported figure in
+ * English would need the charts to take their texts as props; until then
+ * the whole render is kept (see tests/e2e/smoke.md, chart exports).
  */
 export function renderedInEnglish<T>(make: () => T): T {
   const previous = current
   if (previous === 'en') return make()
-  flushSync(() => switchTo('en', true))
-  try { return make() } finally { flushSync(() => switchTo(previous, true)) }
+  try {
+    flushSync(() => switchTo('en', true))
+    return make()
+  } finally {
+    // `switchTo` sets the language before it notifies, so even a failing
+    // render leaves `current` restored.
+    flushSync(() => switchTo(previous, true))
+  }
 }
 
 /**

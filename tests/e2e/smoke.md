@@ -15,16 +15,28 @@
 4. In German, export the cohort workbook, a chart (SVG and PNG), the patient
    bundle, the import diagnostics, the model workbook and the time-to-event
    workbook: every file is English and identical in shape to an export made in
-   English. The page stays German after each export.
+   English: the model workbook names the pooled unit "Whole cohort", the
+   exported model chart has an English legend, and the cohort workbook lists
+   the groups in the same row order as in English. The page stays German after
+   each export. A chart export renders the whole workspace in English and back
+   (not only the chart), so on a large cohort expect a short pause before the
+   download; the page must not flash or stay English.
 5. Tick "Remember on this device", switch to German and reload: the app
    starts in German. Clear the saved data and reload: it starts in the
    browser language again.
+6. With a notice on the Data page (an import, a restored copy, a storage
+   message), the import findings, the analysis record and a report of applied
+   settings open, switch the language: each follows the switch, and imported
+   names (an attribute called "Sex", event titles) stay as imported.
 
 Verified 2026-11-22 in Chromium against the production build: steps 1 to 4
 for the parts covered by `tests/e2e/german-interface.e2e.ts` (navigation,
 Data, Trajectories, Cohort models, Methods note at 1440 and 390 px; SVG export
 English); step 5 by the unit tests of the storage. Not yet walked by hand in
-full; numbers keep the decimal point in German (OD-90).
+full; numbers keep the decimal point in German (OD-90). Step 6 and the
+English model workbook, model chart legend and group order of step 4 are
+covered by unit tests since 2026-11-23 (code review of the language switch),
+not yet walked in a browser.
 
 ## Series comparison and deliberate merge (2026-11-22, issue #68)
 
