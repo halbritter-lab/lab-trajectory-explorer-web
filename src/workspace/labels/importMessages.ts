@@ -18,7 +18,8 @@ const LABEL: Record<string, [string, string]> = {
 const label = (subject: string, n: string) => (LABEL[subject] ?? [subject, subject])[one(n) ? 0 : 1]
 const testName = (name: string) => name === 'No test name' ? 'Kein Testname' : name
 
-/** Whole sentences first, then the fragments they share. */
+/** Whole sentences first, then the fragments they share. A specific rule
+ * must come before a prefix rule that matches the same start. */
 const RULES: Array<[RegExp, Replacement]> = [
   [/^Patient ID missing; row not imported\.$/, 'Patienten-ID fehlt; Zeile nicht importiert.'],
   [/^Patient (.+) already has an attribute row; this later row is not imported\.$/, 'Patient $1 hat bereits eine Attributzeile; diese spätere Zeile wird nicht importiert.'],
@@ -72,8 +73,10 @@ const RULES: Array<[RegExp, Replacement]> = [
     (_m, used, others, _used, ignored, verb) => `Die Spalten „${used}“ und ${others} enthalten dasselbe Feld; „${used}“ wird verwendet, ${ignored} ${verb === 'is' ? 'wird' : 'werden'} ignoriert.`],
   [/^Ambiguous columns: "(.*)" and "(.*)" are read as the same column\. Rename one of them\.$/, 'Mehrdeutige Spalten: „$1“ und „$2“ werden als dieselbe Spalte gelesen. Benennen Sie eine davon um.'],
   // Date problems (`describeDateProblem`) inside a rejection or a warning.
+  // The whole fallback sentence before the subject prefix below, which would
+  // otherwise translate only its first two words.
+  [/^Event date is not a valid date(?=;|$)/, 'Ereignisdatum ist kein gültiges Datum'],
   [/^(Lab date|Birth date|Event date|End date) /, (_m, name) => `${{ 'Lab date': 'Labordatum', 'Birth date': 'Geburtsdatum', 'Event date': 'Ereignisdatum', 'End date': 'Enddatum' }[name]} `],
-  [/^Event date is not a valid date/, 'Ereignisdatum ist kein gültiges Datum'],
   [/ is not a valid calendar date/, ' ist kein gültiges Kalenderdatum'],
   [/ is not a valid date: dates with slashes are read day-first \(DD\/MM\/YYYY\); US month-first dates are not supported/,
     ' ist kein gültiges Datum: Daten mit Schrägstrichen werden mit dem Tag zuerst gelesen (TT/MM/JJJJ); US-Daten mit dem Monat zuerst werden nicht unterstützt'],
