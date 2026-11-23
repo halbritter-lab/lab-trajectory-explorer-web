@@ -18,6 +18,7 @@ import { eventMatchesRule } from '../core/cohort/anchorComparison'
 import { mergedSeriesKeys, seriesRefKey } from '../core/analysis/seriesMerge'
 import { parsePeriEventSettings, type PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 import type { ClinicalEvent } from '../core/events/events'
+import { t, tp } from '../i18n'
 
 export interface ExportedColumn {
   parameterKey: string
@@ -86,9 +87,9 @@ function rebuiltColumn(row: Record<string, unknown>): { settings: unknown; trend
  * message for a file without a `settings` sheet of this app. */
 export function readExportedSettings(bytes: ArrayBuffer | Uint8Array): ExportedSettings {
   const workbook = readWorkbookSheets(bytes)
-  if (!workbook.sheetNames.includes('settings')) throw new Error('This file has no settings sheet: choose a cohort or patient workbook exported by Lab Trajectory Explorer.')
+  if (!workbook.sheetNames.includes('settings')) throw new Error(t('This file has no settings sheet: choose a cohort or patient workbook exported by Lab Trajectory Explorer.'))
   const rows = workbook.getSheet('settings') as Record<string, unknown>[]
-  if (!rows.length || !rows.every(row => typeof row.parameter_key === 'string' && 'fit_config' in row)) throw new Error('The settings sheet of this file is not one written by Lab Trajectory Explorer.')
+  if (!rows.length || !rows.every(row => typeof row.parameter_key === 'string' && 'fit_config' in row)) throw new Error(t('The settings sheet of this file is not one written by Lab Trajectory Explorer.'))
   let rebuilt = false
   const columns = rows.flatMap((row): ExportedColumn[] => {
     const parameterKey = String(row.parameter_key)
@@ -164,23 +165,23 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
   // Dataset settings (Data page).
   let analysisSettings = target.analysisSettings
   const parsed = exported.analysisSettings === undefined ? null : parseAnalysisSettings(exported.analysisSettings)
-  if (!parsed) notApplied.push('dataset settings (eGFR formula and source, AKI recovery): not readable in this file')
+  if (!parsed) notApplied.push(t('dataset settings (eGFR formula and source, AKI recovery): not readable in this file'))
   else {
     // Merged series (issue #68): a merge applies only when every one of its
     // source series is in this dataset; otherwise it is named and left out.
     const imported = (name: string, unit: string | null) => target.importedParameters.some(([n, u]) => n === name && (u ?? null) === (unit ?? null))
     const merges = parsed.seriesMerge.merges.filter(merge => {
       const absent = merge.sources.filter(source => !imported(source.bezeichnung, source.einheit))
-      if (absent.length) notApplied.push(`merged series ${parameterLabel(merge.name, merge.unit)} (${absent.map(source => parameterLabel(source.bezeichnung, source.einheit)).join(', ')} not in this dataset; the merge is left out)`)
+      if (absent.length) notApplied.push(t('merged series {series} ({absent} not in this dataset; the merge is left out)', { series: parameterLabel(merge.name, merge.unit), absent: absent.map(source => parameterLabel(source.bezeichnung, source.einheit)).join(', ') }))
       return absent.length === 0
     })
-    if (merges.length) applied.push(`merged series ${merges.map(merge => parameterLabel(merge.name, merge.unit)).join(', ')}`)
+    if (merges.length) applied.push(t('merged series {series}', { series: merges.map(merge => parameterLabel(merge.name, merge.unit)).join(', ') }))
     const mergedKeys = mergedSeriesKeys(merges)
     const source = parsed.egfr.source
     const hasSource = source === null || imported(source[0], source[1]) || mergedKeys.has(seriesRefKey({ bezeichnung: source[0], einheit: source[1] }))
     analysisSettings = { ...parsed, seriesMerge: { merges }, egfr: hasSource ? parsed.egfr : { ...parsed.egfr, source: target.analysisSettings.egfr.source } }
-    applied.push('dataset settings (eGFR formula and source, AKI recovery)')
-    if (!hasSource) notApplied.push(`creatinine source ${parameterLabel(source[0], source[1])} of the eGFR (not in this dataset; the current source is kept)`)
+    applied.push(t('dataset settings (eGFR formula and source, AKI recovery)'))
+    if (!hasSource) notApplied.push(t('creatinine source {source} of the eGFR (not in this dataset; the current source is kept)', { source: parameterLabel(source[0], source[1]) }))
   }
 
   // The parameters of the dataset once these settings apply: the computed
@@ -191,7 +192,7 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
   // So do the merged series of the applied settings.
   for (const merge of analysisSettings.seriesMerge.merges) available.add(JSON.stringify([merge.name, merge.unit]))
   const present = exported.columns.filter(column => available.has(column.parameterKey))
-  for (const column of exported.columns) if (!available.has(column.parameterKey)) notApplied.push(`settings of ${column.label} (parameter not in this dataset)`)
+  for (const column of exported.columns) if (!available.has(column.parameterKey)) notApplied.push(t('settings of {parameter} (parameter not in this dataset)', { parameter: column.label }))
 
   // Trajectories settings, checked item by item like saved settings.
   const shared = present.find(column => column.source === 'shared') ?? exported.columns.find(column => column.source === 'shared')
@@ -204,8 +205,8 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
   }, available)
   notApplied.push(...restored.notRestored)
   if (restored.projectionOn.length) applied.push(projectionOnNotice(restored.projectionOn).replace(/\.$/, ''))
-  if (restored.keptAsCustom.length) applied.push(`${restored.keptAsCustom.join(', ')}: the preset has changed since the export, so the values are kept as custom settings`)
-  const sharedApplied = shared !== undefined && !restored.notRestored.includes('shared analysis settings')
+  if (restored.keptAsCustom.length) applied.push(t('{settings}: the preset has changed since the export, so the values are kept as custom settings', { settings: restored.keptAsCustom.join(', ') }))
+  const sharedApplied = shared !== undefined && !restored.notRestored.includes(t('shared analysis settings'))
   // Own settings of parameters the file does not list stay as they are.
   const exportedKeys = new Set(exported.columns.map(column => column.parameterKey))
   const kept = Object.fromEntries(Object.entries(target.trajectoryFitSettings.columns).filter(([key]) => !exportedKeys.has(key)))
@@ -213,40 +214,39 @@ export function applyExportedSettings(exported: ExportedSettings, target: ApplyT
     shared: sharedApplied ? restored.trajectoryFitSettings.shared : target.trajectoryFitSettings.shared,
     columns: { ...kept, ...restored.trajectoryFitSettings.columns },
   }
-  if (sharedApplied) applied.push('shared analysis settings')
+  if (sharedApplied) applied.push(t('shared analysis settings'))
   const own = Object.keys(restored.trajectoryFitSettings.columns)
-  if (own.length) applied.push(`own settings of ${own.map(label).join(', ')}`)
-  if (exported.rebuilt) applied.push('settings rebuilt from fit_config (the workbook was written before column_settings existed)')
+  if (own.length) applied.push(t('own settings of {parameter}', { parameter: own.map(label).join(', ') }))
+  if (exported.rebuilt) applied.push(t('settings rebuilt from fit_config (the workbook was written before column_settings existed)'))
   // Exports before 2026-11-22 (issue #73) left bounds out of every fit and carry no boundedValues.
   const withoutBounded = present.filter(column => isRecord(column.settings) && !('boundedValues' in column.settings))
-  if (withoutBounded.length) notApplied.push(`bounded values of ${withoutBounded.map(column => column.label).join(', ')}: the export has no such setting (it left bounds out of every fit); the default "Limit" applies, choose "Exclude" to reproduce its slopes`)
+  if (withoutBounded.length) notApplied.push(t('bounded values of {parameters}: the export has no such setting (it left bounds out of every fit); the default "Limit" applies, choose "Exclude" to reproduce its slopes', { parameters: withoutBounded.map(column => column.label).join(', ') }))
 
   // Selection and Trend.
   const parameterKeys = present.length ? present.map(column => column.parameterKey) : null
   const trendKeys = [...target.trendKeys.filter(key => !exportedKeys.has(key)), ...present.filter(column => column.trend).map(column => column.parameterKey)]
-  if (parameterKeys) applied.push(`parameter selection and Trend (${countText(parameterKeys.length, 'parameter')})`)
+  if (parameterKeys) applied.push(t('parameter selection and Trend ({parameters})', { parameters: tp('{n} parameter', '{n} parameters', parameterKeys.length) }))
   // Log axes: the export records them only through rows in log_trend, so a
   // listed parameter without such rows keeps its current axis.
   const logOn = present.filter(column => exported.logParameterKeys.includes(column.parameterKey)).map(column => column.parameterKey)
   const logKeys = [...target.logKeys.filter(key => !logOn.includes(key)), ...logOn]
-  if (logOn.length) applied.push(`logarithmic value axis of ${logOn.map(label).join(', ')}`)
+  if (logOn.length) applied.push(t('logarithmic value axis of {parameters}', { parameters: logOn.map(label).join(', ') }))
 
   // Data page: creatinine after selected events. An older workbook without
   // the column keeps the current selection.
   let periEventSettings = target.periEventSettings
   const periEvent = exported.periEventCreatinine
-  if (periEvent === '') { periEventSettings = null; applied.push('creatinine after selected events (none selected)') }
+  if (periEvent === '') { periEventSettings = null; applied.push(t('creatinine after selected events (none selected)')) }
   else if (periEvent !== undefined) {
     const parsedPeriEvent = parsePeriEventSettings(json(periEvent))
-    const ruleText = parsedPeriEvent ? `${parsedPeriEvent.rule.kind === 'title' ? 'Title' : 'Type'}: ${parsedPeriEvent.rule.value}` : ''
-    if (!parsedPeriEvent) notApplied.push('creatinine after selected events: not readable in this file')
-    else if (!target.events.some(event => eventMatchesRule(event, parsedPeriEvent.rule))) notApplied.push(`creatinine after selected events, ${ruleText} (no such event in this dataset; the current selection is kept)`)
-    else { periEventSettings = parsedPeriEvent; applied.push(`creatinine after selected events (${ruleText}, ${parsedPeriEvent.windowHours} hours)`) }
+    const ruleText = parsedPeriEvent ? (parsedPeriEvent.rule.kind === 'title' ? t('Title: {title}', { title: parsedPeriEvent.rule.value }) : t('Type: {type}', { type: parsedPeriEvent.rule.value })) : ''
+    if (!parsedPeriEvent) notApplied.push(t('creatinine after selected events: not readable in this file'))
+    else if (!target.events.some(event => eventMatchesRule(event, parsedPeriEvent.rule))) notApplied.push(t('creatinine after selected events, {rule} (no such event in this dataset; the current selection is kept)', { rule: ruleText }))
+    else { periEventSettings = parsedPeriEvent; applied.push(t('creatinine after selected events ({rule}, {hours} hours)', { rule: ruleText, hours: parsedPeriEvent.windowHours })) }
   }
 
-  if (exported.groupBy) notApplied.push(`grouping by ${exported.groupBy} (choose it under Trajectories: Group by)`)
-  if (exported.manualDemographicPatients) notApplied.push(`manual demographic entries of ${countText(exported.manualDemographicPatients, 'patient')} (enter them under Data: Review and edit patients)`)
+  if (exported.groupBy) notApplied.push(t('grouping by {attribute} (choose it under Trajectories: Group by)', { attribute: exported.groupBy }))
+  if (exported.manualDemographicPatients) notApplied.push(t('manual demographic entries of {patients} (enter them under Data: Review and edit patients)', { patients: tp('{n} patient', '{n} patients', exported.manualDemographicPatients) }))
   return { analysisSettings, trajectoryFitSettings, parameterKeys, trendKeys, logKeys, periEventSettings, applied, notApplied }
 }
 
-const countText = (n: number, noun: string) => `${n} ${noun}${n === 1 ? '' : 's'}`
