@@ -19,6 +19,7 @@ import { sheetsToXlsxBytes } from '../../src/io/export'
 import { CohortModelsWorkspace } from '../../src/workspace/CohortModelsWorkspace'
 import { inputDataId, labRowsInputDataId, workspaceWorkbookSheets } from '../../src/workspace/workspace-export'
 import { analysisRecord } from '../../src/workspace/analysis-record'
+import { setLanguage } from '../../src/i18n'
 
 vi.mock('../../src/workspace/models/CohortModelTable', () => ({ CohortModelTable: () => <div data-testid="cohort-model-table" /> }))
 
@@ -226,4 +227,17 @@ describe('definition, export and page', () => {
     expect(within(area).getByLabelText('Endpoint definition')).toHaveTextContent('CKD G4: eGFR below 30')
     expect(within(area).getByRole('radiogroup', { name: 'Curve' })).toBeInTheDocument()
   })
+
+  // Code review of the language switch (issue #71): the axes and the chart name follow the page language.
+  it('names the chart and its axes in the interface language', () => {
+    const data = loadExample()
+    render(<CohortModelsWorkspace data={data} onBrowseTrajectories={() => {}} onBrowseData={() => {}} />)
+    fireEvent.click(screen.getByRole('tab', { name: 'Time to event' }))
+    expect(screen.getByRole('img', { name: 'Event-free probability by age (years)' })).toBeInTheDocument()
+    act(() => setLanguage('de'))
+    const chart = screen.getByRole('img', { name: 'Ereignisfreie Wahrscheinlichkeit nach Alter (Jahre)' })
+    expect(within(chart).getByText('Alter (Jahre)')).toBeInTheDocument()
+    expect(within(chart).getByText('Ereignisfreie Wahrscheinlichkeit')).toBeInTheDocument()
+  })
 })
+

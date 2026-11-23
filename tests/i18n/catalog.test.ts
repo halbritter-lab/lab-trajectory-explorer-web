@@ -21,3 +21,15 @@ describe('interface message catalogs (issue #71)', () => {
     for (const key of EN_MESSAGES) expect(placeholders(de[key]), key).toEqual(placeholders(key))
   })
 })
+
+// Code review of the language switch (issue #71): "Daten" also means data, so
+// calendar dates of measurements are "Messtage" in German, in chips and notes alike.
+describe('German dates of measurements', () => {
+  it('never translates "dates" as the ambiguous "Daten"', () => {
+    const ambiguous = Object.entries(de).filter(([key, value]) => /\bdates\b/.test(key) && /\bDaten\b/.test(value)).map(([key]) => key)
+    expect(ambiguous).toEqual([])
+    expect(de['< 3 dates']).toBe('< 3 Messtage')
+    expect(de['G5 < 3 dates']).toBe('G5 < 3 Messtage')
+    expect(de['Fewer than two dates']).toBe('Weniger als zwei Messtage')
+  })
+})

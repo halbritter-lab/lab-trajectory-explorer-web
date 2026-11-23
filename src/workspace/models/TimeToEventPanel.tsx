@@ -13,7 +13,7 @@ import { ChartExportActions } from '../WorkspaceExports'
 import { labRowsInputDataId } from '../workspace-export'
 import { downloadBlob, fileStamp, sheetsToXlsxBytes } from '../../io/export'
 import { version as APP_VERSION } from '../../../package.json'
-import { inEnglish, t, tx } from '../../i18n'
+import { inEnglish, t, tx, useLanguage } from '../../i18n'
 
 // Literal colours: exported SVGs carry no CSS variables.
 const COHORT_COLOR = '#243740'
@@ -46,6 +46,8 @@ type CurveMode = 'survival' | 'incidence'
 export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: WorkspaceData; onBrowseTrajectories: () => void }) {
   const svg = useRef<SVGSVGElement>(null)
   const headingId = useId()
+  // Renders again on a language switch, including the English render of a chart export.
+  const language = useLanguage()
   const trajectoryFitSettings = useAppStore(s => s.trajectoryFitSettings)
   const parameters = useMemo(() => data.parameters.filter(parameter => isEgfrUnit(parameter.einheit)
     && data.rows.some(row => row.bezeichnung === parameter.bezeichnung && row.einheit === parameter.einheit && row.wertNum !== null)), [data.parameters, data.rows])
@@ -97,14 +99,18 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
   const xMin = included.length ? Math.floor(minEntry / DAYS_PER_YEAR / step) * step : 0
   const xMax = included.length ? Math.max(xMin + step, Math.ceil(maxExit / DAYS_PER_YEAR / step) * step) : 1
   const ticks: number[] = []
-  for (let t = xMin; t <= xMax + 1e-9; t += step) ticks.push(Math.round(t * 1e6) / 1e6)
+  for (let tick = xMin; tick <= xMax + 1e-9; tick += step) ticks.push(Math.round(tick * 1e6) / 1e6)
   const W = 720, H = 300, padLeft = 56, padRight = 20, padTop = 20, padBottom = 40
   const xRange = W - padLeft - padRight
   const yRange = H - padTop - padBottom
   const scaleX = (years: number) => padLeft + ((years - xMin) / (xMax - xMin || 1)) * xRange
   const scaleY = (p: number) => padTop + yRange - p * yRange
-  const yLabel = mode === 'survival' ? 'Event-free probability' : 'Cumulative incidence'
-  const xLabel = timeScale === 'age' ? 'Age (years)' : 'Years since the first eligible measurement'
+  // In the interface language on the page; the chart export renders the page
+  // in English (renderedInEnglish), so the exported figure keeps English axes.
+  const yLabel = mode === 'survival' ? t('Event-free probability') : t('Cumulative incidence')
+  const xLabel = timeScale === 'age' ? t('Age (years)') : t('Years since the first eligible measurement')
+  // German nouns keep their capital letter inside the sentence.
+  const chartLabel = t('{measure} by {time}', { measure: yLabel, time: language === 'en' ? xLabel.toLowerCase() : xLabel })
 
   const curves = analysis.groups.flatMap(group => {
     if (group.subjects.length === 0) return []
@@ -211,7 +217,7 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
       {exportError && <p role="alert">{exportError}</p>}
     </div>
     <div className="cm-plot-svg-wrap">
-      <svg ref={svg} className="cm-plot-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={`${yLabel} by ${xLabel.toLowerCase()}`}
+      <svg ref={svg} className="cm-plot-svg" viewBox={`0 0 ${W} ${H}`} role="img" aria-label={chartLabel}
         data-export-context={`${definition}. ${tx(TIME_SCALE_LABELS[timeScale])}. ${t('Research use only.')}`}
         data-export-legend={JSON.stringify(legend)}>
         <title>{chartTitle}</title>
@@ -219,9 +225,9 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
           <line x1={padLeft} x2={W - padRight} y1={scaleY(p)} y2={scaleY(p)} stroke={GRID_COLOR} strokeDasharray="2 3" />
           <text x={padLeft - 8} y={scaleY(p) + 4} textAnchor="end" className="cm-axis-text">{p.toFixed(2)}</text>
         </g>)}
-        {ticks.map(t => <g key={t}>
-          <line x1={scaleX(t)} x2={scaleX(t)} y1={padTop} y2={H - padBottom} stroke={GRID_COLOR} strokeDasharray="2 3" />
-          <text x={scaleX(t)} y={H - padBottom + 16} textAnchor="middle" className="cm-axis-text">{t}</text>
+        {ticks.map(tick => <g key={tick}>
+          <line x1={scaleX(tick)} x2={scaleX(tick)} y1={padTop} y2={H - padBottom} stroke={GRID_COLOR} strokeDasharray="2 3" />
+          <text x={scaleX(tick)} y={H - padBottom + 16} textAnchor="middle" className="cm-axis-text">{tick}</text>
         </g>)}
         <text x={padLeft + xRange / 2} y={H - 6} textAnchor="middle" className="cm-axis-text">{xLabel}</text>
         <text x={14} y={padTop + yRange / 2} textAnchor="middle" className="cm-axis-text" transform={`rotate(-90 14 ${padTop + yRange / 2})`}>{yLabel}</text>
@@ -237,19 +243,19 @@ export function TimeToEventPanel({ data, onBrowseTrajectories }: { data: Workspa
     <div className="cm-dropout-table-wrap">
       <table aria-label={t('Number at risk')}>
         <caption className="muted">{t('Number at risk')}</caption>
-        <thead><tr><th scope="col">{t('Group')}</th>{ticks.map(t => <th scope="col" key={t}>{t}</th>)}</tr></thead>
-        <tbody>{analysis.groups.map(group => <tr key={group.label}><td>{groupText(group.label)}</td>{ticks.map(t => <td key={t}>{numberAtRiskAt(group.subjects, t, timeScale)}</td>)}</tr>)}</tbody>
+        <thead><tr><th scope="col">{t('Group')}</th>{ticks.map(tick => <th scope="col" key={tick}>{tick}</th>)}</tr></thead>
+        <tbody>{analysis.groups.map(group => <tr key={group.label}><td>{groupText(group.label)}</td>{ticks.map(tick => <td key={tick}>{numberAtRiskAt(group.subjects, tick, timeScale)}</td>)}</tr>)}</tbody>
       </table>
     </div>
     {mode === 'incidence' && <div className="cm-dropout-table-wrap">
       <table aria-label={t('Cumulative incidence at the ticks')}>
         <caption className="muted">{t('Cumulative incidence of the endpoint: 1 − KM / Aalen–Johansen')}</caption>
-        <thead><tr><th scope="col">{t('Group')}</th>{ticks.map(t => <th scope="col" key={t}>{t}</th>)}</tr></thead>
-        <tbody>{analysis.groups.map(group => <tr key={group.label}><td>{groupText(group.label)}</td>{ticks.map(t => {
-          const days = t * DAYS_PER_YEAR
+        <thead><tr><th scope="col">{t('Group')}</th>{ticks.map(tick => <th scope="col" key={tick}>{tick}</th>)}</tr></thead>
+        <tbody>{analysis.groups.map(group => <tr key={group.label}><td>{groupText(group.label)}</td>{ticks.map(tick => {
+          const days = tick * DAYS_PER_YEAR
           const km = 1 - stepValueAt(group.km.steps, s => s.survival, days)
           const aj = stepValueAt(group.cumulativeIncidence ?? [], s => s.endpoint, days, 0)
-          return <td key={t}>{km.toFixed(2)} / {aj.toFixed(2)}</td>
+          return <td key={tick}>{km.toFixed(2)} / {aj.toFixed(2)}</td>
         })}</tr>)}</tbody>
       </table>
     </div>}

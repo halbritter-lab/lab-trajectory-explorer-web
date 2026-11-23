@@ -1,4 +1,5 @@
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
+import { setLanguage } from '../../src/i18n'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { AnalysisRecordDialog } from '../../src/workspace/AnalysisRecord'
 import { useAppStore } from '../../src/workspace/state/store'
@@ -76,5 +77,39 @@ describe('analysis record dialog', () => {
     renderRecord()
     fireEvent.change(screen.getByLabelText('Apply settings from an exported workbook'), { target: { files: [new File(['PatientID,Date\n1,2024-01-01'], 'labs.csv')] } })
     expect(await screen.findByRole('status')).toHaveTextContent('labs.csv: This file has no settings sheet')
+  })
+
+  // Code review of the language switch (issue #71).
+  it('translates fixed labels but shows an imported attribute name verbatim, also when it matches a catalog text', () => {
+    act(() => setLanguage('de'))
+    renderRecord({ groupBy: 'Sex' })
+    const table = screen.getByRole('region', { name: 'Verläufe: Tabelle' })
+    expect(within(table).getByText('Gruppieren nach')).toBeInTheDocument()
+    // "Sex" is the imported attribute name here, not the app's label.
+    expect(within(table).getByText('Sex')).toBeInTheDocument()
+    expect(within(table).queryByText('Geschlecht')).not.toBeInTheDocument()
+    expect(within(table).getByText('Standard: Keine Gruppierung')).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Versionen' })).toHaveTextContent(/Lab Trajectory Explorer\s*\d+\.\d+\.\d+/)
+  })
+
+  it('shows the report of an applied file and a refusal in the language of the moment', async () => {
+    renderRecord()
+    fireEvent.change(screen.getByLabelText('Apply settings from an exported workbook'), { target: { files: [new File(['PatientID,Date\n1,2024-01-01'], 'labs.csv')] } })
+    expect(await screen.findByRole('status')).toHaveTextContent('labs.csv: This file has no settings sheet')
+    act(() => setLanguage('de'))
+    expect(screen.getByRole('status')).not.toHaveTextContent('This file has no settings sheet')
+  })
+
+  it('composes the applied-settings report in each language', async () => {
+    const input = exportFixture()
+    const bytes = workspaceWorkbookBytes(input)
+    renderRecord({ data: { ...input.data, parameters: input.data.parameters.filter(p => p.key !== 'derived') } })
+    const file = new File([bytes as Uint8Array<ArrayBuffer>], 'cohort.xlsx', { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    fireEvent.change(screen.getByLabelText('Apply settings from an exported workbook'), { target: { files: [file] } })
+    const report = await screen.findByRole('status')
+    expect(report).toHaveTextContent('(parameter not in this dataset)')
+    act(() => setLanguage('de'))
+    expect(report).toHaveTextContent('(Parameter nicht in diesem Datensatz)')
+    expect(report).not.toHaveTextContent('(parameter not in this dataset)')
   })
 })

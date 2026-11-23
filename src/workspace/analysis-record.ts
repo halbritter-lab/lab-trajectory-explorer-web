@@ -8,6 +8,11 @@
  * changes no exported number. `tests/workspace/analysis-record.test.ts`
  * walks the settings and fails for a leaf without an entry, so a new setting
  * cannot reach a result without reaching the export too.
+ *
+ * The record is shown, not exported, and composed when the dialog renders:
+ * labels, titles and fixed values are in the interface language (`tx`, `t`),
+ * imported names and values (attributes, parameters, event titles, series)
+ * stay as imported, in every language.
  */
 import { version as APP_VERSION } from '../../package.json'
 import { columnSettingModules, defaultAnalysisSettings, fitPresetById, isRecord, type AnalysisSettings } from '../core/analysis/registry'
@@ -23,6 +28,7 @@ import { DEFAULT_TIME_TO_EVENT_CHOICES, type StoredMixedModelResult, type TimeTo
 import { parameterKeyLabel } from './saved-settings'
 import { TIME_SCALE_LABELS } from './time-to-event'
 import { TIME_TO_EVENT_ENDPOINTS } from '../core/domains/nephrology/endpoints/timeToEvent'
+import { t, tp, tx } from '../i18n'
 import { anchorRuleLabel } from '../core/cohort/anchorComparison'
 import type { PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 import type { SeriesMerge } from '../core/analysis/seriesMerge'
@@ -253,43 +259,49 @@ const BOUNDED_VALUES_TEXT: Record<string, string> = { limit: 'Limit (x)', exclud
 const DIALYSIS_TEXT: Record<string, string> = { 'flag-only': 'Flag only', 'exclude-dated-interval': 'Exclude dated interval', 'censor-from-start': 'Censor from start', 'dated-interval-or-from-start': 'Dated interval, else from start' }
 const MODEL_TEXT: Record<string, string> = { time_since_baseline: 'Time since first measurement', age: 'Age', intercept: 'Own starting level', intercept_slope: 'Own starting level and rate', apply: 'Applied', skip: 'Skipped', pool: 'Pooled into "other (pooled)"', keep: 'Kept as they are' }
 
-/** A setting value as the record shows it. */
+/** A setting value as the record shows it, in the interface language: fixed
+ * values translated, imported names and values verbatim. */
 export function settingValueText(path: string, value: unknown): string {
   const leaf = path.split('.').slice(1).join('.') || path
   // A copy saved before 2026-11-22 has no rule for children and is read with the default (OD-69).
-  if (path === 'analysisSettings.egfr.paediatric') return PAEDIATRIC_RULE_LABELS[(value ?? DEFAULT_PAEDIATRIC_RULE) as keyof typeof PAEDIATRIC_RULE_LABELS] ?? String(value)
-  if (path === 'timeToEventSettings.parameterKey') return value === null || value === undefined ? 'First eGFR parameter' : parameterKeyLabel(String(value))
-  if (path === 'timeToEventSettings.endpoint') return value === null || value === undefined ? 'First available endpoint' : TIME_TO_EVENT_ENDPOINTS.find(item => item.id === value)?.label ?? String(value)
-  if (path === 'timeToEventSettings.timeScale') return TIME_SCALE_LABELS[value as keyof typeof TIME_SCALE_LABELS] ?? String(value)
-  if (path === 'timeToEventSettings.grouping') return value === null || value === undefined ? 'No grouping (whole cohort)' : String(value)
-  if (value === undefined) return 'Off'
-  if (path === 'analysisSettings.egfr.formula') return value === 'off' ? 'Off' : EGFR_FORMULA_LABELS[value as keyof typeof EGFR_FORMULA_LABELS] ?? String(value)
+  if (path === 'analysisSettings.egfr.paediatric') return tx(PAEDIATRIC_RULE_LABELS[(value ?? DEFAULT_PAEDIATRIC_RULE) as keyof typeof PAEDIATRIC_RULE_LABELS] ?? String(value))
+  if (path === 'timeToEventSettings.parameterKey') return value === null || value === undefined ? tx('First eGFR parameter') : parameterKeyLabel(String(value))
+  if (path === 'timeToEventSettings.endpoint') return value === null || value === undefined ? tx('First available endpoint') : tx(TIME_TO_EVENT_ENDPOINTS.find(item => item.id === value)?.label ?? String(value))
+  if (path === 'timeToEventSettings.timeScale') return tx(TIME_SCALE_LABELS[value as keyof typeof TIME_SCALE_LABELS] ?? String(value))
+  if (path === 'timeToEventSettings.grouping') return value === null || value === undefined ? tx('No grouping (whole cohort)') : String(value)
+  if (value === undefined) return tx('Off')
+  if (path === 'analysisSettings.egfr.formula') return value === 'off' ? tx('Off') : tx(EGFR_FORMULA_LABELS[value as keyof typeof EGFR_FORMULA_LABELS] ?? String(value))
   if (path === 'periEventSettings') {
-    if (!value) return 'None selected'
+    if (!value) return tx('None selected')
     const { rule, windowHours } = value as PeriEventSettings
-    return `${rule.kind === 'title' ? 'Title' : 'Type'}: ${rule.value}, window ${windowHours} hours`
+    return t('{rule}: {value}, window {hours} hours', { rule: rule.kind === 'title' ? t('Title') : t('Type'), value: rule.value, hours: windowHours })
   }
-  if (path === 'trajectoryView.logKeys') return value ? 'Logarithmic' : 'Linear'
+  if (path === 'trajectoryView.logKeys') return tx(value ? 'Logarithmic' : 'Linear')
   if (path === 'analysisSettings.seriesMerge.merges') return Array.isArray(value) && value.length
-    ? (value as SeriesMerge[]).map(merge => `${merge.name} (${merge.unit}) from ${merge.sources.map(source => `${source.bezeichnung} (${source.einheit ?? 'no unit'})`).join(' + ')}`).join('; ') : 'None'
-  if (path === 'analysisSettings.egfr.source') return Array.isArray(value) ? `${value[0]} (${value[1]})` : 'Automatic'
-  if (path.endsWith('.presetId')) return value === 'custom' ? 'Custom configuration' : fitPresetById(String(value))?.name ?? String(value)
-  if (path.endsWith('.fitModel')) return FIT_MODEL_TEXT[String(value)] ?? String(value)
-  if (path.endsWith('.timeBalancing')) return TIME_BALANCING_TEXT[String(value)] ?? String(value)
-  if (path.endsWith('.boundedValues')) return BOUNDED_VALUES_TEXT[String(value)] ?? String(value)
-  if (path.endsWith('.unknownDialysisPolicy')) return DIALYSIS_TEXT[String(value)] ?? String(value)
+    ? (value as SeriesMerge[]).map(merge => t('{series} from {sources}', { series: `${merge.name} (${merge.unit})`, sources: merge.sources.map(source => `${source.bezeichnung} (${source.einheit ?? t('no unit')})`).join(' + ') })).join('; ') : tx('None')
+  if (path === 'analysisSettings.egfr.source') return Array.isArray(value) ? `${value[0]} (${value[1]})` : tx('Automatic')
+  if (path.endsWith('.presetId')) return value === 'custom' ? tx('Custom configuration') : tx(fitPresetById(String(value))?.name ?? String(value))
+  if (path.endsWith('.fitModel')) return tx(FIT_MODEL_TEXT[String(value)] ?? String(value))
+  if (path.endsWith('.timeBalancing')) return tx(TIME_BALANCING_TEXT[String(value)] ?? String(value))
+  if (path.endsWith('.boundedValues')) return tx(BOUNDED_VALUES_TEXT[String(value)] ?? String(value))
+  if (path.endsWith('.unknownDialysisPolicy')) return tx(DIALYSIS_TEXT[String(value)] ?? String(value))
   if (path.endsWith('anchorComparison')) {
-    if (!value) return 'Off'
+    if (!value) return tx('Off')
     const { rule, exclusionDays } = value as AnchorComparisonSettings
     const anchor = anchorRuleLabel(rule)
-    return `At the ${anchor}${exclusionDays ? `, ${exclusionDays} days after it left out` : ''}`
+    return exclusionDays ? t('At the {anchor}, {days} days after it left out', { anchor, days: exclusionDays }) : t('At the {anchor}', { anchor })
   }
-  if (path === 'mixedModelConfig.factors') return Array.isArray(value) && value.length ? (value as MixedModelFactor[]).map(f => `${f.key}${f.reference ? ` (reference ${f.reference})` : ''}${f.effect === 'level_slope' ? ', level and slope' : ''}`).join('; ') : 'None'
-  if (path === 'mixedModelConfig.covariates') return Array.isArray(value) && value.length ? value.join(', ') : 'None'
-  if (path.startsWith('mixedModelConfig.') || path === 'presetExclusionPolicy') return MODEL_TEXT[String(value)] ?? String(value)
-  if (typeof value === 'boolean') return value ? 'On' : 'Off'
-  if (value === null) return leaf === 'source' ? 'Automatic' : 'None'
-  if (typeof value === 'number' || typeof value === 'string') return String(value)
+  if (path === 'mixedModelConfig.factors') return Array.isArray(value) && value.length ? (value as MixedModelFactor[]).map(f => {
+    const named = f.reference ? t('{factor} (reference {reference})', { factor: f.key, reference: f.reference }) : f.key
+    return f.effect === 'level_slope' ? t('{factor}, level and slope', { factor: named }) : named
+  }).join('; ') : tx('None')
+  if (path === 'mixedModelConfig.covariates') return Array.isArray(value) && value.length ? value.join(', ') : tx('None')
+  if (path.startsWith('mixedModelConfig.') || path === 'presetExclusionPolicy') return tx(MODEL_TEXT[String(value)] ?? String(value))
+  if (typeof value === 'boolean') return tx(value ? 'On' : 'Off')
+  if (value === null) return tx(leaf === 'source' ? 'Automatic' : 'None')
+  // Numbers and setting codes; no imported text reaches this line.
+  if (typeof value === 'number') return String(value)
+  if (typeof value === 'string') return tx(value)
   return JSON.stringify(value)
 }
 
@@ -298,7 +310,7 @@ const same = (a: unknown, b: unknown) => JSON.stringify(a ?? null) === JSON.stri
 function entry(path: string, value: unknown, defaultValue: unknown, extra: Partial<RecordEntry> = {}): RecordEntry {
   const definition = SETTINGS[path]
   return {
-    path, label: definition?.label ?? path, value: settingValueText(path, value), defaultValue: settingValueText(path, defaultValue),
+    path, label: tx(definition?.label ?? path), value: settingValueText(path, value), defaultValue: settingValueText(path, defaultValue),
     deviates: !same(value, defaultValue), control: definition?.control ?? null, exportField: definition?.exportField, ...extra,
   }
 }
@@ -312,7 +324,7 @@ function fitEntries(settings: WorkspaceFitSettings, reference: WorkspaceFitSetti
   return [
     ...leaves.map(([path, value]) => entry(path, value, referenceLeaves.get(path), extra)),
     {
-      path: `${FIT_PREFIX}.anchorComparison`, label: 'Before/after comparison', value: settingValueText(`${FIT_PREFIX}.anchorComparison`, anchorComparison),
+      path: `${FIT_PREFIX}.anchorComparison`, label: tx('Before/after comparison'), value: settingValueText(`${FIT_PREFIX}.anchorComparison`, anchorComparison),
       defaultValue: settingValueText(`${FIT_PREFIX}.anchorComparison`, reference.anchorComparison), deviates: !same(anchorComparison, reference.anchorComparison),
       control: TRAJECTORY_SETTINGS, exportField: 'settings.anchor_comparison', ...extra,
     },
@@ -344,17 +356,17 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
   const defaultLeaves = new Map(settingLeaves(defaults, 'analysisSettings'))
   const manualCount = Object.values(input.manualDemographics).filter(entry => Object.keys(entry).length > 0).length
   const data: RecordSection = {
-    id: 'data', title: 'Data', area: 'Data',
+    id: 'data', title: tx('Data'), area: 'Data',
     entries: [
       ...settingLeaves(input.analysisSettings, 'analysisSettings').filter(([path]) => SETTINGS[path] && !SETTINGS[path].noNumericEffect).map(([path, value]) => entry(path, value, defaultLeaves.get(path))),
-      { ...entry('manualDemographics', null, null), value: manualCount ? `${manualCount} ${manualCount === 1 ? 'patient' : 'patients'}` : 'None', defaultValue: 'None', deviates: manualCount > 0 },
+      { ...entry('manualDemographics', null, null), value: manualCount ? tp('{n} patient', '{n} patients', manualCount) : tx('None'), defaultValue: tx('None'), deviates: manualCount > 0 },
       entry('periEventSettings', input.periEventSettings, null),
     ],
   }
   const shared = input.trajectoryFitSettings.shared
   const sharedSection: RecordSection = {
-    id: 'shared', title: 'Trajectories: shared settings', area: 'Trajectories',
-    note: 'The settings of every parameter without its own settings; deviations are against General exploration, the default.',
+    id: 'shared', title: tx('Trajectories: shared settings'), area: 'Trajectories',
+    note: tx('The settings of every parameter without its own settings; deviations are against General exploration, the default.'),
     entries: fitEntries(shared, defaultFitSettings()),
   }
   const parameterSections: RecordSection[] = input.parameters.map(parameter => {
@@ -365,19 +377,20 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
     const log = { ...entry('trajectoryView.logKeys', parameter.log, false), parameterKey: parameter.key }
     const entries = own ? fitEntries(own, shared, parameter.key).filter(e => e.deviates) : []
     return {
-      id: `parameter:${parameter.key}`, title: `Trajectories: ${parameter.label}`, area: 'Trajectories' as const,
-      note: own ? (entries.length ? 'Own settings of this parameter; deviations are against the shared settings.' : 'Own settings of this parameter, equal to the shared settings.') : 'Uses the shared settings.',
+      id: `parameter:${parameter.key}`, title: t('Trajectories: {parameter}', { parameter: parameter.label }), area: 'Trajectories' as const,
+      note: tx(own ? (entries.length ? 'Own settings of this parameter; deviations are against the shared settings.' : 'Own settings of this parameter, equal to the shared settings.') : 'Uses the shared settings.'),
       entries: [trend, log, ...entries],
     }
   })
   const grouping: RecordSection = {
-    id: 'grouping', title: 'Trajectories: table', area: 'Trajectories',
-    entries: [{ path: 'groupBy', label: 'Group by', value: input.groupBy || 'No grouping', defaultValue: 'No grouping', deviates: input.groupBy !== '', control: { page: 'Trajectories', target: 'grouping' }, exportField: 'settings.group_by' }],
+    id: 'grouping', title: tx('Trajectories: table'), area: 'Trajectories',
+    // The attribute name is imported: shown as it is, never translated.
+    entries: [{ path: 'groupBy', label: tx('Group by'), value: input.groupBy || tx('No grouping'), defaultValue: tx('No grouping'), deviates: input.groupBy !== '', control: { page: 'Trajectories', target: 'grouping' }, exportField: 'settings.group_by' }],
   }
   const model = input.mixedModelConfig
   const models: RecordSection = {
-    id: 'models', title: 'Cohort models', area: 'Cohort models',
-    note: 'Recorded with each fitted model in the model workbook, not in the cohort workbook.',
+    id: 'models', title: tx('Cohort models'), area: 'Cohort models',
+    note: tx('Recorded with each fitted model in the model workbook, not in the cohort workbook.'),
     entries: [
       ...(['timeAxis', 'randomEffects', 'factors'] as const).map(key => entry(`mixedModelConfig.${key}`, key === 'factors' ? model.factors ?? model.covariates.map(c => ({ key: c, kind: 'numeric', effect: 'level' })) : model[key], key === 'factors' ? [] : DEFAULT_MIXED_MODEL_CONFIG[key])),
       entry('mixedModelConfig.smallLevelPolicy', model.smallLevelPolicy ?? 'pool', 'pool'),
@@ -386,8 +399,8 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
   }
   const tte = input.timeToEventSettings ?? DEFAULT_TIME_TO_EVENT_CHOICES
   const timeToEvent: RecordSection = {
-    id: 'time-to-event', title: 'Cohort models: time to event', area: 'Cohort models',
-    note: 'Kept for this session only, not saved with the dataset; recorded in the time-to-event workbook (sheets tte_settings and about), not in the cohort workbook. The endpoint definition comes from the endpoint settings of the parameter under Trajectories.',
+    id: 'time-to-event', title: tx('Cohort models: time to event'), area: 'Cohort models',
+    note: tx('Kept for this session only, not saved with the dataset; recorded in the time-to-event workbook (sheets tte_settings and about), not in the cohort workbook. The endpoint definition comes from the endpoint settings of the parameter under Trajectories.'),
     entries: (Object.keys(DEFAULT_TIME_TO_EVENT_CHOICES) as (keyof TimeToEventChoices)[]).map(key => entry(`timeToEventSettings.${key}`, tte[key], DEFAULT_TIME_TO_EVENT_CHOICES[key])),
   }
   return [data, sharedSection, ...parameterSections, grouping, models, timeToEvent]
@@ -395,7 +408,8 @@ export function analysisRecord(input: AnalysisRecordInput): RecordSection[] {
 
 export interface VersionEntry { label: string; value: string }
 
-/** App, formula and R versions behind the current results. */
+/** App, formula and R versions behind the current results, in the interface
+ * language (the app name and version numbers as they are). */
 export function analysisVersions(input: Pick<AnalysisRecordInput, 'analysisSettings' | 'cohortModelResults'>): VersionEntry[] {
   const formula = input.analysisSettings.egfr.formula
   const fitted = Object.values(input.cohortModelResults ?? {}).map(stored => stored.result.metadata)
@@ -403,8 +417,8 @@ export function analysisVersions(input: Pick<AnalysisRecordInput, 'analysisSetti
   const packages = [...new Set(fitted.flatMap(meta => Object.entries(meta.packageVersions ?? {}).map(([name, version]) => `${name} ${version}`)))].sort()
   return [
     { label: 'Lab Trajectory Explorer', value: APP_VERSION },
-    { label: 'eGFR formula', value: formula === 'off' ? 'Off (no eGFR computed)' : formula === 'ckid-u25-ekfc' ? EGFR_FORMULA_LABELS[formula] : `${EGFR_FORMULA_LABELS[formula]}; under 18: ${PAEDIATRIC_RULE_LABELS[input.analysisSettings.egfr.paediatric ?? DEFAULT_PAEDIATRIC_RULE]}` },
-    { label: 'R (cohort models)', value: runtimes.length ? runtimes.join(', ') : 'No model fitted in this session' },
-    { label: 'R packages', value: packages.length ? packages.join('; ') : 'No model fitted in this session' },
+    { label: tx('eGFR formula'), value: formula === 'off' ? tx('Off (no eGFR computed)') : formula === 'ckid-u25-ekfc' ? tx(EGFR_FORMULA_LABELS[formula]) : t('{formula}; under 18: {rule}', { formula: tx(EGFR_FORMULA_LABELS[formula]), rule: tx(PAEDIATRIC_RULE_LABELS[input.analysisSettings.egfr.paediatric ?? DEFAULT_PAEDIATRIC_RULE]) }) },
+    { label: tx('R (cohort models)'), value: runtimes.length ? runtimes.join(', ') : tx('No model fitted in this session') },
+    { label: tx('R packages'), value: packages.length ? packages.join('; ') : tx('No model fitted in this session') },
   ]
 }

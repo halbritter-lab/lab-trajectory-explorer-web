@@ -811,7 +811,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
       // Open the calculation settings and move to the setting, once the drawer is shown.
       requestAnimationFrame(() => requestAnimationFrame(() => {
         const panel = document.querySelector<HTMLElement>('.pv-analysis-panel[open]')
-        if (!panel || label === 'Analysis preset') return
+        if (!panel || label === t('Analysis preset')) return
         panel.querySelector<HTMLDetailsElement>('details.wt-advanced-settings')?.setAttribute('open', '')
         const target = [...panel.querySelectorAll<HTMLElement>('select, input')].find(element => element.getAttribute('aria-label') === label)
         target?.scrollIntoView({ block: 'center' })
