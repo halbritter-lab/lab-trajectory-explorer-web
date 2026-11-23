@@ -36,7 +36,17 @@ export const DEFAULT_TIME_TO_EVENT_CHOICES: TimeToEventChoices = { parameterKey:
 
 export interface Notice {
   kind: 'error' | 'info'
+  /** The text as composed when the notice was set (an error message, or the
+   * interface language of that moment). */
   text: string
+  /** Composes the text in the current language; the page shows this in place
+   * of `text`, so a notice follows a language switch (issue #71). */
+  compose?: () => string
+}
+
+/** A notice composed in the interface language where it is shown. */
+export function composedNotice(kind: Notice['kind'], compose: () => string): Notice {
+  return { kind, text: compose(), compose }
 }
 
 export interface StoredMixedModelResult {

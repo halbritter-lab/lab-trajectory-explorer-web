@@ -1,7 +1,7 @@
 import { countLabel, DEMO_FILE_NAME, parameterLabel } from './workspace-labels'
 import { useMemo } from 'react'
 import { t } from '../i18n'
-import { useAppStore } from './state/store'
+import { composedNotice, useAppStore } from './state/store'
 import { clinicalEventsByPatient, cohortSeriesSpec } from '../core/cohort/specs'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../core/types'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../core/analysis/types'
@@ -122,14 +122,17 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
     // Decided 2026-11-21: the import names the patient-days whose creatinine
     // values AKI detection cannot order. The rule is in the Data page note.
     const unordered = sameDayUnorderedCreatinine(dataset.rows).patientDays
-    const unorderedNote = unordered > 0 ? ` ${t('{days} with several serum creatinine values whose order within the day is unknown: see “Demographics and data quality”.', { days: countLabel(unordered, 'patient-day') })}` : ''
+    const unorderedNote = () => unordered > 0 ? ` ${t('{days} with several serum creatinine values whose order within the day is unknown: see “Demographics and data quality”.', { days: countLabel(unordered, 'patient-day') })}` : ''
+    // The notice is composed where it is shown (in the language of that
+    // moment) from these counts, not from the dataset it would otherwise keep.
+    const counts = { labs: dataset.rows.length, events: dataset.events.length, attributes: Object.keys(dataset.patientAttributes).length, warnings: dataset.diagnostics.length - rejected }
     // replaceDataset aborts running model jobs and commits data and defaults
     // together, so observers never see new rows with old overrides.
     useAppStore.getState().replaceDataset({
       rows: dataset.rows, events: dataset.events, rejectedEvents: dataset.rejectedEvents,
       patientAttributes: dataset.patientAttributes, fileName: file?.name ?? DEMO_FILE_NAME, pristineDemo: !file,
       importDiagnostics: dataset.diagnostics,
-      notice: { kind: 'info', text: `${t('{labs}, {events} and {attributes} loaded.', { labs: countLabel(dataset.rows.length, 'lab value'), events: countLabel(dataset.events.length, 'event'), attributes: countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row') })} ${t('{rejected} rejected; {warnings}.', { rejected: countLabel(rejected, 'row'), warnings: countLabel(dataset.diagnostics.length - rejected, 'warning') })}${unorderedNote}` },
+      notice: composedNotice('info', () => `${t('{labs}, {events} and {attributes} loaded.', { labs: countLabel(counts.labs, 'lab value'), events: countLabel(counts.events, 'event'), attributes: countLabel(counts.attributes, 'attribute row') })} ${t('{rejected} rejected; {warnings}.', { rejected: countLabel(rejected, 'row'), warnings: countLabel(counts.warnings, 'warning') })}${unorderedNote()}`),
     })
   } catch (error) {
     useAppStore.setState({ busy: false, notice: { kind: 'error', text: error instanceof Error ? error.message : String(error) } })

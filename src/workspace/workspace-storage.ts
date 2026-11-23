@@ -1,13 +1,13 @@
 import { create } from 'zustand'
 import { createStore, del, delMany, get, getMany, keys, promisifyRequest, update, type UseStore } from 'idb-keyval'
-import { useAppStore } from './state/store'
+import { composedNotice, useAppStore } from './state/store'
 import type { AnalysisContext } from '../core/analysis/types'
 import { isRecord as record, parseAnalysisSettings, type AnalysisSettings } from '../core/analysis/registry'
 import type { LabRow, Sex, WertOperator } from '../core/types'
 import { nonSerumCreatinineLoincName } from '../core/domains/nephrology/analytes'
 import { parsePeriEventSettings, type PeriEventSettings } from '../core/domains/nephrology/aki/periEvent'
 import { IMPORT_SOURCES, type ImportDiagnostic, type ImportSource } from '../io/loadDataset'
-import { getLanguage, setLanguage, subscribeLanguage, t, tp } from '../i18n'
+import { getLanguage, msg, setLanguage, subscribeLanguage, t, tp, type MessageKey } from '../i18n'
 import { allValues, projectionOnNotice, restoreSavedSettings, SAVED_SETTINGS_VERSION, type RestoredSettings, type SavedSettings } from './saved-settings'
 import {
   CLINICAL_EVENT_TYPES,
@@ -57,14 +57,16 @@ interface SettingsRecord extends SavedSettings { datasetToken: string }
 interface StorageStatus {
   enabled: boolean
   status: 'session' | 'saving' | 'saved' | 'error'
-  message: string | null
+  /** A fixed message, kept as its key and translated where it is shown, so
+   * it follows a later language switch. */
+  message: MessageKey | null
   /** Data saved by the former interface found at start-up: removed, or found
    * but not (completely) removable. Shown once as a notice. */
   legacyData: 'none' | 'removed' | 'removal-failed'
   /** The last write of the analysis settings alone failed. Shown next to the
    * status, which keeps describing the dataset copy; cleared by the next
    * successful write. */
-  settingsError: string | null
+  settingsError: MessageKey | null
   /** When the dataset copy on this device was written (its `savedAt`, the
    * start of the seven days); null while no copy of this tab is saved. */
   savedAt: number | null
@@ -241,8 +243,8 @@ export function restoredNotice({ stored, notRestored, keptAsCustom, projectionOn
     + (notRestored.length ? ` ${t('Not restored, the defaults are used instead: {list}.', { list: notRestored.join('; ') })}` : '')
 }
 
-const EXPIRED_MESSAGE = () => t('The saved workspace expired after seven days and was removed. Import your file to continue.')
-const INVALID_MESSAGE = () => t('The saved workspace could not be read (invalid or from an unsupported version) and was removed. Import your file to continue.')
+const EXPIRED_MESSAGE = () => msg('The saved workspace expired after seven days and was removed. Import your file to continue.')
+const INVALID_MESSAGE = () => msg('The saved workspace could not be read (invalid or from an unsupported version) and was removed. Import your file to continue.')
 
 let writes: Promise<void> = Promise.resolve()
 let revision = 0
@@ -254,12 +256,12 @@ function enqueue(operation: () => Promise<void>): Promise<void> {
   writes = writes.catch(() => {}).then(operation)
   return writes
 }
-function reportError(message: string) {
+function reportError(message: MessageKey) {
   useWorkspaceStorage.setState({ status: 'error', message })
 }
 function reportConflict() {
   ++revision
-  useWorkspaceStorage.setState({ enabled: false, status: 'error', message: t('The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.') })
+  useWorkspaceStorage.setState({ enabled: false, status: 'error', message: msg('The saved copy was changed or removed in another tab. Reload to resume that copy, or enable saving again to save this tab instead.') })
 }
 /**
  * Compare the copy on the device with this tab's last write. The status
@@ -327,7 +329,7 @@ function save(): Promise<void> {
   const value = snapshot()
   // Never write a copy the next start would reject and delete.
   if (!validSnapshot(value)) {
-    reportError(t('This dataset cannot be saved on this device because it contains values the saved format does not accept. It stays available in this tab; export your data to keep it.'))
+    reportError(msg('This dataset cannot be saved on this device because it contains values the saved format does not accept. It stays available in this tab; export your data to keep it.'))
     return Promise.resolve()
   }
   useWorkspaceStorage.setState({ status: 'saving', message: null })
@@ -341,7 +343,7 @@ function save(): Promise<void> {
     } catch (error) {
       if (error instanceof StorageConflict) {
         reportConflict()
-      } else if (currentRevision === revision) reportError(t('Could not save on this device. Keep this tab open or export your data, then retry.'))
+      } else if (currentRevision === revision) reportError(msg('Could not save on this device. Keep this tab open or export your data, then retry.'))
     }
   })
 }
@@ -378,7 +380,7 @@ function saveSettings(): void {
       }))
       if (useWorkspaceStorage.getState().settingsError !== null) useWorkspaceStorage.setState({ settingsError: null })
     } catch {
-      useWorkspaceStorage.setState({ settingsError: t('Could not save the analysis settings on this device. The dataset copy is unchanged and its seven days are not extended; the next settings change is saved again.') })
+      useWorkspaceStorage.setState({ settingsError: msg('Could not save the analysis settings on this device. The dataset copy is unchanged and its seven days are not extended; the next settings change is saved again.') })
     }
   })
 }
@@ -396,7 +398,7 @@ export async function setWorkspaceRemember(enabled: boolean): Promise<void> {
       claimPending = false
       if (currentRevision === revision) useWorkspaceStorage.setState({ status: 'session', message: null, settingsError: null, savedAt: null })
     } catch {
-      if (currentRevision === revision) reportError(t('Could not remove the saved copy. Retry clearing saved data on this device.'))
+      if (currentRevision === revision) reportError(msg('Could not remove the saved copy. Retry clearing saved data on this device.'))
     }
   })
 }
@@ -445,13 +447,16 @@ export async function startWorkspaceStorage(): Promise<() => void> {
       // Settings written for another dataset copy are never applied.
       const mine = record(storedSettings) && storedSettings.datasetToken === value.writeToken ? storedSettings : undefined
       const restored = restoreSavedSettings(mine, parameterKeys)
-      // The saved interface language applies before any message is composed.
+      // The saved interface language applies before any message is composed;
+      // the notice is composed again where it is shown, so it also follows a
+      // later switch.
       if (restored.language) setLanguage(restored.language)
-      useAppStore.setState({ trajectoryFitSettings: restored.trajectoryFitSettings, trajectoryView: restored.trajectoryView, notice: { kind: 'info', text: restoredNotice(restored) + earlierVersionNotice({ withoutImportFindings: value.importDiagnostics === undefined, movedCreatinine: separated.moved }) } })
+      const earlier = { withoutImportFindings: value.importDiagnostics === undefined, movedCreatinine: separated.moved }
+      useAppStore.setState({ trajectoryFitSettings: restored.trajectoryFitSettings, trajectoryView: restored.trajectoryView, notice: composedNotice('info', () => restoredNotice(restored) + earlierVersionNotice(earlier)) })
       useWorkspaceStorage.setState({ enabled: true, status: 'saved', message: null, savedAt: value.savedAt })
     }
   } catch {
-    reportError(t('Local storage is unavailable. You can still import and work in this tab.'))
+    reportError(msg('Local storage is unavailable. You can still import and work in this tab.'))
   }
   const stop = useAppStore.subscribe((state, previous) => {
     if (!useWorkspaceStorage.getState().enabled) return

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useAppStore } from './state/store'
+import { composedNotice, useAppStore } from './state/store'
 import { patientIdKey, type PatientId, type Sex } from '../core/types'
 import { resolveDemographics } from '../core/demographics/resolve'
 import { conflictText } from './labels/conflictText'
@@ -26,7 +26,7 @@ import { WorkspaceDataOverview } from './WorkspaceDataOverview'
 import { AffectedRows, WorkspaceImportDiagnostics } from './WorkspaceImportDiagnostics'
 import { dataChecks } from './import-diagnostics'
 import { egfrGapContext, egfrGapReason, egfrGapText, heightSourceText } from './egfr-gaps'
-import { t, tp } from '../i18n'
+import { t, tp, useLanguage } from '../i18n'
 import { importMessage } from './labels/importMessages'
 
 /** "Kreatinin (mg/dl)": parameter name with its unit. */
@@ -36,6 +36,8 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
   const data = useWorkspaceData()
   const busy = useAppStore(s => s.busy)
   const notice = useAppStore(s => s.notice)
+  // Memoised texts below (the data checks) are composed in the interface language.
+  const language = useLanguage()
   const importDiagnostics = useAppStore(s => s.importDiagnostics)
   const [formula, setFormula] = useState<FormulaName | 'off'>(data.analysisSettings.egfr.formula)
   const [sourceKey, setSourceKey] = useState(JSON.stringify(data.analysisSettings.egfr.source))
@@ -126,7 +128,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         store.setEvents(valid)
         useAppStore.setState({ rejectedEvents: rejected })
         store.setImportDiagnostics('events', eventDiagnostics(file.name, normalized.dateReads, validation, normalized.notes))
-        store.setNotice({ kind: 'info', text: `${tp('{n} event imported;', '{n} events imported;', valid.length)} ${tp('{n} row rejected.', '{n} rows rejected.', rejected.length)}` })
+        store.setNotice(composedNotice('info', () => `${tp('{n} event imported;', '{n} events imported;', valid.length)} ${tp('{n} row rejected.', '{n} rows rejected.', rejected.length)}`))
       } else {
         const validation = validatePatientAttributes(normalizePatientAttributes(raw), originalRows)
         const { byPatient, valid, rejected } = validation
@@ -136,7 +138,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         }
         store.setPatientAttributes(byPatient)
         store.setImportDiagnostics('attributes', attributeDiagnostics(file.name, validation))
-        store.setNotice({ kind: 'info', text: `${tp('{n} attribute row imported;', '{n} attribute rows imported;', valid.length)} ${tp('{n} row rejected.', '{n} rows rejected.', rejected.length)}` })
+        store.setNotice(composedNotice('info', () => `${tp('{n} attribute row imported;', '{n} attribute rows imported;', valid.length)} ${tp('{n} row rejected.', '{n} rows rejected.', rejected.length)}`))
       }
     } catch (error) {
       // The listed rejections belonged to the previous file; the kept events have none.
@@ -174,7 +176,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
   const implausibleCreatinine = useMemo(() => nonPositiveCreatinineCount(data.rawRows), [data.rawRows])
   const highCreatinine = useMemo(() => implausiblyHighCreatinineCount(data.rawRows), [data.rawRows])
   const unorderedCreatinine = useMemo(() => sameDayUnorderedCreatinine(data.rawRows), [data.rawRows])
-  const checks = useMemo(() => dataChecks(data.rawRows), [data.rawRows])
+  const checks = useMemo(() => dataChecks(data.rawRows), [data.rawRows, language])
   const checkRows = (id: (typeof checks)[number]['id'], summary: string) => {
     const check = checks.find(c => c.id === id)
     return check ? <AffectedRows rows={check.rows} summary={summary} /> : null
@@ -198,7 +200,7 @@ export function DataWorkspace({ onBrowse }: { onBrowse: (patientId?: PatientId) 
         <p className="muted">{t('The demo workbook mirrors a German laboratory export: German test names such as “Kreatinin”, sex codes “w” and “m”, and decimal commas. English test names such as “Creatinine”, “male” and “female”, and decimal points are read the same way.')}</p>
       </details>
       {busy && <p role="status">{t('Checking file …')}</p>}
-      {notice && <div className={`notice ${notice.kind === 'error' ? 'amber' : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'}><p>{importMessage(notice.text)}</p></div>}
+      {notice && <div className={`notice ${notice.kind === 'error' ? 'amber' : ''}`} role={notice.kind === 'error' ? 'alert' : 'status'}><p>{notice.compose ? notice.compose() : importMessage(notice.text)}</p></div>}
       <WorkspaceImportDiagnostics diagnostics={importDiagnostics} rows={data.rawRows} />
       {data.rawRows.length > 0 && <><p><strong>{data.fileName ?? t('Dataset')}</strong></p><div className="data-metrics"><span><strong>{data.patients.length}</strong> {t('patients')}</span><span><strong>{data.rawRows.length}</strong> {t('imported values')}</span><span><strong>{data.parameters.filter(p => !p.derived).length}</strong> {t('Parameter–unit combinations')}</span><span><strong>{data.events.length}</strong> {t('events')}</span></div>
         <p className="muted">{[tp('{n} value without a date', '{n} values without a date', data.rawRows.filter(r => !r.labDatum).length), tp('{n} value without a numeric measurement', '{n} values without a numeric measurement', data.rawRows.filter(r => r.wertNum === null).length), tp('{n} value recorded as a bound (< or >)', '{n} values recorded as a bound (< or >)', data.rawRows.filter(r => r.wertOperator === '<' || r.wertOperator === '>').length), tp('{n} value without a parameter name', '{n} values without a parameter name', data.rawRows.filter(r => !r.bezeichnung).length)].join(', ')}</p>

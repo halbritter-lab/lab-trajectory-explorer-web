@@ -37,8 +37,8 @@ export function WorkspaceStorageControls({ hasData }: { hasData: boolean }) {
       {hasData && <button type="button" disabled={busy} onClick={() => void clearCurrent()}>{t('Clear dataset')}</button>}
       {(enabled || status === 'error') && <button type="button" onClick={() => void setWorkspaceRemember(false)}>{t('Clear saved data')}</button>}
       {enabled && status === 'error' && <button type="button" onClick={() => void setWorkspaceRemember(true)}>{t('Retry saving')}</button>}
-      <span role={status === 'error' ? 'alert' : 'status'}>{message ?? ({ session: t('This session only'), saving: t('Saving on this device …'), saved: savedStatusText(savedAt), error: t('Storage error') })[status]}</span>
+      <span role={status === 'error' ? 'alert' : 'status'}>{message ? t(message) : ({ session: t('This session only'), saving: t('Saving on this device …'), saved: savedStatusText(savedAt), error: t('Storage error') })[status]}</span>
     </div>
-    {settingsError && <p role="status">{settingsError}</p>}
+    {settingsError && <p role="status">{t(settingsError)}</p>}
   </div>
 }

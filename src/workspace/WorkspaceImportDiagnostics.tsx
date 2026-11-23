@@ -4,7 +4,7 @@ import type { LabRow } from '../core/types'
 import type { ImportDiagnostic } from '../io/loadDataset'
 import { downloadBlob, rowsToXlsxBytes } from '../io/export'
 import { safeExportFilename } from './workspace-export'
-import { dataChecks, diagnosticsBySource, importDiagnosticRecords } from './import-diagnostics'
+import { dataChecks, diagnosticsBySource, IMPORT_SOURCE_LABELS, importDiagnosticRecords } from './import-diagnostics'
 import { importMessage } from './labels/importMessages'
 import { inEnglish, t, tp } from '../i18n'
 
@@ -51,11 +51,12 @@ function SourceDiagnostics({ label, details }: { label: string; details: ImportD
  * checks. Rendered only when there is a finding. */
 export function WorkspaceImportDiagnostics({ diagnostics, rows }: { diagnostics: ImportDiagnostic[]; rows: readonly LabRow[] }) {
   // Stable per import: each list resets its "show all" state when its findings change, not on every render.
+  // The source labels are translated here, at render, so they follow a language switch.
   const groups = useMemo(() => diagnosticsBySource(diagnostics), [diagnostics])
   if (groups.length === 0) return null
   const rejected = diagnostics.some(d => d.severity === 'rejected')
   return <div className={`notice data-diagnostics-panel ${rejected ? 'amber' : ''}`} role="group" aria-label={t('Import diagnostics')}>
-    <div className="data-diagnostics-sources">{groups.map(group => <SourceDiagnostics key={group.source} label={group.label} details={group.diagnostics} />)}</div>
+    <div className="data-diagnostics-sources">{groups.map(group => <SourceDiagnostics key={group.source} label={t(IMPORT_SOURCE_LABELS[group.source])} details={group.diagnostics} />)}</div>
     <button type="button" onClick={() => downloadBlob(rowsToXlsxBytes(inEnglish(() => importDiagnosticRecords(diagnostics, dataChecks(rows))), 'import_diagnostics'), safeExportFilename('import-diagnostics', 'xlsx'), 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')}>{t('Download import diagnostics (XLSX)')}</button>
   </div>
 }
