@@ -30,6 +30,7 @@ import { ModelProjectionPanel } from './ModelProjectionPanel'
 import { formatWorkspaceNumber } from '../WorkspacePlot'
 import { formatFixedDecimals, MIN_SLOPE_DECIMALS } from '../../core/format'
 import type { MixedModelDropout } from '../../core/mixedModel/dropout'
+import { inEnglish, t } from '../../i18n'
 
 const FALLBACK_COLOR = '#55686e'
 
@@ -153,8 +154,8 @@ export function CohortModelTable({
   const allEligibleSelected = eligibleKeys.length > 0 && eligibleKeys.every((key) => selected.has(key))
   const progressStatus = running && progress
     ? {
-        buttonText: `Fitting ${Math.min(progress.completed + 1, progress.total)} of ${progress.total}`,
-        message: `${progress.completed} of ${progress.total} fits complete.`,
+        buttonText: t('Fitting {n} of {total}', { n: Math.min(progress.completed + 1, progress.total), total: progress.total }),
+        message: t('{n} of {total} fits complete.', { n: progress.completed, total: progress.total }),
       }
     : null
 
@@ -209,14 +210,14 @@ export function CohortModelTable({
   }
 
   function statusText(row: EntityRow): string {
-    if (!row.eligible) return row.validationMessage ?? 'Invalid model design'
+    if (!row.eligible) return row.validationMessage ?? t('Invalid model design')
     const stored = storedFor(row)
-    if (!stored) return 'Not fitted'
+    if (!stored) return t('Not fitted')
     const result = stored.result
     if (result.status === 'success') {
       // The slope has its own column; the status says whether the fit can be used.
-      const flags = [!result.converged && 'did not converge', result.singular && 'singular fit; projection withheld'].filter(Boolean)
-      return flags.length ? `Fitted (${flags.join('; ')})` : 'Fitted'
+      const flags = [!result.converged && t('did not converge'), result.singular && t('singular fit; projection withheld')].filter(Boolean)
+      return flags.length ? t('Fitted ({flags})', { flags: flags.join('; ') }) : t('Fitted')
     }
     return failureStatusText(result)
   }
@@ -240,7 +241,7 @@ export function CohortModelTable({
     let projectionError: string | undefined
     if (stored.result.status === 'success' && stored.result.converged && !stored.result.singular && applied && mixedModelIdentityEquals(applied.sourceIdentity,stored.identity)) {
       try { projection = buildProjectionSnapshot(stored.result,stored.identity,sourceResponse,row.rows,applied.settings) }
-      catch (error) { projectionError = error instanceof Error ? error.message : 'Projection settings or source fit are invalid.' }
+      catch (error) { projectionError = error instanceof Error ? error.message : t('Projection settings or source fit are invalid.') }
     }
     return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError, rows: row.rows, inputFlags: row.inputFlags, dropout: dropoutByEntity?.get(row.key)}]
   })
@@ -252,56 +253,56 @@ export function CohortModelTable({
     if (exportable.some((model) => current?.[model.key]?.result !== model.result || !mixedModelIdentityEquals(current?.[model.key]?.identity ?? null, model.identity))) return
     try {
       const fileName = `cohort-models-${fileStamp()}.xlsx`
-      downloadBlob(sheetsToXlsxBytes(mixedModelExportSheets(exportable, fileName, undefined, { appVersion: APP_VERSION, egfrFormula: useAppStore.getState().analysisSettings.egfr.formula })), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      downloadBlob(sheetsToXlsxBytes(inEnglish(() => mixedModelExportSheets(exportable, fileName, undefined, { appVersion: APP_VERSION, egfrFormula: useAppStore.getState().analysisSettings.egfr.formula }))), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       setExportError(null)
     } catch (error) {
-      setExportError(`Model export failed: ${error instanceof Error ? error.message : String(error)}`)
+      setExportError(t('Model export failed: {error}', { error: error instanceof Error ? error.message : String(error) }))
     }
   }
   const adjusted = mixedModelFactors(config).length > 0
 
   return (
-    <section className="mixed-model-panel cohort-model-panel" aria-label="Cohort mixed model">
-      <h2 className="cohort-model-panel-title">Model results</h2>
+    <section className="mixed-model-panel cohort-model-panel" aria-label={t('Cohort mixed model')}>
+      <h2 className="cohort-model-panel-title">{t('Model results')}</h2>
       <div className="mixed-model-panel-header">
-        <p className="mixed-model-message">One mixed model per selected group, fit sequentially. Failures are isolated per group.</p>
-        <button type="button" disabled={exportable.length === 0 || running || hasDirtyEditor || initializing} onClick={exportModels}>Export models (xlsx)</button>
-        {hasDirtyEditor && <p role="status">Apply or cancel projection changes before exporting models.</p>}
-        {exportable.filter((model) => model.projectionError).map((model) => <p role="alert" key={model.key}>{model.entity}: {model.projectionError} Refit the model before exporting.</p>)}
+        <p className="mixed-model-message">{t('One mixed model per selected group, fit sequentially. Failures are isolated per group.')}</p>
+        <button type="button" disabled={exportable.length === 0 || running || hasDirtyEditor || initializing} onClick={exportModels}>{t('Export models (xlsx)')}</button>
+        {hasDirtyEditor && <p role="status">{t('Apply or cancel projection changes before exporting models.')}</p>}
+        {exportable.filter((model) => model.projectionError).map((model) => <p role="alert" key={model.key}>{model.entity}: {model.projectionError} {t('Refit the model before exporting.')}</p>)}
         {exportError && <p role="alert">{exportError}</p>}
         <button
           type="button"
           onClick={() => void fitSelected()}
           disabled={running || selectedEligible.length === 0}
         >
-          {progressStatus?.buttonText ?? (running ? 'Fitting...' : 'Fit selected')}
+          {progressStatus?.buttonText ?? (running ? t('Fitting...') : t('Fit selected'))}
         </button>
-        {running && <button type="button" onClick={() => useAppStore.getState().cancelCohortModels()}>Cancel</button>}
+        {running && <button type="button" onClick={() => useAppStore.getState().cancelCohortModels()}>{t('Cancel')}</button>}
       </div>
       {progressStatus && <p className="mixed-model-message" role="status">{progressStatus.message}</p>}
       {entityRows.length === 0 ? (
-        <p className="mixed-model-message">No data to fit.</p>
+        <p className="mixed-model-message">{t('No data to fit.')}</p>
       ) : (
         <div className="cohort-model-table-wrap">
-          <table className="cohort-model-table" aria-label="Cohort model results">
+          <table className="cohort-model-table" aria-label={t('Cohort model results')}>
             <thead>
               <tr>
                 <th scope="col">
                   <input
                     type="checkbox"
-                    aria-label="Select all groups"
+                    aria-label={t('Select all groups')}
                     checked={allEligibleSelected}
                     disabled={eligibleKeys.length === 0}
                     onChange={toggleAll}
                   />
                 </th>
-                <th scope="col">Group</th>
-                <th scope="col">Patients</th>
-                <th scope="col">Measurements</th>
-                <th scope="col">{adjusted ? 'Change per year (reference)' : 'Change per year'}</th>
-                <th scope="col">{adjusted ? 'Starting level (reference)' : 'Starting level'}</th>
-                <th scope="col">Status</th>
-                <th scope="col"><span className="visually-hidden">Details</span></th>
+                <th scope="col">{t('Group')}</th>
+                <th scope="col">{t('Patients')}</th>
+                <th scope="col">{t('Measurements')}</th>
+                <th scope="col">{adjusted ? t('Change per year (reference)') : t('Change per year')}</th>
+                <th scope="col">{adjusted ? t('Starting level (reference)') : t('Starting level')}</th>
+                <th scope="col">{t('Status')}</th>
+                <th scope="col"><span className="visually-hidden">{t('Details')}</span></th>
               </tr>
             </thead>
             <tbody>
@@ -315,7 +316,7 @@ export function CohortModelTable({
                       <td>
                         <input
                           type="checkbox"
-                          aria-label={`Fit ${row.label}`}
+                          aria-label={t('Fit {label}', { label: row.label })}
                           disabled={!row.eligible}
                           checked={selected.has(row.key)}
                           onChange={() => toggleSelected(row.key)}
@@ -334,8 +335,8 @@ export function CohortModelTable({
                       <td>{success ? <>{formatSlope(success.fixedEffects.timeSinceBaseline, seriesUnit, slopeDecimals)}<IntervalText value={success.fixedEffectConfidenceIntervals.timeSinceBaseline} decimals={slopeDecimals} /></> : '—'}</td>
                       <td>{success ? <>{formatValue(success.fixedEffects.intercept, seriesUnit, slopeDecimals)}<IntervalText value={success.fixedEffectTerms?.find(term => term.term === '(Intercept)')?.confidenceInterval ?? null} decimals={slopeDecimals} /></> : '—'}</td>
                       <td className="cohort-model-status" data-testid="cohort-model-status">{statusText(row)}
-                        <div>{row.preparation?.presetExclusionPolicy !== 'skip' && !definesWindows ? 'No event or AKI windows defined: nothing excluded' : `Preset windows ${row.preparation?.presetExclusionPolicy === 'skip' ? 'skipped' : 'applied'}: ${row.preparation?.excludedByPreset ?? 0} eligible measurements excluded`}</div>
-                        {(row.preparation?.excludedPatients.length ?? 0) > 0 && <details><summary>Excluded for factor values ({row.preparation!.excludedPatients.length})</summary><ul>{row.preparation!.excludedPatients.map((patient) => <li key={patient.patientId}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul></details>}
+                        <div>{row.preparation?.presetExclusionPolicy !== 'skip' && !definesWindows ? t('No event or AKI windows defined: nothing excluded') : row.preparation?.presetExclusionPolicy === 'skip' ? t('Preset windows skipped: {n} eligible measurements excluded', { n: row.preparation?.excludedByPreset ?? 0 }) : t('Preset windows applied: {n} eligible measurements excluded', { n: row.preparation?.excludedByPreset ?? 0 })}</div>
+                        {(row.preparation?.excludedPatients.length ?? 0) > 0 && <details><summary>{t('Excluded for factor values ({excludedPatients})', { excludedPatients: row.preparation!.excludedPatients.length })}</summary><ul>{row.preparation!.excludedPatients.map((patient) => <li key={patient.patientId}>{patient.patientId}: {patient.reasons.join('; ')}</li>)}</ul></details>}
                       </td>
                       <td>
                         {success && (
@@ -345,7 +346,7 @@ export function CohortModelTable({
                             aria-expanded={isExpanded}
                             onClick={() => toggleExpanded(row.key)}
                           >
-                            Details
+                            {t('Details')}
                           </button>
                         )}
                       </td>
@@ -364,7 +365,7 @@ export function CohortModelTable({
                                 if (dirty) next.add(row.key)
                                 else next.delete(row.key)
                                 return next
-                              })} /> : <p>{success.singular ? 'Projection unavailable: the random-effects fit is singular.' : 'Projection unavailable: a current converged fit is required.'}</p>
+                              })} /> : <p>{success.singular ? t('Projection unavailable: the random-effects fit is singular.') : t('Projection unavailable: a current converged fit is required.')}</p>
                           })()}
                         </td>
                       </tr>
@@ -374,7 +375,7 @@ export function CohortModelTable({
               })}
             </tbody>
           </table>
-        <p className="mixed-model-message cohort-model-reading" data-testid="interval-reading"><strong>How to read the intervals:</strong> an estimate with a 95% interval that excludes 0 is unlikely to be explained by chance alone under this model. The intervals are approximate and tend to be too narrow with few patients, and nothing is adjusted for comparing several groups or factors. Report the estimate with its interval; do not report it as a p-value. The intervals are Wald intervals (estimate ± 1.96 standard errors); they ignore the uncertainty of the variance components. For tests, the exported R script runs lmerTest where it is installed: an F test per factor with Satterthwaite degrees of freedom, and contrasts that are exploratory and unadjusted.</p>
+        <p className="mixed-model-message cohort-model-reading" data-testid="interval-reading"><strong>{t('How to read the intervals:')}</strong> {t('an estimate with a 95% interval that excludes 0 is unlikely to be explained by chance alone under this model. The intervals are approximate and tend to be too narrow with few patients, and nothing is adjusted for comparing several groups or factors. Report the estimate with its interval; do not report it as a p-value. The intervals are Wald intervals (estimate ± 1.96 standard errors); they ignore the uncertainty of the variance components. For tests, the exported R script runs lmerTest where it is installed: an F test per factor with Satterthwaite degrees of freedom, and contrasts that are exploratory and unadjusted.')}</p>
         </div>
       )}
     </section>
@@ -382,12 +383,12 @@ export function CohortModelTable({
 }
 
 function failureStatusText(result: MixedModelFailure): string {
-  const message = `Fit failed: ${result.message}`
+  const message = t('Fit failed: {message}', { message: result.message })
   if (
     (result.stage === 'runtime-load' && result.code === 'WEBR_INIT_FAILED') ||
     (result.stage === 'package-load' && result.code === 'PACKAGE_UNAVAILABLE')
   ) {
-    return `${message} The first fit of a session loads the R runtime and R packages from the address this app is served from. Check that this address can still be reached, then retry the fit.`
+    return `${message} ${t('The first fit of a session loads the R runtime and R packages from the address this app is served from. Check that this address can still be reached, then retry the fit.')}`
   }
   return message
 }
@@ -398,51 +399,51 @@ function failureStatusText(result: MixedModelFailure): string {
 function warningText(warning: string, details: readonly MixedModelWarningDetail[]): string {
   const detail = details.find((candidate) => candidate.text === warning)
   if (!detail) return warning
-  return `${detail.plain} ${detail.patientIds.length === 1 ? 'Patient' : 'Patients'}: ${patientIdList(detail.patientIds)}.`
+  return `${detail.plain} ${detail.patientIds.length === 1 ? t('Patient') : t('Patients')}: ${patientIdList(detail.patientIds)}.`
 }
 
 function ModelDetails({ result, outcome, decimals, warningDetails }: { result: MixedModelSuccess; outcome: string; decimals: number; warningDetails: readonly MixedModelWarningDetail[] }) {
   const factors = result.metadata.modelConfig ? mixedModelFactors(result.metadata.modelConfig) : []
   return (
     <>
-    {factors.length > 0 && <p>Reference starting level and change per year: {factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : `${factor.key} at its included-patient mean`).join('; ')}. Associations are conditional on this model and population.</p>}
+    {factors.length > 0 && <p>{t('Reference starting level and change per year: {value}. Associations are conditional on this model and population.', { value: factors.map((factor) => factor.kind === 'categorical' ? `${factor.key} = ${factor.reference}` : t('{factor} at its included-patient mean', { factor: factor.key })).join('; ') })}</p>}
     {result.warnings.map((warning, index) => <p role="status" key={index}>{warningText(warning, warningDetails)}</p>)}
-    <table className="cohort-model-table" aria-label="Fixed effect coefficients"><thead><tr><th>Term</th><th>Estimate</th><th>95% CI</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{formatFixedDecimals(coefficient.estimate, decimals)}</td><td>{formatFixedInterval(coefficient.confidenceInterval, decimals)}</td></tr>)}</tbody></table>
+    <table className="cohort-model-table" aria-label={t('Fixed effect coefficients')}><thead><tr><th>{t('Term')}</th><th>{t('Estimate')}</th><th>{t('95% CI')}</th></tr></thead><tbody>{mixedModelCoefficientTerms(result).map((coefficient) => <tr key={coefficient.term}><td>{mixedModelTermLabel(coefficient.term, result.metadata.modelConfig)}</td><td>{formatFixedDecimals(coefficient.estimate, decimals)}</td><td>{formatFixedInterval(coefficient.confidenceInterval, decimals)}</td></tr>)}</tbody></table>
     <dl className="cohort-model-details">
       <div className="cohort-model-detail-item">
-        <dt>Patient intercept SD</dt>
+        <dt>{t('Patient intercept SD')}</dt>
         <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.randomEffects.interceptSd)}</dd>
       </div>
       <div className="cohort-model-detail-item">
-        <dt>Patient slope SD</dt>
+        <dt>{t('Patient slope SD')}</dt>
         <dd data-testid="cohort-model-detail-value">{result.randomEffects.slopeSd === null ? 'n/a' : formatFixedDecimals(result.randomEffects.slopeSd, decimals)}</dd>
       </div>
       <div className="cohort-model-detail-item">
-        <dt>Intercept-slope correlation</dt>
+        <dt>{t('Intercept-slope correlation')}</dt>
         <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.randomEffects.interceptSlopeCorrelation)}</dd>
       </div>
       <div className="cohort-model-detail-item">
-        <dt>Residual SD</dt>
+        <dt>{t('Residual SD')}</dt>
         <dd data-testid="cohort-model-detail-value">{formatOptionalNumber(result.residualSd)}</dd>
       </div>
       <div className="cohort-model-detail-item cohort-model-detail-item-wide" data-testid="cohort-model-detail-formula">
-        <dt>Formula</dt>
+        <dt>{t('Formula')}</dt>
         <dd data-testid="cohort-model-detail-value">{mixedModelFormulaForOutcome(result.metadata.formula, outcome)}</dd>
       </div>
     </dl>
     <details className="cohort-model-technical">
-    <summary>Technical record (for a methods section)</summary>
+    <summary>{t('Technical record (for a methods section)')}</summary>
     <dl className="cohort-model-details">
       <div className="cohort-model-detail-item">
-        <dt>Engine</dt>
+        <dt>{t('Engine')}</dt>
         <dd data-testid="cohort-model-detail-value">{result.metadata.engine}</dd>
       </div>
       <div className="cohort-model-detail-item cohort-model-detail-item-wide" data-testid="cohort-model-detail-dataset">
-        <dt>Dataset</dt>
+        <dt>{t('Dataset')}</dt>
         <dd data-testid="cohort-model-detail-value">{result.metadata.datasetId} ({result.metadata.datasetHash})</dd>
       </div>
       <div className="cohort-model-detail-item cohort-model-detail-item-wide" data-testid="cohort-model-detail-fit-config">
-        <dt>Fit config</dt>
+        <dt>{t('Fit config')}</dt>
         <dd data-testid="cohort-model-detail-value">{result.metadata.fitConfigHash}</dd>
       </div>
     </dl>
@@ -461,7 +462,7 @@ function ModelDetails({ result, outcome, decimals, warningDetails }: { result: M
 /** The 95% interval beside an estimate in the results table; nothing when the fit recorded none.
  * With `decimals` both bounds are written with exactly that many. */
 function IntervalText({ value, decimals }: { value: [number, number] | null; decimals?: number }) {
-  return value === null ? null : <span className="cohort-model-interval" title="95% interval"> <span className="visually-hidden">95% interval </span>{decimals === undefined ? formatOptionalInterval(value) : formatFixedInterval(value, decimals)}</span>
+  return value === null ? null : <span className="cohort-model-interval" title={t('95% interval')}> <span className="visually-hidden">{t('95% interval')} </span>{decimals === undefined ? formatOptionalInterval(value) : formatFixedInterval(value, decimals)}</span>
 }
 
 function formatSlope(value: number, unit: string | null, decimals: number): string {

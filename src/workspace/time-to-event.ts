@@ -8,6 +8,7 @@ import { DAYS_PER_YEAR, endpointLabel, TIME_TO_EVENT_ENDPOINTS, type TimeToEvent
 import type { ClinicalEvent } from '../core/events/events'
 import { atRisk, stepValueAt, type SurvivalSubject } from '../core/survival/survival'
 import { patientIdKey, type PatientId } from '../core/types'
+import { msg, t } from '../i18n'
 
 /** The endpoints of the time-to-event view that the parameter's endpoint
  * settings under Trajectories evaluate: no second copy of the definition. */
@@ -24,17 +25,17 @@ export function availableTimeToEventEndpoints(endpoints: Partial<CkdEndpointConf
 /** The endpoint definition in words, as the parameter's settings give it. */
 export function endpointDefinitionText(endpoint: TimeToEventEndpoint, compositeWithKrt: boolean, endpoints: Partial<CkdEndpointConfig> | undefined, parameterLabel: string): string {
   const days = normalizeConfirmationDays(endpoints?.confirmationDays ?? DEFAULT_CONFIRMATION_DAYS)
-  const confirm = `confirmed by a value at least ${days} days and at most 12 calendar months after the first crossing; the event is dated at the first crossing`
-  const krt = 'the first kidney transplant or chronic dialysis start of the events sheet'
+  const confirm = t('confirmed by a value at least {days} days and at most 12 calendar months after the first crossing; the event is dated at the first crossing', { days })
+  const krt = t('the first kidney transplant or chronic dialysis start of the events sheet')
   let text: string
-  if (endpoint === 'observedCkdG4') text = `CKD G4: ${parameterLabel} below ${CKD_G4_EGFR_THRESHOLD} mL/min/1.73 m², ${confirm}`
-  else if (endpoint === 'observedCkdG5') text = `CKD G5: ${parameterLabel} below ${CKD_G5_EGFR_THRESHOLD} mL/min/1.73 m², ${confirm}`
-  else if (endpoint === 'kidneyFailure') text = `Kidney replacement therapy: ${krt}`
+  if (endpoint === 'observedCkdG4') text = t('CKD G4: {parameter} below {threshold} mL/min/1.73 m², {confirm}', { parameter: parameterLabel, threshold: CKD_G4_EGFR_THRESHOLD, confirm })
+  else if (endpoint === 'observedCkdG5') text = t('CKD G5: {parameter} below {threshold} mL/min/1.73 m², {confirm}', { parameter: parameterLabel, threshold: CKD_G5_EGFR_THRESHOLD, confirm })
+  else if (endpoint === 'kidneyFailure') text = t('Kidney replacement therapy: {krt}', { krt })
   else {
     const percent = endpoint === 'observedDecline40' ? 40 : endpoint === 'observedDecline50' ? 50 : 57
-    text = `${percent}% decline of ${parameterLabel} from the baseline (mean of the eligible values in the first 90 days), ${confirm}`
+    text = t('{percent}% decline of {parameter} from the baseline (mean of the eligible values in the first 90 days), {confirm}', { percent, parameter: parameterLabel, confirm })
   }
-  return endpoint !== 'kidneyFailure' && compositeWithKrt ? `${text}; or ${krt}, whichever comes first` : text
+  return endpoint !== 'kidneyFailure' && compositeWithKrt ? t('{text}; or {krt}, whichever comes first', { text, krt }) : text
 }
 
 /** Per-patient input from the Trajectories cells of one eGFR parameter. */
@@ -71,8 +72,8 @@ export function timeToEventInputs(
 }
 
 export const TIME_SCALE_LABELS: Record<TimeToEventScale, string> = {
-  age: 'Age, with entry at the first eligible measurement (delayed entry)',
-  time_since_entry: 'Years since the first eligible measurement',
+  age: msg('Age, with entry at the first eligible measurement (delayed entry)'),
+  time_since_entry: msg('Years since the first eligible measurement'),
 }
 
 /** Patients at risk at `years` for the table under the chart: entry < t <= exit,

@@ -4,6 +4,7 @@ import { applyExportedSettings, readExportedSettings, type AppliedSettings } fro
 import { useAppStore } from './state/store'
 import type { WorkspaceData } from './workspace-data'
 import './analysis-record.css'
+import { t, tp, tx } from '../i18n'
 
 export interface AnalysisRecordProps {
   data: WorkspaceData
@@ -67,41 +68,41 @@ export function AnalysisRecordDialog({ data, parameters, trendKeys, logKeys, gro
 
   const entryRow = (entry: RecordEntry, sectionTitle: string) => <li key={entry.path} className={entry.deviates ? 'ar-entry ar-deviates' : 'ar-entry'}>
     <div className="ar-text">
-      <span className="ar-label">{entry.label}</span>
-      <span className="ar-value">{entry.value}{entry.deviates && <span className="ar-flag"> (changed)</span>}</span>
-      {entry.deviates && <span className="ar-default">Default: {entry.defaultValue}</span>}
+      <span className="ar-label">{tx(entry.label)}</span>
+      <span className="ar-value">{tx(entry.value)}{entry.deviates && <span className="ar-flag"> {t('(changed)')}</span>}</span>
+      {entry.deviates && <span className="ar-default">{t('Default: {defaultValue}', { defaultValue: tx(entry.defaultValue) })}</span>}
     </div>
     {entry.control
-      ? <button type="button" aria-label={`Change ${entry.label} (${sectionTitle})`} onClick={() => { onClose(); onChange(entry.control!, entry.parameterKey, entry.label) }}>Change</button>
-      : <span className="ar-fixed">No control</span>}
+      ? <button type="button" aria-label={t('Change {label} ({sectionTitle})', { label: tx(entry.label), sectionTitle: tx(sectionTitle) })} onClick={() => { onClose(); onChange(entry.control!, entry.parameterKey, entry.label) }}>{t('Change')}</button>
+      : <span className="ar-fixed">{t('No control')}</span>}
   </li>
 
   return <dialog ref={dialog} className="wt-parameter-dialog ar-dialog" aria-labelledby="ar-title" open={typeof HTMLDialogElement.prototype.showModal !== 'function' ? true : undefined} onCancel={event => { event.preventDefault(); onClose() }}>
-    <h2 id="ar-title">Analysis record</h2>
+    <h2 id="ar-title">{t('Analysis record')}</h2>
     <div className="ar-body">
-      <p>Every setting that changes a number in the export, as it applies now, from Data, Trajectories and Cohort models. {deviations ? `${deviations} ${deviations === 1 ? 'value differs' : 'values differ'} from the default and ${deviations === 1 ? 'is' : 'are'} marked “changed”.` : 'All values are the defaults.'} Display choices (chart axis, size, overlays) change no number and are not listed. Research use only.</p>
+      <p>{t('Every setting that changes a number in the export, as it applies now, from Data, Trajectories and Cohort models. {value} Display choices (chart axis, size, overlays) change no number and are not listed. Research use only.', { value: deviations ? tp('{n} value differs from the default and is marked “changed”.', '{n} values differ from the default and are marked “changed”.', deviations) : t('All values are the defaults.') })}</p>
       {/* Ids by position: a parameter key is JSON and can hold quotes and spaces, which an id list in aria-labelledby cannot. */}
       {sections.map((section, index) => <section key={section.id} className="ar-section" aria-labelledby={`ar-section-${index}`}>
-        <h3 id={`ar-section-${index}`}>{section.title}</h3>
-        {section.note && <p className="ar-note">{section.note}</p>}
+        <h3 id={`ar-section-${index}`}>{tx(section.title)}</h3>
+        {section.note && <p className="ar-note">{tx(section.note)}</p>}
         <ul className="ar-list">{section.entries.map(entry => entryRow(entry, section.title))}</ul>
       </section>)}
       <section className="ar-section" aria-labelledby="ar-versions">
-        <h3 id="ar-versions">Versions</h3>
-        <ul className="ar-list">{versions.map(version => <li key={version.label} className="ar-entry"><div className="ar-text"><span className="ar-label">{version.label}</span><span className="ar-value">{version.value}</span></div></li>)}</ul>
+        <h3 id="ar-versions">{t('Versions')}</h3>
+        <ul className="ar-list">{versions.map(version => <li key={version.label} className="ar-entry"><div className="ar-text"><span className="ar-label">{version.label}</span><span className="ar-value">{tx(version.value)}</span></div></li>)}</ul>
       </section>
       <section className="ar-section" aria-labelledby="ar-apply">
-        <h3 id="ar-apply">Apply settings from an export</h3>
-        <p className="ar-note">Reads the settings sheet of a cohort or patient workbook exported by this app and applies its dataset settings, the creatinine selection after events, the analysis settings of its parameters, the parameter selection, Trend and logarithmic axes to the loaded data. What does not fit the loaded data (a parameter it lacks, for example) is listed and keeps its current value.</p>
-        <label className="ar-file">Workbook (XLSX)<input type="file" accept=".xlsx" aria-label="Apply settings from an exported workbook" onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void apply(file) }} /></label>
+        <h3 id="ar-apply">{t('Apply settings from an export')}</h3>
+        <p className="ar-note">{t('Reads the settings sheet of a cohort or patient workbook exported by this app and applies its dataset settings, the creatinine selection after events, the analysis settings of its parameters, the parameter selection, Trend and logarithmic axes to the loaded data. What does not fit the loaded data (a parameter it lacks, for example) is listed and keeps its current value.')}</p>
+        <label className="ar-file">{t('Workbook (XLSX)')}<input type="file" accept=".xlsx" aria-label={t('Apply settings from an exported workbook')} onChange={event => { const file = event.target.files?.[0]; event.target.value = ''; if (file) void apply(file) }} /></label>
         {report && <div role="status" className="ar-report">
           {'error' in report ? <p className="notice amber">{report.file}: {report.error}</p> : <>
-            <p><strong>{report.file}</strong>: applied {report.result.applied.length ? report.result.applied.join('; ') : 'nothing'}.</p>
-            {report.result.notApplied.length ? <><p>Not applied:</p><ul>{report.result.notApplied.map(item => <li key={item}>{item}</li>)}</ul></> : <p>Every setting of the file was applied.</p>}
+            <p><strong>{report.file}</strong>{report.result.applied.length ? t(': applied {value}.', { value: report.result.applied.join('; ') }) : t(': applied nothing.')}</p>
+            {report.result.notApplied.length ? <><p>{t('Not applied:')}</p><ul>{report.result.notApplied.map(item => <li key={item}>{item}</li>)}</ul></> : <p>{t('Every setting of the file was applied.')}</p>}
           </>}
         </div>}
       </section>
     </div>
-    <div className="wt-toolbar"><button type="button" onClick={onClose}>Close</button></div>
+    <div className="wt-toolbar"><button type="button" onClick={onClose}>{t('Close')}</button></div>
   </dialog>
 }

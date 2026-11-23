@@ -40,6 +40,7 @@ import { CohortModelTable } from './models/CohortModelTable'
 import { TimeToEventPanel } from './models/TimeToEventPanel'
 import { R_FIRST_FIT_DOWNLOAD } from '../core/mixedModel/rRuntime'
 import './cohort-models-workspace.css'
+import { msg, t, tp, tx } from '../i18n'
 
 export type CohortModelPreset = 'unadjusted' | 'stratified' | 'demographic' | 'interaction' | 'custom'
 
@@ -58,7 +59,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   // Cancel removes itself: say what happened and hand the focus to the fit button.
   const cancelFit = () => {
     useAppStore.getState().cancelCohortModels()
-    setInvocationFeedback('Fit cancelled. Nothing of this run was stored; models fitted before are kept.')
+    setInvocationFeedback(t('Fit cancelled. Nothing of this run was stored; models fitted before are kept.'))
     requestAnimationFrame(() => fitButton.current?.focus())
   }
   const mixedModelConfig = useAppStore(s => s.mixedModelConfig)
@@ -183,14 +184,14 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     // Ask only when the store would discard models or stop a fit (the same rule it applies).
     if (trajectorySettingsDiscardModels(state, next)) {
       const fitted = Object.keys(state.cohortModelResults ?? {}).length > 0
-      const consequence = fitted && state.cohortModelRunning ? 'discards the fitted models and stops the running fit'
-        : fitted ? 'discards the fitted models' : 'stops the running fit'
-      if (!window.confirm(`Changing the data preparation ${consequence}. Continue?`)) return
+      const question = fitted && state.cohortModelRunning ? t('Changing the data preparation discards the fitted models and stops the running fit. Continue?')
+        : fitted ? t('Changing the data preparation discards the fitted models. Continue?') : t('Changing the data preparation stops the running fit. Continue?')
+      if (!window.confirm(question)) return
     }
     if (activeParamKey) setSelectedParamKey(activeParamKey)
     useAppStore.getState().setTrajectoryFitSettings(next)
-    const presetName = ANALYSIS_CATALOG.find(item => item.id === nextSettings.presetId)?.name ?? nextSettings.presetId
-    setPreparationNotice({ key: activeParamKey, text: `${ownTarget ? 'Parameter preparation' : 'Shared preparation'} updated for ${ownTarget ? '1 parameter' : affectedParameterCount}: ${presetName}. Refit affected models before interpreting results.` })
+    const presetName = tx(ANALYSIS_CATALOG.find(item => item.id === nextSettings.presetId)?.name ?? nextSettings.presetId)
+    setPreparationNotice({ key: activeParamKey, text: ownTarget ? t('Parameter preparation updated for 1 parameter: {preset}. Refit affected models before interpreting results.', { preset: presetName }) : t('Shared preparation updated for {parameters}: {preset}. Refit affected models before interpreting results.', { parameters: affectedParameterCount, preset: presetName }) })
   }
   const spec = useMemo(() => {
     if (!activeParamKey) return undefined
@@ -238,13 +239,13 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const eligibleEntities = validatedEntities.filter(item => item.validation.ok).map(item => item.entity)
   const invalidEntities = validatedEntities.filter(item => !item.validation.ok)
   const validationReasons = invalidEntities.map(({ entity, validation }) =>
-    `${entity.entity.kind === 'cohort' ? 'Whole cohort' : entity.entity.value}: ${!validation.ok ? validation.message : ''}`,
+    `${entity.entity.kind === 'cohort' ? t('Whole cohort') : entity.entity.value}: ${!validation.ok ? validation.message : ''}`,
   ).join(' ')
   const canFit = eligibleEntities.length > 0 && !cohortModelRunning && !noFit
   const fitUnavailableReason = cohortModelRunning
-    ? `${cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Fitting model …'}${runtimeLoaded ? '' : ' The first fit of a session loads R into the browser; this can take a few minutes. Later fits take seconds.'}`
-    : noFit ? 'Model fitting is disabled because the data preparation uses No fit. Choose another data preparation above or a fit model under Trajectories.'
-    : eligibleEntities.length === 0 ? `No model can be fitted with the current data and settings. ${validationReasons || 'Mixed model fitting requires at least one measurement row.'}`
+    ? `${cohortModelProgress ? t('Fitting {n} of {total} …', { n: cohortModelProgress.completed + 1, total: cohortModelProgress.total }) : t('Fitting model …')}${runtimeLoaded ? '' : ` ${t('The first fit of a session loads R into the browser; this can take a few minutes. Later fits take seconds.')}`}`
+    : noFit ? t('Model fitting is disabled because the data preparation uses No fit. Choose another data preparation above or a fit model under Trajectories.')
+    : eligibleEntities.length === 0 ? `${t('No model can be fitted with the current data and settings.')} ${validationReasons || t('Mixed model fitting requires at least one measurement row.')}`
     : null
   // Patients each group contributes, so a comparison that cannot work is visible
   // before fitting rather than as skipped rows afterwards.
@@ -260,9 +261,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   // any other reason (factors, duplicate times) keeps the per-unit messages.
   const noGroupFits = groupByAttribute !== null && largestGroup !== null && groupSizes.every(group => group.tooFew) && eligibleEntities.length > 0
   const fitFeedback = fitUnavailableReason ?? (noGroupFits && largestGroup
-    ? `No ${groupByAttribute} group can be fitted on its own: each needs at least ${MIN_QUALIFYING_PATIENTS} patients with enough measurement times, and the largest, ${largestGroup.label}, has ${largestGroup.patients}. Only the whole cohort will be fitted.`
+    ? t('No {attribute} group can be fitted on its own: each needs at least {min} patients with enough measurement times, and the largest, {largest}, has {n}. Only the whole cohort will be fitted.', { attribute: groupByAttribute, min: MIN_QUALIFYING_PATIENTS, largest: largestGroup.label, n: largestGroup.patients })
     : invalidEntities.length > 0
-      ? `${invalidEntities.length} group${invalidEntities.length === 1 ? '' : 's'} skipped. ${validationReasons}` : invocationFeedback)
+      ? `${tp('{n} group skipped.', '{n} groups skipped.', invalidEntities.length)} ${validationReasons}` : invocationFeedback)
 
   const currentModels = useMemo(() => currentWorkspaceModels(cohortModelResults, entities,
     paramIndex, activeParamKey, fitConfigHash), [cohortModelResults, entities, paramIndex, activeParamKey, fitConfigHash])
@@ -277,7 +278,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const allEligibleFitted = eligibleEntities.length > 0 && eligibleEntities.every(item => currentModels[entityKey(item.entity)] !== undefined)
 
   const entityLabels = useMemo(() => {
-    const map = new Map<string, string>([['cohort', 'Whole cohort']])
+    const map = new Map<string, string>([['cohort', t('Whole cohort')]])
     for (const group of cohortGroups) map.set(`group:${group.value}`, group.value)
     return map
   }, [cohortGroups])
@@ -390,9 +391,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     }))
     const eligibleEntities = invocationValidation.filter(item => item.validation.ok).map(item => item.entity)
     if (eligibleEntities.length === 0) {
-      setInvocationFeedback(`No model can be fitted with the current data and settings. ${invocationValidation.map(({ entity, validation }) => validation.ok ? '' :
-        `${entity.entity.kind === 'cohort' ? 'Whole cohort' : entity.entity.value}: ${validation.message}`,
-      ).join(' ') || 'Mixed model fitting requires at least one measurement row.'}`)
+      setInvocationFeedback(`${t('No model can be fitted with the current data and settings.')} ${invocationValidation.map(({ entity, validation }) => validation.ok ? '' :
+        `${entity.entity.kind === 'cohort' ? t('Whole cohort') : entity.entity.value}: ${validation.message}`,
+      ).join(' ') || t('Mixed model fitting requires at least one measurement row.')}`)
       return
     }
     setInvocationFeedback(null)
@@ -409,9 +410,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   if (!data.rawRows || !data.rawRows.length) {
     return (
       <div className="card">
-        <h1>Cohort models</h1><a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
-        <p>Load a dataset first to fit population-level mixed models.</p>
-        <button type="button" className="primary" onClick={onBrowseData}>Load data</button>
+        <h1>{t('Cohort models')}</h1><a href="#methods/cohort/preparation">{t('Model assumptions, inputs and warnings')}</a>
+        <p>{t('Load a dataset first to fit population-level mixed models.')}</p>
+        <button type="button" className="primary" onClick={onBrowseData}>{t('Load data')}</button>
       </div>
     )
   }
@@ -422,17 +423,17 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   // patients (OD-29), so the whole cohort and a group can differ.
   const categoricalReferences = activeFactors.flatMap((factor, index) => {
     if (factor.kind !== 'categorical') return []
-    const label = factor.key === 'sex' ? 'Sex' : factor.key
-    if (factor.reference !== undefined) return [`${label} = ${factor.reference} (chosen)`]
+    const label = factor.key === 'sex' ? t('Sex') : factor.key
+    if (factor.reference !== undefined) return [`${label} = ${factor.reference} ${t('(chosen)')}`]
     const perUnit = entities.flatMap(item => {
       const resolved = resolveMixedModelFactorReferences(mixedModelConfig, item.rows).factors?.[index]?.reference
-      return resolved === undefined ? [] : [{ unit: item.entity.kind === 'cohort' ? 'the whole cohort' : item.entity.value, reference: resolved }]
+      return resolved === undefined ? [] : [{ unit: item.entity.kind === 'cohort' ? t('the whole cohort') : item.entity.value, reference: resolved }]
     })
     if (perUnit.length === 0) return []
-    const note = ' (default: the first level among the patients in the model; choose another next to the factor)'
+    const note = ` ${t('(default: the first level among the patients in the model; choose another next to the factor)')}`
     return new Set(perUnit.map(item => item.reference)).size === 1
       ? [`${label} = ${perUnit[0].reference}${note}`]
-      : [`${label} = ${perUnit.map(item => `${item.reference} in ${item.unit}`).join(', ')}${note}`]
+      : [`${label} = ${perUnit.map(item => t('{level} in {unit}', { level: item.reference, unit: item.unit })).join(', ')}${note}`]
   })
   // OD-29 follow-up (2026-11-22): default references that differ between units make
   // their reference estimates incomparable, so the page says so.
@@ -440,7 +441,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
     if (factor.kind !== 'categorical' || factor.reference !== undefined) return []
     const perUnit = entities.flatMap(item => {
       const resolved = resolveMixedModelFactorReferences(mixedModelConfig, item.rows).factors?.[index]?.reference
-      return resolved === undefined ? [] : [{ reference: resolved, text: `${resolved} in ${item.entity.kind === 'cohort' ? 'the whole cohort' : item.entity.value}` }]
+      return resolved === undefined ? [] : [{ reference: resolved, text: t('{level} in {unit}', { level: resolved, unit: item.entity.kind === 'cohort' ? t('the whole cohort') : item.entity.value }) }]
     })
     return new Set(perUnit.map(item => item.reference)).size > 1 ? [`${factor.key} (${perUnit.map(item => item.text).join(', ')})`] : []
   })
@@ -448,7 +449,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const pooling = (mixedModelConfig.smallLevelPolicy ?? 'pool') === 'pool'
   // The minimum per level (decision `genomin`): what each unit did with its small levels.
   const poolingNotes = entities.flatMap(item => {
-    const unit = item.entity.kind === 'cohort' ? 'Whole cohort' : item.entity.value
+    const unit = item.entity.kind === 'cohort' ? t('Whole cohort') : item.entity.value
     const byFactor = new Map<string, MixedModelLevelPooling[]>()
     for (const record of item.preparation?.levelPooling ?? []) if (record.action !== 'kept') byFactor.set(record.factor, [...(byFactor.get(record.factor) ?? []), record])
     const parts = [...byFactor].map(([factor, list]) => {
@@ -458,9 +459,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
       const removed = list.filter(record => record.action === 'excluded_not_tested')
       const pooledPatients = pooled.reduce((sum, record) => sum + record.patientsWithRepeated, 0)
       return [
-        pooled.length ? `${factor} ${pooled.map(describe).join(', ')} pooled into “${POOLED_LEVEL}”${pooledPatients < MIN_LEVEL_PATIENTS ? `, which still has fewer than ${MIN_LEVEL_PATIENTS}` : ''}` : '',
-        kept.length ? `${factor} ${kept.map(describe).join(', ')} below the minimum, kept` : '',
-        removed.length ? `${factor} ${removed.map(describe).join(', ')} left out with its patients` : '',
+        pooled.length ? `${t('{factor} {levels} pooled into “{pooled}”', { factor, levels: pooled.map(describe).join(', '), pooled: POOLED_LEVEL })}${pooledPatients < MIN_LEVEL_PATIENTS ? `, ${t('which still has fewer than {n}', { n: MIN_LEVEL_PATIENTS })}` : ''}` : '',
+        kept.length ? t('{factor} {levels} below the minimum, kept', { factor, levels: kept.map(describe).join(', ') }) : '',
+        removed.length ? t('{factor} {levels} left out with its patients', { factor, levels: removed.map(describe).join(', ') }) : '',
       ].filter(Boolean).join('; ')
     })
     return parts.length ? [`${unit}: ${parts.join('; ')}`] : []
@@ -468,11 +469,11 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const dropoutRows = entities.flatMap(item => {
     const dropout = dropoutByEntity.get(entityKey(item.entity))
     if (!dropout || dropout.patients.length === 0) return []
-    const unit = item.entity.kind === 'cohort' ? 'Whole cohort' : item.entity.value
+    const unit = item.entity.kind === 'cohort' ? t('Whole cohort') : item.entity.value
     return dropout.counts.map(count => ({ unit, key: `${entityKey(item.entity)}|${count.factor}|${count.level}`, count }))
   })
   const informativeUnits = entities.filter(item => dropoutByEntity.get(entityKey(item.entity))?.informative)
-    .map(item => item.entity.kind === 'cohort' ? 'the whole cohort' : item.entity.value)
+    .map(item => item.entity.kind === 'cohort' ? t('the whole cohort') : item.entity.value)
   const deathRecorded = [...dropoutByEntity.values()].some(dropout => dropout.deathRecorded)
   const uacrSource = availableFactors.find(f => f.key === LOG_BASELINE_UACR_KEY)?.series
   const inactiveFactors = availableFactors.filter(f => !activeFactors.some(af => af.key === f.key))
@@ -484,52 +485,53 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const completePatients = new Set(sampleSummary.rows.map(r => String(r.patient_id)))
   const factorReasons = new Map(sampleSummary.preparation.excludedPatients.map(patient => [String(patient.patientId), patient.reasons.join('; ')]))
   const patientsNotInModel = data.patients.map(patient => String(patient.id)).filter(id => !completePatients.has(id))
-    .map(patientId => ({ patientId, reason: factorReasons.get(patientId) ?? 'No usable measurement of this parameter after data preparation' }))
+    .map(patientId => ({ patientId, reason: factorReasons.get(patientId) ?? t('No usable measurement of this parameter after data preparation') }))
   const levelCounts = [...mixedModelFactorLevelCounts(sampleSummary.rows, mixedModelConfig)]
   // Without a categorical factor no level count is shown, so the number of
   // patients that count towards the minimum is named for the whole cohort.
   const qualifyingPatients = qualifyingMixedModelPatients(sampleSummary.rows, mixedModelConfig)
   // The model in words, built from the configuration; the R formula is in the details.
   const factorPhrases = activeFactors.map(factor => {
-    const name = factor.key === 'baseline_age' ? 'baseline age' : factor.key === 'sex' ? 'sex' : availableFactors.find(f => f.key === factor.key)?.label ?? factor.key
-    return `${name} (${factor.effect === 'level_slope' ? 'shifts level and slope' : 'shifts the level'})`
+    const name = factor.key === 'baseline_age' ? t('baseline age') : factor.key === 'sex' ? t('sex') : availableFactors.find(f => f.key === factor.key)?.label ?? factor.key
+    return `${name} (${factor.effect === 'level_slope' ? t('shifts level and slope') : t('shifts the level')})`
   })
   // With a factor on level and slope the time coefficient is the slope at the
   // reference level, not an average over the groups (approved 2026-11-17).
   const slopeFactors = activeFactors.filter(factor => factor.effect === 'level_slope')
-  const sentenceSubject = slopeFactors.length === 0 ? `Average change of ${spec?.bezeichnung ?? 'the parameter'} per year`
-    : `Change of ${spec?.bezeichnung ?? 'the parameter'} per year for the reference ${slopeFactors.every(factor => factor.kind === 'categorical') ? 'group' : 'profile'}`
-  const modelSentence = `${sentenceSubject} across ${completePatients.size} of ${data.patients.length} patients (${sampleSummary.rows.length} measurements)`
-    + `${factorPhrases.length ? `, with ${factorPhrases.join(' and ')}` : ''}.`
-    + ` ${mixedModelConfig.randomEffects === 'intercept' ? 'Each patient has an own starting level; the rate is common to all.' : 'Each patient has an own starting level and rate.'}`
+  const outcome = spec?.bezeichnung ?? t('the parameter')
+  const sentenceSubject = slopeFactors.length === 0 ? t('Average change of {outcome} per year', { outcome })
+    : slopeFactors.every(factor => factor.kind === 'categorical') ? t('Change of {outcome} per year for the reference group', { outcome }) : t('Change of {outcome} per year for the reference profile', { outcome })
+  const modelSentence = t('{subject} across {n} of {total} patients ({measurements} measurements)', { subject: sentenceSubject, n: completePatients.size, total: data.patients.length, measurements: sampleSummary.rows.length })
+    + `${factorPhrases.length ? `, ${t('with {factors}', { factors: factorPhrases.join(` ${t('and')} `) })}` : ''}.`
+    + ` ${mixedModelConfig.randomEffects === 'intercept' ? t('Each patient has an own starting level; the rate is common to all.') : t('Each patient has an own starting level and rate.')}`
 
   return (
     <div className="cohort-models-workspace stack">
       <header className="page-heading">
         <div>
-          <h1>Cohort models</h1>
-          <p className="muted cm-page-intro">A cohort model estimates the average change per year of one parameter across patients. Each patient keeps an own starting level and, by default, an own rate; the model reports the average and how much patients differ. Use it to describe a cohort or to compare groups. For one patient's course, use Trajectories.</p>
-          <a href="#methods/cohort/preparation">Model assumptions, inputs and warnings</a>
+          <h1>{t('Cohort models')}</h1>
+          <p className="muted cm-page-intro">{t("A cohort model estimates the average change per year of one parameter across patients. Each patient keeps an own starting level and, by default, an own rate; the model reports the average and how much patients differ. Use it to describe a cohort or to compare groups. For one patient's course, use Trajectories.")}</p>
+          <a href="#methods/cohort/preparation">{t('Model assumptions, inputs and warnings')}</a>
         </div>
         <div className="actions">
           {hasSuccessfulModel && (
-            <label className="mixed-model-config-check" title="Show the fitted model trajectory on the overlay plot">
+            <label className="mixed-model-config-check" title={t('Show the fitted model trajectory on the overlay plot')}>
               <input
                 type="checkbox"
-                aria-label="Show cohort model line in overlay"
+                aria-label={t('Show cohort model line in overlay')}
                 checked={showCohortMixedModelLine}
                 onChange={e => setShowCohortMixedModelLine(e.target.checked)}
               />
-              Show model line in overlay
+              {t('Show model line in overlay')}
             </label>
           )}
-          <button type="button" onClick={onBrowseTrajectories}>View trajectories →</button>
+          <button type="button" onClick={onBrowseTrajectories}>{t('View trajectories →')}</button>
         </div>
       </header>
 
-      <div className="cm-area-tabs" role="tablist" aria-label="Cohort analysis">
-        <button type="button" role="tab" id={`${areaId}-slope`} aria-selected={area === 'slope'} aria-controls={`${areaId}-slope-panel`} className={area === 'slope' ? 'active' : ''} onClick={() => setArea('slope')}>Slope models</button>
-        <button type="button" role="tab" id={`${areaId}-tte`} aria-selected={area === 'tte'} aria-controls={`${areaId}-tte-panel`} className={area === 'tte' ? 'active' : ''} data-opens-control="cohort-model-time-to-event" onClick={() => setArea('tte')}>Time to event</button>
+      <div className="cm-area-tabs" role="tablist" aria-label={t('Cohort analysis')}>
+        <button type="button" role="tab" id={`${areaId}-slope`} aria-selected={area === 'slope'} aria-controls={`${areaId}-slope-panel`} className={area === 'slope' ? 'active' : ''} onClick={() => setArea('slope')}>{t('Slope models')}</button>
+        <button type="button" role="tab" id={`${areaId}-tte`} aria-selected={area === 'tte'} aria-controls={`${areaId}-tte-panel`} className={area === 'tte' ? 'active' : ''} data-opens-control="cohort-model-time-to-event" onClick={() => setArea('tte')}>{t('Time to event')}</button>
       </div>
       {area === 'tte' && <div className="cm-area-panel" role="tabpanel" id={`${areaId}-tte-panel`} aria-labelledby={`${areaId}-tte`}>
         <TimeToEventPanel data={data} onBrowseTrajectories={onBrowseTrajectories} />
@@ -537,12 +539,12 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
       <div className="cm-area-panel" role="tabpanel" id={`${areaId}-slope-panel`} aria-labelledby={`${areaId}-slope`} hidden={area !== 'slope'}>
 
       {/* Model Studio Card */}
-      <section className="cm-studio-card card" aria-label="Model Studio">
+      <section className="cm-studio-card card" aria-label={t('Model Studio')}>
         <div className="cm-primary-controls">
           <label>
-            Model parameter
+            {t('Model parameter')}
             <select
-              aria-label="Model parameter"
+              aria-label={t('Model parameter')}
               value={activeParamKey}
               onChange={e => setSelectedParamKey(e.target.value)}
             >
@@ -553,24 +555,24 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </label>
 
           <label>
-            <span>Data preparation <strong className="cm-preparation-scope">{ownPrepSettings ? 'This parameter' : 'Shared'}</strong></span>
+            <span>{t('Data preparation')} <strong className="cm-preparation-scope">{ownPrepSettings ? t('This parameter') : t('Shared')}</strong></span>
             <select
-              aria-label="Data preparation"
+              aria-label={t('Data preparation')}
               aria-describedby={preparationScopeId}
               value={activePrepSettings.presetId}
               onChange={e => changeDataPreparation(e.target.value)}
             >
               <PresetOptions presetId={activePrepSettings.presetId} />
             </select>
-            <small id={preparationScopeId} className="cm-preparation-impact">{ownPrepSettings ? 'Parameter preparation' : 'Shared preparation'} affects {affectedParameterCount} in Cohort models and Trajectories: {affectedParameters.slice(0, 3).map(parameter => parameter.label).join(', ')}{affectedParameters.length > 3 ? ` and ${affectedParameters.length - 3} more` : ''}.
-              {' '}Specialist presets apply only to the selected parameter. Existing model fits for affected parameters are discarded when their inputs change.</small>
+            <small id={preparationScopeId} className="cm-preparation-impact">{t(ownPrepSettings ? msg('Parameter preparation affects {count} in Cohort models and Trajectories: {parameters}.') : msg('Shared preparation affects {count} in Cohort models and Trajectories: {parameters}.'), { count: affectedParameterCount, parameters: affectedParameters.slice(0, 3).map(parameter => parameter.label).join(', ') + (affectedParameters.length > 3 ? ` ${t('and {n} more', { n: affectedParameters.length - 3 })}` : '') })}
+              {' '}{t('Specialist presets apply only to the selected parameter. Existing model fits for affected parameters are discarded when their inputs change.')}</small>
           </label>
 
           {(preset === 'stratified' || preset === 'custom' || groupByAttribute) && (
             <label>
-              Model grouping
+              {t('Model grouping')}
               <select
-                aria-label="Model grouping"
+                aria-label={t('Model grouping')}
                 value={groupByAttribute ?? ''}
                 onChange={e => {
                   const val = e.target.value || null
@@ -578,7 +580,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                   if (preset === 'stratified') selectPreset('stratified', val)
                 }}
               >
-                <option value="">No grouping (Whole cohort)</option>
+                <option value="">{t('No grouping (Whole cohort)')}</option>
                 {availableGroupByAttributes.map(name => (
                   <option key={name} value={name}>{name}</option>
                 ))}
@@ -587,22 +589,22 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           )}
           {groupByAttribute && groupSizes.length > 0 && (
             <p className="muted cm-group-sizes">
-              Patients with enough measurement times per group: {groupSizes.map(group => `${group.label}: ${group.patients}`).join(', ')}. Each group needs at least {MIN_QUALIFYING_PATIENTS}.
+              {t('Patients with enough measurement times per group: {value}. Each group needs at least {MIN_QUALIFYING_PATIENTS}.', { value: groupSizes.map(group => `${group.label}: ${group.patients}`).join(', '), MIN_QUALIFYING_PATIENTS })}
             </p>
           )}
         </div>
-        <p className={preparationNotice && preparationNotice.key === activeParamKey ? 'notice cm-preparation-notice' : 'sr-only'} role="status" aria-label="Preparation change" aria-atomic="true">{preparationNotice && preparationNotice.key === activeParamKey ? preparationNotice.text : ''}</p>
+        <p className={preparationNotice && preparationNotice.key === activeParamKey ? 'notice cm-preparation-notice' : 'sr-only'} role="status" aria-label={t('Preparation change')} aria-atomic="true">{preparationNotice && preparationNotice.key === activeParamKey ? preparationNotice.text : ''}</p>
 
         {/* Preset Selector */}
         <div className="cm-preset-section" id="cohort-model-settings">
-          <div className="cm-preset-bar" role="group" aria-label="Model presets">
+          <div className="cm-preset-bar" role="group" aria-label={t('Model presets')}>
             <button
               type="button"
               className={`cm-preset-btn ${preset === 'unadjusted' ? 'active' : ''}`}
               aria-pressed={preset === 'unadjusted'}
               onClick={() => selectPreset('unadjusted')}
             >
-              <span>Whole cohort</span>
+              <span>{t('Whole cohort')}</span>
             </button>
             <button
               type="button"
@@ -610,7 +612,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'stratified'}
               onClick={() => selectPreset('stratified')}
             >
-              <span>Separate model per group</span>
+              <span>{t('Separate model per group')}</span>
             </button>
             <button
               type="button"
@@ -618,7 +620,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'demographic'}
               onClick={() => selectPreset('demographic')}
             >
-              <span>Adjusted for age and sex</span>
+              <span>{t('Adjusted for age and sex')}</span>
             </button>
             <button
               type="button"
@@ -626,7 +628,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'interaction'}
               onClick={() => selectPreset('interaction')}
             >
-              <span>Difference between groups</span>
+              <span>{t('Difference between groups')}</span>
             </button>
             <button
               type="button"
@@ -634,16 +636,16 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               aria-pressed={preset === 'custom'}
               onClick={() => setPreset('custom')}
             >
-              <span>Custom model</span>
+              <span>{t('Custom model')}</span>
             </button>
           </div>
 
           <p className="cm-preset-desc">
-            {preset === 'unadjusted' && 'Average change per year across all patients, without further factors.'}
-            {preset === 'stratified' && 'One model for each group of the chosen attribute. The groups\' slopes are shown side by side. Their difference and its interval are not estimated; for that, use "Difference between groups".'}
-            {preset === 'demographic' && 'Adds baseline age and sex. Both shift the level only; they do not change the slope unless set to "Shifts level and slope".'}
-            {preset === 'interaction' && 'One model with the group as a factor. Reports how much faster or slower each group changes than the reference group, with a 95% interval. No p-values are computed.'}
-            {preset === 'custom' && 'Choose the factors, their effect, the reference levels and the random effects yourself.'}
+            {preset === 'unadjusted' && t('Average change per year across all patients, without further factors.')}
+            {preset === 'stratified' && t("One model for each group of the chosen attribute. The groups' slopes are shown side by side. Their difference and its interval are not estimated; for that, use “Difference between groups”.")}
+            {preset === 'demographic' && t('Adds baseline age and sex. Both shift the level only; they do not change the slope unless set to “Shifts level and slope”.')}
+            {preset === 'interaction' && t('One model with the group as a factor. Reports how much faster or slower each group changes than the reference group, with a 95% interval. No p-values are computed.')}
+            {preset === 'custom' && t('Choose the factors, their effect, the reference levels and the random effects yourself.')}
           </p>
         </div>
 
@@ -651,9 +653,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
         {(preset === 'custom' || activeFactors.length > 0) && (
           <div className="cm-factors-container">
             <div className="cm-factors-header">
-              <strong>Active covariates ({activeFactors.length})</strong>
+              <strong>{t('Active covariates ({activeFactors})', { activeFactors: activeFactors.length })}</strong>
               <div className="cm-random-effects-toggle">
-                <span>Random effects:</span>
+                <span>{t('Random effects:')}</span>
                 <label>
                   <input
                     type="radio"
@@ -661,7 +663,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                     checked={mixedModelConfig.randomEffects === 'intercept_slope'}
                     onChange={() => setRandomEffects('intercept_slope')}
                   />
-                  Patient intercept &amp; slope
+                  {t('Patient intercept & slope')}
                 </label>
                 <label>
                   <input
@@ -670,7 +672,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                     checked={mixedModelConfig.randomEffects === 'intercept'}
                     onChange={() => setRandomEffects('intercept')}
                   />
-                  Intercept only
+                  {t('Intercept only')}
                 </label>
               </div>
             </div>
@@ -683,34 +685,34 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                   <div key={factor.key} className="cm-chip">
                     <span className="cm-chip-name">{label}</span>
                     <select
-                      aria-label={`${label} effect`}
+                      aria-label={t('{label} effect', { label })}
                       value={factor.effect}
                       onChange={e => updateFactor(factor.key, { effect: e.target.value as MixedModelFactor['effect'] })}
                     >
-                      <option value="level">Shifts the level</option>
-                      <option value="level_slope">Shifts level and slope</option>
+                      <option value="level">{t('Shifts the level')}</option>
+                      <option value="level_slope">{t('Shifts level and slope')}</option>
                     </select>
 
                     {factorDef?.typeSwitchable && (
                       <select
-                        aria-label={`${label} type`}
+                        aria-label={t('{label} type', { label })}
                         value={factor.kind}
                         onChange={e => updateFactor(factor.key, { kind: e.target.value as MixedModelFactor['kind'], reference: undefined })}
                       >
-                        <option value="numeric" disabled={!factorDef.anyNumericLevel && factor.kind !== 'numeric'}>Numeric{factorDef.numeric ? ' (automatic)' : ''}</option>
-                        <option value="categorical">Categorical{factorDef.numeric ? '' : ' (automatic)'}</option>
+                        <option value="numeric" disabled={!factorDef.anyNumericLevel && factor.kind !== 'numeric'}>{factorDef.numeric ? t('Numeric (automatic)') : t('Numeric')}</option>
+                        <option value="categorical">{factorDef.numeric ? t('Categorical') : t('Categorical (automatic)')}</option>
                       </select>
                     )}
 
                     {factor.kind === 'categorical' && factorDef?.levels && factorDef.levels.length > 0 && (
                       <select
-                        aria-label={`${label} reference`}
+                        aria-label={t('{label} reference', { label })}
                         value={factor.reference ?? ''}
                         onChange={e => updateFactor(factor.key, { reference: e.target.value === '' ? undefined : e.target.value })}
                       >
-                        <option value="">Ref: first level in the model</option>
+                        <option value="">{t('Ref: first level in the model')}</option>
                         {factorDef.levels.map(lvl => (
-                          <option key={lvl} value={lvl}>Ref: {lvl}</option>
+                          <option key={lvl} value={lvl}>{t('Ref: {lvl}', { lvl })}</option>
                         ))}
                       </select>
                     )}
@@ -718,8 +720,8 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
                     <button
                       type="button"
                       className="cm-chip-remove"
-                      title={`Remove ${label}`}
-                      aria-label={`Remove ${label}`}
+                      title={t('Remove {label}', { label })}
+                      aria-label={t('Remove {label}', { label })}
                       onClick={() => updateFactor(factor.key, null)}
                     >
                       ✕
@@ -731,13 +733,13 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               {inactiveFactors.length > 0 && (
                 <div className="cm-add-factor-wrap">
                   <select
-                    aria-label="Add covariate"
+                    aria-label={t('Add covariate')}
                     value=""
                     onChange={e => {
                       if (e.target.value) updateFactor(e.target.value, {})
                     }}
                   >
-                    <option value="" disabled>+ Add covariate …</option>
+                    <option value="" disabled>{t('+ Add covariate …')}</option>
                     {inactiveFactors.map(f => (
                       <option key={f.key} value={f.key}>{f.label}</option>
                     ))}
@@ -748,21 +750,21 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           </div>
         )}
 
-        <section className="cm-fit-summary" aria-label="Fit summary" id="cohort-model-fit-summary">
-        <h2>Fit summary</h2>
+        <section className="cm-fit-summary" aria-label={t('Fit summary')} id="cohort-model-fit-summary">
+        <h2>{t('Fit summary')}</h2>
         {spec && !noFit && <p className="cm-sample-meta cm-model-sentence">{modelSentence}</p>}
         <label className="mixed-model-config-check">
           <input type="checkbox" checked={presetExclusionPolicy === 'apply'} onChange={event => setPresetExclusionPolicy(event.target.checked ? 'apply' : 'skip')} />
-          Apply preset event and AKI exclusions
+          {t('Apply preset event and AKI exclusions')}
         </label>
         {spec && !noFit && (presetExclusionPolicy === 'apply' && !definesWindows
-          ? <p className="muted">The settings of this parameter define no event or AKI windows, so nothing is excluded. To leave out values after transplant or dialysis and in AKI windows, choose “CKD progression” under Data preparation.</p>
-          : <p className="muted">Preset windows: {presetExclusionPolicy === 'apply' ? 'applied' : 'skipped'}; {modelSample.excludedByPreset} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.</p>)}
-        {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label="Reference categories">
-          Reference categories: {categoricalReferences.join('; ')}
+          ? <p className="muted">{t('The settings of this parameter define no event or AKI windows, so nothing is excluded. To leave out values after transplant or dialysis and in AKI windows, choose “CKD progression” under Data preparation.')}</p>
+          : <p className="muted">{t(presetExclusionPolicy === 'apply' ? msg('Preset windows: applied; {n} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.') : msg('Preset windows: skipped; {n} eligible measurements excluded. Count precedes time balancing, run-in and factor exclusions.'), { n: modelSample.excludedByPreset })}</p>)}
+        {categoricalReferences.length > 0 && <p className="cm-reference-levels" aria-label={t('Reference categories')}>
+          {t('Reference categories: {value}', { value: categoricalReferences.join('; ') })}
         </p>}
-        {differingDefaults.length > 0 && <p className="notice cm-reference-warning" role="note" aria-label="Different reference levels">
-          The models use different default reference levels for {differingDefaults.join('; ')}. Their reference starting levels, slopes and contrasts refer to different groups and cannot be compared directly. Choose a reference next to the factor to use the same level in every model.
+        {differingDefaults.length > 0 && <p className="notice cm-reference-warning" role="note" aria-label={t('Different reference levels')}>
+          {t('The models use different default reference levels for {value}. Their reference starting levels, slopes and contrasts refer to different groups and cannot be compared directly. Choose a reference next to the factor to use the same level in every model.', { value: differingDefaults.join('; ') })}
         </p>}
         {hasCategorical && <label className="mixed-model-config-check">
           <input type="checkbox" checked={pooling} onChange={event => {
@@ -770,34 +772,34 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             const { smallLevelPolicy: _policy, ...rest } = mixedModelConfig
             setMixedModelConfig(event.target.checked ? rest : { ...rest, smallLevelPolicy: 'keep' })
           }} />
-          Pool small levels into “{POOLED_LEVEL}”
+          {t('Pool small levels into “{POOLED_LEVEL}”', { POOLED_LEVEL })}
         </label>}
-        {hasCategorical && <p className="muted cm-level-minimum" aria-label="Minimum per level">
-          A level needs at least {MIN_LEVEL_PATIENTS} patients with {MIN_LEVEL_MEASUREMENTS} or more measurements in the model (a rule of this tool). {pooling ? 'Smaller levels are pooled; a small “not tested” level is left out instead, as it is never merged with other levels.' : 'Small levels are kept as they are.'}
-          {poolingNotes.length > 0 ? ` ${poolingNotes.join('. ')}. In brackets: patients with ${MIN_LEVEL_MEASUREMENTS} or more measurements of all patients of the level.` : ' Every level meets it.'}
+        {hasCategorical && <p className="muted cm-level-minimum" aria-label={t('Minimum per level')}>
+          {t('A level needs at least {MIN_LEVEL_PATIENTS} patients with {MIN_LEVEL_MEASUREMENTS} or more measurements in the model (a rule of this tool).', { MIN_LEVEL_PATIENTS, MIN_LEVEL_MEASUREMENTS })} {pooling ? t('Smaller levels are pooled; a small “not tested” level is left out instead, as it is never merged with other levels.') : t('Small levels are kept as they are.')}
+          {poolingNotes.length > 0 ? ` ${poolingNotes.join('. ')}. ${t('In brackets: patients with {n} or more measurements of all patients of the level.', { n: MIN_LEVEL_MEASUREMENTS })}` : ` ${t('Every level meets it.')}`}
         </p>}
-        {levelCounts.length > 0 && <p className="muted cm-level-counts" aria-label="Patients per level">
-          Whole cohort, patients per level (with enough measurement times): {levelCounts.map(([key, levels]) => `${key === 'sex' ? 'Sex' : key}: ${levels.map(item => `${item.level} ${item.patients} (${item.qualifying})`).join(', ')}`).join('; ')}
+        {levelCounts.length > 0 && <p className="muted cm-level-counts" aria-label={t('Patients per level')}>
+          {t('Whole cohort, patients per level (with enough measurement times): {value}', { value: levelCounts.map(([key, levels]) => `${key === 'sex' ? t('Sex') : key}: ${levels.map(item => `${item.level} ${item.patients} (${item.qualifying})`).join(', ')}`).join('; ') })}
         </p>}
-        {spec && !noFit && levelCounts.length === 0 && completePatients.size > 0 && <p className="muted cm-level-counts" aria-label="Patients with enough measurement times">
-          Whole cohort, patients with enough measurement times: {qualifyingPatients} of {completePatients.size}.
+        {spec && !noFit && levelCounts.length === 0 && completePatients.size > 0 && <p className="muted cm-level-counts" aria-label={t('Patients with enough measurement times')}>
+          {t('Whole cohort, patients with enough measurement times: {qualifyingPatients} of {size}.', { qualifyingPatients, size: completePatients.size })}
         </p>}
-        {(noFit || !spec) ? <p className="muted" aria-label="Patients not in the model">{noFit ? 'No patient is in the model: the data preparation of this parameter is No fit.' : 'No patient is in the model: no parameter is selected.'}</p> : patientsNotInModel.length > 0 && <details className="cm-excluded-patients">
-          <summary>Patients not in the model ({patientsNotInModel.length})</summary>
-          <ul aria-label="Patients not in the model">{patientsNotInModel.map(patient => <li key={patient.patientId}>{patient.patientId}: {patient.reason}</li>)}</ul>
+        {(noFit || !spec) ? <p className="muted" aria-label={t('Patients not in the model')}>{noFit ? t('No patient is in the model: the data preparation of this parameter is No fit.') : t('No patient is in the model: no parameter is selected.')}</p> : patientsNotInModel.length > 0 && <details className="cm-excluded-patients">
+          <summary>{t('Patients not in the model ({patientsNotInModel})', { patientsNotInModel: patientsNotInModel.length })}</summary>
+          <ul aria-label={t('Patients not in the model')}>{patientsNotInModel.map(patient => <li key={patient.patientId}>{patient.patientId}: {patient.reason}</li>)}</ul>
         </details>}
 
-        {informativeUnits.length > 0 && <p className="notice cm-dropout-warning" role="note" aria-label="Dropout warning">
-          More than {Math.round(INFORMATIVE_DROPOUT_SHARE * 100)} % of the patients in {informativeUnits.join(', ')} reached kidney replacement therapy{deathRecorded ? ' or died' : ''} within follow-up (a rule of this tool). When dropout depends on the course of the parameter, the slope can be biased; the R script of the model export outlines a joint-model sensitivity analysis.
+        {informativeUnits.length > 0 && <p className="notice cm-dropout-warning" role="note" aria-label={t('Dropout warning')}>
+          {t(deathRecorded ? msg('More than {round} % of the patients in {units} reached kidney replacement therapy or died within follow-up (a rule of this tool). When dropout depends on the course of the parameter, the slope can be biased; the R script of the model export outlines a joint-model sensitivity analysis.') : msg('More than {round} % of the patients in {units} reached kidney replacement therapy within follow-up (a rule of this tool). When dropout depends on the course of the parameter, the slope can be biased; the R script of the model export outlines a joint-model sensitivity analysis.'), { round: Math.round(INFORMATIVE_DROPOUT_SHARE * 100), units: informativeUnits.join(', ') })}
         </p>}
         {dropoutRows.length > 0 && <details className="cm-dropout">
-          <summary>Follow-up and dropout</summary>
-          <p className="muted">How follow-up ended for the patients in each model: kidney replacement therapy (KRT: kidney transplant or chronic dialysis on or after the first model measurement){deathRecorded ? ', death' : ''}, loss to follow-up (last model measurement more than {LOSS_TO_FOLLOW_UP_DAYS} days before the latest lab date of the dataset), or still in follow-up. Rules of this tool.</p>
+          <summary>{t('Follow-up and dropout')}</summary>
+          <p className="muted">{t(deathRecorded ? msg('How follow-up ended for the patients in each model: kidney replacement therapy (KRT: kidney transplant or chronic dialysis on or after the first model measurement), death, loss to follow-up (last model measurement more than {days} days before the latest lab date of the dataset), or still in follow-up. Rules of this tool.') : msg('How follow-up ended for the patients in each model: kidney replacement therapy (KRT: kidney transplant or chronic dialysis on or after the first model measurement), loss to follow-up (last model measurement more than {days} days before the latest lab date of the dataset), or still in follow-up. Rules of this tool.'), { days: LOSS_TO_FOLLOW_UP_DAYS })}</p>
           <div className="cm-dropout-table-wrap">
-            <table aria-label="Dropout by reason">
-              <thead><tr><th scope="col">Model</th><th scope="col">Level</th><th scope="col">Patients</th><th scope="col">KRT</th>{deathRecorded && <th scope="col">Death</th>}<th scope="col">Lost</th><th scope="col">In follow-up</th><th scope="col">KRT{deathRecorded ? ' or death' : ''}</th></tr></thead>
+            <table aria-label={t('Dropout by reason')}>
+              <thead><tr><th scope="col">{t('Model')}</th><th scope="col">{t('Level')}</th><th scope="col">{t('Patients')}</th><th scope="col">{t('KRT')}</th>{deathRecorded && <th scope="col">{t('Death')}</th>}<th scope="col">{t('Lost')}</th><th scope="col">{t('In follow-up')}</th><th scope="col">{deathRecorded ? t('KRT or death') : t('KRT')}</th></tr></thead>
               <tbody>{dropoutRows.map(({ unit, key, count }) => <tr key={key}>
-                <td>{unit}</td><td>{count.factor ? `${count.factor} = ${count.level}` : 'All'}</td><td>{count.patients}</td><td>{count.krt}</td>{deathRecorded && <td>{count.death ?? ''}</td>}<td>{count.loss}</td><td>{count.inFollowUp}</td><td>{(count.krtOrDeathShare * 100).toFixed(1)} %</td>
+                <td>{unit}</td><td>{count.factor ? `${count.factor} = ${count.level}` : t('All')}</td><td>{count.patients}</td><td>{count.krt}</td>{deathRecorded && <td>{count.death ?? ''}</td>}<td>{count.loss}</td><td>{count.inFollowUp}</td><td>{(count.krtOrDeathShare * 100).toFixed(1)} %</td>
               </tr>)}</tbody>
             </table>
           </div>
@@ -814,22 +816,22 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
             onClick={handleFitAll}
           >
             {cohortModelRunning
-              ? (cohortModelProgress ? `Fitting ${cohortModelProgress.completed + 1} of ${cohortModelProgress.total} …` : 'Running model …')
+              ? (cohortModelProgress ? t('Fitting {n} of {total} …', { n: cohortModelProgress.completed + 1, total: cohortModelProgress.total }) : t('Running model …'))
               : noGroupFits
-                ? `${allEligibleFitted ? 'Refit' : 'Fit'} whole cohort only`
-                : `${allEligibleFitted ? 'Refit' : 'Fit'} model${eligibleEntities.length > 1 ? `s (${eligibleEntities.length})` : ''}`}
+                ? (allEligibleFitted ? t('Refit whole cohort only') : t('Fit whole cohort only'))
+                : eligibleEntities.length > 1 ? (allEligibleFitted ? t('Refit models ({n})', { n: eligibleEntities.length }) : t('Fit models ({n})', { n: eligibleEntities.length })) : allEligibleFitted ? t('Refit model') : t('Fit model')}
           </button>
-          {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={cancelFit}>Cancel</button>}
+          {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={cancelFit}>{t('Cancel')}</button>}
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
-        {!runtimeLoaded && <p className="muted cm-runtime-note" data-testid="runtime-download-note">The first fit of a session loads the R runtime and R packages, which are served with this app from its own address ({R_FIRST_FIT_DOWNLOAD}). These are downloads only; no measurements are sent. <a href="#methods/data/network">Network access and local storage</a></p>}
+        {!runtimeLoaded && <p className="muted cm-runtime-note" data-testid="runtime-download-note">{t('The first fit of a session loads the R runtime and R packages, which are served with this app from its own address ({R_FIRST_FIT_DOWNLOAD}). These are downloads only; no measurements are sent.', { R_FIRST_FIT_DOWNLOAD })} <a href="#methods/data/network">{t('Network access and local storage')}</a></p>}
         </section>
         <details className="cm-preparation-details">
-          <summary>Preparation and fitting details</summary>
-          {spec?.fitConfig && <p data-testid="model-preparation">Measurements follow the analysis settings of this parameter, shared with Trajectories. {describeModelPreparation(spec.fitConfig, preparationSource)}{noFit ? ' Choose another data preparation above or a fit model under Trajectories to fit a cohort model.' : `${presetExclusionPolicy === 'skip' ? ' The event and AKI windows are skipped by the choice above; time aggregation still applies.' : ''} Changing these settings here or under Trajectories discards the models fitted for this parameter.`}</p>}
-          <p>Time: years since each patient's first retained measurement. Missing selected factors exclude the patient from this model only; no imputation.</p>
-          <p>Model formula (R syntax): <span className="cm-formula-code" aria-label="Readable formula">{readableMixedModelFormula(mixedModelConfig, spec?.bezeichnung ?? 'Outcome')}</span></p>
-          <p>One linear mixed-effects model per selected group. Fit runs in-browser via WebR (lme4).</p>
+          <summary>{t('Preparation and fitting details')}</summary>
+          {spec?.fitConfig && <p data-testid="model-preparation">{t('Measurements follow the analysis settings of this parameter, shared with Trajectories.')} {describeModelPreparation(spec.fitConfig, preparationSource)}{noFit ? ` ${t('Choose another data preparation above or a fit model under Trajectories to fit a cohort model.')}` : `${presetExclusionPolicy === 'skip' ? ` ${t('The event and AKI windows are skipped by the choice above; time aggregation still applies.')}` : ''} ${t('Changing these settings here or under Trajectories discards the models fitted for this parameter.')}`}</p>}
+          <p>{t("Time: years since each patient's first retained measurement. Missing selected factors exclude the patient from this model only; no imputation.")}</p>
+          <p>{t('Model formula (R syntax):')} <span className="cm-formula-code" aria-label={t('Readable formula')}>{readableMixedModelFormula(mixedModelConfig, spec?.bezeichnung ?? 'Outcome')}</span></p>
+          <p>{t('One linear mixed-effects model per selected group. Fit runs in-browser via WebR (lme4).')}</p>
         </details>
       </section>
 
