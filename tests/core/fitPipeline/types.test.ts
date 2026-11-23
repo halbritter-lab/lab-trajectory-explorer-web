@@ -20,7 +20,8 @@ describe('fit pipeline types', () => {
     expect(config.preset).toBe('ckd_progression')
     expect(config.xAxis).toBe('age')
     expect(config.censoring.censorAfterKidneyTransplant).toBe(true)
-    expect(config.censoring.unknownDialysisPolicy).toBe('exclude-dated-interval')
+    // Decision `dial` of 2026-11-22: an undated dialysis of unknown intent censors from its start.
+    expect(config.censoring.unknownDialysisPolicy).toBe('dated-interval-or-from-start')
     expect(config.timeBalancing).toBe('quarterly-median')
     expect(config.endpoints.observedCkdG5).toBe(true)
   })
@@ -29,7 +30,8 @@ describe('fit pipeline types', () => {
     const config = generalExplorationConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
 
     expect(config.preset).toBe('general_exploration')
-    expect(config.censoring.censorAfterKidneyTransplant).toBe(false)
+    // Decision `censor` of 2026-11-22: every preset censors after kidney replacement therapy.
+    expect(config.censoring).toEqual({ censorAfterKidneyTransplant: true, censorAfterChronicDialysis: true, excludeAcuteDialysisPeriods: false, unknownDialysisPolicy: 'flag-only' })
     expect(config.exclusions.excludeAkiWindows).toBe(false)
     expect(config.timeBalancing).toBe('raw')
     expect(config.endpoints.projectedAgeToCkdG5).toBe(false)
@@ -38,6 +40,9 @@ describe('fit pipeline types', () => {
   it('returns the primary exclusion reason by clinical precedence', () => {
     expect(primaryExclusionReason(['aki', 'post_kidney_transplant'])).toBe('post_kidney_transplant')
     expect(primaryExclusionReason(['aki', 'unknown_dialysis_interval'])).toBe('unknown_dialysis_interval')
+    expect(primaryExclusionReason(['aki', 'unknown_dialysis_open'])).toBe('unknown_dialysis_open')
+    expect(primaryExclusionReason(['krt_segment', 'post_chronic_dialysis'])).toBe('post_chronic_dialysis')
+    expect(primaryExclusionReason(['aki', 'krt_segment'])).toBe('krt_segment')
     expect(primaryExclusionReason([])).toBeNull()
   })
 

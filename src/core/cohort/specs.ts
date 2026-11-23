@@ -22,7 +22,7 @@ export function clinicalEventsByPatient(events: readonly ClinicalEvent[]): Recor
 export function cohortSeriesSpec(
   parameter: { bezeichnung: string; einheit: string | null },
   fitConfig: FitConfig = generalExplorationConfig(parameter),
-  context: { clinicalEventsByPatient?: Record<string, ClinicalEvent[]>; exactBirthDateByPatient?: Record<string, Date>; fitInputs?: AnalysisFitInputContribution[]; analysisSettings?: Readonly<Record<string, unknown>>; anchorComparison?: AnchorComparisonSettings } = {},
+  context: { clinicalEventsByPatient?: Record<string, ClinicalEvent[]>; exactBirthDateByPatient?: Record<string, Date>; fitInputs?: AnalysisFitInputContribution[]; analysisSettings?: Readonly<Record<string, unknown>>; anchorComparison?: AnchorComparisonSettings; logTrend?: boolean } = {},
 ): CohortSeriesSpec {
   return {
     bezeichnung: parameter.bezeichnung,
@@ -35,5 +35,6 @@ export function cohortSeriesSpec(
     fitInputs: context.fitInputs,
     ...(context.analysisSettings ? { analysisSettings: context.analysisSettings } : {}),
     ...(context.anchorComparison ? { anchorComparison: context.anchorComparison } : {}),
+    ...(context.logTrend ? { logTrend: true } : {}),
   }
 }

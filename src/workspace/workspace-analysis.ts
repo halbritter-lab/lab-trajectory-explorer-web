@@ -1,7 +1,10 @@
+import { akiDaysAfterEnd } from '../core/domains/nephrology/fitConfig'
 import type { FitConfig } from '../core/analysis/fitConfig'
 import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
 import { defaultColumnModuleSettings, fitPresetById, fitPresetCatalog, type ColumnModuleSettings } from '../core/analysis/registry'
 import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
+import { DEFAULT_BOUNDED_VALUE_POLICY, type BoundedValuePolicy } from '../core/measurements/censored'
+import { msg, t, tx, type MessageKey } from '../i18n'
 
 /** The analysis presets offered in the workspace (core catalog). */
 export const ANALYSIS_CATALOG = fitPresetCatalog
@@ -13,6 +16,8 @@ export interface WorkspaceFitSettings {
   censoring: FitConfig['censoring']
   exclusions: FitConfig['exclusions']
   endpoints: FitConfig['endpoints']
+  /** How bounded values enter the column's fits and slope lines (issue #73). */
+  boundedValues: BoundedValuePolicy
   /** The column's own module settings (e.g. its rapid-decline threshold). */
   moduleSettings: ColumnModuleSettings
   /** Before/after comparison at an anchor event (issue #64); off when absent.
@@ -36,6 +41,7 @@ export function defaultFitSettings(presetId: string = 'general_exploration'): Wo
     censoring: { ...config.censoring },
     exclusions: { ...config.exclusions },
     endpoints: { ...config.endpoints },
+    boundedValues: config.boundedValues ?? DEFAULT_BOUNDED_VALUE_POLICY,
     moduleSettings: defaultColumnModuleSettings(),
   }
 }
@@ -63,6 +69,7 @@ export function toFitConfig(
     timeBalancing: settings.timeBalancing,
     fitModel: settings.fitModel,
     endpoints: { ...settings.endpoints },
+    boundedValues: settings.boundedValues,
   }
 }
 
@@ -104,30 +111,33 @@ export function modelPreparationKey(settings: TrajectoryFitSettings, parameterKe
  * are the parameter's own or the shared ones. */
 export function modelPreparationSource(settings: TrajectoryFitSettings, parameterKey: string): string {
   const own = settings.columns[parameterKey]
-  const name = fitPresetById((own ?? settings.shared).presetId)?.name ?? 'Edited settings'
-  return `${name} (${own ? 'own settings of this parameter' : 'shared settings'})`
+  const preset = fitPresetById((own ?? settings.shared).presetId)?.name
+  const name = preset ? tx(preset) : t('Edited settings')
+  return `${name} (${own ? t('own settings of this parameter') : t('shared settings')})`
 }
 
-const TIME_BALANCING_TEXT: Record<TimeBalancing, string> = {
-  raw: 'individual measurements',
-  'monthly-median': 'monthly medians',
-  'quarterly-median': 'quarterly medians',
+const TIME_BALANCING_TEXT: Record<TimeBalancing, MessageKey> = {
+  raw: msg('individual measurements'),
+  'monthly-median': msg('monthly medians'),
+  'quarterly-median': msg('quarterly medians'),
 }
 
 /** One sentence on how a fit configuration prepares the measurements of a
  * cohort model, for the Cohort models page. */
 export function describeModelPreparation(config: FitConfig, name: string): string {
-  if (config.fitModel === 'none') return `${name}: no fit, so no cohort model is prepared for this parameter.`
+  if (config.fitModel === 'none') return t('{name}: no fit, so no cohort model is prepared for this parameter.', { name })
   const c = config.censoring
   const events = [
-    c.censorAfterKidneyTransplant ? 'after kidney transplant' : null,
-    c.censorAfterChronicDialysis ? 'after chronic dialysis start' : null,
-    c.excludeAcuteDialysisPeriods ? 'acute dialysis intervals' : null,
-    c.unknownDialysisPolicy === 'exclude-dated-interval' ? 'dated dialysis of unknown intent' : c.unknownDialysisPolicy === 'censor-from-start' ? 'from dialysis of unknown intent' : null,
+    c.censorAfterKidneyTransplant ? t('after kidney transplant') : null,
+    c.censorAfterChronicDialysis ? t('after chronic dialysis start') : null,
+    c.excludeAcuteDialysisPeriods ? t('acute dialysis intervals') : null,
+    c.unknownDialysisPolicy === 'exclude-dated-interval' ? t('dated dialysis of unknown intent')
+      : c.unknownDialysisPolicy === 'censor-from-start' ? t('from dialysis of unknown intent')
+        : c.unknownDialysisPolicy === 'dated-interval-or-from-start' ? t('dated dialysis of unknown intent, from its start without an end date') : null,
   ].filter(Boolean)
-  return `${name}: ${TIME_BALANCING_TEXT[config.timeBalancing]}; `
-    + `event windows ${events.length ? events.join(', ') : 'none'}; `
-    + `AKI windows ${config.exclusions.excludeAkiWindows ? `${config.exclusions.akiExclusionDays} days` : 'none'}.`
+  return t('{name}: {points}; event windows {events}; AKI windows {aki}.', { name, points: t(TIME_BALANCING_TEXT[config.timeBalancing]),
+    events: events.length ? events.join(', ') : t('none'),
+    aki: config.exclusions.excludeAkiWindows ? t('onset to {days} days after the episode end ({onset} days from onset where too few values would remain)', { days: akiDaysAfterEnd(config.exclusions), onset: config.exclusions.akiExclusionDays }) : t('none') })
 }
 
 export { endpointBadge } from './labels/endpointLabels'

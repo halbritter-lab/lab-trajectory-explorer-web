@@ -1,5 +1,266 @@
 # Manual browser smoke checklist
 
+## German interface (2026-11-22, issue #71)
+
+1. Open the app in a browser set to German: the header shows DE selected, the
+   navigation reads Daten, Verläufe, Kohortenmodelle, Methoden, and the footer
+   statement is German. In an English browser the app starts in English.
+2. Load the demo data and walk Data, Trajectories (table, overlay, a patient),
+   Cohort models (fit a model, Time to event) and the analysis record in
+   German at desktop width and at 390 px: no English left in the interface
+   except units, analyte names, imported values, method names (OLS, Theil–Sen,
+   Kaplan–Meier) and findings or module texts no pattern covers.
+3. Methods: the page is English, under the note "Die Methodenseite ist derzeit
+   nur auf Englisch verfügbar."
+4. In German, export the cohort workbook, a chart (SVG and PNG), the patient
+   bundle, the import diagnostics, the model workbook and the time-to-event
+   workbook: every file is English and identical in shape to an export made in
+   English: the model workbook names the pooled unit "Whole cohort", the
+   exported model chart has an English legend, and the cohort workbook lists
+   the groups in the same row order as in English. The page stays German after
+   each export. A chart export renders the whole workspace in English and back
+   (not only the chart), so on a large cohort expect a short pause before the
+   download; the page must not flash or stay English.
+5. Tick "Remember on this device", switch to German and reload: the app
+   starts in German. Clear the saved data and reload: it starts in the
+   browser language again.
+6. With a notice on the Data page (an import, a restored copy, a storage
+   message), the import findings, the analysis record and a report of applied
+   settings open, switch the language: each follows the switch, and imported
+   names (an attribute called "Sex", event titles) stay as imported.
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 4
+for the parts covered by `tests/e2e/german-interface.e2e.ts` (navigation,
+Data, Trajectories, Cohort models, Methods note at 1440 and 390 px; SVG export
+English); step 5 by the unit tests of the storage. Not yet walked by hand in
+full; numbers keep the decimal point in German (OD-90). Step 6 and the
+English model workbook, model chart legend and group order of step 4 are
+covered by unit tests since 2026-11-23 (code review of the language switch),
+not yet walked in a browser.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): step 1 through
+the header switch (not a German browser), steps 2 and 3, and step 4 for the
+cohort workbook only. It found English left on Cohort models (the parameter
+count in "… betrifft 10 parameters in Kohortenmodelle und Verläufe", the R
+download size "about 39 MB", the year ticks "0y 2.75y" of the model preview)
+and the time-to-event table broken mid-word at 390 px; fixed the same day and
+covered by unit tests, not walked again. Not checked: the other exports of
+step 4, steps 5 and 6.
+
+## Series comparison and deliberate merge (2026-11-22, issue #68)
+
+Branch `wp/series-2611`. Automated in `tests/e2e/series-merge.e2e.ts`.
+
+1. Load the demo. Data → *4. Merge series*: choose LOINC 2160-0. Both
+   creatinine series are ticked, nothing is merged yet; *Merge selected
+   series* lists `Kreatinin (merged) [mg/dl]` with 234 values unchanged and
+   11 values ÷ 88.42. *Creatinine source* offers it with "– merged series"
+   and stays *Automatic*.
+2. Trajectories, parameter `Kreatinin (merged) [mg/dl]`, patient 2: the chart
+   legend names ● Kreatinin [mg/dl] and ■ Kreatinin [µmol/l]; four squares;
+   the tooltip of a square names its source.
+3. *Compare series*: tick `Kreatinin [mg/dl]`, then `Kreatinin [µmol/l]`;
+   eGFR is greyed out; two lines, the µmol/l values about 0.25 mg/dl lower;
+   the table gives +0.250 mg/dl per year for the mg/dl series. At 390 px no
+   horizontal page scroll.
+4. Export: `lab_method`, `source_parameter`, `source_unit` end
+   `measurements`; the merged µmol/l value of 2023-01-10 is `1,24`,
+   `formula` `series_merge`; `analysis_settings` holds the merge.
+5. Not automated: *Remove* the merge with the merged series as eGFR source
+   (the source returns to *Automatic*); a file with a `Labor` column (tooltip,
+   measurement table, `lab_method`); *Apply settings from an export* on a
+   dataset without µmol/l creatinine (the merge is named and left out).
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 4
+by the browser test; step 5 by unit tests only.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1 (234
+values unchanged, 11 ÷ 88.42; the AKI list stays at 8 episodes after the
+merge) and 3 (two lines, +0.250 per year, no page scroll at 390 px). Steps 2,
+4 and 5 not walked.
+
+## Time to event and death (2026-11-22, issue #78)
+
+1. Demo → Cohort models → tab "Time to event": the endpoint offers only what
+   the eGFR settings under Trajectories evaluate, plus kidney replacement
+   therapy; the read-only definition and the button to Trajectories show.
+2. Kidney replacement therapy, whole cohort: 25 patients, 4 events, 3 listed
+   under "Patients not in the analysis"; group by genotype: a log-rank line.
+3. Export time to event (XLSX): `time_to_event` first, `r_script` last;
+   Download SVG/PNG of the curve.
+4. An events file with a `death` (or `Tod`) row: the curve choice
+   "Cumulative incidence" appears; a lab value after the death gives the
+   import warning.
+5. Phone width (390 px): no horizontal page scroll.
+
+Verified 2026-11-22 in Chromium against the production build: steps 2, 3
+(XLSX and PNG) and 5 by `tests/e2e/time-to-event.e2e.ts`; step 4 by the unit
+tests only (`tests/workspace/time-to-event.test.tsx`).
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1, 2
+with confirmed CKD G4 by genotype under the CKD progression preset instead
+of kidney replacement therapy, 3 (XLSX sheet order) and 5. It found the
+group table squeezed at 390 px (words broken, the number at risk cut off),
+the selects cut off at 1440 px, a median "60.5 (not reached to not
+reached)" where R gives NA for both limits (now "lower bound not estimable
+to upper bound not estimable") and a log-rank line "between 5 groups" with
+2 df that did not say two groups were left out (now named). Fixed the same
+day; the wording by unit tests and an R reference case, the layout by a
+screenshot check at 390 and 1440 px in English and German. Step 4 (the demo
+has no death) and the SVG/PNG download were not checked.
+
+## Kidney replacement therapy in every preset, undated unknown-intent dialysis, slope tier (2026-11-22, issue #4)
+
+Branch `wp/fits-2611`. Partly automated in `tests/e2e/table-screening.e2e.ts`
+and `tests/e2e/anchor-comparison.e2e.ts`.
+
+1. Demo → Trajectories → Trend on for eGFR [ml/min/1,73m²]. Patient 13 reads
+   -12.83 /yr with "rapid ↓" and "6 of 9 fitted"; its three values after the
+   transplant of 01/07/2022 are grey open circles ("after kidney
+   transplant"). Patient 14: -10.14 /yr, amber "Follow-up < 1 year".
+2. Reliable slopes carry the green badge "reliable"; "Show only" offers
+   "Reliable slope 21". The patient view of patient 4 reads "Estimable slope:
+   Not yet reliable: 630 days of fitted follow-up …". The chart key under a
+   patient chart names the slope tiers.
+3. Patient 13 → analysis settings → Calculation settings: both censoring
+   options ticked, the sentence on the separate segment below them; untick
+   "Censor after kidney transplant" → the patient view states "After kidney
+   transplant (01/07/2022), fitted as a separate segment: -8.01 …", the
+   chart draws a dash-dot line over the three values, the slope stays
+   -12.83. *Export patient (XLSX)*: `krt_segment_start` 2022-07-01,
+   `krt_segment_n_fitted` 3, `slope_tier` reliable, `group` still last.
+4. HbA1c (another parameter) → settings: the censoring options are shown and
+   ticked, the AKI options are not.
+5. A dataset with a dialysis of unknown intent without end date, CKD
+   progression: the values from its start are grey ("after dialysis start of
+   unknown intent without end date"), the cell shows "… values after dialysis
+   of unknown intent left out", the event table reads "censor from dialysis
+   start under the policy “Dated interval, else from start” (CKD progression)
+   or “Censor from start”; not excluded under the other policies (unknown
+   intent without end date)"; the endpoint badges still use
+   those values.
+
+Verified 2026-11-22 in Chromium against the production build by the browser
+regressions only: the counts of step 2 (filter buttons, order of a slope
+sort) and step 3 through the before/after test of patient 13 (segment line,
+segment sentence, export columns). Steps 1, 4 and 5 and the badge, the
+patient-view tier note and the chart key are covered by unit tests, not
+clicked through. Not checked: Firefox, WebKit, 390 px.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): step 1 for
+patient 13 (-12.83 /yr, "rapid ↓", "6 of 9 fitted"), step 2 ("Reliable
+slope 21", 21 "reliable" badges) and the segment sentence of step 3
+("-8.01 ml/min/1,73m²/year (3 fitted …)"); the table had no page scroll at
+390 px. Steps 4 and 5 and the export of step 3 not walked.
+
+## Logarithmic axis, doubling time and table-chart events (2026-11-22, issue #70)
+
+Branch `wp/70-display-extensions`. Automated in
+`tests/e2e/log-axis-events.e2e.ts` (CEA of two patients, 1280 px and 390 px).
+
+1. Trajectories → a column's toggle **log** → the table charts of that column
+   use a logarithmic axis over the positive range; Trend on → the cell shows
+   "doubles in 1.02 y" for the worked example of
+   `docs/method-algorithms/log-scale-and-doubling-time.md`, "halves in …" for
+   a falling series. At 390 px the column controls stay in one row and the
+   settings button stays inside the table.
+2. Display → Events (table menu) → dashed lines at event dates and a band to
+   the end date in the table charts, also at the small chart size.
+3. Open the patient → the chart has a log axis (ticks 2, 5, 10, 20), the note
+   "Logarithmic value axis …", and the full sentence "Doubling time 1.02 years
+   (95% CI 0.888 to 1.19 years) …".
+4. Export cohort (XLSX) with a log column: last sheet `log_trend`, one `about`
+   note more; without a log column no `log_trend` sheet.
+
+Verified 2026-11-22 in Chromium against the development server: steps 1 to 3
+by the automated test with screenshots at 1280 px and 390 px; step 4 by the
+unit test `tests/workspace/log-axis.test.tsx`. Not checked: Firefox and
+WebKit, real tumour-marker data, the overlay with many log trajectories, and a
+Theil-Sen, Rolling or Segmented column on a log axis in the browser.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1 and 3
+in part on the demo UACR column (log chart and the doubling-time sentence of
+patient 2, "Doubling time 0.533 years (95% CI 0.362 to 1.01 years)"). Steps
+2 and 4 not walked.
+
+## Analysis record (issue #83, 2026-11-22)
+
+Branch `wp/83-analysis-record`. `settings` now ends with `anchor_comparison`,
+`trend`, `settings_source`, `column_settings`.
+
+1. Demo → Trajectories → **Analysis record** (beside the export button; at
+   390 px in the toolbar beside Display, and the first chart stays on the
+   first screen): sections Data, Trajectories:
+   shared settings, one per shown parameter, Trajectories: table, Cohort
+   models, Versions, Apply settings from an export. All defaults: no entry
+   marked "changed".
+2. Switch Trend on for a column and set its method to Theil–Sen: the record
+   marks Trend "On (changed)" and the column's own fit model with the
+   default beside it. **Change** on Fit model opens the parameter's settings
+   with Calculation settings open and the field focused; on Trend it focuses
+   the column's Trend switch; on Recovery between AKI episodes it opens Data
+   with the field focused; on Random effects it opens Cohort models at the
+   model presets. Press **log** on the column: the record shows its value
+   axis "Logarithmic (changed)", and **Change** on it focuses that log
+   button. Choose events under Data → Creatinine after selected events: the
+   Data section shows the selection as changed.
+3. Export the cohort, reset the method, apply the downloaded file in the
+   record: "Every setting of the file was applied." and the table shows the
+   exported method and interval again. Apply it to another file without one
+   of its parameters: the parameter is named under "Not applied". With a log
+   column and an event selection in the export, both come back; an event
+   selection whose title the other file lacks is named under "Not applied".
+4. Phone width (390 px): the record fills the screen, scrolls inside, Close
+   stays visible, no horizontal scrolling.
+
+Verified 2026-11-22 in Chromium against the dev server by the browser tests
+(`analysis-record.e2e.ts`: steps 2 to 4 in part) and by screenshots at 390 px
+and 1280 px (steps 1, 2 and 4); step 3 with another dataset only by the unit
+tests. The log-axis and event-selection parts of steps 2 and 3 (added after
+the branch review of 2026-11-22) are covered by the unit tests only so far.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1, 2 in
+part (five entries marked "changed"; **Change** on Fit model opens the
+settings with the field focused) and 4 (no inner horizontal scroll at
+390 px). Step 3 not walked.
+
+## Creatinine after selected events (2026-11-22, issue #69)
+
+1. Load the demo data, then Data → "Replace events" with a CSV holding
+   `11,other,2022-07-10,Contrast CT,,,` and `13,other,2022-06-10,Contrast CT,,,`
+   (header `patientId,type,date,title,description,endDate,intent`).
+   "Creatinine after selected events (none selected)" sits below "Detected
+   AKI episodes" and states that the window counts calendar days and that a
+   value on the event day is the baseline.
+2. Events analysed → "Title: Contrast CT": two rows. Patient 11 baseline 1.1
+   on 10/07/2022, highest 1.8 on 12/07/2022, rise 0.7, 1.64 ×, "Met: rise
+   ≥ 0.3 mg/dl and to ≥ 1.5 times baseline". Patient 13 "Not evaluable: no
+   value in the window". The patient button opens the patient.
+3. Window → 72 hours: the summary line and rows update; "Type: dialysis"
+   after adding a dialysis event shows "event day under dialysis".
+4. Export cohort (XLSX): the last sheet is `peri_event_creatinine`, one row
+   per event; the last column `peri_event_creatinine` of `settings` holds
+   the selection. With "None" the sheet and the column are empty.
+5. At 390 px the page does not scroll sideways; the table scrolls inside its
+   region and dates do not break.
+
+Verified 2026-11-22 in Chromium against the development server: steps 1, 2,
+4 and 5 and the dialysis case of step 3 are automated in
+`tests/e2e/peri-event.e2e.ts`, with screenshots at 1280 and 390 px checked
+by eye. Reload with "Remember on this device" (the selection is kept with
+the dataset copy) was not checked in a browser.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1 and 2
+(patient 11 met), step 3 (48 and 72 hours, "Type: dialysis" with four events
+not evaluable) and step 5 (no page scroll at 390 px). Step 4 not walked.
+
 ## Combined branch of the open points (2026-11-22)
 
 Branch `integration/open-items-2026-11-22` (`chore/persona-review-open-details`,
@@ -48,8 +309,9 @@ and 390 px), with the demo data, the review file with times of day, the
   every row; ungrouped it is empty.
 - Demo, patient 6, Display → AKI windows and episodes, Trend not ticked:
   under the Kreatinin and eGFR charts "In this column nothing is excluded for
-  AKI (it has no fit): the shaded band only shows the configured 30 days
-  after each onset."
+  AKI (it has no fit): the shaded band only shows the window from each onset
+  to 90 days after the end of the episode." (until 2026-11-22 "the configured
+  30 days after each onset")
 - Demo, Cohort models, whole cohort: "73.15 ml/min/1,73m² 95% interval
   [67.41, 78.88]". A synthetic file with 7 single-measurement patients:
   "7 patients have a single measurement in this model. … Patients: S13, S14,
@@ -131,7 +393,9 @@ build.
    settings → Calculation settings → "Before/after comparison": tick it, anchor
    "Type: kidney_transplant" (menu lists "First event of the patient", the
    five titles as "Title: …" and the three types of the demo as "Type: …"). The preset stays "General
-   exploration".
+   exploration". Since 2026-11-22 untick "Censor after kidney transplant"
+   as well: every preset censors from the transplant on, and without the
+   values after it the after side is empty.
 2. Export cohort (XLSX): last sheet `anchor_comparison` with 28 rows; patient
    13: anchor 2022-07-01, before n 6 over 882 days, after n 3 over 365 days,
    difference 4.823 [4.320, 5.326]; `settings` ends with `anchor_comparison`
@@ -140,11 +404,14 @@ build.
 3. Patient 13: under the eGFR slope "Before/after first event of type
    kidney_transplant (01/07/2022): before -12.83 … after -8.01 … difference
    after − before +4.82 … (95% CI [4.32, 5.33])". With a window of 60 days the
-   value of 10/08/2022 is a grey open circle and the difference is +4.76; the
-   legend reads "Grey open circles: 1 measurement in the exclusion window
-   after the anchor event: left out of the after-anchor slope only; it still
-   enters the slope of the whole series." and does not say "excluded from the
-   fit".
+   value of 10/08/2022 is a grey open circle and the difference is +4.76.
+   Since 2026-11-22 the three values after the transplant are the separate
+   segment, so the legend reads "Grey open circles: 3 measurements excluded
+   from the fit (after kidney replacement therapy, fitted as a separate
+   segment). They stay visible but do not enter the slope."; with the
+   censoring of 2026-11-21 (none) it read "1 measurement in the exclusion
+   window after the anchor event: left out of the after-anchor slope only; it
+   still enters the slope of the whole series."
 4. Display → Time axis → "Years since event": the overlay draws patients 13
    and 14 with both jumps at 0 (ticks -2 … 1), says "2 of 28 trajectories; 3
    without numeric measurements; 23 trajectories without a matching anchor
@@ -294,17 +561,22 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
    (patient 8: "+0.010 mg/dl/yr 95% CI [0.007, 0.014]"), eGFR two (patient 8:
    "-1.23 … 95% CI [-1.50, -0.97]"). The patient view writes the same digits
    ("OLS: +0.010 mg/dl/year").
-2. Sort eGFR by *Slope: ascending*. Patient 12 (follow-up under a year) stands
-   at rank 25, after patient 14 and before 3, 5 and 10; the status line reads
-   "1 uncertain slope placed after the reliable ones". Unticking *Uncertain
-   slopes last* puts it at rank 9, between 9 and 6. *Export cohort (XLSX)*
+2. Sort eGFR by *Slope: ascending*. Patients 14 and 12 (follow-up under a
+   year) stand at ranks 24 and 25, before 3, 5 and 10; the status line reads
+   "2 uncertain slopes placed after the other slopes" (corrected 2026-11-22:
+   patient 14 is uncertain since the censoring at the transplant, and the
+   wording changed with the slope tier). Unticking *Uncertain slopes last*
+   puts patient 12 at rank 11, between 25 and 6. *Export cohort (XLSX)*
    lists the eGFR rows of `cohort` in the order of the table.
-3. "Show only": the buttons carry counts (demo, eGFR trend: Rapid decline 13,
-   Uncertain slope 1, Endpoint reached 4, AKI 4, Kidney transplant 3,
-   Dialysis 3, Other event 1). *Rapid decline* leaves 13 rows, the export
-   button reads "Export 13 of 28 patients (XLSX)" and "Select all 13
-   matching" is offered without a selection. *Show all* ends it. With Trend
-   on for all four columns and *Uncertain slope* chosen (patients 3, 5, 12),
+3. "Show only": the buttons carry counts (demo, eGFR trend: Rapid decline 8,
+   Possible rapid decline 6, Uncertain slope 2, Reliable slope 21, Endpoint
+   reached 4, AKI 4, Kidney transplant 3, Dialysis 3, Other event 1; Rapid
+   decline 7 and Uncertain slope 1 until 2026-11-22, Rapid decline 13 until
+   2026-11-21). *Rapid decline* leaves 8 rows, the export button reads
+   "Export 8 of 28 patients (XLSX)" and "Select all 8 matching" is offered
+   without a selection. *Show all* ends it. With Trend
+   on for all four columns and *Uncertain slope* chosen (patients 3, 5, 12
+   and, since 2026-11-22, 14),
    open patient 5 and set the creatinine trend method to *No fit*: patient 5
    stays open with the note "Patient 5 does not match “Show only: Uncertain
    slope” and stays open", and *Export patient (XLSX)* downloads
@@ -314,8 +586,12 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
 4. Apply CKD-EPI 2021 on the Data page. Under Trajectories the computed eGFR
    cell of patient 5 reads "No eGFR: sex and age missing" (hint: sex missing
    and age missing with four creatinine values each, "Enter the sex and the
-   age under Data → “Review and edit patients”"), that of patient 10 "No
-   eGFR: no creatinine in the source".
+   age under Data → “Review and edit patients”"); patient 10 (creatinine in
+   µmol/l only) has computed values from its µmol/l series (issue #65), and
+   the Data page reads "Patients without serum creatinine in mg/dl use their
+   µmol/l series: Kreatinin (µmol/l) for 1 patient." In the cohort export,
+   `demographics` names `Kreatinin`/`µmol/l` in `egfr_source_parameter` and
+   `egfr_source_unit` for patient 10 and `Kreatinin`/`mg/dl` for patient 2.
 5. A dataset of several hundred patients with a grouping attribute: the page
    controls stand above and below the table; *Next* below the table shows the
    top of the next page with the focus on the table region; "Per page" offers
@@ -326,6 +602,10 @@ Branch `feat/trajectories-screening`, after the persona review of 2026-11-21.
 6. Export a cohort of several hundred patients: "Exporting …" appears beside
    the button until the download starts.
 
+Step 4 re-checked 2026-11-22 on branch `wp/65-creatinine-source-per-patient`
+by `tests/e2e/table-screening.e2e.ts` only (patient 5 note, patient 10 with
+values); the Data page sentence and the export columns are covered by unit
+tests, not yet clicked through.
 Verified 2026-11-21 against the production build in Chromium
 (`tests/e2e/table-screening.e2e.ts`, seven checks, and scripted walkthroughs
 with the demo and an 800-patient review dataset): steps 1 to 6. With 800
@@ -769,7 +1049,9 @@ it does not claim research, clinical or representative-user validation.
 5. Cohort models: fit, apply a projection, *Export models (xlsx)*. The sheets
    are, in order, `models`, `coefficients`, `factors`, `centering`,
    `excluded_patients`, `projections`, `about`, `vcov`, `model_rows`,
-   `model_input_flags`, `r_script`; every sheet that names a unit has a
+   `model_input_flags`, `r_script`, `factor_levels`, `dropout`,
+   `dropout_patients` (the last three since the cohort-model decisions of
+   2026-11-22, so `r_script` is no longer last); every sheet that names a unit has a
    `unit_key` column (`cohort` or `group:<value>`).
    `models` ends with `unit_key`, `intercept_sd`, `slope_sd`,
    `intercept_slope_correlation`, `residual_sd`, and `about` ends with
@@ -780,7 +1062,7 @@ it does not claim research, clinical or representative-user validation.
    time_since_baseline values …" (checked in Chromium with a real R fit on
    2026-11-21; not automated).
 5a. Demo data, Trajectories, *Export cohort (XLSX)* with and without "Group
-   by": both files have the same 80 columns in `cohort` with `group` last,
+   by": both files have the same 81 columns in `cohort` with `group` last (80 before 2026-11-22),
    `PatientID` in every sheet, a sheet `columns` after `about` (followed by
    `rolling_windows` and `import_diagnostics`), and `app_version`,
    `exported_at`, `export_id` and `input_data_id` in `about`. Import the
@@ -974,3 +1256,185 @@ root by `tests/e2e/self-hosted-r.e2e.ts` (CI, `pnpm preview`) and under
 Firefox and WebKit, GitHub Pages itself (how it serves the `.gz` and `.tgz`
 files), and the checksum failure inside the build (covered by unit tests of
 the script).
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): a real webR fit
+at the root finished in 8 s and "Export models (xlsx)" wrote the sheets of
+the release-review step 5 (with `factor_levels`, `dropout` and
+`dropout_patients` after `r_script`); the eGFR parameter was under the CKD
+progression preset, so the estimates (−7.22 per year) are not the ones of
+step 2. Requests were not recorded; steps 1, 3 to 5 not walked.
+
+## eGFR for children and adolescents (2026-11-22, issue #66)
+
+1. Import a CSV with a boy (`KID`): Kreatinin mg/dl 0.8, 0.85, 0.9, 0.95 on
+   2020-01-01 to 2023-01-01 at 16 to 19 years, and Größe cm 170 and 175 on
+   the first two dates; and an adult. Data → eGFR formula CKD-EPI 2021:
+   "Under 18 years" reads "CKiD U25 with height, otherwise EKFC"; the preview
+   names "Height: 2 measurement days of 1 patient", "Equations in this
+   preview: CKiD U25 2 values; CKD-EPI 2021 4 values." and "1 patient whose
+   eGFR equation changes during follow-up (CKiD U25 → CKD-EPI 2021)".
+2. "Under 18 years" → "None": "2: Age under 18 — adult eGFR formulas do not
+   apply"; → "Bedside Schwartz": the two values become 87.8 (0.413 × 170 /
+   0.8) and 85.0 (0.413 × 175 / 0.85). Formula "CKiD U25 / EKFC (full age
+   range)": the under-18 setting is disabled, the series is called
+   `eGFR (CKiD U25 / EKFC, computed)`, and the values at 18 and 19 become
+   EKFC 96.3 and 93.6.
+3. Apply CKD-EPI 2021 with the default rule, Trajectories → trend on for the
+   computed eGFR → open KID: a dotted purple line on 2022-01-01 with the
+   legend "Dotted vertical line: the eGFR equation changes (CKiD U25 →
+   CKD-EPI 2021 on 2022-01-01)", and under the slope "Formula change in fit".
+   Cohort export: `egfr_formula_switch` reads "CKiD U25 → CKD-EPI 2021 on
+   2022-01-01" for KID and is empty for the adult; measurements carry
+   `egfr_equation` ckid-u25, ckid-u25, ckd-epi-2021, ckd-epi-2021 and
+   `egfr_height_cm` 170, 175.
+4. A demo-workbook analysis: no value changes (no patient under 18).
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 and 3
+by `tests/e2e/paediatric-egfr.e2e.ts`; step 2 in part by the unit tests
+(`tests/workspace/data-ui.test.tsx` for the reasons and the disabled
+setting, `tests/core/egfr/paediatric.test.ts` for bedside Schwartz; the
+Schwartz and full-age values on this page were not clicked through), step 4
+by `tests/parity/egfr.parity.test.ts`.
+Not verified: narrow-viewport layout of the new select, Firefox and WebKit.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): the "Under 18
+years" select of step 1 (CKiD U25 with height, otherwise EKFC; the
+Data page had no page scroll at 390 px), the equation-change note of step 1
+and the dotted marker of step 3 with a synthetic file (CKiD U25 → CKD-EPI
+2021), and step 4 (no marker on the demo). Step 2 and the cohort export of
+step 3 not walked.
+
+## Bounded values in fits (2026-11-22, issue #73)
+
+1. Load the demo, Trajectories, only Albumin/Kreatinin-Quotient [mg/g], Trend
+   on, Cell details full: patient 2 shows "OLS: +159.06 mg/g/year" and the
+   caution "60 % bounded" (`<30`, 45, 120, `>300`, `>300`).
+2. Analysis settings of the parameter, Calculation settings, "Bounded values":
+   "Limit" is selected; "Half limit" gives +165.06, "Exclude" +148.88 (the
+   exact two-point line, "n < 3") and no caution.
+3. Open patient 2: the measurement table reads "Available before time
+   balancing; bounded value, enters the fit at its limit (300)" for the `>300`
+   rows (with Trend on), and the chart note "They enter the trend at their
+   limit and are excluded from endpoints."
+4. Export the cohort: `n_bounded` 3 stands before `group`; `fit_config` ends
+   with `"boundedValues":"limit"`. Reload the page with "Remember on this
+   device": the setting is kept.
+5. Cohort models, fit, "Export models (xlsx)": `model_input_flags` ends with
+   `operator`; `r_script` ends with the commented "Sensitivity analysis" block
+   before `sessionInfo()`.
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 and 2 by
+`tests/e2e/bounded-values.e2e.ts`; steps 3 to 5 by unit tests
+(`tests/core/boundedValuePolicy.test.ts`, `tests/workspace/saved-settings.test.ts`,
+the export schema tests), not clicked through.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): steps 1 ("60 %
+bounded", +159.06) and 2 (the three options; "Half limit" changes the
+slope). Steps 3 to 5 not walked.
+
+## Cohort-model decisions of 2026-11-22 (issue #4, #83)
+
+1. Import 30 patients with four yearly eGFR values, a UACR value in mg/g on
+   2020-01-20 each, genotypes `PKD2` (2), `NT` (5), `PKD1` (10) and
+   `no variant` (13), and kidney transplants of four patients on 2023-06-01.
+   Cohort models, *Custom model*, add genotype: the Fit summary reads "Whole
+   cohort: genotype PKD2 (2 of 2) pooled into “other (pooled)”, which still
+   has fewer than 5." and the levels `PKD1 10 (10), no variant 13 (13), not
+   tested 5 (5), other (pooled) 2 (2)`. Untick *Pool small levels*: PKD2 is
+   listed as "below the minimum, kept".
+2. Add *Log baseline UACR (possible mediator)*; it is not in any preset. The
+   dropout note says more than 10 % reached kidney replacement therapy;
+   *Follow-up and dropout* lists 4 of 30 (13.3 %), per level 2 of 10 for
+   PKD1.
+3. Fit (real webR) and export: `coefficients` has `factor_0_not tested`,
+   `factor_0_other (pooled)` and `factor_1_` in "per unit of ln(baseline
+   UACR)"; `factor_levels`, `dropout` and `dropout_patients` are the last
+   sheets; `models` ends in `app_version`, `egfr_formula`; `r_script` names
+   the pooled level, refits with lmerTest inside `requireNamespace` and holds
+   the commented JMbayes2 outline.
+4. Group by an attribute whose groups resolve a different default
+   reference: the note "The models use different default reference levels
+   …" appears and goes away when a reference is chosen.
+5. Run `source("refit.R")` from the exported `r_script` in R with lme4,
+   readxl and lmerTest installed: the anova table and the coefficient table
+   print; without lmerTest a message is printed and the refit still ends.
+6. Trajectories export with a patient of sex `d` and a computed eGFR:
+   `demographics` ends in `egfr_male_coefficients_for_sex_d` = true.
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 to 3 by
+an ad-hoc Playwright script with a real webR fit (estimates for
+`factor_0_not tested` −1.84, `factor_0_other (pooled)` −5.37), step 1 also
+by `tests/e2e/model-factors.e2e.ts`, the export sheets by
+`tests/e2e/model-projections.e2e.ts`, steps 4 and 6 by unit tests. Not
+verified: step 5 (no R installation here), so the lmerTest and JMbayes2
+lines are checked as text only.
+
+## Endpoint decisions of 2026-11-22 (issues #81, #82, #85, #4)
+
+1. Upload eGFR rows of two patients (patient 1: 60, 58, 31, 29, 27, 24 on
+   2020-01-15, 2020-03-01, 2021-01-15, 2021-06-01, 2021-09-01, 2022-03-01;
+   patient 2: 40, 36, 12, 33, 29 on 2020-01-15, 2021-01-15, 2021-06-01,
+   2022-01-15, 2023-01-15). Choose CKD progression for the column: under
+   "eGFR endpoints & thresholds", "Extrapolation to CKD G5 (off by default)"
+   is unticked with "a conditional extrapolation of the fitted trend, not a
+   prognosis" below it, and "Confirmation preset" offers "90 days (default)"
+   and "28 days (ISN trial definition)".
+2. Tick "Also confirmed 50% decline" and Trend, cell details Full, warnings
+   as text: patient 1 shows `-60%, CKD G4, 40% decline, 50% decline`, patient
+   2 `-28%, single value <15, unconfirmed (possible AKI)`; no `G5 @` and no
+   withheld-projection badge.
+3. Display → "Endpoint badges": untick "50% decline" and "Total eGFR change";
+   the summary reads "Endpoint badges (7 of 9)", patient 1 shows
+   `CKD G4, 40% decline`. The open list stays on the screen at 1440 × 900 and
+   390 × 900 (the box moves up). The patient view of patient 1 still shows
+   every badge.
+4. Export cohort: `endpoint_observed_decline_50` `yes` (first 2021-06-01,
+   confirmed 2021-09-01) for patient 1, `endpoint_g5_single_value_unconfirmed`
+   `yes` for patient 2, the projection columns empty; these columns come
+   right before `group`, which is last; `fit_config` has
+   `"projectedAgeToCkdG5":false,"observedDecline50":true`.
+5. Tick the extrapolation: patient 1 adds `G5 < 4 dates/3 yrs`. Remember on
+   this device and reload: the notice names "The extrapolation to CKD G5 is
+   switched on in own settings of eGFR [ml/min/1.73m2], as saved: …", the
+   badge choice and the badges are as before.
+6. Open `#methods/endpoints/prediction`: the projection section
+   (`#methods-extrapolation`) opens and has the focus.
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 to 6
+by `tests/e2e/endpoint-decisions.e2e.ts`, except the phone width and the box
+position in step 3, which were checked by screenshots of an ad-hoc Playwright
+script. Not verified: the patient view in step 3 (it is given all badges by
+code), Firefox and WebKit.
+
+Verified 2026-11-23 by an automated Playwright walkthrough in Chromium
+(production build, demo data, 1440 and 390 px, no console errors): on the demo,
+not the uploaded file of step 1: the extrapolation is off by default and
+adds the G5 badges once ticked (step 5 in part), "single value <15,
+unconfirmed (possible AKI)" shows (step 2 in part), and the "Endpoint
+badges" menu lists every badge (step 3 in part). Steps 4 and 6 not walked.
+
+## AKI look-back baseline and exclusion window (2026-11-22, rows akifirst and akiwin)
+
+1. Import a CSV with creatinine 1.0 and 1.2 mg/dl on 2024-01-01 and
+   2024-01-31 and 2.0 and 1.9 on 2024-04-10 and 2024-04-11: Data page,
+   "Detected AKI episodes (1)", baseline "mean 1.1 of 2 values 7 to 365 days
+   before, latest 31/01/2024", criterion "first value of an admission ≥ 1.5
+   times the mean …". A second patient with 2.0, 1.8 and 1.6 on 1, 2 and
+   4 January 2024 is listed only after ticking *Retrospective detection*
+   (baseline "1.6 on 04/01/2024, lowest later value of the admission").
+2. Demo, eGFR with Trend and the CKD progression preset: the settings show
+   *Window after the episode end (days)* 90 and *Shorter window from onset
+   (days)* 30. The cohort export has `aki_window` and `n_aki_excluded` before
+   `group`: patient 11 `episode_end_plus_90d`, 3, slope −6.511; patient 7
+   `episode_end_plus_90d`, 8; patient 12 `onset_plus_30d_fallback`, 6. Patient
+   12's eGFR cell shows the label "AKI window 30 d".
+3. Patient 11, Display → AKI windows and episodes: the band runs from
+   12/07/2022 to 12/10/2022 (92 days) and the eGFR of 15/08/2022 is a grey
+   open circle.
+
+Verified 2026-11-22 against the production build in Chromium: steps 1 and 2
+by `tests/e2e/aki-admission-window.e2e.ts`; step 3 not verified in the
+browser (the window dates are checked by unit tests).

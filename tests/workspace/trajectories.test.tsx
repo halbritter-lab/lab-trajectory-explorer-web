@@ -247,19 +247,23 @@ describe('real-data trajectories workspace', () => {
     fireEvent.click(badge)
     expect(screen.getByRole('tooltip')).toHaveTextContent('1 AKI episode: 1× stage II')
   })
-  it('labels bounded values as excluded in chart and measurement table', () => {
+  // Issue #73: under the default setting a bound enters the fit at its limit;
+  // it stays marked, and the table says at which value it enters.
+  it('labels bounded values in chart and measurement table', () => {
     const data = fixture()
     const bounded = data.rows.find(row => row.patientId === 'ID-A' && row.einheit === 'unit-0' && row.labDatum?.getUTCFullYear() === 2021)!
     bounded.wert = '<11'; bounded.wertNum = 11; bounded.wertOperator = '<'
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     fireEvent.click(screen.getByRole('button', { name: 'Overlay' }))
     const chart = screen.getByRole('region', { name: 'Chart Marker · unit-0' })
-    expect(within(chart).getByText(/Bounds marked/)).toBeInTheDocument()
-    expect(chart.querySelector('[data-exclusion="censored-value"]')).toBeInTheDocument()
+    expect(within(chart).getByText(/Bounds marked.*enter the trend at their limit/)).toBeInTheDocument()
+    expect(chart.querySelector('[data-exclusion="censored-value"]')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Table' }))
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
     const table = screen.getByRole('table', { name: 'Measurements Marker · unit-0', hidden: true })
-    expect(within(table).getByText('Excluded: censored value (limit, not exact)')).toBeInTheDocument()
+    // Trend is off here, so the row reads "Fit disabled" like its exact neighbours rather than "Excluded".
+    expect(table.textContent).not.toContain('Excluded')
+    expect(table.textContent).toContain('< 1141Fit disabled')
   })
   // Decided 2026-11-16: below five distinct fitted dates the Theil–Sen bounds are a range, not a 95% interval.
   // Each case lists [year offset, value]; two entries with one offset are two values on one date.
@@ -622,7 +626,7 @@ describe('real-data trajectories workspace', () => {
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     expect(screen.queryByText('> 12')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Open patient ID-A' }))
-    expect(screen.getByText(/01\/01\/2020: > 10 unit-0, excluded from the fit \(censored value/)).toBeInTheDocument()
+    expect(screen.getByText(/^01\/01\/2020: > 10 unit-0$/)).toBeInTheDocument()
     expect(screen.getAllByText('> 10').length).toBeGreaterThan(0)
     expect(screen.getByRole('columnheader', { name: 'Derived value' })).toBeInTheDocument()
   })
@@ -783,6 +787,28 @@ describe('real-data trajectories workspace', () => {
     expect(screen.getByRole('tooltip')).toHaveTextContent(/rapid/i)
   })
 
+  it('marks a decline whose 95% interval reaches above the threshold as possible', () => {
+    // Decided 2026-11-21 (issue #72): 80, 30, 60 give a slope of -10 per year whose
+    // interval (one degree of freedom) reaches far above -5: "rapid ↓?", not "rapid ↓".
+    const data = fixture()
+    data.parameters[0] = { ...data.parameters[0], bezeichnung: 'eGFR', einheit: 'ml/min/1.73m²', label: 'eGFR [ml/min/1.73m²]' }
+    data.rows = data.rows.map(row => {
+      if (row.patientId === 'ID-A' && row.einheit === 'unit-0') {
+        const year = row.labDatum!.getUTCFullYear() - 2020
+        return { ...row, bezeichnung: 'eGFR', einheit: 'ml/min/1.73m²', wertNum: [80, 30, 60][year] }
+      }
+      return row
+    })
+    renderWorkspace(<TrajectoriesWorkspace data={data} />)
+    iconWarnings()
+    enableTrend('eGFR [ml/min/1.73m²]')
+    expect(screen.queryByRole('button', { name: 'rapid ↓' })).toBeNull()
+    const warning = screen.getByRole('button', { name: 'rapid ↓?' })
+    expect(warning).toHaveTextContent('?')
+    fireEvent.focus(warning)
+    expect(screen.getByRole('tooltip')).toHaveTextContent('Possible rapid decline: slope < -5 /year, but its 95% interval reaches -5 or above')
+  })
+
   it('sorts cohort table by patient ID, latest value, slope, and duration', () => {
     const data = fixture()
     // Give ID-A and ID-B distinct values so sort order is verifiable
@@ -868,17 +894,20 @@ describe('real-data trajectories workspace', () => {
       data.events = [{ patientId: 'ID-A', type: 'kidney_transplant', date: new Date('2021-06-01'), endDate: null, title: 'Transplant', description: null, intent: null, warning: '' }]
       return data
     }
-    it('names the values after a transplant that the slope runs across, with the unit and without a second step', () => {
+    // Decision `censor` of 2026-11-22: the default preset no longer fits across a transplant.
+    it('ends the slope at a transplant under the default preset, without a note on values it runs across', () => {
       render(<TrajectoriesWorkspace data={egfrFixture()} />)
       expect(screen.getByText(/Tick “Trend” at a parameter to calculate slopes/)).toBeInTheDocument()
       enableTrend(label)
       expect(screen.getByRole('button', { name: `Show trend line: ${label}` })).toHaveAttribute('aria-pressed', 'true')
       const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
-      expect(within(row).getByRole('button', { name: 'Fit includes 1 value after kidney transplant' })).toHaveTextContent('Fit includes 1 value after kidney transplant')
+      expect(within(row).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
+      expect(within(row).getByText('2 of 3 fitted')).toBeInTheDocument()
+      // 10 on 2020-01-01 and 11 on 2021-01-01: the two-point line, 1 / (366 / 365.25) per year.
       expect(within(row).getByText('+1.00 ml/min/1.73m²/yr')).toBeInTheDocument()
       expect(within(row).getByLabelText('Latest value: 12')).toHaveTextContent('latest 12')
       const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
-      expect(within(other).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
+      expect(within(other).getByText('n=3')).toBeInTheDocument()
     })
     // K04 (2026-11-22): a bound as the latest value keeps its sign in the cell; display only.
     it('shows the sign of a bound when the latest dated value is one, with and without a trend', () => {
@@ -893,24 +922,36 @@ describe('real-data trajectories workspace', () => {
       const other = screen.getByRole('button', { name: 'Open patient ID-B' }).closest('tr')!
       expect(within(other).getByLabelText(/^Latest value: \d/)).toBeInTheDocument()
     })
-    it('offers the exclusions without the CKD preset; excluding removes the note and states the fitted count', () => {
+    it('includes the values after the transplant only as a separate segment once the option is unticked', () => {
       render(<TrajectoriesWorkspace data={egfrFixture()} />)
       enableTrend(label)
       openSettings(label)
       calculationSettings()
-      fireEvent.click(screen.getByRole('checkbox', { name: 'Censor after kidney transplant' }))
+      const option = screen.getByRole('checkbox', { name: 'Censor after kidney transplant' })
+      expect(option).toBeChecked()
+      expect(screen.getByText(/Unticked, the values from the first kidney transplant or chronic dialysis start on are fitted as a separate segment/)).toBeInTheDocument()
+      fireEvent.click(option)
       closeSettings()
+      openDisplay()
+      fireEvent.change(screen.getByLabelText('Cell details'), { target: { value: 'full' } })
+      closeDisplay()
       const row = screen.getByRole('button', { name: 'Open patient ID-A' }).closest('tr')!
       expect(within(row).queryByRole('button', { name: /Fit includes/ })).not.toBeInTheDocument()
-      expect(within(row).getByText('2 of 3 fitted')).toBeInTheDocument()
+      expect(within(row).getByText(/2 fitted of 3 measurements/)).toBeInTheDocument()
+      // One value after the transplant: a segment without a slope.
+      expect(within(row).getByTestId('krt-segment')).toHaveTextContent('After kidney transplant (01/06/2021), fitted as a separate segment: no slope (1 fitted, 1 date, over 0 days). Not native kidney function; the slope above uses the values before it.')
       expect(screen.getByText('Custom · this parameter only')).toBeInTheDocument()
     })
-    it('does not offer the kidney options for another parameter under the default preset', () => {
+    // Since 2026-11-22 every preset censors after KRT, for every parameter (OD-51):
+    // the censoring options are shown, the AKI and eGFR options are not.
+    it('shows the censoring, but not the AKI or eGFR options, for another parameter under the default preset', () => {
       render(<TrajectoriesWorkspace data={fixture()} />)
       expect(screen.getAllByText('General exploration').length).toBeGreaterThan(0)
       openSettings('Marker · unit-0')
       calculationSettings()
-      expect(screen.queryByRole('checkbox', { name: 'Censor after kidney transplant' })).not.toBeInTheDocument()
+      expect(screen.getByRole('checkbox', { name: 'Censor after kidney transplant' })).toBeChecked()
+      expect(screen.queryByRole('checkbox', { name: 'Exclude AKI windows from fit' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('checkbox', { name: 'Observed CKD G5' })).not.toBeInTheDocument()
     })
   })
 
@@ -1011,10 +1052,13 @@ describe('real-data trajectories workspace', () => {
 
   it('pins the endpoint badge text and title for a projected G5 age', () => {
     const parameter = { key: JSON.stringify(['eGFR', 'mL/min/1.73m²']), label: 'eGFR [mL/min/1.73m²]', bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', derived: false }
-    const rows: LabRow[] = [60, 45, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2020 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 60 + i }))
+    // Four dates over three years, the KDIGO minimum of the extrapolation (2026-11-22).
+    const rows: LabRow[] = [66, 54, 42, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2019 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 59 + i }))
     const data = { rawRows: rows, rows, fileName: 'g5.csv', parameters: [parameter], patients: [{ id: 'P1', label: 'P1', attributes: {}, baselineAge: 60 }], events: [], patientAttributes: {}, analysis: { fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     preset('ckd_progression', data.parameters[0].label)
+    // Off in the preset since 2026-11-22 (issue #81): switched on per parameter.
+    fireEvent.click(screen.getByLabelText('Extrapolation to CKD G5'))
     // Deliberately exact: wording changes to this badge must update this test.
     // No birth date: the age is known in completed years, so no decimal is shown.
     closeSettings()
@@ -1023,8 +1067,8 @@ describe('real-data trajectories workspace', () => {
     fireEvent.change(screen.getByLabelText('Warning display'), { target: { value: 'text' } })
     closeDisplay()
     const badge = document.querySelector('.wt-badge-endpoint')!
-    expect(badge).toHaveTextContent(/^-50%, G5 @ ~63y$/)
-    expect(badge.getAttribute('title')).toBe('Total eGFR change -50.0% from first to latest eligible measurement (not per year). This is not a confirmed 40% decline event: that event is measured from the baseline (mean of the first 90 days, 60.0) and needs a confirming measurement at least 90 days and at most 12 months later. Projected age to CKD G5 about 63 years (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds, AKI exclusion windows and kidney replacement therapy/acute dialysis periods excluded).')
+    expect(badge).toHaveTextContent(/^-55%, G5 @ ~63y$/)
+    expect(badge.getAttribute('title')).toBe('Total eGFR change -54.5% from first to latest eligible measurement (not per year). This is not a confirmed 40% decline event: that event is measured from the baseline (mean of the first 90 days, 66.0) and needs a confirming measurement at least 90 days and at most 12 months later. Conditional extrapolation of the fitted trend, not a prognosis: the fitted line reaches CKD G5 at about 63 years of age (no birth date: counted from the age in completed years, so the true value can be up to one year higher); fitted curve using endpoint-eligible dated exact numeric measurements (bounds, AKI exclusion windows and kidney replacement therapy/acute dialysis periods excluded).')
   })
 
   it('publishes general and parameter settings for cohort models; clearing the dataset withdraws them', () => {
@@ -1044,21 +1088,23 @@ describe('real-data trajectories workspace', () => {
 
   it('shows the projected G5 age in whole years when the birth date is known', () => {
     const parameter = { key: JSON.stringify(['eGFR', 'mL/min/1.73m²']), label: 'eGFR [mL/min/1.73m²]', bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', derived: false }
-    const rows: LabRow[] = [60, 45, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2020 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 60 + i }))
+    // Four dates over three years, the KDIGO minimum of the extrapolation (2026-11-22).
+    const rows: LabRow[] = [66, 54, 42, 30].map((value, i) => ({ patientId: 'P1', labDatum: new Date(Date.UTC(2019 + i, 0, 1)), bezeichnung: 'eGFR', einheit: 'mL/min/1.73m²', wert: String(value), wertNum: value, wertOperator: '=' as const, loinc: null, patientSex: 'w', patientAgeAtLab: 59 + i }))
     const patient = { id: 'P1', label: 'P1', attributes: {}, baselineAge: 60, birthAnchor: new Date(Date.UTC(1959, 6, 1)), ageEstimated: false }
     const data = { rawRows: rows, rows, fileName: 'g5.csv', parameters: [parameter], patients: [patient], events: [], patientAttributes: {}, analysis: { fitInputs: [] }, analysisSettings: {}, manualDemographics: {} } as unknown as WorkspaceData
     renderWorkspace(<TrajectoriesWorkspace data={data} />)
     preset('ckd_progression', data.parameters[0].label)
-    // Born 1959-07-01: 62.5 at the latest measurement, one year before the crossing.
+    fireEvent.click(screen.getByLabelText('Extrapolation to CKD G5'))
+    // Born 1959-07-01: 62.5 at the latest measurement, about 1.25 years before the crossing.
     closeSettings()
     enableTrend(data.parameters[0].label)
     openDisplay()
     fireEvent.change(screen.getByLabelText('Warning display'), { target: { value: 'text' } })
     closeDisplay()
     const badge = document.querySelector('.wt-badge-endpoint')!
-    // 63.5 exactly; whole years since 2026-11-16, the export keeps the unrounded value.
-    expect(badge).toHaveTextContent(/^-50%, G5 @ ~64y$/)
-    expect(badge.getAttribute('title')).toContain('Projected age to CKD G5 about 64 years (the projection has no interval; the export holds the unrounded value); fitted curve')
+    // About 63.76; whole years since 2026-11-16, the export keeps the unrounded value.
+    expect(badge).toHaveTextContent(/^-55%, G5 @ ~64y$/)
+    expect(badge.getAttribute('title')).toContain('Conditional extrapolation of the fitted trend, not a prognosis: the fitted line reaches CKD G5 at about 64 years of age (the projection has no interval; the export holds the unrounded value); fitted curve')
   })
 
   it('reverses a metric sort and keeps patients without a value last', () => {
@@ -1122,7 +1168,8 @@ describe('AKI display in workspace charts', () => {
     preset('ckd_progression', 'Kreatinin [mg/dl]')
     closeSettings()
     enableTrend('Kreatinin [mg/dl]')
-    expect(within(chart).getAllByTestId('excluded-point').map(point => point.getAttribute('data-exclusion'))).toEqual(['aki', 'aki'])
+    // Since 2026-11-22 (row akiwin) the window runs to 90 days after the episode end: 1.2 on 01/10/2020 is excluded too.
+    expect(within(chart).getAllByTestId('excluded-point').map(point => point.getAttribute('data-exclusion'))).toEqual(['aki', 'aki', 'aki'])
   })
 
   it('puts an episode without a same-date measurement on the time axis, not on an unrelated value', () => {
@@ -1156,10 +1203,10 @@ describe('AKI display in workspace charts', () => {
     expect(screen.getByLabelText('AKI windows and episodes')).not.toBeChecked()
     closeDisplay()
     const chart = screen.getByRole('region', { name: 'Chart Kreatinin [mg/dl]' })
-    expect(within(chart).getAllByTestId('excluded-point')).toHaveLength(2)
+    expect(within(chart).getAllByTestId('excluded-point')).toHaveLength(3)
     expect(within(chart).queryAllByTestId('aki-marker')).toHaveLength(0)
     const table = screen.getByRole('table', { name: 'Measurements Kreatinin [mg/dl]', hidden: true })
-    expect(within(table).getAllByText('Excluded: AKI window')).toHaveLength(2)
+    expect(within(table).getAllByText('Excluded: AKI window')).toHaveLength(3)
   })
 
   it('marks episodes for every overlay trajectory but windows and labels only for the highlighted one', () => {

@@ -8,6 +8,9 @@ import type { LabRow } from '../../../src/core/types'
 import type { AnalysisFitInputContribution } from '../../../src/core/analysis/types'
 import type { ClinicalEvent } from '../../../src/core/events/events'
 import { ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
+import type { FitConfig } from '../../../src/core/analysis/fitConfig'
+// The extrapolation to CKD G5 is off in every preset since 2026-11-22 (issue #81).
+const withProjection = (config: FitConfig): FitConfig => ({ ...config, endpoints: { ...config.endpoints, projectedAgeToCkdG5: true } })
 import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 
 function row(p: Partial<LabRow>): LabRow {
@@ -133,7 +136,10 @@ describe('buildCohortRows cell overlays', () => {
   it('aki-aware mode: excluded points listed, slope below global', () => {
     const g = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global' }])[0].cells[0]
     const a = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'aki-aware', exclusionDays: 30 }])[0].cells[0]
-    expect(a.excludedIdx).toEqual([4, 5])
+    // Since 2026-11-22 (row akiwin) the window runs from the onset (2020-08-01) to 90 days after the last day of
+    // the episode (2020-08-03, the recovery window of its last value; the gap before 2020-08-10 ended it): to
+    // 2020-11-01, so 1.2 on 2020-10-01 is excluded as well (until then the 30 days to 2020-08-31).
+    expect(a.excludedIdx).toEqual([4, 5, 6])
     expect(a.slope).toBeLessThan(g.slope)
     expect(a.fitLines).toHaveLength(1)
   })
@@ -142,7 +148,7 @@ describe('buildCohortRows cell overlays', () => {
     const fitConfig = generalExplorationConfig({ bezeichnung: 'Kreatinin', einheit: 'mg/dl' })
     fitConfig.exclusions.excludeAkiWindows = true
     const c = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig }])[0].cells[0]
-    expect(c.excludedIdx).toEqual([4, 5])
+    expect(c.excludedIdx).toEqual([4, 5, 6])
     expect(c.slope).toBeLessThan(g.slope)
     expect(c.fitLines[0][1].value).toBeLessThan(g.fitLines[0][1].value)
   })
@@ -152,7 +158,13 @@ describe('buildCohortRows cell overlays', () => {
     ]
     const spec: CohortSeriesSpec = { bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'aki-aware', exclusionDays: 0, fitInputs }
     const cell = buildCohortRows(spiky, [1], [spec])[0].cells[0]
-    expect(cell.excludedIdx).toEqual([4])
+    // Since 2026-11-22 the spec length is the shorter fallback window; five dates over two years remain with
+    // the longer window, so it applies (until then the length 0 excluded the onset date only: [4]).
+    expect(cell.excludedIdx).toEqual([4, 5, 6])
+    // A prepared input without the last days (older shape) counts the longer window from the onset.
+    const [input] = fitInputs as Array<AnalysisFitInputContribution & { lastDays?: Date[] }>
+    const withoutLastDays = buildCohortRows(spiky, [1], [{ ...spec, fitInputs: [{ ...input, lastDays: undefined }] }])[0].cells[0]
+    expect(withoutLastDays.excludedIdx).toEqual([4, 5, 6])
   })
   it('non-creatinine cell in aki-aware mode gets cross-series bands from creatinine', () => {
     const egfr = spiky.map((r) => ({ ...r, bezeichnung: 'eGFR (CKD-EPI 2021, computed)', einheit: 'ml/min/1,73m²', wertNum: 60 - (r.wertNum! - 1) * 20 }))
@@ -179,8 +191,8 @@ describe('buildCohortRows cell overlays', () => {
     fitConfig.timeBalancing = 'raw'
     const transplant: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', date: d('2021-01-01T00:00:00Z'), title: 'Tx', description: null, endDate: null, intent: null, warning: '' }
     const cell = buildCohortRows(spiky, [1], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode: 'global', fitConfig, clinicalEvents: [transplant] }])[0].cells[0]
-    expect(cell.excludedIdx).toEqual([4, 5, 7])
-    expect(cell.pointExclusionReasons).toEqual([[], [], [], [], ['aki'], ['aki'], [], ['post_kidney_transplant']])
+    expect(cell.excludedIdx).toEqual([4, 5, 6, 7])
+    expect(cell.pointExclusionReasons).toEqual([[], [], [], [], ['aki'], ['aki'], ['aki'], ['post_kidney_transplant']])
     // Same aligned contract: non-empty exactly at excludedIdx.
     expect(cell.pointExclusionReasons.flatMap((r, i) => r.length ? [i] : [])).toEqual(cell.excludedIdx)
   })
@@ -247,7 +259,7 @@ describe('buildCohortRows cell overlays', () => {
       bezeichnung: 'eGFR',
       einheit: 'ml/min/1,73m²',
       mode: 'global',
-      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+      fitConfig: withProjection(ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' })),
       clinicalEventsByPatient: { 1: [transplant] },
     }
 
@@ -266,7 +278,7 @@ describe('buildCohortRows cell overlays', () => {
     const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
     const rows = [['2020-01-01', 14], ['2020-05-01', 13], ['2021-01-01', 65]].map(([date, value]) => row({ ...parameter, labDatum: d(date as string), wertNum: value as number }))
     const event: ClinicalEvent = { patientId: 1, type: 'dialysis', intent: 'chronic', date: d('2020-08-01'), endDate: null, title: 'Dialysis', description: null, warning: '' }
-    const fitConfig = ckdProgressionConfig(parameter)
+    const fitConfig = withProjection(ckdProgressionConfig(parameter))
     fitConfig.endpoints.observedCkdG5 = false
     const spec = { ...parameter, mode: 'global' as const, fitConfig, clinicalEvents: [event] }
     const disabled = buildCohortRows(rows, [1], [spec])[0].cells[0]
@@ -321,7 +333,7 @@ describe('buildCohortRows cell overlays', () => {
     const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
     const rows = [row({ ...parameter, labDatum: d('2020-01-01'), wertNum: 45 })]
     const event: ClinicalEvent = { patientId: 1, type: 'kidney_transplant', intent: null, date: d('2020-01-01'), endDate: null, title: 'Transplant', description: null, warning: '' }
-    const cohort = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: ckdProgressionConfig(parameter), clinicalEvents: [event] }])
+    const cohort = buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig: withProjection(ckdProgressionConfig(parameter)), clinicalEvents: [event] }])
     const cell = cohort[0].cells[0]
     expect(cell.points).toHaveLength(1)
     expect(cell.endpoints.endpointPointCount).toBe(0)

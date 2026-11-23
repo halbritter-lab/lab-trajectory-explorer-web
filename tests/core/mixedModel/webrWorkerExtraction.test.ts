@@ -5,7 +5,6 @@ import {
   type MixedModelConfig,
 } from '../../../src/core/mixedModel/config'
 import {
-  MIXED_MODEL_TOLERANCE,
   type MixedModelMetadata,
 } from '../../../src/core/mixedModel/types'
 import { normalizeExtractedFitResult } from '../../../src/core/mixedModel/webrResultNormalization'
@@ -49,7 +48,6 @@ const metadata: MixedModelMetadata = {
   wasmAssetSource: 'local-dev',
   optimizer: null,
   reml: true,
-  tolerance: MIXED_MODEL_TOLERANCE,
   datasetId: 'dataset-1',
   datasetHash: 'hash-1',
   randomSeed: null,

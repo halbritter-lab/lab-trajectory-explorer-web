@@ -141,9 +141,21 @@ describe('before/after comparison in cohort cells', () => {
   const spec = (config = generalExplorationConfig(parameter), exclusionDays = 0): CohortSeriesSpec =>
     ({ ...cohortSeriesSpec(parameter, config, { clinicalEventsByPatient: clinicalEventsByPatient(events) }), anchorComparison: { rule: { kind: 'first' }, exclusionDays } })
 
+  // Since 2026-11-22 every preset censors from a transplant on; a column that
+  // includes those values fits them as a separate segment, and the comparison
+  // uses them for its after side.
+  const including = { ...generalExplorationConfig(parameter), censoring: { ...generalExplorationConfig(parameter).censoring, censorAfterKidneyTransplant: false } }
+
+  it('has no after side at a transplant under the default censoring of General exploration', () => {
+    const cell = buildCohortRows(rows, ['P'], [spec()])[0].cells[0]
+    expect(cell.anchorComparison!.before!.nFitted).toBe(3)
+    expect(cell.anchorComparison!.after!.nFitted).toBe(0)
+    expect(cell.krtSegment).toBeUndefined()
+  })
+
   it('is an additional result: slope, exclusions and counts of the column stay as without it', () => {
-    const plain = buildCohortRows(rows, ['P'], [{ ...spec(), anchorComparison: undefined }])[0].cells[0]
-    const cell = buildCohortRows(rows, ['P'], [spec(generalExplorationConfig(parameter), 40)])[0].cells[0]
+    const plain = buildCohortRows(rows, ['P'], [{ ...spec(including), anchorComparison: undefined }])[0].cells[0]
+    const cell = buildCohortRows(rows, ['P'], [spec(including, 40)])[0].cells[0]
     expect(plain.anchorComparison).toBeUndefined()
     expect(cell.slope).toBe(plain.slope)
     expect(cell.ciLow).toBe(plain.ciLow)
@@ -169,15 +181,19 @@ describe('demo workbook example (method reference)', () => {
   const analysis = computeAnalysisResult({ rows: dataset.rows, manualDemographics: {}, patientAttributes: dataset.patientAttributes, events: dataset.events, settings: defaultAnalysisSettings() })
   const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
   const cellFor = (patientId: number, exclusionDays: number) => buildCohortRows(analysis.rows, [patientId], [{
-    ...cohortSeriesSpec(parameter, generalExplorationConfig(parameter), { clinicalEventsByPatient: clinicalEventsByPatient(dataset.events) }),
+    ...cohortSeriesSpec(parameter, { ...generalExplorationConfig(parameter), censoring: { ...generalExplorationConfig(parameter).censoring, censorAfterKidneyTransplant: false } }, { clinicalEventsByPatient: clinicalEventsByPatient(dataset.events) }),
     anchorComparison: { rule: { kind: 'type', value: 'kidney_transplant' }, exclusionDays },
   }])[0].cells[0]
 
-  it('patient 13, imported eGFR, general exploration, anchor of type kidney_transplant', () => {
+  it('patient 13, imported eGFR, general exploration with the values after the transplant included, anchor of type kidney_transplant', () => {
     const cell = cellFor(13, 0)
     const comparison = cell.anchorComparison!
     expect(comparison.anchor?.date).toEqual(day('2022-07-01'))
-    expect(cell.slope).toBeCloseTo(4.372, 3)
+    // The column's slope is that of the values before the transplant since
+    // 2026-11-22 (4.372 across it before); the values after it are a separate segment.
+    expect(cell.slope).toBeCloseTo(-12.828, 3)
+    expect(cell.krtSegment!.fit).toMatchObject({ nFitted: 3, fittedSpanDays: 365 })
+    expect(cell.krtSegment!.fit.slope).toBeCloseTo(-8.005, 3)
     expect(comparison.before).toMatchObject({ nFitted: 6, fittedSpanDays: 882 })
     expect(comparison.before!.slope).toBeCloseTo(-12.828, 3)
     expect(comparison.before!.ciLow).toBeCloseTo(-13.320, 3)

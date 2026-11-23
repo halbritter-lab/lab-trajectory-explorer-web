@@ -147,7 +147,7 @@ export function Fits() { return <>
           percent change from the first to latest eligible measurement,
           independent observed G4 (&lt;30) and G5 (&lt;15), and projected age to G5.
           Endpoints use dated exact numeric eGFR measurements before the first kidney transplant
-          or chronic dialysis start and outside complete dated acute dialysis intervals,
+          or chronic dialysis start, not after a recorded death and outside complete dated acute dialysis intervals,
           independently of time balancing. AKI exclusion applies to the decline baseline and the
           G5 projection only; see <a href="#methods/endpoints">Endpoints</a>. Kidney replacement therapy
           is reported separately as kidney failure reached with its type and date, independently
@@ -179,8 +179,10 @@ export function Fits() { return <>
         </li>
       </ul>
       <p>Values marked &lt; or &gt; are bounds. They remain visible with their numeric
-        limits and count as raw numeric measurements, but are excluded from slopes,
-        endpoint evaluation and projection, AKI detection, and cohort mixed models.
+        limits and count as raw numeric measurements. In slopes and trend lines they enter as
+        the parameter’s setting “Bounded values” says (by default at their limit);
+        they are excluded from endpoint evaluation and projection, AKI detection, and cohort
+        mixed models.
         Exact measurements on the same date remain eligible.</p>
 </section>
 </details><details className="methodology-detail"><summary>Analysis Presets</summary>
@@ -193,7 +195,8 @@ export function Fits() { return <>
       <ul>
         <li>
           <strong>General exploration</strong> (the starting configuration) — OLS on raw
-          measurements; no event censoring, no AKI exclusion, no time balancing, no endpoints.
+          measurements; values censored from kidney transplant and from chronic dialysis start;
+          no AKI exclusion, no time balancing, no endpoints.
         </li>
         <li>
           <strong>Theil–Sen robust trend</strong> — General exploration with the Theil–Sen
@@ -203,12 +206,12 @@ export function Fits() { return <>
           <strong>CKD progression</strong> — OLS on quarterly medians; values censored from kidney
           transplant and from chronic dialysis start; acute dialysis intervals and dated dialysis
           intervals of unknown intent excluded; a 30-day window after each AKI onset excluded;
-          percent decline, observed G4, observed G5 and projected age to G5 switched on, with a
+          percent decline, observed G4 and observed G5 switched on (projected age to G5 off), with a
           90-day minimum confirmation interval.
         </li>
         <li>
-          <strong>Acute review</strong> — raw measurements without a fit; no event censoring, no
-          AKI exclusion, no endpoints.
+          <strong>Acute review</strong> — raw measurements without a fit; values after kidney
+          transplant and chronic dialysis start marked as censored; no AKI exclusion, no endpoints.
         </li>
       </ul>
       <p>

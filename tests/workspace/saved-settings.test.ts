@@ -25,8 +25,26 @@ describe('restoreSavedSettings', () => {
     expect(restored.trajectoryView).toEqual(value.trajectoryView)
   })
 
+  // Issue #73: the bounded-value setting is kept; a copy saved before it existed gets the default.
+  it('keeps the bounded-value setting and defaults it for older copies', () => {
+    const value = saved()
+    value.trajectoryFitSettings.columns[EGFR] = { ...defaultFitSettings(), presetId: 'custom', boundedValues: 'half-limit' }
+    expect(restoreSavedSettings(JSON.parse(JSON.stringify(value)), keys).trajectoryFitSettings.columns[EGFR].boundedValues).toBe('half-limit')
+    const old = JSON.parse(JSON.stringify(saved()))
+    delete old.trajectoryFitSettings.shared.boundedValues
+    delete old.trajectoryFitSettings.columns[EGFR].boundedValues
+    const restored = restoreSavedSettings(old, keys)
+    expect(restored.notRestored).toEqual([])
+    expect(restored.keptAsCustom).toEqual([])
+    expect(restored.trajectoryFitSettings.shared.boundedValues).toBe('limit')
+    expect(restored.trajectoryFitSettings.columns[EGFR]).toEqual(defaultFitSettings('ckd_progression'))
+    const invalid = JSON.parse(JSON.stringify(saved()))
+    invalid.trajectoryFitSettings.columns[EGFR].boundedValues = 'zero'
+    expect(restoreSavedSettings(invalid, keys).notRestored).toEqual([`own settings of ${'eGFR'} [ml/min/1,73m²]`])
+  })
+
   it('uses the defaults without a complaint for a copy saved before settings were kept', () => {
-    expect(restoreSavedSettings(undefined, keys)).toEqual({ trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [] })
+    expect(restoreSavedSettings(undefined, keys)).toEqual({ trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [], projectionOn: [], language: null })
   })
 
   it('discards settings of another settings version as a whole', () => {
@@ -115,6 +133,19 @@ describe('a saved preset whose definition has changed', () => {
     expect(restored.trajectoryFitSettings.shared).toEqual({ ...defaultFitSettings(), presetId: 'custom', timeBalancing: 'monthly-median' })
     expect(restored.keptAsCustom).toEqual(['shared settings', 'own settings of eGFR [ml/min/1,73m²]'])
     expect(restored.notRestored).toEqual([])
+  })
+  it('gives settings saved before 2026-11-22 the 90 days after the episode end and keeps their preset', () => {
+    // Row akiwin: settings saved before have no akiDaysAfterEnd; they get the default, as the preset now has it.
+    const value = JSON.parse(JSON.stringify(saved())) as Record<string, any>
+    delete value.trajectoryFitSettings.columns[EGFR].exclusions.akiDaysAfterEnd
+    delete value.trajectoryFitSettings.shared.exclusions.akiDaysAfterEnd
+    const restored = restoreSavedSettings(value, keys)
+    expect(restored.trajectoryFitSettings.columns[EGFR]).toEqual(defaultFitSettings('ckd_progression'))
+    expect(restored.trajectoryFitSettings.columns[EGFR].exclusions.akiDaysAfterEnd).toBe(90)
+    expect(restored.keptAsCustom).toEqual([])
+    expect(restored.notRestored).toEqual([])
+    value.trajectoryFitSettings.columns[EGFR].exclusions.akiDaysAfterEnd = -1
+    expect(restoreSavedSettings(value, keys).notRestored).toEqual(['own settings of eGFR [ml/min/1,73m²]'])
   })
   it('leaves settings that match their preset, and custom settings, alone', () => {
     const value = JSON.parse(JSON.stringify(saved())) as Record<string, any>

@@ -50,3 +50,27 @@ export function isUnstableSlope({ reason, nFitted, nFittedDates, fittedSpanDays,
   if (fittedSpanDays < 365) return true
   return reason === 'span_too_short'
 }
+
+/** Distinct fitted dates a "reliable" slope needs (decision `minfu`, 2026-11-22). */
+export const RELIABLE_SLOPE_MIN_DATES = 4
+/** Fitted span a "reliable" slope needs: two years of 365.25 days. Spans are
+ * whole days, so this means at least 731 days. */
+export const RELIABLE_SLOPE_MIN_SPAN_DAYS = 2 * 365.25
+
+/** The tier of a slope (decision `minfu`, 2026-11-22). `uncertain`: the
+ * reliability rule above is met (`unstable_slope = yes`); `estimable`: it is
+ * not; `reliable`: in addition at least four distinct fitted dates over at
+ * least two years of fitted span. */
+export type SlopeTier = 'uncertain' | 'estimable' | 'reliable'
+
+/**
+ * The tier of a fitted slope, or null when there is no slope to qualify (fit
+ * model `none`, or no finite slope). Counts fitted dates and the fitted span,
+ * never `nNumeric`. A layer over `isUnstableSlope`, which stays the gate of
+ * the rapid-decline flag and the source of `unstable_slope`.
+ */
+export function slopeTier(input: SlopeQualityInput & { slope: number }): SlopeTier | null {
+  if (input.fitModel === 'none' || !Number.isFinite(input.slope)) return null
+  if (isUnstableSlope(input)) return 'uncertain'
+  return input.nFittedDates >= RELIABLE_SLOPE_MIN_DATES && input.fittedSpanDays >= RELIABLE_SLOPE_MIN_SPAN_DAYS ? 'reliable' : 'estimable'
+}

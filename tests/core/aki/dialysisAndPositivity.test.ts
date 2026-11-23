@@ -68,7 +68,12 @@ describe('AKI detection leaves out creatinine measured under dialysis', () => {
   const transplant = event({ type: 'kidney_transplant', intent: null, date: d('2021-06-01') })
 
   it('detects everything without events', () => {
-    expect(episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl').map((e) => day(e.date))).toEqual(['2020-01-03', '2020-04-02', '2021-07-02'])
+    // Since 2026-11-22 (row akifirst) 4.0 on 1 April, the first value of an admission, is compared with the
+    // mean of 1.0 and 1.7 (90 and 88 days before): 4.0 / 1.35 = 2.96, stage III from that day, not from 2 April.
+    // 1.2 on 1 July 2021 has no value 7 to 365 days before and stays without a baseline.
+    expect(episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl').map((e) => day(e.date))).toEqual(['2020-01-03', '2020-04-01', '2021-07-02'])
+    expect(episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl').map((e) => [e.criterion, e.baselineValue, e.baselineN])).toEqual([
+      ['absolute_0_3_mg_dl_48h', 1, 1], ['relative_1_5x_lookback_mean', 1.35, 2], ['absolute_0_3_mg_dl_48h', 1.2, 1]])
     // Each gap of more than seven days ends the open episode at the first value after it (2026-11-22).
     expect(episodesForSeries(rows, 1, 'Kreatinin', 'mg/dl').map((e) => e.endDate && day(e.endDate))).toEqual(['2020-04-01', '2021-07-01', null])
   })

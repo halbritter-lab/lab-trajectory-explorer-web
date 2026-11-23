@@ -8,16 +8,19 @@ import { buildSlopeLines, rollingWindowLine, type LinePoint } from '../stats/slo
 import type { AnalysisFitInputContribution, CohortFlag, EndpointContext, SeriesOverlay } from '../analysis/types'
 import { moduleCellFlags, moduleEndpoints, moduleExportValues, type CellEndpoints, type ColumnModuleSettings } from '../analysis/registry'
 import { collectSeriesContributions, seriesContextFor, seriesRowsFor } from './seriesContributions'
-import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
+import type { EndpointBound, EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ClinicalEvent } from '../events/events'
 import { applyExclusionWindows, exclusionReasonsAt, type ExclusionWindow } from '../exclusions/windows'
 import type { FitConfig } from '../analysis/fitConfig'
 import type { TimeBalancing } from '../fitPipeline/types'
-import { isUnstableSlope } from '../stats/slopeQuality'
+import { isUnstableSlope, slopeTier } from '../stats/slopeQuality'
 import { groupValueForPatient } from '../grouping/grouping'
-import { CENSORED_VALUE_REASON, isExactMeasurement } from '../measurements/censored'
+import { CENSORED_VALUE_REASON, DEFAULT_BOUNDED_VALUE_POLICY, fitValueOf, isExactMeasurement, type BoundedValuePolicy } from '../measurements/censored'
 import { filterEndpointPointsForEvents } from '../domains/nephrology/endpoints/endpointEventPolicy'
+import { doublingTime, expLines, logTransformedRows, type LogTrend } from './logTrend'
 import { compareAtAnchor, type AnchorComparison, type AnchorComparisonSettings } from './anchorComparison'
+import { fitKrtSegment, KRT_SEGMENT_REASON, type KrtSegment } from './krtSegment'
+import { krtSegmentEvent } from '../domains/nephrology/censoring'
 
 
 export interface CohortSeriesSpec {
@@ -44,6 +47,10 @@ export interface CohortSeriesSpec {
   /** Before/after comparison at an anchor event (issue #64); none when omitted.
    * Not part of the fit configuration: it changes no number of the column. */
   anchorComparison?: AnchorComparisonSettings
+  /** Also fit the series on ln(value) for the column's logarithmic y axis
+   * (issue #70); none when omitted. An additional result: it changes no number
+   * of the column. */
+  logTrend?: boolean
 }
 
 export interface CohortCell {
@@ -60,6 +67,11 @@ export interface CohortCell {
   nFitted: number
   /** Distinct calendar dates among the fitted points (see SeriesSummary). */
   nFittedDates: number
+  /** Fitted points that are bounded values or medians of a bin holding one
+   * (see SeriesSummary.nBounded); 0 under `exclude`. */
+  nBounded: number
+  /** How bounded values entered this cell's fits and lines (issue #73). */
+  boundedValues: BoundedValuePolicy
   fittedSpanDays: number
   spanDays: number
   slope: number // value-units per YEAR (x-axis is fractional years)
@@ -90,6 +102,9 @@ export interface CohortCell {
   /** Module badges known before fitting (e.g. AKI episodes). Badges that
    * depend on the fit and a column setting come from cohortCellFlags. */
   flags: CohortFlag[]
+  /** Export values the modules contributed for this cell (for AKI: the
+   * window rule and the number of excluded measurements). */
+  moduleValues?: Record<string, string | number>
   /** Module chart overlays for this cell (e.g. AKI windows and episodes),
    * drawn whether or not the fit excludes them. */
   overlays: SeriesOverlay[]
@@ -105,6 +120,14 @@ export interface CohortCell {
    * event and the slopes on either side. An additional result; `slope`,
    * flags and endpoints stay those of the whole series. */
   anchorComparison?: AnchorComparison
+  /** Present when the spec asks for the log axis: the trend of ln(value) and
+   * the doubling or halving time derived from it. */
+  logTrend?: LogTrend
+  /** Present when the column includes the values after the patient's first
+   * kidney transplant or chronic dialysis start (its censoring option is off,
+   * decided 2026-11-22): their fit as a separate segment. An additional
+   * result; `slope`, flags and endpoints stay those of the values before it. */
+  krtSegment?: KrtSegment
 }
 
 export interface RollingSummary {
@@ -194,7 +217,9 @@ export function buildCohortRows(
       const fitEventDates = spec.eventDatesByPatient?.[pid] ?? spec.eventDates ?? windows.censoring.map((window) => window.start)
       const displayName = (name: string | null) => name ?? '(unnamed)'
       const displayUnit = (unit: string | null) => unit ?? '(no unit)'
-      const summaries = summarizeByBezeichnung(prows, pid, spec.mode, {
+      const boundedValues = spec.fitConfig?.boundedValues ?? DEFAULT_BOUNDED_VALUE_POLICY
+      // The same fit run for the column and, on log values, for its log axis.
+      const summarize = (patientRows: LabRow[], policy: BoundedValuePolicy = boundedValues) => summarizeByBezeichnung(patientRows, pid, spec.mode, {
         gapDays: spec.gapDays,
         windowDays: spec.windowDays,
         stepDays: spec.stepDays,
@@ -202,27 +227,33 @@ export function buildCohortRows(
         eventDates: fitEventDates,
         fitModel: spec.fitConfig?.fitModel,
         timeBalancing: spec.fitConfig?.timeBalancing,
+        boundedValues: policy,
         // Only the spec's own series is read below; windows are resolved for it.
         exclusionWindows: (series) =>
           displayName(series.bezeichnung) === spec.bezeichnung && displayUnit(series.einheit) === displayUnit(spec.einheit ?? null)
             ? windows
             : undefined,
-      })
-      const match = summaries.find((s) => s.bezeichnung === spec.bezeichnung && s.einheit === (spec.einheit ?? '(no unit)'))
+      }).find((s) => s.bezeichnung === spec.bezeichnung && s.einheit === (spec.einheit ?? '(no unit)'))
+      const match = summarize(prows)
       const allWindows = [...windows.censoring, ...windows.exclusions]
       const excluded = new Set(applyExclusionWindows(points, allWindows).excludedIdx)
-      const excludedIdx = points.flatMap((_, i) => excluded.has(i) || !isExactMeasurement(seriesRows[i]) ? [i] : [])
+      // The value each point enters the fit with; null for a bound the policy leaves out.
+      const fitValues = seriesRows.map((row) => fitValueOf(row, boundedValues))
+      const excludedIdx = points.flatMap((_, i) => excluded.has(i) || fitValues[i] === null ? [i] : [])
       const pointExclusionReasons = points.map((point, i) =>
-        [...(!isExactMeasurement(seriesRows[i]) ? [CENSORED_VALUE_REASON] : []), ...(excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])])
+        [...(fitValues[i] === null ? [CENSORED_VALUE_REASON] : []), ...(excluded.has(i) ? exclusionReasonsAt(point.date, allWindows) : [])])
+      // Points as the fit sees them: bounds at their policy value and marked.
+      const fitInputPoints: SeriesPoint[] = points.map((point, i) => fitValues[i] === null || isExactMeasurement(seriesRows[i])
+        ? point : { date: point.date, value: fitValues[i]!, bounded: true })
       const fitModel = scalarFitModelFor(spec.mode, spec.fitConfig?.fitModel)
       // One list for the endpoint input and the eligible dates, so both describe the same rows.
       const eligible = eventEligiblePoints(cellEvents(spec, pid), seriesRows)
       const endpoints = moduleEndpoints(endpointContext(spec, pid, seriesRows, fitModel, windows.exclusions, eligible))
-      const exactPoints = points.filter((_, i) => isExactMeasurement(seriesRows[i]))
-      const fitLines = exactPoints.length < 2
+      const linePoints = fitInputPoints.filter((_, i) => fitValues[i] !== null)
+      const slopeLines = (linePoints: SeriesPoint[]) => linePoints.length < 2
         ? []
         : buildSlopeLines(
-            exactPoints,
+            linePoints,
             {
               mode: spec.mode,
               gapDays: spec.gapDays ?? 180,
@@ -235,10 +266,25 @@ export function buildCohortRows(
               exclusionWindows: windows,
             },
           )
+      const fitLines = slopeLines(linePoints)
+      // Log axis of the column (issue #70): the same fit on ln(value), an additional result.
+      const logTrend = spec.logTrend ? logTrendFor(prows, seriesRows, boundedValues, summarize, slopeLines) : undefined
       const eligibleRows = eligible.map(point => point.row)
-      // The same points the column's fit can use: exact and outside every window.
+      // Exact points whose only reason is the KRT segment window: the values
+      // after KRT that the column includes, fitted as their own segment.
+      const inSegment = (reasons: string[]) => reasons.length === 1 && reasons[0] === KRT_SEGMENT_REASON
+      const krtSegment = fitKrtSegment({
+        event: krtSegmentEvent(cellEvents(spec, pid), spec.fitConfig?.censoring),
+        // Bounds at their policy value, as in the column's own fit (issue #73).
+        points: fitInputPoints,
+        segmentIdx: pointExclusionReasons.flatMap((reasons, i) => inSegment(reasons) ? [i] : []),
+        fitModel,
+        timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw',
+      })
+      // The points the column's fit can use: exact and outside every window;
+      // with the values after KRT included, those of the segment as well.
       const anchorComparison = spec.anchorComparison
-        ? compareAtAnchor({ points, available: pointExclusionReasons.map(reasons => reasons.length === 0), events: cellEvents(spec, pid), settings: spec.anchorComparison, fitModel, timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw' })
+        ? compareAtAnchor({ points: fitInputPoints, available: pointExclusionReasons.map(reasons => reasons.length === 0 || inSegment(reasons)), events: cellEvents(spec, pid), settings: spec.anchorComparison, fitModel, timeBalancing: spec.fitConfig?.timeBalancing ?? 'raw' })
         : undefined
       const slope = match?.slope ?? Number.NaN
       const rolling: RollingSummary | undefined = spec.mode === 'rolling' && fitModel !== 'none' && match && match.nFitted > 0
@@ -252,6 +298,8 @@ export function buildCohortRows(
         nNumeric: match?.nNumeric ?? 0,
         nFitted: match?.nFitted ?? match?.nNumeric ?? 0,
         nFittedDates: match?.nFittedDates ?? 0,
+        nBounded: match?.nBounded ?? 0,
+        boundedValues,
         fittedSpanDays: match?.fittedSpanDays ?? 0,
         spanDays: match?.spanDays ?? 0,
         slope,
@@ -273,11 +321,14 @@ export function buildCohortRows(
         fitLines,
         ...(rolling ? { rolling } : {}),
         flags: contributions.flags,
+        ...(Object.keys(contributions.values).length ? { moduleValues: contributions.values } : {}),
         overlays: contributions.overlays,
         excludedIdx,
         pointExclusionReasons,
         endpoints,
         ...(anchorComparison ? { anchorComparison } : {}),
+        ...(logTrend ? { logTrend } : {}),
+        ...(krtSegment ? { krtSegment } : {}),
       }
     })
     const groupValue = attributeName
@@ -288,6 +339,52 @@ export function buildCohortRows(
 }
 
 const MS_PER_YEAR = 365.25 * 86_400_000
+
+/** The column's fit run again on ln(value) of its series: same mode, estimator,
+ * windows, time balancing and bounded-value policy. A bound enters at the log
+ * of its policy value (ln(x/2) for `<x` under half limit). Values of zero or
+ * less are left out. */
+function logTrendFor(
+  patientRows: LabRow[],
+  seriesRows: LabRow[],
+  boundedValues: BoundedValuePolicy,
+  summarize: (rows: LabRow[], policy?: BoundedValuePolicy) => SeriesSummary | undefined,
+  slopeLines: (points: SeriesPoint[]) => LinePoint[][],
+): LogTrend {
+  const series = new Set(seriesRows)
+  // Substitute before the logarithm; the log run then takes the bound's log value as it is ('limit').
+  const substituted = boundedValues === 'half-limit'
+    ? patientRows.map((row) => series.has(row) && row.wertOperator === '<' && row.wertNum !== null ? { ...row, wertNum: row.wertNum / 2 } : row)
+    : patientRows
+  const substitutedSeries = new Set(substituted.filter((_row, i) => series.has(patientRows[i])))
+  const { rows, nNonPositive } = logTransformedRows(substituted, (row) => substitutedSeries.has(row))
+  const match = summarize(rows, boundedValues === 'exclude' ? 'exclude' : 'limit')
+  const logPoints = seriesRows.flatMap((row) => {
+    const value = fitValueOf(row, boundedValues)
+    return value === null || value <= 0 ? [] : [{ date: row.labDatum!, value: Math.log(value) }]
+  })
+  const slope = match?.slope ?? Number.NaN
+  const ciLow = match?.ciLow ?? Number.NaN
+  const ciHigh = match?.ciHigh ?? Number.NaN
+  const doubling = doublingTime(slope, ciLow, ciHigh)
+  return {
+    slope, ciLow, ciHigh,
+    slopeSe: match?.slopeSe ?? Number.NaN,
+    r2: match?.r2 ?? Number.NaN,
+    intercept: match?.intercept ?? Number.NaN,
+    nFitted: match?.nFitted ?? match?.nNumeric ?? 0,
+    nFittedDates: match?.nFittedDates ?? 0,
+    fittedSpanDays: match?.fittedSpanDays ?? 0,
+    firstFittedDate: match?.firstFittedDate ?? null,
+    lastFittedDate: match?.lastFittedDate ?? null,
+    reason: match ? match.reason : 'no_numeric_values',
+    nNonPositive,
+    doublingTimeYears: doubling.years,
+    doublingCiLow: doubling.ciLow,
+    doublingCiHigh: doubling.ciHigh,
+    fitLines: expLines(slopeLines(logPoints)),
+  }
+}
 
 /** Rows carrying an age, oldest first; computed once per series for ageAtDate. */
 function ageAnchorsFor(rows: LabRow[]): LabRow[] {
@@ -344,6 +441,12 @@ function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRow
   }
   const points = (withAges: boolean) => pointsOf(endpointRows, withAges)
   const fitPoints = (withAges: boolean) => pointsOf(fitRows, withAges)
+  // Bounds under the same event rules as the exact rows; whatever the column's
+  // bounded-value policy, they enter no endpoint (decided 2026-11-22).
+  const bounds = (): EndpointBound[] => filterEndpointPointsForEvents(
+    seriesRows.filter(row => (row.wertOperator === '<' || row.wertOperator === '>') && Number.isFinite(row.wertNum) && Number.isFinite(row.labDatum!.getTime()))
+      .map(row => ({ date: row.labDatum!, value: row.wertNum!, ageYears: null, operator: row.wertOperator as '<' | '>', limit: row.wertNum! })), events,
+  ).map(({ date, operator, limit }) => ({ date, operator, limit }))
   return {
     patientId,
     seriesKey: { bezeichnung: spec.bezeichnung, einheit: spec.einheit ?? null },
@@ -354,6 +457,7 @@ function endpointContext(spec: CohortSeriesSpec, patientId: PatientId, seriesRow
     scalarFitModel,
     points,
     fitPoints,
+    bounds,
     ageBasis: exactBirthDate ? 'birth_date' : 'whole_years',
     fit: () => {
       if (scalarFitModel === 'none') return { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
@@ -394,12 +498,13 @@ export interface CohortExportRecord {
   demographics_conflict: string
   // Module columns follow here in registry order: e.g. `aki` (the AKI chip),
   // `rapid_progression` ('yes' for a rapid eGFR decline under the column's
-  // threshold) and the CKD endpoint columns (`endpoint_*`). The rolling
+  // threshold with the whole 95 % interval below it, 'possible' when only the
+  // slope is) and the CKD endpoint columns (`endpoint_*`). The rolling
   // columns (`rolling_*`) come last, appended so positional readers keep
   // working; they are filled for slope mode `rolling` only. The fit dates,
   // `intercept`, `slope_se` and `n_fitted_dates` follow them, then
-  // `first_eligible_value` and `last_eligible_value`, appended for the same
-  // reason.
+  // `first_eligible_value` and `last_eligible_value`, then `n_bounded`,
+  // appended for the same reason.
   [moduleColumn: string]: string | number | undefined
 }
 
@@ -415,15 +520,21 @@ export const EXPORT_DISCLAIMER_ROWS: Record<string, unknown>[] = [
   { note: 'Lab Trajectory Explorer export' },
   { note: 'Research use only — not a medical device, not for clinical decision-making.' },
   { note: 'Slopes are per year (value-units/yr; eGFR in mL/min/1.73m2/yr).' },
-  { note: 'eGFR series whose name ends in ", computed)", for example "eGFR (CKD-EPI 2021, computed)", are calculated by the app from serum creatinine, age and sex (adults only); other eGFR series are used as imported. AKI episodes use the KDIGO creatinine criterion only (urine output not evaluated).' },
+  { note: 'eGFR series whose name ends in ", computed)", for example "eGFR (CKD-EPI 2021, computed)", are calculated by the app from serum creatinine, age, sex and, for children, height: from 18 years by the named adult formula; from 1 to 17 years, by the default of the setting Under 18 years, CKiD U25 where a height in cm (a series named Größe, Körpergröße or height) lies on the creatinine date or within 90 days on both sides (30 days under 2 years), otherwise EKFC from 2 years and no value at 1 year (the full-age formula CKiD U25 / EKFC applies this rule up to 25 years and EKFC after); no eGFR under 1 year. The column egfr_equation names the equation of each computed value. Other eGFR series are used as imported. AKI episodes use the KDIGO creatinine criterion only (urine output not evaluated).' },
   { note: 'All derived values are algorithmic estimates requiring independent clinical verification.' },
-  { note: 'Bounds (<x, >x), including bounds on derived eGFR, remain visible and count as raw numeric rows but are excluded from fits, endpoints, AKI detection and mixed models. Exact rows on the same date remain eligible.' },
+  { note: 'Bounds (<x, >x), including bounds on derived eGFR, remain visible and count as raw numeric rows. In the slope fits and lines of a parameter they enter as its setting boundedValues in fit_config says: limit (both at x, the default since 2026-11-22), half-limit (<x at x/2, >x at x) or exclude (left out, the only rule before). n_bounded counts the fitted points that are bounds or medians of a month or quarter holding one; the app warns when they are 20 % or more of n_fitted. Substituting limits biases slopes when many values are bounded. Endpoints and projection, AKI detection and mixed models exclude bounds whatever the setting; a bound >x with x at or above 30 (G4) or 15 (G5) only interrupts an unconfirmed G4 or G5 candidate. Exact rows on the same date remain eligible.' },
   { note: 'Observed G4 <30 and G5 <15 use dated exact numeric eGFR measurements before the first kidney transplant or chronic dialysis and outside complete acute dialysis intervals (boundary dates inclusive). KRT is reported separately as kidney failure reached, even without lab-confirmed G5. Confirmation interval is recorded per result.' },
-  { note: 'The 40 % and 57 % decline baseline and the individual endpoint projection also leave out the AKI exclusion windows when the column excludes them from its fit; observed G4/G5, total change and decline events keep those rows.' },
-  { note: 'Individual endpoint projection fits the same endpoint-eligible rows independently of display-fit censoring options and time balancing. It needs at least three distinct measurement dates (five for Theil-Sen) over at least 365 days. Theil-Sen uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
+  { note: 'The decline baseline (40 %, 50 %, 57 %) and the individual extrapolation also leave out the AKI exclusion windows when the column excludes them from its fit; observed G4/G5, total change and decline events keep those rows.' },
+  { note: 'The individual extrapolation to CKD G5 (endpoint_projected_age_to_ckd_g5) is a conditional extrapolation of the fitted trend, not a prognosis. It is off by default and switched on per parameter; whether it was on is recorded in fit_config (endpoints.projectedAgeToCkdG5) of the settings sheet, and its columns are empty while it is off. It fits the same endpoint-eligible rows independently of display-fit censoring options and time balancing. It needs at least four distinct measurement dates over at least three years (KDIGO 2012; five dates for Theil-Sen). Theil-Sen uses separate-median intercept and 95% slope confidence bounds; these are not prediction intervals.' },
 ]
 
 const numOrBlank = (v: number): number | '' => (Number.isNaN(v) ? '' : v)
+
+/** The slope tier of a cell (see `slopeTier`): uncertain, estimable or
+ * reliable; null without a slope. */
+export function cellSlopeTier(cell: Pick<CohortCell, 'reason' | 'nFitted' | 'nFittedDates' | 'fittedSpanDays' | 'fitModel' | 'slope'>) {
+  return slopeTier({ reason: cell.reason, nFitted: cell.nFitted, nFittedDates: cell.nFittedDates, fittedSpanDays: cell.fittedSpanDays, fitModel: cell.fitModel, slope: cell.slope })
+}
 
 /** Every badge of a fitted cell: those known before fitting plus those that
  * depend on the fit and the column's module settings (evaluated only for
@@ -432,6 +543,7 @@ export function cohortCellFlags(cell: CohortCell, patientId: PatientId, columnSe
   return [
     ...cell.flags,
     ...moduleCellFlags({ patientId, seriesKey: { bezeichnung: cell.bezeichnung, einheit: cell.einheit ?? null }, slope: cell.slope, fitModel: cell.fitModel,
+      ciLow: cell.ciLow, ciHigh: cell.ciHigh, nFittedDates: cell.nFittedDates,
       unstableSlope: isUnstableSlope({ reason: cell.reason, nFitted: cell.nFitted, nFittedDates: cell.nFittedDates, fittedSpanDays: cell.fittedSpanDays, fitModel: cell.fitModel }) }, columnSettings),
   ]
 }
@@ -472,7 +584,7 @@ export function cohortExportRecords(
         reason: c.reason ?? '',
         unstable_slope: isUnstableSlope({ reason: c.reason, nFitted: c.nFitted, nFittedDates: c.nFittedDates, fittedSpanDays: c.fittedSpanDays, fitModel: c.fitModel }) ? 'yes' : '',
         demographics_conflict: conflictPatientKeys.has(patientIdKey(r.patientId)) ? 'yes' : '',
-        ...moduleExportValues({ flags: cohortCellFlags(c, r.patientId, settings), endpoints: c.endpoints, fitModel: c.fitModel }),
+        ...moduleExportValues({ flags: cohortCellFlags(c, r.patientId, settings), values: c.moduleValues, endpoints: c.endpoints, fitModel: c.fitModel }),
         rolling_window_days: c.rolling?.windowDays ?? '',
         rolling_step_days: c.rolling?.stepDays ?? '',
         rolling_windows: c.rolling?.nWindows ?? '',
@@ -487,6 +599,17 @@ export function cohortExportRecords(
         n_fitted_dates: c.nFittedDates,
         first_eligible_value: c.firstEligibleValue ?? '',
         last_eligible_value: c.lastEligibleValue ?? '',
+        // Appended 2026-11-22 (issue #73), after every earlier column.
+        n_bounded: c.nBounded,
+        // Then the separate segment after KRT, then the slope tier.
+        krt_segment_start: utcDateOrBlank(c.krtSegment?.event.date ?? null),
+        krt_segment_n_fitted: c.krtSegment?.fit.nFitted ?? '',
+        krt_segment_n_fitted_dates: c.krtSegment?.fit.nFittedDates ?? '',
+        krt_segment_fitted_span_days: c.krtSegment?.fit.fittedSpanDays ?? '',
+        krt_segment_slope: c.krtSegment ? numOrBlank(c.krtSegment.fit.slope) : '',
+        krt_segment_ci_low: c.krtSegment ? numOrBlank(c.krtSegment.fit.ciLow) : '',
+        krt_segment_ci_high: c.krtSegment ? numOrBlank(c.krtSegment.fit.ciHigh) : '',
+        slope_tier: cellSlopeTier(c) ?? '',
       })
     }
   }
@@ -501,9 +624,9 @@ export function cohortExportRecords(
 export function cohortSheetRecord(record: CohortExportRecord, cell: Pick<CohortCell, 'nFitted' | 'fittedSpanDays'>) {
   const { Bezeichnung, Einheit, rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max,
     index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates,
-    first_eligible_value, last_eligible_value, ...fields } = record
+    first_eligible_value, last_eligible_value, n_bounded, ...fields } = record
   return { ...fields, Parameter: Bezeichnung, Unit: Einheit, n_fitted: cell.nFitted, fitted_span_days: cell.fittedSpanDays,
     rolling_window_days, rolling_step_days, rolling_windows, rolling_slope_min, rolling_slope_max,
     index_date, last_fitted_date, first_eligible_date, last_eligible_date, intercept, slope_se, n_fitted_dates,
-    first_eligible_value, last_eligible_value }
+    first_eligible_value, last_eligible_value, n_bounded }
 }

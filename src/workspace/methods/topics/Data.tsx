@@ -35,7 +35,7 @@ export function Data() { return <>
           <strong>EKFC 2021</strong> — creatinine-based European Kidney Function Consortium equation
           published by Pottel et al. in Annals of Internal Medicine. It rescales creatinine by sex-
           and age-specific Q values
-          (age-specific for 18-25 years, then 0.90 mg/dl for male and 0.70 mg/dl for female).
+          (age-specific up to 25 years, then 0.90 mg/dl for male and 0.70 mg/dl for female).
           The{' '}
           <a href="https://www.niddk.nih.gov/research-funding/research-programs/kidney-clinical-research-epidemiology/laboratory/glomerular-filtration-rate-equations/children-adolescents-young-adults" target="_blank" rel="noreferrer">NIDDK</a>{' '}
           notes that the EKFC creatinine equation was developed in a population of White European
@@ -45,10 +45,12 @@ export function Data() { return <>
         </li>
       </ul>
       <p>
-        All computed equations are <strong>adult-only in this app</strong>: eGFR is only computed for patients aged
-        ≥ 18 years at the time of measurement. Rows where age is missing or below 18 produce no
-        eGFR value (even though EKFC itself is a full-age-spectrum equation, no paediatric output is
-        emitted here). This series is{' '}
+        The four equations above are used from 18 years at the time of measurement. Under 18 the
+        setting “Under 18 years” on the Data page decides; by default CKiD U25 is used where a
+        height is available and EKFC 2021 otherwise; at 1 year, below the range of EKFC, only CKiD
+        U25, with a height of the same day or interpolated between two heights at most 30 days
+        away. No eGFR is computed below 1 year or when the
+        age is missing. This series is{' '}
         <strong>not for clinical decision-making</strong>.
       </p>
       <p><strong>Inputs and assumptions:</strong></p>
@@ -57,16 +59,18 @@ export function Data() { return <>
           <strong>Units</strong> — creatinine is expected in <em>mg/dl</em>. Values recorded in{' '}
           <em>µmol/l</em> are converted automatically (÷ 88.42); other units are not used as an eGFR
           source. A value stored under the wrong unit would therefore yield a wrong eGFR. The
-          calculation reads one creatinine source: one test name with one unit. If that source is
-          recorded in <em>µmol/l</em>, its values are converted. Creatinine values of the same
-          patient under another test name or in another unit form a separate parameter and are not
-          added to the source. The Data page lists such series under “Not used for this eGFR”.
+          calculation reads one creatinine series per patient: one test name with one unit. It is
+          the selected creatinine source; a patient without any serum creatinine in <em>mg/dl</em>
+          uses their own <em>µmol/l</em> series instead when the selected source is in mg/dl. If
+          that series is recorded in <em>µmol/l</em>, its values are converted. Other creatinine
+          values of the same patient form a separate parameter and are not added to the series. The
+          Data page lists such series under “Not used for this eGFR”.
           Creatinine from urine, dialysate or another body fluid is not used as an eGFR source
           either (see <a href="#methods/aki/detection">AKI detection</a> for how such series are
           recognised). If a saved session selects such a series, or a series in another unit, the
           Data page says so while a formula is selected, and computes no eGFR until another source
           or <em>Automatic</em> is chosen. The EKFC
-          equation's own age-specific Q values for ages 18 to 25 are converted with the factor
+          equation's own age-specific Q values for ages up to 25 are converted with the factor
           88.4; the difference changes an eGFR by at most about 0.03 mL/min/1.73 m².
         </li>
         <li>
@@ -122,8 +126,8 @@ export function Data() { return <>
       <p>
         A creatinine measurement yields an eGFR value only when it has a lab date and a numeric
         value, the creatinine is greater than 0 mg/dl after conversion, the patient&apos;s sex is
-        resolved, and the age is known and at least 18 (17 gives no value, 18 does). Otherwise no
-        value is produced.
+        resolved, and the age is known and an equation applies at that age (from 18 for the adult
+        equations; from 1 under the setting “Under 18 years”). Otherwise no value is produced.
       </p>
       <p>
         Age is the number of whole completed years at the lab date. It changes on the birthday;

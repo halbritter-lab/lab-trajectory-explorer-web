@@ -14,7 +14,7 @@ const workerScript = `self.onmessage = async ({data:q}) => {
     status:'success',converged:true,singular:false,warnings:[],
     metadata:{engine:q.engine,formula:q.formula,modelConfig:q.config,preparation:q.preparation,
       runtimeVersion:'browser-fixture',packageVersions:{},browserUserAgent:'playwright',
-      wasmAssetSource:'local-dev',optimizer:null,reml:true,tolerance:null,datasetId:q.datasetId,
+      wasmAssetSource:'local-dev',optimizer:null,reml:true,datasetId:q.datasetId,
       datasetHash,randomSeed:null,fitConfigHash:q.fitConfigHash},
     nPatients:new Set(q.rows.map(r=>r.patient_id)).size,nMeasurements:q.rows.length,
     fixedEffects:{intercept,timeSinceBaseline:slope},
@@ -61,7 +61,10 @@ test('projects a custom nonrenal target and downloads the applied settings', asy
   expect(JSON.stringify(rows)).toContain('U/L')
   expect(JSON.stringify(rows)).toContain('not estimated')
   // Sheets of 0.3.7 keep their positions; the R reproduction sheets follow `about`.
-  expect(exported.SheetNames).toEqual(['models','coefficients','factors','centering','excluded_patients','projections','about','vcov','model_rows','model_input_flags','r_script'])
+  // factor_levels, dropout and dropout_patients follow r_script since 2026-11-22.
+  expect(exported.SheetNames).toEqual(['models','coefficients','factors','centering','excluded_patients','projections','about','vcov','model_rows','model_input_flags','r_script','factor_levels','dropout','dropout_patients'])
+  expect(XLSX.utils.sheet_to_json<Record<string,unknown>>(exported.Sheets.dropout)[0]).toMatchObject({unit_key:'cohort',level:'all',patients:10,krt:0,in_follow_up:10})
+  expect(XLSX.utils.sheet_to_json<string[]>(exported.Sheets.models,{header:1})[0].slice(-2)).toEqual(['app_version','egfr_formula'])
   expect(rows.every(row => row.unit_key === 'cohort')).toBe(true)
   // The R reproduction sheets carry the rows the worker received and their trace.
   const modelRows = XLSX.utils.sheet_to_json<Record<string,unknown>>(exported.Sheets.model_rows)

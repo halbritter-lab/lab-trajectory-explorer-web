@@ -26,7 +26,7 @@ const EGFR_UNIT = 'mL/min/1.73 m² (unit of the parameter)'
 const DATE_UNIT = 'date (YYYY-MM-DD, UTC)'
 const NO_SLOPE = 'no slope was estimated (see reason; fit_model none included)'
 const NOT_ROLLING = 'slope_mode is not rolling'
-const NO_PROJECTION = 'the projected age to CKD G5 is not evaluated for the column'
+const NO_PROJECTION = 'the extrapolation to CKD G5 is off for the column (the default)'
 
 const text = (name: string, meaning: string, empty: string, unit = ''): CohortSheetColumn => ({ name, kind: 'text', meaning, unit, empty })
 const number = (name: string, meaning: string, unit: string, empty: string): CohortSheetColumn => ({ name, kind: 'number', meaning, unit, empty })
@@ -60,10 +60,10 @@ export const COHORT_SHEET_COLUMNS: readonly CohortSheetColumn[] = [
   text('unstable_slope', 'yes when the slope rests on fewer than three fitted measurement dates or on a fitted span under 365 days, or when a fit was selected and gave no slope.', 'the slope is not flagged, or fit_model is none'),
   text('demographics_conflict', 'yes when the patient\'s sex or birth date had to be resolved from contradictory input; the texts are in the demographics sheet.', 'no conflict was reported'),
   text('aki', 'AKI label of the cell, for example "AKI III": the highest stage among the detected episodes (KDIGO creatinine criterion, automated screening).', 'no episode was detected, or the parameter has no AKI screening'),
-  text('rapid_progression', 'yes when the slope of an eGFR series is below minus the column\'s threshold (settings sheet, rapid_egfr_threshold; 0 switches the flag off) and unstable_slope is not yes.', 'the condition is not met'),
+  text('rapid_progression', 'yes when the slope of an eGFR series and the upper bound of its 95 % interval are both below minus the column\'s threshold (settings sheet, rapid_egfr_threshold; 0 switches the flag off); possible when only the slope is below it, including a slope without a 95 % interval (for Theil-Sen below 5 fitted dates the bounds are not one). Blank when unstable_slope is yes.', 'the condition is not met'),
   number('endpoint_percent_change', 'Total eGFR change in percent from first_eligible_value to last_eligible_value: negative for a fall, positive for a rise. Not a rate per year and not a confirmed decline event.', '%', 'percent decline is not evaluated for the column, there is no eligible measurement, or the first value is zero or negative'),
   text('endpoint_observed_ckd_g5', 'yes when an eGFR below 15 was observed and confirmed after the confirmation interval.', 'not confirmed, or not evaluated'),
-  number('endpoint_projected_age_to_ckd_g5', 'Age at which the fitted line of the endpoint fit reaches eGFR 15.', 'years of age', 'no projection is reported (see endpoint_prediction_reason), or not evaluated'),
+  number('endpoint_projected_age_to_ckd_g5', 'Age at which the fitted line of the endpoint fit reaches eGFR 15: a conditional extrapolation of the fitted trend, not a prognosis.', 'years of age', 'the extrapolation is off for the column (the default), or none is reported (see endpoint_prediction_reason)'),
   text('endpoint_observed_ckd_g4', 'yes when an eGFR below 30 was observed and confirmed after the confirmation interval.', 'not confirmed, or not evaluated'),
   number('endpoint_confirmation_days', 'Minimum interval between first and confirming measurement of an observed endpoint.', 'days', 'no endpoint that uses confirmation is evaluated for the column'),
   text('endpoint_input_policy', 'Fixed text naming the measurements the endpoints use.', 'no endpoint is evaluated for the column'),
@@ -79,7 +79,7 @@ export const COHORT_SHEET_COLUMNS: readonly CohortSheetColumn[] = [
   ...eventColumns('endpoint_g4', 'observed CKD G4 (eGFR below 30)', 'of 30 or more', 'observed CKD G4 is not confirmed, or not evaluated'),
   ...eventColumns('endpoint_g5', 'observed CKD G5 (eGFR below 15)', 'of 15 or more', 'observed CKD G5 is not confirmed, or not evaluated'),
   number('endpoint_confirmation_max_months', 'Longest time after the first measurement within which a confirmation is accepted (fixed at 12).', 'months', 'as endpoint_confirmation_days'),
-  number('endpoint_decline_baseline_value', 'Baseline eGFR of the 40 % and 57 % decline events: the mean of the eligible values of the first 90 days.', EGFR_UNIT, 'percent decline is not evaluated for the column, or there is no eligible measurement'),
+  number('endpoint_decline_baseline_value', 'Baseline eGFR of the 40 %, 50 % and 57 % decline events: the mean of the eligible values of the first 90 days.', EGFR_UNIT, 'percent decline is not evaluated for the column, or there is no eligible measurement'),
   text('endpoint_observed_decline_40', 'yes when a decline of at least 40 % from the baseline was observed and confirmed.', 'not confirmed, or not evaluated'),
   text('endpoint_observed_decline_57', 'yes when a decline of at least 57 % from the baseline was observed and confirmed.', 'not confirmed, or not evaluated'),
   ...eventColumns('endpoint_decline_40', '40 % decline', 'whose decline from the baseline is below 40 %', 'the 40 % decline is not confirmed, or not evaluated'),
@@ -105,6 +105,25 @@ export const COHORT_SHEET_COLUMNS: readonly CohortSheetColumn[] = [
   number('last_eligible_value', 'Measured value at last_eligible_date. It can differ from "latest" in the Trajectories table, which is the last dated numeric value of the series without these restrictions.', VALUE_UNIT, 'the series has no eligible measurement'),
   text('sex', 'Resolved sex of the patient as used in the analysis: m, w or d. The same value in every row of the patient.', 'no sex could be resolved'),
   number('baseline_age', 'Resolved age of the patient at the earliest dated measurement of any parameter (demographics sheet, baseline_age). The same value in every row of the patient; it is not the age at index_date.', 'completed years', 'no age is available'),
+  text('egfr_formula_switch', 'Computed eGFR only (since 2026-11-22): each change of the eGFR equation that the fitted slope spans, as "CKiD U25 → CKD-EPI 2021 on 2024-03-02", several separated by "; ". A change lies in the span when the first value with the new equation is after index_date and on or before last_fitted_date. Equations do not agree at a change (Pottel 2019: a mean jump of 23 mL/min/1.73 m² from CKiD to CKD-EPI at 18 years), so part of the slope can come from the change of equation.', 'no slope, no change of equation within the fitted span, or not the computed eGFR'),
+  // Appended 2026-11-22 (issue #73).
+  number('n_bounded', 'Fitted points that are bounded values (<x, >x), entered as fit_config boundedValues says (limit: at x; half-limit: <x at x/2, >x at x). Under time balancing a monthly or quarterly median counts when its period holds a bound, whichever value is the median. 0 under exclude, where bounds enter no fit. The app warns when n_bounded is 20 % or more of n_fitted: substituted limits bias slopes when many values are bounded.', 'count', 'never; 0 when no bound was fitted'),
+  // Appended 2026-11-22 before `group`, which stays last: the confirmed 50 % decline (issue #82) and the unconfirmed single value below 15 (`g5single`).
+  text('endpoint_observed_decline_50', 'yes when a decline of at least 50 % from the baseline was observed and confirmed, by the rule of the 40 % and 57 % declines.', 'not confirmed, or not evaluated (the 50 % decline is off unless switched on)'),
+  ...eventColumns('endpoint_decline_50', '50 % decline', 'whose decline from the baseline is below 50 %', 'the 50 % decline is not confirmed, or not evaluated'),
+  text('endpoint_g5_single_value_unconfirmed', 'yes when no CKD G5 is confirmed and a measurement date has only values below 15 while the eligible dates directly before and after it (if any) do not, a conclusive bound >x with x at or above 15 counting as such a date: a single value below 15, unconfirmed (possible AKI). It is never an observed G5 and does not withhold the projection.', 'no such value, a confirmed G5, or neither observed G5 nor the projection is evaluated'),
+  // Then the separate segment after KRT and the slope tier (2026-11-22); `group` stays last.
+  date('krt_segment_start', 'Start of the separate segment after kidney replacement therapy: the date of the patient\'s first kidney transplant or chronic dialysis start, when the column includes the values from it on (its censoring option is off). The values from that date on are not part of slope; they are fitted on their own, with the same estimator and time balancing, up to the next such event.', 'the column censors from the event, the patient has no such event, or fit_model is none'),
+  number('krt_segment_n_fitted', 'Points the segment fit used, as n_fitted.', 'count', 'as krt_segment_start'),
+  number('krt_segment_n_fitted_dates', 'Distinct calendar dates among those points.', 'count', 'as krt_segment_start'),
+  number('krt_segment_fitted_span_days', 'Whole days between the first and the last point of the segment fit.', 'days', 'as krt_segment_start'),
+  number('krt_segment_slope', 'Slope of the segment per year, unrounded. It describes kidney function after kidney replacement therapy (for example a graft), not native kidney function.', SLOPE_UNIT, 'as krt_segment_start, or the segment gave no slope'),
+  number('krt_segment_ci_low', 'Lower bound of the segment slope, as ci_low.', SLOPE_UNIT, 'as krt_segment_slope, or the bound is undefined'),
+  number('krt_segment_ci_high', 'Upper bound of the segment slope, as ci_high.', SLOPE_UNIT, 'as krt_segment_ci_low'),
+  text('slope_tier', 'Tier of slope: uncertain (a slope with unstable_slope yes), estimable (at least 3 fitted dates over at least 365 days of fitted span) or reliable (in addition at least 4 fitted dates over at least 2 × 365.25 days, that is 731 whole days). Counts n_fitted_dates and fitted_span_days, not n.', 'no slope was estimated, or fit_model is none'),
+  // Then the AKI window of the fit (2026-11-22, row akiwin); `group` stays last.
+  text('aki_window', 'AKI exclusion window the fit used (decided 2026-11-22): episode_end_plus_<N>d, from each onset to N days after the end of the episode (for an episode without an observed end, after the recovery window of its last value); onset_plus_<M>d_fallback, M days from each onset, because with the longer windows the fit would keep fewer than 3 fitted dates over 365 days.', 'the column does not exclude AKI windows, or no episode applies to it'),
+  number('n_aki_excluded', 'Measurements of the series that would enter the fit (exact values, and bounds unless fit_config boundedValues is exclude) left out of the fit because they lie in an AKI window (measurements already censored by clinical events not counted). Measurements before an onset stay in the fit.', 'count', 'the column does not exclude AKI windows'),
   text('group', `Value of the attribute the table was grouped by when the file was exported. A patient without a value for the attribute has the text "${GROUP_NOT_RECORDED}", which cannot be told apart from an attribute value of the same text.`, 'the table was not grouped'),
 ]
 

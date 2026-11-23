@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CohortModelsWorkspace } from '../../src/workspace/CohortModelsWorkspace'
+import { setLanguage } from '../../src/i18n'
 import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 import { buildMixedModelResultIdentity, mixedModelFitConfigHash } from '../../src/core/mixedModel/resultIdentity'
@@ -245,6 +246,13 @@ describe('CohortModelsWorkspace', () => {
     fireEvent.change(screen.getByLabelText('Model parameter'), { target: { value: ownParameter.key } })
     expect(preparation).toHaveAccessibleDescription(/Parameter preparation affects 1 parameter.*Kreatinin/)
     expect(screen.getByRole('status', { name: 'Preparation change' })).toBeEmptyDOMElement()
+    // Smoke run of 2026-11-23: the count and the download size follow the interface language.
+    cleanup()
+    setLanguage('de')
+    studio(dataset)
+    fireEvent.change(screen.getByLabelText('Modellparameter'), { target: { value: ownParameter.key } })
+    expect(screen.getByLabelText('Datenaufbereitung')).toHaveAccessibleDescription(/Die Parameteraufbereitung betrifft 1 Parameter in Kohortenmodellen und Verläufen: Kreatinin/)
+    expect(screen.getByTestId('runtime-download-note')).toHaveTextContent('(etwa 39 MB)')
   })
 
   it('says before fitting that no group can be fitted and only the whole cohort will be', async () => {
@@ -272,6 +280,65 @@ describe('CohortModelsWorkspace', () => {
     fireEvent.click(screen.getByRole('button', { name: /Separate model per group/ }))
     expect(screen.getByText('Patients with enough measurement times per group: A: 10, B: 2. Each group needs at least 10.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Fit models (2)' })).toBeEnabled()
+  })
+
+  it('lets the user switch an attribute between numeric and categorical (OD-22)', () => {
+    // Five patients per stage, so no level falls below the minimum per level (2026-11-22).
+    const data = qualifyingData(15)
+    data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { stage: String(i % 3) }]))
+    studio(data)
+    fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+    fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'stage' } })
+    const type = screen.getByLabelText('stage type') as HTMLSelectElement
+    // The automatic choice stays the default: codes 0, 1, 2 are numeric.
+    expect(type.value).toBe('numeric')
+    expect([...type.options].map(option => option.textContent)).toEqual(['Numeric (automatic)', 'Categorical'])
+    expect(useAppStore.getState().mixedModelConfig.factors).toEqual([{ key: 'stage', kind: 'numeric', effect: 'level' }])
+    expect(screen.queryByLabelText('stage reference')).toBeNull()
+    fireEvent.change(type, { target: { value: 'categorical' } })
+    expect(useAppStore.getState().mixedModelConfig.factors).toEqual([{ key: 'stage', kind: 'categorical', effect: 'level', kindSource: 'user' }])
+    expect(screen.getByLabelText('Reference categories')).toHaveTextContent('stage = 0 (default: the first level among the patients in the model')
+    expect(screen.getByLabelText('Patients per level')).toHaveTextContent('stage: 0 5 (5), 1 5 (5), 2 5 (5)')
+    fireEvent.change(screen.getByLabelText('stage reference'), { target: { value: '2' } })
+    fireEvent.change(screen.getByLabelText('stage type'), { target: { value: 'numeric' } })
+    // Back to the automatic type: no override recorded and no reference kept.
+    expect(useAppStore.getState().mixedModelConfig.factors).toEqual([{ key: 'stage', kind: 'numeric', effect: 'level' }])
+    // Baseline age and sex have a fixed type.
+    fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'sex' } })
+    expect(screen.queryByLabelText('Sex type')).toBeNull()
+  })
+
+  it('does not offer numeric for an attribute without a number', () => {
+    const data = qualifyingData(12)
+    data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i % 2 ? 'A' : 'B' }]))
+    studio(data)
+    fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+    fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'arm' } })
+    const type = screen.getByLabelText('arm type') as HTMLSelectElement
+    expect(type.value).toBe('categorical')
+    expect(type.options[0]).toBeDisabled()
+    expect(type.options[1].textContent).toBe('Categorical (automatic)')
+  })
+
+  it('takes the default reference from the patients in the model, not from the whole dataset (OD-29)', () => {
+    const data = qualifyingData(12)
+    // Patient X has only a creatinine row, so it is not in the eGFR model; its
+    // level "0" sorts first and was the default before 2026-11-22.
+    const other = { ...sampleRow1, patientId: 'X', bezeichnung: 'Kreatinin', einheit: 'mg/dl', wertNum: 1.2 }
+    data.rows = [...data.rows, other]
+    data.rawRows = data.rows
+    data.patients = [...data.patients, { id: 'X', label: 'X', attributes: {}, baselineAge: 50 }]
+    data.patientAttributes = { ...Object.fromEntries(data.patients.map((p, i) => [String(p.id), { arm: i % 2 ? 'A' : 'B' }])), X: { arm: '0' } }
+    studio(data)
+    fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+    fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'arm' } })
+    expect([...(screen.getByLabelText('arm reference') as HTMLSelectElement).options].map(option => option.value)).toEqual(['', '0', 'A', 'B'])
+    expect(screen.getByLabelText('Reference categories')).toHaveTextContent('arm = A (default')
+    expect(fitButtons()[0]).toBeEnabled()
+    // A chosen reference is kept even where the model lacks it.
+    fireEvent.change(screen.getByLabelText('arm reference'), { target: { value: '0' } })
+    expect(screen.getByLabelText('Reference categories')).toHaveTextContent('arm = 0 (chosen)')
+    expect(fitButtons()[0]).toBeDisabled()
   })
 
   it('keeps the validation reasons when groups fail for something other than size', () => {
@@ -523,15 +590,22 @@ describe('CohortModelsWorkspace', () => {
   it('shows which reference category each categorical factor uses', () => {
     render(<CohortModelsWorkspace data={dataset} onBrowseTrajectories={vi.fn()} onBrowseData={vi.fn()} />)
     fireEvent.click(screen.getByRole('button', { name: /Adjusted for age and sex/i }))
+    // The small test cohort has fewer than five patients per sex; keep the levels as they are.
+    fireEvent.click(screen.getByLabelText(/Pool small levels/))
     const references = screen.getByLabelText('Reference categories')
     const select = screen.getByLabelText('Sex reference') as HTMLSelectElement
-    const [first, second] = [...select.options].map(option => option.value)
-    expect(references).toHaveTextContent(`Sex = ${first} (first level by default; change it next to the factor)`)
-    if (second !== undefined) {
-      fireEvent.change(select, { target: { value: second } })
-      expect(screen.getByLabelText('Reference categories')).toHaveTextContent(`Sex = ${second}`)
-      expect(screen.getByLabelText('Reference categories')).not.toHaveTextContent('first level')
-    }
+    // Since 2026-11-22 the default is the first level among the patients in the model (OD-29).
+    const [defaultOption, first, second] = [...select.options].map(option => option.value)
+    expect(defaultOption).toBe('')
+    expect(select.value).toBe('')
+    expect(references).toHaveTextContent(/Sex = \S+ \(default: the first level among the patients in the model; choose another next to the factor\)/)
+    const chosen = second ?? first
+    fireEvent.change(select, { target: { value: chosen } })
+    expect(screen.getByLabelText('Reference categories')).toHaveTextContent(`Sex = ${chosen} (chosen)`)
+    expect(screen.getByLabelText('Reference categories')).not.toHaveTextContent('first level')
+    expect(useAppStore.getState().mixedModelConfig.factors?.find(factor => factor.key === 'sex')?.reference).toBe(chosen)
+    fireEvent.change(select, { target: { value: '' } })
+    expect(useAppStore.getState().mixedModelConfig.factors?.find(factor => factor.key === 'sex')).not.toHaveProperty('reference')
   })
 
   it('does not offer an overlay for an unrelated stored result', async () => {
@@ -560,5 +634,77 @@ describe('CohortModelsWorkspace', () => {
     )
 
     expect(screen.queryByLabelText('Show cohort model line in overlay')).not.toBeInTheDocument()
+  })
+
+  // Decisions of 2026-11-22 (issue #4): od29, genomin, genomiss, uacr, dropout.
+  describe('decisions of 2026-11-22', () => {
+    function genotypeData(): WorkspaceData {
+      // 24 patients: G1 holds A ×2, B ×6, C ×4; G2 holds B ×6, C ×6. The whole cohort's
+      // default is A, G2's is B.
+      const data = qualifyingData(24)
+      data.patientAttributes = Object.fromEntries(data.patients.map((p, i) => [String(p.id), {
+        centre: i < 12 ? 'G1' : 'G2', genotype: i < 2 ? 'A' : i < 8 ? 'B' : i < 12 ? 'C' : i < 18 ? 'B' : 'C',
+      }]))
+      return data
+    }
+
+    it('warns when the whole cohort and a group use different default references', () => {
+      studio(genotypeData())
+      fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+      fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'genotype' } })
+      // Keep A so that it stays the whole cohort's default.
+      fireEvent.click(screen.getByLabelText(/Pool small levels/))
+      fireEvent.change(screen.getByLabelText('Model grouping'), { target: { value: 'centre' } })
+      expect(screen.getByRole('note', { name: 'Different reference levels' })).toHaveTextContent(
+        'The models use different default reference levels for genotype (A in the whole cohort, A in G1, B in G2). Their reference starting levels, slopes and contrasts refer to different groups and cannot be compared directly.')
+      // A chosen reference applies to every model: no warning.
+      fireEvent.change(screen.getByLabelText('genotype reference'), { target: { value: 'B' } })
+      expect(screen.queryByRole('note', { name: 'Different reference levels' })).not.toBeInTheDocument()
+    })
+
+    it('pools small levels by default, shows the counts before the fit and can keep them', () => {
+      studio(genotypeData())
+      fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+      fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: 'genotype' } })
+      const pool = screen.getByLabelText(/Pool small levels/) as HTMLInputElement
+      expect(pool.checked).toBe(true)
+      expect(screen.getByLabelText('Minimum per level')).toHaveTextContent('A level needs at least 5 patients with 2 or more measurements in the model (a rule of this tool).')
+      expect(screen.getByLabelText('Minimum per level')).toHaveTextContent('Whole cohort: genotype A (2 of 2) pooled into “other (pooled)”, which still has fewer than 5.')
+      expect(screen.getByLabelText('Patients per level')).toHaveTextContent('genotype: B 12 (12), C 10 (10), other (pooled) 2 (2)')
+      fireEvent.click(pool)
+      expect(useAppStore.getState().mixedModelConfig.smallLevelPolicy).toBe('keep')
+      expect(screen.getByLabelText('Minimum per level')).toHaveTextContent('Whole cohort: genotype A (2 of 2) below the minimum, kept.')
+      // A preset keeps the choice.
+      fireEvent.click(screen.getByRole('button', { name: /Adjusted for age and sex/ }))
+      expect(useAppStore.getState().mixedModelConfig.smallLevelPolicy).toBe('keep')
+      fireEvent.click(screen.getByLabelText(/Pool small levels/))
+      expect(useAppStore.getState().mixedModelConfig).not.toHaveProperty('smallLevelPolicy')
+    })
+
+    it('reports dropout by reason and warns above 10 % KRT', () => {
+      const data = qualifyingData(12)
+      data.events = [
+        { patientId: 'P-0', type: 'kidney_transplant', date: new Date(Date.UTC(2022, 5, 1)), title: 'Tx', description: null, endDate: null, intent: null, warning: '' },
+        { patientId: 'P-1', type: 'dialysis', date: new Date(Date.UTC(2022, 5, 1)), title: 'HD', description: null, endDate: null, intent: 'chronic', warning: '' },
+      ]
+      studio(data)
+      expect(screen.getByRole('note', { name: 'Dropout warning' })).toHaveTextContent('More than 10 % of the patients in the whole cohort reached kidney replacement therapy or died within follow-up (a rule of this tool).')
+      const table = screen.getByRole('table', { name: 'Dropout by reason' })
+      expect(within(table).getAllByRole('row')[1]).toHaveTextContent('Whole cohortAll122001016.7 %')
+    })
+
+    it('offers log baseline UACR, labelled a possible mediator, only as an added covariate', () => {
+      const data = qualifyingData(10)
+      const uacrRows = data.patients.map(patient => ({ ...sampleRow1, patientId: String(patient.id), bezeichnung: 'UACR', einheit: 'mg/g', labDatum: new Date(Date.UTC(2020, 0, 10)), wert: '30', wertNum: 30 }))
+      data.rows = [...data.rows, ...uacrRows]
+      data.rawRows = data.rows
+      studio(data)
+      expect(useAppStore.getState().mixedModelConfig.factors ?? []).toEqual([])
+      fireEvent.click(screen.getByRole('button', { name: /Custom model/ }))
+      const option = within(screen.getByLabelText('Add covariate')).getByRole('option', { name: 'Log baseline UACR (possible mediator)' })
+      fireEvent.change(screen.getByLabelText('Add covariate'), { target: { value: (option as HTMLOptionElement).value } })
+      expect(useAppStore.getState().mixedModelConfig.factors).toEqual([{ key: 'log_baseline_uacr', kind: 'numeric', effect: 'level', series: { name: 'UACR', unit: 'mg/g' } }])
+      expect(screen.getByText('Log baseline UACR (possible mediator)', { selector: '.cm-chip-name' })).toBeInTheDocument()
+    })
   })
 })

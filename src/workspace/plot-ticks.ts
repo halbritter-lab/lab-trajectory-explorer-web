@@ -37,3 +37,29 @@ export function calendarTicks(min: number, max: number): number[] {
   for (let day = Math.ceil(min / MS_PER_DAY); day * MS_PER_DAY <= max; day++) ticks.push(day * MS_PER_DAY)
   return ticks.length ? ticks : [min]
 }
+
+/** Ticks of a logarithmic value axis over [min, max], both positive: powers
+ * of ten when they give at least three ticks, else 1, 2 and 5 times a power of
+ * ten, else (a range inside about one decade) the round ticks of a linear
+ * axis. The axis range itself is not changed. */
+export function logTicks(min: number, max: number, target = 4): number[] {
+  if (!(min > 0) || !Number.isFinite(max) || max <= min) return min > 0 ? [min] : []
+  for (const multipliers of [[1], [1, 2, 5]]) {
+    const ticks: number[] = []
+    for (let k = Math.floor(Math.log10(min)); k <= Math.ceil(Math.log10(max)); k++) {
+      for (const m of multipliers) {
+        const value = Number((m * 10 ** k).toPrecision(12))
+        if (value >= min * (1 - 1e-9) && value <= max * (1 + 1e-9)) ticks.push(value)
+      }
+    }
+    if (ticks.length >= 3) return ticks
+  }
+  return niceTicks(min, max, target).filter(tick => tick > 0)
+}
+
+/** Labels for `logTicks`: three significant digits for the 1-2-5 ticks, so
+ * 0.002 and 2000 both read; the linear fallback keeps `tickLabels`. */
+export function logTickLabels(ticks: readonly number[]): string[] {
+  const oneTwoFive = ticks.every(tick => [1, 2, 5].includes(Number((tick / 10 ** Math.floor(Math.log10(tick))).toPrecision(6))))
+  return oneTwoFive ? ticks.map(tick => tick.toLocaleString('en-GB', { maximumSignificantDigits: 3 })) : tickLabels(ticks)
+}

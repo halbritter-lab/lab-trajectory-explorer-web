@@ -14,7 +14,6 @@ describe('mixed model result contracts', () => {
         wasmAssetSource: 'local-dev',
         optimizer: 'lmer-default',
         reml: true,
-        tolerance: 1e-6,
         datasetId: 'synthetic-random-slope-v1',
         datasetHash: 'abc',
         randomSeed: null,

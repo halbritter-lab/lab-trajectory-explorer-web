@@ -35,7 +35,6 @@ const mixedModelResult: MixedModelResult = {
     wasmAssetSource: 'cdn',
     optimizer: 'nloptwrap',
     reml: true,
-    tolerance: 0.000001,
     datasetId: 'cohort',
     datasetHash: 'dataset',
     randomSeed: null,
@@ -142,7 +141,7 @@ describe('useAppStore', () => {
     useAppStore.getState().setEgfrFormula('ckd-epi-2021')
     useAppStore.getState().setEgfrSource(['Kreatinin', 'mg/dl'])
     const state = useAppStore.getState()
-    expect(state.analysisSettings.egfr).toEqual({ formula: 'ckd-epi-2021', source: ['Kreatinin', 'mg/dl'] })
+    expect(state.analysisSettings.egfr).toEqual({ formula: 'ckd-epi-2021', source: ['Kreatinin', 'mg/dl'], paediatric: 'ckid-u25-ekfc' })
     expect(state.analysisResult().rows.some((r) => r.bezeichnung?.includes('eGFR (CKD-EPI 2021, computed)'))).toBe(true)
   })
 

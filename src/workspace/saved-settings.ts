@@ -10,11 +10,15 @@ import { fitPresetById, isRecord as record, parseColumnModuleSettings } from '..
 import type { FitModel, TimeBalancing } from '../core/fitPipeline/types'
 import type { UnknownDialysisPolicy } from '../core/domains/nephrology/fitConfig'
 import { COMPUTED_BEZEICHNUNG_SUFFIX } from '../core/domains/nephrology/analytes'
+import { DEFAULT_BOUNDED_VALUE_POLICY, type BoundedValuePolicy } from '../core/measurements/censored'
+import { DEFAULT_AKI_DAYS_AFTER_END } from '../core/domains/nephrology/constants'
 import { defaultFitSettings, defaultTrajectoryFitSettings, type TrajectoryFitSettings, type WorkspaceFitSettings } from './workspace-analysis'
 import { parameterLabel } from './workspace-labels'
 import type { AnchorComparisonSettings } from '../core/cohort/anchorComparison'
 import { DEFAULT_WORKSPACE_DISPLAY, type WorkspaceAxis } from './WorkspacePlot'
 import type { SparkSize } from './WorkspaceSparkline'
+import { ENDPOINT_BADGE_IDS, type EndpointBadgeId } from './labels/endpointLabels'
+import { isLanguage, t, type Language } from '../i18n'
 
 /** Every value a union allows, checked at compile time: adding a code to the
  * union without listing it here fails the build instead of making every saved
@@ -38,6 +42,13 @@ export interface TrajectoryView {
   /** "Measurement points" was switched by the user: the switch then decides,
    * also in a dense overlay. Absent while the switch is untouched. */
   pointsChosen?: true
+  /** Parameter keys whose charts use a logarithmic y axis, which also gives
+   * the doubling or halving time (issue #70). Absent while no column has one. */
+  logKeys?: string[]
+  /** Endpoint badges the table cells leave out (`ENDPOINT_BADGES`, decided
+   * 2026-11-22, `badges`). Absent while every badge is shown, the default;
+   * the export keeps every result. */
+  hiddenEndpointBadges?: EndpointBadgeId[]
 }
 
 export function defaultTrajectoryView(): TrajectoryView {
@@ -51,11 +62,15 @@ export interface SavedSettings {
   version: typeof SAVED_SETTINGS_VERSION
   trajectoryFitSettings: TrajectoryFitSettings
   trajectoryView: TrajectoryView
+  /** The interface language (issue #71), kept only with "Remember on this
+   * device". Absent in copies saved before 2026-11-22: the browser language applies. */
+  language?: Language
 }
 
 const FIT_MODELS = allValues<FitModel>()(['none', 'ols', 'theil-sen', 'rolling-ols', 'segmented-ols'])
 const TIME_BALANCING = allValues<TimeBalancing>()(['raw', 'monthly-median', 'quarterly-median'])
-const DIALYSIS_POLICIES = allValues<UnknownDialysisPolicy>()(['flag-only', 'exclude-dated-interval', 'censor-from-start'])
+const BOUNDED_VALUES = allValues<BoundedValuePolicy>()(['limit', 'exclude', 'half-limit'])
+const DIALYSIS_POLICIES = allValues<UnknownDialysisPolicy>()(['flag-only', 'exclude-dated-interval', 'censor-from-start', 'dated-interval-or-from-start'])
 const AXES = allValues<TrajectoryView['axis']>()(['baseline', 'baselineDays', 'calendar', 'age', 'event'])
 const SCALE_MODES = allValues<TrajectoryView['scaleMode']>()(['shared', 'zoom'])
 const CHART_SIZES = allValues<TrajectoryView['chartSize']>()(['small', 'medium', 'large'])
@@ -74,22 +89,29 @@ function parseFitSettings(v: unknown, ignoredModules: string[]): WorkspaceFitSet
   if (!oneOf(FIT_MODELS, v.fitModel) || !oneOf(TIME_BALANCING, v.timeBalancing)) return null
   const { censoring: c, exclusions: x, endpoints: e } = v
   if (!record(c) || !bool(c.censorAfterKidneyTransplant) || !bool(c.censorAfterChronicDialysis) || !bool(c.excludeAcuteDialysisPeriods) || !oneOf(DIALYSIS_POLICIES, c.unknownDialysisPolicy)) return null
-  if (!record(x) || !bool(x.excludeAkiWindows) || !days(x.akiExclusionDays)) return null
+  if (!record(x) || !bool(x.excludeAkiWindows) || !days(x.akiExclusionDays) || (x.akiDaysAfterEnd !== undefined && !days(x.akiDaysAfterEnd))) return null
   if (!record(e) || !bool(e.percentDecline) || !bool(e.observedCkdG5) || !bool(e.projectedAgeToCkdG5)) return null
-  const { observedCkdG4, confirmationDays } = e
+  const { observedCkdG4, confirmationDays, observedDecline50 } = e
   if ((observedCkdG4 !== undefined && !bool(observedCkdG4)) || (confirmationDays !== undefined && !days(confirmationDays))) return null
+  if (observedDecline50 !== undefined && !bool(observedDecline50)) return null
   const modules = parseColumnModuleSettings(v.moduleSettings)
   if (modules === null) return null
+  // Absent in settings saved or exported before 2026-11-22 (issue #73): the default applies.
+  if (v.boundedValues !== undefined && !oneOf(BOUNDED_VALUES, v.boundedValues)) return null
+  const boundedValues = v.boundedValues ?? DEFAULT_BOUNDED_VALUE_POLICY
   const anchorComparison = v.anchorComparison === undefined ? undefined : parseAnchorComparison(v.anchorComparison)
   if (anchorComparison === null) return null
   ignoredModules.push(...modules.ignored)
   return {
     presetId: v.presetId, fitModel: v.fitModel, timeBalancing: v.timeBalancing,
     censoring: { censorAfterKidneyTransplant: c.censorAfterKidneyTransplant, censorAfterChronicDialysis: c.censorAfterChronicDialysis, excludeAcuteDialysisPeriods: c.excludeAcuteDialysisPeriods, unknownDialysisPolicy: c.unknownDialysisPolicy },
-    exclusions: { excludeAkiWindows: x.excludeAkiWindows, akiExclusionDays: x.akiExclusionDays },
+    // Settings saved before 2026-11-22 have no akiDaysAfterEnd: the default (90) applies, so a saved preset stays that preset.
+    exclusions: { excludeAkiWindows: x.excludeAkiWindows, akiExclusionDays: x.akiExclusionDays, akiDaysAfterEnd: x.akiDaysAfterEnd ?? DEFAULT_AKI_DAYS_AFTER_END },
     // Key order is part of the exported fit_config JSON (see nephrology/fitConfig.ts).
     endpoints: { percentDecline: e.percentDecline, ...(observedCkdG4 !== undefined ? { observedCkdG4 } : {}), observedCkdG5: e.observedCkdG5,
-      ...(confirmationDays !== undefined ? { confirmationDays } : {}), projectedAgeToCkdG5: e.projectedAgeToCkdG5 },
+      ...(confirmationDays !== undefined ? { confirmationDays } : {}), projectedAgeToCkdG5: e.projectedAgeToCkdG5,
+      ...(observedDecline50 !== undefined ? { observedDecline50 } : {}) },
+    boundedValues,
     moduleSettings: modules.settings,
     ...(anchorComparison ? { anchorComparison } : {}),
   }
@@ -117,6 +139,16 @@ export interface RestoredSettings {
   /** Settings saved under a preset whose definition has changed since: their
    * values are kept, under the preset id 'custom'. */
   keptAsCustom: string[]
+  /** Settings restored with the extrapolation to CKD G5 switched on. It is off
+   * by default since 2026-11-22 (issue #81); a stored "on" is kept and named. */
+  projectionOn: string[]
+  /** The saved interface language; null when none was saved or it is unknown. */
+  language: Language | null
+}
+
+/** Restored or applied settings with the extrapolation to CKD G5 on (issue #81). */
+export function projectionOnNotice(labels: readonly string[]): string {
+  return t('The extrapolation to CKD G5 is switched on in {list}, as saved: a conditional extrapolation of the fitted trend, not a prognosis. It has been off by default since 2026-11-22 and can be switched off in the endpoint settings of the parameter.', { list: labels.join('; ') })
 }
 
 /** Parameter keys are `JSON.stringify([name, unit])`. */
@@ -143,10 +175,11 @@ const isComputedParameter = (key: string) => parsedKey(key)?.[0].endsWith(COMPUT
  * dataset is dropped and named, unless it is a computed eGFR parameter.
  */
 export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<string>): RestoredSettings {
-  const out: RestoredSettings = { trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [] }
+  const out: RestoredSettings = { trajectoryFitSettings: defaultTrajectoryFitSettings(), trajectoryView: defaultTrajectoryView(), stored: 'none', notRestored: [], keptAsCustom: [], projectionOn: [], language: null }
   if (value === undefined) return out
   if (!record(value) || value.version !== SAVED_SETTINGS_VERSION) { out.stored = 'discarded'; return out }
   out.stored = 'restored'
+  if (isLanguage(value.language)) out.language = value.language
   const keeps = (key: string) => parameterKeys.has(key) || isComputedParameter(key)
   /** A saved preset id only names the preset whose current definition the
    * saved values still match; otherwise the values stay and the name goes. */
@@ -160,59 +193,76 @@ export function restoreSavedSettings(value: unknown, parameterKeys: ReadonlySet<
   const parse = (stored: unknown, label: string): WorkspaceFitSettings | null => {
     const ignored: string[] = []
     const parsed = parseFitSettings(stored, ignored)
-    for (const id of ignored) out.notRestored.push(`module settings "${id}" (${label})`)
+    for (const id of ignored) out.notRestored.push(t('module settings "{id}" ({label})', { id, label }))
+    if (parsed?.endpoints.projectedAgeToCkdG5) out.projectionOn.push(label)
     return parsed && underCurrentPreset(parsed, label)
   }
   const fit = value.trajectoryFitSettings
   if (record(fit)) {
-    const shared = parse(fit.shared, 'shared settings')
+    const shared = parse(fit.shared, t('shared settings'))
     if (shared) out.trajectoryFitSettings.shared = shared
-    else out.notRestored.push('shared analysis settings')
+    else out.notRestored.push(t('shared analysis settings'))
     for (const [key, stored] of Object.entries(record(fit.columns) ? fit.columns : {})) {
-      const own = keeps(key) ? parse(stored, `own settings of ${parameterKeyLabel(key)}`) : null
+      const own = keeps(key) ? parse(stored, t('own settings of {parameter}', { parameter: parameterKeyLabel(key) })) : null
       if (own) out.trajectoryFitSettings.columns[key] = own
-      else out.notRestored.push(`own settings of ${parameterKeyLabel(key)}${keeps(key) ? '' : ' (parameter not in this dataset)'}`)
+      else out.notRestored.push(keeps(key) ? t('own settings of {parameter}', { parameter: parameterKeyLabel(key) }) : t('own settings of {parameter} (parameter not in this dataset)', { parameter: parameterKeyLabel(key) }))
     }
-  } else out.notRestored.push('analysis settings of all parameters')
+  } else out.notRestored.push(t('analysis settings of all parameters'))
 
   const view = value.trajectoryView
-  if (!record(view)) { out.notRestored.push('trend and display settings'); return out }
-  const keyList = (name: 'trendKeys' | 'fitKeys', label: string) => {
+  if (!record(view)) { out.notRestored.push(t('trend and display settings')); return out }
+  const keyList = (name: 'trendKeys' | 'fitKeys', choices: string, of: (parameter: string) => string) => {
     const stored = view[name]
-    if (!Array.isArray(stored) || !stored.every(k => typeof k === 'string')) { out.notRestored.push(`${label} choices`); return }
+    if (!Array.isArray(stored) || !stored.every(k => typeof k === 'string')) { out.notRestored.push(choices); return }
     for (const key of new Set(stored as string[])) {
       if (keeps(key)) out.trajectoryView[name].push(key)
-      else out.notRestored.push(`${label} of ${parameterKeyLabel(key)} (parameter not in this dataset)`)
+      else out.notRestored.push(of(parameterKeyLabel(key)))
     }
   }
   if (view.parameterKeys !== null) {
     if (Array.isArray(view.parameterKeys) && view.parameterKeys.every(k => typeof k === 'string')) {
       const stored = [...new Set(view.parameterKeys as string[])]
       const shown = stored.filter(keeps)
-      for (const key of stored) if (!keeps(key)) out.notRestored.push(`column ${parameterKeyLabel(key)} (parameter not in this dataset)`)
+      for (const key of stored) if (!keeps(key)) out.notRestored.push(t('column {parameter} (parameter not in this dataset)', { parameter: parameterKeyLabel(key) }))
       out.trajectoryView.parameterKeys = shown.some(key => parameterKeys.has(key)) ? shown : null
-    } else out.notRestored.push('selected parameters')
+    } else out.notRestored.push(t('selected parameters'))
   }
-  keyList('trendKeys', 'Trend')
-  keyList('fitKeys', 'trend line')
+  keyList('trendKeys', t('Trend choices'), parameter => t('Trend of {parameter} (parameter not in this dataset)', { parameter }))
+  keyList('fitKeys', t('trend line choices'), parameter => t('trend line of {parameter} (parameter not in this dataset)', { parameter }))
   if (record(view.display)) {
     for (const [key, shown] of Object.entries(view.display)) {
       if (Object.hasOwn(DEFAULT_WORKSPACE_DISPLAY, key) && bool(shown)) out.trajectoryView.display[key] = shown
-      else out.notRestored.push(`display option "${key}"`)
+      else out.notRestored.push(t('display option "{key}"', { key }))
     }
-  } else out.notRestored.push('display options')
+  } else out.notRestored.push(t('display options'))
   if (oneOf(AXES, view.axis)) out.trajectoryView.axis = view.axis
-  else out.notRestored.push('time axis')
+  else out.notRestored.push(t('time axis'))
   if (oneOf(SCALE_MODES, view.scaleMode)) out.trajectoryView.scaleMode = view.scaleMode
-  else out.notRestored.push('scale mode')
+  else out.notRestored.push(t('scale mode'))
   if (oneOf(CHART_SIZES, view.chartSize)) out.trajectoryView.chartSize = view.chartSize
-  else out.notRestored.push('chart size')
+  else out.notRestored.push(t('chart size'))
   if (oneOf(CELL_DETAILS, view.cellDetails)) out.trajectoryView.cellDetails = view.cellDetails
-  else out.notRestored.push('cell details')
+  else out.notRestored.push(t('cell details'))
   if (bool(view.warningIcons)) out.trajectoryView.warningIcons = view.warningIcons
-  else out.notRestored.push('warning display')
+  else out.notRestored.push(t('warning display'))
   if (view.pointsChosen === true) out.trajectoryView.pointsChosen = true
-  else if (view.pointsChosen !== undefined) out.notRestored.push('measurement points choice')
+  else if (view.pointsChosen !== undefined) out.notRestored.push(t('measurement points choice'))
+  if (view.logKeys !== undefined) {
+    if (Array.isArray(view.logKeys) && view.logKeys.every(k => typeof k === 'string')) {
+      const kept: string[] = []
+      for (const key of new Set(view.logKeys as string[])) {
+        if (keeps(key)) kept.push(key)
+        else out.notRestored.push(t('log axis of {parameter} (parameter not in this dataset)', { parameter: parameterKeyLabel(key) }))
+      }
+      if (kept.length) out.trajectoryView.logKeys = kept
+    } else out.notRestored.push(t('log axis choices'))
+  }
+  if (view.hiddenEndpointBadges !== undefined) {
+    if (Array.isArray(view.hiddenEndpointBadges) && view.hiddenEndpointBadges.every(id => ENDPOINT_BADGE_IDS.includes(id as EndpointBadgeId))) {
+      const hidden = [...new Set(view.hiddenEndpointBadges as EndpointBadgeId[])]
+      if (hidden.length) out.trajectoryView.hiddenEndpointBadges = hidden
+    } else out.notRestored.push(t('endpoint badge choices'))
+  }
   return out
 }
 

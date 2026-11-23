@@ -71,7 +71,7 @@ describe('workspace workbook', () => {
     expect(akiEpisodeRows(again, [])).toEqual(akiEpisodeRows(rows, []))
     expect(akiEpisodeRows(again, [])).toHaveLength(1)
     const note = records(workbook, 'about').map(row => String(row.note)).find(text => text.startsWith('Date holds the calendar day'))!
-    expect(note).toContain('time_of_day, the last column of the measurement sheets')
+    expect(note).toContain('time_of_day, after patient_birth_date in the measurement sheets')
     expect(note).toContain('Loading this file again reads time_of_day from raw_measurements, so the AKI episodes are the same as in this export when Recovery between episodes on the Data page has the value aki.recoveryHours of analysis_settings')
     expect(note).toContain('input_data_id covers the time of day of the rows that have one')
   })
@@ -81,7 +81,7 @@ describe('workspace workbook', () => {
     const named = [...notes.matchAll(/([a-z_]+)(?:,| is) the last column of the measurement sheets/g)].map(match => match[1])
     expect(named).toEqual([MEASUREMENT_SHEET_HEADER.at(-1)])
     expect(notes).toContain('patient_birth_date follows loinc and precedes time_of_day in the measurement sheets.')
-    expect(MEASUREMENT_SHEET_HEADER.slice(-3)).toEqual(['loinc', 'patient_birth_date', 'time_of_day'])
+    expect(MEASUREMENT_SHEET_HEADER.slice(-8)).toEqual(['loinc', 'patient_birth_date', 'time_of_day', 'egfr_equation', 'egfr_height_cm', 'lab_method', 'source_parameter', 'source_unit'])
   })
   // Loading a file does not read analysis_settings: a recovery length other than 48 hours is not restored.
   it('exports the episodes of the set recovery length, which a re-import gives only once the setting is chosen again', () => {
@@ -144,7 +144,9 @@ describe('workspace workbook', () => {
     const second = input.data.parameters.find(p => p.key === input.parameterKeys[1])!
     const cell = input.cohortRows[0].cells.find(c => c.bezeichnung === second.bezeichnung)!
     // A supported slope: the flag is not set on one the reliability rule calls uncertain.
-    Object.assign(cell, { slope: -8, reason: null, nFitted: 4, nFittedDates: 4, fittedSpanDays: 400 })
+    // Decided 2026-11-21 (issue #72): 'yes' needs the whole 95 % interval below
+    // the negative threshold, so the cell carries an OLS interval of its own.
+    Object.assign(cell, { slope: -8, ciLow: -9, ciHigh: -7, fitModel: 'ols', reason: null, nFitted: 4, nFittedDates: 4, fittedSpanDays: 400 })
     const configs = {
       [first.key]: toFitConfig(defaultFitSettings(), first),
       [second.key]: toFitConfig(defaultFitSettings('theil_sen'), second),
@@ -159,6 +161,12 @@ describe('workspace workbook', () => {
       expect(settings[1].rapid_egfr_threshold).toBe(threshold)
       expect(records(workbook, 'cohort').find(row => row.Parameter === second.bezeichnung)?.rapid_progression).toBe(threshold === 5 ? 'yes' : '')
     }
+    // Only the slope below -5, the interval reaching above it: 'possible'.
+    Object.assign(cell, { ciHigh: -4 })
+    const workbook = XLSX.read(workspaceWorkbookBytes({ ...input, fitConfigByParameterKey: configs,
+      moduleSettingsByParameterKey: { [first.key]: { rapidEgfrDecline: { threshold: 5 } }, [second.key]: { rapidEgfrDecline: { threshold: 5 } } },
+    }), { type: 'array' })
+    expect(records(workbook, 'cohort').find(row => row.Parameter === second.bezeichnung)?.rapid_progression).toBe('possible')
   })
   it('carries an aki_episodes sheet and its note, also when no episode was detected', () => {
     const workbook = XLSX.read(workspaceWorkbookBytes(exportFixture()), { type: 'array' })
@@ -179,7 +187,7 @@ describe('workspace workbook', () => {
     input.data.rawRows[2].loinc = '30522-7'
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name], { header: 1 })[0]
-    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day'])
+    expect(header('measurements')).toEqual(['PatientID', 'Date', 'Parameter', 'Unit', 'Value', 'NumericValue', 'Operator', 'origin', 'formula', 'patient_sex', 'patient_age_at_lab', 'demographics', 'loinc', 'patient_birth_date', 'time_of_day', 'egfr_equation', 'egfr_height_cm', 'lab_method', 'source_parameter', 'source_unit'])
     expect(header('raw_measurements')).toEqual(header('measurements'))
     expect(header('parameters')).toEqual(['parameter_key', 'parameter', 'unit', 'origin', 'formula', 'source_parameter', 'source_unit', 'loinc'])
     expect(records(workbook, 'raw_measurements').map(row => row.loinc)).toEqual(['1988-5'])
@@ -251,11 +259,38 @@ describe('workspace workbook', () => {
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('SECRET')
     expect(JSON.stringify(Object.values(workbook.Sheets))).not.toContain('hidden')
     expect(records(workbook,'parameters')).toEqual(expect.arrayContaining([expect.objectContaining({formula:'ekfc-2021',source_parameter:'Creatinine',source_unit:'mg/dl'})]))
+    // Issue #65: the series each patient's computed eGFR was derived from.
+    expect(records(workbook,'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_source_parameter:'Creatinine',egfr_source_unit:'mg/dl',egfr_male_coefficients_for_sex_d:false})])
     expect(records(workbook,'about').some(row => String(row.note).includes('Research use only'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).startsWith('eGFR series whose name ends in ", computed)", for example "eGFR (CKD-EPI 2021, computed)", are calculated by the app'))).toBe(true)
+    // Since issue #66 the note names the rule under 18 and the per-row equation column, no longer "adults only".
+    const egfrNote = String(records(workbook,'about').find(row => String(row.note).startsWith('eGFR series whose name ends in'))?.note)
+    for (const part of ['CKiD U25', 'EKFC', 'height in cm', 'no eGFR under 1 year', 'egfr_equation']) expect(egfrNote, part).toContain(part)
+    expect(egfrNote).not.toContain('adults only')
     expect(records(workbook,'about').some(row => String(row.note).startsWith('endpoint_percent_change is the total eGFR change in percent'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('numeric limits remain'))).toBe(true)
     expect(records(workbook,'about').some(row => String(row.note).includes('For a Theil-Sen fit with n_fitted_dates below 5 they are Theil-Sen bounds, not a 95 % interval. With one measurement on each of three or four dates, the Theil–Sen bounds are the full range of pairwise slopes and cover the true slope only about 67 % or 92 % of the time.'))).toBe(true)
+  })
+  // Decision `sexd` (2026-11-22): the eGFR equations use the male coefficients for sex d.
+  it('marks a patient whose computed eGFR used the male coefficients for sex d', () => {
+    const input = exportFixture()
+    input.data.rows = input.data.rows.map(row => row.sourceSeries ? { ...row, patientSex: 'd' } : row)
+    input.data.analysis.rows = input.data.rows
+    const workbook = XLSX.read(workspaceWorkbookBytes(input),{type:'array'})
+    const header = XLSX.utils.sheet_to_json<string[]>(workbook.Sheets.demographics,{header:1})[0]
+    expect(header.at(-1)).toBe('egfr_male_coefficients_for_sex_d')
+    expect(records(workbook,'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_male_coefficients_for_sex_d:true})])
+    // The endpoint note of 2026-11-22 (#81/#82) follows it, last.
+    expect(records(workbook,'about').at(-3)?.note).toMatch(/^egfr_male_coefficients_for_sex_d, the last column of demographics, is true/)
+    // Bedside Schwartz has no sex coefficients: values of sex d computed with it do not count (as on the Data page).
+    input.data.rows = input.data.rows.map(row => row.sourceSeries ? { ...row, egfrFormula: 'schwartz-bedside' as const, egfrHeightCm: 150 } : row)
+    input.data.analysis.rows = input.data.rows
+    expect(records(XLSX.read(workspaceWorkbookBytes(input),{type:'array'}),'demographics')).toEqual([expect.objectContaining({PatientID:'001-A',egfr_male_coefficients_for_sex_d:false})])
+    // Without a computed eGFR the cell is empty.
+    input.data.rows = input.data.rows.filter(row => !row.sourceSeries)
+    input.data.analysis.rows = input.data.rows
+    const without = records(XLSX.read(workspaceWorkbookBytes(input),{type:'array'}),'demographics')[0]
+    expect('egfr_male_coefficients_for_sex_d' in without).toBe(false)
   })
   it('intersects individual selection with visible IDs and rejects empty or missing summaries', () => {
     const input = exportFixture()

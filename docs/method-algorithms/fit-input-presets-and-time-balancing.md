@@ -33,13 +33,19 @@ path (`buildCohortRows`, then `buildSlopeLines` in
 for the line, step 1 is done by `buildCohortRows` before it calls
 `buildSlopeLines`:
 
-1. Exact rows only. Every row whose operator is not `=` is removed by operator,
-   not by date. These are the bounds `<` and `>` (see "Bounded measurements")
-   and, with pre-parsed value columns, numeric rows whose operator is `range`
-   or unrecognised. An empty operator cell beside a number is exact.
+1. Exact rows and, by the column's bounded-value setting, bounds. Since
+   2026-11-22 a bound `<x` or `>x` enters at x (`limit`, the default), `<x` at
+   x/2 and `>x` at x (`half-limit`), or is removed (`exclude`); see
+   [Bounded values in individual fits](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22).
+   Every other row whose operator is not `=` is removed by operator, not by
+   date: with pre-parsed value columns, numeric rows whose operator is `range`
+   or unrecognised. An empty operator cell beside a number is exact. A bound
+   that enters is marked and counted as `n_bounded` after the remaining steps.
 2. Censoring windows. Points inside any censoring window of the series are
    removed. These windows come from clinical events under the column's
-   censoring options.
+   censoring options; since 2026-11-22 they include the window `krt_segment`
+   from the first kidney transplant or chronic dialysis on when the column
+   includes those values, which are then fitted as a separate segment.
 3. Fit-exclusion windows. Points inside any fit-exclusion window are removed.
    These are the AKI windows when the column excludes them.
 4. Time balancing. The remaining points are aggregated per calendar month or
@@ -164,7 +170,7 @@ Since 2026-11-21 (owner decision) five further columns follow
 | `last_eligible_value` | Measured value of the row dated `last_eligible_date`. | as above |
 | `sex` | The patient's resolved sex as the analysis uses it (`m`, `w` or `d`; see [demographics](demographics.md#demographics-resolution)). | no sex could be resolved |
 | `baseline_age` | The patient's resolved age in completed years at the earliest dated row of any parameter: the value of the `demographics` sheet. It is not the age at `index_date`. | no age is available |
-| `group` | Value of the attribute the Trajectories table was grouped by. A patient whose value is missing, empty or only whitespace has the text `Not recorded`, the label of that section of the table; an attribute value of the same text cannot be told apart from it. | the table was not grouped |
+| `group` | Value of the attribute the Trajectories table was grouped by. A patient whose value is missing, empty or only whitespace has the text `Not recorded`, the label of that section of the table; an attribute value of the same text cannot be told apart from it. When grouped, rows follow the sections of the table: sections ordered by the raw attribute value (numeric-aware comparison, so `Site 2` before `Site 10`), the `Not recorded` section last, and the current patient sort within each section. The order does not depend on the interface language (since 2026-11-23; before, sex sections followed their shown, translated label). | the table was not grouped |
 
 The two values come from the same row set as the two dates: exact, finite,
 dated rows before the first kidney transplant or chronic dialysis and outside
@@ -190,11 +196,40 @@ since then, display only; a value written as a range keeps no sign). `sex` and `
 `group` was the first column of a grouped export until 2026-11-21, which
 moved every other column one position to the right. It is now always present
 and always the last column, so a grouped and an ungrouped export have the
-same 80 columns in the same positions; the 75 columns of the ungrouped export
-of 0.3.7 keep theirs. The file does not record which attribute was used for
-grouping.
+same 98 columns in the same positions (80 until 2026-11-22; then, before
+`group`, `egfr_formula_switch` (issue #66), `n_bounded` (issue #73), the eight
+columns of the 50 % decline and the unconfirmed single value below 15 (issues
+#82, `g5single`) and the eight columns of the segment after KRT and the slope
+tier, see below); the 75 columns of the ungrouped export of 0.3.7 keep
+theirs. The file does not record which attribute was used for grouping.
 
 Evidence: [export record tests](../../tests/core/cohort/exportRecords.test.ts),
+[workbook schema tests](../../tests/workspace/export-schema.test.ts).
+
+### Segment after kidney replacement therapy and slope tier
+
+Since 2026-11-22 eight columns follow the endpoint columns of that day
+(`endpoint_g5_single_value_unconfirmed` last), before `group`, which stays
+last; the earlier positions are unchanged.
+
+| Column | Content | Empty when |
+| --- | --- | --- |
+| `krt_segment_start` | Date of the patient's first kidney transplant or chronic dialysis start, when the column includes the values from it on (its censoring option is off) and fits them as a separate segment (see [clinical events](clinical-events.md#kidney-replacement-therapy-in-every-preset)). | the column censors from that event, the patient has none, or the fit model is `none` |
+| `krt_segment_n_fitted` | Points of the segment fit after the column's other windows and its time balancing. | as `krt_segment_start` |
+| `krt_segment_n_fitted_dates` | Their distinct calendar dates. | as `krt_segment_start` |
+| `krt_segment_fitted_span_days` | Whole days between the first and last of them; 0 with fewer than two. | as `krt_segment_start` |
+| `krt_segment_slope` | Slope of the segment per year, unrounded, with the column's estimator (OLS for rolling and segmented OLS). Kidney function after KRT, for example of a graft; not native kidney function, and not part of `slope`. | as `krt_segment_start`, or the segment gave no slope (fewer than two points, three for Theil–Sen, or one date) |
+| `krt_segment_ci_low`, `krt_segment_ci_high` | Bounds of that slope, as `ci_low` and `ci_high`. | as `krt_segment_slope`, or the bound is undefined (exact two-point line) |
+| `slope_tier` | `uncertain`, `estimable` or `reliable` (see [slope tier](slope-quality.md#slope-tier)). | no slope (fit model `none` included) |
+
+Example: the worked example of the clinical-events section (transplant on
+2021-06-01, three values after it) with "Censor after kidney transplant"
+unticked exports `slope` −5.30, `slope_tier` `reliable`,
+`krt_segment_start` 2021-06-01, `krt_segment_n_fitted` 3,
+`krt_segment_fitted_span_days` 365 and `krt_segment_slope` −4.00; with the
+option ticked (the default) the seven `krt_segment_*` cells are empty.
+
+Evidence: [segment and tier tests](../../tests/core/cohort/krtSegmentAndTier.test.ts),
 [workbook schema tests](../../tests/workspace/export-schema.test.ts).
 
 ### Workbook sheets, column names and empty cells
@@ -250,7 +285,16 @@ Since 2026-11-21:
   names the attribute whose values the `group` column of `cohort` holds.
   Example: grouped by `sex`, `group_by` is `sex` and `group` holds `f` or
   `m`. `anchor_comparison` (appended 2026-11-22 after `group_by`) is the
-  before/after setting as JSON, empty when off.
+  before/after setting as JSON, empty when off. Since 2026-11-22 (issue #83)
+  three columns follow it: `trend` (`true` when Trend was on for the
+  parameter; with Trend off `fit_config` has `fitModel` `none` and the
+  column has no slope), `settings_source` (`shared` for a parameter that used
+  the shared settings, `own` for one with its own settings) and
+  `column_settings` (those settings as the app keeps them, as JSON: preset
+  id, fit model, time balancing, censoring, exclusions, endpoints, module
+  settings and, when on, the before/after setting). They are what "Apply
+  settings from an export" reads (below); a reader of the file finds every
+  value also in the columns before them.
 - **`about`.** One column `note`. Rows are appended, never moved. Since
   2026-11-21 it explains the time axis of the trend, the meaning of `preset`
   and the fixed parameters of segmented OLS (a gap of more than 180 days, at
@@ -273,7 +317,10 @@ Since 2026-11-21:
   (empty text when absent), `patient_age_at_lab` (`null` when absent) and
   `patient_birth_date` (empty text when absent), followed by `time_of_day`
   only where the row has a time (since 2026-11-22; a row without a time is
-  reduced as before, so a dataset without times keeps its identifier). The
+  reduced as before, so a dataset without times keeps its identifier), and
+  then by the text `lab_method:` followed by the laboratory or method only
+  where the row has one (issue #68, 2026-11-22; a dataset without that column
+  keeps its identifier). The
   arrays are sorted as text by UTF-16 code units, joined with commas inside
   `[` and `]`, and hashed with 32-bit FNV-1a over the UTF-16 code units
   (offset basis `0x811c9dc5`, prime `0x01000193`), written as eight lower-case
@@ -291,8 +338,9 @@ Since 2026-11-21:
   different birth-date anchors. The
   `datasetHash` of the model workbook is a different quantity: a hash of the
   prepared model rows.
-  Since 2026-11-22 one more note follows the provenance rows: it describes
-  the `anchor_comparison` sheet.
+  Since 2026-11-22 two more notes follow the provenance rows: the first
+  describes the `anchor_comparison` sheet, the second (issue #83) the
+  columns `trend`, `settings_source` and `column_settings` of `settings`.
 - **`columns`.** The sheet after `about` describes the columns of the `cohort` (or
   `slopes`) sheet, one row per column in sheet order: `column`, `meaning`,
   `unit`, `empty_when`. The export fails rather than write a column that has
@@ -300,6 +348,83 @@ Since 2026-11-21:
 
 Evidence: [workbook schema tests](../../tests/workspace/export-schema.test.ts),
 [settings and provenance tests](../../tests/workspace/export-provenance.test.ts).
+
+### Applying the settings of an export
+
+Since 2026-11-22 (issue #83) the analysis record (Trajectories, beside the
+export button; on a phone in the toolbar) applies the settings of a cohort or patient workbook of this
+app to the loaded dataset (`applyExportedSettings` in
+`src/workspace/exported-settings.ts`). Loading a workbook as data still
+applies none of its settings. The rules:
+
+- **Which file.** A workbook with a `settings` sheet whose rows have
+  `parameter_key` and `fit_config`; any other file is refused with a reason
+  and nothing changes.
+- **Dataset settings.** `analysis_settings` of the first row replaces the
+  dataset settings (eGFR formula and creatinine source, AKI recovery between
+  episodes, the dataset defaults) after the check every stored value passes
+  (`parseAnalysisSettings`). A creatinine source the loaded dataset does not
+  have as an imported parameter (same name and unit) is not applied: the
+  current source stays and the record names it. Automatic (`null`) always
+  applies.
+- **Which parameters.** A row applies when the loaded dataset has its
+  `parameter_key`, or when it is the computed eGFR of the formula just
+  applied (that formula produces it). Other rows are named ("settings of …
+  (parameter not in this dataset)") and change nothing.
+- **Shared and own settings.** The settings of the first applicable row
+  with `settings_source` `shared` become the shared settings; each
+  applicable row with `own` becomes that parameter's own settings, and a
+  parameter listed as `shared` loses own settings it had. Own settings of
+  parameters the file does not list stay as they are. Every value goes through the
+  item-by-item check of the settings saved on this device
+  (`restoreSavedSettings`): a value this version rejects keeps its current
+  value and is named; settings saved under a preset whose definition has
+  changed keep their values as custom settings.
+- **Selection and Trend.** The applicable parameters become the shown
+  parameters, in the order of the file; Trend follows `trend` for them and is
+  unchanged for the others. A parameter whose Trend goes on also shows its
+  trend line, and one whose Trend goes off loses its line and a slope sort
+  on it, as with the Trend switch.
+- **Logarithmic value axis.** The workbook records a log axis only through
+  rows of the `log_trend` sheet (matched to the `settings` rows by
+  `Parameter` and `Unit`), and a column on a log axis without such rows
+  leaves no trace. So the rule only switches on: every applicable parameter
+  with rows in `log_trend` gets the log axis; every other parameter keeps its
+  current axis, and a workbook without the sheet changes no axis.
+- **Creatinine after selected events** (Data page, `peri_event_creatinine`
+  of the first row). Empty: the selection is cleared. A selection applies
+  when at least one loaded event matches its title or type
+  (`eventMatchesRule`); otherwise it is named ("no such event in this
+  dataset") and the current selection stays, as for a creatinine source the
+  dataset lacks. A value that is not a valid selection
+  (`parsePeriEventSettings`) is named as not readable. A workbook without the
+  column (written before 2026-11-22) keeps the current selection.
+- **Not applied, and named when the file has them:** grouping (`group_by`),
+  manual demographic entries (`manual_override` in `demographics`). The
+  patient selection (`patient_ids`) and the cohort model settings, which the
+  cohort workbook does not carry, are never applied.
+- **Older workbooks.** A workbook without `column_settings` (written before
+  2026-11-22) is read from `fit_config`, the module columns and
+  `anchor_comparison`; each parameter gets its own settings, preset `custom`
+  unless `fit_config` names another preset, and `fitModel` `none` reads as
+  Trend off with the preset's fit model.
+
+Example: an export with the shared settings Theil–Sen, own settings
+(segmented OLS, AKI windows of 14 days) for creatinine and Trend on for
+creatinine only, applied to a dataset without creatinine: the shared
+settings become Theil–Sen, creatinine is named as not in this dataset, and
+the other parameters of the file are shown with Trend off.
+
+Same data, same results: applied to the dataset re-imported from the export
+itself, the settings reproduce every sheet of the export except
+`import_diagnostics` (what the import of each file reported), provided the
+export holds every parameter. `raw_measurements` holds the imported rows of
+the exported parameters only, so a re-import of a narrower export lacks the
+patients without rows of those parameters, and a birth date estimated from
+stated ages uses only the rows the file has.
+
+Evidence: [round trip on the demo workbook](../../tests/workspace/analysis-record-roundtrip.test.ts),
+[completeness and per-setting round trip](../../tests/workspace/analysis-record.test.ts).
 
 ### Rounding
 
@@ -345,10 +470,10 @@ fixes every setting in the table.
 | Menu id | `general_exploration` | `theil_sen` | `ckd_progression` | `acute_review` |
 | `preset` recorded in `fit_config` | `general_exploration` | `custom` | `ckd_progression` | `acute_review` |
 | `xAxis` (metadata only) | `calendar_time` | `calendar_time` | `age` | `calendar_time` |
-| Censor after kidney transplant | off | off | on | off |
-| Censor after chronic dialysis | off | off | on | off |
+| Censor after kidney transplant | on (off until 2026-11-22) | on (off until 2026-11-22) | on | on (off until 2026-11-22) |
+| Censor after chronic dialysis | on (off until 2026-11-22) | on (off until 2026-11-22) | on | on (off until 2026-11-22) |
 | Exclude acute dialysis intervals | off | off | on | off |
-| Unknown-intent dialysis policy | `flag-only` | `flag-only` | `exclude-dated-interval` | `flag-only` |
+| Unknown-intent dialysis policy | `flag-only` | `flag-only` | `dated-interval-or-from-start` (`exclude-dated-interval` until 2026-11-22) | `flag-only` |
 | Exclude AKI windows from fit | off | off | on | off |
 | AKI exclusion days | 30 (stored, inactive) | 30 (stored, inactive) | 30 | 30 (stored, inactive) |
 | Time balancing | `raw` | `raw` | `quarterly-median` | `raw` |
@@ -356,9 +481,17 @@ fixes every setting in the table.
 | Endpoint: percent decline | off | off | on | off |
 | Endpoint: observed CKD G4 | off | off | on | off |
 | Endpoint: observed CKD G5 | off | off | on | off |
-| Endpoint: projected age to CKD G5 | off | off | on | off |
+| Endpoint: projected age to CKD G5 (extrapolation; until 2026-11-22 on under CKD progression) | off | off | off | off |
+| Endpoint: confirmed 50 % decline (since 2026-11-22) | off | off | off | off |
 | Confirmation days | 90 (stored, inactive) | 90 (stored, inactive) | 90 | 90 (stored, inactive) |
 | Rapid-decline threshold (column module setting) | 5 | 5 | 5 | 5 |
+
+Censoring after kidney transplant and chronic dialysis in every preset, and
+the unknown-intent policy of CKD progression, are the owner decisions
+`censor` and `dial` of 2026-11-22 (see
+[clinical events](clinical-events.md#kidney-replacement-therapy-in-every-preset)).
+With an option unticked, the values after the first such event are fitted
+as a separate segment, not across the event.
 
 "Stored, inactive" means the value is kept in the configuration so that it is
 already set when the corresponding option is switched on. Endpoint toggles only

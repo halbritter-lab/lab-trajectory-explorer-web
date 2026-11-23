@@ -1,6 +1,7 @@
 import { countLabel, DEMO_FILE_NAME, parameterLabel } from './workspace-labels'
 import { useMemo } from 'react'
-import { useAppStore } from './state/store'
+import { t } from '../i18n'
+import { composedNotice, useAppStore } from './state/store'
 import { clinicalEventsByPatient, cohortSeriesSpec } from '../core/cohort/specs'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../core/types'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../core/analysis/types'
@@ -25,6 +26,54 @@ export interface WorkspaceData {
   importDiagnostics?: ImportDiagnostic[];
 }
 
+/** The inputs `buildWorkspaceData` reads: the dataset fields of the store. */
+export interface WorkspaceDataInput {
+  rows: LabRow[]; fileName: string | null; events: ClinicalEvent[]
+  patientAttributes: Record<string, Record<string, string>>
+  analysisSettings: AnalysisSettings; manualDemographics: Record<string, ManualDemographics>
+  importDiagnostics?: ImportDiagnostic[]
+}
+
+/** The page data of a dataset and its analysis result: parameters, patients
+ * with resolved attributes and the analysed rows. Pure, so tests build the
+ * same data as the page (see the analysis-record round trip). */
+export function buildWorkspaceData(input: WorkspaceDataInput, analysis: AnalysisResult): WorkspaceData {
+  const { rows: rawRows, fileName, events, patientAttributes: attributes, analysisSettings, manualDemographics, importDiagnostics } = input
+  const rows = analysis.rows
+  const rawKeys = new Set(rawRows.map(r => JSON.stringify([r.bezeichnung, r.einheit])))
+  const parameterMap = new Map<string, WorkspaceParameter>()
+  const buckets = new Map<PatientId, LabRow[]>()
+  const rawBuckets = new Map<PatientId, LabRow[]>()
+  for (const row of rawRows) {
+    const bucket = rawBuckets.get(row.patientId) ?? []
+    bucket.push(row); rawBuckets.set(row.patientId, bucket)
+  }
+  for (const row of rows) {
+    const bucket = buckets.get(row.patientId) ?? []
+    bucket.push(row); buckets.set(row.patientId, bucket)
+    if (row.bezeichnung === null) continue
+    const key = JSON.stringify([row.bezeichnung, row.einheit])
+    if (!parameterMap.has(key)) parameterMap.set(key, { key, bezeichnung: row.bezeichnung, einheit: row.einheit,
+      // Composed when read, so a parameter without a unit follows the interface language (issue #71).
+      get label() { return parameterLabel(this.bezeichnung, this.einheit) }, derived: !rawKeys.has(key) })
+  }
+  const patientAttributes = { ...attributes }
+  const patients = [...buckets].sort(([a], [b]) => comparePatientIds(a, b)).map(([id, patientRows]) => {
+    const earliest = patientRows.filter(r => r.labDatum && Number.isFinite(r.labDatum.getTime())).sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())[0]
+    const resolvedAttributes = { ...attributes[patientIdKey(id)] }
+    // Never let an unresolved imported sex masquerade as resolved demographics.
+    delete resolvedAttributes.sex
+    // Same rule as the model grouping (workspaceGroupableAttributes): the first row with a sex.
+    const sex = patientRows.find(r => r.patientSex !== null)?.patientSex ?? null
+    if (sex) resolvedAttributes.sex = sex
+    patientAttributes[patientIdKey(id)] = resolvedAttributes
+    const { birthAnchor, ageEstimated } = patientBirthAnchor({ patientId: id, rows: rawBuckets.get(id) ?? [],
+      attributeBirthDate: attributes[patientIdKey(id)]?.birthDate, manualAge: manualDemographics[patientIdKey(id)]?.age })
+    return { id, label: String(id), attributes: resolvedAttributes, baselineAge: earliest?.patientAgeAtLab ?? null, birthAnchor, ageEstimated }
+  })
+  return { rawRows, rows, fileName, parameters: [...parameterMap.values()], patients, events, patientAttributes, analysis, analysisSettings, manualDemographics, importDiagnostics }
+}
+
 export function useWorkspaceData(): WorkspaceData {
   const rawRows = useAppStore(s => s.rows)
   const fileName = useAppStore(s => s.fileName)
@@ -33,40 +82,8 @@ export function useWorkspaceData(): WorkspaceData {
   const analysisSettings = useAppStore(s => s.analysisSettings)
   const manualDemographics = useAppStore(s => s.manualDemographics)
   const importDiagnostics = useAppStore(s => s.importDiagnostics)
-  return useMemo(() => {
-    const analysis = useAppStore.getState().analysisResult()
-    const rows = analysis.rows
-    const rawKeys = new Set(rawRows.map(r => JSON.stringify([r.bezeichnung, r.einheit])))
-    const parameterMap = new Map<string, WorkspaceParameter>()
-    const buckets = new Map<PatientId, LabRow[]>()
-    const rawBuckets = new Map<PatientId, LabRow[]>()
-    for (const row of rawRows) {
-      const bucket = rawBuckets.get(row.patientId) ?? []
-      bucket.push(row); rawBuckets.set(row.patientId, bucket)
-    }
-    for (const row of rows) {
-      const bucket = buckets.get(row.patientId) ?? []
-      bucket.push(row); buckets.set(row.patientId, bucket)
-      if (row.bezeichnung === null) continue
-      const key = JSON.stringify([row.bezeichnung, row.einheit])
-      if (!parameterMap.has(key)) parameterMap.set(key, { key, bezeichnung: row.bezeichnung, einheit: row.einheit, label: parameterLabel(row.bezeichnung, row.einheit), derived: !rawKeys.has(key) })
-    }
-    const patientAttributes = { ...attributes }
-    const patients = [...buckets].sort(([a], [b]) => comparePatientIds(a, b)).map(([id, patientRows]) => {
-      const earliest = patientRows.filter(r => r.labDatum && Number.isFinite(r.labDatum.getTime())).sort((a, b) => a.labDatum!.getTime() - b.labDatum!.getTime())[0]
-      const resolvedAttributes = { ...attributes[patientIdKey(id)] }
-      // Never let an unresolved imported sex masquerade as resolved demographics.
-      delete resolvedAttributes.sex
-      // Same rule as the model grouping (workspaceGroupableAttributes): the first row with a sex.
-      const sex = patientRows.find(r => r.patientSex !== null)?.patientSex ?? null
-      if (sex) resolvedAttributes.sex = sex
-      patientAttributes[patientIdKey(id)] = resolvedAttributes
-      const { birthAnchor, ageEstimated } = patientBirthAnchor({ patientId: id, rows: rawBuckets.get(id) ?? [],
-        attributeBirthDate: attributes[patientIdKey(id)]?.birthDate, manualAge: manualDemographics[patientIdKey(id)]?.age })
-      return { id, label: String(id), attributes: resolvedAttributes, baselineAge: earliest?.patientAgeAtLab ?? null, birthAnchor, ageEstimated }
-    })
-    return { rawRows, rows, fileName, parameters: [...parameterMap.values()], patients, events, patientAttributes, analysis, analysisSettings, manualDemographics, importDiagnostics }
-  }, [rawRows, fileName, events, attributes, analysisSettings, manualDemographics, importDiagnostics])
+  return useMemo(() => buildWorkspaceData({ rows: rawRows, fileName, events, patientAttributes: attributes, analysisSettings, manualDemographics, importDiagnostics }, useAppStore.getState().analysisResult()),
+    [rawRows, fileName, events, attributes, analysisSettings, manualDemographics, importDiagnostics])
 }
 
 /** The spec of one parameter as cohort models and their overlay lines prepare
@@ -77,14 +94,17 @@ export function workspaceModelSpec(data: WorkspaceData, parameterKey: string, se
 }
 
 /** `anchorComparisonByParameterKey`: the before/after setting of each column
- * that has one switched on (see WorkspaceFitSettings.anchorComparison). */
-export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>, anchorComparisonByParameterKey?: Record<string, AnchorComparisonSettings | undefined>): CohortSeriesSpec[] {
+ * that has one switched on (see WorkspaceFitSettings.anchorComparison).
+ * `logTrendKeys`: the columns shown on a logarithmic y axis, which also get
+ * the trend of ln(value) and the doubling time (issue #70). */
+export function workspaceSpecs(data: WorkspaceData, parameterKeys: string[], fitConfigByParameterKey?: Record<string, FitConfig>, anchorComparisonByParameterKey?: Record<string, AnchorComparisonSettings | undefined>, logTrendKeys?: readonly string[]): CohortSeriesSpec[] {
   const parameters = new Map(data.parameters.map(p => [p.key, p]))
   const context = { clinicalEventsByPatient: clinicalEventsByPatient(data.events), exactBirthDateByPatient: exactBirthDateByPatient(data.patients), fitInputs: data.analysis?.fitInputs ?? Object.create(null), analysisSettings: data.analysisSettings }
   return parameterKeys.flatMap(key => {
     const parameter = parameters.get(key)
     const anchorComparison = anchorComparisonByParameterKey?.[key]
-    return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], anchorComparison ? { ...context, anchorComparison } : context)] : []
+    const logTrend = logTrendKeys?.includes(key) ?? false
+    return parameter ? [cohortSeriesSpec(parameter, fitConfigByParameterKey?.[key], { ...context, ...(anchorComparison ? { anchorComparison } : {}), ...(logTrend ? { logTrend } : {}) })] : []
   })
 }
 
@@ -94,7 +114,7 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
   useAppStore.setState({ busy: true, notice: null })
   try {
     const dataset = file ? loadDatasetFromWorkbook(await file.arrayBuffer()) : { ...await loadBundledFixtureData(), diagnostics: [], rejectedEvents: [] }
-    if (!dataset.rows.length) throw new Error('No usable lab values in this file.')
+    if (!dataset.rows.length) throw new Error(t('No usable lab values in this file.'))
     // A CSV has no sheets; the reader's "Sheet1" would name something the user never saw.
     // A workbook with several sheets keeps its sheet names, whatever its extension.
     if (file && 'sheetNames' in dataset && dataset.sheetNames.length === 1 && !/\.xls[xmb]?$/i.test(file.name)) dataset.diagnostics = dataset.diagnostics.map(d => ({ ...d, sheet: file.name }))
@@ -102,14 +122,17 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
     // Decided 2026-11-21: the import names the patient-days whose creatinine
     // values AKI detection cannot order. The rule is in the Data page note.
     const unordered = sameDayUnorderedCreatinine(dataset.rows).patientDays
-    const unorderedNote = unordered > 0 ? ` ${countLabel(unordered, 'patient-day')} with several serum creatinine values whose order within the day is unknown: see “Demographics and data quality”.` : ''
+    const unorderedNote = () => unordered > 0 ? ` ${t('{days} with several serum creatinine values whose order within the day is unknown: see “Demographics and data quality”.', { days: countLabel(unordered, 'patient-day') })}` : ''
+    // The notice is composed where it is shown (in the language of that
+    // moment) from these counts, not from the dataset it would otherwise keep.
+    const counts = { labs: dataset.rows.length, events: dataset.events.length, attributes: Object.keys(dataset.patientAttributes).length, warnings: dataset.diagnostics.length - rejected }
     // replaceDataset aborts running model jobs and commits data and defaults
     // together, so observers never see new rows with old overrides.
     useAppStore.getState().replaceDataset({
       rows: dataset.rows, events: dataset.events, rejectedEvents: dataset.rejectedEvents,
       patientAttributes: dataset.patientAttributes, fileName: file?.name ?? DEMO_FILE_NAME, pristineDemo: !file,
       importDiagnostics: dataset.diagnostics,
-      notice: { kind: 'info', text: `${countLabel(dataset.rows.length, 'lab value')}, ${countLabel(dataset.events.length, 'event')} and ${countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row')} loaded. ${countLabel(rejected, 'row')} rejected; ${countLabel(dataset.diagnostics.length - rejected, 'warning')}.${unorderedNote}` },
+      notice: composedNotice('info', () => `${t('{labs}, {events} and {attributes} loaded.', { labs: countLabel(counts.labs, 'lab value'), events: countLabel(counts.events, 'event'), attributes: countLabel(counts.attributes, 'attribute row') })} ${t('{rejected} rejected; {warnings}.', { rejected: countLabel(rejected, 'row'), warnings: countLabel(counts.warnings, 'warning') })}${unorderedNote()}`),
     })
   } catch (error) {
     useAppStore.setState({ busy: false, notice: { kind: 'error', text: error instanceof Error ? error.message : String(error) } })

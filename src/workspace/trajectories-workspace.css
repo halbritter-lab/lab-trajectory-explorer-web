@@ -81,7 +81,12 @@
 .wt-table-pages > span { overflow-wrap: anywhere; }
 .wt-badge-endpoint { background: #e0f2fe; color: #0369a1; border: 1px solid #bae6fd; }
 .wt-badge-rapid { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; font-weight: 700; }
+/* Possible rapid decline: same colour family, dashed outline and normal weight. */
+.wt-badge-rapid-possible { background: #fff; color: #b91c1c; border: 1px dashed #f87171; font-weight: 500; }
+/* Slope tier "reliable" (2026-11-22): quiet, it qualifies a slope and is no finding. */
+.wt-badge-reliable { background: #f0fdf4; color: #166534; border: 1px solid #bbf7d0; font-weight: 500; }
 .wt-badge-aki { background: #fff7ed; color: #c2410c; border: 1px solid #ffedd5; }
+.wt-badge-aki-window { background: #fff; color: #c2410c; border: 1px dashed #fdba74; font-weight: 500; }
 .wt-analysis-card[open] { padding-bottom: 16px; border-bottom: 1px solid var(--border); }
 .wt-preset-section { display: grid; gap: 16px; margin-top: 16px; min-width: 0; }
 .wt-analysis-selectors { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 20px; }
@@ -138,3 +143,7 @@
 .wt-measurements td, .wt-measurements th { overflow-wrap: normal; }
 .wt-measurements td:first-child { white-space: nowrap; }
 .wt-measurements .wt-aki-detection-cell { min-width: 9.5rem; }
+/* Patient view, "Compare series" (issue #68). */
+.wt-series-comparison { margin-top: 20px; }
+.wt-comparison-options { display: flex; flex-wrap: wrap; gap: 6px 16px; margin: 8px 0 12px; }
+.wt-comparison-options label { display: inline-flex; align-items: baseline; gap: 4px; min-width: 0; overflow-wrap: anywhere; }

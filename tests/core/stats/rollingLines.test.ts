@@ -4,6 +4,7 @@ import { buildSlopeLines, rollingWindowLine } from '../../../src/core/stats/slop
 import { buildCohortRows, cohortExportRecords, type CohortSeriesSpec } from '../../../src/core/cohort/screening'
 import { fitGlobal } from '../../../src/core/stats/series'
 import type { LabRow } from '../../../src/core/types'
+import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
 
 const DAY = 86_400_000
 const YEAR = 365.25 * DAY
@@ -79,13 +80,15 @@ describe('rolling OLS in the cohort cell and the export', () => {
   })
   it('has no rolling summary for a series without a fitted value', () => {
     const bounds = rows.map((row) => ({ ...row, wertOperator: '<' as const }))
-    const cell = buildCohortRows(bounds, [1], [spec])[0].cells[0]
+    // Bounds enter no fit under 'exclude' (issue #73; the default 'limit' fits them).
+    const excludeSpec: CohortSeriesSpec = { ...spec, fitConfig: { ...generalExplorationConfig(spec), fitModel: 'rolling-ols', boundedValues: 'exclude' } }
+    const cell = buildCohortRows(bounds, [1], [excludeSpec])[0].cells[0]
     expect(cell.rolling).toBeUndefined()
-    expect(cohortExportRecords(buildCohortRows(bounds, [1], [spec]))[0]).toMatchObject({ rolling_windows: '', rolling_window_days: '' })
+    expect(cohortExportRecords(buildCohortRows(bounds, [1], [excludeSpec]))[0]).toMatchObject({ rolling_windows: '', rolling_window_days: '' })
   })
   it('appends the rolling columns after every other column', () => {
     const [record] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
-    expect(Object.keys(record).slice(-14, -9)).toEqual(['rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max'])
+    expect(Object.keys(record).slice(-23, -18)).toEqual(['rolling_window_days', 'rolling_step_days', 'rolling_windows', 'rolling_slope_min', 'rolling_slope_max'])
     expect(record).toMatchObject({ slope_mode: 'rolling', fit_model: 'ols', rolling_window_days: 730, rolling_step_days: 180, rolling_windows: 5 })
     expect(record.rolling_slope_min).toBeCloseTo(-8, 10)
     const [short] = cohortExportRecords(buildCohortRows(rows.slice(0, 8), [1], [spec]))

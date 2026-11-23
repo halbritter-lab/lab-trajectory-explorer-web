@@ -6,6 +6,7 @@ import type { MixedModelSpikeRow } from '../core/mixedModel/types'
 import { ChartExportActions } from './WorkspaceExports'
 import { formatWorkspaceNumber } from './WorkspacePlot'
 import { formatFixedDecimals, MIN_SLOPE_DECIMALS } from '../core/format'
+import { t, useLanguage } from '../i18n'
 
 interface Props {
   parameterLabel: string
@@ -31,7 +32,7 @@ const GRID_COLOR = '#dce5e9'
 /** With a factor-by-time term the time coefficient is the slope of the reference
  * profile only, so the chip must not read as the unit's overall slope. */
 const slopeChipLabel = (label: string, terms: readonly { term: string }[] | undefined) =>
-  terms?.some(({ term }) => term.includes(':') && term.split(':').includes('time_since_baseline')) ? `${label}, reference profile` : label
+  terms?.some(({ term }) => term.includes(':') && term.split(':').includes('time_since_baseline')) ? t('{label}, reference profile', { label }) : label
 const FRAME_COLOR = '#cbd8d6'
 
 export function CohortModelPlotPreview({
@@ -49,6 +50,9 @@ export function CohortModelPlotPreview({
 }: Props) {
   const svg = useRef<SVGSVGElement>(null)
   const clipId = useId().replace(/:/g, '')
+  // The legend and chips below are translated: a language switch (including
+  // the English render for the chart export) must recompute them.
+  const language = useLanguage()
 
   // Calculate coordinates and bounds
   const { points, fittedLines, xDomain, yDomain, slopeBadges } = useMemo(() => {
@@ -83,12 +87,12 @@ export function CohortModelPlotPreview({
           const slope = cohortResult.result.fixedEffects.timeSinceBaseline
           lines.push({
             key: 'cohort',
-            label: 'Whole cohort',
+            label: t('Whole cohort'),
             color: FALLBACK_LINE_COLOR,
             points: [p1, p2],
             slope,
           })
-          badges.push({ label: slopeChipLabel('Whole cohort', cohortResult.result.fixedEffectTerms), slope, color: FALLBACK_LINE_COLOR })
+          badges.push({ label: slopeChipLabel(t('Whole cohort'), cohortResult.result.fixedEffectTerms), slope, color: FALLBACK_LINE_COLOR })
           minY = Math.min(minY, p1.y, p2.y)
           maxY = Math.max(maxY, p1.y, p2.y)
           maxX = Math.max(maxX, p2.x)
@@ -132,7 +136,7 @@ export function CohortModelPlotPreview({
       yDomain: { min: Math.floor((minY - yPad) * 10) / 10, max: Math.ceil((maxY + yPad) * 10) / 10 },
       slopeBadges: badges,
     }
-  }, [spikeRows, groups, groupColors, groupValuesByPatient, cohortModelResults, modelRowsByEntity])
+  }, [spikeRows, groups, groupColors, groupValuesByPatient, cohortModelResults, modelRowsByEntity, language])
 
   const W = 680
   const H = 240
@@ -157,17 +161,17 @@ export function CohortModelPlotPreview({
     <div className="cm-plot-card card">
       <div className="cm-plot-header">
         <div>
-          <h2>Model trajectory preview</h2>
+          <h2>{t('Model trajectory preview')}</h2>
           <p className="muted">
-            {parameterLabel}{unitLabel} over time (years since baseline).
-            {hasFits && ' Dashed lines show fitted reference profiles: numeric factors at fitted centers, categorical factors at reference levels.'}
+            {t('{parameterLabel}{unitLabel} over time (years since baseline).', { parameterLabel, unitLabel })}
+            {hasFits && ` ${t('Dashed lines show fitted reference profiles: numeric factors at fitted centers, categorical factors at reference levels.')}`}
           </p>
           {!hasFits && <p className="muted cm-plot-guidance">
-            {isFitting ? 'Fitting model …' : canFit ? 'Fit the model above to draw the population line.' : 'Model fitting is unavailable; see the reason above.'}
+            {isFitting ? t('Fitting model …') : canFit ? t('Fit the model above to draw the population line.') : t('Model fitting is unavailable; see the reason above.')}
           </p>}
         </div>
         <div className="cm-plot-actions">
-          <ChartExportActions getSvg={() => svg.current} title={`Model trajectory: ${parameterLabel}${unitLabel}`} />
+          <ChartExportActions getSvg={() => svg.current} title={t('Model trajectory: {parameterLabel}{unitLabel}', { parameterLabel, unitLabel })} />
           {slopeBadges.map(b => (
             <span key={b.label} className="cm-slope-badge" style={{ borderColor: b.color }}>
               <span className="cm-badge-swatch" style={{ background: b.color }} />
@@ -180,14 +184,14 @@ export function CohortModelPlotPreview({
       <div className="cm-plot-svg-wrap">
         <svg
           ref={svg}
-          data-export-context="Years since baseline; reference profiles at fitted numeric centers and categorical reference levels; only current converged non-singular fits are shown"
+          data-export-context={t('Years since baseline; reference profiles at fitted numeric centers and categorical reference levels; only current converged non-singular fits are shown')}
           data-export-legend={JSON.stringify(fittedLines.map(line => ({ label: line.label, color: line.color })))}
           className="cm-plot-svg"
           viewBox={`0 0 ${W} ${H}`}
           role="img"
-          aria-label={`Model trajectory preview for ${parameterLabel}`}
+          aria-label={t('Model trajectory preview for {parameter}', { parameter: parameterLabel })}
         >
-          <title>{`Cohort trajectory: ${spikeRows.length} points across ${new Set(spikeRows.map(r => r.patient_id)).size} patients`}</title>
+          <title>{t('Cohort trajectory: {points} points across {patients} patients', { points: spikeRows.length, patients: new Set(spikeRows.map(r => r.patient_id)).size })}</title>
           <defs>
             <clipPath id={clipId}>
               <rect x={padLeft} y={padTop} width={xRange} height={yRange} />
@@ -232,7 +236,7 @@ export function CohortModelPlotPreview({
                 textAnchor="middle"
                 className="cm-axis-text"
               >
-                {formatWorkspaceNumber(xVal)}y
+                {t('{time}y', { time: formatWorkspaceNumber(xVal) })}
               </text>
             </g>
           ))}
@@ -262,7 +266,7 @@ export function CohortModelPlotPreview({
                   stroke={color}
                   strokeWidth={0.8}
                 >
-                  <title>{`Patient ${p.patientId}: ${formatWorkspaceNumber(p.value)}${parameterUnit ? ` ${parameterUnit}` : ''} at ${formatWorkspaceNumber(p.time)}y`}</title>
+                  <title>{t('Patient {patient}: {value} at {time}y', { patient: p.patientId, value: `${formatWorkspaceNumber(p.value)}${parameterUnit ? ` ${parameterUnit}` : ''}`, time: formatWorkspaceNumber(p.time) })}</title>
                 </circle>
               )
             })}
@@ -277,7 +281,7 @@ export function CohortModelPlotPreview({
                 strokeWidth={line.key === 'cohort' ? 3.5 : 2.8}
                 strokeDasharray="8 4"
               >
-                <title>{`${line.label} fitted trajectory (slope: ${line.slope !== undefined ? formatFixedDecimals(line.slope, slopeDecimals, true) : '—'})`}</title>
+                <title>{t('{label} fitted trajectory (slope: {slope})', { label: line.label, slope: line.slope !== undefined ? formatFixedDecimals(line.slope, slopeDecimals, true) : '—' })}</title>
               </polyline>
             ))}
           </g>
@@ -301,7 +305,7 @@ export function CohortModelPlotPreview({
                 textAnchor="middle"
                 className="cm-watermark-text"
               >
-                {isFitting ? 'Fitting model …' : canFit ? 'No fitted model yet' : 'Model fitting unavailable'}
+                {isFitting ? t('Fitting model …') : canFit ? t('No fitted model yet') : t('Model fitting unavailable')}
               </text>
             </g>
           )}

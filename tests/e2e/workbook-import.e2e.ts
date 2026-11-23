@@ -145,9 +145,9 @@ test('import diagnostics name source rows, survive an attributes upload and a re
   await page.getByRole('button', { name: 'Open trajectories →' }).click()
   const cohort = await read(() => page.getByRole('button', { name: /^Export cohort/ }).first().click())
   // anchor_comparison (2026-11-22) follows import_diagnostics.
-  expect(cohort.workbook.SheetNames.at(-2)).toBe('import_diagnostics')
-  expect(cohort.workbook.SheetNames.slice(0, -2)).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows'])
-  expect(cohort.workbook.SheetNames.at(-1)).toBe('anchor_comparison')
+  expect(cohort.workbook.SheetNames.at(-3)).toBe('import_diagnostics')
+  expect(cohort.workbook.SheetNames.slice(0, -3)).toEqual(['measurements', 'raw_measurements', 'cohort', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows'])
+  expect(cohort.workbook.SheetNames.slice(-2)).toEqual(['anchor_comparison', 'peri_event_creatinine'])
   expect(XLSX.utils.sheet_to_json(cohort.workbook.Sheets.import_diagnostics, { defval: '' })).toEqual(fileRows)
 })
 

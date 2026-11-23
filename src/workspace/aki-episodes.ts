@@ -1,9 +1,10 @@
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../core/types'
 import type { ClinicalEvent, DialysisIntent } from '../core/events/events'
 import { episodesForSeries, isAkiCreatinineSource } from '../core/domains/nephrology/aki/akiAware'
-import type { AkiEpisode } from '../core/domains/nephrology/aki/kdigo'
+import { episodeLastDay, type AkiEpisode } from '../core/domains/nephrology/aki/kdigo'
 import { DEFAULT_AKI_RECOVERY_HOURS, MAX_AKI_RECOVERY_HOURS } from '../core/domains/nephrology/constants'
-import { formatDisplayDate, utcDateOrBlank } from '../core/format'
+import { formatDisplayDate, formatDisplayNumber, utcDateOrBlank } from '../core/format'
+import { msg, t, tp, tx } from '../i18n'
 
 export interface AkiEpisodeRow {
   patientId: PatientId
@@ -17,6 +18,11 @@ export interface AkiEpisodeRow {
   peakValue: number
   baselineDate: Date
   baselineValue: number
+  /** `AkiEpisode.baselineSource` and `baselineN`: the 7-day window, the
+   * look-back mean of the admission or the admission minimum (since
+   * 2026-11-22). */
+  baselineSource: AkiEpisode['baselineSource']
+  baselineN: number
   criterion: string
   /** Date of the first value back below the criterion that ended the
    * episode (`AkiEpisode.endDate`); null while the episode is open at the
@@ -45,20 +51,31 @@ const ROMAN: Record<number, string> = { 1: 'I', 2: 'II', 3: 'III' }
 export const akiStageLabel = (stage: number) => ROMAN[stage] ?? String(stage)
 
 const CRITERIA: Record<string, string> = {
-  absolute_0_3_mg_dl_48h: 'rise ≥ 0.3 mg/dl within 48 hours',
-  relative_1_5x_7d: 'rise to ≥ 1.5 times within 7 days',
+  absolute_0_3_mg_dl_48h: msg('rise ≥ 0.3 mg/dl within 48 hours'),
+  relative_1_5x_7d: msg('rise to ≥ 1.5 times within 7 days'),
+  relative_1_5x_lookback_mean: msg('first value of an admission ≥ 1.5 times the mean of the values 7 to 365 days before'),
+  retrospective_fall_in_admission: msg('first value of an admission, later fall in the admission by ≥ 0.3 mg/dl or to ≤ 1/1.5 (retrospective)'),
 }
-export const akiCriterionLabel = (criterion: string) => CRITERIA[criterion] ?? criterion
+export const akiCriterionLabel = (criterion: string) => CRITERIA[criterion] ? tx(CRITERIA[criterion]) : criterion
+
+/** Baseline as listed: value and date, for a look-back mean also the number
+ * of values and that the date is the latest of them. */
+export const akiEpisodeBaselineLabel = (episode: Pick<AkiEpisodeRow, 'baselineValue' | 'baselineDate' | 'baselineSource' | 'baselineN'>) =>
+  episode.baselineSource === 'lookback_mean'
+    ? tp('mean {value} of {n} value 7 to 365 days before, latest {date}', 'mean {value} of {n} values 7 to 365 days before, latest {date}', episode.baselineN, { value: formatDisplayNumber(episode.baselineValue), date: formatDisplayDate(episode.baselineDate) })
+    : episode.baselineSource === 'admission_minimum'
+      ? t('{value} on {date}, lowest later value of the admission', { value: formatDisplayNumber(episode.baselineValue), date: formatDisplayDate(episode.baselineDate) })
+      : t('{value} on {date}', { value: formatDisplayNumber(episode.baselineValue), date: formatDisplayDate(episode.baselineDate) })
 
 /** Episode end as listed: the date, a note that no end was observed before
  * a gap, or a note that the episode is still open. */
 export const akiEpisodeEndLabel = (episode: Pick<AkiEpisodeRow, 'endDate' | 'endedByGap' | 'lastValueDate'> & Partial<Pick<AkiEpisodeRow, 'endAfterOpenDialysis'>>) =>
-  episode.endDate ? `${formatDisplayDate(episode.endDate)}${episode.endAfterOpenDialysis ? ` (after dialysis start ${formatDisplayDate(episode.endAfterOpenDialysis)} without end date)` : ''}`
-    : episode.endedByGap ? `not observed: no values for more than 7 days after ${formatDisplayDate(episode.lastValueDate)}`
-      : 'open at the last value'
+  episode.endDate ? `${formatDisplayDate(episode.endDate)}${episode.endAfterOpenDialysis ? ` ${t('(after dialysis start {date} without end date)', { date: formatDisplayDate(episode.endAfterOpenDialysis) })}` : ''}`
+    : episode.endedByGap ? t('not observed: no values for more than 7 days after {date}', { date: formatDisplayDate(episode.lastValueDate) })
+      : t('open at the last value')
 /** Dialysis start as listed: date and intent, or "none". */
 export const akiEpisodeDialysisLabel = (episode: Pick<AkiEpisodeRow, 'dialysis'>) =>
-  episode.dialysis ? `${formatDisplayDate(episode.dialysis.start)} (${episode.dialysis.intent})` : 'none'
+  episode.dialysis ? `${formatDisplayDate(episode.dialysis.start)} (${episode.dialysis.intent})` : t('none')
 
 /** The recovery length the Data page field applies: whole calendar days,
  * which are all the detector distinguishes (36 hours act as 24), from 0 to
@@ -74,7 +91,8 @@ const utcDay = (date: Date) => Date.UTC(date.getUTCFullYear(), date.getUTCMonth(
  * days by default), so that a dialysis months later, after the values stop,
  * is not attributed to it (decided 2026-11-22). */
 export function dialysisWindowEnd(episode: Pick<AkiEpisode, 'endDate' | 'endedByGap' | 'lastValueDate'>, recoveryHours = DEFAULT_AKI_RECOVERY_HOURS): Date {
-  return episode.endDate !== null && !episode.endedByGap ? episode.endDate : new Date(episode.lastValueDate.getTime() + recoveryHours * 3_600_000)
+  // The same last day from which the fits count the longer AKI window.
+  return episodeLastDay(episode, recoveryHours * 3_600_000)
 }
 
 /** The earliest dialysis start between `onset` and `end` (calendar days,
@@ -103,8 +121,18 @@ export function openDialysisStartInEpisode(onset: Date, end: Date | null, events
  * (`episodesForSeries`); series are not pooled, so a patient with two
  * creatinine series can list an episode once per series. A listing only:
  * which episodes a column shows or excludes is decided per column.
- * `recoveryHours` is the dataset's AKI module setting. */
-export function akiEpisodeRows(rows: readonly LabRow[], events: readonly ClinicalEvent[], recoveryHours = DEFAULT_AKI_RECOVERY_HOURS): AkiEpisodeRow[] {
+ * `recoveryHours` and `retrospectiveFall` are the dataset's AKI module
+ * settings.
+ *
+ * A merged creatinine series (rows with `mergedFrom`, issue #68) copies the
+ * values of its source series, so it would list their episodes a second
+ * time; it is left out, as `largestCreatinineSeries` and the peri-event
+ * analysis leave it out. The exception is a merged series chosen as the
+ * creatinine source of the computed eGFR (`egfrSource`, the Data page
+ * setting): the eGFR column then excludes the episodes detected on the merged
+ * series (`episodesForSeries` follows `sourceSeries`), so they are listed. */
+export function akiEpisodeRows(rows: readonly LabRow[], events: readonly ClinicalEvent[], recoveryHours = DEFAULT_AKI_RECOVERY_HOURS, retrospectiveFall = false,
+  egfrSource: readonly [string, string | null] | null = null): AkiEpisodeRow[] {
   const byPatient = new Map<PatientId, LabRow[]>()
   // Push into buckets: copying a bucket per row is quadratic in a patient's rows.
   for (const row of rows) { const bucket = byPatient.get(row.patientId); if (bucket) bucket.push(row); else byPatient.set(row.patientId, [row]) }
@@ -115,13 +143,15 @@ export function akiEpisodeRows(rows: readonly LabRow[], events: readonly Clinica
     const patientRows = byPatient.get(patientId)!
     const series = new Map<string, [string, string | null]>()
     for (const row of patientRows) {
+      if (row.mergedFrom && !(egfrSource !== null && row.bezeichnung === egfrSource[0] && (row.einheit ?? null) === (egfrSource[1] ?? null))) continue
       if (row.bezeichnung !== null && isAkiCreatinineSource(row.bezeichnung, row.einheit)) series.set(JSON.stringify([row.bezeichnung, row.einheit]), [row.bezeichnung, row.einheit])
     }
     const own: AkiEpisodeRow[] = []
     for (const [parameter, unit] of series.values()) {
       const patientEvents = eventsByPatient.get(patientIdKey(patientId)) ?? []
-      for (const episode of episodesForSeries(patientRows, patientId, parameter, unit, patientEvents, recoveryHours)) {
-        own.push({ patientId, parameter, unit, stage: episode.stage, onset: episode.date, peakDate: episode.peakDate, peakValue: episode.peakValue, baselineDate: episode.baselineDate, baselineValue: episode.baselineValue, criterion: episode.criterion,
+      for (const episode of episodesForSeries(patientRows, patientId, parameter, unit, patientEvents, recoveryHours, { retrospectiveFall })) {
+        own.push({ patientId, parameter, unit, stage: episode.stage, onset: episode.date, peakDate: episode.peakDate, peakValue: episode.peakValue, baselineDate: episode.baselineDate, baselineValue: episode.baselineValue,
+          baselineSource: episode.baselineSource, baselineN: episode.baselineN, criterion: episode.criterion,
           endDate: episode.endedByGap ? null : episode.endDate, endedByGap: episode.endedByGap, lastValueDate: episode.lastValueDate,
           dialysis: dialysisStartInEpisode(episode.date, dialysisWindowEnd(episode, recoveryHours), patientEvents),
           endAfterOpenDialysis: openDialysisStartInEpisode(episode.date, episode.endedByGap ? null : episode.endDate, patientEvents) })
@@ -150,5 +180,8 @@ export function akiEpisodeExportRows(episodes: readonly AkiEpisodeRow[]) {
     dialysis_start: episode.dialysis ? `${utcDateOrBlank(episode.dialysis.start)} (${episode.dialysis.intent})` : '',
     ended_by_gap: episode.endedByGap,
     last_value_date: utcDateOrBlank(episode.lastValueDate),
+    // Appended 2026-11-22 (row akifirst): where the baseline comes from and how many values it averages.
+    baseline_source: episode.baselineSource,
+    baseline_n: episode.baselineN,
   }))
 }

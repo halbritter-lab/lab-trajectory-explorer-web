@@ -10,7 +10,12 @@
  */
 import { unitKey } from '../../parse/units'
 
-export type FormulaName = 'ckd-epi-2021' | 'ckd-epi-2009' | 'mdrd-4' | 'ekfc-2021'
+/** The dataset's eGFR formula setting. `ckid-u25-ekfc` is the full-age rule
+ * (issue #66, 2026-11-22): CKiD U25 from 1 to 25 years where a height is
+ * available, EKFC otherwise (from 2) and above 25; at age 1 no value without
+ * a height (owner decision 2026-11-23, OD-70); it changes adults too. The other
+ * four are adult formulas; minors follow the separate under-18 rule. */
+export type FormulaName = 'ckd-epi-2021' | 'ckd-epi-2009' | 'mdrd-4' | 'ekfc-2021' | 'ckid-u25-ekfc'
 
 /** Human-readable formula names, as they appear in computed series names. */
 export const EGFR_FORMULA_LABELS: Record<FormulaName, string> = {
@@ -18,6 +23,56 @@ export const EGFR_FORMULA_LABELS: Record<FormulaName, string> = {
   'ckd-epi-2009': 'CKD-EPI 2009 (race-free)',
   'mdrd-4': 'MDRD-4',
   'ekfc-2021': 'EKFC 2021',
+  'ckid-u25-ekfc': 'CKiD U25 / EKFC',
+}
+
+/** The equation behind one computed eGFR row (`LabRow.egfrFormula`). */
+export type RowEgfrFormula = 'ckd-epi-2021' | 'ckd-epi-2009' | 'mdrd-4' | 'ekfc-2021' | 'ckid-u25' | 'schwartz-bedside'
+
+export const ROW_EGFR_FORMULA_LABELS: Record<RowEgfrFormula, string> = {
+  'ckd-epi-2021': 'CKD-EPI 2021',
+  'ckd-epi-2009': 'CKD-EPI 2009 (race-free)',
+  'mdrd-4': 'MDRD-4',
+  'ekfc-2021': 'EKFC 2021',
+  'ckid-u25': 'CKiD U25',
+  'schwartz-bedside': 'Bedside Schwartz',
+}
+
+/** What rows under 18 use while an adult formula is set (issue #66):
+ * `ckid-u25-ekfc` (default) CKiD U25 with a height, else EKFC (from age 2),
+ * from age 1; `schwartz-bedside` bedside Schwartz with a height, else no
+ * value, from age 1 (owner decision 2026-11-23, OD-70); `off` no value under 18 (the rule up to 2026-11-22). Ignored under the
+ * full-age formula `ckid-u25-ekfc`. */
+export type PaediatricRule = 'ckid-u25-ekfc' | 'schwartz-bedside' | 'off'
+
+export const PAEDIATRIC_RULE_LABELS: Record<PaediatricRule, string> = {
+  'ckid-u25-ekfc': 'CKiD U25 with height, otherwise EKFC',
+  'schwartz-bedside': 'Bedside Schwartz with height (comparison only)',
+  off: 'None (no eGFR under 18)',
+}
+
+export const DEFAULT_PAEDIATRIC_RULE: PaediatricRule = 'ckid-u25-ekfc'
+
+/** Body-height names accepted for the height series (issue #66), compared
+ * after Unicode normalisation (NFC), non-breaking spaces read as spaces,
+ * whitespace runs collapsed, trimming and lower-casing. Exact names only, so
+ * "Größe Niere" or "Größe Zyste" are not read as body height. */
+export const HEIGHT_NAMES: ReadonlySet<string> = new Set([
+  'größe', 'groesse', 'grösse', 'körpergröße', 'koerpergroesse', 'körpergrösse', 'körperlänge', 'koerperlaenge',
+  'height', 'body height', 'body length',
+])
+/** LOINC codes of body height: 8302-2 (body height), 8306-3 (lying),
+ * 8308-9 (standing). A row with one of them is a height whatever its name. */
+export const HEIGHT_LOINC: ReadonlySet<string> = new Set(['8302-2', '8306-3', '8308-9'])
+
+/** A body-height row usable for CKiD U25 and bedside Schwartz: unit cm (unit
+ * key, so `CM` counts; `m` and `mm` do not) and a name of `HEIGHT_NAMES` or a
+ * code of `HEIGHT_LOINC`. */
+export function isHeightSeries(bez: string | null, einheit: string | null, loinc: string | null = null): boolean {
+  if (normaliseUnit(einheit) !== 'cm') return false
+  if (loinc !== null && HEIGHT_LOINC.has(loinc.trim())) return true
+  if (bez == null) return false
+  return HEIGHT_NAMES.has(bez.normalize('NFC').replace(/\u00a0/g, ' ').replace(/\s+/g, ' ').trim().toLowerCase())
 }
 
 /** Closing part of every computed eGFR series name. */

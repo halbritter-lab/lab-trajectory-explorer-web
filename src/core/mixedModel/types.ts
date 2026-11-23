@@ -26,6 +26,9 @@ export interface MixedModelInputFlag {
   status: 'entered' | 'aggregated_into_median' | 'excluded'
   reason: string
   model_date: string
+  /** `=`, `<` or `>` (other operators as stored); appended 2026-11-22
+   * (issue #73), so a censored model can be fitted from this sheet. */
+  operator: string
 }
 
 export interface MixedModelPreparationSummary {
@@ -35,6 +38,24 @@ export interface MixedModelPreparationSummary {
   nMeasurementsBefore: number
   excludedPatients: Array<{ patientId: string; reasons: string[] }>
   centers: Record<string, number>
+  /** Per categorical factor and level of this unit, how the minimum per
+   * level was applied (decision `genomin`, 2026-11-22). Absent without a
+   * categorical factor. */
+  levelPooling?: MixedModelLevelPooling[]
+}
+
+/** One level of a categorical factor in one unit, before pooling. */
+export interface MixedModelLevelPooling {
+  factor: string
+  column: string
+  /** The level as read (a "not tested" value already as `not tested`). */
+  level: string
+  /** The level the patients enter the model with; empty when excluded. */
+  modelLevel: string
+  patients: number
+  /** Patients with at least two model rows: the count the minimum applies to. */
+  patientsWithRepeated: number
+  action: 'kept' | 'pooled' | 'kept_below_minimum' | 'excluded_not_tested'
 }
 
 export interface MixedModelProductionRow extends MixedModelSpikeRow {
@@ -54,7 +75,6 @@ export interface MixedModelMetadata {
   preparation?: MixedModelPreparationSummary
   optimizer: string | null
   reml: boolean
-  tolerance: number | null
   datasetId: string
   datasetHash: string
   randomSeed: number | null
@@ -122,7 +142,6 @@ export interface CohortSlopeApproximationResult {
 }
 
 export const MIXED_MODEL_FORMULA = 'value ~ time_since_baseline + (1 + time_since_baseline | patient_id)'
-export const MIXED_MODEL_TOLERANCE = 1e-6
 // A cold run downloads the webR runtime plus the lme4 package and installs them
 // before fitting, which can take well over 30s on a slow connection. The first
 // job pays this; reused workers (see runMixedModelWorkerJob) skip it.

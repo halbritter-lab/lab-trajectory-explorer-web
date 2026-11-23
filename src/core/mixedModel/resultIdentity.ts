@@ -1,7 +1,7 @@
 import { comparePatientIds } from '../types'
 import { hashMixedModelInput, hashString, roundTo10Decimals } from './validation'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelConfigHashInput, type MixedModelConfig } from './config'
-import { MIXED_MODEL_FORMULA, MIXED_MODEL_TOLERANCE, type MixedModelPreparationSummary, type MixedModelSpikeRow, type MixedModelSuccess } from './types'
+import { MIXED_MODEL_FORMULA, type MixedModelPreparationSummary, type MixedModelSpikeRow, type MixedModelSuccess } from './types'
 import type { CohortSeriesSpec } from '../cohort/screening'
 import type { PresetExclusionPolicy } from './cohortDataset'
 
@@ -44,7 +44,6 @@ export function mixedModelFitConfigHash(
     engine: 'webr-lme4',
     formula: MIXED_MODEL_FORMULA,
     reml: true,
-    tolerance: MIXED_MODEL_TOLERANCE,
     model: mixedModelConfigHashInput(config),
     presetExclusionPolicy,
     series: {

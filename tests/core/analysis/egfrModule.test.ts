@@ -54,6 +54,19 @@ describe('egfrModule', () => {
     expect(egfrModule.parseSettings({ formula: 'ckd-epi-2008', source: null })).toBeNull()
   })
 
+  // Issue #66: the full-age formula and the under-18 rule.
+  it('accepts the full-age formula and the under-18 rules; a saved value without a rule keeps the default', () => {
+    expect(egfrModule.defaultSettings.paediatric).toBe('ckid-u25-ekfc')
+    expect(egfrModule.parseSettings({ formula: 'ckid-u25-ekfc', source: null })).toEqual({ formula: 'ckid-u25-ekfc', source: null })
+    expect(egfrModule.parseSettings({ formula: 'ckd-epi-2021', source: null, paediatric: 'schwartz-bedside' })).toEqual({ formula: 'ckd-epi-2021', source: null, paediatric: 'schwartz-bedside' })
+    expect(egfrModule.parseSettings({ formula: 'ckd-epi-2021', source: null, paediatric: 'schwartz' })).toBeNull()
+    const child = [row({ patientAgeAtLab: 12, wertNum: 0.6, wert: '0,6' })]
+    const ctx = { rows: child, manualDemographics: {}, patientAttributes: {}, events: [] }
+    // A copy saved before 2026-11-22 (no rule) gets EKFC for the child; the rule "off" none.
+    expect(egfrModule.apply(ctx, { formula: 'ckd-epi-2021', source: null }).rows?.at(-1)?.egfrFormula).toBe('ekfc-2021')
+    expect(egfrModule.apply(ctx, { formula: 'ckd-epi-2021', source: null, paediatric: 'off' }).rows).toBe(child)
+  })
+
   it('computes from the rows it is handed and does not apply manual demographics itself', () => {
     // Demographics resolution runs earlier in the pipeline, so a row that still
     // has no sex or age here stays uncomputable however the manual entry reads.

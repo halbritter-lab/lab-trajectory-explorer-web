@@ -190,6 +190,19 @@ The lab sheet accepts these headers (`LAB_COLUMN_ALIASES`):
 | birth date | `birthDate`, `PatientGeburtsdatum`, `Geburtsdatum`, `PatientBirthDate` (= `patient_birth_date`) | no |
 | pre-parsed number | `valueNum`, `Wert_num` | no |
 | pre-parsed operator | `valueOperator`, `Wert_operator` | no |
+| laboratory or method (issue #68, 2026-11-22) | `labMethod` (= `lab_method`, the column of the workbook export), `Laboratory`, `Labor`, `Method`, `Methode` | no |
+
+The laboratory or method column is read as text, trimmed; an empty cell gives
+no value. It is carried with the row, shown in the point tooltips, the
+measurement table of the patient view and the series comparison, and written
+to `lab_method` in both measurement sheets of the export; no rule reads it, so
+it neither separates nor joins series (series of different laboratories are
+compared and merged only by the steps in
+[series comparison and merge](series-comparison-and-merge.md#series-comparison-and-deliberate-merge-2026-11-22)).
+`Lab` alone is not accepted. A sheet with both a laboratory and a method
+column (`Labor` and `Methode`) is read from the one listed first, with the
+shadowed-column warning below: 'Columns "Labor" and "Methode" hold the same
+field; "Labor" is used and "Methode" is ignored.'
 
 A lab sheet with data rows that lacks a required column is rejected as a whole;
 the error names the missing columns and lists the columns found. `Geschlecht`
@@ -248,6 +261,23 @@ later row is rejected with a diagnostic. A patient without lab rows is kept
 with a warning. A stated-age column in the attributes table is an ordinary free
 attribute and is not used for age.
 
+**"Not tested" values** (decision `genomiss` of 2026-11-22, issue #4;
+Groenwold RHH et al., CMAJ 2012;184:1265, PMID 22371511). The vocabulary
+`NOT_TESTED_VOCABULARY` (`src/core/attributes/notTested.ts`) holds four
+texts: `not tested`, `nicht getestet`, `n.t.` and `nt`. An attribute value
+matches when, trimmed, lower-cased and with inner whitespace collapsed to one
+space, it equals one of them: `Not Tested`, ` NICHT  getestet `, `N.T.` and
+`NT` match; `n. t.`, `not done`, `n.a.`, `NA`, `negative`, `no variant` and
+`NTRK1` do not. The list is deliberately short; other spellings stay
+ordinary values. The import keeps the value as it is in the file, and every
+sheet, group and display shows it so. Only a cohort-model attribute factor
+reads a matching value as the level `not tested` (see
+[Factors and covariates](cohort-models.md#factors-and-covariates)): it is
+never merged with "no variant" or any other level, and a blank cell stays
+missing. Open decision OD-57: grouping (Trajectories and the *Model
+grouping* of Cohort models) does not apply the vocabulary, so `NT` and
+`not tested` form two groups there.
+
 **Pre-parsed values.** When the lab sheet has both a pre-parsed number column
 and a pre-parsed operator column, the value column is not interpreted at all.
 Its text is kept only for display and for the duplicate check. A sheet with
@@ -267,8 +297,12 @@ normally.
 
 A row whose operator is not `=` is not an exact measurement. If it carries a
 number it is treated like a bounded value: it stays visible and counts toward
-raw numeric counts, is excluded from fits, endpoints, AKI detection and cohort
-mixed models, and is labelled "censored value (limit, not exact)".
+raw numeric counts, enters fits as the column's bounded-values setting says
+(limit, the default; half-limit; exclude; see
+[bounded values](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22)),
+is excluded from endpoints (except that a conclusive bound interrupts an
+unconfirmed G4 or G5 candidate), AKI detection and cohort mixed models, and is
+labelled "censored value (limit, not exact)" where it is left out.
 
 An eGFR value derived from such a creatinine row inherits its operator and is
 not exact either; see "eGFR derivation".

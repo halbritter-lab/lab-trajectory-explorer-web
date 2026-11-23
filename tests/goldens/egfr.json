@@ -54,7 +54,7 @@
       "sex": "m",
       "ckdepi": null,
       "mdrd": null,
-      "ekfc": null
+      "ekfc": 82.30714
     },
     {
       "scrMgdl": 0.0,
@@ -564,6 +564,48 @@
       "patientId": 9,
       "date": "2025-02-01T00:00:00Z",
       "wertNum": 22.9,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2021-04-01T00:00:00Z",
+      "wertNum": 94.3,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2021-09-01T00:00:00Z",
+      "wertNum": 89.1,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2022-02-01T00:00:00Z",
+      "wertNum": 82.7,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2022-07-01T00:00:00Z",
+      "wertNum": 76.6,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2022-12-01T00:00:00Z",
+      "wertNum": 70,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2023-05-01T00:00:00Z",
+      "wertNum": 64.1,
+      "operator": "="
+    },
+    {
+      "patientId": 10,
+      "date": "2023-10-01T00:00:00Z",
+      "wertNum": 58,
       "operator": "="
     },
     {

@@ -28,7 +28,7 @@ it('exports explicit response and disabled projection provenance, rejecting an o
 describe('mixed model export', () => {
   it('exports fitted configuration, every term, reference, exclusions, centers and disclaimer', () => {
     const config = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'genotype',kind:'categorical' as const,effect:'level_slope' as const,reference:'A'}, {key:'baseline_age',kind:'numeric' as const,effect:'level_slope' as const}, {key:'dose',kind:'numeric' as const,effect:'level_slope' as const}]}
-    const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:null,packageVersions:{},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,tolerance:null,datasetId:'test',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:'fitted formula',datasetHash:'fitted hash',preparation:{nPatientsBefore:4,nMeasurementsBefore:12,presetExclusionPolicy:'apply' as const,excludedByPreset:2,centers:{factor_1_:62},excludedPatients:[{patientId:'p4',reasons:['Missing sex']}]}},nPatients:3,nMeasurements:9,converged:true,singular:true,warnings:['singular'],fixedEffectTerms:[{term:'time_since_baseline:factor_0_B',estimate:-2,confidenceInterval:[-3,-1]}],fixedEffects:{intercept:60,timeSinceBaseline:-1},fixedEffectConfidenceIntervals:{timeSinceBaseline:null},randomEffects:{interceptSd:null,slopeSd:null,interceptSlopeCorrelation:null},residualSd:null} satisfies MixedModelSuccess
+    const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:null,packageVersions:{},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,datasetId:'test',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:'fitted formula',datasetHash:'fitted hash',preparation:{nPatientsBefore:4,nMeasurementsBefore:12,presetExclusionPolicy:'apply' as const,excludedByPreset:2,centers:{factor_1_:62},excludedPatients:[{patientId:'p4',reasons:['Missing sex']}]}},nPatients:3,nMeasurements:9,converged:true,singular:true,warnings:['singular'],fixedEffectTerms:[{term:'time_since_baseline:factor_0_B',estimate:-2,confidenceInterval:[-3,-1]}],fixedEffects:{intercept:60,timeSinceBaseline:-1},fixedEffectConfidenceIntervals:{timeSinceBaseline:null},randomEffects:{interceptSd:null,slopeSd:null,interceptSlopeCorrelation:null},residualSd:null} satisfies MixedModelSuccess
     const storedIdentity = {seriesKey:'eGFR (CKD-EPI 2021)|ml/min/1.73m2'}
     const fitted: MixedModelSuccess = {...result,fixedEffectTerms:[
       ...result.fixedEffectTerms,
@@ -72,7 +72,7 @@ it('labels category strings literally and distinguishes generated columns with s
 describe('R reproduction export', () => {
   const config = {...DEFAULT_MIXED_MODEL_CONFIG, factors:[{key:'genotype',kind:'categorical' as const,effect:'level_slope' as const,reference:'A'}, {key:'dose',kind:'numeric' as const,effect:'level' as const}]}
   const terms = ['(Intercept)','time_since_baseline','factor_0_B','factor_1_','time_since_baseline:factor_0_B']
-  const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:'4.5.1',packageVersions:{lme4:'1.1-37',Matrix:'1.7-3',jsonlite:'2.0.0'},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,tolerance:null,datasetId:'cohort',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:mixedModelFormula(config),datasetHash:'hash'},nPatients:2,nMeasurements:2,converged:true,singular:false,warnings:[],
+  const result = {status:'success', metadata:{engine:'webr-lme4',runtimeVersion:'4.5.1',packageVersions:{lme4:'1.1-37',Matrix:'1.7-3',jsonlite:'2.0.0'},browserUserAgent:'test',wasmAssetSource:'cdn',optimizer:null,reml:true,datasetId:'cohort',randomSeed:null,fitConfigHash:'fit',modelConfig:config,formula:mixedModelFormula(config),datasetHash:'hash'},nPatients:2,nMeasurements:2,converged:true,singular:false,warnings:[],
     fixedEffectTerms:terms.map((term,index) => ({term,estimate:index+1,confidenceInterval:null,standardError:index/10})),
     fixedEffectCovariance:{terms,matrix:terms.map((_,row) => terms.map((__,column) => row === column ? (row/10)**2 : 0.001))},
     fixedEffects:{intercept:1,timeSinceBaseline:2},fixedEffectConfidenceIntervals:{timeSinceBaseline:null},randomEffects:{interceptSd:null,slopeSd:null,interceptSlopeCorrelation:null},residualSd:null} satisfies MixedModelSuccess
@@ -80,7 +80,7 @@ describe('R reproduction export', () => {
     {patient_id:'p1',value:60,date:'2020-01-01',time_since_baseline:0,factorValues:{factor_0_:'A',factor_1_:-1.5},factorRawValues:{factor_0_:'A',factor_1_:2}},
     {patient_id:'p2',value:58,date:'2020-03-01',time_since_baseline:0,factorValues:{factor_0_:'B',factor_1_:1.5},factorRawValues:{factor_0_:'B',factor_1_:5}},
   ]
-  const inputFlags = [{patient_id:'p1',date:'2020-01-01',value:60,status:'entered' as const,reason:'',model_date:'2020-01-01'}, {patient_id:'p1',date:'2020-02-01',value:40,status:'excluded' as const,reason:'aki',model_date:''}]
+  const inputFlags = [{patient_id:'p1',date:'2020-01-01',value:60,status:'entered' as const,reason:'',model_date:'2020-01-01',operator:'='}, {patient_id:'p1',date:'2020-02-01',value:40,status:'excluded' as const,reason:'aki',model_date:'',operator:'='}]
   const sheets = mixedModelExportSheets([{entity:'G1',result,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'},rows,inputFlags}])
   const workbook = XLSX.read(sheetsToXlsxBytes(sheets),{type:'array'})
   const sheet = (name: string) => XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets[name], {defval:''})
@@ -91,8 +91,8 @@ describe('R reproduction export', () => {
       {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p2',date:'2020-03-01',value:58,time_since_baseline:0,factor_0_:'B',raw_factor_0_:'B',factor_1_:1.5,raw_factor_1_:5},
     ])
     expect(sheet('model_input_flags')).toEqual([
-      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01'},
-      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-02-01',value:40,status:'excluded',reason:'aki',model_date:''},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-01-01',value:60,status:'entered',reason:'',model_date:'2020-01-01',operator:'='},
+      {entity:'G1',unit_key:'group:G1',group:'G1',patient_id:'p1',date:'2020-02-01',value:40,status:'excluded',reason:'aki',model_date:'',operator:'='},
     ])
   })
 
@@ -121,14 +121,22 @@ describe('R reproduction export', () => {
   })
 
   it('keeps the sheet and column positions of 0.3.7 and appends what is new', () => {
-    expect(sheets.map(sheet => sheet.name)).toEqual(['models','coefficients','factors','centering','excluded_patients','about','vcov','model_rows','model_input_flags','r_script'])
+    // factor_levels, dropout and dropout_patients added on 2026-11-22, after every earlier sheet.
+    expect(sheets.map(sheet => sheet.name)).toEqual(['models','coefficients','factors','centering','excluded_patients','about','vcov','model_rows','model_input_flags','r_script','factor_levels','dropout','dropout_patients'])
     const header = (name: string) => XLSX.utils.sheet_to_json<string[]>(workbook.Sheets[name],{header:1})[0]
     expect(header('coefficients')).toEqual(['entity','outcome','unit','term','label','estimate','ci_lower','ci_upper','std_error','unit_key'])
     expect(header('factors').slice(0,1)).toEqual(['entity'])
-    expect(header('factors').at(-1)).toBe('unit_key')
+    // The type and reference sources added on 2026-11-22 (OD-22, OD-29) follow unit_key.
+    expect(header('factors').slice(-3)).toEqual(['unit_key','kind_source','reference_source'])
     expect(header('models').slice(0,2)).toEqual(['entity','series_key'])
-    // unit_key, then the variance components added on 2026-11-21.
-    expect(header('models').slice(-5)).toEqual(['unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
+    // OD-21 (2026-11-22): `tolerance` keeps its 0.3.7 position after `reml`, empty.
+    const models = header('models')
+    expect(models[models.indexOf('reml') + 1]).toBe('tolerance')
+    expect(models[models.indexOf('tolerance') + 1]).toBe('datasetId')
+    const firstRow = XLSX.utils.sheet_to_json<Record<string, unknown>>(workbook.Sheets.models)[0]
+    expect(firstRow.tolerance).toBeUndefined()
+    // unit_key, then the variance components added on 2026-11-21, then the versions of 2026-11-22 (#83).
+    expect(header('models').slice(-7)).toEqual(['unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd','app_version','egfr_formula'])
   })
 
   // Persona review 2026-11-21 (K33): the details show two decimals, the export every digit.
@@ -147,7 +155,7 @@ describe('R reproduction export', () => {
     for (const column of ['intercept_sd','slope_sd','intercept_slope_correlation','residual_sd']) expect(column in models[1],column).toBe(false)
     expect(models[2]).toMatchObject({intercept_sd:0.4,residual_sd:0.3})
     expect('slope_sd' in models[2] || 'intercept_slope_correlation' in models[2]).toBe(false)
-    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.models,{header:1})[0].slice(-6)).toEqual(['message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
+    expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.models,{header:1})[0].slice(-8)).toEqual(['message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd','app_version','egfr_formula'])
     // Every other sheet is as before.
     expect(XLSX.utils.sheet_to_json<string[]>(book.Sheets.coefficients,{header:1})[0].at(-1)).toBe('unit_key')
   })
@@ -164,7 +172,10 @@ describe('R reproduction export', () => {
     const about = (list: ReturnType<typeof mixedModelExportSheets>) => (list.find(sheet => sheet.name === 'about')!.rows as {note:string}[]).map(row => row.note)
     const notes = about(mixedModelExportSheets([{entity:'G1',result,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'},rows,inputFlags}],'models.xlsx','fixed-id',{appVersion:'9.9.9',exportedAt:new Date('2026-11-21T13:14:15.000Z')}))
     expect(notes).toContain('export_id: fixed-id')
-    expect(notes.slice(-3,-1)).toEqual(['app_version: 9.9.9','exported_at: 2026-11-21T13:14:15.000Z'])
+    const versionAt = notes.indexOf('app_version: 9.9.9')
+    expect(notes.slice(versionAt, versionAt + 2)).toEqual(['app_version: 9.9.9','exported_at: 2026-11-21T13:14:15.000Z'])
+    // The notes of 2026-11-22 follow the provenance rows.
+    expect(notes[versionAt + 3]).toMatch(/^models ends with app_version/)
     expect(notes.indexOf('export_id: fixed-id')).toBe(about(sheets).findIndex(note => note.startsWith('export_id: ')))
     const personal = notes.find(note => note.startsWith('This file contains personal data'))!
     for (const field of ['not pseudonymised','patient_id','model_rows','model_input_flags','excluded_patients','browserUserAgent','r_script','Check these fields before passing the file on']) expect(personal,field).toContain(field)
@@ -188,9 +199,10 @@ describe('R reproduction export', () => {
       {entity:'Whole cohort',result:fitted,identity:{seriesKey:'eGFR|ml/min'}},
       {entity:'G1',result:failed,identity:{seriesKey:'eGFR|ml/min',groupValue:'G1'}},
     ])
-    expect(header(mixed,'factors')).toEqual(['entity','key','kind','effect','column','reference','unit_key'])
-    expect(header(mixed,'models').slice(-7)).toEqual(['singular','message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd'])
-    expect(XLSX.utils.sheet_to_json(XLSX.read(sheetsToXlsxBytes(mixed),{type:'array'}).Sheets.factors)[0]).toEqual({entity:'Whole cohort',key:'baseline_age',kind:'numeric',effect:'level_slope',column:'baseline_age_centered',unit_key:'cohort'})
+    // kind_source and reference_source added on 2026-11-22 (OD-22, OD-29), after unit_key.
+    expect(header(mixed,'factors')).toEqual(['entity','key','kind','effect','column','reference','unit_key','kind_source','reference_source'])
+    expect(header(mixed,'models').slice(-9)).toEqual(['singular','message','unit_key','intercept_sd','slope_sd','intercept_slope_correlation','residual_sd','app_version','egfr_formula'])
+    expect(XLSX.utils.sheet_to_json(XLSX.read(sheetsToXlsxBytes(mixed),{type:'array'}).Sheets.factors)[0]).toEqual({entity:'Whole cohort',key:'baseline_age',kind:'numeric',effect:'level_slope',column:'baseline_age_centered',unit_key:'cohort',kind_source:'automatic'})
     // A unit without projection targets (fewer columns) before one with a target.
     const base = {status:'success', converged:true, singular:false, metadata:{}, warnings:[], fixedEffects:{intercept:80,timeSinceBaseline:5}, fixedEffectConfidenceIntervals:{timeSinceBaseline:null}} as unknown as MixedModelSuccess
     const second = {...base} as MixedModelSuccess
@@ -223,6 +235,11 @@ describe('R reproduction export', () => {
     expect(script).toContain('mm_factor_0_ <- as.character(mm_unit[["factor_0_"]])')
     expect(script).toContain('mm_unit <- mm_rows[mm_rows$unit_key == "group:G1", , drop = FALSE]')
     expect(script).toContain('mm_browser <- mm_coefficients[mm_coefficients$unit_key == "group:G1", , drop = FALSE]')
+    // The censored-model sketch selects each exported unit by its own unit_key, not "cohort".
+    expect(script).toContain('#   d <- mm_flags[mm_flags$unit_key == "group:G1" & (mm_flags$status != "excluded" | mm_flags$reason == "bound_value"), ]')
+    expect(script).not.toContain('mm_flags$unit_key == "cohort"')
+    // The Satterthwaite block says what the factor's own row tests once its slope interaction is in the model.
+    expect(script).toContain("# With time_since_baseline:<factor> in the model, the factor's own row tests the difference at baseline (time 0).")
     expect(sheet('coefficients')[0]).toMatchObject({entity:'G1',unit_key:'group:G1',unit:'ml/min'})
     expect(script).toContain('R 4.5.1 (webR); lme4 1.1-37; Matrix 1.7-3; jsonlite 2.0.0')
     expect(mixedModelRScript([{entity:'G2',result:{...result,metadata:{...result.metadata,runtimeVersion:null,packageVersions:{}}}}]).join('\n')).toContain('R version unknown (webR); package versions unknown')

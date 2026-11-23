@@ -131,6 +131,7 @@ describe('projectedG5Label', () => {
     const endpoints = endpointsFor([
       { date: '2020-01-01', value: 60 },
       { date: '2021-06-01', value: 61 },
+      { date: '2022-01-01', value: 61 },
       { date: '2023-01-01', value: 60 },
     ], 0.2)
     expect(endpoints.projectedAgeToCkdG5.reason).toBe('non_declining_fit')
@@ -141,11 +142,22 @@ describe('projectedG5Label', () => {
     const endpoints = endpointsFor([
       { date: '2019-01-01', value: 60 },
       { date: '2021-01-01', value: 40 },
+      { date: '2022-06-01', value: 30 },
       { date: '2024-01-01', value: 20 },
     ], Number.NaN)
     expect(endpoints.projectedAgeToCkdG5.reason).toBe('no_fit')
     expect(projectedG5Label(endpoints)?.label).toBe('G5 no fit')
     expect(projectedG5Label(endpoints)?.title).toBe('No slope was fitted for this parameter (Trend is switched off, the method is No fit, or the fit failed), so no age at CKD G5 can be projected.')
+  })
+
+  it('names the KDIGO minimum of four dates over three years (2026-11-22)', () => {
+    const threeDates = endpointsFor([
+      { date: '2020-01-01', value: 60 },
+      { date: '2021-06-01', value: 45 },
+      { date: '2023-01-01', value: 30 },
+    ], -10)
+    expect(projectedG5Label(threeDates)).toMatchObject({ label: 'G5 < 4 dates/3 yrs',
+      title: 'The extrapolation needs measurements on at least 4 distinct dates over at least 3 years (KDIGO 2012: extrapolating the previous rate of change requires about four measurements over three years), so no extrapolation was made.' })
   })
 
   it('distinguishes too-few-points from too-short-a-span', () => {
@@ -191,8 +203,8 @@ describe('projectedG5Label', () => {
     })
 
     it('names the latest measurement used when the crossing lies beyond the horizon', () => {
-      const used: [string, number][] = [['2020-01-01', 80], ['2021-01-01', 79.75], ['2022-01-01', 79.5]]
-      const all: [string, number][] = [...used, ['2022-06-01', 60]]
+      const used: [string, number][] = [['2020-01-01', 80], ['2021-01-01', 79.75], ['2022-01-01', 79.5], ['2023-01-01', 79.25]]
+      const all: [string, number][] = [...used, ['2023-06-01', 60]]
       const endpoints = withRemoved(used, -0.25, [-0.3, -0.2], all)
       expect(endpoints.projectedAgeToCkdG5.reason).toBe('beyond_projection_horizon')
       expect(projectedG5Label(endpoints)?.title)
@@ -202,8 +214,8 @@ describe('projectedG5Label', () => {
     })
 
     it('names the latest measurement used when the fitted curve is already below the threshold', () => {
-      const used: [string, number][] = [['2020-01-01', 20], ['2021-01-01', 16], ['2022-01-01', 12]]
-      const all: [string, number][] = [...used, ['2022-06-01', 25]]
+      const used: [string, number][] = [['2020-01-01', 22], ['2021-01-01', 19], ['2022-01-01', 16], ['2023-01-01', 14]]
+      const all: [string, number][] = [...used, ['2023-06-01', 25]]
       const endpoints = withRemoved(used, -4, [-5, -3], all)
       expect(endpoints.projectedAgeToCkdG5.reason).toBe('already_below_threshold')
       expect(projectedG5Label(endpoints)?.title)
@@ -218,6 +230,7 @@ describe('projectedG5Label', () => {
       points: [
         { date: new Date('2020-01-01'), value: 60, ageYears: null },
         { date: new Date('2021-06-01'), value: 45, ageYears: null },
+        { date: new Date('2022-01-01'), value: 40, ageYears: null },
         { date: new Date('2023-01-01'), value: 30, ageYears: null },
       ],
       slopePerYear: -10,
@@ -230,6 +243,7 @@ describe('projectedG5Label', () => {
     const endpoints = endpointsFor([
       { date: '2020-01-01', value: 60 },
       { date: '2021-06-01', value: 45 },
+      { date: '2022-01-01', value: 40 },
       { date: '2023-01-01', value: 30 },
     ], -10)
     expect(endpoints.projectedAgeToCkdG5.value).not.toBeNull()

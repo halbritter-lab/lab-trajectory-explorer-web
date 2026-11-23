@@ -19,7 +19,7 @@ const success: MixedModelSuccess = {
   fixedEffects: { intercept: 60, timeSinceBaseline: -2 },
   fixedEffectConfidenceIntervals: { timeSinceBaseline: [-2.5, -1.5] },
   randomEffects: { interceptSd: 4, slopeSd: null, interceptSlopeCorrelation: null }, residualSd: 2,
-  metadata: { engine: 'webr-lme4', formula: 'value ~ time_since_baseline + (1 | patient_id)', runtimeVersion: '4.6.0', packageVersions: {}, browserUserAgent: 'test', wasmAssetSource: 'cdn', optimizer: 'nloptwrap', reml: true, tolerance: 1e-6, datasetId: 'test', datasetHash: 'test', randomSeed: null, fitConfigHash: 'test' },
+  metadata: { engine: 'webr-lme4', formula: 'value ~ time_since_baseline + (1 | patient_id)', runtimeVersion: '4.6.0', packageVersions: {}, browserUserAgent: 'test', wasmAssetSource: 'cdn', optimizer: 'nloptwrap', reml: true, datasetId: 'test', datasetHash: 'test', randomSeed: null, fitConfigHash: 'test' },
 }
 let data: WorkspaceData
 function Harness({ axis = 'baseline', studio = false, groupBy = '', anchor = false }: { axis?: 'baseline' | 'age' | 'event'; studio?: boolean; groupBy?: string; anchor?: boolean }) {
@@ -79,7 +79,8 @@ describe('workspace model validity', () => {
   })
   it('invalidates a fitted result when preset exclusions are switched off', () => {
     const view = render(<Harness studio />)
-    expect(screen.getByText(/define no event or AKI windows, so nothing is excluded/)).toBeInTheDocument()
+    // General exploration censors after kidney replacement therapy since 2026-11-22; this dataset has no event.
+    expect(screen.getByText(/Preset windows: applied; 0 eligible measurements excluded/)).toBeInTheDocument()
     act(() => seedResult())
     view.rerender(<Harness studio />)
     expect(screen.getByText(/Whole cohort fitted trajectory/)).toBeInTheDocument()
@@ -96,13 +97,19 @@ describe('workspace model validity', () => {
     const transplant: ClinicalEvent = { patientId: 'A', type: 'kidney_transplant', date: new Date('2021-01-01T00:00:00Z'), title: 'Transplant', description: null, endDate: null, intent: null, warning: '' }
     act(() => useAppStore.getState().setEvents([transplant]))
     const view = render(<Harness studio />)
-    expect(screen.getByText(/define no event or AKI windows, so nothing is excluded/)).toBeInTheDocument()
-    expect(screen.getByTestId('model-preparation')).toHaveTextContent('General exploration (shared settings): individual measurements; event windows none; AKI windows none.')
+    // Since 2026-11-22 General exploration censors from the transplant on as well.
+    expect(screen.getByText(/Preset windows: applied; 2 eligible measurements excluded/)).toBeInTheDocument()
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('General exploration (shared settings): individual measurements; event windows after kidney transplant, after chronic dialysis start; AKI windows none.')
+
+    act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: { ...defaultFitSettings('general_exploration'), presetId: 'custom', censoring: { ...defaultFitSettings('general_exploration').censoring, censorAfterKidneyTransplant: false, censorAfterChronicDialysis: false } }, columns: {} }))
+    view.rerender(<Harness studio />)
+    // Included, the values after the transplant are a separate segment and still not in the model.
+    expect(screen.getByText(/Preset windows: applied; 2 eligible measurements excluded/)).toBeInTheDocument()
 
     act(() => useAppStore.getState().setTrajectoryFitSettings({ shared: defaultFitSettings('ckd_progression'), columns: {} }))
     view.rerender(<Harness studio />)
     expect(screen.getByText(/Preset windows: applied; 2 eligible measurements excluded/)).toBeInTheDocument()
-    expect(screen.getByTestId('model-preparation')).toHaveTextContent('CKD progression (shared settings): quarterly medians; event windows after kidney transplant, after chronic dialysis start, acute dialysis intervals, dated dialysis of unknown intent; AKI windows 30 days.')
+    expect(screen.getByTestId('model-preparation')).toHaveTextContent('CKD progression (shared settings): quarterly medians; event windows after kidney transplant, after chronic dialysis start, acute dialysis intervals, dated dialysis of unknown intent, from its start without an end date; AKI windows onset to 90 days after the episode end (30 days from onset where too few values would remain).')
 
     fireEvent.click(screen.getByRole('checkbox', { name: /Apply preset event and AKI exclusions/i }))
     expect(screen.getByText(/Preset windows: skipped; 0 eligible measurements excluded/)).toBeInTheDocument()
@@ -128,7 +135,8 @@ describe('workspace model validity', () => {
   it('builds a valid Group interaction factor for numeric and categorical attributes', () => {
     // Formerly a numeric attribute received a reference level, which no fit accepts (OD-23).
     expect(groupInteractionFactor('dose', { numeric: true, levels: ['1', '2'] })).toEqual({ key: 'dose', kind: 'numeric', effect: 'level_slope' })
-    expect(groupInteractionFactor('arm', { numeric: false, levels: ['A', 'B'] })).toEqual({ key: 'arm', kind: 'categorical', effect: 'level_slope', reference: 'A' })
+    // No chosen reference since 2026-11-22: each model takes the first level among its patients (OD-29).
+    expect(groupInteractionFactor('arm', { numeric: false, levels: ['A', 'B'] })).toEqual({ key: 'arm', kind: 'categorical', effect: 'level_slope' })
     expect(validateMixedModelConfig({ timeAxis: 'time_since_baseline', covariates: [], factors: [groupInteractionFactor('dose', { numeric: true, levels: ['1', '2'] })], randomEffects: 'intercept_slope' }).ok).toBe(true)
   })
   it('discards fitted models when a Trajectories setting changes the model measurements, not otherwise', () => {

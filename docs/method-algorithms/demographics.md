@@ -264,6 +264,7 @@ The workbook export records the resolution:
 | `demographics` | `age_estimated` | true when a manual age is set, or when the anchor was inferred from stated ages without any explicit birth date; false otherwise |
 | `demographics` | `manual_override` | the manual entry for the patient as JSON; `{}` when there is none |
 | `demographics` | `warnings` | the texts of the patient's conflict messages |
+| `demographics` | `egfr_male_coefficients_for_sex_d` | last column (since 2026-11-22, decision `sexd`): `true` when a computed eGFR value of the patient used sex `d` in an equation with a sex term, which takes the male coefficients (bedside Schwartz has none and never makes it `true`) (see [eGFR: conditions for a computed value](egfr.md#conditions-for-a-computed-value)); `false` with computed eGFR values of sex `m` or `w` only; blank without a computed eGFR value |
 | `measurements` | `patient_sex`, `patient_age_at_lab` | resolved values; column `demographics` reads "resolved analysis values" |
 | `raw_measurements` | `patient_sex`, `patient_age_at_lab` | values as imported; column `demographics` reads "as imported" |
 | `raw_measurements` | `patient_birth_date` | the birth date read from the lab row as a calendar date; blank when the row had none or it was unreadable (since 2026-11-21) |

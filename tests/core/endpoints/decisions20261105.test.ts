@@ -35,7 +35,7 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
   ]
 
   it('withholds the G5 projection a terminal AKI admission produced (example 1)', () => {
-    const { cell, record } = cellFor(terminalAki, ckdProgressionConfig(egfr))
+    const { cell, record } = cellFor(terminalAki, withProjection(ckdProgressionConfig(egfr)))
     expect(cell.excludedIdx).toEqual([13, 14, 15, 16, 17, 18, 19, 20])
     // Before: endpoint fit over all 21 rows, slope CI [-7.43, -2.46], "G5 @ 65.0y".
     expect(cell.endpoints.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'non_declining_fit' })
@@ -48,7 +48,7 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
     // Baseline 34 (2020-04-01 is day 91); 16 is a 52.9 % decline but has no confirmation.
     expect(cell.endpoints.declineBaselineValue).toBe(34)
     expect(cell.endpoints.observedDecline40.met).toBe(false)
-    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded; AKI exclusion windows excluded from decline baseline and projection')
+    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); values dated after a death excluded; bounds excluded; AKI exclusion windows excluded from decline baseline and projection')
     expect(endpointBadge(cell.endpoints, cell.points.length)?.label).toBe('-53%, G5 not projected')
   })
 
@@ -62,7 +62,7 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
       ...series(egfr, days.map((date, i): [string, number] => [date, i % 2 ? 13 : 14.2])),
       ...series(crea, days.map((date, i): [string, number] => [date, i % 2 ? 4.85 : 4.5])),
     ]
-    const { cell, record } = cellFor(rows, ckdProgressionConfig(egfr))
+    const { cell, record } = cellFor(rows, withProjection(ckdProgressionConfig(egfr)))
     expect(cell.excludedIdx).toHaveLength(103)
     expect(cell.endpoints.endpointPointCount).toBe(104)
     // Before this follow-up only the first row stayed in the endpoint input and G5 was not met.
@@ -82,7 +82,7 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
       ...series(egfr, days.map((date, i): [string, number] => [date, i % 2 ? 38 : 40])),
       ...series(crea, days.map((date, i): [string, number] => [date, i % 2 ? 4.85 : 4.5])),
     ]
-    const { cell } = cellFor(rows, ckdProgressionConfig(egfr))
+    const { cell } = cellFor(rows, withProjection(ckdProgressionConfig(egfr)))
     expect(cell.excludedIdx).toHaveLength(103)
     expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('insufficient_points')
     const badge = endpointBadge(cell.endpoints, cell.points.length)
@@ -94,7 +94,7 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
 
   it('does not name AKI when the column excludes AKI windows but none removed a row (review of PR #47)', () => {
     // CKD progression excludes AKI windows by preset; two eGFR values, no creatinine, no episode.
-    const { cell, record } = cellFor(series(egfr, [['2020-01-01', 40], ['2022-01-01', 30]]), ckdProgressionConfig(egfr))
+    const { cell, record } = cellFor(series(egfr, [['2020-01-01', 40], ['2022-01-01', 30]]), withProjection(ckdProgressionConfig(egfr)))
     expect(cell.endpoints).toMatchObject({ inputExcludesAkiWindows: true, endpointPointCount: 2, projectionPointCount: 2 })
     expect(cell.endpoints.projectedAgeToCkdG5.reason).toBe('insufficient_points')
     const badge = endpointBadge(cell.endpoints, cell.points.length)
@@ -110,7 +110,7 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
     expect(cell.endpoints.projectedAgeToCkdG5.value).toBeCloseTo(64.9767, 3)
     expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-7.4350, 3)
     expect(cell.endpoints.projectedAgeToCkdG5.slopeCiHigh).toBeCloseTo(-2.4558, 3)
-    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded')
+    expect(record.endpoint_input_policy).toBe('dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); values dated after a death excluded; bounds excluded')
   })
 
   it('takes the decline baseline after the AKI window (example 2)', () => {
@@ -118,19 +118,27 @@ describe('endpoint input excludes the column\'s AKI windows', () => {
       ...series(egfr, [['2020-01-03', 20], ['2020-01-05', 25], ['2020-03-01', 55], ['2020-05-01', 58], ['2020-07-01', 56], ['2021-01-01', 33], ['2021-06-01', 32]]),
       ...series(crea, [['2020-01-01', 1.0], ['2020-01-03', 2.6], ['2020-01-05', 2.2], ['2020-03-01', 1.0]]),
     ]
-    const { cell, record } = cellFor(rows, ckdProgressionConfig(egfr))
-    // Before: baseline (20 + 25 + 55) / 3 = 33.3, no 40 % event.
-    expect(cell.endpoints.declineBaselineValue).toBe(56.5)
+    const { cell, record } = cellFor(rows, withProjection(ckdProgressionConfig(egfr)))
+    // Before: baseline (20 + 25 + 55) / 3 = 33.3, no 40 % event. With the 30-day window of 2020-11-05 to
+    // 2026-11-22: (55 + 58) / 2 = 56.5. Since 2026-11-22 (row akiwin) the episode (onset 2020-01-03, last
+    // value 2020-01-05, ended by the gap before 2020-03-01) excludes up to 90 days after 2020-01-07, i.e. to
+    // 2020-04-06, so 55 on 2020-03-01 is left out too and the baseline is (58 + 56) / 2 = 57.
+    expect(record.aki_window).toBe('episode_end_plus_90d')
+    expect(record.n_aki_excluded).toBe(3)
+    expect(cell.endpoints.declineBaselineValue).toBe(57)
     // Total change keeps the AKI rows: 20 on 2020-01-03 to 32, i.e. +60 %.
     expect(cell.endpoints.percentDecline.value).toBeCloseTo(-60, 6)
     // The events read all rows after the baseline period (2020-05-30); none lies in the AKI window.
     expect(cell.endpoints.observedDecline40).toMatchObject({ met: true, firstDate: d('2021-01-01'), firstValue: 33, confirmedDate: d('2021-06-01'), confirmedValue: 32 })
     expect(cell.endpoints.observedDecline57.met).toBe(false)
     expect(record.endpoint_observed_decline_40).toBe('yes')
-    // The projection fits the five rows from 2020-03-01 (before: seven rows, bounds included zero).
-    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-40.83, 2)
-    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiHigh).toBeCloseTo(-6.37, 2)
-    expect(cell.endpoints.projectedAgeToCkdG5.value).toBeCloseTo(62.0, 1)
+    // The projection fits the four rows from 2020-05-01 (2020-11-05 to 2026-11-22: the five rows from
+    // 2020-03-01, bounds -40.83 to -6.37, G5 at 62.0 years; before that seven rows, bounds included zero).
+    // Re-derived on the merge of the AKI window (row akiwin) and the KDIGO minimum (row minfu): the four
+    // dates span 13 months, short of three years, so the KDIGO minimum withholds it before the interval is read.
+    expect(cell.endpoints.projectedAgeToCkdG5).toMatchObject({ value: null, reason: 'kdigo_minimum_follow_up' })
+    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiLow).toBeCloseTo(-55.69, 2)
+    expect(cell.endpoints.projectedAgeToCkdG5.slopeCiHigh).toBeCloseTo(1.36, 2)
   })
 })
 
@@ -156,9 +164,10 @@ describe('Theil-Sen projection needs five distinct dates', () => {
     expect(projected.value).not.toBeNull()
   })
 
-  it('leaves OLS at three distinct dates', () => {
+  it('leaves OLS at three distinct dates, where the KDIGO minimum withholds it since 2026-11-22', () => {
     const rows = series(egfr, [['2020-01-01', 40], ['2021-01-01', 39], ['2022-01-01', 30]])
-    expect(cellFor(rows, withProjection(generalExplorationConfig(egfr))).cell.endpoints.projectedAgeToCkdG5.reason).toBe('slope_ci_includes_zero')
+    // Until 2026-11-22: slope_ci_includes_zero.
+    expect(cellFor(rows, withProjection(generalExplorationConfig(egfr))).cell.endpoints.projectedAgeToCkdG5.reason).toBe('kdigo_minimum_follow_up')
   })
 })
 

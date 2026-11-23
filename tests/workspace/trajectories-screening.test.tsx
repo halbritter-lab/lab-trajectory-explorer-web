@@ -115,12 +115,12 @@ describe('sorting by slope places uncertain slopes after the reliable ones (K02)
     enableTrend()
     expect(screen.queryByRole('checkbox', { name: 'Uncertain slopes last' })).not.toBeInTheDocument()
     sortColumn('Slope')
-    expect(screen.getByText(/1 uncertain slope placed after the reliable ones/)).toBeInTheDocument()
+    expect(screen.getByText(/1 uncertain slope placed after the other slopes/)).toBeInTheDocument()
     const toggle = screen.getByRole('checkbox', { name: 'Uncertain slopes last' })
     expect(toggle).toBeChecked()
     fireEvent.click(toggle)
     expect(order()).toEqual(['R1', 'U', 'R2', 'N'])
-    expect(screen.getByText(/1 uncertain slope ranked among the reliable ones/)).toBeInTheDocument()
+    expect(screen.getByText(/1 uncertain slope ranked among the other slopes/)).toBeInTheDocument()
     // Another metric has no such rule and shows neither the note nor the switch.
     sortColumn('Latest value', false)
     expect(screen.queryByText(/uncertain slope (placed|ranked)/)).not.toBeInTheDocument()
@@ -145,7 +145,19 @@ describe('filters with counts for marks and event types (K01), and select all ma
     // Without a trend only the marks that need no fit: the reached endpoint and the events.
     expect(within(filters).getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(['Endpoint reached: 1 patient', 'Kidney transplant: 1 patient', 'Other event: 1 patient'])
     enableTrend()
-    expect(within(filters).getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(['Rapid decline: 1 patient', 'Uncertain slope: 1 patient', 'Endpoint reached: 1 patient', 'Kidney transplant: 1 patient', 'Other event: 1 patient'])
+    expect(within(filters).getAllByRole('button').map(button => button.getAttribute('aria-label'))).toEqual(['Rapid decline: 1 patient', 'Uncertain slope: 1 patient', 'Reliable slope: 2 patients', 'Endpoint reached: 1 patient', 'Kidney transplant: 1 patient', 'Other event: 1 patient'])
+  })
+
+  it('offers the possible rapid decline as a mark of its own (issue #72)', () => {
+    // R1 falls steadily (whole interval below -5); S scatters (slope below -5, interval reaching above it).
+    render(<TrajectoriesWorkspace data={dataset([{ id: 'R1', values: [80, 70, 60, 50] }, { id: 'S', values: [80, 40, 75, 45] }], 'ml/min/1.73m²')} />)
+    enableTrend()
+    expect(within(rowOf('R1')).getByRole('button', { name: 'rapid ↓' })).toBeInTheDocument()
+    expect(within(rowOf('S')).getByRole('button', { name: 'rapid ↓?' })).toBeInTheDocument()
+    expect(filterButton(/^Rapid decline/)).toHaveAccessibleName('Rapid decline: 1 patient')
+    fireEvent.click(filterButton(/^Possible rapid decline/))
+    expect(filterButton(/^Possible rapid decline/)).toHaveAccessibleName('Possible rapid decline: 1 patient')
+    expect(order()).toEqual(['S'])
   })
 
   it('narrows table and export scope to the patients carrying every chosen mark', () => {

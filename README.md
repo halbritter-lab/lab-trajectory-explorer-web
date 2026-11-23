@@ -72,6 +72,17 @@ serve the `.gz` files below `webr/` as they are, without
 licence and source; the licence texts are in `licenses/`. The app is MIT
 licensed; R, webR and most of the packages are under the GNU GPL.
 
+A [licence analysis](docs/licence-analysis.md) (a draft, not legal advice)
+lists what the served R components require and what is still missing.
+
+## How to cite
+
+Citation metadata is in [`CITATION.cff`](CITATION.cff). It is a **draft**:
+the authors, their order, the version and the release date are still to be
+confirmed by the owner, so do not cite from it yet. Until a release with
+final metadata exists, cite the repository URL with the commit or the
+version shown in the app's header.
+
 ## License
 
 MIT © 2026 Jan-Paul Lerch

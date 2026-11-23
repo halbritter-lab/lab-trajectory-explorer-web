@@ -29,7 +29,24 @@ it('names the serum creatinine series the selected eGFR source leaves out, and c
   expect(screen.getByText(/1 value recorded as a bound \(< or >\)/)).toBeInTheDocument()
   expect(screen.queryByText(/Not used for this eGFR/)).not.toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
-  expect(screen.getByText('Not used for this eGFR: Kreatinin i.S. (mg/dl), 1 value; Kreatinin (µmol/l), 1 value. Only the selected source is read; serum creatinine under another name or unit is not merged with it.')).toBeInTheDocument()
+  expect(screen.getByText('Not used for this eGFR: Kreatinin i.S. (mg/dl), 1 value; Kreatinin (µmol/l), 1 value. Each patient\'s eGFR reads one series: the selected source, or, for a patient without serum creatinine in mg/dl, that patient\'s µmol/l series. Series are not merged.')).toBeInTheDocument()
+  expect(screen.queryByText(/use their µmol\/l series/)).not.toBeInTheDocument()
+})
+// Issue #65: a patient without serum creatinine in mg/dl falls back to their µmol/l series.
+it('names the µmol/l fallback per patient and the patients it cannot serve', () => {
+  const base = { ...row, patientSex: 'm' as const, patientAgeAtLab: 50 }
+  useAppStore.getState().replaceDataset({ rows: [base,
+    { ...base, patientId: 2, einheit: 'µmol/l', wert: '88', wertNum: 88 },
+    { ...base, patientId: 3, bezeichnung: 'Kreatinin HP' }, { ...base, patientId: 3, einheit: 'µmol/l', wert: '90', wertNum: 90 },
+    { ...base, patientId: 4, bezeichnung: 'Kreatinin A', einheit: 'µmol/l', wert: '90', wertNum: 90 }, { ...base, patientId: 4, bezeichnung: 'Kreatinin B', einheit: 'µmol/l', wert: '90', wertNum: 90 }] })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  fireEvent.change(screen.getByLabelText('Creatinine source'), { target: { value: JSON.stringify(['Kreatinin', 'mg/dl']) } })
+  expect(screen.getByText('Patients without serum creatinine in mg/dl use their µmol/l series: Kreatinin (µmol/l) for 1 patient.')).toBeInTheDocument()
+  expect(screen.getByText('2 computed values in preview')).toBeInTheDocument()
+  expect(screen.getByText(/^Not used for this eGFR: Kreatinin HP \(mg\/dl\), 1 value; Kreatinin \(µmol\/l\), 1 value; Kreatinin A \(µmol\/l\), 1 value; Kreatinin B \(µmol\/l\), 1 value\./)).toBeInTheDocument()
+  expect(screen.getByText('1 patient without the selected source has serum creatinine in mg/dl under another name only: no eGFR, and no µmol/l fallback.')).toBeInTheDocument()
+  expect(screen.getByText('1 patient without serum creatinine in mg/dl has several µmol/l series, none under the name of the selected source: no eGFR.')).toBeInTheDocument()
 })
 // Review of the combined branch, 2026-11-22: typing used to apply every keystroke, an emptied field as 0 hours.
 it('applies the recovery length on leaving the field or Enter, as whole days up to 90 days', () => {
@@ -145,11 +162,41 @@ it('shows the sex-code calculation note for any adult formula using a diverse ro
     expect(screen.getByText(note)).toBeInTheDocument()
   }
 })
-it('explains why pediatric source rows are excluded from adult eGFR preview', () => {
+it('explains why pediatric source rows are excluded when the under-18 rule is None', () => {
   useAppStore.getState().replaceDataset({ rows: [{ ...row, patientSex: 'm', patientAgeAtLab: 17 }] })
   render(<DataWorkspace onBrowse={vi.fn()} />)
   fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  // Default since 2026-11-22 (issue #66): EKFC without a height.
+  expect(screen.getByText('1 computed value in preview')).toBeInTheDocument()
+  expect(screen.getByTestId('egfr-heights')).toHaveTextContent('No height series found, so CKiD U25 and bedside Schwartz are not used.')
+  fireEvent.change(screen.getByLabelText('Under 18 years'), { target: { value: 'off' } })
   expect(screen.getByText('1: Age under 18 — adult eGFR formulas do not apply')).toBeInTheDocument()
+  fireEvent.change(screen.getByLabelText('Under 18 years'), { target: { value: 'schwartz-bedside' } })
+  expect(screen.getByText('1: Height missing — bedside Schwartz, and CKiD U25 under 2 years, need a height in cm')).toBeInTheDocument()
+})
+it('counts the patients whose eGFR equation changes and applies the under-18 rule (issue #66)', () => {
+  const day = (year: number, month: number) => new Date(Date.UTC(year, month, 1))
+  const rows = [
+    // Patient A: 17 with a height (CKiD U25), then 18 (CKD-EPI 2021).
+    { ...row, patientId: 'A', labDatum: day(2020, 0), patientSex: 'm' as const, patientAgeAtLab: 17, wert: '0,9', wertNum: 0.9 },
+    { ...row, patientId: 'A', labDatum: day(2020, 0), bezeichnung: 'Größe', einheit: 'cm', wert: '176', wertNum: 176 },
+    { ...row, patientId: 'A', labDatum: day(2021, 0), patientSex: 'm' as const, patientAgeAtLab: 18, wert: '0,9', wertNum: 0.9 },
+    // Patient B: an adult only.
+    { ...row, patientId: 'B', labDatum: day(2020, 0), patientSex: 'w' as const, patientAgeAtLab: 50 },
+  ]
+  useAppStore.getState().replaceDataset({ rows })
+  render(<DataWorkspace onBrowse={vi.fn()} />)
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckd-epi-2021' } })
+  expect(screen.getByTestId('egfr-row-formulas')).toHaveTextContent('Equations in this preview: CKiD U25 1 value; CKD-EPI 2021 2 values.')
+  expect(screen.getByTestId('egfr-formula-switches')).toHaveTextContent('1 patient whose eGFR equation changes during follow-up (CKiD U25 → CKD-EPI 2021)')
+  expect(screen.getByTestId('egfr-heights')).toHaveTextContent('Height: 1 measurement day of 1 patient.')
+  fireEvent.change(screen.getByLabelText('Under 18 years'), { target: { value: 'schwartz-bedside' } })
+  fireEvent.click(screen.getByRole('button', { name: 'Apply calculation' }))
+  expect(useAppStore.getState().analysisSettings.egfr).toEqual({ formula: 'ckd-epi-2021', source: ['Kreatinin', 'mg/dl'], paediatric: 'schwartz-bedside' })
+  // The full-age formula ignores the under-18 rule.
+  fireEvent.change(screen.getByLabelText('eGFR formula'), { target: { value: 'ckid-u25-ekfc' } })
+  expect(screen.getByLabelText('Under 18 years')).toBeDisabled()
+  expect(screen.getByTestId('egfr-row-formulas')).toHaveTextContent('CKiD U25 1 value; EKFC 2021 2 values')
 })
 it('shows a bounded set of import diagnostics with access to remaining findings', () => {
   useAppStore.getState().replaceDataset({ rows: [{ ...row, patientSex: 'm', patientAgeAtLab: 50 }] })
@@ -176,7 +223,7 @@ it('lists lab import diagnostics from a German CSV, with summaries not attribute
   expect(items).toEqual(expect.arrayContaining([
     'labs.csv, row 3, patient 0012, rejected: Lab date "2021-02-30" is not a valid calendar date; row not imported.',
     'labs.csv, warning: 1 lab date written as DD/MM/YYYY was read day-first (03/01/2024 = 3 January 2024).',
-    'labs.csv, warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts, excluded from fits, endpoints and AKI detection.Show the 1 affected row',
+    'labs.csv, warning: Kreatinin [mg/dl]: 1 censored value (1 "<"); retained for display and raw counts; in fits as the bounded-values setting of the column says (at the limit by default, at half the limit or excluded); excluded from endpoints, AKI detection and mixed models.Show the 1 affected row',
   ]))
   // The rows behind a collective warning open on demand: source row, patient, date, parameter, value.
   fireEvent.click(screen.getByText('Show the 1 affected row'))
@@ -220,7 +267,7 @@ it('reports readable reasons and birth-date problems for supplementary files', a
   expect(screen.getByText('extra.csv, row 2, patient P-01, warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
   fireEvent.change(screen.getByLabelText('Replace events'), { target: { files: [file('patientId,type,date,title\nP-01,other,2020-03-01,Visit\nP-01,surgery,2020-04-01,Other\n')] } })
   await waitFor(() => expect(useAppStore.getState().events).toHaveLength(1))
-  expect(screen.getByText('extra.csv, row 3, patient P-01, rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other; row not imported.')).toBeInTheDocument()
+  expect(screen.getByText('extra.csv, row 3, patient P-01, rejected: Event type "surgery" is not one of kidney_transplant, dialysis, other, death (death also as deceased, tod, verstorben); row not imported.')).toBeInTheDocument()
   // The attribute findings stay beside the event findings (each source keeps its own).
   expect(screen.getByText('extra.csv, row 2, patient P-01, warning: Birth date "1980-02-30" is not a valid calendar date; it is ignored.')).toBeInTheDocument()
   expect(within(screen.getByRole('group', { name: 'Import diagnostics' })).getAllByText(/import diagnostics — show details/)).toHaveLength(2)
@@ -423,7 +470,7 @@ it('shows the number and period of dated numeric values per patient', () => {
 it('states the allowed event types, intent and date forms before an events import', () => {
   render(<DataWorkspace onBrowse={vi.fn()} />)
   const hint = screen.getByText(/^Event template: one row per event\./)
-  expect(hint).toHaveTextContent('type is exactly kidney_transplant, dialysis or other; any other word rejects the row. intent (chronic, acute or unknown) is allowed for dialysis only.')
+  expect(hint).toHaveTextContent('type is exactly kidney_transplant, dialysis, other or death (also written deceased, Tod or verstorben); any other word rejects the row. intent (chronic, acute or unknown) is allowed for dialysis only.')
   expect(hint).toHaveTextContent('other events, such as the start of a therapy, are shown in charts and change no calculation. “Demo events” is a filled example.')
 })
 it('shows the description of loaded and rejected events', async () => {

@@ -1,0 +1,5458 @@
+{
+ "about": "Mixed-model reference inputs (issue #79), written by scripts/reference/mixed_model_inputs.mjs from tests/reference/mixedModelCases.ts. Synthetic data. Research use only.",
+ "cases": [
+  {
+   "name": "random_slope_no_factors",
+   "description": "Random intercept and slope per patient, no covariates; 18 patients, quarterly medians.",
+   "config": {
+    "timeAxis": "time_since_baseline",
+    "covariates": [],
+    "randomEffects": "intercept_slope"
+   },
+   "formula": "value ~ time_since_baseline + (1 + time_since_baseline | patient_id)",
+   "dataRCode": "\n    mm_data <- data.frame(\n      patient_id = factor(mm_patient_id),\n      value = as.numeric(mm_value),\n      time_since_baseline = as.numeric(mm_time),\n      baseline_age_centered = as.numeric(mm_baseline_age_centered)\n    )\n    ",
+   "modelCall": "lme4::lmer(value ~ time_since_baseline + (1 + time_since_baseline | patient_id), data = mm_data, REML = TRUE, na.action = na.fail)",
+   "rows": [
+    {
+     "patient_id": "p01",
+     "value": 72.7,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p01",
+     "value": 75.2,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p01",
+     "value": 72.8,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p01",
+     "value": 70,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p01",
+     "value": 69.3,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p01",
+     "value": 68.2,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p01",
+     "value": 65.7,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p01",
+     "value": 62.3,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 64.2,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 62.4,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 58.7,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 60.8,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 56.6,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 56.7,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 59.3,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 55,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 52.8,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p02",
+     "value": 55.2,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p03",
+     "value": 61.3,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 62,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 58,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 56.7,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 57,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 54.9,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 54.4,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 55,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 48.3,
+     "time_since_baseline": 4,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 53.4,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 51.4,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p03",
+     "value": 49.4,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 70.1,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 71.4,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 68.5,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 67.6,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 63.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 61.7,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 59,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 60.4,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 57,
+     "time_since_baseline": 4,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 57.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 49.4,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 52.5,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 48.8,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p04",
+     "value": 45.5,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p05",
+     "value": 65.2,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p05",
+     "value": 64.9,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p05",
+     "value": 65.7,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p05",
+     "value": 61.7,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p05",
+     "value": 60.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p05",
+     "value": 57.9,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p05",
+     "value": 61.6,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p05",
+     "value": 56.9,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p06",
+     "value": 62.3,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p06",
+     "value": 62.7,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p06",
+     "value": 58.4,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p06",
+     "value": 60.6,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p06",
+     "value": 59.9,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p06",
+     "value": 55.9,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p06",
+     "value": 58.8,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p06",
+     "value": 58.3,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p06",
+     "value": 51.8,
+     "time_since_baseline": 4,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p06",
+     "value": 54.4,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 62.1,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 61.5,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 57.1,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 55.4,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 53.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 50.2,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 49.3,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 49.2,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 46,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 44.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 40.9,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p07",
+     "value": 39.1,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p08",
+     "value": 63.9,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 64.8,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 64.1,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 64.9,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 61.2,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 59.8,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 59.8,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 59.4,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 61.2,
+     "time_since_baseline": 4,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 59.5,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 53.7,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 55.8,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 55.2,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p08",
+     "value": 56.2,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p09",
+     "value": 63.9,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p09",
+     "value": 61.7,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p09",
+     "value": 62.8,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p09",
+     "value": 61.7,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p09",
+     "value": 64.3,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p09",
+     "value": 62.4,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p09",
+     "value": 57.3,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p09",
+     "value": 62.1,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 59.2,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 59,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 57.8,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 54.6,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 54,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 56.2,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 54.7,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 50.4,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 47.5,
+     "time_since_baseline": 4,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p10",
+     "value": 49.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p11",
+     "value": 70.7,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 69,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 70.8,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 67.4,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 68.8,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 66.1,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 68.2,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 68,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 66.5,
+     "time_since_baseline": 4,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 64.5,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 66.2,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p11",
+     "value": 66.4,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 55.2,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 53.6,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 53.5,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 51.9,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 47.9,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 48.1,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 45.6,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 47.8,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 44.4,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 42.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 41.1,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 39.3,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 39.2,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p12",
+     "value": 35.4,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p13",
+     "value": 71.2,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p13",
+     "value": 72.3,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p13",
+     "value": 67.6,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p13",
+     "value": 64.1,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p13",
+     "value": 61.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p13",
+     "value": 63.5,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p13",
+     "value": 61.5,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p13",
+     "value": 55.3,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 57.1,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 55.1,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 53,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 55.9,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 49.9,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 48.6,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 51.4,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 49.2,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 48.8,
+     "time_since_baseline": 4,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p14",
+     "value": 44.6,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 8.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 57.9,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 59.8,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 56,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 59.7,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 58.2,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 55,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 51.8,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 51.9,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 51.9,
+     "time_since_baseline": 4,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 47.2,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 50.4,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p15",
+     "value": 49.4,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 15.1666666667
+    },
+    {
+     "patient_id": "p16",
+     "value": 75.4,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 72.7,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 69.4,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 70.6,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 68.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 67.2,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 67.6,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 65.2,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 62.1,
+     "time_since_baseline": 4,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 62.6,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 59.2,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 58.9,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 58,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p16",
+     "value": 53,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -12.8333333333
+    },
+    {
+     "patient_id": "p17",
+     "value": 56.9,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p17",
+     "value": 57.6,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p17",
+     "value": 55.4,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p17",
+     "value": 54.6,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p17",
+     "value": 52.8,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p17",
+     "value": 50.2,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p17",
+     "value": 48.4,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p17",
+     "value": 49.6,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -5.8333333333
+    },
+    {
+     "patient_id": "p18",
+     "value": 69,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p18",
+     "value": 72.3,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p18",
+     "value": 65.5,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p18",
+     "value": 67.3,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p18",
+     "value": 65.8,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p18",
+     "value": 65.2,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p18",
+     "value": 60.5,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p18",
+     "value": 64.3,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p18",
+     "value": 59.1,
+     "time_since_baseline": 4,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    },
+    {
+     "patient_id": "p18",
+     "value": 59.6,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 1.1666666667
+    }
+   ]
+  },
+  {
+   "name": "categorical_and_numeric_factor",
+   "description": "Random intercept and slope; genotype (categorical, level and slope, reference A) and dose (numeric, level); 24 patients.",
+   "config": {
+    "timeAxis": "time_since_baseline",
+    "covariates": [],
+    "randomEffects": "intercept_slope",
+    "factors": [
+     {
+      "key": "genotype",
+      "kind": "categorical",
+      "effect": "level_slope",
+      "reference": "A"
+     },
+     {
+      "key": "dose",
+      "kind": "numeric",
+      "effect": "level"
+     }
+    ]
+   },
+   "formula": "value ~ time_since_baseline + factor_0_ + time_since_baseline:factor_0_ + factor_1_ + (1 + time_since_baseline | patient_id)",
+   "dataRCode": "\n    mm_data <- data.frame(\n      patient_id = factor(mm_patient_id),\n      value = as.numeric(mm_value),\n      time_since_baseline = as.numeric(mm_time),\n      baseline_age_centered = as.numeric(mm_baseline_age_centered)\n    )\n    mm_levels <- c(\"A\", sort(setdiff(unique(mm_factor_0_), \"A\"), method = \"radix\"))\n      mm_data$factor_0_ <- factor(mm_factor_0_, levels = mm_levels)\n      contrasts(mm_data$factor_0_) <- contr.treatment(mm_levels, base = 1)\nmm_data$factor_1_ <- as.numeric(mm_factor_1_)",
+   "modelCall": "lme4::lmer(value ~ time_since_baseline + factor_0_ + time_since_baseline:factor_0_ + factor_1_ + (1 + time_since_baseline | patient_id), data = mm_data, REML = TRUE, na.action = na.fail)",
+   "rows": [
+    {
+     "patient_id": "p01",
+     "value": 70.8,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p01",
+     "value": 68.9,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p01",
+     "value": 69.2,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p01",
+     "value": 66.3,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p01",
+     "value": 62.6,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p01",
+     "value": 63.9,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p01",
+     "value": 57.8,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p01",
+     "value": 57.2,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 53.2,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 51,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 48.5,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 51.9,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 45.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 44.5,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 42.5,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 41.5,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 43.7,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p02",
+     "value": 39.2,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 55.4,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 52.1,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 49.2,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 48.9,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 49.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 46.3,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 45.7,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 49.7,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 48,
+     "time_since_baseline": 4,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 45,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 41.8,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p03",
+     "value": 43,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 66.7,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 69.9,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 65.6,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 66,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 66.6,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 65.6,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 64.2,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 62.4,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 56.5,
+     "time_since_baseline": 4,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 59.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 55.7,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 53.6,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 56,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p04",
+     "value": 51.2,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p05",
+     "value": 65,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p05",
+     "value": 68.2,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p05",
+     "value": 66.1,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p05",
+     "value": 65.6,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p05",
+     "value": 62.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p05",
+     "value": 61.8,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p05",
+     "value": 59.3,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p05",
+     "value": 60,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 64.3,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 60.7,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 63,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 62.3,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 59.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 60.6,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 57.6,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 56.3,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 55,
+     "time_since_baseline": 4,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p06",
+     "value": 53.6,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 64.2,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 66.3,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 63.5,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 61,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 59,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 58.3,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 58.4,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 55.7,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 57.7,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 54.2,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 49.9,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p07",
+     "value": 54.3,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 59.5,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 57,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 56.1,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 55.1,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 55.4,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 50.2,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 50.9,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 53.1,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 50,
+     "time_since_baseline": 4,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 49,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 45.1,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 47.9,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 46.2,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p08",
+     "value": 40,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p09",
+     "value": 63.2,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p09",
+     "value": 60.3,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p09",
+     "value": 60.8,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p09",
+     "value": 57.4,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p09",
+     "value": 57.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p09",
+     "value": 56.3,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p09",
+     "value": 52.5,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p09",
+     "value": 56,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 61.2,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 57.7,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 58.2,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 54.4,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 51.4,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 49.4,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 50.7,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 47.6,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 48.2,
+     "time_since_baseline": 4,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p10",
+     "value": 43.2,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 69.9,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 68.2,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 63.1,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 65.4,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 61.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 62.8,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 63.8,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 60.4,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 58.4,
+     "time_since_baseline": 4,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 61.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 58.6,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p11",
+     "value": 54.8,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 61,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 63.1,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 62.2,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 57.4,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 59.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 54.1,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 54.4,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 53,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 50.2,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 52.3,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 46.5,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 49.3,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 44.9,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p12",
+     "value": 46.9,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p13",
+     "value": 66.5,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p13",
+     "value": 68.1,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p13",
+     "value": 65.6,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p13",
+     "value": 61.9,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p13",
+     "value": 62.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p13",
+     "value": 61.3,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p13",
+     "value": 55.9,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p13",
+     "value": 58.2,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 59.5,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 58.9,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 53.6,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 56.8,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 52.6,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 55.2,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 53.8,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 53.1,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 51.6,
+     "time_since_baseline": 4,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p14",
+     "value": 47.6,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 58.6,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 60.2,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 59.8,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 57.8,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 57.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 57,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 57.6,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 57.4,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 54,
+     "time_since_baseline": 4,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 55,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 55.5,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p15",
+     "value": 51.7,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 74.6,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 68.9,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 66,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 64.6,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 66.6,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 65.2,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 61.4,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 60.6,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 54.1,
+     "time_since_baseline": 4,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 52.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 49.6,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 51.3,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 50.1,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p16",
+     "value": 48.5,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p17",
+     "value": 54.9,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p17",
+     "value": 55.4,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p17",
+     "value": 55.8,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p17",
+     "value": 51.7,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p17",
+     "value": 51.9,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p17",
+     "value": 47.9,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p17",
+     "value": 49.9,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p17",
+     "value": 46.7,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 52.9,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 55,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 51.6,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 50.6,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 49.3,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 45.3,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 47.2,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 46.1,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 43.6,
+     "time_since_baseline": 4,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p18",
+     "value": 42.6,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 72,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 69.1,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 68.6,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 65.4,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 60,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 58.3,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 58.7,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 58.9,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 53.6,
+     "time_since_baseline": 4,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 54.3,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 52.7,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p19",
+     "value": 50.4,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 70.1,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 69.8,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 70.3,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 66.1,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 65.9,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 68.9,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 61.9,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 66.2,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 63.2,
+     "time_since_baseline": 4,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 59,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 60.1,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 59.5,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 60.4,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p20",
+     "value": 54.2,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 14.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p21",
+     "value": 66.7,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p21",
+     "value": 63.8,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p21",
+     "value": 64.6,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p21",
+     "value": 60.6,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p21",
+     "value": 56.4,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p21",
+     "value": 55.4,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p21",
+     "value": 57.3,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p21",
+     "value": 57.2,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -13.4166666667,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": -7.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 75.4,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 70.2,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 73.4,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 68,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 66.7,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 67.5,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 63.4,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 62.9,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 65,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p22",
+     "value": 59.6,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -6.4166666667,
+     "factorValues": {
+      "factor_0_": "B",
+      "factor_1_": -2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 60.5,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 56.6,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 59.8,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 55.9,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 53.6,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 57.6,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 50.8,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 55.8,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 53.6,
+     "time_since_baseline": 4,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 50.6,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 50.3,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p23",
+     "value": 50.4,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 2.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 56.9,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 52.9,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 50,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 55.1,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 49,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 49,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 45.6,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 49.7,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 44.5,
+     "time_since_baseline": 4,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 48.2,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 42.2,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 44.4,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 41.6,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    },
+    {
+     "patient_id": "p24",
+     "value": 42.3,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7.5833333333,
+     "factorValues": {
+      "factor_0_": "A",
+      "factor_1_": 7.5
+     }
+    }
+   ]
+  },
+  {
+   "name": "random_intercept_baseline_age",
+   "description": "Random intercept only, baseline age (centred) as covariate through the legacy covariates field; 15 patients.",
+   "config": {
+    "timeAxis": "time_since_baseline",
+    "covariates": [
+     "baseline_age"
+    ],
+    "randomEffects": "intercept"
+   },
+   "formula": "value ~ time_since_baseline + baseline_age_centered + (1 | patient_id)",
+   "dataRCode": "\n    mm_data <- data.frame(\n      patient_id = factor(mm_patient_id),\n      value = as.numeric(mm_value),\n      time_since_baseline = as.numeric(mm_time),\n      baseline_age_centered = as.numeric(mm_baseline_age_centered)\n    )\n    mm_data$baseline_age_centered <- as.numeric(mm_baseline_age_centered)",
+   "modelCall": "lme4::lmer(value ~ time_since_baseline + baseline_age_centered + (1 | patient_id), data = mm_data, REML = TRUE, na.action = na.fail)",
+   "rows": [
+    {
+     "patient_id": "p01",
+     "value": 74.9,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p01",
+     "value": 69.2,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p01",
+     "value": 67.3,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p01",
+     "value": 65,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p01",
+     "value": 65.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p01",
+     "value": 63.8,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p01",
+     "value": 61.3,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p01",
+     "value": 58.1,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p02",
+     "value": 62.1,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p02",
+     "value": 60.2,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p02",
+     "value": 60.3,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p02",
+     "value": 59.5,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p02",
+     "value": 58,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p02",
+     "value": 56.6,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p02",
+     "value": 57.1,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p02",
+     "value": 60,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p02",
+     "value": 55.9,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p02",
+     "value": 56.9,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p03",
+     "value": 69.5,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 68.2,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 66.3,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 67.1,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 62.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 63.7,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 63.1,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 58.5,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 61.7,
+     "time_since_baseline": 4,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 56.6,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 58.2,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p03",
+     "value": 56.6,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p04",
+     "value": 69.2,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 67.8,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 60.8,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 62,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 60.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 59.4,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 58,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 58.5,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 54.7,
+     "time_since_baseline": 4,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 54,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 53,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 51.2,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 46.4,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p04",
+     "value": 45.5,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p05",
+     "value": 64.7,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p05",
+     "value": 65.5,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p05",
+     "value": 66.5,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p05",
+     "value": 63.5,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p05",
+     "value": 64.6,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p05",
+     "value": 59.8,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p05",
+     "value": 57,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p05",
+     "value": 57,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p06",
+     "value": 60.2,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p06",
+     "value": 64.8,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p06",
+     "value": 61.7,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p06",
+     "value": 58.1,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p06",
+     "value": 58.3,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p06",
+     "value": 59.3,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p06",
+     "value": 56.5,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p06",
+     "value": 60.3,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p06",
+     "value": 58.2,
+     "time_since_baseline": 4,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p06",
+     "value": 58.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p07",
+     "value": 72.3,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 70.4,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 68.1,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 64.3,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 67.3,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 62.3,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 62.1,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 62.1,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 56.2,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 55.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 55.9,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p07",
+     "value": 53.8,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p08",
+     "value": 69,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 69.2,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 68.1,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 65.2,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 63.7,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 60.7,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 62.1,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 60.8,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 58.9,
+     "time_since_baseline": 4,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 58.4,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 56.6,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 54,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 51.3,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p08",
+     "value": 49.9,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p09",
+     "value": 56.4,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p09",
+     "value": 58.8,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p09",
+     "value": 58.7,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p09",
+     "value": 53.1,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p09",
+     "value": 50.7,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p09",
+     "value": 50.3,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p09",
+     "value": 47.7,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p09",
+     "value": 49.9,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p10",
+     "value": 57.3,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p10",
+     "value": 56.4,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p10",
+     "value": 52.6,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p10",
+     "value": 54.1,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p10",
+     "value": 48.7,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p10",
+     "value": 48.7,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p10",
+     "value": 46.8,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p10",
+     "value": 44.8,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p10",
+     "value": 42.8,
+     "time_since_baseline": 4,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p10",
+     "value": 42.7,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p11",
+     "value": 63,
+     "time_since_baseline": 0,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 67.5,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 61.5,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 63.4,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 60.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 59.4,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 59.5,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 58.8,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 56.3,
+     "time_since_baseline": 4,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 53.1,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 50.9,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p11",
+     "value": 49.2,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 40,
+     "baseline_age_centered": -14
+    },
+    {
+     "patient_id": "p12",
+     "value": 72.8,
+     "time_since_baseline": 0,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 66.6,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 64.9,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 69,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 65.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 66,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 63.3,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 58.1,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 56,
+     "time_since_baseline": 4,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 55.7,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 57.9,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 53.3,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 50.5,
+     "time_since_baseline": 5.9986310746,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p12",
+     "value": 52.4,
+     "time_since_baseline": 6.2997946612,
+     "baseline_age": 47,
+     "baseline_age_centered": -7
+    },
+    {
+     "patient_id": "p13",
+     "value": 61.8,
+     "time_since_baseline": 0,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p13",
+     "value": 63.8,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p13",
+     "value": 57.7,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p13",
+     "value": 59.7,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p13",
+     "value": 57.1,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p13",
+     "value": 53,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p13",
+     "value": 56.4,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p13",
+     "value": 55,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 54,
+     "baseline_age_centered": 0
+    },
+    {
+     "patient_id": "p14",
+     "value": 55.9,
+     "time_since_baseline": 0,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p14",
+     "value": 56,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p14",
+     "value": 52.3,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p14",
+     "value": 55.4,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p14",
+     "value": 51.5,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p14",
+     "value": 51.6,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p14",
+     "value": 50.8,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p14",
+     "value": 51.1,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p14",
+     "value": 47.2,
+     "time_since_baseline": 4,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p14",
+     "value": 48.8,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 61,
+     "baseline_age_centered": 7
+    },
+    {
+     "patient_id": "p15",
+     "value": 59.3,
+     "time_since_baseline": 0,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 60.1,
+     "time_since_baseline": 0.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 61.7,
+     "time_since_baseline": 0.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 59.5,
+     "time_since_baseline": 1.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 58.4,
+     "time_since_baseline": 1.9986310746,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 54.9,
+     "time_since_baseline": 2.2997946612,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 51.9,
+     "time_since_baseline": 3.0006844627,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 50.9,
+     "time_since_baseline": 3.3018480493,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 54.9,
+     "time_since_baseline": 4,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 49,
+     "time_since_baseline": 4.3011635866,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 51.6,
+     "time_since_baseline": 4.9993155373,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    },
+    {
+     "patient_id": "p15",
+     "value": 50.3,
+     "time_since_baseline": 5.3004791239,
+     "baseline_age": 68,
+     "baseline_age_centered": 14
+    }
+   ]
+  }
+ ]
+}

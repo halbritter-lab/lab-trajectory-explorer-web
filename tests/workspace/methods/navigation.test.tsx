@@ -30,7 +30,7 @@ describe('help topics', () => {
     const heading = screen.getByRole('heading', { name: 'AKI Timing, Episodes and the Fit-Exclusion Window' })
     expect(heading.closest('details')).toHaveAttribute('open')
     await waitFor(() => expect(heading).toHaveFocus())
-    expect(screen.getByText(/onset 2 January 2020 excludes/)).toBeVisible()
+    expect(screen.getByText(/2 January 2020 and end 3 January 2020 exclude/)).toBeVisible()
   })
 
   it('handles history navigation and unknown topics without an empty page', () => {
@@ -62,7 +62,7 @@ describe('help topics', () => {
   it('keeps important limitations outside closed calculation details', () => {
     window.history.replaceState(null, '', '/#methods/data')
     render(<Methodology />)
-    const limitation = screen.getByText(/All computed equations are/)
+    const limitation = screen.getByText(/The four equations above are used from 18 years/)
     expect(limitation).toBeVisible()
     expect(limitation.closest('details')).toBeNull()
     fireEvent.click(screen.getByText('Calculation details'))

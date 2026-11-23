@@ -73,7 +73,7 @@ describe('approved method settings and provenance', () => {
     expect(screen.getByText(/A confirmed eGFR below 30 \(CKD G4\) is what some groups call advanced CKD \(aCKD\)\./)).toBeInTheDocument()
     expect(screen.getByText(/When AKI windows are excluded from the fit, they are also left out of the decline baseline and the G5 projection\./)).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'AKI exclusion windows' })).toBeInTheDocument()
-    expect(screen.getByText('Episodes are detected with the KDIGO creatinine criteria. The length of the window is a rule of this tool.')).toBeInTheDocument()
+    expect(screen.getByText('Episodes are detected with the KDIGO creatinine criteria. The window follows acute kidney disease, which lasts up to 90 days after an AKI (KDIGO 2024); the shorter fallback is a rule of this tool.')).toBeInTheDocument()
     expect(screen.getByText(/^Endpoints and projection use exact dated eGFR measurements/)).toBeInTheDocument()
     expect(screen.getByLabelText('Minimum confirmation interval (days)')).toHaveValue(90)
     expect(screen.getByText('Unconfirmed')).toBeInTheDocument()
@@ -123,7 +123,7 @@ describe('approved method settings and provenance', () => {
     input.cohortRows[0].cells[0].endpoints = computeCkdEndpoints({ points, slopePerYear: 1, enabled: { percentDecline: false, observedCkdG4: true, observedCkdG5: true, projectedAgeToCkdG5: true, confirmationDays: 30 } })
     const workbook = XLSX.read(workspaceWorkbookBytes(input), { type: 'array' })
     const rows = XLSX.utils.sheet_to_json(workbook.Sheets.cohort)
-    expect(rows[0]).toMatchObject({ endpoint_observed_ckd_g4: 'yes', endpoint_observed_ckd_g5: 'yes', endpoint_g5_first_date: '2020-01-01', endpoint_g5_confirmed_date: '2020-02-01', endpoint_g5_recovery_date: '2020-05-01', endpoint_g5_recovery_value: 20, endpoint_confirmation_days: 30, endpoint_prediction_anchor: 'fitted curve', endpoint_input_policy: 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded' })
+    expect(rows[0]).toMatchObject({ endpoint_observed_ckd_g4: 'yes', endpoint_observed_ckd_g5: 'yes', endpoint_g5_first_date: '2020-01-01', endpoint_g5_confirmed_date: '2020-02-01', endpoint_g5_recovery_date: '2020-05-01', endpoint_g5_recovery_value: 20, endpoint_confirmation_days: 30, endpoint_prediction_anchor: 'fitted curve', endpoint_input_policy: 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); values dated after a death excluded; bounds excluded' })
   })
   it('labels and exports both confirmed decline endpoints with baseline and recovery provenance', () => {
     const declinePoints = [

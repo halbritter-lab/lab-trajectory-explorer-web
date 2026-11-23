@@ -43,6 +43,8 @@ export interface CollectedSeriesContributions {
   exclusions: ReasonedExclusionWindow[]
   overlays: SeriesOverlay[]
   flags: CohortFlag[]
+  /** Export values of every module (see SeriesContribution.values). */
+  values: Record<string, string | number>
 }
 
 /** Run every module's `series` hook for one (patient, column). The single
@@ -52,7 +54,7 @@ export function collectSeriesContributions(
   ctx: SeriesContext,
   modules: readonly RegisteredAnalysisModule[] = analysisModules,
 ): CollectedSeriesContributions {
-  const out: CollectedSeriesContributions = { censoring: [], exclusions: [], overlays: [], flags: [] }
+  const out: CollectedSeriesContributions = { censoring: [], exclusions: [], overlays: [], flags: [], values: {} }
   for (const module of modules) {
     const contribution = module.series?.(ctx)
     if (!contribution) continue
@@ -60,6 +62,7 @@ export function collectSeriesContributions(
     if (contribution.exclusions) out.exclusions.push(...contribution.exclusions)
     if (contribution.overlays) out.overlays.push(...contribution.overlays)
     if (contribution.flags) out.flags.push(...contribution.flags)
+    if (contribution.values) Object.assign(out.values, contribution.values)
   }
   return out
 }

@@ -598,3 +598,36 @@
 .cohort-model-reading { max-width: 80ch; margin-top: 12px; }
 
 .cm-studio-footer { gap: 8px; }
+/* Decisions of 2026-11-22: reference and dropout warnings, the minimum per level, dropout table. */
+.cm-reference-warning, .cm-dropout-warning { margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.cm-level-minimum { margin: 8px 0 0; font-size: 13px; overflow-wrap: anywhere; }
+.cm-dropout { margin: 8px 0 0; font-size: 13px; }
+.cm-dropout-table-wrap { max-width: 100%; overflow-x: auto; }
+.cm-dropout table { border-collapse: collapse; }
+.cm-dropout th, .cm-dropout td { padding: 2px 8px; text-align: left; white-space: nowrap; }
+
+/* Areas of the page (decision `taxonomy`, 2026-11-22) and the time-to-event area. */
+.cm-area-tabs { display: flex; flex-wrap: wrap; gap: 8px; border-bottom: 1px solid var(--border, #dce4e2); }
+.cm-area-tabs button { border: 1px solid transparent; border-bottom: 3px solid transparent; background: none; padding: 8px 12px; font-weight: 600; }
+.cm-area-tabs button.active { border-bottom-color: var(--accent, #176c68); }
+.cm-tte-definition { display: grid; gap: 6px; justify-items: start; }
+.cm-tte-definition p { margin: 0; }
+.cm-tte-curve { display: flex; flex-wrap: wrap; gap: 12px; }
+.cm-tte table { border-collapse: collapse; font-size: 13px; }
+.cm-tte th, .cm-tte td { padding: 4px 8px; text-align: left; border-bottom: 1px solid #e4ecee; }
+/* Smoke run of 2026-11-23: the tables scroll in their own box and wrap only
+   between words (the global td rule breaks anywhere, which split "HNF1B"). */
+.cm-tte { grid-template-columns: minmax(0, 1fr); }
+.cm-tte-table-wrap { min-width: 0; max-width: 100%; overflow-x: auto; }
+.cm-tte-table th, .cm-tte-table td { overflow-wrap: normal; word-break: normal; hyphens: manual; vertical-align: top; }
+.cm-tte-table td { white-space: nowrap; }
+.cm-tte-table th:first-child, .cm-tte-table td:first-child { min-width: 7rem; max-width: 14rem; white-space: normal; }
+.cm-tte-groups th { min-width: 4.5rem; }
+.cm-tte-groups th:last-child, .cm-tte-groups td:last-child { min-width: 13rem; white-space: normal; }
+/* The selects take the width of their longest option, up to the card width. */
+.cm-tte-controls { display: flex; flex-wrap: wrap; }
+.cm-tte-controls > label { flex: 0 1 auto; max-width: 100%; }
+.cm-tte-controls select { width: auto; max-width: 100%; }
+/* The chart scales with the card: on a phone 11 units render at about 5px. */
+@media (max-width: 600px) { .cm-tte .cm-axis-text { font-size: 20px; } }
+.cm-area-panel { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; min-width: 0; }

@@ -22,6 +22,7 @@ function endpointSettingsFor(series: SeriesKey, endpoints?: Partial<CkdEndpointC
     observedCkdG5: endpoints?.observedCkdG5 ?? false,
     projectedAgeToCkdG5: endpoints?.projectedAgeToCkdG5 ?? false,
     confirmationDays: endpoints?.confirmationDays,
+    observedDecline50: endpoints?.observedDecline50 ?? false,
   }
 }
 
@@ -31,7 +32,18 @@ const observedEvaluated = (e: CkdEndpoints) => e.evaluated.observedCkdG4 || e.ev
 const confirmationUsed = (e: CkdEndpoints) => observedEvaluated(e) || e.evaluated.projectedAgeToCkdG5
 const anyEvaluated = (e: CkdEndpoints) => observedEvaluated(e) || e.evaluated.percentDecline || e.evaluated.projectedAgeToCkdG5
 type Cell = ModuleExportCell<CkdEndpoints>
-const ENDPOINT_INPUT_POLICY = 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded'
+const ENDPOINT_INPUT_POLICY = 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); values dated after a death excluded; bounds excluded'
+/** The six date and value columns of one confirmed decline event. */
+function declineEventColumns(threshold: string, field: 'observedDecline40' | 'observedDecline50' | 'observedDecline57') {
+  return [
+    { key: `endpoint_decline_${threshold}_first_date`, value: (c: Cell) => endpointDate(c.endpoints[field].firstDate) },
+    { key: `endpoint_decline_${threshold}_confirmed_date`, value: (c: Cell) => endpointDate(c.endpoints[field].confirmedDate) },
+    { key: `endpoint_decline_${threshold}_recovery_date`, value: (c: Cell) => endpointDate(c.endpoints[field].recoveryDate) },
+    { key: `endpoint_decline_${threshold}_first_value`, value: (c: Cell) => c.endpoints[field].firstValue ?? '' },
+    { key: `endpoint_decline_${threshold}_confirmed_value`, value: (c: Cell) => c.endpoints[field].confirmedValue ?? '' },
+    { key: `endpoint_decline_${threshold}_recovery_value`, value: (c: Cell) => c.endpoints[field].recoveryValue ?? '' },
+  ]
+}
 /** Export text for the basis of a projected age; blank without a projection. */
 const AGE_BASIS_LABELS = { birth_date: 'birth date', whole_years: 'age in completed years', none: '' } as const
 
@@ -45,7 +57,7 @@ const AGE_BASIS_LABELS = { birth_date: 'birth date', whole_years: 'age in comple
 export const ckdEndpointsModule = {
   id: 'ckdEndpoints' as const,
   label: 'CKD endpoints',
-  description: 'Percent eGFR decline, observed CKD G4/G5 and projected age at CKD G5.',
+  description: 'Percent eGFR decline, observed CKD G4/G5 and the optional extrapolation of the fitted trend to CKD G5.',
   appliesTo: (series: SeriesKey) => isEgfrUnit(series.einheit),
   // The G4 and G5 boundaries as targets for eGFR mixed-model projections.
   projectionTargets: renalProjectionTargets,
@@ -55,7 +67,7 @@ export const ckdEndpointsModule = {
     const projecting = enabled.projectedAgeToCkdG5
     const kidneyFailureReached = ctx.hasSeriesMeasurements && isEgfrUnit(ctx.seriesKey.einheit) ? firstKidneyFailureEvent(ctx.events) : null
     const fit = projecting && !kidneyFailureReached ? ctx.fit() : { slope: Number.NaN, intercept: Number.NaN, ciLow: Number.NaN, ciHigh: Number.NaN }
-    return computeCkdEndpoints({ points: ctx.points(projecting), fitPoints: ctx.fitPoints(projecting), slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
+    return computeCkdEndpoints({ points: ctx.points(projecting), fitPoints: ctx.fitPoints(projecting), bounds: ctx.bounds?.() ?? [], slopePerYear: fit.slope, intercept: fit.intercept, slopeCiLow: fit.ciLow, slopeCiHigh: fit.ciHigh, enabled,
       kidneyFailureReached, ageBasis: ctx.ageBasis, fitModel: ctx.scalarFitModel,
       inputExcludesAkiWindows: excludesAkiWindows(ctx) })
   },
@@ -95,14 +107,13 @@ export const ckdEndpointsModule = {
     { key: 'endpoint_decline_baseline_value', value: (c: Cell) => c.endpoints.declineBaselineValue ?? '' },
     { key: 'endpoint_observed_decline_40', value: (c: Cell) => c.endpoints.observedDecline40.met ? 'yes' : '' },
     { key: 'endpoint_observed_decline_57', value: (c: Cell) => c.endpoints.observedDecline57.met ? 'yes' : '' },
-    ...([['40', 'observedDecline40'], ['57', 'observedDecline57']] as const).flatMap(([threshold, field]) => [
-      { key: `endpoint_decline_${threshold}_first_date`, value: (c: Cell) => endpointDate(c.endpoints[field].firstDate) },
-      { key: `endpoint_decline_${threshold}_confirmed_date`, value: (c: Cell) => endpointDate(c.endpoints[field].confirmedDate) },
-      { key: `endpoint_decline_${threshold}_recovery_date`, value: (c: Cell) => endpointDate(c.endpoints[field].recoveryDate) },
-      { key: `endpoint_decline_${threshold}_first_value`, value: (c: Cell) => c.endpoints[field].firstValue ?? '' },
-      { key: `endpoint_decline_${threshold}_confirmed_value`, value: (c: Cell) => c.endpoints[field].confirmedValue ?? '' },
-      { key: `endpoint_decline_${threshold}_recovery_value`, value: (c: Cell) => c.endpoints[field].recoveryValue ?? '' },
-    ]),
+    ...declineEventColumns('40', 'observedDecline40'),
+    ...declineEventColumns('57', 'observedDecline57'),
     { key: 'endpoint_prediction_age_basis', value: (c: Cell) => AGE_BASIS_LABELS[c.endpoints.projectedAgeToCkdG5.ageBasis ?? 'none'] },
+    // Appended 2026-11-22 (issue #82): the confirmed 50 % decline, same rule and block layout as 40 % and 57 %.
+    { key: 'endpoint_observed_decline_50', value: (c: Cell) => c.endpoints.observedDecline50.met ? 'yes' : '' },
+    ...declineEventColumns('50', 'observedDecline50'),
+    // Appended 2026-11-22 (`g5single`): an unconfirmed single value below 15, never an observed G5.
+    { key: 'endpoint_g5_single_value_unconfirmed', value: (c: Cell) => c.endpoints.g5SingleUnconfirmed ? 'yes' : '' },
   ],
 } satisfies AnalysisModule<undefined, 'ckdEndpoints'>

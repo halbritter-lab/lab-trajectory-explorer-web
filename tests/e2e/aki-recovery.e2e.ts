@@ -60,7 +60,7 @@ test('lists one episode for a sustained rise and the dialysis that starts during
   await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
   const workbook = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
   const sheet = XLSX.utils.sheet_to_json<unknown[]>(workbook.Sheets.aki_episodes, { header: 1 })
-  expect(sheet[0]).toEqual(['PatientID', 'creatinine_parameter', 'creatinine_unit', 'stage', 'onset_date', 'peak_date', 'peak_value_mg_dl', 'baseline_date', 'baseline_value_mg_dl', 'criterion', 'end_date', 'dialysis_start', 'ended_by_gap', 'last_value_date'])
+  expect(sheet[0]).toEqual(['PatientID', 'creatinine_parameter', 'creatinine_unit', 'stage', 'onset_date', 'peak_date', 'peak_value_mg_dl', 'baseline_date', 'baseline_value_mg_dl', 'criterion', 'end_date', 'dialysis_start', 'ended_by_gap', 'last_value_date', 'baseline_source', 'baseline_n'])
   expect(sheet.slice(1).map(row => [row[0], row[3], row[4], row[10] ?? '', row[11] ?? '', row[12], row[13]])).toEqual([
     ['CHR', 1, '2026-03-02', '', '2026-03-04 (chronic)', false, '2026-03-03'],
     ['GAPX', 1, '2026-03-02', '', '', true, '2026-03-02'],

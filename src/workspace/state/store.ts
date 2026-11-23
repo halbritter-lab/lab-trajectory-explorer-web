@@ -2,8 +2,9 @@ import { create } from 'zustand'
 import type { LabRow } from '../../core/types'
 import { computeAnalysisResult, defaultAnalysisSettings } from '../../core/analysis/registry'
 import type { AnalysisResult, AnalysisSettings, ManualDemographics } from '../../core/analysis/types'
-import type { FormulaName, Source } from '../../core/domains/nephrology/egfr/series'
+import type { FormulaName, PaediatricRule, Source } from '../../core/domains/nephrology/egfr/series'
 import type { ClinicalEvent, RejectedClinicalEvent } from '../../core/events/events'
+import type { PeriEventSettings } from '../../core/domains/nephrology/aki/periEvent'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormulaKey, type MixedModelConfig } from '../../core/mixedModel/config'
 import type { MixedModelResult } from '../../core/mixedModel/types'
 import { mixedModelIdentityEquals, type MixedModelResultIdentity } from '../../core/mixedModel/resultIdentity'
@@ -13,12 +14,39 @@ import type { CohortModelEntityRows } from '../../core/mixedModel/cohortModelEnt
 import type { PresetExclusionPolicy } from '../../core/mixedModel/cohortDataset'
 import { runMixedModelWorkerJob, type RunMixedModelWorkerJobOptions } from '../../core/mixedModel/browserClient'
 import type { ImportDiagnostic, ImportSource } from '../../io/loadDataset'
+import { mergedSeriesKeys, seriesRefKey, type SeriesMerge } from '../../core/analysis/seriesMerge'
+import { seriesMerges } from '../../core/domains/nephrology/seriesMergeModule'
 import { defaultTrajectoryFitSettings, modelPreparationKey, type TrajectoryFitSettings } from '../workspace-analysis'
 import { defaultTrajectoryView, type TrajectoryView } from '../saved-settings'
+import type { TimeToEventEndpoint, TimeToEventScale } from '../../core/domains/nephrology/endpoints/timeToEvent'
+
+/** The choices of the "Time to event" area of Cohort models. Kept for the
+ * session only (not saved with the dataset), but shown in the analysis record
+ * and written to the time-to-event workbook. A null choice stands for the
+ * area's default: the first eGFR parameter, the first available endpoint. */
+export interface TimeToEventChoices {
+  parameterKey: string | null
+  endpoint: TimeToEventEndpoint | null
+  compositeWithKrt: boolean
+  timeScale: TimeToEventScale
+  grouping: string | null
+}
+
+export const DEFAULT_TIME_TO_EVENT_CHOICES: TimeToEventChoices = { parameterKey: null, endpoint: null, compositeWithKrt: false, timeScale: 'age', grouping: null }
 
 export interface Notice {
   kind: 'error' | 'info'
+  /** The text as composed when the notice was set (an error message, or the
+   * interface language of that moment). */
   text: string
+  /** Composes the text in the current language; the page shows this in place
+   * of `text`, so a notice follows a language switch (issue #71). */
+  compose?: () => string
+}
+
+/** A notice composed in the interface language where it is shown. */
+export function composedNotice(kind: Notice['kind'], compose: () => string): Notice {
+  return { kind, text: compose(), compose }
 }
 
 export interface StoredMixedModelResult {
@@ -53,6 +81,8 @@ export interface DatasetReplacement {
   patientAttributes?: Record<string, Record<string, string>>
   manualDemographics?: Record<string, ManualDemographics>
   analysisSettings?: AnalysisSettings
+  /** The peri-event creatinine selection of a restored copy; none otherwise. */
+  periEventSettings?: PeriEventSettings | null
   notice?: Notice | null
   /** Import findings of the lab values, events and attributes of this dataset. */
   importDiagnostics?: ImportDiagnostic[]
@@ -80,6 +110,9 @@ export interface AppState {
    * attribute names (e.g. "genotype") carry no special meaning to the app. */
   patientAttributes: Record<string, Record<string, string>>
   analysisSettings: AnalysisSettings
+  /** Events and window of the peri-event creatinine analysis on the Data page
+   * (issue #69); null while no events are selected. Saved with the dataset copy. */
+  periEventSettings: PeriEventSettings | null
   mixedModelConfig: MixedModelConfig
   presetExclusionPolicy: PresetExclusionPolicy
   /** The analysis settings currently chosen under Trajectories. Trajectories
@@ -104,6 +137,7 @@ export interface AppState {
   cohortModelRuntimeLoaded: boolean
   showCohortMixedModelLine: boolean
   projectionSettings: Record<string, AppliedProjectionSettings>
+  timeToEventSettings: TimeToEventChoices
   busy: boolean
   notice: Notice | null
   setNotice: (n: Notice | null) => void
@@ -115,8 +149,21 @@ export interface AppState {
   replaceDataset: (dataset: DatasetReplacement) => void
   setEgfrFormula: (f: FormulaName | 'off') => void
   setEgfrSource: (s: Source | null) => void
+  setEgfrPaediatric: (rule: PaediatricRule) => void
   /** Recovery that separates two AKI episodes (hours, dataset-level). */
   setAkiRecoveryHours: (hours: number) => void
+  setAkiRetrospectiveFall: (on: boolean) => void
+  /** Replace the deliberately merged series (issue #68). When the eGFR source
+   * is a merged series that the new list no longer produces, the source
+   * returns to Automatic. */
+  setSeriesMerges: (merges: SeriesMerge[]) => void
+  /** Replace the dataset-level analysis settings as a whole ("Apply settings
+   * from an export"); an unchanged value changes nothing. */
+  applyAnalysisSettings: (settings: AnalysisSettings) => void
+  /** Events and window of the peri-event creatinine analysis (dataset-level);
+   * null selects no events. Kept apart from `analysisSettings`, so a change
+   * recomputes no analysis or fit and keeps the cohort models. */
+  setPeriEventSettings: (settings: PeriEventSettings | null) => void
   setManualDemographics: (patientId: LabRow['patientId'], demo: ManualDemographics) => void
   setEvents: (events: ClinicalEvent[]) => void
   setPatientAttributes: (byPatient: Record<string, Record<string, string>>) => void
@@ -130,6 +177,7 @@ export interface AppState {
    * stopped run is stored. */
   cancelCohortModels: () => void
   setShowCohortMixedModelLine: (value: boolean) => void
+  setTimeToEventSettings: (choices: Partial<TimeToEventChoices>) => void
   setProjectionSettings: (seriesIndex: number, seriesKey: string, entityKey: string, applied: AppliedProjectionSettings) => void
   reset: () => void
 }
@@ -138,8 +186,8 @@ export interface AppState {
  * store's initial state and reset(), so the two cannot drift. */
 type AppData = Pick<AppState,
   | 'rows' | 'fileName' | 'pristineDemo' | 'manualDemographics' | 'events' | 'rejectedEvents' | 'importDiagnostics' | 'patientAttributes'
-  | 'analysisSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
-  | 'cohortModelProgress' | 'cohortModelRuntimeLoaded' | 'showCohortMixedModelLine' | 'projectionSettings' | 'busy' | 'notice'>
+  | 'analysisSettings' | 'periEventSettings' | 'mixedModelConfig' | 'presetExclusionPolicy' | 'trajectoryFitSettings' | 'trajectoryView' | 'cohortModelResults' | 'cohortModelRunning'
+  | 'cohortModelProgress' | 'cohortModelRuntimeLoaded' | 'showCohortMixedModelLine' | 'projectionSettings' | 'timeToEventSettings' | 'busy' | 'notice'>
 
 const initialState = (): AppData => ({
   rows: [],
@@ -151,6 +199,7 @@ const initialState = (): AppData => ({
   importDiagnostics: [],
   patientAttributes: {},
   analysisSettings: defaultAnalysisSettings(),
+  periEventSettings: null,
   mixedModelConfig: DEFAULT_MIXED_MODEL_CONFIG,
   presetExclusionPolicy: 'apply',
   trajectoryFitSettings: defaultTrajectoryFitSettings(),
@@ -161,6 +210,7 @@ const initialState = (): AppData => ({
   cohortModelRuntimeLoaded: false,
   showCohortMixedModelLine: false,
   projectionSettings: {},
+  timeToEventSettings: DEFAULT_TIME_TO_EVENT_CHOICES,
   busy: false,
   notice: null,
 })
@@ -265,6 +315,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       patientAttributes: dataset.patientAttributes ?? {},
       manualDemographics: dataset.manualDemographics ?? {},
       analysisSettings: dataset.analysisSettings ?? initial.analysisSettings,
+      periEventSettings: dataset.periEventSettings ?? null,
       notice: dataset.notice ?? null,
       pristineDemo: dataset.pristineDemo ?? false,
     })
@@ -279,11 +330,38 @@ export const useAppStore = create<AppState>((set, get) => ({
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),
+  setEgfrPaediatric: (rule) => set((s) => ({
+    analysisSettings: { ...s.analysisSettings, egfr: { ...s.analysisSettings.egfr, paediatric: rule } },
+    pristineDemo: false,
+    ...clearedMixedModelResults(),
+  })),
   setAkiRecoveryHours: (hours) => set((s) => ({
     analysisSettings: { ...s.analysisSettings, aki: { ...s.analysisSettings.aki, recoveryHours: hours } },
     pristineDemo: false,
     ...clearedMixedModelResults(),
   })),
+  setAkiRetrospectiveFall: (on) => set((s) => ({
+    analysisSettings: { ...s.analysisSettings, aki: { ...s.analysisSettings.aki, retrospectiveFall: on } },
+    pristineDemo: false,
+    ...clearedMixedModelResults(),
+  })),
+  setSeriesMerges: (merges) => set((s) => {
+    const source = s.analysisSettings.egfr.source
+    const previous = mergedSeriesKeys(seriesMerges(s.analysisSettings))
+    const sourceKey = source ? seriesRefKey({ bezeichnung: source[0], einheit: source[1] }) : null
+    const dropSource = sourceKey !== null && previous.has(sourceKey) && !mergedSeriesKeys(merges).has(sourceKey)
+    return {
+      analysisSettings: { ...s.analysisSettings, seriesMerge: { merges }, ...(dropSource ? { egfr: { ...s.analysisSettings.egfr, source: null } } : {}) },
+      pristineDemo: false,
+      ...clearedMixedModelResults(),
+    }
+  }),
+  applyAnalysisSettings: (settings) => set((s) => JSON.stringify(settings) === JSON.stringify(s.analysisSettings) ? s : ({
+    analysisSettings: settings,
+    pristineDemo: false,
+    ...clearedMixedModelResults(),
+  })),
+  setPeriEventSettings: (settings) => set({ periEventSettings: settings, pristineDemo: false }),
   setManualDemographics: (patientId, demo) => set((s) => ({
     manualDemographics: { ...s.manualDemographics, [patientId]: demo },
     pristineDemo: false,
@@ -375,6 +453,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ cohortModelRunning: false, cohortModelProgress: null, cohortModelRuntimeLoaded: false })
   },
   setShowCohortMixedModelLine: (value) => set({ showCohortMixedModelLine: value }),
+  setTimeToEventSettings: (choices) => set((s) => ({ timeToEventSettings: { ...s.timeToEventSettings, ...choices } })),
   setProjectionSettings: (seriesIndex, seriesKey, entityKey, applied) => set((s) => {
     const stored = s.cohortModelResults?.[entityKey]
     if (!stored || stored.result.status !== 'success' || !stored.result.converged || stored.result.singular ||

@@ -4,6 +4,9 @@ import { isRapidEgfrDecline } from '../../../src/core/domains/nephrology/rapidEg
 import type { LabRow } from '../../../src/core/types'
 import { acuteReviewConfig, ckdProgressionConfig } from '../../../src/core/domains/nephrology/fitConfig'
 import { generalExplorationConfig } from '../../../src/core/analysis/fitConfig'
+import type { FitConfig } from '../../../src/core/analysis/fitConfig'
+// The extrapolation to CKD G5 is off in every preset since 2026-11-22 (issue #81).
+const withProjection = (config: FitConfig): FitConfig => ({ ...config, endpoints: { ...config.endpoints, projectedAgeToCkdG5: true } })
 import type { ClinicalEvent } from '../../../src/core/events/events'
 import { endpointBadge } from '../../../src/workspace/labels/endpointLabels'
 
@@ -209,6 +212,13 @@ describe('cohortExportRecords', () => {
     const spanning = (last: string) => buildCohortRows([rows[0], { ...rows[1], labDatum: d('2019-07-01') }, { ...rows[2], labDatum: d(last) }], [1], [spec])
     expect(cohortExportRecords(spanning('2019-12-31'), threshold(5))[0]).toMatchObject({ unstable_slope: 'yes', rapid_progression: '' })
     expect(cohortExportRecords(spanning('2020-01-01'), threshold(5))[0]).toMatchObject({ unstable_slope: '', rapid_progression: 'yes' })
+    // Decided 2026-11-21 (issue #72): a scattered decline whose 95 % interval reaches
+    // above -5 is 'possible', not 'yes'. 90, 60, 85, 70 on four dates over two years.
+    const scattered = buildCohortRows([rows[0], { ...rows[1], labDatum: d('2019-07-01'), wertNum: 60 }, { ...rows[1], wertNum: 85 }, rows[2]], [1], [spec])
+    const record = cohortExportRecords(scattered, threshold(5))[0]
+    expect(record).toMatchObject({ unstable_slope: '', rapid_progression: 'possible' })
+    expect(Number(record.slope)).toBeLessThan(-5)
+    expect(Number(record.ci_high)).toBeGreaterThan(-5)
   })
 
   it('adds a leading group column only when rows carry a groupValue', () => {
@@ -256,9 +266,11 @@ describe('cohortExportRecords', () => {
       bezeichnung: 'eGFR',
       einheit: 'ml/min/1,73m²',
       mode: 'global',
-      fitConfig: ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }),
+      fitConfig: withProjection(ckdProgressionConfig({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' })),
     }
+    // Four dates over three years: the KDIGO minimum of the extrapolation (2026-11-22).
     const rows = [
+      row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2019-01-01'), wertNum: 75, patientAgeAtLab: 59 }),
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2020-01-01'), wertNum: 60, patientAgeAtLab: 60 }),
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2021-01-01'), wertNum: 45, patientAgeAtLab: 61 }),
       row({ bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²', labDatum: d('2022-01-01'), wertNum: 30, patientAgeAtLab: 62 }),
@@ -266,7 +278,7 @@ describe('cohortExportRecords', () => {
 
     const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [spec]))
 
-    expect(rec.endpoint_percent_change).toBeCloseTo(-50)
+    expect(rec.endpoint_percent_change).toBeCloseTo(-60)
     expect(rec.endpoint_observed_ckd_g5).toBe('')
     expect(rec.endpoint_projected_age_to_ckd_g5).toBeCloseTo(63, 1)
     expect(rec.endpoint_prediction_slope_ci_low).toBeLessThan(0)
@@ -276,7 +288,7 @@ describe('cohortExportRecords', () => {
 
   it('exports endpoint-only Theil-Sen confidence bounds and model provenance', () => {
     const parameter = { bezeichnung: 'eGFR', einheit: 'ml/min/1,73m²' }
-    const fitConfig = { ...ckdProgressionConfig(parameter), fitModel: 'theil-sen' as const }
+    const fitConfig = { ...withProjection(ckdProgressionConfig(parameter)), fitModel: 'theil-sen' as const }
     const values = [65, 55, 45, 35, 25]
     const rows = values.map((wertNum, i) => row({ ...parameter, labDatum: d(`${2020 + i}-01-01`), wertNum, patientAgeAtLab: 60 + i }))
     const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...parameter, mode: 'global-robust', fitConfig }]))
@@ -311,7 +323,7 @@ describe('cohortExportRecords', () => {
     fitConfig.endpoints = { ...fitConfig.endpoints, projectedAgeToCkdG5: false }
     const rows = [60, 45, 30].map((wertNum, i) => row({ ...parameter, labDatum: d(`202${i}-01-01`), wertNum, patientAgeAtLab: 60 + i }))
     const [rec] = cohortExportRecords(buildCohortRows(rows, [1], [{ ...parameter, mode: 'global', fitConfig }]))
-    expect(rec).toMatchObject({ endpoint_confirmation_days: 90, endpoint_input_policy: 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); bounds excluded; AKI exclusion windows excluded from decline baseline and projection',
+    expect(rec).toMatchObject({ endpoint_confirmation_days: 90, endpoint_input_policy: 'dated exact numeric measurements before first kidney transplant/chronic dialysis; dated acute dialysis intervals excluded (inclusive); values dated after a death excluded; bounds excluded; AKI exclusion windows excluded from decline baseline and projection',
       endpoint_prediction_anchor: '', endpoint_prediction_model: '', endpoint_projected_age_to_ckd_g5: '' })
   })
 
@@ -341,8 +353,11 @@ describe('cohortExportRecords', () => {
 
     it('appends the seven columns after the rolling columns', () => {
       const [rec] = cohortExportRecords(buildCohortRows(yearly, [1], [spec('global')]))
-      expect(Object.keys(rec).slice(-10)).toEqual(['rolling_slope_max', 'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
-        'first_eligible_value', 'last_eligible_value'])
+      expect(Object.keys(rec).slice(-19, -8)).toEqual(['rolling_slope_max', 'index_date', 'last_fitted_date', 'first_eligible_date', 'last_eligible_date', 'intercept', 'slope_se', 'n_fitted_dates',
+        'first_eligible_value', 'last_eligible_value', 'n_bounded'])
+      // Appended 2026-11-22: n_bounded (#73), then the separate segment after KRT, then the slope tier.
+      expect(Object.keys(rec).slice(-8)).toEqual(['krt_segment_start', 'krt_segment_n_fitted', 'krt_segment_n_fitted_dates', 'krt_segment_fitted_span_days',
+        'krt_segment_slope', 'krt_segment_ci_low', 'krt_segment_ci_high', 'slope_tier'])
       expect(rec.n_fitted_dates).toBe(4)
       // Dates, not rows: a second value on the last date leaves the count at four.
       const [repeat] = cohortExportRecords(buildCohortRows([...yearly, row({ labDatum: d('2023-01-01'), wertNum: 45 })], [1], [spec('global')]))

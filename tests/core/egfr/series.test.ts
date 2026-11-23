@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { creatinineSourceOptions, defaultCreatinineSource, appendComputedEgfr, MGDL_PER_UMOLL, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../../src/core/domains/nephrology/egfr/series'
+import { creatinineSourceOptions, defaultCreatinineSource, appendComputedEgfr, patientCreatinineSources, MGDL_PER_UMOLL, COMPUTED_BEZEICHNUNG_SUFFIX } from '../../../src/core/domains/nephrology/egfr/series'
+import { episodesForSeries } from '../../../src/core/domains/nephrology/aki/akiAware'
 import type { LabRow } from '../../../src/core/types'
 
 function row(p: Partial<LabRow>): LabRow {
@@ -78,10 +79,18 @@ describe('appendComputedEgfr', () => {
     expect(appendComputedEgfr(rows, { formula: 'ckd-epi-2021' })).toBe(rows)
   })
 
-  it('drops pediatric rows (age < 18) silently', () => {
+  it('gives no value under 18 with the under-18 rule off (the rule before issue #66)', () => {
     const rows = [row({ patientAgeAtLab: 10 })]
-    const out = appendComputedEgfr(rows, { formula: 'ckd-epi-2021' })
+    const out = appendComputedEgfr(rows, { formula: 'ckd-epi-2021', paediatric: 'off' })
     expect(out.filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))).toHaveLength(0)
+  })
+
+  it('uses EKFC under 18 without a height by default, and records the equation (issue #66)', () => {
+    const out = appendComputedEgfr([row({ patientAgeAtLab: 12, wertNum: 0.6, wert: '0,6' }), row({ patientAgeAtLab: 50, labDatum: new Date('2058-01-01') })], { formula: 'ckd-epi-2021' })
+    const computed = out.filter((r) => r.bezeichnung?.includes(COMPUTED_BEZEICHNUNG_SUFFIX))
+    // EKFC: Q(12, m) = 54.4067/88.4 = 0.615461; 0.6/0.615461 = 0.974880 < 1: 107.3 × 0.974880^−0.322 = 108.18
+    expect(computed.map((r) => [r.wertNum, r.egfrFormula])).toEqual([[108.2, 'ekfc-2021'], [91.7, 'ckd-epi-2021']])
+    expect(computed[0].bezeichnung).toBe('eGFR (CKD-EPI 2021, computed)')
   })
 
   it('converts a µmol/l source to mg/dl before computing (same eGFR as the mg/dl input)', () => {
@@ -146,5 +155,72 @@ describe('appendComputedEgfr', () => {
   it('rejects an explicitly selected non-serum-creatinine source', () => {
     const rows = [row({ bezeichnung: 'Albumin/Kreatinin-Quotient', einheit: 'mg/g', wertNum: 30 })]
     expect(appendComputedEgfr(rows, { formula: 'ckd-epi-2021', source: ['Albumin/Kreatinin-Quotient', 'mg/g'] })).toBe(rows)
+  })
+})
+
+// Decided 2026-11-21 (issue #65): one series per patient, the selected mg/dl
+// source or, without any serum creatinine in mg/dl, the patient's µmol/l series.
+describe('creatinine source per patient', () => {
+  const MGDL: [string, string] = ['Kreatinin', 'mg/dl']
+  const rows = [
+    row({ patientId: 1, wertNum: 1.2, patientAgeAtLab: 60 }),
+    row({ patientId: 1, einheit: 'µmol/l', wertNum: 300, patientAgeAtLab: 60 }),
+    row({ patientId: 2, einheit: 'µmol/l', wertNum: 1.2 * MGDL_PER_UMOLL, patientAgeAtLab: 60 }),
+    row({ patientId: 3, bezeichnung: 'Kreatinin HP', wertNum: 1.0 }),
+    row({ patientId: 3, einheit: 'µmol/l', wertNum: 90 }),
+    row({ patientId: 4, bezeichnung: 'Kreatinin A', einheit: 'µmol/l', wertNum: 90 }),
+    row({ patientId: 4, bezeichnung: 'Kreatinin B', einheit: 'µmol/l', wertNum: 90 }),
+    row({ patientId: 5, bezeichnung: 'Creatinine', einheit: 'umol/L', wertNum: 1.2 * MGDL_PER_UMOLL, patientAgeAtLab: 60 }),
+    row({ patientId: 6, bezeichnung: 'HbA1c', einheit: '%', wertNum: 6 }),
+  ]
+  it('resolves each patient to one series or names why none', () => {
+    const sources = patientCreatinineSources(rows, MGDL)
+    expect(sources.get('1')).toMatchObject({ source: MGDL, fallback: false, gap: null, others: [['Kreatinin', 'µmol/l']] })
+    expect(sources.get('2')).toMatchObject({ source: ['Kreatinin', 'µmol/l'], fallback: true, gap: null })
+    expect(sources.get('3')).toMatchObject({ source: null, gap: 'other_mgdl' })
+    expect(sources.get('4')).toMatchObject({ source: null, gap: 'several_umoll' })
+    // The only µmol/l series, under another name than the selected source.
+    expect(sources.get('5')).toMatchObject({ source: ['Creatinine', 'umol/L'], fallback: true })
+    expect(sources.has('6')).toBe(false)
+  })
+  it('computes each patient from that series and records it, never merging', () => {
+    const computed = appendComputedEgfr(rows, { formula: 'ckd-epi-2021', source: MGDL }).filter((r) => r.sourceSeries)
+    expect(computed.map((r) => [r.patientId, r.wertNum, r.sourceSeries])).toEqual([
+      // 1.2 mg/dl, male, 60: 69.2; the 300 µmol/l row of patient 1 is not used.
+      [1, 69.2, { bezeichnung: 'Kreatinin', einheit: 'mg/dl' }],
+      // 106.104 µmol/l = 1.2 mg/dl gives the same 69.2.
+      [2, 69.2, { bezeichnung: 'Kreatinin', einheit: 'µmol/l' }],
+      [5, 69.2, { bezeichnung: 'Creatinine', einheit: 'umol/L' }],
+    ])
+  })
+  it('prefers the µmol/l series under the selected name when there are several', () => {
+    const several = [
+      row({ patientId: 7, bezeichnung: 'Kreatinin', einheit: 'µmol/l', wertNum: 90 }),
+      row({ patientId: 7, bezeichnung: 'Kreatinin B', einheit: 'µmol/l', wertNum: 90 }),
+    ]
+    expect(patientCreatinineSources(several, MGDL).get('7')).toMatchObject({ source: ['Kreatinin', 'µmol/l'], fallback: true })
+  })
+  it('gives a selected µmol/l source no fallback, and an ineligible one no patient', () => {
+    const sources = patientCreatinineSources(rows, ['Kreatinin', 'µmol/l'])
+    expect(sources.get('1')!.source).toEqual(['Kreatinin', 'µmol/l'])
+    expect(sources.get('3')).toMatchObject({ source: ['Kreatinin', 'µmol/l'] })
+    expect(sources.get('5')).toMatchObject({ source: null, gap: 'no_source' })
+    expect([...patientCreatinineSources(rows, ['Kreatinin', 'g/l']).values()].every((s) => s.source === null)).toBe(true)
+  })
+  it('takes the AKI windows of a fallback eGFR from the same µmol/l series', () => {
+    // Patient 8: an AKI rise in "Kreatinin [µmol/l]" (the fallback, same name as
+    // the selected source) and more, flat values in "Kreatinin X [µmol/l]".
+    const day = (iso: string) => new Date(`${iso}T00:00:00Z`)
+    const aki = [['2020-01-01', 88], ['2020-01-02', 140], ['2020-02-01', 88]] as const
+    const flat = ['2019-01-01', '2019-02-01', '2019-03-01', '2019-04-01', '2019-05-01']
+    const input = [
+      ...aki.map(([d, v]) => row({ patientId: 8, labDatum: day(d), einheit: 'µmol/l', wertNum: v })),
+      ...flat.map((d) => row({ patientId: 8, labDatum: day(d), bezeichnung: 'Kreatinin X', einheit: 'µmol/l', wertNum: 88 })),
+    ]
+    const out = appendComputedEgfr(input, { formula: 'ckd-epi-2021', source: MGDL })
+    const egfr = out.filter((r) => r.sourceSeries)
+    expect(egfr).toHaveLength(3)
+    expect(egfr.every((r) => r.sourceSeries!.bezeichnung === 'Kreatinin')).toBe(true)
+    expect(episodesForSeries(out, 8, 'eGFR (CKD-EPI 2021, computed)', 'ml/min/1,73m²').map((e) => e.date.toISOString().slice(0, 10))).toEqual(['2020-01-02'])
   })
 })

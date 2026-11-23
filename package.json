@@ -15,7 +15,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:e2e": "playwright test",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "reference:generate": "bash scripts/reference/generate.sh"
   },
   "dependencies": {
     "fflate": "^0.8.3",

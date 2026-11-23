@@ -49,7 +49,7 @@ export function Cohort() { return <>
         intervals (estimate ± 1.96 standard errors). They are approximate and tend to be too
         narrow when the model has few patients. No degrees of freedom and no p-values are
         computed, and nothing is adjusted for testing several coefficients or groups. For tests,
-        the exported R script names the lmerTest package.
+        the exported R script uses the lmerTest package.
       </p>
       <p>
         The model line shows the reference profile — numeric factors at their centres,

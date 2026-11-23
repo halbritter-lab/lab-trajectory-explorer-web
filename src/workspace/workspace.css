@@ -32,6 +32,9 @@ small, .subtext { font-size: 13px; color: var(--muted); }
 .workspace-nav button { border-color: transparent; background: transparent; }
 .workspace-nav button[aria-current="page"] { background: #e9f3ef; color: #145d59; font-weight: 650; }
 .workspace-nav .workspace-help { margin-left: 12px; }
+.workspace-language { display: flex; align-items: center; gap: 2px; font-size: 12px; color: var(--muted); }
+.workspace-language button { border-color: transparent; background: transparent; min-height: 32px; padding: 4px 8px; font-size: 12px; }
+.workspace-language button[aria-pressed="true"] { background: #e9f3ef; color: #145d59; font-weight: 650; }
 .workspace-dataset { display: flex; flex-wrap: wrap; gap: 8px 20px; padding: 10px 32px; color: var(--muted); font-size: 12px; border-bottom: 1px solid #e5ebe8; }
 .workspace-dataset span:first-child { color: #355754; font-weight: 600; overflow-wrap: anywhere; }
 .workspace-dataset span:last-child { margin-left: auto; }
@@ -78,6 +81,14 @@ dialog::backdrop { background: #1b333d66; }
   .workspace-nav { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); width: 100%; gap: 2px; }
   .workspace-nav button { min-width: 0; min-height: 44px; padding: 8px 4px; font-size: 12px; }
   .workspace-nav .workspace-help { margin-left: 0; }
+  /* The switch sits in the corner beside the brand, so it adds no row above the charts. */
+  .workspace-header { position: relative; }
+  /* On a phone only the other language is offered, one 44 px target, so the
+     subtitle keeps one line and the first chart stays on the first screen. */
+  .workspace-brand { padding-right: 52px; }
+  .workspace-language { position: absolute; top: 12px; right: 8px; }
+  .workspace-language button { min-height: 44px; min-width: 44px; padding: 4px; }
+  .workspace-language button[aria-pressed="true"], .workspace-language span { display: none; }
   .workspace-dataset { padding: 10px 16px; }
   .workspace-dataset span:last-child { margin-left: 0; }
   .workspace-main { padding: 22px 16px 40px; }

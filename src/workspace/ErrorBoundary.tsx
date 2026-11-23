@@ -1,4 +1,5 @@
 import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { t } from '../i18n'
 
 interface Props {
   /** What failed, as the heading names it: "The Cohort models page", "Lab Trajectory Explorer". */
@@ -30,10 +31,10 @@ export class ErrorBoundary extends Component<Props, { error: Error | null }> {
     const { error } = this.state
     if (!error) return this.props.children
     return <div className="card error-boundary" role="alert">
-      <h2>{this.props.area} could not be displayed</h2>
+      <h2>{t('{area} could not be displayed', { area: this.props.area })}</h2>
       <p>{this.props.hint}</p>
-      <p className="muted">Error: {error.message || 'unknown error'}</p>
-      <div className="actions"><button type="button" className="primary" onClick={() => this.setState({ error: null })}>Retry</button></div>
+      <p className="muted">{t('Error: {message}', { message: error.message || t('unknown error') })}</p>
+      <div className="actions"><button type="button" className="primary" onClick={() => this.setState({ error: null })}>{t('Retry')}</button></div>
     </div>
   }
 }

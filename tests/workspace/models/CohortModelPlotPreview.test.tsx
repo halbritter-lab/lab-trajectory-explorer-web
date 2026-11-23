@@ -1,4 +1,5 @@
-import { render, screen } from '@testing-library/react'
+import { act, render, screen } from '@testing-library/react'
+import { setLanguage } from '../../../src/i18n'
 import { CohortModelPlotPreview } from '../../../src/workspace/CohortModelPlotPreview'
 import type { MixedModelSpikeRow, MixedModelSuccess } from '../../../src/core/mixedModel/types'
 
@@ -33,5 +34,16 @@ describe('model plot slope chip', () => {
   it('writes the slope with the decimals of the parameter, as the results table does', () => {
     renderPlot(['(Intercept)', 'time_since_baseline'], 3)
     expect(screen.getByText('Whole cohort:').parentElement).toHaveTextContent('Whole cohort: -4.770 ml/min/yr')
+  })
+})
+
+describe('model plot language (issue #71)', () => {
+  it('recomputes the legend and chips after a language switch, as the English chart export needs', () => {
+    act(() => setLanguage('de'))
+    renderPlot(['(Intercept)', 'time_since_baseline'])
+    expect(screen.getByText('Ganze Kohorte:')).toBeInTheDocument()
+    act(() => setLanguage('en'))
+    expect(screen.getByText('Whole cohort:')).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('Ganze Kohorte')
   })
 })

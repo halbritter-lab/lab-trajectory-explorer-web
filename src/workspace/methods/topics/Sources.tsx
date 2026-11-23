@@ -104,8 +104,8 @@ export function Sources() { return <><h3>Intended Use</h3>
           G5 instead.
         </li>
         <li>
-          <strong>G5 projection.</strong> Reported only with measurements on at least three
-          different dates (five with Theil–Sen), at least 365 days of follow-up, a declining fit
+          <strong>G5 projection.</strong> Reported only when switched on, with measurements on at
+          least four different dates (five with Theil–Sen) over at least three years, a declining fit
           whose slope interval lies entirely below zero, and a crossing no more than 20 years after
           the latest measurement used.
         </li>
@@ -121,7 +121,7 @@ export function Sources() { return <><h3>Intended Use</h3>
         </li>
         <li>
           <strong>eGFR conventions.</strong> Sex “d” uses the male coefficients. Age is counted in
-          whole completed years, and no eGFR is computed below 18 years. “CKD-EPI 2009 (race-free)”
+          whole completed years, and no eGFR is computed below 1 year. “CKD-EPI 2009 (race-free)”
           is the published 2009 equation without its coefficient for Black race, not a separately
           published equation.
         </li>

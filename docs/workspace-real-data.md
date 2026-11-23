@@ -176,8 +176,9 @@ imported parameter names and patient attributes retain their original values.
    50 by default) while sorting and export keep the full scope.
    Metric sorts (latest value, slope, absolute slope, count, duration) can be
    reversed; patients without a value stay last. A sort by slope places
-   uncertain slopes after the reliable ones unless "Uncertain slopes last" is
-   switched off. "Show only" filters by mark or event type.
+   uncertain slopes after the other slopes unless "Uncertain slopes last" is
+   switched off. "Show only" filters by mark (including "Reliable slope": at
+   least four fitted dates over at least two years) or event type.
 5. Export the selected patient scope as XLSX, or download individual charts as
    SVG/PNG. Displayed metrics and exports reuse the same prepared analysis.
 

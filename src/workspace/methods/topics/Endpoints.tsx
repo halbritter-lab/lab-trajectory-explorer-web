@@ -3,7 +3,7 @@ import { ReferenceTable } from '../ReferenceTable'
 export function Endpoints() { return <>
 <p>Observed endpoints record events supported by measurements. A projection extrapolates a fitted trend; it does not establish an observed event.</p>
 <p>G4 uses eGFR below 30 and G5 below 15 mL/min/1.73 m². A later low measurement confirms the event after the configured minimum interval (default 90 days). Event and confirmation dates remain distinct; recovery after confirmation is reported separately.</p>
-<p>Endpoints use dated exact numeric eGFR measurements before kidney transplant or chronic dialysis, excluding complete acute dialysis intervals including their boundary dates. Unknown-intent dialysis and incomplete acute intervals do not censor endpoints. Values marked &lt; or &gt; are excluded. Time balancing does not change these endpoint inputs. AKI exclusion changes two of them: the baseline of the 40% and 57% decline and the fit of the G5 projection (see <a href="#methods/endpoints/observed">calculation details</a>). Kidney replacement therapy is reported separately; no future individual G5 crossing is projected after KRT.</p>
+<p>Endpoints use dated exact numeric eGFR measurements before kidney transplant or chronic dialysis and not after a recorded death, excluding complete acute dialysis intervals including their boundary dates. Unknown-intent dialysis and incomplete acute intervals do not censor endpoints. Values marked &lt; or &gt; are excluded; a value &gt;x with x at or above 30 (G4) or 15 (G5) only interrupts an unconfirmed G4 or G5 candidate. Time balancing does not change these endpoint inputs. AKI exclusion changes two of them: the baseline of the 40% and 57% decline and the fit of the G5 projection (see <a href="#methods/endpoints/observed">calculation details</a>). Kidney replacement therapy is reported separately; no future individual G5 crossing is projected after KRT.</p>
 <section className="methodology-section"><h3 id="methods-missing" tabIndex={-1}>Why an Endpoint Has No Value</h3>
 
       <p>
@@ -62,7 +62,7 @@ export function Endpoints() { return <>
         on the equation. Below the equation&apos;s breakpoint the decline is smaller.</p>
 </section>
 </details><details className="methodology-detail"><summary>Individual endpoint projection algorithm</summary>
-<section className="methodology-section"><h3 id="methods-prediction" tabIndex={-1}>Individual endpoint projection algorithm</h3>
+<section className="methodology-section"><h3 id="methods-extrapolation" tabIndex={-1}>Individual endpoint projection algorithm</h3>
 
       <p>Fit the same endpoint-eligible dated exact numeric measurements, including recovery after
         acute dialysis but excluding transplant and chronic dialysis dates onward, using global OLS
@@ -85,7 +85,8 @@ export function Endpoints() { return <>
         projected age does not mean a stable course.</p>
       <p>Require measurements on at least three different dates (five with Theil–Sen); several
         measurements on one day count as one date. Also require at least 365 days between the
-        first and the latest measurement, a finite declining fit, a future crossing and an age at
+        first and the latest measurement, at least four different dates over at least three years
+        (KDIGO 2012), a finite declining fit, a future crossing and an age at
         the latest measurement. Report a future
         crossing only within 20 years after the latest measurement used, including the
         boundary. The endpoint fit's slope confidence interval must have finite ordered bounds

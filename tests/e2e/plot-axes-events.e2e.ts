@@ -43,7 +43,7 @@ test('shows a short stay in days, the dialysis interval as a band and the values
   expect(Math.abs(bandBox.x - (dayFive.x + dayFive.width / 2))).toBeLessThan(1)
   await expect(chart.locator('circle[data-aki-skipped]')).toHaveCount(3)
   await expect(chart.getByTestId('aki-skipped-note')).toContainText('3 creatinine values measured under dialysis are not used for AKI detection')
-  await expect(chart.getByTestId('aki-band-legend')).toContainText('the configured 30 days after each onset (not the duration of the episode); this column has no fit, so nothing is excluded')
+  await expect(chart.getByTestId('aki-band-legend')).toContainText('the 30 days after each onset (shortened: with the window up to 90 days after the episode end the fit would keep fewer than 3 dates over 365 days); this column has no fit, so nothing is excluded')
   // Stage labels are drawn whole: inside the chart and not on top of each other.
   const plot = (await chart.locator('svg.wt-plot').boundingBox())!
   const labels = await Promise.all((await chart.getByTestId('marker-label').all()).map(async label => (await label.boundingBox())!))
@@ -85,7 +85,7 @@ test('lists the Rolling OLS windows, names the window lines and exports the same
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export patient (XLSX)' }).click()
   const exported = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
-  expect(exported.SheetNames.slice(-5)).toEqual(['about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
+  expect(exported.SheetNames.slice(-6)).toEqual(['about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison', 'peri_event_creatinine'])
   const rows = XLSX.utils.sheet_to_json<Record<string, unknown>>(exported.Sheets.rolling_windows)
   expect(rows).toHaveLength(5)
   expect(rows[1]).toMatchObject({ PatientID: 'R', Parameter: 'Marker', Unit: 'u', window: 2, window_start: '2018-06-30', window_end: '2020-06-29', first_date: '2018-07-01', last_date: '2020-04-01', n: 8 })

@@ -51,9 +51,21 @@ dialysis of unknown intent on 2023-03-01, not at the chronic dialysis start on
 ### Points and boundaries
 
 Both sides use exactly the points the column's own fit can use: exact
-measurements (no bounds) outside every censoring and exclusion window of the
+measurements and, by the column's bounded-value setting (since 2026-11-22,
+issue #73), bounds at their limit or half limit; under `exclude` no bounds
+(see [bounded values](bounded-measurements.md#bounded-values-in-individual-fits-2026-11-22);
+**Open decision OD-72**: this rule, like that of the segment after kidney
+replacement therapy, was set during the merge of 2026-11-22, not by an owner
+decision), outside every censoring and exclusion window of the
 column (event censoring, acute and unknown dialysis intervals, AKI windows,
-as configured). Dates are calendar days (UTC). With the anchor day `A` and
+as configured), and in addition, when the column includes the values after
+kidney replacement therapy (since 2026-11-22), the points of the separate
+segment after it (reason `krt_segment`, see
+[clinical events](clinical-events.md#kidney-replacement-therapy-in-every-preset)).
+Since every preset censors from a kidney transplant or chronic dialysis start
+on, a comparison anchored at such an event has an after side only once
+"Censor after kidney transplant" (or "… chronic dialysis") is unticked.
+Dates are calendar days (UTC). With the anchor day `A` and
 the window `W` days:
 
 | Calendar day `d` of a point | Side |
@@ -114,8 +126,9 @@ the two OLS standard errors `SE_b` and `SE_a` and the fitted counts `n_b`,
     half-width = t(0.975, ν) · √(SE_b² + SE_a²)
     ν = (SE_b² + SE_a²)² / (SE_b⁴ / (n_b − 2) + SE_a⁴ / (n_a − 2))   (Welch–Satterthwaite)
 
-`ν` is truncated to a whole number and `t` comes from the same table as the
-OLS interval (`tCritical95`). Assumption: the two slope estimates are
+`ν` is truncated to a whole number and `t` comes from the same function as the
+OLS interval (`tCritical95`: a table up to 40 degrees of freedom, the exact
+quantile above, since 2026-11-22). Assumption: the two slope estimates are
 independent. They are fitted on disjoint points, but residuals of one patient
 that are correlated over time, or a shared baseline level, are not modelled,
 so the interval can be too narrow. With both standard errors 0 the interval is
@@ -148,15 +161,20 @@ settings switch the comparison on, in table order: `PatientID`, `Parameter`,
 then `before_n_fitted_dates` and `after_n_fitted_dates` (appended after the
 review of the combined branch, 2026-11-22).
 A patient without an anchor has a row with empty values; `n_excluded_window`
-is empty without a fit. The `settings` sheet ends with `anchor_comparison`,
-the setting as JSON (empty when off), and the `about` sheet ends with a note
-on the sheet. No existing sheet, column or note moved.
+is empty without a fit. The `settings` sheet gains `anchor_comparison`,
+the setting as JSON (empty when off), and the `about` sheet a note on the
+sheet; both were last until the
+[peri-event creatinine](aki.md#peri-event-creatinine-2026-11-22) sheet,
+column and note followed them (2026-11-22). No existing sheet, column or
+note moved.
 
 ### Worked example (demo workbook)
 
 Patient 13, imported eGFR (`eGFR`, `ml/min/1,73m²`), General exploration
-(OLS, raw, no censoring), anchor "First event of the type kidney_transplant",
-window 0 days. The anchor is the kidney transplant on 2022-07-01.
+(OLS, raw) with "Censor after kidney transplant" unticked (until 2026-11-22
+the preset itself had no censoring), anchor "First event of the type
+kidney_transplant", window 0 days. The anchor is the kidney transplant on
+2022-07-01.
 
 | Side | Points | n | Span (days) | Slope per year | 95 % interval | SE |
 | --- | --- | ---: | ---: | ---: | --- | ---: |
@@ -165,14 +183,18 @@ window 0 days. The anchor is the kidney transplant on 2022-07-01.
 
 Difference +4.823 per year. `ν = 0.032822² / (0.031379²/4 + 0.001443²/1) = 4.34`,
 truncated to 4, `t = 2.776`, half-width `2.776 · √0.032822 = 0.503`: interval
-[4.320, 5.326]. The column's own OLS slope over all nine values is +4.372 per
-year (the jump at the transplant), and it is the one the table, the
-reliability rule and the flags use. With a window of 60 days the value of
-2022-08-10 (40 days after the anchor) leaves the after side: after = exact
-two-point line 68 → 64 over 181 days, −4 / (181 / 365.25) = −8.072, difference
-+4.757, no interval. Under CKD progression the same patient has no after side,
-because "Censor after kidney transplant" removes every value from the
-transplant date on.
+[4.320, 5.326]. The column's own OLS slope is that of the six values before
+the transplant, −12.828 per year, and it is the one the table, the
+reliability rule and the flags use; the three values after it are the
+separate segment (also −8.005 per year here, because the segment and the
+after side hold the same three values). Until 2026-11-22 the column's slope
+ran over all nine values: +4.372 per year (the jump at the transplant). With
+a window of 60 days the value of 2022-08-10 (40 days after the anchor) leaves
+the after side: after = exact two-point line 68 → 64 over 181 days, −4 /
+(181 / 365.25) = −8.072, difference +4.757, no interval; the segment keeps
+all three values. With "Censor after kidney transplant" ticked, the default
+of every preset, and under CKD progression the same patient has no after
+side, because every value from the transplant date on is censored.
 
 The example in issue #64 (patient 2, before −17.4, after −9.6, difference
 +7.8, anchor "ACE-Hemmer") came from the demo data of the predecessor

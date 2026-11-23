@@ -6,8 +6,9 @@ only.
 
 ## eGFR derivation
 
-A computed eGFR series is derived from one serum-creatinine series and each
-patient's resolved sex and age. It is an automated research derivation, not a
+A computed eGFR series is derived, for each patient, from one
+serum-creatinine series of that patient and the patient's resolved sex and
+age. It is an automated research derivation, not a
 validated clinical result. The implementation is `appendComputedEgfr` in
 `src/core/domains/nephrology/egfr/series.ts`, the equations are in
 `egfr/formulas.ts`, and the name and unit rules are in
@@ -16,8 +17,10 @@ validated clinical result. The implementation is `appendComputedEgfr` in
 ### Activation, default and output series
 
 The eGFR module setting holds one formula (`off`, `ckd-epi-2021`,
-`ckd-epi-2009`, `mdrd-4` or `ekfc-2021`) and one optional source pair. The default is `formula: 'off'`,
-`source: null`: no eGFR series exists until a formula is applied under Data.
+`ckd-epi-2009`, `mdrd-4`, `ekfc-2021` or, since 2026-11-22, the full-age rule
+`ckid-u25-ekfc`), one optional source pair and the rule under 18 years
+(`paediatric`, see [Children and adolescents](#children-and-adolescents)). The default is `formula: 'off'`,
+`source: null`, `paediatric: 'ckid-u25-ekfc'`: no eGFR series exists until a formula is applied under Data.
 With `off` the module contributes nothing. Only one formula is active at a
 time. A saved setting whose formula is not one of these values is rejected
 when settings are loaded.
@@ -26,7 +29,8 @@ Decided 2026-10-07 (formerly OD-5): the default stays `off`. The methodology pag
 
 Computed rows are appended to the imported rows; source rows are never
 changed. The series name is `eGFR (<formula label>, computed)` with the labels
-`CKD-EPI 2021`, `CKD-EPI 2009 (race-free)`, `MDRD-4` and `EKFC 2021`, so a
+`CKD-EPI 2021`, `CKD-EPI 2009 (race-free)`, `MDRD-4`, `EKFC 2021` and
+`CKiD U25 / EKFC`, so a
 CKD-EPI 2009 series (`eGFR (CKD-EPI 2009 (race-free), computed)`) is a separate parameter from a
 CKD-EPI 2021 series in tables, fits and exports. The unit is written
 `ml/min/1,73m²`. The workspace blocks the calculation when an imported series
@@ -148,12 +152,74 @@ the first-letter rule (`G/L` is `G/l`).
 
 ### Source selection
 
-One (name, unit) pair is the source for the whole dataset. Rows belong to the
-source when their name and unit strings equal the pair exactly, as stored
-after import (the import already rewrites unit spellings with the same unit
-key within one test name to a single spelling). Other creatinine series never
-fill gaps for patients who lack the selected pair. An explicitly selected pair
-that is not an eligible serum-creatinine source produces no eGFR rows.
+The setting holds one (name, unit) pair, the *selected source*. Since
+2026-11-21 (owner decision, issue #65; see
+[method decisions](../remaining-method-decisions.md#creatinine-source-per-patient-decided-2026-11-21-issue-65))
+the series is chosen per patient (`patientCreatinineSources` in
+`egfr/series.ts`). Rows belong to a series when their name and unit strings
+equal the pair exactly, as stored after import (the import already rewrites
+unit spellings with the same unit key within one test name to a single
+spelling). A patient "has" a pair when at least one imported row of the
+patient carries it, whatever its date, value or demographics. Only eligible
+serum-creatinine pairs count. The first rule that matches decides:
+
+| Patient | Series used |
+| --- | --- |
+| has the selected pair | the selected pair |
+| selected pair in µmol/l, patient without it | none |
+| selected pair in mg/dl, patient without it but with serum creatinine in mg/dl under another name | none |
+| selected pair in mg/dl, no serum creatinine in mg/dl, a µmol/l series under the selected pair's name | that µmol/l series (the *fallback*) |
+| selected pair in mg/dl, no serum creatinine in mg/dl, exactly one µmol/l series | that series (the fallback) |
+| selected pair in mg/dl, no serum creatinine in mg/dl, several µmol/l series, none under the selected name | none |
+| no eligible serum creatinine | none |
+
+Every patient's eGFR reads exactly one series; series are never merged
+(decision of 2026-11-16), so a patient with both units keeps the selected
+mg/dl series and the µmol/l values stay unused. Each computed row records the
+series it came from (`LabRow.sourceSeries`); the AKI windows of the computed
+eGFR column and the export column `egfr_source_parameter` read it. Since the
+import stores at most one unit spelling per test name, a patient has at most
+one µmol/l pair under the selected name. An explicitly selected pair that is
+not an eligible serum-creatinine source produces no eGFR rows for anyone.
+
+A series merged deliberately on the Data page (issue #68, 2026-11-22; see
+[series comparison and merge](series-comparison-and-merge.md#interaction-with-egfr-aki-and-the-analysis-record))
+changes none of this while it is not the selected pair: its rows are left out
+of the table above, and *Automatic* chooses among the imported pairs only. A
+merged serum-creatinine series is offered as a source and, chosen, is the
+selected pair: a patient with a row in it uses it (with the µmol/l values of
+its sources already converted to mg/dl when its unit is mg/dl); a patient
+without one follows the remaining rows of the table among the imported
+series. Example (demo workbook): with `Kreatinin (merged) [mg/dl]` chosen,
+patient 2's eGFR reads 18 values instead of 14, and patient 10 reads the
+merged copy of its µmol/l series instead of the fallback, with the same
+values.
+
+OD-36, confirmed by the owner on 2026-11-22: the decision names the mg/dl series of a patient first
+and the µmol/l series otherwise; it does not say what happens when the
+patient's mg/dl series is not the selected one, when the patient has several
+µmol/l series, or when the selected pair is itself in µmol/l. The
+implementation takes the option that changes least: the selected pair stays
+the only mg/dl series used (a patient with `Kreatinin HP [mg/dl]` only gets
+no eGFR under `Kreatinin [mg/dl]`, as before, and its µmol/l values are not
+used either, because the patient has mg/dl values); several µmol/l series
+without one under the selected name give no eGFR; a selected µmol/l pair has
+no fallback. The note of such a patient names the case (below).
+
+Example (demo workbook, CKD-EPI 2021, *Automatic* = `Kreatinin [mg/dl]`):
+patient 10 has `Kreatinin [µmol/l]` only, seven values from 82 to 121
+µmol/l. Before 2026-11-21 it had no eGFR; it now uses the fallback. 82 µmol/l
+÷ 88.42 = 0.927392 mg/dl, male, 60 years: 142 × (0.927392/0.9)^−1.2 ×
+0.9938^60 = 94.3; 121 µmol/l at 63 years gives 58.0. Patient 2 has both
+units and keeps its mg/dl series. 27 of the 28 patients have a computed
+eGFR (26 before); patient 5 has neither sex nor age.
+
+A saved workspace stores the imported rows and the setting, and its computed
+rows are derived again on load. The stored pair keeps its meaning as the
+selected source: a patient with values in it keeps the same eGFR values, and
+a patient without serum creatinine in mg/dl gains the fallback values when a
+copy saved before 2026-11-21 is loaded. No setting is rewritten and no notice
+is shown.
 
 When no source is selected, `defaultCreatinineSource` chooses one. The
 candidates are the distinct eligible pairs in the dataset, sorted mg/dl
@@ -171,7 +237,17 @@ A final fallback to the first candidate exists in the code but cannot be
 reached, because every candidate has one of the two units. The exact-name
 preference of rule 1 applies to mg/dl only: with `Kreatinin [µmol/l]` and
 `Creatinine B [µmol/l]` as the only candidates, rule 4 selects
-`Creatinine B`, the alphabetically first.
+`Creatinine B`, the alphabetically first. These rules choose the selected
+source for the dataset; the per-patient fallback above applies after them.
+
+**On the Data page** under *Derive eGFR*, the counts of source values and of
+reasons cover the rows of each patient's own series. "Patients without serum
+creatinine in mg/dl use their µmol/l series: Kreatinin (µmol/l) for 1
+patient." names the fallback; "Not used for this eGFR" lists, per eligible
+pair, the values no patient's eGFR reads (demo: `Kreatinin (µmol/l), 4
+values` of patient 2); two further notices count the patients left without a
+series because they have mg/dl creatinine under another name only, or several
+µmol/l series.
 
 ### Unit conversion
 
@@ -190,8 +266,8 @@ yields nothing; no placeholder row is written.
 | Lab date | present |
 | Numeric value | present (`wertNum` not null) |
 | Creatinine | strictly greater than 0 mg/dl after conversion |
-| Sex | resolved to `m`, `w` or `d` |
-| Age | present and at least 18 (`age >= 18`; 17 gives no value, 18 does) |
+| Sex | resolved to `m`, `w` or `d`, for every equation with a sex term; not checked for bedside Schwartz (since 2026-11-22, code review: before, a row without a resolved sex gave no bedside Schwartz value either) |
+| Age | present, and an equation applies at that age: from 18 for an adult formula (`age >= 18`; 17 gives no value, 18 does) and, under the rule for children (see [Children and adolescents](#children-and-adolescents)), from 1 since 2026-11-23 (from 2 between 2026-11-22 and 2026-11-23) |
 
 **Where the reason is named.** `egfrGapReason`
 (`src/workspace/egfr-gaps.ts`) reports the first condition of the table a
@@ -203,28 +279,42 @@ Since 2026-11-21 a patient without a single computed value also carries the
 reasons in the empty cell of the computed parameter under Trajectories and
 in the patient view. There `egfrGapReasons` reports every condition a row
 fails, not only the first (date; value missing or else not positive; sex;
-age missing or else under 18), so the note names all that has to be
+age missing or else under 18, under 1 or without a usable height, by the
+[rule for children](#children-and-adolescents); sex is not reported for a row
+that bedside Schwartz applies to, or would apply to with a height; it is
+reported for a row of age 1 that lacks a height under the CKiD U25 rules,
+since CKiD U25 needs one), so the note names all that has to be
 supplied: every reason found among the patient's source rows, in the
 table's order, each with the number of creatinine values that fail it (a
 row failing two conditions counts under both), and a pointer to "Review and
 edit patients" naming the sex, the age or both. The cell itself shows the
 first reason ("No eGFR: sex missing"), or "No eGFR: sex and age missing"
-when both are missing. A patient with no row in the selected source at all
-(creatinine only under another name or unit) reads "no value in the
-creatinine source". Examples: four creatinine values with an age and no
+when both are missing. For a patient without a series of
+their own (see [Source selection](#source-selection)) the note names the
+case instead (since 2026-11-21, issue #65): without any serum creatinine,
+"No eGFR: no serum creatinine" ("No eGFR for this patient: no serum
+creatinine value in mg/dl or µmol/l."); with mg/dl creatinine under another
+name only, "No eGFR: creatinine under another name"; with several µmol/l
+series, "No eGFR: several µmol/l series"; under a selected µmol/l source,
+"No eGFR: no creatinine in the source", naming the unused series. The
+reasons of a patient who uses the fallback are counted on the µmol/l rows,
+and the note adds "Creatinine source of this patient: Kreatinin [µmol/l],
+because the patient has no serum creatinine in mg/dl." Examples: four creatinine values with an age and no
 resolved sex give "No eGFR for this patient: sex missing (4 creatinine
 values). Enter the sex under Data → “Review and edit patients”." Patient 5
 of the demo data has four creatinine values and neither sex nor age: "No
 eGFR for this patient: sex missing (4 creatinine values); age missing (4
 creatinine values). Enter the sex and the age under Data → “Review and edit
 patients”.", while the Data page counts "4: Sex missing or unresolved".
-A value of 0 at age 12 and a second value at age 13 give "creatinine not
-positive (1 creatinine value); age under 18 (2 creatinine values)". A patient
+Under the rule "None" for children, a value of 0 at age 12 and a second value at age 13 give "creatinine not
+positive (1 creatinine value); age under 18 (2 creatinine values)"; under the
+default rule the value at 13 gets EKFC and the patient has no note. A patient
 with at least one computed value gets no note, also when other rows of the
 patient fail a condition. Display only.
 
-All four formulas are adult-only here. This includes EKFC, whose published
-form covers the full age spectrum. If no row in the dataset carries a sex and
+Until 2026-11-22 all four formulas were adult-only here, EKFC included;
+the equations for children are described under
+[Children and adolescents](#children-and-adolescents). If no row in the dataset carries a sex and
 no row carries an age, the derivation returns the input rows unchanged without
 looking at the source.
 
@@ -241,7 +331,19 @@ birth-date anchor are not repeated here.
 
 **Sex.** The resolved patient sex is used. `m` and `w` select the male and
 female coefficients. `d` uses the male coefficients in all four formulas,
-including the EKFC Q value. An unresolved or unrecognised sex gives no value.
+including the EKFC Q value, and in CKiD U25. An unresolved or unrecognised
+sex gives no value, except under bedside Schwartz, which has no sex term.
+Since 2026-11-22 (decision `sexd`, issue #4) the cohort workbook marks this
+per patient: `egfr_male_coefficients_for_sex_d`, the last column of
+`demographics` (after `egfr_source_unit`), is `true` when at least one
+computed eGFR value of the patient was computed with sex `d` by an equation
+with a sex term, `false` when the patient has computed eGFR values otherwise
+(sex `m` or `w`, or values of bedside Schwartz only, which has no sex
+coefficients; as the Data page's notice on sex `d`), and empty without a
+computed eGFR value. An `about` row, appended last, explains the column. No
+eGFR value changes. Example: a patient with resolved sex `d` and creatinine
+1.0 mg/dl at 55 years gets CKD-EPI 2021 eGFR 88.9 mL/min/1.73 m² (the male
+value; the female value would be 66.5) and the mark `true`.
 
 ### Formulas
 
@@ -297,7 +399,7 @@ A = 0.990^(age − 40) when age > 40, otherwise 1
 ```
 
 For age above 25, Q is 0.90 mg/dl for `m` and `d` and 0.70 mg/dl for `w`. For
-age 25 and below (here 18 to 25, whole years) Q is computed in µmol/l and
+age 25 and below (here 2 to 25, whole years; 18 to 25 before 2026-11-22) Q is computed in µmol/l and
 divided by 88.4:
 
 ```
@@ -316,7 +418,294 @@ Q changes from the polynomial to the fixed value between 25 and 26 years. For
 a male with 0.9 mg/dl this moves the unrounded result from 107.863404 at 25
 to 107.300000 at 26.
 
-Decided 2026-10-07 (formerly OD-12): both constants stay, 88.42 µmol/l per mg/dl for measured creatinine and 88.4 inside the EKFC Q polynomial. Within EKFC the difference affects ages 18 to 25 only and is at most about 0.03 mL/min/1.73 m² (male, 20 years, 0.9 mg/dl: 102.179692 against 102.153530). With 88.42 the SI forms of the KDIGO thresholds are 26.526 µmol/l for the absolute rise and 353.68 µmol/l for the stage-III level, just above the rounded 26.5 and 353.6 µmol/l. The methodology page names both constants.
+Decided 2026-10-07 (formerly OD-12): both constants stay, 88.42 µmol/l per mg/dl for measured creatinine and 88.4 inside the EKFC Q polynomial. Within EKFC the difference affects ages 2 to 25 only and is at most about 0.03 mL/min/1.73 m² (male, 20 years, 0.9 mg/dl: 102.179692 against 102.153530). With 88.42 the SI forms of the KDIGO thresholds are 26.526 µmol/l for the absolute rise and 353.68 µmol/l for the stage-III level, just above the rounded 26.5 and 353.6 µmol/l. The methodology page names both constants.
+
+**Comparison with R packages** (2026-11-22, issue #79; details in
+[reference comparisons](../reference-comparisons.md#egfr)). Every equation of
+this section, and CKiD U25 and bedside Schwartz below, agrees with the R
+package `egfr` 2.0.0 to 1e-12 relative on a grid of 272 cases. The package
+`kidney.epi` 1.4.0 (results rounded to 0.01) agrees within 0.005 except in
+three places, described as the code behaves:
+
+- **Open decision OD-85.** For age above 25 the EKFC Q is 0.90 mg/dl (`m`,
+  `d`) and 0.70 mg/dl (`w`), as Pottel 2021 gives it in mg/dl; `kidney.epi`
+  uses the µmol/l values 80 and 62, which are 0.905 and 0.701 mg/dl with 88.4.
+  The app's values are lower by up to 0.66 %: man, 50 years, 1.0 mg/dl:
+  `107.3 × (1.0/0.90)^(−1.132) × 0.99^10 = 86.130` in the app, 86.67 in
+  `kidney.epi` (`Q = 80/88.4 = 0.904977`); man, 70 years, 4.5 mg/dl: 12.836
+  against 12.92. With measured creatinine in µmol/l the app's Q corresponds
+  to 79.56 and 61.88 µmol/l (0.90 × 88.4, 0.70 × 88.4). Which unit's
+  constants are primary is for the owner to decide.
+- **Open decision OD-88.** CKD-EPI 2009 for `w` uses `141 × 1.018 = 143.538`,
+  the single-expression form of Levey 2009; `kidney.epi` uses 144, the
+  constant of the per-sex table form. Its values for women are 0.32 % higher:
+  woman, 50 years, 1.0 mg/dl: `143.538 × (1.0/0.7)^(−1.209) × 0.993^50 =
+  65.638` in the app, `144 × … = 65.85` in `kidney.epi`. Men agree.
+- Age range: `kidney.epi` returns no value for its adult equations at exactly
+  18 and for EKFC at exactly 2; the app computes there. No decision needed:
+  the app's ranges are decided (see [Conditions](#conditions-for-a-computed-value)).
+
+### Children and adolescents
+
+Since 2026-11-22 (owner decisions of 2026-11-21 and 2026-11-22, issue #66;
+artifact ids `peds-eq`, `height` and `switch` in the
+[method decisions](../remaining-method-decisions.md#decisions-of-2026-11-22-decision-artifact-issues-2-4-6585)).
+Before, every formula was adult-only and a row under 18 gave no value. Since
+2026-11-23 CKiD U25 and bedside Schwartz apply from 1 year, with a 30-day
+height limit under 2 years (owner decision on OD-70, see
+[decisions of 2026-11-23](../remaining-method-decisions.md#decisions-of-2026-11-23));
+from 2026-11-22 to 2026-11-23 no eGFR was computed under 2.
+
+**Settings.** Two settings decide which equation a row uses (`rowEgfrFormula`
+in `egfr/series.ts`):
+
+- the formula (above). The four adult formulas apply from 18 years. The
+  fifth value, `ckid-u25-ekfc` ("CKiD U25 / EKFC (full age range)" in the
+  selector, series name `eGFR (CKiD U25 / EKFC, computed)`), applies one rule
+  to every age and therefore changes adults too;
+- the rule under 18 years (`paediatric`, Data page "Under 18 years"), read
+  only while an adult formula is set: `ckid-u25-ekfc` (default, "CKiD U25 with
+  height, otherwise EKFC"), `schwartz-bedside` ("Bedside Schwartz with height
+  (comparison only)") or `off` ("None (no eGFR under 18)", the rule before
+  2026-11-22). A saved setting without the field (saved before 2026-11-22)
+  keeps it missing and is read as `ckid-u25-ekfc` (OD-69). Any other stored
+  value rejects the saved settings.
+
+The first matching line decides; age is the row's resolved age in whole
+completed years (OD-65):
+
+| Formula | Age | Height on the date | Equation |
+| --- | --- | --- | --- |
+| none | missing | any | none, reason "age missing" |
+| adult formula | ≥ 18 | any | the adult formula |
+| adult formula, rule `off` | < 18 | any | none, "age under 18" |
+| any | < 1 | any | none, "age under 1" |
+| `ckid-u25-ekfc` | ≥ 26 | any | EKFC 2021 |
+| adult formula, rule `schwartz-bedside` | 1 to 17 | yes (30 days at age 1, 90 days from 2) | bedside Schwartz |
+| adult formula, rule `schwartz-bedside` | 1 to 17 | no | none, "height missing", "no height within 90 days before and after" or, at age 1, "under 2 years, no height within 30 days before and after" |
+| adult formula, rule `ckid-u25-ekfc`; or `ckid-u25-ekfc` | 1 | yes (30 days) | CKiD U25 |
+| the same | 1 | no | none, "height missing" or "under 2 years, no height within 30 days before and after" |
+| adult formula, rule `ckid-u25-ekfc`; or `ckid-u25-ekfc` | 2 to 17; or 2 to 25 | yes (90 days) | CKiD U25 |
+| the same | the same | no | EKFC 2021 |
+
+The equation is chosen for each creatinine value on its own, so a child whose
+heights cover only some dates alternates between CKiD U25 and EKFC (OD-67).
+Every equation needs a creatinine above 0, and every equation with a sex
+term a resolved sex; bedside Schwartz has none and needs no sex (since
+2026-11-22: a child without a resolved sex and with a height gets a bedside
+Schwartz value under that rule). The
+age floor of 1 year applies to every formula setting: KDIGO 2024 Table 14
+(S189) names CKiD U25 for ages 1 to 25 (Pierce 2021) and EKFC for 2 to 100,
+so at age 1 only CKiD U25 (or bedside Schwartz under its rule) is used and a
+row without a height within 30 days gets no value, not EKFC (owner decision
+of 2026-11-23 on OD-70; from 2026-11-22 to 2026-11-23 the floor was 2). The
+floor of bedside Schwartz is set to the same 1 year; its own publication
+(Schwartz 2009) studied children from 1 to 16 years. The upper limit of CKiD U25 under the full-age formula is 25
+completed years, the day before the 26th birthday (OD-66).
+
+**Equations.** `Scr` in mg/dl after the µmol/l conversion above, height `H`
+in cm, results in mL/min/1.73 m², rounded to one decimal as all computed
+values:
+
+```
+CKiD U25 (Pierce CB et al., Kidney Int 2021;99:948, PMID 33301749)
+  eGFR = k × (H / 100) / Scr          height in metres
+  male, d:  age < 12: k = 39.0 × 1.008^(age − 12)
+            12 ≤ age < 18: k = 39.0 × 1.045^(age − 12)
+            age ≥ 18: k = 50.8
+  female:   age < 12: k = 36.1 × 1.008^(age − 12)
+            12 ≤ age < 18: k = 36.1 × 1.023^(age − 12)
+            age ≥ 18: k = 41.4
+
+Bedside Schwartz (Schwartz GJ et al., JASN 2009;20:629, PMID 19158356)
+  eGFR = 0.413 × H / Scr              height in cm; ages 1 to 17 here
+
+EKFC 2021 (Pottel H et al., Ann Intern Med 2021;174:183, doi:10.7326/M20-4366)
+  as above, with the age-specific Q of the polynomial for ages 2 to 25
+```
+
+The CKiD U25 constants were checked on 2026-11-22 against two secondary
+sources (the NIDDK page on equations for children and young adults and a
+published review of the CKiD U25 calculator); the full text of Pierce 2021
+was not reachable from the build environment, so the table number of the
+paper is not cited. The task text of issue #66 wrote `k × height(cm)/Scr`;
+the published equation uses metres, which the code follows (with
+centimetres every value would be 100 times too high). The EKFC Q polynomial
+was implemented before 2026-11-22 for ages 18 to 25; its first terms
+(`ln Q = 3.200 + 0.259 × age …` for males, ages 2 to 25) were checked against
+a full-text excerpt of Pottel 2021, the remaining coefficients could not be
+checked against the full text from here. The polynomial meets the adult
+values at 25 years (80.86 against 80 µmol/l for males, 62.43 against 62 for
+females) and gives 27.43 and 25.95 µmol/l at 2 years. KDIGO 2024 PP 1.2.4.3
+(S154, S190) and Table 14 (S189) name CKiD U25 and EKFC as validated
+equations for children that avoid a change at the transition to adulthood.
+
+| Age | k male | k female | Q male, µmol/l | Q female, µmol/l |
+| ---: | ---: | ---: | ---: | ---: |
+| 2 | 36.013 | 33.335 | 27.4326 | 25.9491 |
+| 5 | 36.884 | 34.142 | 31.1932 | 31.9979 |
+| 12 | 39.000 | 36.100 | 54.4067 | 49.9073 |
+| 17 | 48.601 | 40.447 | 69.9389 | 58.6616 |
+| 18 | 50.800 | 41.400 | 72.3226 | 59.7687 |
+
+**Height.** Height is an ordinary lab parameter of the imported file
+(`isHeightSeries` in `analytes.ts`): unit `cm` after unit-key normalisation
+(`CM` counts, `m` and `mm` do not), and either a LOINC code 8302-2 (body
+height), 8306-3 (lying) or 8308-9 (standing), whatever the name, or one of
+the names `Größe`, `Groesse`, `Grösse`, `Körpergröße`, `Koerpergroesse`,
+`Körpergrösse`, `Körperlänge`, `Koerperlaenge`, `height`, `body height`,
+`body length`, compared after NFC normalisation, collapsing whitespace,
+trimming and lower-casing. Names are compared whole: `Größe Niere` and
+`Länge` are not heights. Only exact dated values above 0 count; bounds,
+ranges and unparseable values are left out. All recognised height series of
+a patient are used together, and several heights of one day are averaged.
+The heights stay a parameter of their own in tables, charts and exports.
+
+A creatinine value gets its height (`heightOnDate`) as follows, on UTC
+calendar days:
+
+1. a height of the same day is used as measured;
+2. otherwise, when the value lies between the last height before it and the
+   first after it, and **both** are at most 90 days away (30 days at age 1,
+   `HEIGHT_MATCH_DAYS_UNDER_2`), the height is interpolated linearly in
+   days between them;
+3. otherwise there is none: a value before the first or after the last height
+   is never extrapolated, however close the height is (OD-68).
+
+The limits are a rule of this tool; no source sets them. The decision `height`
+of 2026-11-22 set 90 days and, under 2 years, 30 days; the 30-day limit is in
+use since 2026-11-23, when CKiD U25 was extended to age 1 (OD-70, resolved;
+from 2026-11-22 to 2026-11-23 no eGFR was computed under 2 and the constant
+had been removed as unreachable). Both limits include their end: a height
+exactly 30 (or 90) days away counts. Example: heights of 84 cm on 2019-12-07
+and 86 cm on 2020-01-26 are 25 days before and after 2020-01-01, so a child of
+1 year gets the interpolated 85 cm; heights on 2019-11-27 and 2020-02-05 are
+35 days away, so the child gets none at 1 year and 85 cm at 2 years.
+
+**Formula changes.** Each computed row records its equation
+(`LabRow.egfrFormula`) and, for CKiD U25 and bedside Schwartz, the height it
+used (`egfrHeightCm`). A *formula change* (`egfrFormulaSwitches`) lies between
+two consecutive computed values of a patient, by date, with different
+equations; it is dated to the first value with the new equation. Values of
+one day share their equation, because it depends on the age and the height of
+that day only. Equations do not agree at a change: Pottel H et al., Kidney Int
+2019;95:1234 (PMID 30922665) report a mean jump of 23 mL/min/1.73 m² from
+CKiD to CKD-EPI at 18 years.
+
+- The Data page preview counts the equations of the previewed values and the
+  patients with at least one change ("1 patient whose eGFR equation changes
+  during follow-up (CKiD U25 → CKD-EPI 2021)").
+- The chart of the computed eGFR draws a dotted vertical line at each change
+  of the patient shown or highlighted, with a legend naming it.
+- A slope is *fitted across* a change (`fitCrossesFormulaSwitch`) when the
+  slope is finite and the change date lies after the first fitted date and on
+  or before the last fitted date (under time balancing these are the dates of
+  the first and last median). The cell then carries the notice "Formula change
+  in fit", and the cohort sheet the column `egfr_formula_switch` (before
+  `group`), for example `CKiD U25 → CKD-EPI 2021 on 2022-01-01`. Nothing
+  else changes: the slope, its flags and the endpoints are computed as before.
+- The measurement sheets carry `egfr_equation` and `egfr_height_cm` as their
+  last columns (empty for imported rows and in `raw_measurements`).
+
+The series name stays the name of the adult formula when minors' values come
+from CKiD U25 or EKFC (OD-69): under CKD-EPI 2021 a child's values are in
+`eGFR (CKD-EPI 2021, computed)`, and only `egfr_equation` says which equation
+produced each value.
+
+**Reasons.** Under 1 year every row fails with "Age under 1 — no eGFR formula
+is used below 1 year". A row without a height fails, under the rule
+`schwartz-bedside` from 1 to 17 years and under the CKiD U25 rules at age 1,
+with "Height missing — bedside Schwartz, and CKiD U25 under 2 years, need a
+height in cm" (the patient has no height), "No height within 90 days before
+and after — bedside Schwartz needs a height" (from 2 years) or "Under 2 years,
+no height within 30 days before and after — CKiD U25 and bedside Schwartz need
+one" (age 1). These reasons follow "Sex missing" in the order of the
+conditions; under the rule `schwartz-bedside` a row of 1 to 17 years reports
+no "Sex missing", since bedside Schwartz needs no sex, while a row of age 1
+under the CKiD U25 rules does. The patient note adds where heights are read
+from. From 2 years under the CKiD U25 rules a missing height is no reason:
+EKFC is used.
+
+**Worked example at age 1** (since 2026-11-23, `tests/core/egfr/paediatric.test.ts`
+and the `derivation` cases of the paediatric fixture): a boy of 1 year,
+creatinine 0.25 mg/dl on 2020-01-01, heights 84 cm on 2019-12-07 and 86 cm on
+2020-01-26 (25 days on each side), CKD-EPI 2021 with the default rule:
+height 84 + 2 × 25/50 = 85 cm; k = 39.0 × 1.008^(1 − 12) = 35.727181;
+eGFR = 35.727181 × 0.85 / 0.25 = 121.47, stored 121.5 (CKiD U25). A girl with
+the same data: k = 36.1 × 1.008^(1 − 12) = 33.070545, 112.44, stored 112.4.
+Under bedside Schwartz: 0.413 × 85 / 0.25 = 140.42, stored 140.4. With the
+heights 35 days away (2019-11-27, 2020-02-05) the boy gets no value at 1 year
+(no EKFC under 2); at 2 years the same heights lie within 90 days and give
+k = 39.0 × 1.008^(2 − 12) = 36.012999, 36.012999 × 0.85 / 0.25 = 122.44,
+stored 122.4. Without any height: no value at 1 year, EKFC at 2. Under 1
+year: no value, also with a height of the same day.
+
+**Worked example** (male, CKD-EPI 2021, under-18 rule default, heights of
+170 cm on 2020-01-01 and 175 cm on 2021-01-01; recomputed with the code on
+2026-11-22, `tests/workspace/egfr-switch.test.tsx`):
+
+| Date | Age | Scr | Height | Equation | Calculation | Stored |
+| --- | ---: | ---: | ---: | --- | --- | ---: |
+| 2020-01-01 | 16 | 0.80 | 170 (measured) | CKiD U25 | 39.0 × 1.045^4 × 1.70 / 0.80 = 46.508 × 2.125 | 98.8 |
+| 2021-01-01 | 17 | 0.85 | 175 (measured) | CKiD U25 | 48.601 × 1.75 / 0.85 | 100.1 |
+| 2022-01-01 | 18 | 0.90 | none | CKD-EPI 2021 | 142 × 0.9938^18 | 127.0 |
+| 2023-01-01 | 19 | 0.95 | none | CKD-EPI 2021 | 142 × (0.95/0.9)^−1.2 × 0.9938^19 | 118.2 |
+
+The change on 2022-01-01 lies inside the fitted span 2020-01-01 to
+2023-01-01, so the slope carries the notice and `egfr_formula_switch` reads
+`CKiD U25 → CKD-EPI 2021 on 2022-01-01`. Without the 2021 height the second
+value would be EKFC (Q 69.9389 µmol/l = 0.791164 mg/dl; 0.85/0.791164 =
+1.074366; 107.3 × 1.074366^−1.132 = 98.9) and the patient would have two
+changes. With the rule `off` the first two values are missing; with the
+full-age formula the last two become EKFC (Q = 72.3226 µmol/l at 18:
+0.9/0.818129 = 1.100071, 107.3 × 1.100071^−1.132 = 96.3; 93.6 at 19).
+
+**Open decisions of this section.**
+
+- **Open decision OD-65.** Age enters CKiD U25 and the EKFC Q value in whole
+  completed years, as for every formula of this tool. The published equations
+  use age in years with decimals, so the constant steps at each birthday:
+  CKiD U25 k for a boy rises from 48.60 at 17 to 50.8 at 18 (+4.5 %), and
+  between 12 and 17 by 4.5 % per year. With an exact birth date a decimal age
+  would be available.
+- **Open decision OD-66.** Under the full-age formula CKiD U25 is used up to 25
+  completed years, until the day before the 26th birthday, in line with the
+  EKFC Q polynomial of the code (`age ≤ 25`). "Up to 25 years" in the decision
+  and the age range "1 to 25" of the source do not say whether a 25.5-year-old
+  is included.
+- **Open decision OD-67.** CKiD U25 or EKFC is chosen for each value: a value
+  without a height within the limits gets EKFC, the next one with a height
+  CKiD U25 again. Each alternation is a formula change. The decision ("with
+  height … without height …") does not say whether it applies per value or
+  per patient.
+- **Open decision OD-68.** "A height within 90 days" is read conservatively:
+  interpolation needs both neighbouring heights within 90 days, and a value
+  before the first or after the last height gets none, also one day away,
+  because the decision forbids extrapolation. Carrying the nearest height
+  forward or back within the limit would be the alternative.
+- **Open decision OD-69.** The series name of an adult formula is kept when it
+  holds minors' CKiD U25 or EKFC values, so that adult datasets, saved column
+  choices and exports keep their parameter; the equation is named per value
+  only in `egfr_equation`. A copy saved before 2026-11-22 has no under-18 rule
+  and is read with the default: minors gain values on load without a notice,
+  as the creatinine fallback of issue #65 did.
+- **OD-70, resolved 2026-11-23.** CKiD U25 applies from age 1 (KDIGO 2024
+  Table 14, S189: CKiD U25 for ages 1 to 25; Pierce CB et al., Kidney Int
+  2021, PMID 33301749); under 2 years a creatinine value needs a height within
+  30 days, from 2 years 90 days; EKFC stays from 2 (its published range 2 to
+  100); under 1 year no eGFR. Bedside Schwartz has the same floor of 1 year.
+  Before, a child of 1 year with creatinine 0.3 mg/dl and a height of 75 cm on
+  the same day got no value ("Age under 2"); now it gets
+  35.727 × 0.75 / 0.3 = 89.3 (boy).
+- **OD-86, resolved 2026-11-23.** From 15 to under 18 years the app keeps
+  `39.0 × 1.045^(age − 12)` (boys) and `36.1 × 1.023^(age − 12)` (girls) up to
+  18, as the R package `egfr` 2.0.0 and the secondary sources above give it;
+  the R package `kidney.epi` 1.4.0 uses the constants 41.8 and 37.6, which do
+  not match the published formula. Boy, 17 years, 172 cm, 0.3 mg/dl:
+  `48.60 × 1.72 / 0.3 = 278.6` in the app, `41.8 × 1.72 / 0.3 = 239.65` in
+  `kidney.epi` (14 % lower); boy, 16 years, 170 cm, 1.0 mg/dl: 79.06 against
+  71.06. The reference test keeps asserting this documented difference (see
+  [reference comparisons](../reference-comparisons.md#egfr)).
 
 ### Rounding and limits
 
@@ -364,8 +753,10 @@ A bounded creatinine row (`<x` or `>x`) is evaluated at its numeric limit and
 the inequality is reversed, because eGFR falls as creatinine rises. With
 CKD-EPI 2021 for a male aged 60, `<0,5` mg/dl becomes `>116.8` and `>5` mg/dl
 becomes `<12.5`. These
-rows stay visible and are excluded from all calculations by their operator,
-as described under [bounded measurements](bounded-measurements.md#bounded-measurements-2026-10-06).
+rows stay visible and are bounds like imported ones: they enter the eGFR
+column's fits as its bounded-value setting says (at the eGFR limit, 116.8 and
+12.5 here, under `limit`) and are excluded from endpoints, AKI detection and
+cohort models, as described under [bounded measurements](bounded-measurements.md#bounded-measurements-2026-10-06).
 
 A row whose operator is `range` or `unparseable` normally has no numeric value
 and therefore yields no eGFR row. The exception is a lab sheet that supplies
@@ -402,17 +793,31 @@ Regression evidence: [formula tests](../../tests/core/egfr/formulas.test.ts)
 (invalid inputs, `d` as male, CKD-EPI 2009 values of the worked examples,
 EKFC reference values including the
 age-specific Q, sex spellings),
+[paediatric equation tests](../../tests/core/egfr/paediatric.test.ts)
+(height names and LOINC, same-day, interpolated and missing heights at the
+89/90/91-day limits, the 25/30/35-day limits at age 1, the rule table, the
+age-1 worked example, CKiD U25 then CKD-EPI 2021 with the
+recorded change, bedside Schwartz, the full-age formula),
+[paediatric fixture](../../tests/goldens/egfr_paediatric.json) with its
+[parity test](../../tests/parity/egfrPaediatric.parity.test.ts) (CKiD U25 at
+ages 1, 5, 12, 17, 18 and 24.9, bedside Schwartz, EKFC from 2 to 17, and
+the row-level `derivation` cases at ages 0, 1 and 2 since 2026-11-23),
+[formula change tests](../../tests/workspace/egfr-switch.test.tsx) (the worked
+example, cell notice, chart line, `egfr_formula_switch`, `egfr_equation`),
 [eGFR source tests](../../tests/core/egfr/series.test.ts) (urine exclusion,
 formula-specific series names including CKD-EPI 2009,
 default-source rules 1, 2 and 4, µmol/l conversion and spellings, reversed
-bound, under-18 rows, rejected non-serum source),
+bound, under-18 rows, rejected non-serum source, every row of the per-patient
+source table, the recorded source and the AKI windows of a fallback),
 [creatinine source tests](../../tests/core/aki/creatinineSource.test.ts)
 (non-serum and serum names, plausibility counts at both thresholds),
 [Data page tests](../../tests/workspace/data-ui.test.tsx) (both plausibility
-notices, a saved non-serum source),
+notices, a saved non-serum source, the fallback and the two notices without
+a series),
 [eGFR gap tests](../../tests/workspace/egfr-gaps.test.tsx) (order of the
 reasons, the age boundary at 18, sex and age missing on the same rows, the
-note per patient in cell and patient view),
+note per patient in cell and patient view, the notes without a series
+and on a fallback),
 [eGFR module tests](../../tests/core/analysis/egfrModule.test.ts) (formula
 `off` contributes nothing, saved formula names validated), [unit-key tests](../../tests/core/parse/units.test.ts)
 and [eGFR fixture tests](../../tests/parity/egfr.parity.test.ts). The golden
@@ -425,3 +830,18 @@ operator of a non-exact source row is covered by the
 the fixture row for `w`, 0.6 mg/dl, 25 years and the formula test for `w`,
 0.7 mg/dl, 18 years both fail with 88.42.
 
+Fixture update of 2026-11-22 (issue #66): the row `m`, 1.0 mg/dl, 17 years of
+`tests/goldens/egfr.json` held `ekfc: null`, because EKFC was adult-only; it
+now holds 82.30714 (Q = 69.9389/88.4 = 0.791164 mg/dl, 1.0/0.791164 =
+1.263960, 107.3 × 1.263960^−1.132), because EKFC is computed from age 2. Its
+CKD-EPI 2021 and MDRD-4 values stay null. No other fixture value moved; the
+appended rows of the demo workbook are unchanged, because the workbook has no
+patient under 18.
+
+Fixture update of 2026-11-23 (OD-70): `tests/goldens/egfr_paediatric.json`
+gains a `derivation` list of seven row-level cases at ages 0, 1 and 2 (the
+age-1 worked example above, 25 against 35 days, no height, bedside Schwartz,
+under 1), because the derivation now computes CKiD U25 and bedside Schwartz
+from age 1 with a 30-day height limit. No existing value moved: the formula
+cases already held age 1, and no row of `tests/goldens/egfr.json` or of the
+demo workbook is under 2.

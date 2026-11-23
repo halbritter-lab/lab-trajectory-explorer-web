@@ -140,8 +140,9 @@ describe('AKI window legend and tooltip (K30)', () => {
     fireEvent.click(screen.getByLabelText('AKI windows and episodes'))
     fireEvent.click(screen.getByRole('button', { name: 'Display' }))
     // Trend not ticked: the column has no fit.
-    expect(legend()).toBe(' Shaded: AKI window, the configured 30 days after each onset (not the duration of the episode); this column has no fit, so nothing is excluded')
-    expect(tooltip()).toBe('AKI window 01/08/2020 to 31/08/2020 (30 days): the configured 30 days after each onset, overlapping windows drawn as one; not the duration of the episode. This column has no fit, so nothing is excluded.')
+    // Since 2026-11-22 (row akiwin) the window runs to 90 days after the episode's last day (03/08/2020).
+    expect(legend()).toBe(' Shaded: AKI window, from each onset to 90 days after the end of the episode; this column has no fit, so nothing is excluded')
+    expect(tooltip()).toBe('AKI window 01/08/2020 to 01/11/2020 (92 days): from each onset to 90 days after the end of the episode, overlapping windows drawn as one. This column has no fit, so nothing is excluded.')
     fireEvent.click(screen.getByRole('checkbox', { name: `Analyse trend: ${CREA.label}` }))
     expect(legend()).toContain('values inside are not excluded from this fit')
     expect(tooltip()).toContain('Values inside are not excluded from this fit.')
@@ -158,13 +159,13 @@ describe('AKI window legend and tooltip (K30)', () => {
     fireEvent.click(screen.getByLabelText('AKI windows and episodes'))
     fireEvent.click(screen.getByRole('button', { name: 'Display' }))
     const note = () => within(chart()).queryAllByTestId('aki-band-note').map(element => element.textContent)
-    expect(note()).toEqual(['In this column nothing is excluded for AKI (it has no fit): the shaded band only shows the configured 30 days after each onset.'])
+    expect(note()).toEqual(['In this column nothing is excluded for AKI (it has no fit): the shaded band only shows the window from each onset to 90 days after the end of the episode.'])
     fireEvent.click(screen.getByRole('checkbox', { name: `Analyse trend: ${CREA.label}` }))
-    expect(note()).toEqual(['In this column nothing is excluded for AKI: the shaded band only shows the configured 30 days after each onset.'])
+    expect(note()).toEqual(['In this column nothing is excluded for AKI: the shaded band only shows the window from each onset to 90 days after the end of the episode.'])
     choosePreset('ckd_progression')
     expect(note()).toEqual([])
     choosePreset('acute_review')
-    expect(note()).toEqual(['In this column nothing is excluded for AKI (it has no fit): the shaded band only shows the configured 30 days after each onset.'])
+    expect(note()).toEqual(['In this column nothing is excluded for AKI (it has no fit): the shaded band only shows the window from each onset to 90 days after the end of the episode.'])
   })
 })
 
@@ -359,7 +360,7 @@ describe('Rolling OLS windows (K18)', () => {
     const workbook = (mode: 'rolling' | 'global') => XLSX.read(workspaceWorkbookBytes({ data, parameterKeys: [CREA.key], patientIds: ['R'], patientId: 'R',
       cohortRows: buildCohortRows(rows, ['R'], [{ bezeichnung: 'Kreatinin', einheit: 'mg/dl', mode }]) }), { type: 'array' })
     const rolling = workbook('rolling')
-    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison'])
+    expect(rolling.SheetNames).toEqual(['measurements', 'raw_measurements', 'slopes', 'events', 'aki_episodes', 'patient_attributes', 'demographics', 'parameters', 'settings', 'about', 'columns', 'rolling_windows', 'import_diagnostics', 'anchor_comparison', 'peri_event_creatinine'])
     const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(rolling.Sheets.rolling_windows)
     expect(records).toHaveLength(5)
     expect(Object.keys(records[0])).toEqual(['PatientID', 'Parameter', 'Unit', 'window', 'window_start', 'window_end', 'first_date', 'last_date', 'n', 'slope'])

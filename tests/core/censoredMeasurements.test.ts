@@ -7,11 +7,13 @@ import { episodesForSeries } from '../../src/core/domains/nephrology/aki/akiAwar
 import { measurementFitStatus } from '../../src/workspace/measurement-fit-status'
 import { generalExplorationConfig } from '../../src/core/analysis/fitConfig'
 import { appendComputedEgfr } from '../../src/core/domains/nephrology/egfr/series'
+import type { BoundedValuePolicy } from '../../src/core/measurements/censored'
 
 const date = (value: string) => new Date(`${value}T00:00:00Z`)
-const endpointSpec = () => {
+const endpointSpec = (boundedValues: BoundedValuePolicy = 'exclude') => {
   const fitConfig = generalExplorationConfig({ bezeichnung: 'eGFR', einheit: 'mL/min/1.73m2' })
   fitConfig.endpoints.observedCkdG5 = true
+  fitConfig.boundedValues = boundedValues
   return { bezeichnung: 'eGFR', einheit: 'mL/min/1.73m2', mode: 'global' as const, fitConfig }
 }
 function row(day: string, value: number, operator: '=' | '<' | '>' = '=', name = 'eGFR', unit = 'mL/min/1.73m2'): LabRow {
@@ -20,12 +22,14 @@ function row(day: string, value: number, operator: '=' | '<' | '>' = '=', name =
     loinc: null, patientSex: null, patientAgeAtLab: null }
 }
 
-describe('bounded measurements', () => {
+// The rule of 2026-10-06, kept as the bounded-value policy 'exclude' (issue #73).
+describe('bounded measurements under the policy exclude', () => {
   it('keeps raw counts and same-date exact values while excluding limits from slope and line', () => {
     const rows = [row('2020-01-01', 60), row('2020-01-01', 10, '<'), row('2021-01-01', 50)]
-    const summary = summarizeByBezeichnung(rows, 1)[0]
+    const summary = summarizeByBezeichnung(rows, 1, 'global', { boundedValues: 'exclude' })[0]
     expect(summary.nNumeric).toBe(3)
     expect(summary.nFitted).toBe(2)
+    expect(summary.nBounded).toBe(0)
     expect(summary.slope).toBeCloseTo(-10, 1)
     const cell = buildCohortRows(rows, [1], [endpointSpec()])[0].cells[0]
     expect(cell.points).toHaveLength(3)
@@ -66,7 +70,7 @@ describe('bounded measurements', () => {
     ]
     const derived = appendComputedEgfr(creatinine).filter(value => value.bezeichnung?.includes('computed'))
     expect(derived.map(value => value.wertOperator)).toEqual(['=', '<'])
-    const summary = summarizeByBezeichnung(derived, 1)[0]
+    const summary = summarizeByBezeichnung(derived, 1, 'global', { boundedValues: 'exclude' })[0]
     expect(summary.nNumeric).toBe(2)
     expect(summary.nFitted).toBe(1)
     expect(Number.isNaN(summary.slope)).toBe(true)
@@ -86,6 +90,7 @@ describe('bounded measurements', () => {
   it('reports zero fitted points when the only exact value lies in a fit exclusion window', () => {
     const rows = [row('2020-01-01', 60), row('2021-01-01', 50, '<')]
     const summary = summarizeByBezeichnung(rows, 1, 'global', {
+      boundedValues: 'exclude',
       exclusionWindows: () => ({ exclusions: [{ start: date('2020-01-01'), end: date('2020-01-02') }] }),
     })[0]
     expect(summary.nNumeric).toBe(2)

@@ -5,6 +5,596 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Fixed (browser smoke run of 2026-11-23; no value changes)
+
+- Time to event: a median limit that R gives as NA because the curve falls to
+  0 reads "lower bound not estimable" / "upper bound not estimable" (export
+  `not estimable`) instead of "not reached" or a blank; the log-rank text
+  names the groups it leaves out for want of patients at risk at the endpoint
+  times ("5 groups, 3 compared (2 … left out: HNF1B, PKD1)"), and the
+  `logrank` sheet gains a `compared` column. A new R reference case covers
+  both.
+- Time to event at phone width: the group and number-at-risk tables scroll
+  in their own container instead of breaking words, the chart text is larger,
+  and the selects no longer cut off their options at desktop width.
+- German interface: the parameter count and the R download size on Cohort
+  models, the year ticks of the model preview and the filter-button labels on
+  Trajectories are translated; "in Kohortenmodellen und Verläufen".
+
+### Changed (eGFR from 1 year, owner decisions of 2026-11-23 on OD-70 and OD-86; changes values for children of 1 year)
+
+- CKiD U25 and bedside Schwartz apply from 1 year (KDIGO 2024 Table 14;
+  Pierce 2021): under 2 years a creatinine value needs a height within 30
+  days, from 2 years 90 days as before; EKFC stays from 2, so a child of 1
+  year without such a height gets no value ("height missing" or "under 2
+  years, no height within 30 days before and after"); under 1 year no eGFR
+  ("Age under 1"). Before, no eGFR was computed under 2. The Data page, the
+  export notes and the Methods page name the new floor; the paediatric
+  fixture gains row-level cases at ages 0, 1 and 2 (no existing value moved).
+- OD-86 resolved: CKiD U25 from 15 to under 18 keeps the exponential formula,
+  as in the R package `egfr`; `kidney.epi`'s constants do not match the
+  published formula. No code change.
+
+### Added (German interface, decided 2026-11-21 and 2026-11-22, issue #71)
+
+- An EN | DE switch in the header. The interface starts in the browser
+  language (`de*` → German, otherwise English) and keeps a choice only with
+  "Remember on this device" (in the saved settings record). The `lang`
+  attribute of the page follows the language.
+- German for the navigation, the Data, Trajectories and Cohort models pages
+  (including Time to event), the analysis record, settings, labels, badges,
+  tooltips, notices, warnings, accessibility labels, import findings as shown
+  on the Data page and the research-use statement of the footer. Units,
+  analyte names and imported values stay as imported.
+- The Methods page stays English in both languages, with a German note that it
+  is available in English only (OD-90). Exports are unchanged and English:
+  column names, sheet contents, about notes and disclaimers, and chart figures,
+  which are copied from an English rendering of the page.
+- Dependency-free catalogs (`src/i18n/en.ts`, generated from the source by
+  `scripts/i18n_extract.mjs`, and `src/i18n/de.ts`), with a completeness test.
+  No analysed value changes.
+
+### Fixed (code review of the language switch)
+
+- The model workbook named the pooled unit "Ganze Kohorte" when exported from
+  the German interface; it is "Whole cohort" again in every language. The
+  exported model chart kept a German legend; it is English.
+- The groups of the cohort export (and the sections of the patient table)
+  are ordered by the raw group value, so the row order no longer depends on
+  the interface language.
+- The German import finding "Event date is not a valid date" was shown half
+  translated; every date finding the import composes is now translated whole
+  (checked by a test).
+- Notices of the Data page (import, restored copy), storage messages, import
+  finding labels, data checks and the report of applied settings follow a
+  later language switch instead of keeping the language they were made in.
+- An export that renders the page in English restores the interface language
+  even when that render fails.
+- The analysis record translates only fixed labels: an imported attribute or
+  event title (for example an attribute called "Sex") is shown as imported.
+- German wording: calendar dates of measurements read "Messtage" (chips such
+  as "< 3 Messtage"), the bounded-values note names the option „Ausschließen“,
+  and the time-to-event chart axes and name are translated on the page
+  (exports stay English). No analysed value changes.
+
+### Added (series comparison and deliberate merge, decided 2026-11-16, 2026-11-21 and 2026-11-22, issue #68)
+
+- Patient view: "Compare series" draws several series of the patient in one
+  chart, in the unit of the first series (serum creatinine converted between
+  mg/dl and µmol/l with 88.42), each with its own colour, marker shape and OLS
+  comparison line, and a table of slopes and laboratories. Display only.
+- Data page: "Merge series" merges ticked imported series, or the series of a
+  chosen LOINC code, into one derived series by an explicit mapping; never
+  automatically. The source series stay; each merged value names its source
+  (marker shape and tooltip in the charts, column in the measurement table).
+  Values of two sources on one day are all kept (OD-80). A merged creatinine
+  series can be chosen as the eGFR source; until it is, the eGFR, the AKI
+  episodes and every existing number are unchanged (numeric output changes
+  only for datasets with a merge: the merged series is a new parameter, and
+  its slopes, endpoints and AKI episodes are its own; OD-82).
+- Import: an optional laboratory or method column (`Laboratory`, `Labor`,
+  `Method`, `Methode`, `lab_method`), shown per point and exported.
+- Export: `lab_method`, `source_parameter` and `source_unit` are the new last
+  columns of `measurements` and `raw_measurements`; merged parameters have
+  `formula` `series_merge` in `measurements` and `parameters`; the mapping is
+  `seriesMerge.merges` in `analysis_settings`, with an entry in the analysis
+  record. `input_data_id` includes `lab_method` only for rows that have one.
+  "Apply settings from an export" leaves out and names a merge whose series
+  are not in the dataset (OD-81).
+
+### Added (time to event and death, issue #78)
+
+- Event type `death` with a date, also written `deceased`, `Tod` or
+  `verstorben` (any case); a death has no end date. The import warns on lab
+  values after a death and on a second death of a patient. Numeric change
+  for data with deaths only: endpoint input leaves out values dated after the
+  death (`endpoint_input_policy` names it for every column), and the dropout
+  report of the cohort models counts death (the `death` column of the sheet
+  `dropout` is 0 instead of empty without deaths).
+- Cohort models has two areas, "Slope models" and "Time to event". Time to
+  event: Kaplan–Meier per group to a confirmed endpoint of the parameter's
+  settings (G4, G5, 40/50/57 % decline) or kidney replacement therapy, alone
+  or as a composite, dated at the first crossing; age with delayed entry at
+  the first eligible measurement (default) or years since it; number at
+  risk, events, censored, median with a Brookmeyer–Crowley log-log interval;
+  log-rank test; with deaths an Aalen–Johansen cumulative incidence beside
+  1 − KM; the list of patients not in the analysis; an XLSX export with one
+  row per patient and an R script; the curve as SVG or PNG. Compared with
+  native R `survival` on stored cases (`tests/reference/survival.json` and
+  the new `time_to_event.json`). Open decisions OD-73 to OD-79.
+
+### Fixed (code review of wave 3)
+
+- Time to event: the workbook is traceable. A new sheet `tte_settings` and
+  notes in `about` record the parameter, endpoint, composite, time scale and
+  grouping, the parameter's `fit_config`, `analysis_settings` (eGFR formula,
+  creatinine source, merged series) and `input_data_id`. The area's choices
+  stay session only but are listed in the analysis record, with a Change
+  button that opens the area (OD-79 updated).
+- AKI episode list (Data page, patient view, `aki_episodes` sheet): a merged
+  creatinine series no longer repeats the episodes of its source series. It
+  is listed only when it is the creatinine source of the computed eGFR,
+  whose column excludes its episodes.
+- Merge series: refused for creatinine sources of different materials
+  (serum or plasma with urine or another fluid), for series without a unit
+  ("Series without a unit cannot be merged.") and for the name and unit of a
+  computed eGFR; a stored merge of that kind is not formed and the Data page
+  names why. A source listed twice in stored settings counts once.
+- Time to event: the Aalen–Johansen curve and the `cumulative_incidence`
+  sheet appear only when an included patient exits by death (status 2), not
+  for a death after the endpoint or of a patient left out.
+- Methodology page: the new section "Cohort models › Time to event" is taken
+  out again pending the maintainer's approval (its text is TTE0 of the
+  wording drafts); the area links to the method reference instead. The
+  corrections of sentences that had become false (death among the event
+  types, endpoint input not after a death) stay.
+
+### Fixed (code review of the 2026-11-22 merges)
+
+- Export notes and the import warning on bounded values describe the current
+  rule: bounds enter fits by the column's bounded-value setting (limit by
+  default, half-limit, exclude) and stay out of endpoints (apart from a
+  conclusive bound interrupting an unconfirmed G4 or G5 candidate), AKI
+  detection and mixed models. The log_trend note no longer says bounds stay
+  out of every fit.
+- The choice between the longer AKI window and the 30-day fallback, and
+  `n_aki_excluded`, count bounds as the column's fit does. Numeric change for
+  columns with bounds under limit or half-limit only: a column can now keep
+  the longer window where the fallback applied before, and `n_aki_excluded`
+  counts bounds inside a window.
+- Bedside Schwartz no longer needs a resolved sex, which its formula does not
+  use: a child of 2 to 17 years without a sex and with a height now gets a
+  value under the rule "Bedside Schwartz", and the Data page no longer counts
+  "Sex missing" for such rows. Every other equation still needs a sex.
+- `egfr_male_coefficients_for_sex_d` is `false` for a patient whose values of
+  sex `d` all come from bedside Schwartz (no sex coefficients), as the Data
+  page's notice already was.
+- The unreachable 30-day height limit under 2 years is removed from the code;
+  no eGFR is computed under 2 as before (Open decision OD-70).
+- Open decisions OD-71 (a conclusive bound as a date that is not low for the
+  single value below 15) and OD-72 (bounds in the segment after kidney
+  replacement therapy and in the before/after comparison) record rules set
+  during the merges without an owner decision; behaviour unchanged.
+- The export note on computed eGFR no longer says "adults only": it names the
+  rule from 2 to 17 years (CKiD U25 with a height, otherwise EKFC), the height
+  input, no eGFR under 2 and the per-row column `egfr_equation`.
+- The censored-model sketch of `r_script` selects each refitted unit by its
+  own `unit_key` instead of always `cohort`, and the Satterthwaite block notes
+  that with a slope interaction the factor's own row tests the difference at
+  baseline (time 0).
+- The loaded-events table no longer says that an undated dialysis of unknown
+  intent censors from its start in every preset: it does so only under the
+  policies "Dated interval, else from start" (CKD progression) and "Censor
+  from start", and the label now says so.
+
+### Added (reference comparisons against native R, decision `rref` of 2026-11-22, issues #79 and #34; no numeric change)
+
+- Stored reference cases from native R 4.6.0 in `tests/reference/`, regenerated
+  with `pnpm reference:generate` (`scripts/reference/`), each file recording
+  the R and package versions: lme4 on the model rows, R data code and lmer
+  call the app sends to webR, with the webR fits of the production worker;
+  `lm` and Theil–Sen (`mblm`, `zyp`) on the golden series; eGFR equations from
+  `egfr` and `kidney.epi`; KDIGO AKI staging from `epocakir`; Kaplan–Meier and
+  log-rank cases from `survival` for issue #78. Vitest compares them with
+  stated tolerances ([reference comparisons](docs/reference-comparisons.md)).
+  webR and native lme4 agree in all stored digits. Differences with
+  independent implementations are recorded as OD-85 to OD-88; a draft for
+  Methods › Sources is in the wording drafts (part K).
+
+### Added (release preparation and wording drafts, issues #80 and #84, decided 2026-11-22)
+
+- Drafts only; no code, number or Methods page text changed. `CITATION.cff`
+  (authors, order, version and date marked for the owner's confirmation),
+  `docs/release-notes-draft.md` (method changes since v0.3.7 that move
+  numbers, by area, with decision dates), `docs/licence-analysis.md` (the
+  served R runtime and packages: obligations, what is in place, what is
+  missing; not legal advice) and a README section "How to cite".
+- Methodology wording drafts, Part H, for the maintainer's approval: removing
+  the statement on the external OLS comparison (#84) and describing the
+  logarithmic axis with doubling time, creatinine after selected events,
+  the source of the two-level rapid-decline flag and the creatinine source
+  per patient.
+
+### Changed (eGFR for children and adolescents, decided 2026-11-21/22, issue #66)
+
+- **eGFR is computed from age 2.** Under an adult formula, rows of 2 to 17
+  years now get CKiD U25 (Pierce 2021) where a height is available and EKFC
+  2021 otherwise (setting "Under 18 years", default); bedside Schwartz
+  (Schwartz 2009) is an option for comparison, and "None" keeps the earlier
+  rule. Adults keep their values unless the new full-age formula
+  "CKiD U25 / EKFC" is chosen (CKiD U25 with height up to 25 years, EKFC
+  otherwise). Under 2 years no eGFR, with the reason named. Numeric output
+  changes for minors only: a boy of 17 with 0.9 mg/dl and 176 cm had no value
+  and now has 95.0 (CKiD U25), without a height 82.3 at 1.0 mg/dl (EKFC). The
+  fixture `tests/goldens/egfr.json` moves for EKFC at 17 years (null →
+  82.30714); `tests/goldens/egfr_paediatric.json` adds hand-checked cases.
+- **Height** is read from a lab series named Größe, Körpergröße or height in
+  cm (or LOINC 8302-2, 8306-3, 8308-9): the same day, or interpolated between
+  two heights both at most 90 days away, never extrapolated.
+- **Formula changes** are counted on the Data page, drawn as a dotted line in
+  the patient chart, and a slope fitted across one carries the notice
+  "Formula change in fit" and the new cohort column `egfr_formula_switch`
+  (before `group`). The measurement sheets gain `egfr_equation` and
+  `egfr_height_cm` as last columns. Open decisions OD-65 to OD-69.
+
+### Changed (bounded values in fits, decided 2026-11-21 and 2026-11-22, issue #73)
+
+- **Bounded values (`<x`, `>x`) enter individual fits at their limit by
+  default.** Each parameter has the setting "Bounded values" (Calculation
+  settings): `limit` (x, the default), `half-limit` (`<x` at x/2, `>x` at x) or
+  `exclude` (the only rule before). It applies to slopes, trend lines, rolling
+  and segmented OLS, the before/after comparison and the log-axis trend, is
+  saved with the settings and exported as `boundedValues`, the last entry of
+  `fit_config`, with an analysis-record entry. **This changes slope, interval,
+  `n_fitted` and the fit dates of every series with bounds**; series without
+  bounds are unchanged and no golden fixture moves (none has a bound). Example:
+  demo patient 2, UACR `<30`, 45, 120, `>300`, `>300`: +159.06 mg/g per year
+  (limit), +165.06 (half limit), the two-point line +148.88 (exclude, before).
+  Settings saved or exported earlier load with `limit`; applying such an
+  export names each affected parameter.
+- **`n_bounded` and a warning.** Every fit counts its bounded fitted points (a
+  monthly or quarterly median counts when its period holds a bound);
+  `n_bounded` is the new last column of the cohort record and stands before
+  `group` in the cohort and slopes sheets. At 20 % or more of the fitted points
+  the cell shows "*p* % bounded"; the method reference names the bias of
+  substitution at high censored fractions (Hornung and Reed 1990; Hughes 1999).
+- **Endpoints, AKI detection and cohort models keep excluding bounds**,
+  whatever the setting. New: a bound `>x` with x at or above 30 or 15 clears an
+  unconfirmed G4 or G5 candidate (it proves the value was not low that day);
+  bounds still never start, confirm or recover an event. Observed G4/G5 can
+  therefore be confirmed later or not at all where such a bound lies between
+  two low values.
+- **Cohort model workbook:** `model_input_flags` gains `operator` as its last
+  column, a bound inside an event or AKI window also names the window, and
+  `r_script` ends with a commented censored mixed-model sketch (`lmec`,
+  `brms`) as a sensitivity analysis. Open decisions OD-60 to OD-63 record the
+  cases the decisions do not name.
+
+### Changed (cohort models, decisions of 2026-11-22 `od29`, `genomin`, `genomiss`, `uacr`, `inference`, `dropout`, issue #4; changes results for affected models)
+
+- **A categorical factor level needs at least 5 patients with 2 or more
+  model rows** (a rule of this tool). Smaller levels are pooled into
+  "other (pooled)" per fitted unit before the fit, on by default; the
+  checkbox *Pool small levels* keeps them as they were. The page lists the
+  small levels of every unit with their counts before the fit; the model
+  workbook gains the sheet `factor_levels` and `r_script` names the pooled
+  levels. Estimates change for every unit with a small level. Example: a
+  whole cohort with genotypes A (7), B (3), C (2) and D (7) now has the
+  levels A, D and "other (pooled)" and two contrasts instead of three. A
+  chosen reference that was pooled is named in the validation message.
+  Owner-defined classes are not built (OD-55); a pooled level still below
+  the minimum is kept (OD-56).
+- **"Not tested" is its own level.** Attribute values `not tested`,
+  `nicht getestet`, `n.t.` and `NT` (any case) enter a cohort-model factor
+  as the level "not tested", never merged with "no variant" or a blank
+  cell, which stays missing; a small "not tested" level is left out with its
+  patients instead of being pooled. Imported values, groups and other sheets
+  keep the text as imported (OD-57). The default reference never falls on
+  "not tested" or "other (pooled)" while another level exists.
+- **Log baseline UACR** can be added as a covariate, off by default and
+  labelled "possible mediator": the natural log of the exact UACR value
+  nearest to the model baseline within 90 days, offered when the dataset has
+  one UACR series (OD-58).
+- **Different default references are flagged.** When the whole cohort and a
+  group resolve a factor's default reference to different levels, the Fit
+  summary says that their reference estimates cannot be compared directly.
+- **Dropout report.** The Fit summary and the new sheets `dropout` and
+  `dropout_patients` count, per unit and factor level, kidney replacement
+  therapy, death (once that event type exists), loss to follow-up (no model
+  row in the 365 days before the latest lab date) and patients still in
+  follow-up; above 10 % KRT or death the page warns and `r_script` adds a
+  commented JMbayes2 joint-model outline (OD-59). No estimate changes.
+- **Inference in R.** `r_script` refits every unit with lmerTest where it is
+  installed: an omnibus F test per factor (`anova`, Satterthwaite degrees of
+  freedom), contrasts labelled exploratory and unadjusted, and a commented
+  Holm adjustment. The app keeps its Wald intervals and says so under the
+  results table; the R runtime served with the app is unchanged.
+- No golden fixture covers cohort models, so none changed.
+
+### Added (decisions `versions` and `sexd` of 2026-11-22, issues #83 and #4)
+
+- The `models` sheet of the model workbook ends with `app_version` and
+  `egfr_formula`; the R and package versions stay in `runtimeVersion` and
+  `packageVersions`. `about` gains four notes at its end.
+- The `demographics` sheet of the cohort workbook ends with
+  `egfr_male_coefficients_for_sex_d` (`true` when a computed eGFR value of
+  the patient used sex `d`, which takes the male coefficients), and `about`
+  a note on it at its end. No eGFR value changes.
+
+### Changed (endpoints, owner decisions of 2026-11-22, issues #81, #82, #85, #4; changes results)
+
+- **The extrapolation to CKD G5 is off by default** (`proj`, issue #81). The
+  CKD progression preset no longer switches on the projected age to CKD G5;
+  it is switched on per parameter in the endpoint settings ("Extrapolation to
+  CKD G5 (off by default)"). The interface calls it a "conditional
+  extrapolation of the fitted trend, not a prognosis". Its export columns keep
+  their positions and are empty while it is off; `fit_config` records whether
+  it was on. Settings saved on this device or applied from an export with it
+  on keep it on and say so (under CKD progression they are now shown as
+  custom settings). The methodology section is now
+  `#methods/endpoints/extrapolation`; the old `#methods/endpoints/prediction`
+  still opens it. Consequence for exports under CKD progression:
+  `endpoint_projected_age_to_ckd_g5` and the `endpoint_prediction_*` columns
+  are empty unless the extrapolation is switched on.
+- **The extrapolation needs four measurement dates over three years**
+  (`minfu`, KDIGO 2012 CKD p. 66): new withheld reason
+  `kdigo_minimum_follow_up`, badge `G5 < 4 dates/3 yrs`, checked after the
+  three-date, five-date (Theil–Sen) and 365-day minimums. Series with three
+  dates, or with less than 36 calendar months between their first and last
+  date, no longer get a projected age: 40, 33 and 26 on 2020-01-15,
+  2021-07-15 and 2023-01-15 gave 65.40 years (born 1960-01-01) and are now
+  withheld. Test fixtures with three dates over one or two years were
+  extended by a fourth date over three years where they test a later gate,
+  or now expect the new reason, because the values moved by this decision.
+- **A single value below 15 without confirmation is labelled** (`g5single`):
+  it never was an observed G5; the cell now shows "single value <15,
+  unconfirmed (possible AKI)" for an isolated low date and the cohort sheet
+  gains `endpoint_g5_single_value_unconfirmed`. It does not withhold the
+  extrapolation.
+- **Confirmation preset "28 days (ISN trial definition)"** beside the 90-day
+  default (`confirm`, issue #85); the 28-day rule is marked unverified, and
+  the 12-month maximum is listed as a rule of this tool.
+- **Confirmed 50 % eGFR decline** (`p50`, issue #82), by the same rule as 40 %
+  and 57 % and switched on under percent decline (off by default): badge
+  `50% decline`, columns `endpoint_observed_decline_50` and
+  `endpoint_decline_50_*`. No paediatric preset was added (OD-40).
+- **Choice of endpoint badges** (`badges`, issues #82, #2): "Endpoint badges"
+  in the table options chooses which endpoint results the cells show; the
+  default is the set shown before, the export keeps all, and the choice is
+  saved with the view settings.
+- New cohort-sheet columns are appended before `group`, which stays last;
+  every earlier column keeps its position. A note at the end of the `about`
+  sheet describes them. Open decisions OD-40 to OD-44 record the gaps of
+  these decisions.
+
+### Changed (kidney replacement therapy, dialysis of unknown intent and slope tier, decided 2026-11-22, issue #4; changes slopes)
+
+- **Every preset censors after kidney replacement therapy** (decision
+  `censor`). General exploration, Theil–Sen and Acute review now tick
+  "Censor after kidney transplant" and "Censor after chronic dialysis", as
+  CKD progression did: values from the event date on stay visible but leave
+  the slope. Slopes of patients with such an event and later values change.
+  Demo workbook, imported eGFR, General exploration: patient 13 −12.83 per
+  year (was +4.37) and now "rapid ↓", patient 14 −10.14 over 360 days, an
+  uncertain slope (was +25.29), patient 9 −8.50 (was −7.73); Theil–Sen 13
+  −12.84 (was −2.71), 14 −10.15 (was +31.12), 9 −8.57 (was −7.97). No golden
+  fixture moves (none has events); the expectations of the demo examples,
+  the before/after test of patient 13 and the browser regressions of the
+  table order and filters were updated for these values. The censoring
+  options are shown for every parameter (OD-51).
+- **Values after kidney replacement therapy are included only as a separate
+  segment.** Unticking a censoring option no longer lets the fit run across
+  the event: the values from the first transplant or chronic dialysis start
+  on are fitted on their own (`krt_segment`), shown beside the slope and in
+  the patient chart (dash-dot line), and exported as `krt_segment_start`,
+  `krt_segment_n_fitted`, `krt_segment_n_fitted_dates`,
+  `krt_segment_fitted_span_days`, `krt_segment_slope`, `krt_segment_ci_low`
+  and `krt_segment_ci_high`. The slope stays that of the values before the
+  event (OD-50, OD-52). Settings saved before keep both options unticked as
+  custom settings (OD-53). A before/after comparison at a transplant has an
+  after side only with the option unticked.
+- **CKD progression: dialysis of unknown intent without an end date**
+  (decision `dial`) leaves the values from its start on out of the slope,
+  with the cell note "… values after dialysis of unknown intent left out"
+  (policy "Dated interval, else from start"; a dated one still excludes its
+  interval only). Endpoint input is unchanged; such a dialysis is never
+  kidney failure reached (OD-54). The event table reads "censor from dialysis
+  start, unknown intent without end date" for it.
+- **Slope tier "reliable"** (decision `minfu`, tier part): at least 4
+  distinct fitted dates over at least 2 × 365.25 days (731 whole days) of
+  fitted span; the existing reliability rule remains as "estimable".
+  Shown as the badge "reliable", in the patient view, as a chart key and as
+  the filter "Reliable slope"; exported as `slope_tier` (`uncertain`,
+  `estimable`, `reliable`). These eight columns come after `baseline_age`,
+  before `group`, which stays last (88 columns). `unstable_slope` and the
+  gate of the rapid-decline flag are unchanged. The status line of a slope
+  sort now reads "placed after the other slopes" (was "after the reliable
+  ones").
+
+### Changed (AKI baseline and exclusion window, rows `akifirst` and `akiwin`, decided and implemented 2026-11-22, issue #4; changes AKI episodes and slopes)
+
+- **AKI at the first value of an admission is detected against a look-back
+  baseline.** The first value of a series or after more than seven days
+  without values, followed by a value on one of the next two days, is
+  compared with the mean of the creatinine values 7 to 365 days before it; at
+  1.5 times the mean or more it opens an episode (criterion
+  `relative_1_5x_lookback_mean`, staged against the mean). Until now such a
+  value had no baseline. Creatinine 1.0 and 1.7 mg/dl in January 2020 and 4.0
+  and 8.0 on 1 and 2 April 2020 now give an episode with onset 1 April (2.96
+  times 1.35) instead of 2 April. A retrospective fall during the admission
+  is a new Data-page option, off by default (`aki.retrospectiveFall` in
+  `analysis_settings`). No MDRD back-calculation. The `aki_episodes` sheet
+  gains `baseline_source` and `baseline_n` as its last columns. In the demo
+  workbook the episode count stays 8. OD-45, OD-46 and OD-47 record the
+  admission proxy, the use of all values as "outpatient" values and the
+  scope of the look-back.
+- **AKI exclusion windows run to 90 days after the episode end.** A column
+  that excludes AKI windows now leaves out the measurements from each onset
+  to 90 days after the episode's last day (*Window after the episode end
+  (days)*, `akiDaysAfterEnd` in `fit_config`) instead of 30 days from the
+  onset. Where the fit would then keep fewer than 3 fitted dates over 365
+  days, every episode of the column gets the former 30 days from the onset
+  (*Shorter window from onset (days)*, `akiExclusionDays`) and the cell is
+  labelled "AKI window 30 d". The `cohort` sheet gains `aki_window` and
+  `n_aki_excluded` before `group`. Under CKD progression in the demo the
+  eGFR slope of patient 7 moves from −10.206 to −9.778 and of patient 11
+  from −6.308 to −6.511 mL/min/1.73 m² per year (computed CKD-EPI 2021:
+  −9.133 to −9.571); patient 12 keeps the 30-day windows, labelled. Settings
+  saved before get the 90 days and keep their preset. OD-48 and OD-49 record
+  the per-column fallback and the end of an episode without an observed end.
+
+### Changed (OD-11 and OD-21, decided 2026-10-07, implemented 2026-11-22, issue #4)
+
+- **OLS 95 % intervals above 40 degrees of freedom use the exact Student-t
+  quantile** (OD-11) instead of a step function. Up to 42 fitted points
+  nothing changes. From 43 to 122 points `ci_low`/`ci_high` become up to
+  0.62 % narrower (t at df 50: 2.021075 → 2.008559), from 123 points on up to
+  1.01 % wider (t at df 121: 1.959964 → 1.979764; df 1000: 1.962339). The
+  projection's confidence gate and the before/after difference interval use
+  the same value. Slopes, `slope_se` and R² are unchanged; no stored fixture
+  moves (the OLS fixtures have at most five points). Above 10⁷ degrees of freedom and for
+  an infinite df the value is the normal quantile 1.959963984540054 (the
+  exact computation is unstable there); a NaN df keeps the earlier fallback
+  1.959963985.
+- **The unused model `tolerance` is removed** (OD-21). The constant 1e-6,
+  used by no fit, is no longer part of the result metadata. The `models`
+  sheet of the cohort workbook keeps the column `tolerance` at its position
+  but leaves it empty, for column-position compatibility. The constant is no longer part of
+  `fitConfigHash`, so every `fitConfigHash` differs from earlier exports of
+  the same model and data. No fitted number changes.
+
+### Changed (cohort-model factors, OD-22 and OD-29, decided 2026-10-07; changes results for affected models)
+
+- **The type of an attribute factor can be switched (OD-22).** Next to every
+  attribute factor under Cohort models a selector offers *Numeric* and
+  *Categorical*; the automatic type is marked "(automatic)" and stays the
+  default, so nothing changes until the user switches. Codes such as 0/1/2
+  can now enter as categories instead of one linear term. Baseline age and
+  sex keep their fixed type. The `factors` sheet of the model export gains
+  `kind_source` (`automatic` or `user`) and `modelConfig` records
+  `kindSource`; `r_script` names each factor's type and reference in a
+  comment per unit.
+- **The default reference level comes from the fitted data (OD-29).** A
+  categorical factor without a chosen reference now takes, for each fitted
+  unit, the first level among that unit's own model rows, instead of the
+  first level among all patients of the dataset. Example: with genotypes A,
+  B and C where only patients without an eGFR row have A, the eGFR model now
+  uses B as reference and can be fitted; before, it used A and could not be
+  fitted until another reference was chosen. A whole cohort and a group can
+  therefore have different defaults; a reference chosen by the user is kept
+  and still shared by all units. The *Adjusted for age and sex* and
+  *Difference between groups* presets use the default. The reference
+  selector offers "Ref: first level in the model". `factors` gains
+  `reference_source` (`default_first_level_in_model` or `user`). Estimates
+  change only for a unit that lacked the dataset's first level, which could
+  not be fitted before; no golden fixture covers cohort models, so none
+  changed.
+
+### Changed (rapid-decline flag, decided 2026-11-21, issue #72)
+
+- **The rapid eGFR decline flag has two levels.** "rapid ↓" now needs the
+  whole 95 % interval of the slope below the negative threshold (upper bound
+  below −5 per year by default); a slope below it whose interval reaches −5
+  or above is marked "rapid ↓?" (possible rapid decline), and so is one
+  without a 95 % interval, such as Theil–Sen on fewer than five dates
+  (Open decision OD-37). `rapid_progression` reads `yes`, `possible` or
+  blank; *Show only* gains *Possible rapid decline*. The reliability gate of
+  2026-11-17 and `unstable_slope` are unchanged, and no slope, interval or
+  golden fixture moved. Demo data (eGFR, General exploration): patients 4, 9,
+  20, 21, 24, 25, 26 and, in the computed column, 2 stay "rapid ↓"; patients
+  6, 7, 17, 19, 22 and 27 change from `yes` to `possible`. The method
+  reference names KDIGO 2012 as the source of the default threshold (KDIGO
+  2024 gives none) and lists the flag under the rules of this tool that are
+  not published standards.
+
+### Changed (creatinine source per patient, issue #65, decided 2026-11-21)
+
+- **The eGFR creatinine source is chosen per patient.** A patient with values
+  in the selected *Creatinine source* uses it as before; a patient without
+  any serum creatinine in mg/dl now uses their own µmol/l series (÷ 88.42)
+  instead of getting no eGFR. Series are still not merged. Values move: demo
+  data, CKD-EPI 2021, 27 of 28 patients have a computed eGFR (26 before;
+  patient 10 gains seven values from 94.3 to 58.0), and the golden fixture
+  `egfr.json` gains the same seven rows for its patient 10; no earlier value
+  changes. A saved workspace is derived again on load with the same stored
+  source, so such patients gain values there too. Patients with mg/dl
+  creatinine under another name only, with several µmol/l series, or under a
+  selected µmol/l source get no fallback (OD-36); the Data page counts them
+  and their empty eGFR cell names the case. The `demographics` sheet gains
+  `egfr_source_parameter` and `egfr_source_unit` at its end, the series each
+  patient's eGFR was computed from, and the `about` sheet a note on them.
+  AKI windows of the computed eGFR column come from that same series.
+
+### Added (display extensions, issue #70, decided 2026-11-21)
+
+- **Logarithmic value axis per column, with doubling or halving time.** The
+  toggle "log" beside a column's trend controls draws its table, overlay and
+  patient charts on a base-10 logarithmic axis. With a trend, the column's own
+  fit (same mode, estimator, exclusions and time balancing) is run again on
+  the natural logarithm of the values; values of zero or less are left out
+  and counted. The doubling time is ln 2 / slope in years (negative: halving
+  time), with an interval from the slope bounds when they exclude zero. A new
+  number for the new option only: with the option off no number, sheet or
+  column changes; with it on the workbook gains the sheet `log_trend` and one
+  `about` note. Method: `docs/method-algorithms/log-scale-and-doubling-time.md`.
+- **Events in the table charts.** With "Events" on (now also in the table's
+  Display menu), the charts of the Trajectories table draw a dashed line at
+  each event date and a band to the end date of an event that has one,
+  clipped to the chart's time range.
+- More than three parameter columns: there was no limit; the default stays
+  the first three parameters.
+
+### Added (issue #83, analysis record)
+
+- **Analysis record.** "Analysis record" beside the export button of
+  Trajectories (on a phone in the toolbar, beside Display) lists every setting that changes an exported number, from
+  Data (creatinine after selected events included), Trajectories (shared
+  settings, each shown parameter's own settings, Trend and value axis,
+  grouping) and Cohort models, with its current value. Values
+  that differ from their default are marked "changed" with the default
+  beside them; "Change" leads to the control. A Versions section names the
+  app version, the eGFR formula and, after a model fit, the R and package
+  versions. Display choices are not listed.
+- **Apply settings from an export.** The record applies the settings of a
+  cohort or patient workbook of this app to the loaded data and lists what it
+  could not apply (a parameter or creatinine source the data lack, an
+  event selection without a matching event, grouping, manual demographic
+  entries). Trend applied this way also shows or hides the trend line, as
+  the switch does. The workbook records a logarithmic axis only through the
+  `log_trend` sheet, so applying switches on the log axis of the parameters
+  that sheet lists and leaves every other axis as it is. Loading a workbook
+  still applies none of its settings. Rules in the method reference (Fit input → Applying the settings
+  of an export).
+- The `settings` sheet gains `trend`, `settings_source` and
+  `column_settings` at its end, and `about` a note on them after the note on
+  `anchor_comparison`. No result value changed.
+- A test walks the settings the app keeps and fails for a setting with
+  neither an export field nor a stated reason that it changes no number; a
+  round trip on the demo workbook checks that applied settings reproduce the
+  export.
+
+### Added (peri-event creatinine, decided 2026-11-21, issue #69)
+
+- Data page → "Creatinine after selected events": for every event of a
+  chosen title or type (for example a contrast administration or a cardiac
+  catheterisation), the last serum creatinine value on or before the event
+  day, the highest value in the 48- or 72-hour window after it, the absolute
+  and relative rise, and whether the KDIGO creatinine criterion is met
+  (≥ 0.3 mg/dl or ≥ 1.5 × baseline, inclusive), or why the event is not
+  evaluable (no creatinine, event day under dialysis, no baseline, no value
+  in the window). Event dates have no time of day, so the window counts
+  calendar days and a value on the event day is the baseline, as decided;
+  the page says so. The cohort and patient workbooks gain the last sheet
+  `peri_event_creatinine`, one row per event, and a closing `about` note;
+  the selection is saved with the dataset copy and exported in the last
+  column `peri_event_creatinine` of `settings`; it changes no fit and keeps
+  cohort models. The series is the patient's serum creatinine series with
+  the most exact dated values above zero (review of the combined branch: a
+  series of zeros no longer wins the choice; AKI detection's own series
+  choice is unchanged).
+  Automated screening for research use. No existing result, sheet, column
+  or note changed.
+
 ### Changed (open points of the persona review, decided 2026-11-22)
 
 - Review of the combined branch (2026-11-22): a before/after side fitted

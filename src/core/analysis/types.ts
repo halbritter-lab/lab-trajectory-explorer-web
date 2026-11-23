@@ -14,7 +14,7 @@
  *     fitted slope and the column's own module settings.
  */
 import type { ClinicalEvent } from '../events/events'
-import type { EndpointPoint } from '../endpoints/thresholdEndpoints'
+import type { EndpointBound, EndpointPoint } from '../endpoints/thresholdEndpoints'
 import type { ExclusionWindow, ReasonedExclusionWindow } from '../exclusions/windows'
 import type { ProjectionTarget } from '../projection/linearProjection'
 import type { FitConfig } from './fitConfig'
@@ -62,6 +62,10 @@ export interface ExclusionWindowContribution {
   /** Set when every window is `[start, start + lengthDays]`, so a column may
    * re-anchor the same windows with another length. */
   lengthDays?: number
+  /** Per window, aligned with `windows`: the date from which a column may
+   * count a window's longer end instead (for AKI the last day of the
+   * episode, decided 2026-11-22). Absent: the window starts. */
+  lastDays?: Date[]
 }
 
 /** Dataset-level inputs modules contribute to fits. */
@@ -163,6 +167,8 @@ export interface SeriesContribution {
   exclusions?: ReasonedExclusionWindow[]
   overlays?: SeriesOverlay[]
   flags?: CohortFlag[]
+  /** Values for the module's export columns, keyed by column. */
+  values?: Record<string, string | number>
 }
 
 /** The fitted cell a module's `cellFlags` hook sees. */
@@ -174,6 +180,12 @@ export interface CellFlagContext {
   /** The slope meets the app's reliability rule (`isUnstableSlope`): fewer
    * than three fitted dates or under a year of fitted span. */
   unstableSlope?: boolean
+  /** The slope's reported bounds (a 95 % interval, or a Theil–Sen slope range
+   * below five fitted dates); NaN or omitted when there are none. */
+  ciLow?: number
+  ciHigh?: number
+  /** Distinct calendar dates among the fitted points. */
+  nFittedDates?: number
 }
 
 /** One (patient, series column) as a module's `endpoints` hook sees it. */
@@ -198,6 +210,11 @@ export interface EndpointContext {
    * when the column excludes them). Only the decline baseline and the
    * projection use them (decided 2026-11-05). */
   fitPoints(withAges: boolean): EndpointPoint[]
+  /** Event-eligible bounded measurements (`<x`, `>x`) of the series, oldest
+   * first: before KRT and outside complete acute dialysis intervals, like
+   * `points`. Endpoints exclude them; observed G4/G5 use a conclusive one
+   * only to interrupt an unconfirmed candidate (issue #73). */
+  bounds?(): EndpointBound[]
   ageBasis: 'birth_date' | 'whole_years'
   /** Global fit of `fitPoints` with the scalar model (OLS or
    * Theil-Sen); NaN slope and intercept when the model is 'none'. */
@@ -208,6 +225,8 @@ export interface EndpointContext {
  * endpoint result type. */
 export interface ModuleExportCell<E = unknown> {
   flags: readonly CohortFlag[]
+  /** The `values` of the modules' series contributions. */
+  values?: Readonly<Record<string, string | number>>
   endpoints: E
   fitModel: FitModel
 }

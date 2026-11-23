@@ -22,7 +22,9 @@ export const R_PACKAGE_CONTRIB_PATH = `${R_PACKAGE_REPOSITORY_PATH}/bin/emscript
  * 38.7 MB; the app itself adds 1.3 MB), measured 2026-11-22 on a production
  * build served without compression (webR 0.6.0 with R 4.6.0 and the 13
  * pinned packages). Fixed by the pins; a server that compresses sends less. */
-export const R_FIRST_FIT_DOWNLOAD = 'about 39 MB'
+export const R_FIRST_FIT_DOWNLOAD_MB = 39
+/** English, for the Methods page; the interface formats the size with `t()`. */
+export const R_FIRST_FIT_DOWNLOAD = `about ${R_FIRST_FIT_DOWNLOAD_MB} MB`
 
 /**
  * The address the app is served from, seen from the model worker. In a build

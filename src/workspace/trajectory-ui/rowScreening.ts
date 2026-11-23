@@ -1,8 +1,9 @@
-import { cohortCellFlags, type CohortCell } from '../../core/cohort/screening'
+import { cellSlopeTier, cohortCellFlags, type CohortCell } from '../../core/cohort/screening'
 import type { ColumnModuleSettings } from '../../core/analysis/registry'
 import { CLINICAL_EVENT_TYPES, type ClinicalEvent, type ClinicalEventType } from '../../core/events/events'
 import { isUnstableSlope } from '../../core/stats/slopeQuality'
 import type { PatientId } from '../../core/types'
+import { msg, tx } from '../../i18n'
 
 type SlopeCell = Pick<CohortCell, 'slope' | 'reason' | 'nFitted' | 'nFittedDates' | 'fittedSpanDays' | 'fitModel'>
 
@@ -27,27 +28,30 @@ export function compareSlopeCells(a: SlopeCell, b: SlopeCell, options: { absolut
 
 /** What a patient row can be filtered by: the marks of its shown cells and the
  * types of its clinical events. */
-export type RowMark = 'rapid' | 'uncertain' | 'endpoint' | 'aki' | `event:${ClinicalEventType}`
+export type RowMark = 'rapid' | 'rapid-possible' | 'uncertain' | 'reliable' | 'endpoint' | 'aki' | `event:${ClinicalEventType}`
 
 const MARK_LABELS: Record<RowMark, string> = {
-  rapid: 'Rapid decline',
-  uncertain: 'Uncertain slope',
-  endpoint: 'Endpoint reached',
+  rapid: msg('Rapid decline'),
+  'rapid-possible': msg('Possible rapid decline'),
+  uncertain: msg('Uncertain slope'),
+  reliable: msg('Reliable slope'),
+  endpoint: msg('Endpoint reached'),
   aki: 'AKI',
-  'event:kidney_transplant': 'Kidney transplant',
-  'event:dialysis': 'Dialysis',
-  'event:other': 'Other event',
+  'event:kidney_transplant': msg('Kidney transplant'),
+  'event:dialysis': msg('Dialysis'),
+  'event:other': msg('Other event'),
+  'event:death': msg('Death'),
 }
 /** Display order: marks of the cells first, then event types. */
 export const ROW_MARKS = Object.keys(MARK_LABELS) as RowMark[]
-export const rowMarkLabel = (mark: RowMark): string => MARK_LABELS[mark]
+export const rowMarkLabel = (mark: RowMark): string => tx(MARK_LABELS[mark])
 
 /** An observed endpoint: kidney failure by event, a confirmed CKD G4 or G5, or
- * a confirmed 40% or 57% decline. Projections and the total change are not
+ * a confirmed 40%, 50% or 57% decline. Projections and the total change are not
  * endpoints reached. */
 function endpointReached(endpoints: CohortCell['endpoints']): boolean {
   return Boolean(endpoints.kidneyFailureReached || endpoints.observedCkdG4?.met || endpoints.observedCkdG5?.met
-    || endpoints.observedDecline40?.met || endpoints.observedDecline57?.met)
+    || endpoints.observedDecline40?.met || endpoints.observedDecline50?.met || endpoints.observedDecline57?.met)
 }
 
 /** The marks one patient row carries in the shown columns. `fit[i]` says whether
@@ -66,8 +70,11 @@ export function rowMarks(
       if (flag.requiresFit && !column.fit) continue
       if (flag.tone === 'aki') marks.add('aki')
       else if (flag.tone === 'rapid') marks.add('rapid')
+      else if (flag.tone === 'rapid-possible') marks.add('rapid-possible')
     }
     if (column.fit && cell.points.length > 0 && hasUncertainSlope(cell)) marks.add('uncertain')
+    // Slope tier of 2026-11-22: at least four fitted dates over at least two years.
+    if (column.fit && cell.points.length > 0 && cellSlopeTier(cell) === 'reliable') marks.add('reliable')
     if (endpointReached(cell.endpoints)) marks.add('endpoint')
   })
   for (const event of events) if (CLINICAL_EVENT_TYPES.includes(event.type)) marks.add(`event:${event.type}`)

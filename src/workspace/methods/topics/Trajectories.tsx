@@ -20,7 +20,7 @@ export function Trajectories() { return <>
 
       <p>
         Clinical events are patient-level annotations with a date, title, optional end date, and
-        optional description. Kidney transplant, dialysis, and other events can be loaded from the
+        optional description. Kidney transplant, dialysis, death and other events can be loaded from the
         dataset. Kidney transplant and chronic dialysis can censor values from the event date;
         acute dialysis and unknown dialysis can exclude a dated interval when an end date is
         available. Events that are not configured to affect the fit remain display-only context.
@@ -43,7 +43,7 @@ export function Trajectories() { return <>
         three fitted measurement dates or less than one year of fitted follow-up) stand after the
         reliable ones and before patients without a slope. The status line gives their number, and{' '}
         <em>Uncertain slopes last</em> switches the rule off. <em>Show only</em> narrows the table
-        to patients who carry a mark (rapid decline, uncertain slope, endpoint reached, AKI) or a
+        to patients who carry a mark (rapid decline, possible rapid decline, uncertain slope, endpoint reached, AKI) or a
         type of clinical event; with several chosen, a patient must carry all of them. The export
         holds the patients shown, in the order shown.
       </p>
@@ -57,14 +57,16 @@ export function Trajectories() { return <>
         For eGFR series it also applies a single, explicit clinical flag:{' '}
         <strong>rapid eGFR decline</strong>. An eGFR series whose fitted slope falls faster than the
         configured threshold is marked <span className="rapid-badge rapid-badge-inline">rapid ↓</span>{' '}
-        in the table when the fit is shown, and carries a <code>rapid_progression</code> column in
-        the export. The default threshold of <strong>5 mL/min/1.73 m² per year</strong> comes
+        in the table when the fit is shown if the whole 95% interval of the slope lies below minus
+        the threshold, and <span className="rapid-badge rapid-badge-inline">rapid ↓?</span>{' '}
+        (possible) if only the slope does; the export column <code>rapid_progression</code> reads{' '}
+        <code>yes</code> or <code>possible</code>. The default threshold of <strong>5 mL/min/1.73 m² per year</strong> comes
         from the KDIGO 2012 CKD guideline, which defines rapid progression as a sustained decline
         in eGFR of more than 5 mL/min/1.73 m² per year.
         The flag itself does not test whether a decline is sustained. Since 2026-11-17 it is not
         set on a slope that carries the reliability note (fewer than three fitted measurement
-        dates or less than one year of fitted follow-up); a slope with a wide interval can still
-        be flagged, so read the interval beside it. The
+        dates or less than one year of fitted follow-up); a slope whose interval reaches the
+        threshold or above is marked only as possible. The
         threshold is adjustable under Trajectories → Display and analysis (set it to 0 to disable
         the flag). No other clinical
         cut-offs are applied; all other interpretation of the ranking is left to the user, and the

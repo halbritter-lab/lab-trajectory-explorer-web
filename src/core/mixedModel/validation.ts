@@ -1,4 +1,4 @@
-import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFactors, mixedModelFactorColumn, validateMixedModelConfig, type MixedModelConfig, type MixedModelFactor } from './config'
+import { DEFAULT_MIXED_MODEL_CONFIG, MIN_LEVEL_MEASUREMENTS, MIN_LEVEL_PATIENTS, mixedModelFactors, mixedModelFactorColumn, POOLED_LEVEL, resolveMixedModelFactorReferences, validateMixedModelConfig, type MixedModelConfig, type MixedModelFactor } from './config'
 import type { MixedModelFailureStage, MixedModelSpikeRow } from './types'
 
 export type MixedModelValidationCode =
@@ -62,7 +62,7 @@ export function mixedModelWarningDetails(
 /** The check; the warnings of a passed check are also pushed to `warningDetails`. */
 function checkMixedModelRows(
   rows: readonly MixedModelSpikeRow[],
-  config: MixedModelConfig,
+  unitConfig: MixedModelConfig,
   warningDetails: MixedModelWarningDetail[],
 ): MixedModelValidationResult {
   if (rows.length === 0) {
@@ -88,10 +88,12 @@ function checkMixedModelRows(
     }
   }
 
-  const configValidation = validateMixedModelConfig(config)
+  const configValidation = validateMixedModelConfig(unitConfig)
   if (!configValidation.ok) {
     return failure('UNSUPPORTED_CONFIG', configValidation.message)
   }
+  // A default reference is the first level among these rows (OD-29), as the fit uses it.
+  const config = resolveMixedModelFactorReferences(unitConfig, rows)
 
   if (config.factors === undefined && config.covariates.includes('baseline_age')) {
     const missingPatients = [...patientRows.entries()]
@@ -116,7 +118,13 @@ function checkMixedModelRows(
       if ([...patientRows.values()].some(patient => new Set(patient.map(row => row.factorValues?.[column])).size !== 1)) {
         return failure('INVALID_FACTOR_VALUES', `Factor ${factor.key} must be constant within each patient.`)
       }
-      if (new Set(values).size < 2 || (factor.kind === 'categorical' && !values.includes(factor.reference!))) {
+      // A chosen reference that was pooled for being small (decision `genomin`, 2026-11-22).
+      const reference = factor.reference
+      if (factor.kind === 'categorical' && reference !== undefined && !values.includes(reference)
+          && rows.some(row => row.factorValues?.[column] === POOLED_LEVEL && row.factorRawValues?.[column] === reference)) {
+        return failure('INVALID_FACTOR_VALUES', `Reference level "${reference}" of factor ${factor.key} has fewer than ${MIN_LEVEL_PATIENTS} patients with ${MIN_LEVEL_MEASUREMENTS} or more measurements in this model and was pooled into "${POOLED_LEVEL}". Choose another reference or keep small levels.`)
+      }
+      if (new Set(values).size < 2 || (factor.kind === 'categorical' && (factor.reference === undefined || !values.includes(factor.reference)))) {
         return failure('INVALID_FACTOR_VALUES', `Factor ${factor.key} requires variation and an observed reference level.`)
       }
       rankProblem ??= factor.effect === 'level_slope' ? slopeTermRankProblem(factor, column, rows) : null

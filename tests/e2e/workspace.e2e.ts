@@ -124,7 +124,8 @@ test('approved endpoint rules: configurable confirmation, visible recovery and w
   const pending = page.waitForEvent('download')
   await page.getByRole('button', { name: 'Export cohort (XLSX)' }).click()
   const exported = XLSX.read(await readFile((await (await pending).path())!), { type: 'buffer' })
-  expect(XLSX.utils.sheet_to_json(exported.Sheets.cohort)[0]).toMatchObject({ endpoint_confirmation_days: 30, endpoint_observed_ckd_g4: 'yes', endpoint_observed_ckd_g5: 'yes', endpoint_g5_first_date: '2020-01-01', endpoint_g5_confirmed_date: '2020-02-01', endpoint_g5_recovery_date: '2020-05-01', endpoint_prediction_anchor: 'fitted curve' })
+  expect(XLSX.utils.sheet_to_json(exported.Sheets.cohort)[0]).toMatchObject({ endpoint_confirmation_days: 30, endpoint_observed_ckd_g4: 'yes', endpoint_observed_ckd_g5: 'yes', endpoint_g5_first_date: '2020-01-01', endpoint_g5_confirmed_date: '2020-02-01', endpoint_g5_recovery_date: '2020-05-01', endpoint_prediction_anchor: '' })
+  // The extrapolation is off in CKD progression since 2026-11-22: its columns stay, empty.
   const settings = XLSX.utils.sheet_to_json<{ fit_config: string }>(exported.Sheets.settings)
   expect(JSON.parse(settings[0].fit_config).endpoints.confirmationDays).toBe(30)
   await page.setViewportSize({ width: 390, height: 1000 })
@@ -314,7 +315,8 @@ test('column analysis settings stay independent and export on desktop and mobile
   await parameterSettings.click()
   await expect(page.getByLabel('Fit model', { exact: true })).toHaveValue('theil-sen')
   await expect(page.getByLabel('Rapid decline threshold')).toHaveValue('7.5')
-  await expect(page.getByLabel('AKI exclusion days')).toBeDisabled()
+  await expect(page.getByLabel('Shorter AKI window from onset (days)')).toBeDisabled()
+  await expect(page.getByLabel('AKI window after episode end (days)')).toBeDisabled()
 
   for (const width of [1440, 390]) {
     await page.setViewportSize({ width, height: 1000 })
