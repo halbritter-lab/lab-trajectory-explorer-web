@@ -24,3 +24,15 @@ describe('preview patient groups', () => {
     expect(groupRows([], () => null)).toEqual([])
   })
 })
+
+describe('preview patient group order', () => {
+  it('orders sections by the raw value, so a translated label cannot change the export row order', () => {
+    const rows = ['m', 'f', 'm']
+    const english = groupRows(rows, value => value, value => value === 'f' ? 'Female' : 'Male')
+    const german = groupRows(rows, value => value, value => value === 'f' ? 'Weiblich' : 'Männlich')
+    expect(english.map(group => group.value)).toEqual(['f', 'm'])
+    expect(german.map(group => group.value)).toEqual(english.map(group => group.value))
+    // A label that sorts the other way round does not reorder the sections either.
+    expect(groupRows(rows, value => value, value => value === 'f' ? 'Zeta' : 'Alpha').map(group => group.value)).toEqual(['f', 'm'])
+  })
+})

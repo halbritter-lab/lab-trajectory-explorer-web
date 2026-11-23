@@ -1,6 +1,10 @@
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
+import { act } from 'react'
+import * as XLSX from 'xlsx'
+import * as exportIo from '../../../src/io/export'
+import { setLanguage } from '../../../src/i18n'
 import { CohortModelTable } from '../../../src/workspace/models/CohortModelTable'
 import { DEFAULT_MIXED_MODEL_CONFIG, mixedModelFormula } from '../../../src/core/mixedModel/config'
 import { buildMixedModelResultIdentity } from '../../../src/core/mixedModel/resultIdentity'
@@ -9,6 +13,10 @@ import { useAppStore } from '../../../src/workspace/state/store'
 import { formatWorkspaceNumber } from '../../../src/workspace/WorkspacePlot'
 import type { RunMixedModelWorkerJobOptions } from '../../../src/core/mixedModel/browserClient'
 import type { CohortModelEntityRows } from '../../../src/core/mixedModel/cohortModelEntity'
+vi.mock('../../../src/io/export', async importOriginal => {
+  const original = await importOriginal<typeof exportIo>()
+  return { ...original, downloadBlob: vi.fn(original.downloadBlob) }
+})
 import type {
   MixedModelResult,
   MixedModelSpikeRow,
@@ -71,7 +79,6 @@ const entities: CohortModelEntityRows[] = [
   { entity: { kind: 'group', value: 'B' }, rows: groupBRows },
 ]
 const entityLabels = new Map([
-  ['cohort', 'Whole cohort'],
   ['group:A', 'A'],
   ['group:B', 'B'],
 ])
@@ -383,4 +390,24 @@ it('does not suggest a connection problem for an ordinary model fit failure', as
   await userEvent.click(screen.getByRole('button',{name:'Fit selected'}))
   await waitFor(() => expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).toHaveTextContent('Model matrix is rank deficient'))
   expect(within(rowByEntity('cohort')).getByTestId('cohort-model-status')).not.toHaveTextContent(/internet|CDN|connection/i)
+})
+
+it('writes the cohort unit in English into the workbook and shows it in German on the page (issue #71)', async () => {
+  vi.mocked(exportIo.downloadBlob).mockImplementation(() => {})
+  try {
+    act(() => setLanguage('de'))
+    renderTable({runJob:async () => ({...success(-2),singular:true})})
+    expect(within(rowByEntity('cohort')).getByText('Ganze Kohorte')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button',{name:'Ausgewählte anpassen'}))
+    await waitFor(() => expect(screen.getByRole('button',{name:'Modelle exportieren (xlsx)'})).toBeEnabled())
+    await userEvent.click(screen.getByRole('button',{name:'Modelle exportieren (xlsx)'}))
+    const bytes = vi.mocked(exportIo.downloadBlob).mock.calls.at(-1)![0] as Uint8Array
+    const book = XLSX.read(bytes, { type: 'array' })
+    const cells = book.SheetNames.flatMap(name => XLSX.utils.sheet_to_json<string[]>(book.Sheets[name], { header: 1 }).flat().map(String))
+    expect(cells).toContain('Whole cohort')
+    expect(cells.some(cell => cell.includes('Ganze Kohorte'))).toBe(false)
+    // The page label follows a switch back to English.
+    act(() => setLanguage('en'))
+    expect(within(rowByEntity('cohort')).getByText('Whole cohort')).toBeInTheDocument()
+  } finally { vi.mocked(exportIo.downloadBlob).mockReset() }
 })

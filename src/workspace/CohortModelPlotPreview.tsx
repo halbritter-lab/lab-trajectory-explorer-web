@@ -6,7 +6,7 @@ import type { MixedModelSpikeRow } from '../core/mixedModel/types'
 import { ChartExportActions } from './WorkspaceExports'
 import { formatWorkspaceNumber } from './WorkspacePlot'
 import { formatFixedDecimals, MIN_SLOPE_DECIMALS } from '../core/format'
-import { t } from '../i18n'
+import { t, useLanguage } from '../i18n'
 
 interface Props {
   parameterLabel: string
@@ -50,6 +50,9 @@ export function CohortModelPlotPreview({
 }: Props) {
   const svg = useRef<SVGSVGElement>(null)
   const clipId = useId().replace(/:/g, '')
+  // The legend and chips below are translated: a language switch (including
+  // the English render for the chart export) must recompute them.
+  const language = useLanguage()
 
   // Calculate coordinates and bounds
   const { points, fittedLines, xDomain, yDomain, slopeBadges } = useMemo(() => {
@@ -133,7 +136,7 @@ export function CohortModelPlotPreview({
       yDomain: { min: Math.floor((minY - yPad) * 10) / 10, max: Math.ceil((maxY + yPad) * 10) / 10 },
       slopeBadges: badges,
     }
-  }, [spikeRows, groups, groupColors, groupValuesByPatient, cohortModelResults, modelRowsByEntity])
+  }, [spikeRows, groups, groupColors, groupValuesByPatient, cohortModelResults, modelRowsByEntity, language])
 
   const W = 680
   const H = 240

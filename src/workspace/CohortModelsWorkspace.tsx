@@ -278,7 +278,9 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const allEligibleFitted = eligibleEntities.length > 0 && eligibleEntities.every(item => currentModels[entityKey(item.entity)] !== undefined)
 
   const entityLabels = useMemo(() => {
-    const map = new Map<string, string>([['cohort', t('Whole cohort')]])
+    // Groups only: the cohort's label is translated where it is shown or
+    // exported (cohortModelEntityLabel), never fixed here in one language.
+    const map = new Map<string, string>()
     for (const group of cohortGroups) map.set(`group:${group.value}`, group.value)
     return map
   }, [cohortGroups])

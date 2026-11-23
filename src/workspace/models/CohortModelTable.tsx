@@ -30,15 +30,26 @@ import { ModelProjectionPanel } from './ModelProjectionPanel'
 import { formatWorkspaceNumber } from '../WorkspacePlot'
 import { formatFixedDecimals, MIN_SLOPE_DECIMALS } from '../../core/format'
 import type { MixedModelDropout } from '../../core/mixedModel/dropout'
-import { inEnglish, t } from '../../i18n'
+import { inEnglish, t, useLanguage } from '../../i18n'
 
 const FALLBACK_COLOR = '#55686e'
+
+/** The label of a model unit in the current language: the pooled cohort is a
+ * fixed, translated label; a group shows its imported value verbatim. Called
+ * inside `inEnglish` for the workbook, so the export never carries German. */
+export function cohortModelEntityLabel(entity: CohortModelEntity, entityLabels: ReadonlyMap<string, string>): string {
+  if (entity.kind === 'cohort') return t('Whole cohort')
+  const key = entityKey(entity)
+  return entityLabels.get(key) ?? key
+}
 
 export interface CohortModelTableProps {
   /** Entities to list/fit; `entities[0]` is the pooled cohort, the rest are
    * groups in display order. */
   entities: CohortModelEntityRows[]
-  /** entityKey -> display label (e.g. 'Whole cohort', or the group value). */
+  /** entityKey -> label of a group (its imported value, verbatim). The pooled
+   * cohort's label is translated where it is shown or exported
+   * (`cohortModelEntityLabel`), so it is not taken from this map. */
   entityLabels: Map<string, string>
   /** entityKey -> swatch color (groups only; cohort uses a neutral color). */
   entityColors: Map<string, string>
@@ -104,6 +115,8 @@ export function CohortModelTable({
   const setProjectionSettings = useAppStore((s) => s.setProjectionSettings)
   const [dirtyEditors, setDirtyEditors] = useState<Set<string>>(new Set())
   const [exportError, setExportError] = useState<string | null>(null)
+  // Labels and validation messages below are composed in the interface language.
+  const language = useLanguage()
 
   const entityRows = useMemo<EntityRow[]>(
     () =>
@@ -115,7 +128,7 @@ export function CohortModelTable({
             entity,
             key,
             rows,
-            label: entityLabels.get(key) ?? key,
+            label: cohortModelEntityLabel(entity, entityLabels),
             color: entityColors.get(key) ?? FALLBACK_COLOR,
             nPatients: new Set(rows.map((row) => row.patient_id)).size,
             nMeasurements: rows.length,
@@ -128,7 +141,8 @@ export function CohortModelTable({
         })
         // Always keep the pooled cohort row; drop empty groups (no model rows).
         .filter((row) => row.entity.kind === 'cohort' || row.rows.length > 0 || (row.preparation?.nMeasurementsBefore ?? 0) > 0 || (row.preparation?.excludedByPreset ?? 0) > 0),
-    [entities, entityLabels, entityColors, config],
+    // language: the labels and validation messages are translated
+    [entities, entityLabels, entityColors, config, language],
   )
 
   const eligibleKeys = useMemo(
@@ -243,7 +257,7 @@ export function CohortModelTable({
       try { projection = buildProjectionSnapshot(stored.result,stored.identity,sourceResponse,row.rows,applied.settings) }
       catch (error) { projectionError = error instanceof Error ? error.message : t('Projection settings or source fit are invalid.') }
     }
-    return [{key:row.key,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError, rows: row.rows, inputFlags: row.inputFlags, dropout: dropoutByEntity?.get(row.key)}]
+    return [{key:row.key,unit:row.entity,entity: row.label, result: stored.result, identity: stored.identity, sourceResponse, projection, projectionError, rows: row.rows, inputFlags: row.inputFlags, dropout: dropoutByEntity?.get(row.key)}]
   })
   const hasDirtyEditor = exportable.some((model) => dirtyEditors.has(model.key))
   const initializing = exportable.some((model) => model.result.status === 'success' && model.result.converged && !model.result.singular && !model.projection)
@@ -253,7 +267,7 @@ export function CohortModelTable({
     if (exportable.some((model) => current?.[model.key]?.result !== model.result || !mixedModelIdentityEquals(current?.[model.key]?.identity ?? null, model.identity))) return
     try {
       const fileName = `cohort-models-${fileStamp()}.xlsx`
-      downloadBlob(sheetsToXlsxBytes(inEnglish(() => mixedModelExportSheets(exportable, fileName, undefined, { appVersion: APP_VERSION, egfrFormula: useAppStore.getState().analysisSettings.egfr.formula }))), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+      downloadBlob(sheetsToXlsxBytes(inEnglish(() => mixedModelExportSheets(exportable.map((model) => ({ ...model, entity: cohortModelEntityLabel(model.unit, entityLabels) })), fileName, undefined, { appVersion: APP_VERSION, egfrFormula: useAppStore.getState().analysisSettings.egfr.formula }))), fileName, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
       setExportError(null)
     } catch (error) {
       setExportError(t('Model export failed: {error}', { error: error instanceof Error ? error.message : String(error) }))
