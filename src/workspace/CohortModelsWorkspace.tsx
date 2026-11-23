@@ -819,7 +819,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
               ? (cohortModelProgress ? t('Fitting {n} of {total} …', { n: cohortModelProgress.completed + 1, total: cohortModelProgress.total }) : t('Running model …'))
               : noGroupFits
                 ? (allEligibleFitted ? t('Refit whole cohort only') : t('Fit whole cohort only'))
-                : eligibleEntities.length > 1 ? (allEligibleFitted ? t('Refit models ({n})', { n: eligibleEntities.length }) : t('Fit models ({n})', { n: eligibleEntities.length })) : allEligibleFitted ? t('Refit model') : t('Fit model')}
+                : eligibleEntities.length > 1 ? (allEligibleFitted ? t('Refit models ({n})', { n: eligibleEntities.length }) : t('Fit models ({n})', { n: eligibleEntities.length })) : allEligibleFitted ? t('Refit model') : t('Fit model||verb')}
           </button>
           {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={cancelFit}>{t('Cancel')}</button>}
         </div>

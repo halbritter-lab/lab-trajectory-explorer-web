@@ -1,5 +1,31 @@
 # Manual browser smoke checklist
 
+## German interface (2026-11-22, issue #71)
+
+1. Open the app in a browser set to German: the header shows DE selected, the
+   navigation reads Daten, Verläufe, Kohortenmodelle, Methoden, and the footer
+   statement is German. In an English browser the app starts in English.
+2. Load the demo data and walk Data, Trajectories (table, overlay, a patient),
+   Cohort models (fit a model, Time to event) and the analysis record in
+   German at desktop width and at 390 px: no English left in the interface
+   except units, analyte names, imported values, method names (OLS, Theil–Sen,
+   Kaplan–Meier) and findings or module texts no pattern covers.
+3. Methods: the page is English, under the note "Die Methodenseite ist derzeit
+   nur auf Englisch verfügbar."
+4. In German, export the cohort workbook, a chart (SVG and PNG), the patient
+   bundle, the import diagnostics, the model workbook and the time-to-event
+   workbook: every file is English and identical in shape to an export made in
+   English. The page stays German after each export.
+5. Tick "Remember on this device", switch to German and reload: the app
+   starts in German. Clear the saved data and reload: it starts in the
+   browser language again.
+
+Verified 2026-11-22 in Chromium against the production build: steps 1 to 4
+for the parts covered by `tests/e2e/german-interface.e2e.ts` (navigation,
+Data, Trajectories, Cohort models, Methods note at 1440 and 390 px; SVG export
+English); step 5 by the unit tests of the storage. Not yet walked by hand in
+full; numbers keep the decimal point in German (OD-90).
+
 ## Series comparison and deliberate merge (2026-11-22, issue #68)
 
 Branch `wp/series-2611`. Automated in `tests/e2e/series-merge.e2e.ts`.

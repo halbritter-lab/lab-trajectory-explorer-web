@@ -5,6 +5,25 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Added (German interface, decided 2026-11-21 and 2026-11-22, issue #71)
+
+- An EN | DE switch in the header. The interface starts in the browser
+  language (`de*` → German, otherwise English) and keeps a choice only with
+  "Remember on this device" (in the saved settings record). The `lang`
+  attribute of the page follows the language.
+- German for the navigation, the Data, Trajectories and Cohort models pages
+  (including Time to event), the analysis record, settings, labels, badges,
+  tooltips, notices, warnings, accessibility labels, import findings as shown
+  on the Data page and the research-use statement of the footer. Units,
+  analyte names and imported values stay as imported.
+- The Methods page stays English in both languages, with a German note that it
+  is available in English only (OD-90). Exports are unchanged and English:
+  column names, sheet contents, about notes and disclaimers, and chart figures,
+  which are copied from an English rendering of the page.
+- Dependency-free catalogs (`src/i18n/en.ts`, generated from the source by
+  `scripts/i18n_extract.mjs`, and `src/i18n/de.ts`), with a completeness test.
+  No analysed value changes.
+
 ### Added (series comparison and deliberate merge, decided 2026-11-16, 2026-11-21 and 2026-11-22, issue #68)
 
 - Patient view: "Compare series" draws several series of the patient in one

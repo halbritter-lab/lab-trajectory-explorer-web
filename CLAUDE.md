@@ -5,8 +5,21 @@ gotchas that are not obvious from the code.
 
 ## Language and checkpoints
 
-- Application copy, accessibility labels, generated export labels and new user
-  documentation are English. Preserve imported names, values and units verbatim.
+- Application copy and accessibility labels are available in English and German
+  (owner decision 2026-11-21, issue #71); English is the source language. Write
+  interface text as `t('English text')` (`tp()` for singular and plural,
+  `msg()` for constant tables, `tr()` for text around elements) from
+  `src/i18n`, run `node scripts/i18n_extract.mjs` to regenerate `en.ts`, and add
+  the German text to `src/i18n/de.ts`: a missing or extra key fails the type
+  check and `tests/i18n/catalog.test.ts`. Use standard German clinical
+  terminology; keep units, analyte names and imported values as they are.
+- Generated export labels and column names (English snake_case), everything in
+  an export (about notes, disclaimers, chart figures), the Methods page
+  (OD-90), the method reference and new user documentation stay English.
+  Exports are composed under `inEnglish()`; chart files copied from the page
+  use `renderedInEnglish()`. Preserve imported names, values and units
+  verbatim. Tests run in English (`tests/setup.ts`); a test that needs German
+  switches with `setLanguage('de')`.
 - Commit coherent, verified work packages regularly during implementation; do not
   leave an entire multi-agent workflow uncommitted until its final review.
 

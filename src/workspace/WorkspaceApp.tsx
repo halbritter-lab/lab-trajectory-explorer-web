@@ -36,7 +36,7 @@ function datasetKey(rows: LabRow[]): number {
 
 export function WorkspaceApp() {
   // The whole interface renders again when the language changes.
-  useLanguage()
+  const language = useLanguage()
   const data = useWorkspaceData()
   const storageStatus = useWorkspaceStorage(s => s.status)
   const [page, setPage] = useState<Page>(() => getMethodLocation() ? 'Methods' : 'Data')
@@ -173,7 +173,9 @@ export function WorkspaceApp() {
       </section>
       {page === 'Methods' && <section className="card workspace-methodology">
         <h1>{t('Methods and interpretation')}</h1>
-        <Methodology onNavigate={go} returnTo={helpOrigin.current} />
+        {/* The maintainer's authored text is not machine-translated (issue #71, OD-90). */}
+        {language === 'de' && <p className="notice" role="note" data-testid="methods-english-only">{t('The Methods page is currently available in English only.')}</p>}
+        <div lang="en"><Methodology onNavigate={go} returnTo={helpOrigin.current} /></div>
       </section>}
     </main>
     <footer className="workspace-footer">

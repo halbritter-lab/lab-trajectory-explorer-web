@@ -1643,4 +1643,6 @@ export const de: Record<MessageKey, string> = {
   "{percent}% decline of {parameter} from the baseline (mean of the eligible values in the first 90 days), {confirm}": "{percent}-%-Abnahme von {parameter} gegenüber dem Ausgangswert (Mittelwert der geeigneten Werte in den ersten 90 Tagen), {confirm}",
   "{subject} across {n} of {total} patients ({measurements} measurements)": "{subject} über {n} von {total} Patienten ({measurements} Messungen)",
   "{text}; or {krt}, whichever comes first": "{text}; oder {krt}, je nachdem, was zuerst eintritt",
+  "The Methods page is currently available in English only.": "Die Methodenseite ist derzeit nur auf Englisch verfügbar.",
+  "Fit model||verb": "Modell anpassen",
 }

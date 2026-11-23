@@ -7,7 +7,8 @@
  * source by `node scripts/i18n_extract.mjs`; `t()` accepts only listed keys,
  * so a new or changed English text fails the type check until the catalog is
  * regenerated, and the German catalog (`de.ts`) must translate every key.
- * Placeholders are written `{name}` and filled from `params`.
+ * Placeholders are written `{name}` and filled from `params`. A key may end
+ * in a context (`'Fit model||verb'`) when one English text needs two German ones.
  *
  * What stays English in both languages: exports (column names, sheet
  * contents, about notes, chart figures and their disclaimers), the method
@@ -94,7 +95,14 @@ function fill(text: string, params?: MessageParams): string {
 
 /** The message in the current language, with its placeholders filled. */
 export function t(key: MessageKey, params?: MessageParams): string {
-  return fill(current === 'de' ? de[key] : key, params)
+  return fill(current === 'de' ? de[key] : englishText(key), params)
+}
+
+/** A key may carry a context after `||` where one English text needs two
+ * translations ("Fit model||verb"); English shows the text before it. */
+const englishText = (key: string) => {
+  const context = key.indexOf('||')
+  return context < 0 ? key : key.slice(0, context)
 }
 
 /** Singular or plural message by `count` (English and German share the rule:

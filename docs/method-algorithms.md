@@ -174,6 +174,9 @@ R and R packages (issue #79, decision `rref`; see
 [reference comparisons](reference-comparisons.md)): each records a place where
 an independent implementation differs from the app; the app's numbers are
 unchanged. OD-89 of that range is not used.
+OD-90 was added on 2026-11-22 with the German interface (issue #71): it
+records which texts stay English in German mode; no rule that decides an
+analysed value changes.
 OD-70 to OD-72 were added on 2026-11-22 from the code review of that day's
 merges, for rules that were implemented without an owner decision; the
 behaviour is unchanged.
@@ -237,6 +240,7 @@ conservative option.
 | OD-86 | CKiD U25 from 15 to under 18 years: the app (and `egfr`) use 39.0 × 1.045^(age − 12) and 36.1 × 1.023^(age − 12); `kidney.epi` uses the constants 41.8 and 37.6, up to 14 % lower (boy, 17 years, 172 cm, 0.3 mg/dl: 278.6 against 239.65). Pierce 2021 itself was not checked for these ages. | [Children and adolescents](method-algorithms/egfr.md#children-and-adolescents) |
 | OD-87 | The Theil–Sen upper slope bound is taken one rank higher than in the R package `zyp` (1-based ranks 19 and 48 against 19 and 47 for N = 66: [1.5, 2.3] against [1.5, 2.285714]); the app keeps the SciPy convention, which was not checked against Sen 1968 or Hollander and Wolfe. | [Theil-Sen](method-algorithms/trend-estimators.md#theil-sen-2026-09-23) |
 | OD-88 | CKD-EPI 2009 for women uses 141 × 1.018 = 143.538; `kidney.epi` uses the table constant 144, 0.32 % higher (woman, 50 years, 1.0 mg/dl: 65.638 against 65.85). | [Formulas](method-algorithms/egfr.md#formulas) |
+| OD-90 | In German mode (issue #71) the Methods page, the method reference and every export (column names, sheet contents, about notes, chart figures and their disclaimers) stay English; import findings and texts composed by the analysis modules are translated only where a known sentence pattern matches, otherwise shown in English; numbers keep the decimal point. Whether the maintainer wants an authored German Methods page, and German number formatting, is open. | [Method decisions](remaining-method-decisions.md#wording-product-and-planning) |
 
 ### Resolved decisions
 
