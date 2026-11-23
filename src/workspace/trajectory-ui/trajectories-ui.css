@@ -306,3 +306,11 @@
   .wt-page-option { display: none; }
   .wt-table-pages-below button { min-height: 44px; min-width: 44px; }
 }
+/* With a wider fallback font (no Inter installed) the toolbar wrapped to a
+   third row on a phone and pushed the first chart below the first screen
+   (CI, 2026-11-23). Tighter spacing keeps it to two rows. */
+@media (max-width: 600px) {
+  .pv-tool-group { gap: 2px; }
+  .pv-tool { padding: 6px 7px; }
+  .pv-zoom button { min-width: 40px; }
+}
