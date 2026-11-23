@@ -1,5 +1,6 @@
 import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
+import { t } from '../../i18n'
 
 const paths = {
   search: 'm20 20-5-5 M17 10a7 7 0 1 1-14 0 7 7 0 0 1 14 0',
@@ -65,7 +66,7 @@ export function ToolPopover({ name, icon, open, onToggle, onClose, badge, childr
   }, [open])
   return <div className="pv-popover-root" ref={root}>
     <button className={`pv-tool ${open || badge ? 'pv-tool-active' : ''}`} type="button" ref={trigger} aria-expanded={open} aria-controls={id} onClick={onToggle}><Icon name={icon} />{name}{badge ? <span className="pv-count">{badge}</span> : null}</button>
-    {open && createPortal(<div id={id} ref={content} className="pv-popover" role="region" aria-label={`${name} options`} style={position} onBlur={event => {
+    {open && createPortal(<div id={id} ref={content} className="pv-popover" role="region" aria-label={t('{name} options', { name })} style={position} onBlur={event => {
       // Clicking label text temporarily blurs the input before native label
       // activation focuses its checkbox. Outside pointer clicks close above.
       if (event.relatedTarget && !root.current?.contains(event.relatedTarget as Node) && !content.current?.contains(event.relatedTarget as Node)) close.current()
@@ -106,7 +107,7 @@ export function AnalysisDrawer({ open, onClose, children, title = 'Analysis' }: 
   return <dialog className="pv-analysis-panel" ref={drawer} aria-labelledby="pv-analysis-title" onCancel={event => { event.preventDefault(); onClose() }} onClick={event => {
     if ((event.target as Element).closest('a[href^="#methods/"]')) onClose()
   }}>
-    <div className="pv-panel-heading"><div><h2 id="pv-analysis-title">{title}</h2><p>Changes apply immediately.</p></div><button type="button" aria-label="Close analysis settings" onClick={onClose}><Icon name="close" /></button></div>
+    <div className="pv-panel-heading"><div><h2 id="pv-analysis-title">{title ?? t('Analysis')}</h2><p>{t('Changes apply immediately.')}</p></div><button type="button" aria-label={t('Close analysis settings')} onClick={onClose}><Icon name="close" /></button></div>
     <div className="pv-panel-content">{children}</div>
   </dialog>
 }

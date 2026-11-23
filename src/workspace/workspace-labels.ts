@@ -1,7 +1,7 @@
 import { exclusionReasonLabel as moduleExclusionReasonLabel } from '../core/analysis/registry'
 import { CENSORED_VALUE_REASON } from '../core/measurements/censored'
 import { ANCHOR_WINDOW_REASON } from '../core/cohort/anchorComparison'
-import { msg, t, tp, type MessageKey } from '../i18n'
+import { msg, t, tp, tx, type MessageKey } from '../i18n'
 
 /** Presentation only: stored sex codes and grouping identities remain unchanged. */
 export function sexLabel(value?: string | null): string {
@@ -14,7 +14,7 @@ export function sexLabel(value?: string | null): string {
 export function exclusionReasonLabel(reason: string): string {
   if (reason === CENSORED_VALUE_REASON) return t('censored value (limit, not exact)')
   if (reason === ANCHOR_WINDOW_REASON) return t('exclusion window after the anchor event, after-anchor slope only')
-  return moduleExclusionReasonLabel(reason)
+  return tx(moduleExclusionReasonLabel(reason))
 }
 
 /** File name the bundled demo dataset is loaded under. */
@@ -61,4 +61,10 @@ export function countLabel(count: number, noun: CountNoun): string {
  * quarterly medians built from 24 measurements. */
 export function fittedPointNoun(timeBalancing: 'raw' | 'monthly-median' | 'quarterly-median'): CountNoun {
   return timeBalancing === 'monthly-median' ? 'monthly median' : timeBalancing === 'quarterly-median' ? 'quarterly median' : 'fitted measurement'
+}
+
+/** "fitted measurements", "monthly medians", "quarterly medians": the plural
+ * noun alone, for "at least three …". */
+export function fittedPointsPlural(timeBalancing: 'raw' | 'monthly-median' | 'quarterly-median'): string {
+  return timeBalancing === 'monthly-median' ? t('monthly medians') : timeBalancing === 'quarterly-median' ? t('quarterly medians') : t('fitted measurements')
 }

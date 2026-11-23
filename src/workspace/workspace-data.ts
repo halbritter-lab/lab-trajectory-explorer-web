@@ -1,5 +1,6 @@
 import { countLabel, DEMO_FILE_NAME, parameterLabel } from './workspace-labels'
 import { useMemo } from 'react'
+import { t } from '../i18n'
 import { useAppStore } from './state/store'
 import { clinicalEventsByPatient, cohortSeriesSpec } from '../core/cohort/specs'
 import { comparePatientIds, patientIdKey, type LabRow, type PatientId } from '../core/types'
@@ -52,7 +53,9 @@ export function buildWorkspaceData(input: WorkspaceDataInput, analysis: Analysis
     bucket.push(row); buckets.set(row.patientId, bucket)
     if (row.bezeichnung === null) continue
     const key = JSON.stringify([row.bezeichnung, row.einheit])
-    if (!parameterMap.has(key)) parameterMap.set(key, { key, bezeichnung: row.bezeichnung, einheit: row.einheit, label: parameterLabel(row.bezeichnung, row.einheit), derived: !rawKeys.has(key) })
+    if (!parameterMap.has(key)) parameterMap.set(key, { key, bezeichnung: row.bezeichnung, einheit: row.einheit,
+      // Composed when read, so a parameter without a unit follows the interface language (issue #71).
+      get label() { return parameterLabel(this.bezeichnung, this.einheit) }, derived: !rawKeys.has(key) })
   }
   const patientAttributes = { ...attributes }
   const patients = [...buckets].sort(([a], [b]) => comparePatientIds(a, b)).map(([id, patientRows]) => {
@@ -111,7 +114,7 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
   useAppStore.setState({ busy: true, notice: null })
   try {
     const dataset = file ? loadDatasetFromWorkbook(await file.arrayBuffer()) : { ...await loadBundledFixtureData(), diagnostics: [], rejectedEvents: [] }
-    if (!dataset.rows.length) throw new Error('No usable lab values in this file.')
+    if (!dataset.rows.length) throw new Error(t('No usable lab values in this file.'))
     // A CSV has no sheets; the reader's "Sheet1" would name something the user never saw.
     // A workbook with several sheets keeps its sheet names, whatever its extension.
     if (file && 'sheetNames' in dataset && dataset.sheetNames.length === 1 && !/\.xls[xmb]?$/i.test(file.name)) dataset.diagnostics = dataset.diagnostics.map(d => ({ ...d, sheet: file.name }))
@@ -119,14 +122,14 @@ export async function importWorkspaceFile(file?: File): Promise<void> {
     // Decided 2026-11-21: the import names the patient-days whose creatinine
     // values AKI detection cannot order. The rule is in the Data page note.
     const unordered = sameDayUnorderedCreatinine(dataset.rows).patientDays
-    const unorderedNote = unordered > 0 ? ` ${countLabel(unordered, 'patient-day')} with several serum creatinine values whose order within the day is unknown: see “Demographics and data quality”.` : ''
+    const unorderedNote = unordered > 0 ? ` ${t('{days} with several serum creatinine values whose order within the day is unknown: see “Demographics and data quality”.', { days: countLabel(unordered, 'patient-day') })}` : ''
     // replaceDataset aborts running model jobs and commits data and defaults
     // together, so observers never see new rows with old overrides.
     useAppStore.getState().replaceDataset({
       rows: dataset.rows, events: dataset.events, rejectedEvents: dataset.rejectedEvents,
       patientAttributes: dataset.patientAttributes, fileName: file?.name ?? DEMO_FILE_NAME, pristineDemo: !file,
       importDiagnostics: dataset.diagnostics,
-      notice: { kind: 'info', text: `${countLabel(dataset.rows.length, 'lab value')}, ${countLabel(dataset.events.length, 'event')} and ${countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row')} loaded. ${countLabel(rejected, 'row')} rejected; ${countLabel(dataset.diagnostics.length - rejected, 'warning')}.${unorderedNote}` },
+      notice: { kind: 'info', text: `${t('{labs}, {events} and {attributes} loaded.', { labs: countLabel(dataset.rows.length, 'lab value'), events: countLabel(dataset.events.length, 'event'), attributes: countLabel(Object.keys(dataset.patientAttributes).length, 'attribute row') })} ${t('{rejected} rejected; {warnings}.', { rejected: countLabel(rejected, 'row'), warnings: countLabel(dataset.diagnostics.length - rejected, 'warning') })}${unorderedNote}` },
     })
   } catch (error) {
     useAppStore.setState({ busy: false, notice: { kind: 'error', text: error instanceof Error ? error.message : String(error) } })

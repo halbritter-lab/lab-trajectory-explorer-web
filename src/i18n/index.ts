@@ -15,6 +15,7 @@
  * and imported names, values and units.
  */
 import { createElement, Fragment, useSyncExternalStore, type ReactNode } from 'react'
+import { flushSync } from 'react-dom'
 import { EN_MESSAGES, type MessageKey } from './en'
 import { de } from './de'
 
@@ -31,7 +32,9 @@ export function browserLanguage(): Language {
 }
 
 let current: Language = browserLanguage()
-const listeners = new Set<() => void>()
+/** `transient`: a switch for the length of an export (`renderedInEnglish`),
+ * which a listener that saves the choice ignores. */
+const listeners = new Set<(transient: boolean) => void>()
 
 function applyDocumentLanguage(language: Language) {
   if (typeof document !== 'undefined') document.documentElement.lang = language
@@ -40,17 +43,33 @@ applyDocumentLanguage(current)
 
 export function getLanguage(): Language { return current }
 
-/** Switch the interface language; every component that reads it renders again. */
-export function setLanguage(language: Language): void {
+function switchTo(language: Language, transient: boolean) {
   if (language === current) return
   current = language
   applyDocumentLanguage(language)
-  for (const listener of [...listeners]) listener()
+  for (const listener of [...listeners]) listener(transient)
 }
 
-export function subscribeLanguage(listener: () => void): () => void {
+/** Switch the interface language; every component that reads it renders again. */
+export function setLanguage(language: Language): void { switchTo(language, false) }
+
+export function subscribeLanguage(listener: (transient: boolean) => void): () => void {
   listeners.add(listener)
   return () => { listeners.delete(listener) }
+}
+
+/**
+ * Render the interface in English, run `make`, and render it in the
+ * interface language again, all before the browser paints. For exports
+ * that copy rendered elements (chart figures, issue #71): they read the
+ * English page. Call it from an event handler, not while rendering; `make`
+ * must be synchronous.
+ */
+export function renderedInEnglish<T>(make: () => T): T {
+  const previous = current
+  if (previous === 'en') return make()
+  flushSync(() => switchTo('en', true))
+  try { return make() } finally { flushSync(() => switchTo(previous, true)) }
 }
 
 /**
@@ -111,8 +130,9 @@ export function tr(key: MessageKey, params: Record<string, ReactNode>): ReactNod
 }
 
 /** The current language; the component renders again when it changes. */
+const subscribeRender = (onChange: () => void) => subscribeLanguage(() => onChange())
 export function useLanguage(): Language {
-  return useSyncExternalStore(subscribeLanguage, getLanguage, getLanguage)
+  return useSyncExternalStore(subscribeRender, getLanguage, getLanguage)
 }
 
 /** `t`, with the component subscribed to language changes. Components that

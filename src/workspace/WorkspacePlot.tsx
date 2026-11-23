@@ -11,7 +11,8 @@ import { cellSlopeTier } from '../core/cohort/screening'
 import type { WorkspaceData, WorkspaceParameter } from './workspace-data'
 import { ChartExportActions } from './WorkspaceExports'
 import type { SparkDomain } from './WorkspaceSparkline'
-import { countLabel, exclusionReasonLabel, fittedPointNoun, sexLabel } from './workspace-labels'
+import { countLabel, exclusionReasonLabel, fittedPointNoun, parameterLabel, sexLabel } from './workspace-labels'
+import { coreText } from './labels/coreText'
 import { useAppStore } from './state/store'
 import { mixedModelFitConfigHash, mixedModelMeanLinePoints } from '../core/mixedModel/resultIdentity'
 import type { MixedModelSpikeRow } from '../core/mixedModel/types'
@@ -23,8 +24,9 @@ import { overlayModules } from '../core/analysis/registry'
 import { ANCHOR_WINDOW_REASON, anchorRuleLabel } from '../core/cohort/anchorComparison'
 import { egfrFormulaSwitches, type EgfrFormulaSwitch } from '../core/domains/nephrology/egfr/series'
 import { computedEgfrKey } from './egfr-gaps'
-import { FORMULA_SWITCH_REASON, formulaSwitchText } from './egfr-switch'
+import { formulaSwitchReason, formulaSwitchText } from './egfr-switch'
 import { seriesMerges } from '../core/domains/nephrology/seriesMergeModule'
+import { getLanguage, t, tp, useLanguage } from '../i18n'
 
 /** Colour of the line that marks a change of the eGFR equation (issue #66). */
 const FORMULA_SWITCH_COLOR = '#6941c6'
@@ -69,7 +71,7 @@ export const formatWorkspaceDate = formatDisplayDate
 export const boundedPrefix = (operator?: WertOperator) => operator === '<' || operator === '>' ? `${operator} ` : ''
 export function measurementText(row: LabRow): string {
   const prefix = boundedPrefix(row.wertOperator)
-  const text = row.wert ?? 'Missing'
+  const text = row.wert ?? t('Missing')
   return prefix && !/^[<>≤≥]/.test(text.trim()) ? `${prefix}${text}` : text
 }
 
@@ -79,8 +81,8 @@ const scaleX = (scale: PlotScale, n: number) => PLOT.left + (n - scale.xMin) / (
 const scaleY = (scale: PlotScale, n: number) => PLOT.bottom - ((scale.log ? Math.log10(n) : n) - scale.yMin) / (scale.yMax - scale.yMin) * (PLOT.bottom - PLOT.top)
 /** How the bounds of a chart enter its fit (issue #73), by the column's setting. */
 function boundedFitText(policy: CohortRow['cells'][number]['boundedValues'] | undefined): string {
-  if (policy === 'exclude') return 'They are excluded from fits and endpoints.'
-  return `They enter the trend ${policy === 'half-limit' ? 'with <x at half its limit and >x at its limit' : 'at their limit'} and are excluded from endpoints.`
+  if (policy === 'exclude') return t('They are excluded from fits and endpoints.')
+  return policy === 'half-limit' ? t('They enter the trend with <x at half its limit and >x at its limit and are excluded from endpoints.') : t('They enter the trend at their limit and are excluded from endpoints.')
 }
 
 /** The fit lines a chart draws for a cell: on a logarithmic axis those of the
@@ -130,6 +132,8 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
   slopeDecimals: number
   onOpen: (id: PatientId) => void; onHover: (id: PatientId | null) => void; onFocus: (id: PatientId | null) => void
 }) {
+  // Memoised: renders again on a language switch through this subscription.
+  useLanguage()
   const x = (n: number) => scaleX(scale, n)
   const y = (n: number) => scaleY(scale, n)
   const patientId = series.row.patientId
@@ -141,20 +145,20 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
   const unit = series.cell.einheit ?? ''
   const windowTitle = (lineIndex: number) => {
     const window = series.cell.rolling?.windows.find(candidate => candidate.lineIndex === lineIndex)
-    return window ? `Rolling OLS window ${formatWorkspaceDate(window.start)} to ${formatWorkspaceDate(window.end)}: ${countLabel(window.n, fittedPointNoun(series.cell.rolling!.timeBalancing))} (${formatWorkspaceDate(window.firstDate)} to ${formatWorkspaceDate(window.lastDate)}), slope ${formatFixedDecimals(window.slope, slopeDecimals)} ${unit}/year` : null
+    return window ? t('Rolling OLS window {start} to {end}: {points} ({first} to {last}), slope {slope} {unit}/year', { start: formatWorkspaceDate(window.start), end: formatWorkspaceDate(window.end), points: countLabel(window.n, fittedPointNoun(series.cell.rolling!.timeBalancing)), first: formatWorkspaceDate(window.firstDate), last: formatWorkspaceDate(window.lastDate), slope: formatFixedDecimals(window.slope, slopeDecimals), unit }) : null
   }
   const eventPositions = display.events ? series.events.flatMap(event => { const position = series.xValue(event.date); return position === null ? [] : [{ event, position, end: event.endDate ? series.xValue(event.endDate) : null }] }) : []
   return <g id={domId} clipPath={`url(#${clipId})`} opacity={active || opacity === 1 ? undefined : opacity} data-active={active || undefined}>
-    {detail && eventPositions.map(({ event, position, end }, i) => end === null ? null : <rect key={i} data-testid="event-band" x={Math.min(x(position), x(end))} width={Math.max(1, Math.abs(x(end) - x(position)))} y={PLOT.top} height={PLOT.bottom - PLOT.top} fill={EVENT_COLOR} fillOpacity={.12}><title>Patient {event.patientId}: {event.title}, {formatWorkspaceDate(event.date)} to {formatWorkspaceDate(event.endDate!)}</title></rect>)}
-    <g role="button" tabIndex={0} aria-label={`Open patient ${patientId}, ${parameter.label}`} aria-description={uncertainFit ? "Uncertain slope: limited fitted measurements or follow-up. Dotted fit line." : undefined} onClick={() => onOpen(patientId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(patientId) } }} className="wt-chart-person"
+    {detail && eventPositions.map(({ event, position, end }, i) => end === null ? null : <rect key={i} data-testid="event-band" x={Math.min(x(position), x(end))} width={Math.max(1, Math.abs(x(end) - x(position)))} y={PLOT.top} height={PLOT.bottom - PLOT.top} fill={EVENT_COLOR} fillOpacity={.12}><title>{t('Patient {patient}: {title}, {from} to {to}', { patient: event.patientId, title: event.title, from: formatWorkspaceDate(event.date), to: formatWorkspaceDate(event.endDate!) })}</title></rect>)}
+    <g role="button" tabIndex={0} aria-label={t('Open patient {patient}, {label}', { patient: patientId, label: parameter.label })} aria-description={uncertainFit ? t('Uncertain slope: limited fitted measurements or follow-up. Dotted fit line.') : undefined} onClick={() => onOpen(patientId)} onKeyDown={event => { if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); onOpen(patientId) } }} className="wt-chart-person"
       onMouseEnter={() => onHover(patientId)} onMouseLeave={() => onHover(null)} onFocus={() => onFocus(patientId)} onBlur={() => onFocus(null)}>
-      <title>Patient {patientId}, {groupText}</title>
+      <title>{t('Patient {patient}, {group}', { patient: patientId, group: groupText })}</title>
       {display.connect && <polyline points={series.points.map(p => `${x(p.x)},${y(p.value)}`).join(' ')} fill="none" stroke={color} strokeWidth={active ? 3 : lineWidth} />}
       {series.points.filter(p => display.points || display.connect && (series.points.length === 1 || boundedPrefix(p.operator) || p.exclusions.length > 0)).map((p, i) => {
         const excluded = p.exclusions.length > 0
         // A point in the anchor's exclusion window still enters the column's slope, so it is not called excluded from the fit.
         const fitReasons = p.exclusions.filter(reason => reason !== ANCHOR_WINDOW_REASON)
-        const pointTitle = `${formatWorkspaceDate(p.date)}: ${boundedPrefix(p.operator)}${formatWorkspaceNumber(p.value)} ${parameter.einheit ?? ''}${p.source ? `, from ${p.source}` : ''}${p.labMethod ? `, laboratory or method: ${p.labMethod}` : ''}${fitReasons.length ? `, excluded from the fit (${fitReasons.map(exclusionReasonLabel).join('; ')})` : ''}${p.exclusions.includes(ANCHOR_WINDOW_REASON) ? `, ${exclusionReasonLabel(ANCHOR_WINDOW_REASON)}` : ''}${p.akiSkipped ? `, ${notUsedForAkiDetection()}` : ''}`
+        const pointTitle = `${formatWorkspaceDate(p.date)}: ${boundedPrefix(p.operator)}${formatWorkspaceNumber(p.value)} ${parameter.einheit ?? ''}${p.source ? `, ${t('from {source}', { source: p.source })}` : ''}${p.labMethod ? `, ${t('laboratory or method: {method}', { method: p.labMethod })}` : ''}${fitReasons.length ? `, ${t('excluded from the fit ({reasons})', { reasons: fitReasons.map(exclusionReasonLabel).join('; ') })}` : ''}${p.exclusions.includes(ANCHOR_WINDOW_REASON) ? `, ${exclusionReasonLabel(ANCHOR_WINDOW_REASON)}` : ''}${p.akiSkipped ? `, ${notUsedForAkiDetection()}` : ''}`
         return <g key={i}>{excluded
           ? <circle data-testid="excluded-point" data-exclusion={p.exclusions.join(' ')} cx={x(p.x)} cy={y(p.value)} r={active ? 4.5 : 3.5} fill="white" stroke={EXCLUDED_COLOR} strokeWidth={1.6} strokeDasharray="2 1.5"><title>{pointTitle}</title></circle>
           : p.sourceIndex > 0
@@ -164,15 +168,15 @@ const PlotSeries = memo(function PlotSeries({ series, domId, clipId, scale, colo
       })}
       {showFit && drawnFitLines(series.cell, scale.log).map((line, i) => { const title = scale.log ? null : windowTitle(i); return <polyline key={i} points={line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} data-fit-quality={uncertainFit ? "uncertain" : "supported"} strokeDasharray={uncertainFit ? "2 4" : "6 4"} strokeWidth="2">{title && <title>{title}</title>}</polyline> })}
       {/* The separate segment after kidney replacement therapy (2026-11-22): its own line, dash-dot, linear axis only, for one patient or the highlighted one. */}
-      {showFit && detail && !scale.log && series.cell.krtSegment?.line && <polyline data-testid="krt-segment-line" points={series.cell.krtSegment.line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} strokeDasharray="8 3 2 3" strokeWidth="1.5"><title>Separate segment after {series.cell.krtSegment.event.type === 'kidney_transplant' ? 'kidney transplant' : 'chronic dialysis start'}: {formatFixedDecimals(series.cell.krtSegment.fit.slope, slopeDecimals)} {unit}/year; not part of the slope</title></polyline>}
+      {showFit && detail && !scale.log && series.cell.krtSegment?.line && <polyline data-testid="krt-segment-line" points={series.cell.krtSegment.line.flatMap(p => { const position = series.xValue(p.date); return position === null || !Number.isFinite(p.value) ? [] : [`${x(position)},${y(p.value)}`] }).join(' ')} fill="none" stroke={color} strokeDasharray="8 3 2 3" strokeWidth="1.5"><title>{t('Separate segment after {event}: {slope} {unit}/year; not part of the slope', { event: series.cell.krtSegment.event.type === 'kidney_transplant' ? t('kidney transplant') : t('chronic dialysis start'), slope: formatFixedDecimals(series.cell.krtSegment.fit.slope, slopeDecimals), unit })}</title></polyline>}
       {series.markers.filter(marker => display[marker.moduleId] ?? false).map((marker, i) => {
         // Off-series markers sit on the time axis, not on a value.
         const markerY = marker.value === null ? MARKER_AXIS_Y : y(marker.value)
         const markerColor = OVERLAY_COLORS[marker.moduleId]
-        return <g key={`${marker.moduleId}-${i}`} data-testid={`${marker.moduleId}-marker`} data-on-measurement={marker.value !== null}><path d={`M ${x(marker.x)} ${markerY - 6} l 5 6 l -5 6 l -5 -6 Z`} fill={marker.value === null ? 'white' : markerColor} stroke={markerColor} strokeWidth={1.2}><title>{marker.title}</title></path></g>
+        return <g key={`${marker.moduleId}-${i}`} data-testid={`${marker.moduleId}-marker`} data-on-measurement={marker.value !== null}><path d={`M ${x(marker.x)} ${markerY - 6} l 5 6 l -5 6 l -5 -6 Z`} fill={marker.value === null ? 'white' : markerColor} stroke={markerColor} strokeWidth={1.2}><title>{coreText(marker.title)}</title></path></g>
       })}
     </g>
-    {eventPositions.map(({ event, position }, i) => <line key={i} x1={x(position)} x2={x(position)} y1={PLOT.top} y2={PLOT.bottom} stroke={EVENT_COLOR} strokeDasharray="2 5"><title>Patient {event.patientId}: {event.title}, {formatWorkspaceDate(event.date)}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}</title></line>)}
+    {eventPositions.map(({ event, position }, i) => <line key={i} x1={x(position)} x2={x(position)} y1={PLOT.top} y2={PLOT.bottom} stroke={EVENT_COLOR} strokeDasharray="2 5"><title>{event.endDate ? t('Patient {patient}: {title}, {from} to {to}', { patient: event.patientId, title: event.title, from: formatWorkspaceDate(event.date), to: formatWorkspaceDate(event.endDate) }) : t('Patient {patient}: {title}, {date}', { patient: event.patientId, title: event.title, date: formatWorkspaceDate(event.date) })}</title></line>)}
   </g>
 })
 
@@ -194,6 +198,8 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
    * then the positive range of the column. */
   logScale?: boolean
 }) {
+  // Labels computed in the memo below follow the interface language.
+  const language = useLanguage()
   const svg = useRef<SVGSVGElement>(null)
   const clip = useId().replace(/:/g, '')
   const [hiddenGroups, setHiddenGroups] = useState<string[]>([])
@@ -239,7 +245,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
           : age === null || ageDate === undefined ? null : age + (date.getTime() - ageDate) / YEAR
       const group = groupBy ? patient?.attributes[groupBy] || 'Not recorded' : 'All patients'
       const pointSource = (source: LabRow | undefined) => ({
-        source: source?.mergedFrom ? `${source.mergedFrom.bezeichnung} [${source.mergedFrom.einheit ?? 'no unit'}]` : null,
+        source: source?.mergedFrom ? `${source.mergedFrom.bezeichnung} [${source.mergedFrom.einheit ?? t('no unit')}]` : null,
         sourceIndex: sourceIndex(source), labMethod: source?.labMethod ?? null,
       })
       const points = (cell?.points ?? []).flatMap((point, index) => {
@@ -273,15 +279,16 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       })
       const formulaSwitches = (switches.get(patientIdKey(row.patientId)) ?? []).flatMap(change => {
         const position = xValue(change.date)
-        return position === null || !Number.isFinite(position) ? [] : [{ x: position, title: `Patient ${row.patientId}: eGFR equation ${formulaSwitchText(change)}` }]
+        return position === null || !Number.isFinite(position) ? [] : [{ x: position, change: formulaSwitchText(change), title: t('Patient {patient}: eGFR equation {change}', { patient: row.patientId, change: formulaSwitchText(change) }) }]
       })
       return { row, cell, group, points, markers, bands, events, xValue, formulaSwitches, ageEstimated: patient?.ageEstimated ?? anchor === undefined, mergeSources }
     })
-  }, [data.rows, data.patients, data.events, data.analysisSettings, cohortRows, parameter, parameterIndex, axis, groupBy, logScale])
+  }, [data.rows, data.patients, data.events, data.analysisSettings, cohortRows, parameter, parameterIndex, axis, groupBy, logScale, language])
   const groups = [...new Set(prepared.map(p => p.group))].sort()
   const fullGroups = [...new Set(data.patients.map(patient => groupBy ? patient.attributes[groupBy] || 'Not recorded' : 'All patients'))].sort()
   const groupColor = (group: string) => colors[fullGroups.indexOf(group) % colors.length]
-  const groupLabel = (group: string) => groupBy === 'sex' ? sexLabel(group) : group
+  // Group keys stay as computed ('Not recorded', 'All patients'); only their label is translated.
+  const groupLabel = (group: string) => group === 'Not recorded' ? t('Not recorded') : group === 'All patients' ? t('All patients') : groupBy === 'sex' ? sexLabel(group) : group
   const visible = prepared.filter(p => !hiddenGroups.includes(p.group) && p.points.length > 0)
   // Points are hidden by the density rule per chart, from the trajectories
   // plotted in it: the same count that decides the line density below.
@@ -303,7 +310,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const tierCounts = { reliable: 0, estimable: 0 }
   for (const p of visible) { const tier = cellSlopeTier(p.cell); if (tier === 'reliable' || tier === 'estimable') tierCounts[tier] += 1 }
   const fitModel = prepared[0]?.cell?.fitModel ?? 'none'
-  const modelLabel = { ols: 'OLS', 'theil-sen': 'Theil–Sen', 'rolling-ols': 'Rolling OLS', 'segmented-ols': 'Segmented OLS', none: 'No fit' }[fitModel]
+  const modelLabel = { ols: 'OLS', 'theil-sen': 'Theil–Sen', 'rolling-ols': 'Rolling OLS', 'segmented-ols': 'Segmented OLS', none: t('No fit') }[fitModel]
   const withoutValues = prepared.filter(p => !p.cell?.points.length).length
   const withoutAge = prepared.filter(p => p.cell?.points.length && !p.points.length).length
   const cohortModelResults = useAppStore(s => s.cohortModelResults)
@@ -383,7 +390,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
     const yPad = (yMax - yMin || Math.abs(yMax) || 1) * .08
     yMin -= yPad; yMax += yPad
   }
-  const scaleLabel = `${scaleMode === 'shared' ? 'Shared parameter scale' : 'Zoom to visible values'}${logScale ? ', logarithmic' : ''}`
+  const scaleLabel = `${scaleMode === 'shared' ? t('Shared parameter scale') : t('Zoom to visible values')}${logScale ? `, ${t('logarithmic')}` : ''}`
   const visibleIds = new Set(visible.map(series => series.row.patientId))
   const visibleEvents = data.events.filter(event => visibleIds.has(event.patientId))
   // Compared with the events of the patients this plot is given (one patient in the
@@ -405,9 +412,9 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const xTickLabels = tickLabels(xTicks)
   // The event axis names its anchor rule, so an exported chart explains itself.
   const anchorRule = cohortRows.map(row => row.cells[parameterIndex]?.anchorComparison?.settings.rule).find(rule => rule !== undefined)
-  const axisLabel = axis === 'calendar' ? 'Calendar date' : axis === 'age' ? 'Age (years)'
-    : axis === 'event' ? `Years since anchor event (${anchorRule ? anchorRuleLabel(anchorRule) : 'no anchor set for this parameter'})`
-    : `${axis === 'baselineDays' ? 'Days' : 'Years'} since first measurement of this parameter`
+  const axisLabel = axis === 'calendar' ? t('Calendar date') : axis === 'age' ? t('Age (years)')
+    : axis === 'event' ? t('Years since anchor event ({anchor})', { anchor: anchorRule ? anchorRuleLabel(anchorRule) : t('no anchor set for this parameter') })
+    : axis === 'baselineDays' ? t('Days since first measurement of this parameter') : t('Years since first measurement of this parameter')
   // In the overlay the trajectory under the pointer or the keyboard focus is
   // emphasised and named, so a line can be identified without the selector.
   // The explicit highlight wins when it is plotted here, then focus, then the pointer.
@@ -419,7 +426,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const density = visible.length >= DENSE_OVERLAY_THIN ? 3 : visible.length >= DENSE_OVERLAY_POINTS_OFF ? 2 : visible.length > DENSE_OVERLAY ? 1 : 0
   const restOpacity = [1, .6, .4, .25][density]
   const lineWidth = density === 3 ? .8 : 1.5
-  const exportTitle = cohortRows.length === 1 ? `Patient ${cohortRows[0].patientId}: ${parameter.label}` : parameter.label
+  const exportTitle = cohortRows.length === 1 ? t('Patient {patient}: {parameter}', { patient: cohortRows[0].patientId, parameter: parameterLabel(parameter.bezeichnung, parameter.einheit) }) : parameterLabel(parameter.bezeichnung, parameter.einheit)
   const markVisible = display.points || display.connect
   // Grey open circles of two kinds: measurements excluded from the fit, and
   // measurements only in the exclusion window after the anchor, which still
@@ -428,7 +435,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const excludedCount = markVisible ? visible.reduce((sum, series) => sum + series.points.filter(fitExcluded).length, 0) : 0
   const windowCount = markVisible ? visible.reduce((sum, series) => sum + series.points.filter(p => !fitExcluded(p) && p.exclusions.includes(ANCHOR_WINDOW_REASON)).length, 0) : 0
   const excludedReasons = [...new Set(visible.flatMap(series => series.points.flatMap(p => p.exclusions.filter(reason => reason !== ANCHOR_WINDOW_REASON))))]
-  const windowText = `${countLabel(windowCount, 'measurement')} in the exclusion window after the anchor event`
+  const windowText = t('{measurements} in the exclusion window after the anchor event', { measurements: countLabel(windowCount, 'measurement') })
   const akiSkippedCount = visible.reduce((sum, series) => sum + series.points.filter(p => p.akiSkipped).length, 0)
   const shownOverlays = OVERLAY_MODULES.filter(module => display[module.id])
   const markerCount = (moduleId: string) => visible.reduce((sum, series) => sum + series.markers.filter(marker => marker.moduleId === moduleId).length, 0)
@@ -451,16 +458,16 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
   const rollingLines = visible.some(series => series.cell.mode === 'rolling')
   const mergedSources = prepared[0]?.mergeSources ?? []
 
-  return <section className="wt-plot-card" aria-label={`Chart ${parameter.label}`}>
+  return <section className="wt-plot-card" aria-label={t('Chart {label}', { label: parameter.label })}>
     <div className="wt-card-heading"><h3>{parameter.label}</h3><ChartExportActions getSvg={() => svg.current} title={exportTitle} /></div>
-    {groupBy && <div className="wt-legend" role="group" aria-label={`Groups for ${parameter.label}`}>{groups.map(group => <button key={group} aria-pressed={!hiddenGroups.includes(group)} onClick={() => setHiddenGroups(previous => previous.includes(group) ? previous.filter(g => g !== group) : [...previous, group])}><span style={{ color: groupColor(group) }}>● </span>{groupLabel(group)}{hiddenGroups.includes(group) ? ' (hidden)' : ''}</button>)}</div>}
-    <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? `; ${visible.length} of ${cohortRows.length} trajectories` : ''}{withoutValues > 0 ? `; ${withoutValues} without numeric measurements` : ''}{withoutAge > 0 && axis !== 'event' ? `; ${withoutAge} additional trajectories without age data` : ''}{withoutAge > 0 && axis === 'event' && anchorRule ? `; ${countLabel(withoutAge, 'trajectory')} without a matching anchor event (not drawn)` : ''}</p>
-    {density >= 2 && <p className="wt-muted" data-testid="density-note">{`${visible.length} trajectories in this chart: lines are drawn ${density === 3 ? 'paler and thinner' : 'paler'}${pointsAutoHidden ? ' and measurement points are hidden' : ''}.`} Search, a group filter or a selection narrows the overlay{pointsAutoHidden ? '; Display → “Measurement points” shows the points' : ''}. Numbers and table exports are unchanged.</p>}
-    {axis === 'age' && <p className="wt-muted">{cohortRows.length === 1 ? visible[0]?.ageEstimated ? 'Age: estimated birth-date anchor.' : visible.length ? 'Age: recorded birth date.' : 'Age unavailable.' : `${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors; other ages use recorded birth dates.`}</p>}
-    {axis === 'event' && !anchorRule && <p className="wt-muted" data-testid="event-axis-note">“Years since event” starts at the anchor event of the before/after comparison. Switch the comparison on in this parameter’s analysis settings (Calculation settings → Before/after comparison).</p>}
-    {!visible.length ? <p>No trajectories can be plotted. Check measurements, {axis === 'event' ? 'anchor events' : 'ages'}, or visible groups.</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-x-min={xMin} data-y-min={yMin} data-y-max={yMax} data-y-scale={logScale ? 'log' : 'linear'} data-density={density} role="group" aria-label={`${parameter.label}: ${visible.length} trajectories, ${axisLabel}`} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${visible.length} visible trajectories${pointsAutoHidden ? '; measurement points hidden in this dense overlay' : ''}${groupBy ? `; Grouping: ${groupBy}; hidden: ${hiddenGroups.map(groupLabel).join(', ') || 'none'}` : ''}${axis === 'age' ? `; ${visible.filter(p => p.ageEstimated).length} estimated birth-date anchors` : ''}${showFit ? fitModel === 'none' ? '; Fit model disabled' : `; ${uncertain} uncertain individual ${modelLabel} fits; ${noFit} without a fit` : ''}${excludedCount ? `; ${countLabel(excludedCount, 'measurement')} excluded from the fit (grey open circles)` : ''}${windowCount ? `; ${windowText} (grey open circles; after-anchor slope only, still in the slope of the whole series)` : ''}${shownOverlays.map(module => `; ${module.presentation.exportContext(markerCount(module.id))}`).join('')}${pooledModelLine ? '; Cohort mixed model mean line' : ''}${groupModelLines.length ? `; Group mixed model mean lines: ${groupModelLines.map(line => groupLabel(line.group!)).join(', ')}` : ''}`}>
-      <title>{parameter.label} by {axisLabel.charAt(0).toLowerCase()}{axisLabel.slice(1)}</title>
-      <desc>Measurements for the selected patients. Press Enter or Space to open a trajectory. Research use only.</desc>
+    {groupBy && <div className="wt-legend" role="group" aria-label={t('Groups for {label}', { label: parameter.label })}>{groups.map(group => <button key={group} aria-pressed={!hiddenGroups.includes(group)} onClick={() => setHiddenGroups(previous => previous.includes(group) ? previous.filter(g => g !== group) : [...previous, group])}><span style={{ color: groupColor(group) }}>● </span>{groupLabel(group)}{hiddenGroups.includes(group) ? ` ${t('(hidden)')}` : ''}</button>)}</div>}
+    <p className="wt-muted">{scaleLabel}{cohortRows.length > 1 ? `; ${t('{n} of {total} trajectories', { n: visible.length, total: cohortRows.length })}` : ''}{withoutValues > 0 ? `; ${t('{n} without numeric measurements', { n: withoutValues })}` : ''}{withoutAge > 0 && axis !== 'event' ? `; ${t('{n} additional trajectories without age data', { n: withoutAge })}` : ''}{withoutAge > 0 && axis === 'event' && anchorRule ? `; ${t('{trajectories} without a matching anchor event (not drawn)', { trajectories: countLabel(withoutAge, 'trajectory') })}` : ''}</p>
+    {density >= 2 && <p className="wt-muted" data-testid="density-note">{`${density === 3 ? pointsAutoHidden ? t('{n} trajectories in this chart: lines are drawn paler and thinner and measurement points are hidden.', { n: visible.length }) : t('{n} trajectories in this chart: lines are drawn paler and thinner.', { n: visible.length }) : pointsAutoHidden ? t('{n} trajectories in this chart: lines are drawn paler and measurement points are hidden.', { n: visible.length }) : t('{n} trajectories in this chart: lines are drawn paler.', { n: visible.length })} ${pointsAutoHidden ? t('Search, a group filter or a selection narrows the overlay; Display → “Measurement points” shows the points.') : t('Search, a group filter or a selection narrows the overlay.')} ${t('Numbers and table exports are unchanged.')}`}</p>}
+    {axis === 'age' && <p className="wt-muted">{cohortRows.length === 1 ? visible[0]?.ageEstimated ? t('Age: estimated birth-date anchor.') : visible.length ? t('Age: recorded birth date.') : t('Age unavailable.') : t('{n} estimated birth-date anchors; other ages use recorded birth dates.', { n: visible.filter(p => p.ageEstimated).length })}</p>}
+    {axis === 'event' && !anchorRule && <p className="wt-muted" data-testid="event-axis-note">{t('“Years since event” starts at the anchor event of the before/after comparison. Switch the comparison on in this parameter’s analysis settings (Calculation settings → Before/after comparison).')}</p>}
+    {!visible.length ? <p>{axis === 'event' ? t('No trajectories can be plotted. Check measurements, anchor events, or visible groups.') : t('No trajectories can be plotted. Check measurements, ages, or visible groups.')}</p> : <svg ref={svg} viewBox="0 0 660 310" className="wt-plot" data-x-min={xMin} data-y-min={yMin} data-y-max={yMax} data-y-scale={logScale ? 'log' : 'linear'} data-density={density} role="group" aria-label={t('{parameter}: {n} trajectories, {axis}', { parameter: parameter.label, n: visible.length, axis: axisLabel })} data-export-legend={JSON.stringify(groupBy ? groups.filter(group => !hiddenGroups.includes(group)).map(group => ({ label: groupLabel(group), color: groupColor(group) })) : [])} data-export-context={`${scaleLabel}; ${axisLabel}; ${t('{n} visible trajectories', { n: visible.length })}${pointsAutoHidden ? `; ${t('measurement points hidden in this dense overlay')}` : ''}${groupBy ? `; ${t('Grouping: {group}; hidden: {hidden}', { group: groupBy, hidden: hiddenGroups.map(groupLabel).join(', ') || t('none') })}` : ''}${axis === 'age' ? `; ${t('{n} estimated birth-date anchors', { n: visible.filter(p => p.ageEstimated).length })}` : ''}${showFit ? fitModel === 'none' ? `; ${t('Fit model disabled')}` : `; ${t('{n} uncertain individual {model} fits; {none} without a fit', { n: uncertain, model: modelLabel, none: noFit })}` : ''}${excludedCount ? `; ${t('{measurements} excluded from the fit (grey open circles)', { measurements: countLabel(excludedCount, 'measurement') })}` : ''}${windowCount ? `; ${t('{window} (grey open circles; after-anchor slope only, still in the slope of the whole series)', { window: windowText })}` : ''}${shownOverlays.map(module => `; ${coreText(module.presentation.exportContext(markerCount(module.id)))}`).join('')}${pooledModelLine ? `; ${t('Cohort mixed model mean line')}` : ''}${groupModelLines.length ? `; ${t('Group mixed model mean lines: {groups}', { groups: groupModelLines.map(line => groupLabel(line.group!)).join(', ') })}` : ''}`}>
+      <title>{t('{parameter} by {axis}', { parameter: parameter.label, axis: getLanguage() === 'de' ? axisLabel : `${axisLabel.charAt(0).toLowerCase()}${axisLabel.slice(1)}` })}</title>
+      <desc>{t('Measurements for the selected patients. Press Enter or Space to open a trajectory. Research use only.')}</desc>
       <defs>
         <clipPath id={clip}><rect x={PLOT.left} y="20" width={PLOT.right - PLOT.left} height="230" /></clipPath>
         <clipPath id={`${clip}-marks`}><rect x={PLOT.left - MARK_OVERHANG} y="20" width={PLOT.right - PLOT.left + 2 * MARK_OVERHANG} height="230" /></clipPath>
@@ -470,7 +477,7 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
       {/* Dates near the border are anchored inwards, so a long label stays inside the chart. */}
       {xTicks.map((v, i) => <text key={v} data-testid="x-tick" x={x(v)} y="265" textAnchor={axis !== 'calendar' ? 'middle' : x(v) < PLOT.left + 36 ? 'start' : x(v) > PLOT.right - 36 ? 'end' : 'middle'}>{axis === 'calendar' ? formatWorkspaceDate(new Date(v)) : xTickLabels[i]}</text>)}
       <text x="345" y="294" textAnchor="middle">{axisLabel}</text>
-      {shownOverlays.map(module => <g key={module.id} clipPath={`url(#${clip})`} className={`wt-${module.id}-bands`}>{detailSeries.flatMap(series => series.bands.filter(band => band.moduleId === module.id).map((band, i) => <rect key={`${String(series.row.patientId)}-${i}`} data-testid={`${module.id}-band`} x={x(band.start)} width={Math.max(1, x(band.end) - x(band.start))} y="20" height="230" fill={module.presentation.color} fillOpacity={.1}><title>{band.title}</title></rect>))}</g>)}
+      {shownOverlays.map(module => <g key={module.id} clipPath={`url(#${clip})`} className={`wt-${module.id}-bands`}>{detailSeries.flatMap(series => series.bands.filter(band => band.moduleId === module.id).map((band, i) => <rect key={`${String(series.row.patientId)}-${i}`} data-testid={`${module.id}-band`} x={x(band.start)} width={Math.max(1, x(band.end) - x(band.start))} y="20" height="230" fill={module.presentation.color} fillOpacity={.1}><title>{coreText(band.title)}</title></rect>))}</g>)}
       <g clipPath={`url(#${clip})`}>{detailSeries.flatMap(series => series.formulaSwitches.map((change, i) => <line key={`${String(series.row.patientId)}-switch-${i}`} data-testid="egfr-formula-switch" x1={x(change.x)} x2={x(change.x)} y1={PLOT.top} y2={PLOT.bottom} stroke={FORMULA_SWITCH_COLOR} strokeDasharray="1 3" strokeWidth={2}><title>{change.title}</title></line>))}</g>
       {/* Pointer and focus changes re-render only the two trajectories whose
           emphasis changes: the others are memoised and dimmed as one layer. */}
@@ -483,11 +490,11 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
           takes no pointer events, so the pointer stays on the trajectory below. */}
       {hasHighlight && <use href={`#${clip}-t${emphasisedIndex}`} className="wt-emphasis-layer" pointerEvents="none" aria-hidden="true" />}
       <g className="wt-marker-labels" pointerEvents="none">{markerLabels.map((label, i) => <text key={i} data-testid="marker-label" x={label.anchor === 'middle' ? label.x : label.x + (label.anchor === 'start' ? -5 : 5)} y={label.y} textAnchor={label.anchor} fill={label.color} fontSize="10">{label.text}</text>)}</g>
-      {cohortRows.length > 1 && hasHighlight && <text x="630" y="15" textAnchor="end" data-testid="emphasised-patient">Patient {emphasised}</text>}
+      {cohortRows.length > 1 && hasHighlight && <text x="630" y="15" textAnchor="end" data-testid="emphasised-patient">{t('Patient {id}', { id: String(emphasised) })}</text>}
       {groupModelLines.map(line => <g key={line.key} clipPath={`url(#${clip})`} className="wt-group-model-line" data-group={line.group!}>
         <polyline points={line.points.map(p => `${x(modelX(p))},${y(p.value)}`).join(' ')}
           fill="none" stroke={groupColor(line.group!)} strokeWidth={3.5} strokeDasharray="10 3 2 3" strokeLinecap="round">
-          <title>Mixed-model mean trajectory, {groupLabel(line.group!)}</title>
+          <title>{t('Mixed-model mean trajectory, {group}', { group: groupLabel(line.group!) })}</title>
         </polyline>
       </g>)}
       {pooledModelLine && (
@@ -499,31 +506,31 @@ export function WorkspacePlot({ data, parameter, parameterIndex, cohortRows, axi
             strokeWidth={3}
             strokeDasharray="8 4"
           >
-            <title>Cohort mixed model mean trajectory</title>
+            <title>{t('Cohort mixed model mean trajectory')}</title>
           </polyline>
         </g>
       )}
     </svg>}
-    {display.events && <details className="wt-event-inspector"><summary>Inspect events ({visibleEvents.length}{visibleEvents.length < rowEventCount ? ` of ${rowEventCount}` : ''})</summary>{visibleEvents.length < rowEventCount && <p className="wt-muted">{rowEventCount - visibleEvents.length} {rowEventCount - visibleEvents.length === 1 ? 'event belongs to a patient' : 'events belong to patients'} not plotted here (no plotted value of this parameter, or group hidden).</p>}{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>Patient {event.patientId}, {formatWorkspaceDate(event.date)}: {event.title}{event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>No events for the plotted patients.</p>}</details>}
-    {display.events && visibleEvents.length > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><line x1="6" x2="6" y1="0" y2="12" stroke={EVENT_COLOR} strokeDasharray="2 3" strokeWidth="1.5" /></svg> Dashed vertical lines: clinical events of {cohortRows.length === 1 ? 'this patient' : 'the plotted patients'}; “Inspect events” lists them.{intervalEvents > 0 && <>{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${EVENT_COLOR}1f`, borderColor: `${EVENT_COLOR}40` }} /> Shaded: an event with an end date, from its start to its end{cohortRows.length > 1 ? ', shown for the highlighted patient' : ''}.</>}</p>}
-    {formulaSwitchCount > 0 && <p className="wt-muted wt-plot-key" data-testid="egfr-switch-legend"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><line x1="6" x2="6" y1="0" y2="12" stroke={FORMULA_SWITCH_COLOR} strokeDasharray="1 3" strokeWidth="2" /></svg> Dotted vertical {formulaSwitchCount === 1 ? 'line' : 'lines'}: the eGFR equation changes ({detailSeries.flatMap(series => series.formulaSwitches.map(change => change.title.replace(/^Patient [^:]*: eGFR equation /, cohortRows.length > 1 ? `patient ${series.row.patientId}, ` : ''))).join('; ')}). {FORMULA_SWITCH_REASON.replace('this slope', 'a slope fitted across it')}</p>}
-    {akiSkippedCount > 0 && <p className="wt-muted" data-testid="aki-skipped-note">{countLabel(akiSkippedCount, 'creatinine value')} measured under dialysis {akiSkippedCount === 1 ? 'is' : 'are'} {notUsedForAkiDetection().replace(' (dialysis)', '')}; the point tooltips{cohortRows.length === 1 ? ' and the measurement table' : ''} name {akiSkippedCount === 1 ? 'it' : 'them'}. This is separate from any exclusion from the fit.</p>}
-    {logScale && <p className="wt-muted" data-testid="log-axis-note">Logarithmic value axis: equal distances are equal ratios.{showFit && fitModel !== 'none' ? ' The dashed lines are fitted to the natural logarithm of the values and drawn back in the unit of the parameter.' : ''}{nonPositive > 0 ? ` ${countLabel(nonPositive, 'value')} of zero or less ${nonPositive === 1 ? 'is' : 'are'} not drawn and left out of the doubling time.` : ''}{showCohortMixedModelLine ? ' The cohort mixed-model line is not drawn on a logarithmic axis.' : ''}</p>}
-    {showFit && <p className="wt-muted">{fitModel === 'none' ? 'Fit model disabled.' : logScale ? rollingLines ? 'Dashed: Rolling OLS window lines of the log values; the doubling time comes from the global OLS slope of the log values.' : `Dashed: individual ${modelLabel} lines of the log values.` : rollingLines ? 'Dashed: Rolling OLS window lines from the prepared analyses; each line names its window.' : `Dashed: individual ${modelLabel} lines from the prepared analyses.`}</p>}
-    {showFit && fitModel !== 'none' && !logScale && <p className="wt-muted" data-testid="slope-tier-legend">Slope tiers: {tierCounts.reliable} reliable (at least 4 fitted dates over at least 2 years), {tierCounts.estimable} estimable (at least 3 dates over at least 1 year), {uncertain} uncertain (dotted).</p>}
-    {showFit && !logScale && segmentLines > 0 && <p className="wt-muted" data-testid="krt-segment-legend">Dash-dot {segmentLines === 1 ? 'line' : 'lines'}: the values after kidney transplant or chronic dialysis start, fitted as a separate segment; not part of the slope of native kidney function.</p>}
-    {pooledModelLine && <p className="wt-muted">Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.{axis === 'age' ? ' Age axis: mean baseline age of fitted patients plus elapsed model time.' : ''}</p>}
-    {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groupModelLines.map(line => groupLabel(line.group!)).join(', ')}).{axis === 'age' ? ' Age axis: mean baseline age of each group plus elapsed model time.' : ''}</p>}
-    {(excludedCount > 0 || windowCount > 0) && <p className="wt-muted wt-plot-key" data-testid="excluded-legend"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> Grey open circles:{excludedCount > 0 && <> {countLabel(excludedCount, 'measurement')} excluded from the fit ({excludedReasons.map(exclusionReasonLabel).join('; ')}). They stay visible but do not enter the slope.</>}{windowCount > 0 && <> {windowText}: left out of the after-anchor slope only; {windowCount === 1 ? 'it still enters' : 'they still enter'} the slope of the whole series.</>}</p>}
+    {display.events && <details className="wt-event-inspector"><summary>{visibleEvents.length < rowEventCount ? t('Inspect events ({n} of {total})', { n: visibleEvents.length, total: rowEventCount }) : t('Inspect events ({n})', { n: visibleEvents.length })}</summary>{visibleEvents.length < rowEventCount && <p className="wt-muted">{tp('{n} event belongs to a patient not plotted here (no plotted value of this parameter, or group hidden).', '{n} events belong to patients not plotted here (no plotted value of this parameter, or group hidden).', rowEventCount - visibleEvents.length)}</p>}{visibleEvents.length ? <ul>{visibleEvents.map((event, index) => <li key={index}>{t('Patient {patient}, {date}: {title}', { patient: event.patientId, date: formatWorkspaceDate(event.date), title: event.title })}{event.endDate ? ` ${t('to {date}', { date: formatWorkspaceDate(event.endDate) })}` : ''}{event.description ? ` (${event.description})` : ''}</li>)}</ul> : <p>{t('No events for the plotted patients.')}</p>}</details>}
+    {display.events && visibleEvents.length > 0 && <p className="wt-muted wt-plot-key"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><line x1="6" x2="6" y1="0" y2="12" stroke={EVENT_COLOR} strokeDasharray="2 3" strokeWidth="1.5" /></svg> {cohortRows.length === 1 ? t('Dashed vertical lines: clinical events of this patient; “Inspect events” lists them.') : t('Dashed vertical lines: clinical events of the plotted patients; “Inspect events” lists them.')}{intervalEvents > 0 && <>{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${EVENT_COLOR}1f`, borderColor: `${EVENT_COLOR}40` }} /> {cohortRows.length > 1 ? t('Shaded: an event with an end date, from its start to its end, shown for the highlighted patient.') : t('Shaded: an event with an end date, from its start to its end.')}</>}</p>}
+    {formulaSwitchCount > 0 && <p className="wt-muted wt-plot-key" data-testid="egfr-switch-legend"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><line x1="6" x2="6" y1="0" y2="12" stroke={FORMULA_SWITCH_COLOR} strokeDasharray="1 3" strokeWidth="2" /></svg> {tp('Dotted vertical line: the eGFR equation changes ({changes}). {reason}', 'Dotted vertical lines: the eGFR equation changes ({changes}). {reason}', formulaSwitchCount, { changes: detailSeries.flatMap(series => series.formulaSwitches.map(change => `${cohortRows.length > 1 ? `${t('patient {id}', { id: series.row.patientId })}, ` : ''}${change.change}`)).join('; '), reason: formulaSwitchReason(true) })}</p>}
+    {akiSkippedCount > 0 && <p className="wt-muted" data-testid="aki-skipped-note">{cohortRows.length === 1 ? tp('{n} creatinine value measured under dialysis is not used for AKI detection; the point tooltips and the measurement table name it. This is separate from any exclusion from the fit.', '{n} creatinine values measured under dialysis are not used for AKI detection; the point tooltips and the measurement table name them. This is separate from any exclusion from the fit.', akiSkippedCount) : tp('{n} creatinine value measured under dialysis is not used for AKI detection; the point tooltips name it. This is separate from any exclusion from the fit.', '{n} creatinine values measured under dialysis are not used for AKI detection; the point tooltips name them. This is separate from any exclusion from the fit.', akiSkippedCount)}</p>}
+    {logScale && <p className="wt-muted" data-testid="log-axis-note">{t('Logarithmic value axis: equal distances are equal ratios.')}{showFit && fitModel !== 'none' ? ` ${t('The dashed lines are fitted to the natural logarithm of the values and drawn back in the unit of the parameter.')}` : ''}{nonPositive > 0 ? ` ${tp('{n} value of zero or less is not drawn and left out of the doubling time.', '{n} values of zero or less are not drawn and left out of the doubling time.', nonPositive)}` : ''}{showCohortMixedModelLine ? ` ${t('The cohort mixed-model line is not drawn on a logarithmic axis.')}` : ''}</p>}
+    {showFit && <p className="wt-muted">{fitModel === 'none' ? t('Fit model disabled.') : logScale ? rollingLines ? t('Dashed: Rolling OLS window lines of the log values; the doubling time comes from the global OLS slope of the log values.') : t('Dashed: individual {model} lines of the log values.', { model: modelLabel }) : rollingLines ? t('Dashed: Rolling OLS window lines from the prepared analyses; each line names its window.') : t('Dashed: individual {model} lines from the prepared analyses.', { model: modelLabel })}</p>}
+    {showFit && fitModel !== 'none' && !logScale && <p className="wt-muted" data-testid="slope-tier-legend">{t('Slope tiers: {reliable} reliable (at least 4 fitted dates over at least 2 years), {estimable} estimable (at least 3 dates over at least 1 year), {uncertain} uncertain (dotted).', { reliable: tierCounts.reliable, estimable: tierCounts.estimable, uncertain })}</p>}
+    {showFit && !logScale && segmentLines > 0 && <p className="wt-muted" data-testid="krt-segment-legend">{segmentLines === 1 ? t('Dash-dot line: the values after kidney transplant or chronic dialysis start, fitted as a separate segment; not part of the slope of native kidney function.') : t('Dash-dot lines: the values after kidney transplant or chronic dialysis start, fitted as a separate segment; not part of the slope of native kidney function.')}</p>}
+    {pooledModelLine && <p className="wt-muted">{t('Dark dashed line: full-cohort mixed-model reference trajectory; numeric factors at their fitted centers and categorical factors at reference levels.')}{axis === 'age' ? ` ${t('Age axis: mean baseline age of fitted patients plus elapsed model time.')}` : ''}</p>}
+    {groupModelLines.length > 0 && <p className="wt-muted" data-testid="group-model-legend">{t('Thick dash-dot lines in group colours: mixed-model reference trajectories fitted separately per group ({groups}).', { groups: groupModelLines.map(line => groupLabel(line.group!)).join(', ') })}{axis === 'age' ? ` ${t('Age axis: mean baseline age of each group plus elapsed model time.')}` : ''}</p>}
+    {(excludedCount > 0 || windowCount > 0) && <p className="wt-muted wt-plot-key" data-testid="excluded-legend"><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4" fill="white" stroke={EXCLUDED_COLOR} strokeWidth="1.6" strokeDasharray="2 1.5" /></svg> {t('Grey open circles:')}{excludedCount > 0 && <> {t('{measurements} excluded from the fit ({reasons}). They stay visible but do not enter the slope.', { measurements: countLabel(excludedCount, 'measurement'), reasons: excludedReasons.map(exclusionReasonLabel).join('; ') })}</>}{windowCount > 0 && <> {windowCount === 1 ? t('{window}: left out of the after-anchor slope only; it still enters the slope of the whole series.', { window: windowText }) : t('{window}: left out of the after-anchor slope only; they still enter the slope of the whole series.', { window: windowText })}</>}</p>}
     {shownOverlays.map(module => <p key={module.id} className="wt-muted wt-plot-key">{markerCount(module.id) > 0
-      ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={module.presentation.color} /></svg>{module.presentation.markerLegend}{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${module.presentation.color}26`, borderColor: `${module.presentation.color}40` }} /><span data-testid={`${module.id}-band-legend`}>{bandLegends(module)}</span>{cohortRows.length > 1 ? visible.some(p => p.row.patientId === highlight) ? ', shown for the highlighted patient' : highlight !== null ? '; the highlighted patient is not plotted in this chart' : '; windows and stage labels appear once a patient is chosen under Display → “Highlight patient”' : ''}.</>
-      : module.presentation.emptyLegend}</p>)}
-    {shownOverlays.flatMap(module => bandNotes(module).map(note => <p key={`${module.id}:${note}`} className="wt-muted" data-testid={`${module.id}-band-note`}>{note}</p>))}
-    {showFit && uncertain > 0 && <p className="wt-warning">{uncertain} individual fits have uncertain slopes: fewer than three fitted measurement dates or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.</p>}
-    {showFit && noFit > 0 && <p>{noFit} trajectories without an available fit.</p>}
-    {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">Bounds marked &lt; or &gt; remain visible at their numeric limits. {boundedFitText(visible[0]?.cell.boundedValues)}</p>}
-    {mergedSources.length > 0 && <p className="wt-muted" data-testid="merged-sources-legend">Merged series; marker shape by source series: {mergedSources.map((source, i) => `${MARK_SYMBOLS[markShape(i)]} ${source.bezeichnung} [${source.einheit ?? 'no unit'}]`).join('; ')}. The point tooltips name the source. Values from different laboratories or methods may not be comparable.</p>}
-    {!display.points && !display.connect && <p>Measurement points and connecting lines are hidden.</p>}
-    {groupBy && <p className="wt-muted">The legend only changes the display; selection and exports remain unchanged.</p>}
+      ? <><svg aria-hidden="true" width="12" height="12" viewBox="0 0 12 12"><path d="M 6 0 l 5 6 l -5 6 l -5 -6 Z" fill={module.presentation.color} /></svg>{coreText(module.presentation.markerLegend)}{' '}<span className="wt-overlay-swatch" aria-hidden="true" style={{ background: `${module.presentation.color}26`, borderColor: `${module.presentation.color}40` }} /><span data-testid={`${module.id}-band-legend`}>{coreText(bandLegends(module))}</span>{cohortRows.length > 1 ? visible.some(p => p.row.patientId === highlight) ? `, ${t('shown for the highlighted patient')}` : highlight !== null ? `; ${t('the highlighted patient is not plotted in this chart')}` : `; ${t('windows and stage labels appear once a patient is chosen under Display → “Highlight patient”')}` : ''}.</>
+      : coreText(module.presentation.emptyLegend)}</p>)}
+    {shownOverlays.flatMap(module => bandNotes(module).map(note => <p key={`${module.id}:${note}`} className="wt-muted" data-testid={`${module.id}-band-note`}>{coreText(note)}</p>))}
+    {showFit && uncertain > 0 && <p className="wt-warning">{t('{uncertain} individual fits have uncertain slopes: fewer than three fitted measurement dates or less than one year of follow-up. Dotted fit lines identify these patients. Even R² = 1 can be based on only two points.', { uncertain })}</p>}
+    {showFit && noFit > 0 && <p>{t('{noFit} trajectories without an available fit.', { noFit })}</p>}
+    {visible.some(p => p.points.some(point => boundedPrefix(point.operator))) && <p className="wt-muted">{t('Bounds marked < or > remain visible at their numeric limits. {boundedFitText}', { boundedFitText: boundedFitText(visible[0]?.cell.boundedValues) })}</p>}
+    {mergedSources.length > 0 && <p className="wt-muted" data-testid="merged-sources-legend">{t('Merged series; marker shape by source series: {value}. The point tooltips name the source. Values from different laboratories or methods may not be comparable.', { value: mergedSources.map((source, i) => `${MARK_SYMBOLS[markShape(i)]} ${source.bezeichnung} [${source.einheit ?? t('no unit')}]`).join('; ') })}</p>}
+    {!display.points && !display.connect && <p>{t('Measurement points and connecting lines are hidden.')}</p>}
+    {groupBy && <p className="wt-muted">{t('The legend only changes the display; selection and exports remain unchanged.')}</p>}
   </section>
 }

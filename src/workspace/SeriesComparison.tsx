@@ -8,6 +8,7 @@ import type { LabRow, PatientId } from '../core/types'
 import { calendarTicks, niceTicks, tickLabels } from './plot-ticks'
 import { markPath, markShape, MARK_SYMBOLS } from './WorkspacePlot'
 import { countLabel, parameterLabel } from './workspace-labels'
+import { t } from '../i18n'
 
 const PLOT = { left: 65, right: 630, top: 20, bottom: 240 }
 const COLORS = ['#176c68', '#a15a2c', '#487ca9', '#8560a4', '#8c7427', '#b14c73', '#3d797f']
@@ -88,22 +89,22 @@ export function SeriesComparison({ rows, patientId }: { rows: readonly LabRow[];
   const xTicks = calendarTicks(xMin, xMax)
   const unitText = displayUnit ?? ''
   return <section className="card wt-series-comparison" aria-labelledby="series-comparison-title" data-testid="series-comparison">
-    <h3 id="series-comparison-title">Compare series</h3>
-    <p className="wt-muted">Several series of this patient in one chart, for example the same analyte from two laboratories or methods. The first ticked series sets the unit; another unit is converted only for serum creatinine (mg/dl and µmol/l, 88.42 µmol/l per mg/dl). Merging is a separate, deliberate step on the Data page.</p>
-    <div className="wt-comparison-options" role="group" aria-label="Series to compare">{available.map(({ ref, values: n }) => {
+    <h3 id="series-comparison-title">{t('Compare series')}</h3>
+    <p className="wt-muted">{t('Several series of this patient in one chart, for example the same analyte from two laboratories or methods. The first ticked series sets the unit; another unit is converted only for serum creatinine (mg/dl and µmol/l, 88.42 µmol/l per mg/dl). Merging is a separate, deliberate step on the Data page.')}</p>
+    <div className="wt-comparison-options" role="group" aria-label={t('Series to compare')}>{available.map(({ ref, values: n }) => {
       const key = seriesRefKey(ref)
       const index = chosen.indexOf(key)
       const convertible = displayUnit === null || index >= 0 || mergeUnitConversion(ref, displayUnit) !== null
       return <label key={key} className={convertible ? undefined : 'wt-muted'}><input type="checkbox" checked={index >= 0} disabled={!convertible} onChange={event => toggle(key, event.target.checked)} />
         {index >= 0 && <span aria-hidden="true" style={{ color: COLORS[index % COLORS.length] }}>{MARK_SYMBOLS[markShape(index)]} </span>}
-        {parameterLabel(ref.bezeichnung, ref.einheit)} <span className="wt-muted">({countLabel(n, 'value')}{convertible ? '' : `; not convertible to ${unitText}`})</span></label>
+        {parameterLabel(ref.bezeichnung, ref.einheit)} <span className="wt-muted">({countLabel(n, 'value')}{convertible ? '' : `; ${t('not convertible to {unit}', { unit: unitText })}`})</span></label>
     })}</div>
-    {series.length < 2 ? <p className="wt-muted">Tick two or more series to compare them.</p> : <>
-      <svg viewBox="0 0 660 300" className="wt-plot" role="group" aria-label={`Comparison of ${series.map(s => parameterLabel(s.ref.bezeichnung, s.ref.einheit)).join(', ')} in ${unitText}, by calendar date`}>
-        <title>Series comparison in {unitText}</title>
+    {series.length < 2 ? <p className="wt-muted">{t('Tick two or more series to compare them.')}</p> : <>
+      <svg viewBox="0 0 660 300" className="wt-plot" role="group" aria-label={t('Comparison of {series} in {unit}, by calendar date', { series: series.map(s => parameterLabel(s.ref.bezeichnung, s.ref.einheit)).join(', '), unit: unitText })}>
+        <title>{t('Series comparison in {unit}', { unit: unitText })}</title>
         {yTicks.map((v, i) => <g key={v}><line x1={PLOT.left} x2={PLOT.right} y1={y(v)} y2={y(v)} stroke="#dce5e9" /><text x="57" y={y(v) + 4} textAnchor="end">{yLabels[i]}</text></g>)}
         {xTicks.map(t => <text key={t} x={x(t)} y="262" textAnchor={x(t) < PLOT.left + 36 ? 'start' : x(t) > PLOT.right - 36 ? 'end' : 'middle'}>{formatDisplayDate(new Date(t))}</text>)}
-        <text x="345" y="290" textAnchor="middle">Calendar date; values in {unitText}</text>
+        <text x="345" y="290" textAnchor="middle">{t('Calendar date; values in {unit}', { unit: unitText })}</text>
         {series.map((s, i) => {
           const color = COLORS[i % COLORS.length]
           const shape = markShape(i)
@@ -111,10 +112,10 @@ export function SeriesComparison({ rows, patientId }: { rows: readonly LabRow[];
           const fit = s.fit
           const ends = fit ? [s.points.filter(p => p.operator === '=')[0]?.date.getTime() ?? fit.origin, s.points.filter(p => p.operator === '=').at(-1)?.date.getTime() ?? fit.origin] : []
           return <g key={label} data-series={label} data-shape={shape}>
-            {fit && <line data-testid="comparison-line" x1={x(ends[0])} x2={x(ends[1])} y1={y(fit.intercept + fit.slope * (ends[0] - fit.origin) / YEAR_MS)} y2={y(fit.intercept + fit.slope * (ends[1] - fit.origin) / YEAR_MS)} stroke={color} strokeWidth={2} strokeDasharray={i % 2 ? '2 3' : '6 4'}><title>{label}: comparison line {formatFixedDecimals(fit.slope, 3, true)} {unitText}/year</title></line>}
+            {fit && <line data-testid="comparison-line" x1={x(ends[0])} x2={x(ends[1])} y1={y(fit.intercept + fit.slope * (ends[0] - fit.origin) / YEAR_MS)} y2={y(fit.intercept + fit.slope * (ends[1] - fit.origin) / YEAR_MS)} stroke={color} strokeWidth={2} strokeDasharray={i % 2 ? '2 3' : '6 4'}><title>{t('{label}: comparison line {slope} {unit}/year', { label, slope: formatFixedDecimals(fit.slope, 3, true), unit: unitText })}</title></line>}
             {s.points.map((p, k) => {
               const open = p.operator !== '='
-              const title = `${label}, ${formatDisplayDate(p.date)}: ${open ? `${p.operator} ` : ''}${s.factor === 1 ? formatDisplayNumber(p.value) : convertedNumber(p.value)} ${unitText}${s.factor !== 1 ? ` (${formatDisplayNumber(p.original)} ${s.ref.einheit ?? ''} as measured)` : ''}${p.source ? `, from ${p.source}` : ''}${p.labMethod ? `, laboratory or method: ${p.labMethod}` : ''}${open ? ', a bound: not in the comparison line' : ''}`
+              const title = `${label}, ${formatDisplayDate(p.date)}: ${open ? `${p.operator} ` : ''}${s.factor === 1 ? formatDisplayNumber(p.value) : convertedNumber(p.value)} ${unitText}${s.factor !== 1 ? ` ${t('({value} {unit} as measured)', { value: formatDisplayNumber(p.original), unit: s.ref.einheit ?? '' })}` : ''}${p.source ? `, ${t('from {source}', { source: p.source })}` : ''}${p.labMethod ? `, ${t('laboratory or method: {method}', { method: p.labMethod })}` : ''}${open ? `, ${t('a bound: not in the comparison line')}` : ''}`
               return shape === 'circle'
                 ? <circle key={k} cx={x(p.date.getTime())} cy={y(p.value)} r={3.5} fill={open ? 'white' : color} stroke={color}><title>{title}</title></circle>
                 : <path key={k} d={markPath(shape, x(p.date.getTime()), y(p.value), 3.5)} fill={open ? 'white' : color} stroke={color}><title>{title}</title></path>
@@ -122,14 +123,14 @@ export function SeriesComparison({ rows, patientId }: { rows: readonly LabRow[];
           </g>
         })}
       </svg>
-      <div className="wt-table-scroll"><table aria-label="Compared series"><thead><tr><th>Series</th><th>Values</th><th>Period</th><th>Comparison line ({unitText}/year)</th><th>Laboratory or method</th></tr></thead><tbody>{series.map((s, i) => <tr key={seriesRefKey(s.ref)}>
+      <div className="wt-table-scroll"><table aria-label={t('Compared series')}><thead><tr><th>{t('Series')}</th><th>{t('Values')}</th><th>{t('Period')}</th><th>{t('Comparison line ({unitText}/year)', { unitText })}</th><th>{t('Laboratory or method')}</th></tr></thead><tbody>{series.map((s, i) => <tr key={seriesRefKey(s.ref)}>
         <td><span aria-hidden="true" style={{ color: COLORS[i % COLORS.length] }}>{MARK_SYMBOLS[markShape(i)]} </span>{parameterLabel(s.ref.bezeichnung, s.ref.einheit)}{s.factor !== 1 ? ` (${s.factor < 1 ? '÷' : '×'} 88.42)` : ''}</td>
         <td>{s.points.length}</td>
-        <td>{s.points.length ? `${formatDisplayDate(s.points[0].date)} to ${formatDisplayDate(s.points.at(-1)!.date)}` : '–'}</td>
-        <td>{s.fit ? `${formatFixedDecimals(s.fit.slope, 3, true)}${Number.isFinite(s.fit.ciLow) ? ` (95 % CI ${formatFixedDecimals(s.fit.ciLow, 3, true)} to ${formatFixedDecimals(s.fit.ciHigh, 3, true)})` : ' (two dates: no interval)'}` : 'Fewer than two dates'}</td>
+        <td>{s.points.length ? t('{from} to {to}', { from: formatDisplayDate(s.points[0].date), to: formatDisplayDate(s.points.at(-1)!.date) }) : '–'}</td>
+        <td>{s.fit ? `${formatFixedDecimals(s.fit.slope, 3, true)}${Number.isFinite(s.fit.ciLow) ? ` ${t('(95 % CI {low} to {high})', { low: formatFixedDecimals(s.fit.ciLow, 3, true), high: formatFixedDecimals(s.fit.ciHigh, 3, true) })}` : ` ${t('(two dates: no interval)')}`}` : t('Fewer than two dates')}</td>
         <td>{s.labMethods.length ? s.labMethods.join(', ') : '–'}</td>
       </tr>)}</tbody></table></div>
-      <p className="wt-muted">Comparison lines: ordinary least squares over the exact values of each series in {unitText}; no time balancing, censoring or exclusions, and bounds (&lt;, &gt;) are left out. They are for comparing the series and can differ from the slope of a column, which follows its analysis settings. A shift between the lines at the same time points the method or laboratory, not the patient, may explain. Research use only.</p>
+      <p className="wt-muted">{t('Comparison lines: ordinary least squares over the exact values of each series in {unitText}; no time balancing, censoring or exclusions, and bounds (<, >) are left out. They are for comparing the series and can differ from the slope of a column, which follows its analysis settings. A shift between the lines at the same time points the method or laboratory, not the patient, may explain. Research use only.', { unitText })}</p>
     </>}
   </section>
 }

@@ -464,7 +464,7 @@ export async function startWorkspaceStorage(): Promise<() => void> {
     else if (state.trajectoryFitSettings !== previous.trajectoryFitSettings || state.trajectoryView !== previous.trajectoryView) saveSettings()
   })
   // The interface language is kept with the settings record, so only while saving is on.
-  const stopLanguage = subscribeLanguage(() => { if (useWorkspaceStorage.getState().enabled) saveSettings() })
+  const stopLanguage = subscribeLanguage(transient => { if (!transient && useWorkspaceStorage.getState().enabled) saveSettings() })
   const onShown = () => { if (document.visibilityState === 'visible') void checkSavedCopy() }
   document.addEventListener('visibilitychange', onShown)
   window.addEventListener('focus', onShown)

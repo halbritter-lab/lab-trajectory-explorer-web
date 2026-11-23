@@ -5,6 +5,7 @@ import { DEFAULT_AKI_DAYS_AFTER_END } from '../../core/domains/nephrology/consta
 import { isEgfrUnit } from '../../core/domains/nephrology/analytes'
 import { isAkiCreatinineSource } from '../../core/domains/nephrology/aki/akiAware'
 import { EndpointSettings } from './EndpointSettings'
+import { t } from '../../i18n'
 
 export function NephrologySettings({ parameter, settings: fitSettings, onUpdate: updateSettings }: {
   parameter: WorkspaceParameter; settings: WorkspaceFitSettings; onUpdate: (patch: Partial<WorkspaceFitSettings>) => void;
@@ -16,75 +17,75 @@ export function NephrologySettings({ parameter, settings: fitSettings, onUpdate:
   const akiOptions = egfrEndpoints || isAkiCreatinineSource(parameter.bezeichnung, parameter.einheit) || fitSettings.exclusions.excludeAkiWindows
   return <>
           <div className="wt-pipeline-group">
-            <h2>Clinical events & censoring</h2>
+            <h2>{t('Clinical events & censoring')}</h2>
             <label>
               <input
                 type="checkbox"
-                aria-label="Censor after kidney transplant"
+                aria-label={t('Censor after kidney transplant')}
                 checked={fitSettings.censoring.censorAfterKidneyTransplant}
                 onChange={e => updateSettings({
                   censoring: { ...fitSettings.censoring, censorAfterKidneyTransplant: e.target.checked }
                 })}
               />
-              Censor after kidney transplant
+              {t('Censor after kidney transplant')}
             </label>
             <label>
               <input
                 type="checkbox"
-                aria-label="Censor after chronic dialysis"
+                aria-label={t('Censor after chronic dialysis')}
                 checked={fitSettings.censoring.censorAfterChronicDialysis}
                 onChange={e => updateSettings({
                   censoring: { ...fitSettings.censoring, censorAfterChronicDialysis: e.target.checked }
                 })}
               />
-              Censor after chronic dialysis
+              {t('Censor after chronic dialysis')}
             </label>
-            <p className="wt-muted">Unticked, the values from the first kidney transplant or chronic dialysis start on are fitted as a separate segment; the slope of the parameter stays that of the values before it.</p>
+            <p className="wt-muted">{t('Unticked, the values from the first kidney transplant or chronic dialysis start on are fitted as a separate segment; the slope of the parameter stays that of the values before it.')}</p>
             <label>
               <input
                 type="checkbox"
-                aria-label="Exclude acute dialysis intervals"
+                aria-label={t('Exclude acute dialysis intervals')}
                 checked={fitSettings.censoring.excludeAcuteDialysisPeriods}
                 onChange={e => updateSettings({
                   censoring: { ...fitSettings.censoring, excludeAcuteDialysisPeriods: e.target.checked }
                 })}
               />
-              Exclude acute dialysis intervals
+              {t('Exclude acute dialysis intervals')}
             </label>
-            <label>Unknown dialysis
+            <label>{t('Unknown dialysis')}
               <select
-                aria-label="Unknown dialysis policy"
+                aria-label={t('Unknown dialysis policy')}
                 value={fitSettings.censoring.unknownDialysisPolicy}
                 onChange={e => updateSettings({
                   censoring: { ...fitSettings.censoring, unknownDialysisPolicy: e.target.value as UnknownDialysisPolicy }
                 })}
               >
-                <option value="flag-only">Flag only</option>
-                <option value="exclude-dated-interval">Exclude dated interval</option>
-                <option value="censor-from-start">Censor from start</option>
-                <option value="dated-interval-or-from-start">Dated interval, else from start</option>
+                <option value="flag-only">{t('Flag only')}</option>
+                <option value="exclude-dated-interval">{t('Exclude dated interval')}</option>
+                <option value="censor-from-start">{t('Censor from start')}</option>
+                <option value="dated-interval-or-from-start">{t('Dated interval, else from start')}</option>
               </select>
             </label>
           </div>
           {akiOptions && <div className="wt-pipeline-group">
-            <h2>AKI exclusion windows</h2>
-            <p className="wt-muted">Episodes are detected with the KDIGO creatinine criteria. The window follows acute kidney disease, which lasts up to 90 days after an AKI (KDIGO 2024); the shorter fallback is a rule of this tool.</p>
+            <h2>{t('AKI exclusion windows')}</h2>
+            <p className="wt-muted">{t('Episodes are detected with the KDIGO creatinine criteria. The window follows acute kidney disease, which lasts up to 90 days after an AKI (KDIGO 2024); the shorter fallback is a rule of this tool.')}</p>
             <label>
               <input
                 type="checkbox"
-                aria-label="Exclude AKI windows from fit"
+                aria-label={t('Exclude AKI windows from fit')}
                 checked={fitSettings.exclusions.excludeAkiWindows}
                 onChange={e => updateSettings({
                   exclusions: { ...fitSettings.exclusions, excludeAkiWindows: e.target.checked }
                 })}
               />
-              Exclude AKI windows from fit
+              {t('Exclude AKI windows from fit')}
             </label>
-            <label>Window after the episode end (days)
+            <label>{t('Window after the episode end (days)')}
               <input
                 type="number"
                 min={0}
-                aria-label="AKI window after episode end (days)"
+                aria-label={t('AKI window after episode end (days)')}
                 disabled={!fitSettings.exclusions.excludeAkiWindows}
                 value={fitSettings.exclusions.akiDaysAfterEnd ?? DEFAULT_AKI_DAYS_AFTER_END}
                 onChange={e => updateSettings({
@@ -92,11 +93,11 @@ export function NephrologySettings({ parameter, settings: fitSettings, onUpdate:
                 })}
               />
             </label>
-            <label>Shorter window from onset (days)
+            <label>{t('Shorter window from onset (days)')}
               <input
                 type="number"
                 min={0}
-                aria-label="Shorter AKI window from onset (days)"
+                aria-label={t('Shorter AKI window from onset (days)')}
                 disabled={!fitSettings.exclusions.excludeAkiWindows}
                 value={fitSettings.exclusions.akiExclusionDays}
                 onChange={e => updateSettings({
@@ -104,9 +105,9 @@ export function NephrologySettings({ parameter, settings: fitSettings, onUpdate:
                 })}
               />
             </label>
-            <p className="wt-muted">Each window runs from the onset of an episode to the given days after its end (for an episode without an observed end, after the recovery window of its last value). Where the fit would then keep fewer than 3 fitted dates over 365 days, the shorter window from onset applies to every episode of the parameter, and the cell is labelled. Values before the onset stay in the fit.</p>
+            <p className="wt-muted">{t('Each window runs from the onset of an episode to the given days after its end (for an episode without an observed end, after the recovery window of its last value). Where the fit would then keep fewer than 3 fitted dates over 365 days, the shorter window from onset applies to every episode of the parameter, and the cell is labelled. Values before the onset stay in the fit.')}</p>
           </div>}
           {egfrEndpoints && <EndpointSettings settings={fitSettings} onUpdate={updateSettings} />}
-    {akiOptions && <p className="wt-muted"><a href="#methods/aki/timing">Nephrology: AKI exclusion windows</a></p>}
+    {akiOptions && <p className="wt-muted"><a href="#methods/aki/timing">{t('Nephrology: AKI exclusion windows')}</a></p>}
   </>
 }

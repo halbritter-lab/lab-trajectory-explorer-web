@@ -2,6 +2,8 @@ import type { CohortCell } from '../core/cohort/screening'
 import type { LabRow, PatientId } from '../core/types'
 import type { ClinicalEvent } from '../core/events/events'
 import { boundedPrefix, drawnFitLines, EVENT_COLOR, formatWorkspaceDate, formatWorkspaceNumber } from './WorkspacePlot'
+import { countLabel } from './workspace-labels'
+import { t } from '../i18n'
 
 export interface SparkDomain { min: number; max: number; days: number }
 export type SparkSize = 'small' | 'medium' | 'large'
@@ -56,18 +58,18 @@ export function WorkspaceSparkline({ cell, measurements, patientId, label, domai
     if (!inside && (stop === null || stop < origin || start > end)) return []
     return [{ event, line: inside ? xAt(start) : null, band: stop === null ? null : { from: xAt(Math.max(start, origin)), to: xAt(Math.min(Math.max(stop, start), end)) } }]
   })
-  const eventTitle = (event: ClinicalEvent) => `${event.title}, ${formatWorkspaceDate(event.date)}${event.endDate ? ` to ${formatWorkspaceDate(event.endDate)}` : ''}`
+  const eventTitle = (event: ClinicalEvent) => `${event.title}, ${formatWorkspaceDate(event.date)}${event.endDate ? ` ${t('to {date}', { date: formatWorkspaceDate(event.endDate) })}` : ''}`
   // On a log axis the ends are rarely round: three significant digits, so 0.004 does not read as 0.
   const endLabel = (value: number) => logScale ? value.toLocaleString('en-GB', { maximumSignificantDigits: 3 }) : formatWorkspaceNumber(value)
   const [maxLabel, minLabel] = [endLabel(domain.max), endLabel(domain.min)]
-  return <svg className="wt-sparkline" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" data-y-min={domain.min} data-y-max={domain.max} data-y-scale={logScale ? 'log' : 'linear'} aria-label={`Measurement trajectory for patient ${patientId}, ${label}: ${cell.points.length} measurements; ${scaleMode === 'shared' ? 'Shared parameter scale' : 'Zoom to visible values'}${logScale ? ', logarithmic' : ''}, days since first measurement${shownEvents.length ? `; ${shownEvents.length} ${shownEvents.length === 1 ? 'event' : 'events'}` : ''}`}>
-    <title>{`Patient ${patientId}, ${label}: ${cell.points.map((point, i) => `${formatWorkspaceDate(point.date)}: ${boundedPrefix(sources[i]?.wertOperator)}${formatWorkspaceNumber(point.value)}`).join('; ')}${shownEvents.length ? `. Events: ${shownEvents.map(({ event }) => eventTitle(event)).join('; ')}` : ''}`}</title>
+  return <svg className="wt-sparkline" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img" data-y-min={domain.min} data-y-max={domain.max} data-y-scale={logScale ? 'log' : 'linear'} aria-label={`${t('Measurement trajectory for patient {patient}, {label}: {n} measurements', { patient: String(patientId), label, n: cell.points.length })}; ${scaleMode === 'shared' ? t('Shared parameter scale') : t('Zoom to visible values')}${logScale ? `, ${t('logarithmic')}` : ''}, ${t('days since first measurement')}${shownEvents.length ? `; ${countLabel(shownEvents.length, 'event')}` : ''}`}>
+    <title>{`${t('Patient {patient}, {label}:', { patient: String(patientId), label })} ${cell.points.map((point, i) => `${formatWorkspaceDate(point.date)}: ${boundedPrefix(sources[i]?.wertOperator)}${formatWorkspaceNumber(point.value)}`).join('; ')}${shownEvents.length ? `. ${t('Events:')} ${shownEvents.map(({ event }) => eventTitle(event)).join('; ')}` : ''}`}</title>
     {shownEvents.map(({ event, band }, i) => band && <rect key={`band-${i}`} data-testid="spark-event-band" x={Math.min(band.from, band.to)} width={Math.max(1, Math.abs(band.to - band.from))} y={PLOT.top} height={bottom - PLOT.top} fill={EVENT_COLOR} fillOpacity={.12}><title>{eventTitle(event)}</title></rect>)}
     <line x1={PLOT.left} x2={right} y1={PLOT.top} y2={PLOT.top} stroke="#e0e7eb" />
     <line x1={PLOT.left} x2={right} y1={bottom} y2={bottom} stroke="#e0e7eb" />
     <text x={PLOT.left - 5} y={PLOT.top + 3} textAnchor="end">{maxLabel}</text>
     <text x={PLOT.left - 5} y={bottom + 3} textAnchor="end">{minLabel}</text>
-    <text x={PLOT.left} y={bottom + 16}>0</text><text x={right} y={bottom + 16} textAnchor="end">{formatWorkspaceNumber(domain.days)} days</text>
+    <text x={PLOT.left} y={bottom + 16}>0</text><text x={right} y={bottom + 16} textAnchor="end">{t('{n} days', { n: formatWorkspaceNumber(domain.days) })}</text>
     {/* A path, not a line: the small chart size hides the axis lines and labels. */}
     {shownEvents.map(({ event, line }, i) => line !== null && <path key={`event-${i}`} data-testid="spark-event-line" d={`M ${line} ${PLOT.top} V ${bottom}`} stroke={EVENT_COLOR} strokeWidth="1.4" strokeDasharray="3 2"><title>{eventTitle(event)}</title></path>)}
     <polyline points={drawn.map(({ point }) => `${x(point.date)},${y(point.value)}`).join(' ')} fill="none" stroke="#176c68" strokeWidth="1.7" />

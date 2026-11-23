@@ -1,3 +1,4 @@
+import { t } from '../../i18n'
 export interface RowGroup<T> {
   key: string
   value: string | null
@@ -18,7 +19,7 @@ export function groupRows<T>(rows: readonly T[], getValue: (row: T) => string | 
   for (const row of rows) {
     const value = normalizedGroupValue(getValue(row))
     const key = groupKey(value)
-    const group = groups.get(key) ?? { key, value, label: value === null ? GROUP_NOT_RECORDED : label(value), rows: [] }
+    const group = groups.get(key) ?? { key, value, label: value === null ? t('Not recorded') : label(value), rows: [] }
     group.rows.push(row)
     groups.set(key, group)
   }

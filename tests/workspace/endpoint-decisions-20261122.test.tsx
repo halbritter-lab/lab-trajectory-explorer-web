@@ -10,7 +10,7 @@ import { describe, expect, it } from 'vitest'
 import { computeCkdEndpoints, type EndpointPoint } from '../../src/core/domains/nephrology/endpoints/ckdEndpoints'
 import { ckdEndpointsModule } from '../../src/core/domains/nephrology/endpoints/ckdEndpointsModule'
 import { ckdProgressionConfig } from '../../src/core/domains/nephrology/fitConfig'
-import { endpointBadge, ENDPOINT_BADGE_IDS, G5_SINGLE_UNCONFIRMED_LABEL } from '../../src/workspace/labels/endpointLabels'
+import { endpointBadge, ENDPOINT_BADGE_IDS, g5SingleUnconfirmedLabel } from '../../src/workspace/labels/endpointLabels'
 import { defaultTrajectoryView, restoreSavedSettings, SAVED_SETTINGS_VERSION } from '../../src/workspace/saved-settings'
 import { restoredNotice } from '../../src/workspace/workspace-storage'
 import { defaultFitSettings } from '../../src/workspace/workspace-analysis'
@@ -51,8 +51,8 @@ describe('unconfirmed single value below 15 (g5single)', () => {
   it('labels the cell and fills the last export flag', () => {
     const endpoints = computeCkdEndpoints({ points: [point('2020-01-01', 25), point('2020-06-01', 12), point('2020-09-01', 24)], slopePerYear: -1, enabled: { percentDecline: false, observedCkdG5: true, projectedAgeToCkdG5: false } })
     expect(endpoints.observedCkdG5.met).toBe(false)
-    expect(endpointBadge(endpoints, 3)?.label).toBe(G5_SINGLE_UNCONFIRMED_LABEL)
-    expect(G5_SINGLE_UNCONFIRMED_LABEL).toBe('single value <15, unconfirmed (possible AKI)')
+    expect(endpointBadge(endpoints, 3)?.label).toBe(g5SingleUnconfirmedLabel())
+    expect(g5SingleUnconfirmedLabel()).toBe('single value <15, unconfirmed (possible AKI)')
     expect(cell(endpoints).endpoint_g5_single_value_unconfirmed).toBe('yes')
     expect(ckdEndpointsModule.exportColumns.at(-1)!.key).toBe('endpoint_g5_single_value_unconfirmed')
   })

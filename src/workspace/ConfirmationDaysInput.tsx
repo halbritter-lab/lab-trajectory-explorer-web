@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { MAX_CONFIRMATION_DAYS } from '../core/domains/nephrology/constants'
+import { t } from '../i18n'
 
 /** Minimum confirmation interval in days. Keeps the typed text as a draft so an
  * empty or partial value does not snap back to the default mid-edit; only whole
@@ -20,7 +21,7 @@ export function ConfirmationDaysInput({ value, onChange }: { value: number; onCh
         min={1}
         max={MAX_CONFIRMATION_DAYS}
         step={1}
-        aria-label="Minimum confirmation interval (days)"
+        aria-label={t('Minimum confirmation interval (days)')}
         aria-invalid={rejected !== null}
         value={draft}
         onFocus={() => { valueAtFocus.current = value }}
@@ -38,7 +39,7 @@ export function ConfirmationDaysInput({ value, onChange }: { value: number; onCh
         }}
         onBlur={() => setDraft(String(value))}
       />
-      {rejected !== null && <span role="alert" className="wt-muted"> {rejected} days not applied: a confirming value must follow within 12 calendar months, so the minimum interval cannot exceed {MAX_CONFIRMATION_DAYS} days. Still {valueAtFocus.current} days.</span>}
+      {rejected !== null && <span role="alert" className="wt-muted"> {t('{rejected} days not applied: a confirming value must follow within 12 calendar months, so the minimum interval cannot exceed {MAX_CONFIRMATION_DAYS} days. Still {current} days.', { rejected, MAX_CONFIRMATION_DAYS, current: valueAtFocus.current })}</span>}
     </>
   )
 }

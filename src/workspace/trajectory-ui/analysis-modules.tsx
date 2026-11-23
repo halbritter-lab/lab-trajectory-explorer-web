@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { tx } from '../../i18n'
 import { columnSettingModules, type RegisteredAnalysisModule } from '../../core/analysis/registry'
 import type { WorkspaceParameter } from '../workspace-data'
 import type { WorkspaceFitSettings } from '../workspace-analysis'
@@ -48,7 +49,7 @@ export function AnalysisModuleSettings(props: AnalysisAdapterProps & { adapters?
   return <>
     {adapters.filter(adapter => adapter.isConfigured(props.settings) || adapter.appliesTo?.(props.parameter)).map(adapter => <div key={adapter.id} className="pv-module-settings" data-module={adapter.id}>{adapter.render(props)}</div>)}
     {applicableColumnModules(props.parameter, columnSettingModules(), adapters).map(module => <section className="wt-pipeline-group" key={module.id} data-module={module.id}>
-      <h2>{module.label}</h2><ModuleSettingInputs modules={[module]} settings={props.settings.moduleSettings} onChange={moduleSettings => props.onUpdate({ moduleSettings })} />
+      <h2>{tx(module.label)}</h2><ModuleSettingInputs modules={[module]} settings={props.settings.moduleSettings} onChange={moduleSettings => props.onUpdate({ moduleSettings })} />
     </section>)}
   </>
 }

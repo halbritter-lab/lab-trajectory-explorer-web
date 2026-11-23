@@ -3,6 +3,7 @@ import type { ColumnModuleSettings } from '../../core/analysis/registry'
 import { CLINICAL_EVENT_TYPES, type ClinicalEvent, type ClinicalEventType } from '../../core/events/events'
 import { isUnstableSlope } from '../../core/stats/slopeQuality'
 import type { PatientId } from '../../core/types'
+import { msg, tx } from '../../i18n'
 
 type SlopeCell = Pick<CohortCell, 'slope' | 'reason' | 'nFitted' | 'nFittedDates' | 'fittedSpanDays' | 'fitModel'>
 
@@ -30,20 +31,20 @@ export function compareSlopeCells(a: SlopeCell, b: SlopeCell, options: { absolut
 export type RowMark = 'rapid' | 'rapid-possible' | 'uncertain' | 'reliable' | 'endpoint' | 'aki' | `event:${ClinicalEventType}`
 
 const MARK_LABELS: Record<RowMark, string> = {
-  rapid: 'Rapid decline',
-  'rapid-possible': 'Possible rapid decline',
-  uncertain: 'Uncertain slope',
-  reliable: 'Reliable slope',
-  endpoint: 'Endpoint reached',
+  rapid: msg('Rapid decline'),
+  'rapid-possible': msg('Possible rapid decline'),
+  uncertain: msg('Uncertain slope'),
+  reliable: msg('Reliable slope'),
+  endpoint: msg('Endpoint reached'),
   aki: 'AKI',
-  'event:kidney_transplant': 'Kidney transplant',
-  'event:dialysis': 'Dialysis',
-  'event:other': 'Other event',
-  'event:death': 'Death',
+  'event:kidney_transplant': msg('Kidney transplant'),
+  'event:dialysis': msg('Dialysis'),
+  'event:other': msg('Other event'),
+  'event:death': msg('Death'),
 }
 /** Display order: marks of the cells first, then event types. */
 export const ROW_MARKS = Object.keys(MARK_LABELS) as RowMark[]
-export const rowMarkLabel = (mark: RowMark): string => MARK_LABELS[mark]
+export const rowMarkLabel = (mark: RowMark): string => tx(MARK_LABELS[mark])
 
 /** An observed endpoint: kidney failure by event, a confirmed CKD G4 or G5, or
  * a confirmed 40%, 50% or 57% decline. Projections and the total change are not
