@@ -1898,12 +1898,16 @@ issue that owns the area:
   split a series. Issue #70.
 - **q15 "gap7"**: rises within 7 days form one AKI episode. This conflicts with
   the decision of 2026-11-21 on issue #67 (episodes separated by 48 hours of
-  recovery), which is implemented. **Open: the owner confirms which rule
-  holds.**
+  recovery), which is implemented. **Resolved by the owner on 2026-11-23: the
+  48-hour recovery rule of #67 holds** (ADQI 16, Chawla LS et al., Nat Rev
+  Nephrol 2017;13:241, doi:10.1038/nrneph.2017.2, statement 1B: at least
+  48 hours of sustained reversal separate two episodes); the 7-day answer is
+  superseded.
 - **q32 "settings"**: settings are always saved, lab values only after
   consent. Implemented is the opt-in of 2026-11-16 ("Remember on this device"
-  for both). **Open: the owner confirms whether settings should be saved
-  without opt-in.** Issue #2.
+  for both). **Resolved by the owner on 2026-11-23: the opt-in holds** for
+  settings and lab values alike; the answer of 2026-11-21 is superseded.
+  Issue #2.
 
 A fifth, q3 (main number is the slope over all values; part slopes in an
 export sheet of their own), is implemented for Rolling OLS (`rolling_windows`,
