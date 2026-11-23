@@ -1902,7 +1902,10 @@ issue that owns the area:
   48-hour recovery rule of #67 holds** (ADQI 16, Chawla LS et al., Nat Rev
   Nephrol 2017;13:241, doi:10.1038/nrneph.2017.2, statement 1B: at least
   48 hours of sustained reversal separate two episodes); the 7-day answer is
-  superseded.
+  superseded. ADQI 16 uses the KDIGO criteria for detection and staging and
+  only adds the episode and recovery definitions KDIGO 2012 leaves open; the
+  KDIGO consensus on AKD (Lameire NH et al., Kidney Int 2021;100:516–526,
+  PMID 34252450, AKD ≤ 3 months) is consistent with the ADQI AKD window.
 - **q32 "settings"**: settings are always saved, lab values only after
   consent. Implemented is the opt-in of 2026-11-16 ("Remember on this device"
   for both). **Resolved by the owner on 2026-11-23: the opt-in holds** for

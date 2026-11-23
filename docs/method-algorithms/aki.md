@@ -433,8 +433,10 @@ Crossings are grouped into episodes in detection order (`clusterEpisodes`
 in `aki/kdigo.ts`) by recovery, following the ADQI 16 consensus (Chawla et
 al., Nat Rev Nephrol 2017, statement 1B: at least 48 hours of sustained
 reversal separate two episodes; decided 2026-11-21, issue #67, details of
-2026-11-22). The rule uses every value of the detection input, crossing or
-not, in the order of [Detection](#detection):
+2026-11-22). Detection and staging follow KDIGO 2012; the KDIGO guideline
+itself does not define when an episode ends, and the ADQI rule fills that gap
+without changing the KDIGO criteria. The rule uses every value of the
+detection input, crossing or not, in the order of [Detection](#detection):
 
 1. The first crossing of the series, or the first crossing after an episode
    has ended, opens an episode.
@@ -894,7 +896,11 @@ arithmetic in `src/core/exclusions/windows.ts`). Owner decision of 2026-11-22
 (row `akiwin` of the
 [method decisions](../remaining-method-decisions.md#method-and-clinical-decisions),
 issue #4; KDIGO 2024 Figure 3, S139: acute kidney disease lasts up to three
-months; KDIGO 2012 AKI Table 11, p. 33):
+months; KDIGO 2012 AKI Table 11, p. 33; KDIGO consensus conference on
+harmonising acute and chronic kidney disease, Lameire NH et al., Kidney Int
+2021;100:516–526, doi:10.1016/j.kint.2021.06.028, PMID 34252450: AKD lasts
+≤ 3 months and may include AKI; the ADQI 16 window of 7–90 days after the
+event, Chawla 2017, lies within it):
 
 ```
 longer window  = [onset, last day + D days]   both bounds inclusive, D = 90 by default
