@@ -24,6 +24,29 @@ interfaces are still evolving before 1.0.
   `scripts/i18n_extract.mjs`, and `src/i18n/de.ts`), with a completeness test.
   No analysed value changes.
 
+### Fixed (code review of the language switch)
+
+- The model workbook named the pooled unit "Ganze Kohorte" when exported from
+  the German interface; it is "Whole cohort" again in every language. The
+  exported model chart kept a German legend; it is English.
+- The groups of the cohort export (and the sections of the patient table)
+  are ordered by the raw group value, so the row order no longer depends on
+  the interface language.
+- The German import finding "Event date is not a valid date" was shown half
+  translated; every date finding the import composes is now translated whole
+  (checked by a test).
+- Notices of the Data page (import, restored copy), storage messages, import
+  finding labels, data checks and the report of applied settings follow a
+  later language switch instead of keeping the language they were made in.
+- An export that renders the page in English restores the interface language
+  even when that render fails.
+- The analysis record translates only fixed labels: an imported attribute or
+  event title (for example an attribute called "Sex") is shown as imported.
+- German wording: calendar dates of measurements read "Messtage" (chips such
+  as "< 3 Messtage"), the bounded-values note names the option „Ausschließen“,
+  and the time-to-event chart axes and name are translated on the page
+  (exports stay English). No analysed value changes.
+
 ### Added (series comparison and deliberate merge, decided 2026-11-16, 2026-11-21 and 2026-11-22, issue #68)
 
 - Patient view: "Compare series" draws several series of the patient in one
