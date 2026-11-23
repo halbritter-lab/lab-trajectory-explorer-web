@@ -1,6 +1,7 @@
 import { act, cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CohortModelsWorkspace } from '../../src/workspace/CohortModelsWorkspace'
+import { setLanguage } from '../../src/i18n'
 import { useAppStore } from '../../src/workspace/state/store'
 import type { LabRow } from '../../src/core/types'
 import { buildMixedModelResultIdentity, mixedModelFitConfigHash } from '../../src/core/mixedModel/resultIdentity'
@@ -245,6 +246,13 @@ describe('CohortModelsWorkspace', () => {
     fireEvent.change(screen.getByLabelText('Model parameter'), { target: { value: ownParameter.key } })
     expect(preparation).toHaveAccessibleDescription(/Parameter preparation affects 1 parameter.*Kreatinin/)
     expect(screen.getByRole('status', { name: 'Preparation change' })).toBeEmptyDOMElement()
+    // Smoke run of 2026-11-23: the count and the download size follow the interface language.
+    cleanup()
+    setLanguage('de')
+    studio(dataset)
+    fireEvent.change(screen.getByLabelText('Modellparameter'), { target: { value: ownParameter.key } })
+    expect(screen.getByLabelText('Datenaufbereitung')).toHaveAccessibleDescription(/Die Parameteraufbereitung betrifft 1 Parameter in Kohortenmodellen und Verläufen: Kreatinin/)
+    expect(screen.getByTestId('runtime-download-note')).toHaveTextContent('(etwa 39 MB)')
   })
 
   it('says before fitting that no group can be fitted and only the whole cohort will be', async () => {

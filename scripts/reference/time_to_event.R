@@ -47,7 +47,14 @@ km_case <- function(name, entry, exit, status, group) {
   fit <- survfit(Surv(entry, exit, status == 1) ~ group, data = d, conf.type = "log-log")
   q <- quantile(fit, probs = 0.5)
   groups <- levels(factor(group))
-  medians <- lapply(seq_along(groups), function(i) list(group = groups[i], median = num(q$quantile[i]), lower = num(q$lower[i]), upper = num(q$upper[i])))
+  # A limit is "not estimable" (not "not reached") when it is NA and its
+  # log-log curve is NA at an event time of the group (survival 0).
+  undefined_curve <- function(i, limit) {
+    s <- if (length(groups) > 1) fit[i] else fit
+    any(is.na(s[[limit]][s$n.event > 0]))
+  }
+  medians <- lapply(seq_along(groups), function(i) list(group = groups[i], median = num(q$quantile[i]), lower = num(q$lower[i]), upper = num(q$upper[i]),
+    lowerNotEstimable = is.na(q$lower[i]) && undefined_curve(i, "lower"), upperNotEstimable = is.na(q$upper[i]) && undefined_curve(i, "upper")))
   out <- list(name = name, input = list(entry = arr(entry), exit = arr(exit), status = arr(status), group = arr(group)), medians = medians)
   if (length(groups) > 1) {
     lr <- logrank_lt(entry, exit, status == 1, group)
@@ -74,6 +81,12 @@ cases <- list(
     rep(0, 4), c(1, 2, 3, 4), c(1, 1, 0, 1), rep("all", 4)),
   km_case("median_exactly_half_to_the_end",
     rep(0, 4), c(1, 2, 3, 4), c(1, 1, 0, 0), rep("all", 4)),
+  # The median where the curve falls to 0 (one patient at risk, delayed
+  # entry): R gives NA for both limits. Group C has no patient at risk at
+  # any endpoint time, so it has variance 0 and is left out of the log-rank
+  # test (df 1 for three groups).
+  km_case("median_at_zero_survival_and_group_without_risk",
+    c(5, 0, 0, 0, 0, 20, 20), c(10, 3, 12, 8, 15, 25, 30), c(1, 0, 0, 1, 0, 0, 0), c("A", "A", "B", "B", "B", "C", "C")),
   km_case("competing_death",
     rep(0, 5), c(1, 2, 3, 4, 5), c(1, 2, 1, 0, 2), rep("all", 5))
 )

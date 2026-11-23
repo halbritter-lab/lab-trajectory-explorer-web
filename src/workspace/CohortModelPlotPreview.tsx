@@ -236,7 +236,7 @@ export function CohortModelPlotPreview({
                 textAnchor="middle"
                 className="cm-axis-text"
               >
-                {formatWorkspaceNumber(xVal)}y
+                {t('{time}y', { time: formatWorkspaceNumber(xVal) })}
               </text>
             </g>
           ))}

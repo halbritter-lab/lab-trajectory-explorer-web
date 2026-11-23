@@ -874,7 +874,7 @@ export function TrajectoriesWorkspace({ data, requestedPatientId, active = true,
     </div>
   }
   const markButtons = <>
-    {markOptions.map(({ mark, count }) => <button type="button" key={mark} className="pv-mark-filter" aria-pressed={markFilters.includes(mark)} aria-label={`${rowMarkLabel(mark)}: ${count} ${count === 1 ? 'patient' : 'patients'}`} onClick={() => toggleMark(mark)}>{rowMarkLabel(mark)}<span className="pv-count">{count}</span></button>)}
+    {markOptions.map(({ mark, count }) => <button type="button" key={mark} className="pv-mark-filter" aria-pressed={markFilters.includes(mark)} aria-label={`${rowMarkLabel(mark)}: ${tp('{n} patient', '{n} patients', count)}`} onClick={() => toggleMark(mark)}>{rowMarkLabel(mark)}<span className="pv-count">{count}</span></button>)}
     {markFilters.length > 0 && <button type="button" className="pv-mark-clear" onClick={() => { setMarkFilters([]); setTablePage(0) }}>{t('Show all')}</button>}
   </>
   if (!data.patients.length) return <section className="card"><h1>{t('Patients and trajectories')}</h1><p>{t('No data loaded yet. Import a CSV or Excel file, or load demo data under Data.')}</p></section>

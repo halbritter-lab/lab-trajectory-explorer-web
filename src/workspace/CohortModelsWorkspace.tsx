@@ -38,7 +38,7 @@ import { currentWorkspaceModels, groupInteractionFactor, readableMixedModelFormu
 // the connection or kept a tab open across a deployment.
 import { CohortModelTable } from './models/CohortModelTable'
 import { TimeToEventPanel } from './models/TimeToEventPanel'
-import { R_FIRST_FIT_DOWNLOAD } from '../core/mixedModel/rRuntime'
+import { R_FIRST_FIT_DOWNLOAD_MB } from '../core/mixedModel/rRuntime'
 import './cohort-models-workspace.css'
 import { msg, t, tp, tx } from '../i18n'
 
@@ -168,7 +168,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
   const affectedParameters = data.parameters.filter(parameter => ownPrepSettings
     ? parameter.key === activeParamKey
     : !trajectoryFitSettings.columns[parameter.key])
-  const affectedParameterCount = `${affectedParameters.length} parameter${affectedParameters.length === 1 ? '' : 's'}`
+  const affectedParameterCount = tp('{n} parameter', '{n} parameters', affectedParameters.length)
   // Specialist presets always belong to the selected parameter. General
   // presets retain the existing own/shared scope. The parameter is
   // pinned first, because the preselection depends on these settings and
@@ -826,7 +826,7 @@ export function CohortModelsWorkspace({ data, onBrowseTrajectories, onBrowseData
           {cohortModelRunning && <button type="button" className="cm-cancel-button" onClick={cancelFit}>{t('Cancel')}</button>}
         </div>
         <p id={fitFeedbackId} className="muted cm-fit-feedback" role="status" aria-live="polite">{fitFeedback}</p>
-        {!runtimeLoaded && <p className="muted cm-runtime-note" data-testid="runtime-download-note">{t('The first fit of a session loads the R runtime and R packages, which are served with this app from its own address ({R_FIRST_FIT_DOWNLOAD}). These are downloads only; no measurements are sent.', { R_FIRST_FIT_DOWNLOAD })} <a href="#methods/data/network">{t('Network access and local storage')}</a></p>}
+        {!runtimeLoaded && <p className="muted cm-runtime-note" data-testid="runtime-download-note">{t('The first fit of a session loads the R runtime and R packages, which are served with this app from its own address ({size}). These are downloads only; no measurements are sent.', { size: t('about {n} MB', { n: R_FIRST_FIT_DOWNLOAD_MB }) })} <a href="#methods/data/network">{t('Network access and local storage')}</a></p>}
         </section>
         <details className="cm-preparation-details">
           <summary>{t('Preparation and fitting details')}</summary>

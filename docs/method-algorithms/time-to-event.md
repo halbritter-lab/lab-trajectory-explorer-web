@@ -118,14 +118,29 @@ measurement every entry is 0, so this is ordinary right censoring.
   exactly 0.5 (within 1e-10) at that time, the midpoint between it and the
   next event time is taken, or, after the last event time, the midpoint to
   the last exit time of the group, as R's `quantile.survfit` does (checked
-  against R; OD-78). A curve that stays above 0.5 gives "not reached".
+  against R; OD-78). A curve that stays above 0.5 gives "not reached". A
+  limit whose log-log curve becomes undefined before it reaches 0.5 (at the
+  event time where S falls to 0, n = d) is "not estimable", as R gives NA
+  there: the interface shows "lower bound not estimable" or "upper bound not
+  estimable", the export `not estimable` (since the smoke run of 2026-11-23;
+  before, the interface said "not reached" and the export left the lower
+  limit blank). Example: one patient alone at risk at an event, S = 0: the
+  median is that time, both limits not estimable. Exits 5 (event, 3 at risk),
+  8 (censored), 10 (event, 1 at risk): median 10, lower limit 5, upper limit
+  not estimable.
 - **Log-rank test** on the same risk sets: at each endpoint time t with d
   events among n at risk, n_g in group g: E_g += d n_g / n; V_gh += d (n − d) /
   (n − 1) · (n_g / n) · (δ_gh − n_h / n), nothing when n = 1. χ² = (O − E)'
   V⁻¹ (O − E) over the groups with V_gg > 1e-12 less the last of them, df =
   their number less one; p from the χ² distribution. Unadjusted; no test with
   fewer than two groups, or when fewer than two groups have positive variance
-  (shown as "not computed").
+  (shown as "not computed"). A group with V_gg = 0 has no patient at risk at
+  any endpoint time beside patients of other groups (none at risk, or the
+  only group at risk); it is left out of the test and named (since the smoke
+  run of 2026-11-23): "Log-rank test between 5 groups, 3 compared (2 without
+  patients at risk at any endpoint time beside patients of other groups left
+  out: HNF1B, PKD1): χ² = 3.00, 2 df, …" on the demo data (CKD G4 by
+  genotype, age scale), and `compared` in the `logrank` sheet.
 - **Aalen–Johansen** (shown when the exit of at least one included patient
   is a death, status 2; since the code review of wave 3 a death after the
   endpoint, after kidney replacement therapy that ends follow-up, or of a patient not in the analysis
@@ -161,8 +176,8 @@ first sheet holds one row per patient; the others follow:
 | --- | --- |
 | `time_to_event` | `patient_id`, `group`, `included` (yes/no), `exclusion_reason`, `entry_date`, `exit_date`, `entry_years`, `exit_years`, `entry_days`, `exit_days`, `status` (0, 1, 2), `outcome` (`endpoint`, `kidney_replacement_therapy`, `death`, `censored`), `endpoint_confirmed_date`, `time_scale` (`age`, `time_since_entry`), `age_estimated`, `endpoint_definition`, `parameter`. |
 | `km` | Per group and exit time: `time_years`, `time_days`, `n_risk`, `n_event`, `n_censor`, `n_death`, `survival`, `std_err`, `lower_95`, `upper_95`. |
-| `km_summary` | Per group: patients, events, censored, of which died, median and its interval in years ("not reached"). |
-| `logrank` | Per group observed, expected and variance; a row `test` with `chi_square`, `df`, `p_value`. |
+| `km_summary` | Per group: patients, events, censored, of which died, median and its interval in years (`not reached`, or for a limit `not estimable`). |
+| `logrank` | Per group observed, expected, variance and `compared` (`yes`, or `no: …` for a group with variance 0); a row `test` with `chi_square`, `df`, `p_value` and `compared` (`3 of 5 groups`). |
 | `cumulative_incidence` | Only with recorded deaths: per group and time, the Aalen–Johansen incidence of the endpoint and of death and 1 − KM. |
 | `tte_settings` | One row (since the code review of wave 3, 2026-11-22): `parameter_key`, `parameter`, `unit`, `endpoint`, `composite_with_krt`, `time_scale`, `grouping` (empty without), `endpoint_definition`, `fit_config` (the parameter's configuration under Trajectories as JSON, without `xAxis`, as in the cohort workbook), `analysis_settings` (the dataset settings as JSON: eGFR formula and creatinine source, series merges, AKI), `input_data_id`, `app_version`, `exported_at`. |
 | `about` | The research-use note, the endpoint and its definition, the time scale and these rules; `app_version: …`, `exported_at: …` and `input_data_id: …` as notes of their own, as in the cohort workbook, and the settings of the area in words. |
@@ -210,9 +225,13 @@ differs):
   statistic against the `coxph` Breslow score test, which has the same
   variance when no event times are tied (the case has none).
 - `tests/reference/time_to_event.json` (survival 3.5-8, written by
-  `scripts/reference/time_to_event.R`; six cases): the median and its limits
+  `scripts/reference/time_to_event.R`; seven cases): the median and its limits
   from `quantile(survfit(…, conf.type = "log-log"))`, including a curve at
-  exactly 0.5 before a later event and one at 0.5 to the end; the log-rank
+  exactly 0.5 before a later event and one at 0.5 to the end, and whether a
+  missing limit is not estimable (R NA with an NA log-log curve at an event
+  time); a case with delayed entry where the curve falls to 0 (median 10,
+  both limits NA) and a group without patients at risk at the endpoint times
+  (left out: three groups, 1 df); the log-rank
   test on delayed-entry risk sets by `logrank_lt` (the function of the
   exported `r_script`), checked against `survdiff` where every entry is 0; the
   Aalen–Johansen incidences of the multi-state `survfit` with `id`.
@@ -264,7 +283,9 @@ incidence 0.25 at 365, endpoint incidence 0.75 · 1/2 = 0.375 at 731 (1 − KM:
 Grouped by cohort (A: P1, P2; B: P3, P4, P6; P5 has none): P4 and P5 are
 listed (G4 at entry; no value for cohort), A has 2 patients and 1 event, B 2
 and 0; the one event time has nobody of B at risk, so the variance is 0 and
-the log-rank test is not computed.
+the log-rank test is not computed ("between 2 groups, 0 compared (2 … left
+out: A, B)"). On the age scale A's median is P1's exit, both limits not
+estimable (S falls to 0).
 
 Regression evidence: [estimator tests](../../tests/core/survival/survival.test.ts),
 [time-to-event tests](../../tests/workspace/time-to-event.test.tsx) (rules,

@@ -5,6 +5,22 @@ interfaces are still evolving before 1.0.
 
 ## [Unreleased]
 
+### Fixed (browser smoke run of 2026-11-23; no value changes)
+
+- Time to event: a median limit that R gives as NA because the curve falls to
+  0 reads "lower bound not estimable" / "upper bound not estimable" (export
+  `not estimable`) instead of "not reached" or a blank; the log-rank text
+  names the groups it leaves out for want of patients at risk at the endpoint
+  times ("5 groups, 3 compared (2 … left out: HNF1B, PKD1)"), and the
+  `logrank` sheet gains a `compared` column. A new R reference case covers
+  both.
+- Time to event at phone width: the group and number-at-risk tables scroll
+  in their own container instead of breaking words, the chart text is larger,
+  and the selects no longer cut off their options at desktop width.
+- German interface: the parameter count and the R download size on Cohort
+  models, the year ticks of the model preview and the filter-button labels on
+  Trajectories are translated; "in Kohortenmodellen und Verläufen".
+
 ### Changed (eGFR from 1 year, owner decisions of 2026-11-23 on OD-70 and OD-86; changes values for children of 1 year)
 
 - CKiD U25 and bedside Schwartz apply from 1 year (KDIGO 2024 Table 14;

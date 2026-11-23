@@ -46,6 +46,12 @@ export interface QuantileEstimate {
   estimate: number | null
   lower: number | null
   upper: number | null
+  /** The limit is null because its confidence curve is undefined (NaN) before
+   * it reaches the probability, not because it stays above it: once the
+   * survival estimate is 0 the log-log interval does not exist (R gives NA).
+   * Shown as "not estimable" rather than "not reached". */
+  lowerNotEstimable: boolean
+  upperNotEstimable: boolean
 }
 
 export interface KaplanMeierResult {
@@ -106,11 +112,18 @@ export function kaplanMeier(subjects: readonly SurvivalSubject[]): KaplanMeierRe
   }
   const eventSteps = steps.filter(step => step.nEvent > 0)
   const lastTime = steps.at(-1)?.time
+  // The lower curve reaches 0.5 first, so it gives the lower limit.
+  const lower = curveQuantile(eventSteps, step => step.lower, 0.5, lastTime)
+  const upper = curveQuantile(eventSteps, step => step.upper, 0.5, lastTime)
+  // `curveQuantile` stops at the first undefined value, so a null limit with
+  // any undefined value of its curve was cut off there, not left above 0.5.
+  const undefinedCurve = (value: (step: KaplanMeierStep) => number) => eventSteps.some(step => !Number.isFinite(value(step)))
   const median: QuantileEstimate = {
     estimate: curveQuantile(eventSteps, step => step.survival, 0.5, lastTime),
-    // The lower curve reaches 0.5 first, so it gives the lower limit.
-    lower: curveQuantile(eventSteps, step => step.lower, 0.5, lastTime),
-    upper: curveQuantile(eventSteps, step => step.upper, 0.5, lastTime),
+    lower,
+    upper,
+    lowerNotEstimable: lower === null && undefinedCurve(step => step.lower),
+    upperNotEstimable: upper === null && undefinedCurve(step => step.upper),
   }
   return {
     subjects: subjects.length,
@@ -162,7 +175,11 @@ export interface LogRankGroup {
 }
 
 export interface LogRankResult {
-  groups: { label: string; subjects: number; observed: number; expected: number; variance: number }[]
+  /** `compared`: the group has a positive variance and enters the test. A
+   * group without patients at risk at any endpoint time beside patients of
+   * other groups has variance 0 and is left out (df counts the compared
+   * groups less one), as in R `survdiff`. */
+  groups: { label: string; subjects: number; observed: number; expected: number; variance: number; compared: boolean }[]
   /** Null when fewer than two groups contribute expected events. */
   chiSquare: number | null
   df: number
@@ -203,7 +220,7 @@ export function logRankTest(groups: readonly LogRankGroup[]): LogRankResult {
   }
   const kept = groups.map((_, g) => g).filter(g => variance[g][g] > 1e-12)
   const used = kept.slice(0, -1)
-  const summary = groups.map((group, g) => ({ label: group.label, subjects: group.subjects.length, observed: observed[g], expected: expected[g], variance: variance[g][g] }))
+  const summary = groups.map((group, g) => ({ label: group.label, subjects: group.subjects.length, observed: observed[g], expected: expected[g], variance: variance[g][g], compared: kept.includes(g) }))
   if (used.length === 0) return { groups: summary, chiSquare: null, df: 0, pValue: null }
   const u = used.map(g => observed[g] - expected[g])
   const v = used.map(g => used.map(h => variance[g][h]))
