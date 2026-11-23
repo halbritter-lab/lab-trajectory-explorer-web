@@ -170,7 +170,7 @@ Since 2026-11-21 (owner decision) five further columns follow
 | `last_eligible_value` | Measured value of the row dated `last_eligible_date`. | as above |
 | `sex` | The patient's resolved sex as the analysis uses it (`m`, `w` or `d`; see [demographics](demographics.md#demographics-resolution)). | no sex could be resolved |
 | `baseline_age` | The patient's resolved age in completed years at the earliest dated row of any parameter: the value of the `demographics` sheet. It is not the age at `index_date`. | no age is available |
-| `group` | Value of the attribute the Trajectories table was grouped by. A patient whose value is missing, empty or only whitespace has the text `Not recorded`, the label of that section of the table; an attribute value of the same text cannot be told apart from it. | the table was not grouped |
+| `group` | Value of the attribute the Trajectories table was grouped by. A patient whose value is missing, empty or only whitespace has the text `Not recorded`, the label of that section of the table; an attribute value of the same text cannot be told apart from it. When grouped, rows follow the sections of the table: sections ordered by the raw attribute value (numeric-aware comparison, so `Site 2` before `Site 10`), the `Not recorded` section last, and the current patient sort within each section. The order does not depend on the interface language (since 2026-11-23; before, sex sections followed their shown, translated label). | the table was not grouped |
 
 The two values come from the same row set as the two dates: exact, finite,
 dated rows before the first kidney transplant or chronic dialysis and outside
